@@ -14,8 +14,23 @@ import {
   FindDeploymentSettingV2QuerySchema,
   UpdateDeploymentSettingRequestSchema
 } from "@src/deployment/http-schemas/deployment-setting.schema";
+import { RECORD_UNFILED_DESCRIPTION } from "@src/deployment/routes/team-deployment-error-descriptions";
 
 export const deploymentSettingRouter = new OpenApiHonoHandler();
+
+const MessageErrorSchema = z.object({
+  message: z.string()
+});
+
+const RECORD_UNFILED_RESPONSE = {
+  description: RECORD_UNFILED_DESCRIPTION,
+  content: { "application/json": { schema: MessageErrorSchema } }
+};
+
+const UPDATE_CONFLICT_RESPONSE = {
+  description: `Runtime limit changed concurrently. ${RECORD_UNFILED_DESCRIPTION}`,
+  content: { "application/json": { schema: MessageErrorSchema } }
+};
 
 const getRoute = createRoute({
   method: "get",
@@ -77,7 +92,8 @@ const postRoute = createRoute({
           schema: DeploymentSettingResponseSchema
         }
       }
-    }
+    },
+    409: RECORD_UNFILED_RESPONSE
   }
 });
 deploymentSettingRouter.openapi(postRoute, async function routeCreateDeploymentSettings(c) {
@@ -131,16 +147,7 @@ const patchRoute = createRoute({
         }
       }
     },
-    409: {
-      description: "Runtime limit changed concurrently",
-      content: {
-        "application/json": {
-          schema: z.object({
-            message: z.string()
-          })
-        }
-      }
-    }
+    409: UPDATE_CONFLICT_RESPONSE
   }
 });
 deploymentSettingRouter.openapi(patchRoute, async function routeUpdateDeploymentSettings(c) {
@@ -210,7 +217,8 @@ const postRouteV2 = createRoute({
           schema: DeploymentSettingResponseSchema
         }
       }
-    }
+    },
+    409: RECORD_UNFILED_RESPONSE
   }
 });
 deploymentSettingRouter.openapi(postRouteV2, async function routeCreateDeploymentSettingsV2(c) {
@@ -266,16 +274,7 @@ const patchRouteV2 = createRoute({
         }
       }
     },
-    409: {
-      description: "Runtime limit changed concurrently",
-      content: {
-        "application/json": {
-          schema: z.object({
-            message: z.string()
-          })
-        }
-      }
-    }
+    409: UPDATE_CONFLICT_RESPONSE
   }
 });
 deploymentSettingRouter.openapi(patchRouteV2, async function routeUpdateDeploymentSettingsV2(c) {

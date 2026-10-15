@@ -28,9 +28,9 @@ const listOrganizationsRoute = createRoute({
       description: "The caller's organizations, or only the API key's organization",
       content: { "application/json": { schema: ListOrganizationsResponseSchema } }
     },
-    400: { description: "The organization header names another organization than the API key's" },
+    400: { description: "The organization header names another organization than the API key's (`organization_mismatch`)" },
     401: { description: "Unauthorized" },
-    403: { description: "The organization or project header names one the caller cannot reach" }
+    403: { description: "The organization (`organization_forbidden`) or project (`project_forbidden`) header names one the caller cannot reach" }
   }
 });
 
@@ -54,9 +54,10 @@ const createOrganizationRoute = createRoute({
     400: { description: "The name is empty, too long or holds a control character" },
     401: { description: "Unauthorized" },
     403: {
-      description: "The caller has reached their organization limit (`organization_limit_reached`), or the request was not made from a signed-in session"
+      description:
+        "The caller has reached their organization limit (`organization_limit_reached`), or the request was not made from a signed-in session (`session_required`)"
     },
-    409: { description: "The caller already belongs to an organization with this name" }
+    409: { description: "The caller already belongs to an organization with this name (`organization_name_taken`)" }
   }
 });
 
@@ -82,9 +83,9 @@ const updateOrganizationRoute = createRoute({
     200: { description: "The renamed organization", content: { "application/json": { schema: OrganizationResponseSchema } } },
     400: { description: "The name is empty, too long or holds a control character" },
     401: { description: "Unauthorized" },
-    403: { description: "The caller cannot rename the organization, or it is a personal one" },
+    403: { description: "The caller cannot rename the organization, or it is a personal one (`personal_organization`)" },
     404: { description: "The organization is not the active one" },
-    409: { description: "The caller already belongs to another organization with this name" }
+    409: { description: "The caller already belongs to another organization with this name (`organization_name_taken`)" }
   }
 });
 

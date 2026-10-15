@@ -48,7 +48,8 @@ const updateBillingDetailsRoute = createRoute({
     400: { description: "A field is missing or malformed, or the tax ID is not valid for its type" },
     401: { description: "Unauthorized" },
     403: { description: "The caller cannot manage the billing of this organization" },
-    404: { description: "Invoices are not enabled for the caller" }
+    404: { description: "Invoices are not enabled for the caller" },
+    409: { description: "Another request is still setting up the team's payments (`organization_payments_setup_in_progress`). Worth retrying" }
   }
 });
 

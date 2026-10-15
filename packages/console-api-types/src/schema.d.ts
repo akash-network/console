@@ -18,7 +18,12 @@ export interface paths {
           /** @description The ID of the user to get the wallets for */
           userId: string;
         };
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -104,7 +109,12 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -144,6 +154,27 @@ export interface paths {
               };
             };
           };
+        };
+        /** @description A new deployment needs a project (`project_required`), a message type cannot be signed in an organization (`unsupported_message`), a deposit names no deployment or a fractional amount (`invalid_deposit`), or a deposit's denomination cannot be counted against a project budget (`unsupported_deposit_denom`) */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description A deployment is filed in a project the caller cannot change, or a caller limited to some projects creates a certificate (`project_forbidden`), a deposit would take its project past its monthly budget (`project_budget_exceeded`), or a message acts for another account than the organization's wallet (`message_signer_mismatch`) */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description A deposit could not be priced against its project's budget (`deposit_price_unavailable`). Transient and worth retrying */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
       };
     };
@@ -695,7 +726,12 @@ export interface paths {
     get: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -800,7 +836,12 @@ export interface paths {
     put: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -901,7 +942,12 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -942,7 +988,12 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -1050,7 +1101,12 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -1112,7 +1168,12 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -1205,7 +1266,12 @@ export interface paths {
     delete: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path: {
           id: string;
         };
@@ -1252,7 +1318,12 @@ export interface paths {
     get: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -1295,7 +1366,12 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path: {
           templateId: string;
         };
@@ -1346,7 +1422,12 @@ export interface paths {
     delete: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path: {
           templateId: string;
         };
@@ -1488,7 +1569,12 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -1605,7 +1691,12 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -1739,7 +1830,12 @@ export interface paths {
     get: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path: {
           userId: string;
           dseq: string;
@@ -1802,7 +1898,12 @@ export interface paths {
     patch: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path: {
           userId: string;
           dseq: string;
@@ -1887,7 +1988,7 @@ export interface paths {
             };
           };
         };
-        /** @description Runtime limit changed concurrently */
+        /** @description Runtime limit changed concurrently. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization */
         409: {
           headers: {
             [name: string]: unknown;
@@ -1915,7 +2016,12 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -1967,6 +2073,17 @@ export interface paths {
             };
           };
         };
+        /** @description With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              message: string;
+            };
+          };
+        };
       };
     };
     delete?: never;
@@ -2006,7 +2123,12 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -2055,6 +2177,17 @@ export interface paths {
                 /** Format: date-time */
                 updatedAt: string;
               };
+            };
+          };
+        };
+        /** @description With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              message: string;
             };
           };
         };
@@ -2778,7 +2911,12 @@ export interface paths {
     get: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -3012,7 +3150,12 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -3068,6 +3211,13 @@ export interface paths {
             };
           };
         };
+        /** @description No project with this `projectId` in the caller's reach */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
       };
     };
     delete?: never;
@@ -3087,7 +3237,12 @@ export interface paths {
     get: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path: {
           id: string;
         };
@@ -3148,7 +3303,12 @@ export interface paths {
     delete: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path: {
           id: string;
         };
@@ -3182,7 +3342,12 @@ export interface paths {
     patch: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path: {
           id: string;
         };
@@ -3275,7 +3440,12 @@ export interface paths {
     get: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path: {
           dseq: string;
         };
@@ -3409,7 +3579,12 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -4854,7 +5029,12 @@ export interface paths {
     post: {
       parameters: {
         query?: never;
-        header?: never;
+        header?: {
+          /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+          "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+          /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+          "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+        };
         path?: never;
         cookie?: never;
       };
@@ -4883,6 +5063,13 @@ export interface paths {
               };
             };
           };
+        };
+        /** @description With `code` `project_forbidden`, the caller is limited to some projects and the token does not name its deployments one by one, or names one filed in a project the caller cannot view, or cannot change when the token does more than read */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
       };
     };
@@ -8080,7 +8267,12 @@ export interface components {
     };
   };
   responses: never;
-  parameters: never;
+  parameters: {
+    /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+    OrganizationIdHeader: string;
+    /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+    ProjectIdHeader: string;
+  };
   requestBodies: never;
   headers: never;
   pathItems: never;
@@ -8090,7 +8282,12 @@ export interface operations {
   getWalletSettings: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8132,7 +8329,12 @@ export interface operations {
   updateWalletSettings: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8191,7 +8393,12 @@ export interface operations {
   createWalletSettings: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8250,7 +8457,12 @@ export interface operations {
   deleteWalletSettings: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8275,7 +8487,12 @@ export interface operations {
   listStripePrices: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8301,7 +8518,12 @@ export interface operations {
   applyStripeCoupon: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8346,12 +8568,24 @@ export interface operations {
           };
         };
       };
+      /** @description Another request is still setting up the team's payments (`organization_payments_setup_in_progress`). Worth retrying */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   createSetupIntent: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8370,12 +8604,24 @@ export interface operations {
           };
         };
       };
+      /** @description Another request is still setting up the team's payments (`organization_payments_setup_in_progress`). Worth retrying */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   getDefaultPaymentMethod: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8437,7 +8683,12 @@ export interface operations {
   setDefaultPaymentMethod: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8463,7 +8714,12 @@ export interface operations {
   listPaymentMethods: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8518,7 +8774,12 @@ export interface operations {
   deletePaymentMethod: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         paymentMethodId: string;
       };
@@ -8538,7 +8799,12 @@ export interface operations {
   validatePaymentMethod: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8569,7 +8835,12 @@ export interface operations {
   confirmStripeTransaction: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8636,7 +8907,12 @@ export interface operations {
         startDate?: string;
         endDate?: string;
       };
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8686,7 +8962,12 @@ export interface operations {
         startDate: string;
         endDate: string;
       };
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8706,7 +8987,12 @@ export interface operations {
   createStripeTransactionInvoice: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -8755,7 +9041,12 @@ export interface operations {
   getBillingDetails: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8817,7 +9108,12 @@ export interface operations {
   updateBillingDetails: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8924,12 +9220,24 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description Another request is still setting up the team's payments (`organization_payments_setup_in_progress`). Worth retrying */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   getFirstPurchaseBonus: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8953,7 +9261,12 @@ export interface operations {
   acceptFairUsePolicy: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -8978,7 +9291,12 @@ export interface operations {
   createAccountDeletionRequest: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -9013,7 +9331,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Requested with an API key instead of a signed-in session */
+      /** @description Requested with an API key instead of a signed-in session (`session_required`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -9027,7 +9345,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The account has active deployments */
+      /** @description The account has active deployments, or is the last owner of a team (`last_owner`) */
       409: {
         headers: {
           [name: string]: unknown;
@@ -9081,7 +9399,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The account has active deployments or credits nobody agreed to forfeit */
+      /** @description The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team (`last_owner`) */
       409: {
         headers: {
           [name: string]: unknown;
@@ -9158,7 +9476,12 @@ export interface operations {
       query?: {
         userId?: string;
       };
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         dseq: string;
       };
@@ -9216,7 +9539,12 @@ export interface operations {
       query?: {
         userId?: string;
       };
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         dseq: string;
       };
@@ -9300,7 +9628,7 @@ export interface operations {
           };
         };
       };
-      /** @description Runtime limit changed concurrently */
+      /** @description Runtime limit changed concurrently. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization */
       409: {
         headers: {
           [name: string]: unknown;
@@ -9316,7 +9644,12 @@ export interface operations {
   getDeployment: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         /** @description Deployment sequence number */
         dseq: string;
@@ -9486,7 +9819,12 @@ export interface operations {
   updateDeployment: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         /** @description Deployment sequence number */
         dseq: string;
@@ -9668,7 +10006,7 @@ export interface operations {
           };
         };
       };
-      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted */
+      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted. With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change */
       403: {
         headers: {
           [name: string]: unknown;
@@ -9682,7 +10020,7 @@ export interface operations {
           };
         };
       };
-      /** @description The `sealedSecrets` value was sealed to a key the console no longer holds. Refetch `GET /v1/sdl-secrets-context` and seal again */
+      /** @description The `sealedSecrets` value was sealed to a key the console no longer holds. Refetch `GET /v1/sdl-secrets-context` and seal again. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization */
       409: {
         headers: {
           [name: string]: unknown;
@@ -9732,7 +10070,12 @@ export interface operations {
         async?: "true" | "false";
         batchId?: string;
       };
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         /** @description Deployment sequence number */
         dseq: string;
@@ -9771,12 +10114,31 @@ export interface operations {
           };
         };
       };
+      /** @description With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
     };
   };
   patchDeployment: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         /** @description Deployment sequence number */
         dseq: string;
@@ -10008,7 +10370,7 @@ export interface operations {
           };
         };
       };
-      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one the console stores for this deployment, as a seal made before an earlier patch of it was recorded is */
+      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one the console stores for this deployment, as a seal made before an earlier patch of it was recorded is. With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change */
       403: {
         headers: {
           [name: string]: unknown;
@@ -10036,7 +10398,7 @@ export interface operations {
           };
         };
       };
-      /** @description The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. `code` is `deployment_definition_changed` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures */
+      /** @description The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. `code` is `deployment_definition_changed` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values */
       409: {
         headers: {
           [name: string]: unknown;
@@ -10099,7 +10461,12 @@ export interface operations {
       query: {
         dseq: string[];
       };
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -10145,7 +10512,12 @@ export interface operations {
         limit?: number;
         projectId?: string;
       };
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -10405,7 +10777,12 @@ export interface operations {
   createDeployment: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -10470,7 +10847,7 @@ export interface operations {
           };
         };
       };
-      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted */
+      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted. With `code` `project_budget_exceeded`, the deposit would take the project past its monthly budget */
       403: {
         headers: {
           [name: string]: unknown;
@@ -10531,7 +10908,12 @@ export interface operations {
   depositDeployment: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -10695,12 +11077,59 @@ export interface operations {
           };
         };
       };
+      /** @description With `code` `unsupported_deposit_denom`, the deposit is in a denomination a project budget cannot count */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change. With `code` `project_budget_exceeded`, the deposit would take a project that stops top-ups past its monthly budget */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
+      /** @description With `code` `deposit_price_unavailable`, the deposit could not be priced against its project's budget. Transient and worth retrying */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+          };
+        };
+      };
     };
   };
   createDeploymentDefinition: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         /** @description Deployment sequence number */
         dseq: string;
@@ -10749,7 +11178,7 @@ export interface operations {
           };
         };
       };
-      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted */
+      /** @description The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted. With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change */
       403: {
         headers: {
           [name: string]: unknown;
@@ -10777,7 +11206,7 @@ export interface operations {
           };
         };
       };
-      /** @description With `code` `deployment_definition_exists`, the console already holds a definition for this deployment, which this route never replaces: patch it instead. Without a code, the `sealedSecrets` value was sealed to a key the console no longer holds, so refetch `GET /v1/sdl-secrets-context` and seal again */
+      /** @description With `code` `deployment_definition_exists`, the console already holds a definition for this deployment, which this route never replaces: patch it instead. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. Without a code, the `sealedSecrets` value was sealed to a key the console no longer holds, so refetch `GET /v1/sdl-secrets-context` and seal again */
       409: {
         headers: {
           [name: string]: unknown;
@@ -10824,7 +11253,12 @@ export interface operations {
   getSpendRate: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -10884,7 +11318,12 @@ export interface operations {
   updateDeploymentProject: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         /** @description Deployment sequence number */
         dseq: string;
@@ -10950,7 +11389,12 @@ export interface operations {
   getDeploymentLocation: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         /** @description Deployment sequence number */
         dseq: string;
@@ -10995,7 +11439,12 @@ export interface operations {
   getSDLSecretsContext: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -11043,7 +11492,12 @@ export interface operations {
   createLease: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -11212,6 +11666,40 @@ export interface operations {
           };
         };
       };
+      /** @description With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+            data?: {
+              [key: string]: unknown;
+            };
+          };
+        };
+      };
+      /** @description With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+            data?: {
+              [key: string]: unknown;
+            };
+          };
+        };
+      };
       /** @description A provider could not be reached. With code `provider_unreachable` no lease was created, so choose another bid. With code `manifest_not_delivered` the lease exists, as described above. */
       502: {
         headers: {
@@ -11234,7 +11722,12 @@ export interface operations {
   listApiKeys: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -11281,7 +11774,12 @@ export interface operations {
       query: {
         dseq: string;
       };
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -11875,7 +12373,12 @@ export interface operations {
   validateConfidentialComputeAttestation: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -12006,7 +12509,12 @@ export interface operations {
   createHardwareRequest: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -12142,7 +12650,12 @@ export interface operations {
         status?: "pending" | "succeeded" | "failed";
         type?: "deployment_close";
       };
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -12235,7 +12748,12 @@ export interface operations {
   getActivity: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -12325,7 +12843,12 @@ export interface operations {
   markActivitiesSeen: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -12381,7 +12904,12 @@ export interface operations {
   listFavoriteProviders: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -12413,7 +12941,12 @@ export interface operations {
   createFavoriteProviders: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -12468,7 +13001,12 @@ export interface operations {
   deleteFavoriteProvider: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         providerAddress: string;
       };
@@ -12509,7 +13047,12 @@ export interface operations {
   getConfigureDraft: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         draftId: string;
       };
@@ -12570,7 +13113,12 @@ export interface operations {
   updateConfigureDraft: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         draftId: string;
       };
@@ -12643,7 +13191,12 @@ export interface operations {
   deleteConfigureDraft: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         draftId: string;
       };
@@ -12677,7 +13230,12 @@ export interface operations {
   listOrganizations: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -12710,7 +13268,7 @@ export interface operations {
           };
         };
       };
-      /** @description The organization header names another organization than the API key's */
+      /** @description The organization header names another organization than the API key's (`organization_mismatch`) */
       400: {
         headers: {
           [name: string]: unknown;
@@ -12724,7 +13282,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The organization or project header names one the caller cannot reach */
+      /** @description The organization (`organization_forbidden`) or project (`project_forbidden`) header names one the caller cannot reach */
       403: {
         headers: {
           [name: string]: unknown;
@@ -12736,7 +13294,12 @@ export interface operations {
   createOrganization: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -12792,14 +13355,14 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller has reached their organization limit (`organization_limit_reached`), or the request was not made from a signed-in session */
+      /** @description The caller has reached their organization limit (`organization_limit_reached`), or the request was not made from a signed-in session (`session_required`) */
       403: {
         headers: {
           [name: string]: unknown;
         };
         content?: never;
       };
-      /** @description The caller already belongs to an organization with this name */
+      /** @description The caller already belongs to an organization with this name (`organization_name_taken`) */
       409: {
         headers: {
           [name: string]: unknown;
@@ -12811,7 +13374,12 @@ export interface operations {
   updateOrganization: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -12869,7 +13437,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller cannot rename the organization, or it is a personal one */
+      /** @description The caller cannot rename the organization, or it is a personal one (`personal_organization`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -12883,7 +13451,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller already belongs to another organization with this name */
+      /** @description The caller already belongs to another organization with this name (`organization_name_taken`) */
       409: {
         headers: {
           [name: string]: unknown;
@@ -12895,7 +13463,12 @@ export interface operations {
   listProjects: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -12939,7 +13512,12 @@ export interface operations {
   createProject: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -13017,7 +13595,12 @@ export interface operations {
   getProject: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -13070,7 +13653,12 @@ export interface operations {
   deleteProject: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -13118,7 +13706,12 @@ export interface operations {
   updateProject: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -13209,7 +13802,12 @@ export interface operations {
         limit?: number;
         cursor?: string;
       };
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -13279,7 +13877,12 @@ export interface operations {
   listOrganizationMembers: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -13307,7 +13910,7 @@ export interface operations {
           };
         };
       };
-      /** @description The organization header names another organization than the API key's */
+      /** @description The organization header names another organization than the API key's (`organization_mismatch`) */
       400: {
         headers: {
           [name: string]: unknown;
@@ -13333,7 +13936,12 @@ export interface operations {
   deleteOrganizationMember: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -13348,7 +13956,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The request is invalid, or the organization header names another organization than the API key's */
+      /** @description The request is invalid, or the organization header names another organization than the API key's (`organization_mismatch`) */
       400: {
         headers: {
           [name: string]: unknown;
@@ -13362,7 +13970,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller cannot change this member, or the active organization is a personal one */
+      /** @description The caller cannot change this member, the change touches the owner role and the caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -13376,7 +13984,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The organization would be left without an owner */
+      /** @description The organization would be left without an owner (`last_owner`) */
       409: {
         headers: {
           [name: string]: unknown;
@@ -13388,7 +13996,12 @@ export interface operations {
   updateOrganizationMember: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -13427,7 +14040,7 @@ export interface operations {
           };
         };
       };
-      /** @description The request is invalid, or the organization header names another organization than the API key's */
+      /** @description The request is invalid, or the organization header names another organization than the API key's (`organization_mismatch`) */
       400: {
         headers: {
           [name: string]: unknown;
@@ -13441,7 +14054,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller cannot change this member, or the active organization is a personal one */
+      /** @description The caller cannot change this member, the change touches the owner role and the caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -13455,7 +14068,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The organization would be left without an owner */
+      /** @description The organization would be left without an owner (`last_owner`) */
       409: {
         headers: {
           [name: string]: unknown;
@@ -13467,7 +14080,12 @@ export interface operations {
   transferOrganizationOwnership: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -13497,7 +14115,7 @@ export interface operations {
           };
         };
       };
-      /** @description The request is invalid, the member is the caller, or the organization header names another organization than the API key's */
+      /** @description The request is invalid, the member is the caller, or the organization header names another organization than the API key's (`organization_mismatch`) */
       400: {
         headers: {
           [name: string]: unknown;
@@ -13511,7 +14129,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller cannot change this member, or the active organization is a personal one */
+      /** @description The caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -13525,19 +14143,17 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The organization would be left without an owner */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
     };
   };
   listOrganizationInvitations: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -13594,7 +14210,12 @@ export interface operations {
   createOrganizationInvitations: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -13662,21 +14283,21 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller cannot invite with this role, the active organization is a personal one, or it has too many pending invitations */
+      /** @description The caller cannot invite with this role (`owner_role_restricted`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`) */
       403: {
         headers: {
           [name: string]: unknown;
         };
         content?: never;
       };
-      /** @description An address belongs to a member of the organization */
+      /** @description An address belongs to a member of the organization (`already_member`) */
       409: {
         headers: {
           [name: string]: unknown;
         };
         content?: never;
       };
-      /** @description Too many invitation emails were sent recently */
+      /** @description Too many invitation emails were sent recently (`invitation_email_limit_reached`) */
       429: {
         headers: {
           [name: string]: unknown;
@@ -13688,7 +14309,12 @@ export interface operations {
   resendOrganizationInvitation: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -13735,7 +14361,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller cannot manage this invitation, or the active organization is a personal one */
+      /** @description The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -13749,7 +14375,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Too many invitation emails were sent recently */
+      /** @description Too many invitation emails were sent recently (`invitation_email_limit_reached`) */
       429: {
         headers: {
           [name: string]: unknown;
@@ -13761,7 +14387,12 @@ export interface operations {
   createOrganizationInvitationLink: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -13790,7 +14421,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller cannot manage this invitation, or the active organization is a personal one */
+      /** @description The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -13809,7 +14440,12 @@ export interface operations {
   deleteOrganizationInvitation: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -13831,7 +14467,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller cannot manage this invitation, or the active organization is a personal one */
+      /** @description The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -13906,7 +14542,12 @@ export interface operations {
   acceptInvitation: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -13964,7 +14605,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Requested with an API key instead of a signed-in session */
+      /** @description Requested with an API key instead of a signed-in session (`session_required`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -13978,14 +14619,14 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The invitation was sent to an address the caller has not verified and they did not confirm, someone else already accepted it, or the caller already belongs to the organization and was not the verified invitee */
+      /** @description The invitation was sent to an address the caller has not verified and they did not confirm (`invitation_email_mismatch`), someone else already accepted it (`invitation_already_accepted`), or the caller already belongs to the organization and was not the verified invitee (`already_member`) */
       409: {
         headers: {
           [name: string]: unknown;
         };
         content?: never;
       };
-      /** @description The invitation expired or was revoked */
+      /** @description The invitation expired (`invitation_expired`) or was revoked (`invitation_revoked`) */
       410: {
         headers: {
           [name: string]: unknown;
@@ -13997,7 +14638,12 @@ export interface operations {
   listProjectMembers: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -14062,7 +14708,12 @@ export interface operations {
   createProjectMember: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -14157,7 +14808,12 @@ export interface operations {
   deleteProjectMember: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -14198,7 +14854,12 @@ export interface operations {
   updateProjectMember: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -14284,7 +14945,12 @@ export interface operations {
         startDate?: string;
         endDate?: string;
       };
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -14358,7 +15024,12 @@ export interface operations {
       query?: {
         projectId?: string;
       };
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -14405,7 +15076,12 @@ export interface operations {
   createProjectBudget: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path?: never;
       cookie?: never;
     };
@@ -14495,7 +15171,12 @@ export interface operations {
   deleteProjectBudget: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -14536,7 +15217,12 @@ export interface operations {
   updateProjectBudget: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
       path: {
         id: string;
       };
@@ -14630,6 +15316,10 @@ export interface operations {
       };
       header?: {
         Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
       };
       path?: never;
       cookie?: never;
@@ -14688,6 +15378,10 @@ export interface operations {
       query?: never;
       header?: {
         Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
       };
       path?: never;
       cookie?: never;
@@ -14750,6 +15444,10 @@ export interface operations {
       query?: never;
       header?: {
         Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
       };
       path: {
         id: string;
@@ -14810,6 +15508,10 @@ export interface operations {
       query?: never;
       header?: {
         Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
       };
       path: {
         id: string;
@@ -14870,6 +15572,10 @@ export interface operations {
       query?: never;
       header?: {
         Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
       };
       path: {
         id: string;
@@ -14939,6 +15645,10 @@ export interface operations {
       };
       header?: {
         Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
       };
       path?: never;
       cookie?: never;
@@ -14997,6 +15707,10 @@ export interface operations {
       query?: never;
       header?: {
         Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
       };
       path?: never;
       cookie?: never;
@@ -15059,6 +15773,10 @@ export interface operations {
       query?: never;
       header?: {
         Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
       };
       path?: never;
       cookie?: never;
@@ -15119,6 +15837,10 @@ export interface operations {
       query?: never;
       header?: {
         Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
       };
       path: {
         id: string;
@@ -15188,6 +15910,10 @@ export interface operations {
       query?: never;
       header?: {
         Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
       };
       path: {
         id: string;
@@ -15257,6 +15983,10 @@ export interface operations {
       query?: never;
       header?: {
         Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
       };
       path: {
         id: string;
@@ -15330,6 +16060,10 @@ export interface operations {
       query?: never;
       header?: {
         Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
       };
       path: {
         dseq: string;
@@ -15392,6 +16126,10 @@ export interface operations {
         /** @description The address of the user who owns the deployment */
         "x-owner-address"?: string;
         Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
       };
       path: {
         dseq: string;

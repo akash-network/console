@@ -14,12 +14,19 @@ import {
 
 export const organizationMembersRouter = new OpenApiHonoHandler();
 
-const memberWriteErrorResponses = {
-  400: { description: "The request is invalid, or the organization header names another organization than the API key's" },
+const memberChangeErrorResponses = {
+  400: { description: "The request is invalid, or the organization header names another organization than the API key's (`organization_mismatch`)" },
   401: { description: "Unauthorized" },
-  403: { description: "The caller cannot change this member, or the active organization is a personal one" },
-  404: { description: "No such member in the active organization" },
-  409: { description: "The organization would be left without an owner" }
+  403: {
+    description:
+      "The caller cannot change this member, the change touches the owner role and the caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
+  },
+  404: { description: "No such member in the active organization" }
+};
+
+const memberWriteErrorResponses = {
+  ...memberChangeErrorResponses,
+  409: { description: "The organization would be left without an owner (`last_owner`)" }
 };
 
 const listOrganizationMembersRoute = createRoute({
@@ -32,7 +39,7 @@ const listOrganizationMembersRoute = createRoute({
   featureFlag: FeatureFlags.ORGANIZATIONS,
   responses: {
     200: { description: "The organization's members", content: { "application/json": { schema: ListOrganizationMembersResponseSchema } } },
-    400: { description: "The organization header names another organization than the API key's" },
+    400: { description: "The organization header names another organization than the API key's (`organization_mismatch`)" },
     401: { description: "Unauthorized" },
     403: { description: "The caller cannot see the organization's members" }
   }
@@ -104,8 +111,12 @@ const transferOrganizationOwnershipRoute = createRoute({
   },
   responses: {
     200: { description: "The member who received ownership", content: { "application/json": { schema: OrganizationMemberResponseSchema } } },
-    ...memberWriteErrorResponses,
-    400: { description: "The request is invalid, the member is the caller, or the organization header names another organization than the API key's" }
+    ...memberChangeErrorResponses,
+    400: {
+      description:
+        "The request is invalid, the member is the caller, or the organization header names another organization than the API key's (`organization_mismatch`)"
+    },
+    403: { description: "The caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)" }
   }
 });
 

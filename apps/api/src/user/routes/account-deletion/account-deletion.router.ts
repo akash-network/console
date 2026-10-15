@@ -25,9 +25,9 @@ const initiateRoute = createRoute({
     204: { description: "Confirmation link sent" },
     400: { description: "The account has credits and the forfeit was not acknowledged" },
     401: { description: "Unauthorized" },
-    403: { description: "Requested with an API key instead of a signed-in session" },
+    403: { description: "Requested with an API key instead of a signed-in session (`session_required`)" },
     404: { description: "Account deletion is not available" },
-    409: { description: "The account has active deployments" },
+    409: { description: "The account has active deployments, or is the last owner of a team (`last_owner`)" },
     429: { description: "A link was sent less than a minute ago" }
   }
 });
@@ -56,7 +56,7 @@ const confirmRoute = createRoute({
     204: { description: "Account deleted" },
     400: { description: "The link is invalid or expired" },
     404: { description: "Account deletion is not available" },
-    409: { description: "The account has active deployments or credits nobody agreed to forfeit" }
+    409: { description: "The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team (`last_owner`)" }
   }
 });
 

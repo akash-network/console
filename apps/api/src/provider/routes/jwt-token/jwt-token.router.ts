@@ -38,6 +38,10 @@ providerJwtTokenRouter.openapi(
             })
           }
         }
+      },
+      403: {
+        description:
+          "With `code` `project_forbidden`, the caller is limited to some projects and the token does not name its deployments one by one, or names one filed in a project the caller cannot view, or cannot change when the token does more than read"
       }
     }
   }),

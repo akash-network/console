@@ -33,7 +33,8 @@ const applyCouponRoute = createRoute({
           schema: ApplyCouponResponseSchema
         }
       }
-    }
+    },
+    409: { description: "Another request is still setting up the team's payments (`organization_payments_setup_in_progress`). Worth retrying" }
   }
 });
 stripeCouponsRouter.openapi(applyCouponRoute, async function applyCoupon(c) {

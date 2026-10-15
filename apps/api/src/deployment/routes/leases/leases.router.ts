@@ -8,6 +8,11 @@ import { LeaseController } from "@src/deployment/controllers/lease/lease.control
 import { CreateLeaseResponseSchema } from "@src/deployment/http-schemas/deployment.schema";
 import { CreateLeaseRequestSchema } from "@src/deployment/http-schemas/lease.schema";
 import { FallbackLeaseListQuerySchema, FallbackLeaseListResponseSchema } from "@src/deployment/http-schemas/lease-rpc.schema";
+import {
+  PROJECT_FORBIDDEN_DESCRIPTION,
+  RECORD_UNFILED_DESCRIPTION,
+  SECRETS_SEALED_FOR_DEPARTED_MEMBER_DESCRIPTION
+} from "@src/deployment/routes/team-deployment-error-descriptions";
 
 export const leasesRouter = new OpenApiHonoHandler();
 
@@ -43,6 +48,22 @@ const createLeaseRoute = createRoute({
       content: {
         "application/json": {
           schema: CreateLeaseResponseSchema
+        }
+      }
+    },
+    403: {
+      description: PROJECT_FORBIDDEN_DESCRIPTION,
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    409: {
+      description: `${RECORD_UNFILED_DESCRIPTION}. ${SECRETS_SEALED_FOR_DEPARTED_MEMBER_DESCRIPTION}`,
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
         }
       }
     },

@@ -35,6 +35,12 @@
             "description": "The ID of the user to get the wallets for",
             "name": "userId",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -182,7 +188,15 @@
           "404": {
             "description": "UserWallet Not Found"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "post": {
         "summary": "Create wallet settings",
@@ -299,7 +313,15 @@
           "404": {
             "description": "UserWallet Not Found"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "put": {
         "summary": "Update wallet settings",
@@ -416,7 +438,15 @@
           "404": {
             "description": "UserWallet Not Found"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "delete": {
         "summary": "Delete wallet settings",
@@ -440,7 +470,15 @@
           "404": {
             "description": "UserWallet Not Found"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/tx": {
@@ -545,8 +583,25 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "A new deployment needs a project (`project_required`), a message type cannot be signed in an organization (`unsupported_message`), a deposit names no deployment or a fractional amount (`invalid_deposit`), or a deposit's denomination cannot be counted against a project budget (`unsupported_deposit_denom`)"
+          },
+          "403": {
+            "description": "A deployment is filed in a project the caller cannot change, or a caller limited to some projects creates a certificate (`project_forbidden`), a deposit would take its project past its monthly budget (`project_budget_exceeded`), or a message acts for another account than the organization's wallet (`message_signer_mismatch`)"
+          },
+          "503": {
+            "description": "A deposit could not be priced against its project's budget (`deposit_price_unavailable`). Transient and worth retrying"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe-webhook": {
@@ -645,7 +700,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/coupons/apply": {
@@ -782,8 +845,19 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Another request is still setting up the team's payments (`organization_payments_setup_in_progress`). Worth retrying"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/payment-methods/setup": {
@@ -829,8 +903,19 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Another request is still setting up the team's payments (`organization_payments_setup_in_progress`). Worth retrying"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/payment-methods/default": {
@@ -877,7 +962,15 @@
           "200": {
             "description": "Payment method is marked as the default successfully."
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "get": {
         "operationId": "getDefaultPaymentMethod",
@@ -1047,7 +1140,15 @@
           "404": {
             "description": "Default payment method not found"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/payment-methods": {
@@ -1219,7 +1320,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/payment-methods/{paymentMethodId}": {
@@ -1248,6 +1357,12 @@
             "required": true,
             "name": "paymentMethodId",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -1321,7 +1436,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/transactions/confirm": {
@@ -1484,7 +1607,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/transactions": {
@@ -1549,6 +1680,12 @@
             "required": false,
             "name": "endDate",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -1721,6 +1858,12 @@
             "required": true,
             "name": "endDate",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -1763,6 +1906,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -1931,7 +2080,15 @@
           "404": {
             "description": "Invoices are not enabled for the caller"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "put": {
         "operationId": "updateBillingDetails",
@@ -2166,8 +2323,19 @@
           },
           "404": {
             "description": "Invoices are not enabled for the caller"
+          },
+          "409": {
+            "description": "Another request is still setting up the team's payments (`organization_payments_setup_in_progress`). Worth retrying"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/first-purchase-bonus": {
@@ -2212,7 +2380,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/usage/history": {
@@ -2646,7 +2822,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/byUsername/{username}": {
@@ -2764,7 +2948,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/checkUsernameAvailability/{username}": {
@@ -2827,7 +3019,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/skipOnboarding": {
@@ -2851,7 +3051,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/acceptFairUsePolicy": {
@@ -2876,7 +3084,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/template/{id}": {
@@ -2986,7 +3202,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/saveTemplateDesc": {
@@ -3032,7 +3256,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/templates/{username}": {
@@ -3085,6 +3317,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -3121,7 +3359,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/addFavoriteTemplate/{templateId}": {
@@ -3147,6 +3393,12 @@
             "required": true,
             "name": "templateId",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -3185,6 +3437,12 @@
             "required": true,
             "name": "templateId",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -3249,18 +3507,26 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "Requested with an API key instead of a signed-in session"
+            "description": "Requested with an API key instead of a signed-in session (`session_required`)"
           },
           "404": {
             "description": "Account deletion is not available"
           },
           "409": {
-            "description": "The account has active deployments"
+            "description": "The account has active deployments, or is the last owner of a team (`last_owner`)"
           },
           "429": {
             "description": "A link was sent less than a minute ago"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/me/confirm-deletion": {
@@ -3310,7 +3576,7 @@
             "description": "Account deletion is not available"
           },
           "409": {
-            "description": "The account has active deployments or credits nobody agreed to forfeit"
+            "description": "The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team (`last_owner`)"
           }
         }
       }
@@ -3431,7 +3697,15 @@
           "429": {
             "description": "Too many requests"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/auth/signup": {
@@ -3532,7 +3806,15 @@
           "429": {
             "description": "Too many attempts"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/verify-email": {
@@ -3688,6 +3970,12 @@
             "required": true,
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -3822,6 +4110,12 @@
             "required": true,
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -3983,7 +4277,7 @@
             }
           },
           "409": {
-            "description": "Runtime limit changed concurrently",
+            "description": "Runtime limit changed concurrently. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
             "content": {
               "application/json": {
                 "schema": {
@@ -4128,8 +4422,34 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v2/deployment-settings/{dseq}": {
@@ -4167,6 +4487,12 @@
             "required": false,
             "name": "userId",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -4302,6 +4628,12 @@
             "required": false,
             "name": "userId",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -4463,7 +4795,7 @@
             }
           },
           "409": {
-            "description": "Runtime limit changed concurrently",
+            "description": "Runtime limit changed concurrently. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
             "content": {
               "application/json": {
                 "schema": {
@@ -4607,8 +4939,34 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/deployments/{dseq}": {
@@ -4637,6 +4995,12 @@
             "description": "Deployment sequence number",
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -5243,6 +5607,12 @@
             "required": false,
             "name": "batchId",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -5299,6 +5669,36 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
           }
         }
       },
@@ -5329,6 +5729,12 @@
             "description": "Deployment sequence number",
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -5926,7 +6332,7 @@
             }
           },
           "403": {
-            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
+            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted. With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change",
             "content": {
               "application/json": {
                 "schema": {
@@ -5956,7 +6362,7 @@
             }
           },
           "409": {
-            "description": "The `sealedSecrets` value was sealed to a key the console no longer holds. Refetch `GET /v1/sdl-secrets-context` and seal again",
+            "description": "The `sealedSecrets` value was sealed to a key the console no longer holds. Refetch `GET /v1/sdl-secrets-context` and seal again. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
             "content": {
               "application/json": {
                 "schema": {
@@ -6073,6 +6479,12 @@
             "description": "Deployment sequence number",
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -6828,7 +7240,7 @@
             }
           },
           "403": {
-            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one the console stores for this deployment, as a seal made before an earlier patch of it was recorded is",
+            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one the console stores for this deployment, as a seal made before an earlier patch of it was recorded is. With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change",
             "content": {
               "application/json": {
                 "schema": {
@@ -6888,7 +7300,7 @@
             }
           },
           "409": {
-            "description": "The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. `code` is `deployment_definition_changed` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures",
+            "description": "The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. `code` is `deployment_definition_changed` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values",
             "content": {
               "application/json": {
                 "schema": {
@@ -7040,6 +7452,12 @@
             "required": true,
             "name": "dseq",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -7256,7 +7674,7 @@
             }
           },
           "403": {
-            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
+            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted. With `code` `project_budget_exceeded`, the deposit would take the project past its monthly budget",
             "content": {
               "application/json": {
                 "schema": {
@@ -7375,7 +7793,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "get": {
         "summary": "List deployments with pagination and filtering",
@@ -7463,6 +7889,12 @@
             "required": false,
             "name": "projectId",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -8926,8 +9358,106 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "With `code` `unsupported_deposit_denom`, the deposit is in a denomination a project budget cannot count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change. With `code` `project_budget_exceeded`, the deposit would take a project that stops top-ups past its monthly budget",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "With `code` `deposit_price_unavailable`, the deposit could not be priced against its project's budget. Transient and worth retrying",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/deployments/{dseq}/definition": {
@@ -8957,6 +9487,12 @@
             "description": "Deployment sequence number",
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -9054,7 +9590,7 @@
             }
           },
           "403": {
-            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
+            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted. With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change",
             "content": {
               "application/json": {
                 "schema": {
@@ -9114,7 +9650,7 @@
             }
           },
           "409": {
-            "description": "With `code` `deployment_definition_exists`, the console already holds a definition for this deployment, which this route never replaces: patch it instead. Without a code, the `sealedSecrets` value was sealed to a key the console no longer holds, so refetch `GET /v1/sdl-secrets-context` and seal again",
+            "description": "With `code` `deployment_definition_exists`, the console already holds a definition for this deployment, which this route never replaces: patch it instead. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. Without a code, the `sealedSecrets` value was sealed to a key the console no longer holds, so refetch `GET /v1/sdl-secrets-context` and seal again",
             "content": {
               "application/json": {
                 "schema": {
@@ -11286,7 +11822,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/spend-rate": {
@@ -11420,7 +11964,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/deployments/{dseq}/project": {
@@ -11449,6 +12001,12 @@
             "description": "Deployment sequence number",
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -11552,6 +12110,12 @@
             "description": "Deployment sequence number",
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -11709,7 +12273,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/leases": {
@@ -12302,6 +12874,78 @@
               }
             }
           },
+          "403": {
+            "description": "With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
           "502": {
             "description": "A provider could not be reached. With code `provider_unreachable` no lease was created, so choose another bid. With code `manifest_not_delivered` the lease exists, as described above.",
             "content": {
@@ -12338,7 +12982,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/akash/market/{version}/leases/list": {
@@ -12767,7 +13419,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "post": {
         "summary": "Create new API key",
@@ -12891,8 +13551,19 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "No project with this `projectId` in the caller's reach"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/api-keys/{id}": {
@@ -12918,6 +13589,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -13034,6 +13711,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -13172,6 +13855,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -13223,6 +13912,12 @@
             "required": true,
             "name": "dseq",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -13671,6 +14366,12 @@
             "required": true,
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -14129,7 +14830,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/balances": {
@@ -18437,8 +19146,19 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "With `code` `project_forbidden`, the caller is limited to some projects and the token does not name its deployments one by one, or names one filed in a project the caller cannot view, or cannot change when the token does more than read"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/graph-data/{dataName}": {
@@ -22735,7 +23455,15 @@
           "400": {
             "description": "Invalid request body"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/hardware-requests": {
@@ -23154,7 +23882,15 @@
           "429": {
             "description": "Too many requests sent recently"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/activities": {
@@ -23219,6 +23955,12 @@
             "required": false,
             "name": "type",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -23411,6 +24153,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -23640,7 +24388,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/favorite-providers": {
@@ -23692,7 +24448,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "post": {
         "operationId": "createFavoriteProviders",
@@ -23780,7 +24544,15 @@
           "422": {
             "description": "The user would have more favorite providers than allowed"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/favorite-providers/{providerAddress}": {
@@ -23806,6 +24578,12 @@
             "required": true,
             "name": "providerAddress",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -23873,6 +24651,12 @@
             "required": true,
             "name": "draftId",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -23981,6 +24765,12 @@
             "required": true,
             "name": "draftId",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -24145,6 +24935,12 @@
             "required": true,
             "name": "draftId",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -24245,15 +25041,23 @@
             }
           },
           "400": {
-            "description": "The organization header names another organization than the API key's"
+            "description": "The organization header names another organization than the API key's (`organization_mismatch`)"
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The organization or project header names one the caller cannot reach"
+            "description": "The organization (`organization_forbidden`) or project (`project_forbidden`) header names one the caller cannot reach"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "post": {
         "operationId": "createOrganization",
@@ -24369,12 +25173,20 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller has reached their organization limit (`organization_limit_reached`), or the request was not made from a signed-in session"
+            "description": "The caller has reached their organization limit (`organization_limit_reached`), or the request was not made from a signed-in session (`session_required`)"
           },
           "409": {
-            "description": "The caller already belongs to an organization with this name"
+            "description": "The caller already belongs to an organization with this name (`organization_name_taken`)"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/organizations/{id}": {
@@ -24401,6 +25213,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -24506,13 +25324,13 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller cannot rename the organization, or it is a personal one"
+            "description": "The caller cannot rename the organization, or it is a personal one (`personal_organization`)"
           },
           "404": {
             "description": "The organization is not the active one"
           },
           "409": {
-            "description": "The caller already belongs to another organization with this name"
+            "description": "The caller already belongs to another organization with this name (`organization_name_taken`)"
           }
         }
       }
@@ -24678,7 +25496,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "post": {
         "operationId": "createProject",
@@ -24810,7 +25636,15 @@
           "409": {
             "description": "Another project of the organization has this name (`project_name_taken`)"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/projects/{id}": {
@@ -24837,6 +25671,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -24940,6 +25780,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -25084,6 +25930,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -25151,6 +26003,12 @@
             "required": false,
             "name": "cursor",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -25333,7 +26191,7 @@
             }
           },
           "400": {
-            "description": "The organization header names another organization than the API key's"
+            "description": "The organization header names another organization than the API key's (`organization_mismatch`)"
           },
           "401": {
             "description": "Unauthorized"
@@ -25341,7 +26199,15 @@
           "403": {
             "description": "The caller cannot see the organization's members"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/organization-members/{id}": {
@@ -25368,6 +26234,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -25463,19 +26335,19 @@
             }
           },
           "400": {
-            "description": "The request is invalid, or the organization header names another organization than the API key's"
+            "description": "The request is invalid, or the organization header names another organization than the API key's (`organization_mismatch`)"
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller cannot change this member, or the active organization is a personal one"
+            "description": "The caller cannot change this member, the change touches the owner role and the caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
           },
           "404": {
             "description": "No such member in the active organization"
           },
           "409": {
-            "description": "The organization would be left without an owner"
+            "description": "The organization would be left without an owner (`last_owner`)"
           }
         }
       },
@@ -25502,6 +26374,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -25509,19 +26387,19 @@
             "description": "The member was removed"
           },
           "400": {
-            "description": "The request is invalid, or the organization header names another organization than the API key's"
+            "description": "The request is invalid, or the organization header names another organization than the API key's (`organization_mismatch`)"
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller cannot change this member, or the active organization is a personal one"
+            "description": "The caller cannot change this member, the change touches the owner role and the caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
           },
           "404": {
             "description": "No such member in the active organization"
           },
           "409": {
-            "description": "The organization would be left without an owner"
+            "description": "The organization would be left without an owner (`last_owner`)"
           }
         }
       }
@@ -25550,6 +26428,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -25612,19 +26496,16 @@
             }
           },
           "400": {
-            "description": "The request is invalid, the member is the caller, or the organization header names another organization than the API key's"
+            "description": "The request is invalid, the member is the caller, or the organization header names another organization than the API key's (`organization_mismatch`)"
           },
           "401": {
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller cannot change this member, or the active organization is a personal one"
+            "description": "The caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
           },
           "404": {
             "description": "No such member in the active organization"
-          },
-          "409": {
-            "description": "The organization would be left without an owner"
           }
         }
       }
@@ -25750,7 +26631,15 @@
           "403": {
             "description": "The caller cannot see the organization's invitations"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "post": {
         "operationId": "createOrganizationInvitations",
@@ -25941,15 +26830,23 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller cannot invite with this role, the active organization is a personal one, or it has too many pending invitations"
+            "description": "The caller cannot invite with this role (`owner_role_restricted`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`)"
           },
           "409": {
-            "description": "An address belongs to a member of the organization"
+            "description": "An address belongs to a member of the organization (`already_member`)"
           },
           "429": {
-            "description": "Too many invitation emails were sent recently"
+            "description": "Too many invitation emails were sent recently (`invitation_email_limit_reached`)"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/organization-invitations/{id}/resend": {
@@ -25976,6 +26873,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -26079,13 +26982,13 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller cannot manage this invitation, or the active organization is a personal one"
+            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
           },
           "404": {
             "description": "No such pending invitation in the active organization"
           },
           "429": {
-            "description": "Too many invitation emails were sent recently"
+            "description": "Too many invitation emails were sent recently (`invitation_email_limit_reached`)"
           }
         }
       }
@@ -26114,6 +27017,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -26148,7 +27057,7 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller cannot manage this invitation, or the active organization is a personal one"
+            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
           },
           "404": {
             "description": "No such pending invitation in the active organization"
@@ -26180,6 +27089,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -26190,7 +27105,7 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller cannot manage this invitation, or the active organization is a personal one"
+            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
           },
           "404": {
             "description": "No such pending invitation in the active organization"
@@ -26423,18 +27338,26 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "Requested with an API key instead of a signed-in session"
+            "description": "Requested with an API key instead of a signed-in session (`session_required`)"
           },
           "404": {
             "description": "No invitation has this token"
           },
           "409": {
-            "description": "The invitation was sent to an address the caller has not verified and they did not confirm, someone else already accepted it, or the caller already belongs to the organization and was not the verified invitee"
+            "description": "The invitation was sent to an address the caller has not verified and they did not confirm (`invitation_email_mismatch`), someone else already accepted it (`invitation_already_accepted`), or the caller already belongs to the organization and was not the verified invitee (`already_member`)"
           },
           "410": {
-            "description": "The invitation expired or was revoked"
+            "description": "The invitation expired (`invitation_expired`) or was revoked (`invitation_revoked`)"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/projects/{id}/members": {
@@ -26461,6 +27384,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -26680,7 +27609,15 @@
           "409": {
             "description": "The user already has access to the project (`already_granted`), reaches every project as an owner or admin (`implicit_project_access`) or is a billing member (`billing_role_not_grantable`)"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/project-members/{id}": {
@@ -26707,6 +27644,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -26842,6 +27785,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -26897,6 +27846,12 @@
             "required": false,
             "name": "endDate",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -27062,6 +28017,12 @@
             "required": false,
             "name": "projectId",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -27297,7 +28258,15 @@
           "409": {
             "description": "The project already has a budget (`project_budget_exists`)"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/project-budgets/{id}": {
@@ -27324,6 +28293,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -27475,6 +28450,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -27504,6 +28485,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -27618,6 +28605,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -27696,6 +28689,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -27772,6 +28771,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -27858,6 +28863,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -27928,6 +28939,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -28024,6 +29041,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -28094,6 +29117,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -28175,6 +29204,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -28261,6 +29296,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -28357,6 +29398,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -28454,6 +29501,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -28540,6 +29593,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -33104,6 +34163,27 @@
         "required": [
           "data"
         ]
+      }
+    },
+    "parameters": {
+      "OrganizationIdHeader": {
+        "name": "x-organization-id",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's."
+      },
+      "ProjectIdHeader": {
+        "name": "x-project-id",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one."
       }
     },
     "securitySchemes": {

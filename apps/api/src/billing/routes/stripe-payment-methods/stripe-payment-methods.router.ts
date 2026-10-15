@@ -35,7 +35,8 @@ const setupIntentRoute = createRoute({
           schema: SetupIntentResponseSchema
         }
       }
-    }
+    },
+    409: { description: "Another request is still setting up the team's payments (`organization_payments_setup_in_progress`). Worth retrying" }
   }
 });
 

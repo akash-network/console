@@ -98,7 +98,8 @@ const postRoute = createRoute({
           schema: ApiKeyVisibleResponseSchema
         }
       }
-    }
+    },
+    404: { description: "No project with this `projectId` in the caller's reach" }
   }
 });
 apiKeysRouter.openapi(postRoute, async function routeCreateApiKey(c) {
