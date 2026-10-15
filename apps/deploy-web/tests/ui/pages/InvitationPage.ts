@@ -5,8 +5,10 @@ import { testEnvConfig } from "../fixture/test-env.config";
 export class InvitationPage {
   constructor(readonly page: Page) {}
 
-  async goto(token: string) {
-    await this.page.goto(`${testEnvConfig.BASE_URL}/invitations#token=${token}`);
+  /** Keeps the link's token but opens it on the environment under test, whatever host the api put in the link. */
+  async goto(link: string) {
+    const { hash } = new URL(link);
+    await this.page.goto(`${testEnvConfig.BASE_URL}/invitations${hash}`);
   }
 
   heading(organizationName: string) {

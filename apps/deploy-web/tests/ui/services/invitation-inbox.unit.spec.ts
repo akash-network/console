@@ -2,54 +2,53 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { InboxClient, InboxMessage } from "./email-verification/inbox-client";
-import { waitForInvitationToken } from "./invitation-inbox";
+import { waitForInvitationEmail } from "./invitation-inbox";
 
 const EMAIL = "e2e-teammate@e2e.example.test";
 
-describe(waitForInvitationToken.name, () => {
+describe(waitForInvitationEmail.name, () => {
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("reads the token from the invitation link and skips mail that holds none", async () => {
+  it("resolves once the invitation to the organization is in the inbox", async () => {
     const { inbox } = setup({
       polls: [
         [
-          { id: "code", receivedMs: 2 },
-          { id: "invite", receivedMs: 1 }
+          { id: "code", receivedMs: 2, subject: "Your verification code" },
+          { id: "invite", receivedMs: 1, subject: "Join Acme on Akash Console" }
         ]
-      ],
-      bodies: {
-        code: "Your verification code is 123456",
-        invite: "Join Acme on Akash Console\nAccept invitation: https://console.example.test/invitations#token=abc_DEF-123\n"
-      }
+      ]
     });
 
-    await expect(waitForInvitationToken(inbox, EMAIL)).resolves.toBe("abc_DEF-123");
+    await expect(waitForInvitationEmail(inbox, { email: EMAIL, organizationName: "Acme" })).resolves.toBeUndefined();
     expect(inbox.fetchMessages).toHaveBeenCalledWith(EMAIL);
   });
 
-  it("keeps polling until the invitation arrives, through failed reads", async () => {
+  it("keeps polling through failed reads and invitations to other organizations", async () => {
     vi.useFakeTimers();
     const { inbox } = setup({
-      polls: [new Error("inbox down"), [], [{ id: "invite", receivedMs: 1 }]],
-      bodies: { invite: "https://console.example.test/invitations#token=late" }
+      polls: [
+        new Error("inbox down"),
+        [{ id: "other", receivedMs: 1, subject: "Join Other on Akash Console" }],
+        [{ id: "invite", receivedMs: 2, subject: "Join Acme on Akash Console" }]
+      ]
     });
 
-    const token = waitForInvitationToken(inbox, EMAIL);
+    const delivered = waitForInvitationEmail(inbox, { email: EMAIL, organizationName: "Acme" });
     await vi.advanceTimersByTimeAsync(6_000);
 
-    await expect(token).resolves.toBe("late");
+    await expect(delivered).resolves.toBeUndefined();
     expect(inbox.fetchMessages).toHaveBeenCalledTimes(3);
   });
 
-  it("gives up after two minutes, naming the address and keeping the read errors", async () => {
+  it("gives up after two minutes, naming the email it waited for and keeping the read errors", async () => {
     vi.useFakeTimers();
     const { inbox } = setup({ polls: [new Error("inbox down")] });
 
-    const token = waitForInvitationToken(inbox, EMAIL);
-    const outcome = expect(token).rejects.toMatchObject({
-      message: `No invitation email reached ${EMAIL} within 120s`,
+    const delivered = waitForInvitationEmail(inbox, { email: EMAIL, organizationName: "Acme" });
+    const outcome = expect(delivered).rejects.toMatchObject({
+      message: `No "Join Acme on Akash Console" email reached ${EMAIL} within 120s`,
       errors: expect.arrayContaining([expect.objectContaining({ message: "inbox down" })])
     });
     await vi.advanceTimersByTimeAsync(120_000);
@@ -57,7 +56,7 @@ describe(waitForInvitationToken.name, () => {
     await outcome;
   });
 
-  function setup(input: { polls: (InboxMessage[] | Error)[]; bodies?: Record<string, string> }) {
+  function setup(input: { polls: (InboxMessage[] | Error)[] }) {
     const inbox = mock<InboxClient>();
     let poll = 0;
     inbox.fetchMessages.mockImplementation(async () => {
@@ -65,7 +64,6 @@ describe(waitForInvitationToken.name, () => {
       if (result instanceof Error) throw result;
       return result;
     });
-    inbox.fetchMessageBody.mockImplementation(async (_, messageId) => input.bodies?.[messageId] ?? "");
 
     return { inbox };
   }

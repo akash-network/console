@@ -11,7 +11,7 @@ import { MembersPage } from "./pages/MembersPage";
 import { OrganizationSwitcher } from "./pages/OrganizationSwitcher";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { createInboxClient } from "./services/email-verification";
-import { waitForInvitationToken } from "./services/invitation-inbox";
+import { waitForInvitationEmail } from "./services/invitation-inbox";
 
 type ProjectList = { data: { id: string; name: string }[] };
 
@@ -46,8 +46,13 @@ test.describe("Team organizations", () => {
         await expect(page.getByText(`Invite sent to ${teammateEmail}`)).toBeVisible();
       });
 
-      await test.step("the teammate signs up from the emailed invitation and joins the team", async () => {
-        await invitation.goto(await waitForInvitationToken(inbox, teammateEmail));
+      await test.step("the invitation email reaches the teammate", async () => {
+        await waitForInvitationEmail(inbox, { email: teammateEmail, organizationName: team });
+      });
+
+      await test.step("the teammate signs up from the invite link and joins the team", async () => {
+        const link = await members.copyInviteLink(teammateEmail);
+        await invitation.goto(link);
         await expect(invitation.heading(team)).toBeVisible();
         await invitation.signUpToAccept();
         await signInPasswordless(teammatePage, teammateEmail);
