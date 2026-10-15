@@ -13,7 +13,16 @@ import { useDeletionLinkToken } from "./useDeletionLinkToken";
 
 export const DEPENDENCIES = { Layout, useDeletionLinkToken };
 
-type Outcome = "unavailable" | "expired" | "invalid" | "blocked" | "creditsAdded" | "failed";
+type Outcome = "unavailable" | "expired" | "invalid" | "blocked" | "lastOwner" | "creditsAdded" | "failed";
+
+type LastOwnerRefusalBody = { data?: { organizations?: { name: string }[] } };
+
+function lastOwnerText(error: unknown): string {
+  const organizations = isApiError(error) ? (error.body as LastOwnerRefusalBody | undefined)?.data?.organizations : undefined;
+  const teams = organizations?.length ? organizations.map(({ name }) => name).join(", ") : "teams other people belong to";
+
+  return `You're still the last owner of ${teams}. Make another member an owner, then open this link again. The account deletion dialog in your account settings lists the teams to hand over.`;
+}
 
 function outcomeOf(error: unknown): Outcome {
   if (isApiError(error) && error.status === 404) return "unavailable";
@@ -25,6 +34,8 @@ function outcomeOf(error: unknown): Outcome {
       return "invalid";
     case "active_deployments":
       return "blocked";
+    case "last_owner":
+      return "lastOwner";
     case "forfeit_acknowledgement_required":
       return "creditsAdded";
     default:
@@ -101,6 +112,8 @@ export const ConfirmAccountDeletion: FC<Props> = ({ dependencies: d = DEPENDENCI
               action={<ActionLink href={urlService.deploymentList()}>Go to deployments</ActionLink>}
             />
           );
+        case "lastOwner":
+          return <Message title="Hand over your teams first" text={lastOwnerText(confirmDeletion.error)} action={settingsLink} />;
         case "creditsAdded":
           return (
             <Message

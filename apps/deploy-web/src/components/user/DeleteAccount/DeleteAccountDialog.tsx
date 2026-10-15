@@ -188,9 +188,11 @@ const TransferStep: FC<{ teamsToTransfer: TeamReference[]; onClose: () => void }
         You&apos;re the last owner of teams other people belong to. Make another member an owner of each one before you delete your account.
       </DialogV2Description>
     </DialogV2Header>
-    <DialogV2Body>
-      <TeamList teams={teamsToTransfer} />
-    </DialogV2Body>
+    {teamsToTransfer.length > 0 && (
+      <DialogV2Body>
+        <TeamList teams={teamsToTransfer} />
+      </DialogV2Body>
+    )}
     <DialogV2Footer className="flex items-center justify-end">
       <Button type="button" onClick={onClose}>
         Got it

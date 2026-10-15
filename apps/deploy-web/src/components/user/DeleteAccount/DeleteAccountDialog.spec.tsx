@@ -270,7 +270,7 @@ describe(DeleteAccountDialog.name, () => {
     await confirmWithEmail(user);
 
     expect(await screen.findByText("Hand over your teams first")).toBeInTheDocument();
-    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 
   it("lists the teams going with the account and takes one acknowledgement for every credit forfeited", async () => {
