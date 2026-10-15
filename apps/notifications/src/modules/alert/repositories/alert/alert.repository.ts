@@ -81,6 +81,12 @@ export interface UpdateInput extends Omit<Partial<AlertInput>, "params"> {
   params?: Partial<AlertInput["params"]>;
 }
 
+export interface MoveDeploymentAlertsInput {
+  organizationId: string;
+  deployment: { owner: string; dseq: string };
+  projectId: string;
+}
+
 export interface FindAllDeploymentAlertsConditions {
   dseq: string;
   includeSuppressed?: boolean;
@@ -201,6 +207,30 @@ export class AlertRepository {
     });
 
     return alert && this.toOutput(alert as InternalAlertOutput & { type: "CHAIN_EVENT" });
+  }
+
+  /** Matches the owner as well as the dseq, because a dseq names a deployment only within the wallet that created it; an alert naming no owner stays put. */
+  async moveDeploymentAlertsToProject({ organizationId, deployment, projectId }: MoveDeploymentAlertsInput): Promise<number> {
+    const { Alert } = schema;
+    const ownerCondition = JSON.stringify({ field: "owner", value: deployment.owner });
+    const moved = await this.db
+      .update(Alert)
+      .set({ projectId, updatedAt: sql`NOW()` })
+      .where(
+        and(
+          eq(Alert.organizationId, organizationId),
+          sql`${Alert.params} @> ${JSON.stringify({ dseq: deployment.dseq })}::jsonb`,
+          or(
+            sql`${Alert.params} @> ${JSON.stringify({ owner: deployment.owner })}::jsonb`,
+            sql`${Alert.conditions} @> ${ownerCondition}::jsonb`,
+            sql`${Alert.conditions}->'value' @> ${`[${ownerCondition}]`}::jsonb`
+          ),
+          sql`${Alert.projectId} IS DISTINCT FROM ${projectId}`
+        )
+      )
+      .returning({ id: Alert.id });
+
+    return moved.length;
   }
 
   /** Stamps `params[stamp]` only while the alert carries no notification stamp, so the reclaim and lease-closed emails go out at most once and never both. */

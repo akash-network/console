@@ -8,6 +8,7 @@ import { BrokerModule } from "@src/infrastructure/broker";
 import { DeploymentAlertController } from "@src/interfaces/rest/controllers/deployment-alert/deployment-alert.controller";
 import { HealthzController } from "@src/interfaces/rest/controllers/healthz/healthz.controller";
 import { InternalAccountController } from "@src/interfaces/rest/controllers/internal-account/internal-account.controller";
+import { InternalDeploymentAlertController } from "@src/interfaces/rest/controllers/internal-deployment-alert/internal-deployment-alert.controller";
 import { InternalOrganizationController } from "@src/interfaces/rest/controllers/internal-organization/internal-organization.controller";
 import { AlertModule } from "@src/modules/alert/alert.module";
 import { NotificationsModule } from "@src/modules/notifications/notifications.module";
@@ -36,7 +37,8 @@ import { AuthService } from "./services/auth/auth.service";
     HealthzController,
     JobsController,
     InternalAccountController,
-    InternalOrganizationController
+    InternalOrganizationController,
+    InternalDeploymentAlertController
   ]
 })
 export default class RestModule {

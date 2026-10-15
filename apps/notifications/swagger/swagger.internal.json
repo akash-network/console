@@ -80,6 +80,47 @@
           "Internal/Organization"
         ]
       }
+    },
+    "/internal/v1/organizations/{organizationId}/deployment-alerts/{dseq}/project": {
+      "put": {
+        "operationId": "moveDeploymentAlertsToProject",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dseq",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeploymentAlertsProjectInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Files the alerts of a deployment into the project the deployment moved to"
+          }
+        },
+        "tags": [
+          "Internal/DeploymentAlert"
+        ]
+      }
     }
   },
   "info": {
@@ -171,6 +212,31 @@
             "required": [
               "addressSha256",
               "fallbackAddresses"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "DeploymentAlertsProjectInput": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "owner": {
+                "type": "string",
+                "minLength": 1
+              },
+              "projectId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "owner",
+              "projectId"
             ]
           }
         },
