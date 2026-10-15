@@ -18,6 +18,13 @@ import type { OrganizationContext } from "@src/organization/types/organization-c
 
 export const PROJECT_REQUIRED_ERROR_CODE = "project_required";
 
+type ProjectFiledSubject = "DeploymentSetting" | "Template";
+
+const PROJECT_REQUIRED_MESSAGES: Record<ProjectFiledSubject, string> = {
+  DeploymentSetting: "Choose a project to deploy into",
+  Template: "Choose a project to save the template in"
+};
+
 const ROLES_MOVING_DEPLOYMENTS: readonly OrganizationRole[] = ["owner", "admin"];
 
 @singleton()
@@ -31,8 +38,8 @@ export class DeploymentProjectService {
     private readonly txService: TxService
   ) {}
 
-  /** Undefined outside organization mode, where the requested project is ignored and the deployment is filed the way every other write is. */
-  async resolveFilingProject(requestedProjectId?: string): Promise<string | undefined> {
+  /** Undefined outside organization mode, where the requested project is ignored and the row is filed the way every other write is. */
+  async resolveFilingProject(requestedProjectId?: string, subjectType: ProjectFiledSubject = "DeploymentSetting"): Promise<string | undefined> {
     const context = this.#organizationModeContext();
 
     if (!context) return undefined;
@@ -40,7 +47,7 @@ export class DeploymentProjectService {
     if (requestedProjectId) {
       const project = await this.projectRepository.findOneBy({ id: requestedProjectId, deletedAt: null });
 
-      if (!project || !this.#canFileInto(context, project.id)) {
+      if (!project || !this.#canFileInto(context, project.id, subjectType)) {
         throw createError(404, "Project not found");
       }
 
@@ -50,8 +57,8 @@ export class DeploymentProjectService {
     const soleProjectId = soleWritableProjectInScope(context);
     const fallback = await this.projectRepository.findOneBy(soleProjectId ? { id: soleProjectId, deletedAt: null } : { isDefault: true, deletedAt: null });
 
-    if (!fallback || !this.#canFileInto(context, fallback.id)) {
-      throw createError(400, "Choose a project to deploy into", { errorCode: PROJECT_REQUIRED_ERROR_CODE });
+    if (!fallback || !this.#canFileInto(context, fallback.id, subjectType)) {
+      throw createError(400, PROJECT_REQUIRED_MESSAGES[subjectType], { errorCode: PROJECT_REQUIRED_ERROR_CODE });
     }
 
     return fallback.id;
@@ -77,7 +84,7 @@ export class DeploymentProjectService {
       const deployment = await this.#findMovable(repository, dseq);
       const target = await this.projectRepository.findActiveAndLock(projectId);
 
-      if (!target || !this.#canFileInto(context, target.id)) {
+      if (!target || !this.#canFileInto(context, target.id, "DeploymentSetting")) {
         throw createError(404, "Project not found");
       }
 
@@ -126,8 +133,8 @@ export class DeploymentProjectService {
     });
   }
 
-  #canFileInto(context: OrganizationContext, projectId: string): boolean {
-    return this.authService.ability.can("create", subject("DeploymentSetting", { organizationId: context.organizationId, projectId }));
+  #canFileInto(context: OrganizationContext, projectId: string, subjectType: ProjectFiledSubject): boolean {
+    return this.authService.ability.can("create", subject(subjectType, { organizationId: context.organizationId, projectId }));
   }
 
   #activeReach(): DeploymentReach {

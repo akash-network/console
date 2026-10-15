@@ -124,6 +124,24 @@ describe(DeploymentProjectService.name, () => {
 
       await expect(service.resolveFilingProject()).rejects.toMatchObject({ status: 400, errorCode: PROJECT_REQUIRED_ERROR_CODE });
     });
+
+    it("files a template into a project the caller may save templates in", async () => {
+      const { service, project } = setup({ templateProjectIds: [faker.string.uuid()] });
+
+      await expect(service.resolveFilingProject(project.id)).resolves.toBe(project.id);
+      await expect(service.resolveFilingProject(project.id, "Template")).rejects.toMatchObject({ status: 404 });
+    });
+
+    it("asks for a project to save the template in when the default project is outside the caller's template rules", async () => {
+      const { service, project } = setup({ templateProjectIds: [faker.string.uuid()] });
+
+      await expect(service.resolveFilingProject()).resolves.toBe(project.id);
+      await expect(service.resolveFilingProject(undefined, "Template")).rejects.toMatchObject({
+        status: 400,
+        message: "Choose a project to save the template in",
+        errorCode: PROJECT_REQUIRED_ERROR_CODE
+      });
+    });
   });
 
   describe("holdFilingProject", () => {
@@ -287,13 +305,15 @@ describe(DeploymentProjectService.name, () => {
     role?: OrganizationRole;
     scopedProjectIds?: string[];
     projectScope?: ProjectScope;
+    templateProjectIds?: string[];
     withoutContext?: boolean;
   }) {
     const user = createUser();
     const context = createOrganizationContext({ role: input?.role ?? "owner", mode: input?.mode ?? "organization", projectScope: input?.projectScope });
     const projectConditions = input?.scopedProjectIds ? { projectId: { $in: input.scopedProjectIds } } : {};
     const ability = createMongoAbility<MongoAbility>([
-      { action: "create", subject: "DeploymentSetting", conditions: { organizationId: context.organizationId, ...projectConditions } }
+      { action: "create", subject: "DeploymentSetting", conditions: { organizationId: context.organizationId, ...projectConditions } },
+      { action: "create", subject: "Template", conditions: { organizationId: context.organizationId, projectId: { $in: input?.templateProjectIds ?? [] } } }
     ]);
     const project = mock<ProjectOutput>({ id: faker.string.uuid(), organizationId: context.organizationId, name: faker.word.noun() });
     const target = mock<ProjectOutput>({ id: faker.string.uuid(), organizationId: context.organizationId, name: faker.word.noun() });

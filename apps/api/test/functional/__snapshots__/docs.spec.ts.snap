@@ -20504,6 +20504,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           "401": {
             "description": "Unauthorized",
           },
+          "403": {
+            "description": "Not allowed to change templates in this project",
+          },
         },
         "security": [
           {
@@ -20818,6 +20821,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "isPublic": {
                     "type": "boolean",
                   },
+                  "projectId": {
+                    "description": "Project to file a new template in. A template that already exists stays in its project.",
+                    "format": "uuid",
+                    "type": "string",
+                  },
                   "ram": {
                     "maximum": 9007199254740991,
                     "minimum": 0,
@@ -20858,6 +20866,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           },
           "401": {
             "description": "Unauthorized",
+          },
+          "403": {
+            "description": "Not allowed to change templates in this project",
+          },
+          "404": {
+            "description": "Project not found",
           },
         },
         "security": [
@@ -20904,6 +20918,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           },
           "401": {
             "description": "Unauthorized",
+          },
+          "403": {
+            "description": "Not allowed to change templates in this project",
           },
         },
         "security": [

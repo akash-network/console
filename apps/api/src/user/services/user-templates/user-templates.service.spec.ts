@@ -1,8 +1,11 @@
+import { createMongoAbility, ForbiddenError, type MongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
 
+import type { AuthService } from "@src/auth/services/auth.service";
+import type { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import type { TemplateInput, TemplateOutput, UserTemplateRepository } from "../../repositories/user-template/user-template.repository";
 import { UserTemplatesService } from "./user-templates.service";
 
@@ -21,7 +24,7 @@ describe(UserTemplatesService.name, () => {
     });
 
     it("returns null when the template is not readable by the requesting user", async () => {
-      const { service, userTemplateRepository } = setup();
+      const { service, userTemplateRepository, ability } = setup();
       const templateId = faker.string.uuid();
       const requestingUserId = faker.string.uuid();
 
@@ -30,8 +33,21 @@ describe(UserTemplatesService.name, () => {
       const result = await service.getTemplateById(templateId, requestingUserId);
 
       expect(result).toBeNull();
+      expect(userTemplateRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
       expect(userTemplateRepository.findById).toHaveBeenCalledWith(templateId, requestingUserId);
       expect(userTemplateRepository.isFavorite).not.toHaveBeenCalled();
+    });
+
+    it("reads public templates only for a caller whose rules reach no template", async () => {
+      const { service, userTemplateRepository } = setup({ canReadTemplates: false });
+      const templateId = faker.string.uuid();
+
+      userTemplateRepository.findById.mockResolvedValue(undefined);
+
+      await service.getTemplateById(templateId, faker.string.uuid());
+
+      expect(userTemplateRepository.accessibleBy).not.toHaveBeenCalled();
+      expect(userTemplateRepository.findById).toHaveBeenCalledWith(templateId, "");
     });
 
     it("returns template without isFavorite when userId is not provided", async () => {
@@ -79,7 +95,7 @@ describe(UserTemplatesService.name, () => {
 
   describe("getTemplates", () => {
     it("returns templates by userId when userId is provided", async () => {
-      const { service, userTemplateRepository } = setup();
+      const { service, userTemplateRepository, ability } = setup();
       const username = faker.internet.userName();
       const userId = faker.string.uuid();
       const templates = [createTemplateOutput(), createTemplateOutput()];
@@ -89,7 +105,18 @@ describe(UserTemplatesService.name, () => {
       const result = await service.getTemplates(username, userId);
 
       expect(result).toEqual(templates);
+      expect(userTemplateRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
       expect(userTemplateRepository.findAllByUserId).toHaveBeenCalledWith(userId);
+      expect(userTemplateRepository.findAllByUsername).not.toHaveBeenCalled();
+    });
+
+    it("returns nothing to a signed-in caller whose rules reach no template", async () => {
+      const { service, userTemplateRepository } = setup({ canReadTemplates: false });
+
+      const result = await service.getTemplates(faker.internet.userName(), faker.string.uuid());
+
+      expect(result).toEqual([]);
+      expect(userTemplateRepository.findAllByUserId).not.toHaveBeenCalled();
       expect(userTemplateRepository.findAllByUsername).not.toHaveBeenCalled();
     });
 
@@ -109,33 +136,71 @@ describe(UserTemplatesService.name, () => {
   });
 
   describe("saveTemplate", () => {
-    it("calls repository upsert with correct parameters", async () => {
+    it("changes the caller's own template under their update rules and leaves its project alone", async () => {
+      const { service, userTemplateRepository, deploymentProjectService, ability } = setup();
+      const id = faker.string.uuid();
+      const userId = faker.string.uuid();
+      const data = createTemplateInput();
+
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(true);
+
+      const result = await service.saveTemplate(id, userId, { ...data, projectId: faker.string.uuid() });
+
+      expect(result).toBe(id);
+      expect(userTemplateRepository.isAuthoredBy).toHaveBeenCalledWith(id, userId);
+      expect(userTemplateRepository.accessibleBy).toHaveBeenCalledWith(ability, "update");
+      expect(userTemplateRepository.updateTemplate).toHaveBeenCalledWith(id, userId, data);
+      expect(userTemplateRepository.createTemplate).not.toHaveBeenCalled();
+      expect(deploymentProjectService.resolveFilingProject).not.toHaveBeenCalled();
+    });
+
+    it("creates a template under the caller's create rules in the project resolved for templates", async () => {
+      const { service, userTemplateRepository, deploymentProjectService, ability } = setup();
+      const userId = faker.string.uuid();
+      const [requestedProjectId, filingProjectId, newTemplateId] = [faker.string.uuid(), faker.string.uuid(), faker.string.uuid()];
+      const data = createTemplateInput();
+
+      deploymentProjectService.resolveFilingProject.mockResolvedValue(filingProjectId);
+      userTemplateRepository.createTemplate.mockResolvedValue(newTemplateId);
+
+      const result = await service.saveTemplate(undefined, userId, { ...data, projectId: requestedProjectId });
+
+      expect(result).toBe(newTemplateId);
+      expect(userTemplateRepository.isAuthoredBy).not.toHaveBeenCalled();
+      expect(userTemplateRepository.accessibleBy).toHaveBeenCalledWith(ability, "create");
+      expect(deploymentProjectService.resolveFilingProject).toHaveBeenCalledWith(requestedProjectId, "Template");
+      expect(userTemplateRepository.createTemplate).toHaveBeenCalledWith(userId, data, { projectId: filingProjectId, copiedFromId: undefined });
+    });
+
+    it("saves a template the caller did not author as a copy of it", async () => {
       const { service, userTemplateRepository } = setup();
       const id = faker.string.uuid();
       const userId = faker.string.uuid();
-      const newTemplateId = faker.string.uuid();
-      const data: TemplateInput = {
-        sdl: faker.lorem.paragraph(),
-        title: faker.lorem.words(3),
-        cpu: faker.number.int({ min: 1, max: 8 }),
-        ram: faker.number.int({ min: 512, max: 8192 }),
-        storage: faker.number.int({ min: 1, max: 100 }),
-        isPublic: true,
-        description: faker.lorem.sentence()
-      };
+      const data = createTemplateInput();
 
-      userTemplateRepository.upsert.mockResolvedValue(newTemplateId);
+      userTemplateRepository.isAuthoredBy.mockResolvedValue(false);
 
-      const result = await service.saveTemplate(id, userId, data);
+      await service.saveTemplate(id, userId, data);
 
-      expect(result).toBe(newTemplateId);
-      expect(userTemplateRepository.upsert).toHaveBeenCalledWith(id, userId, data);
+      expect(userTemplateRepository.updateTemplate).not.toHaveBeenCalled();
+      expect(userTemplateRepository.createTemplate).toHaveBeenCalledWith(userId, data, { projectId: undefined, copiedFromId: id });
+    });
+
+    it("refuses a caller who may create no template before resolving a project", async () => {
+      const { service, userTemplateRepository, deploymentProjectService } = setup();
+
+      userTemplateRepository.accessibleBy.mockImplementation(() => {
+        throw new ForbiddenError(createMongoAbility());
+      });
+
+      await expect(service.saveTemplate(undefined, faker.string.uuid(), createTemplateInput())).rejects.toBeInstanceOf(ForbiddenError);
+      expect(deploymentProjectService.resolveFilingProject).not.toHaveBeenCalled();
     });
   });
 
   describe("update", () => {
     it("calls repository updateById with correct parameters", async () => {
-      const { service, userTemplateRepository } = setup();
+      const { service, userTemplateRepository, ability } = setup();
       const id = faker.string.uuid();
       const userId = faker.string.uuid();
       const data: Partial<TemplateInput> = {
@@ -147,13 +212,14 @@ describe(UserTemplatesService.name, () => {
 
       await service.update(id, userId, data);
 
+      expect(userTemplateRepository.accessibleBy).toHaveBeenCalledWith(ability, "update");
       expect(userTemplateRepository.updateTemplate).toHaveBeenCalledWith(id, userId, data);
     });
   });
 
   describe("deleteTemplate", () => {
     it("calls repository deleteById with correct parameters", async () => {
-      const { service, userTemplateRepository } = setup();
+      const { service, userTemplateRepository, ability } = setup();
       const userId = faker.string.uuid();
       const id = faker.string.uuid();
 
@@ -161,6 +227,7 @@ describe(UserTemplatesService.name, () => {
 
       await service.deleteTemplate(userId, id);
 
+      expect(userTemplateRepository.accessibleBy).toHaveBeenCalledWith(ability, "delete");
       expect(userTemplateRepository.deleteById).toHaveBeenCalledWith(id, userId);
     });
   });
@@ -182,7 +249,19 @@ describe(UserTemplatesService.name, () => {
         { id: "1", title: "Template 1", description: "Desc 1" },
         { id: "2", title: "Template 2", description: "Desc 2" }
       ]);
-      expect(userTemplateRepository.getFavoriteTemplates).toHaveBeenCalledWith(userId);
+      expect(userTemplateRepository.getFavoriteTemplates).toHaveBeenCalledWith(userId, userId);
+    });
+
+    it("leaves private favorites out for a caller whose rules reach no template", async () => {
+      const { service, userTemplateRepository } = setup({ canReadTemplates: false });
+      const userId = faker.string.uuid();
+
+      userTemplateRepository.getFavoriteTemplates.mockResolvedValue([]);
+
+      await service.getFavoriteTemplates(userId);
+
+      expect(userTemplateRepository.accessibleBy).not.toHaveBeenCalled();
+      expect(userTemplateRepository.getFavoriteTemplates).toHaveBeenCalledWith(userId, "");
     });
 
     it("returns empty array when no favorites exist", async () => {
@@ -207,7 +286,17 @@ describe(UserTemplatesService.name, () => {
 
       await service.addFavoriteTemplate(userId, templateId);
 
-      expect(userTemplateRepository.addFavorite).toHaveBeenCalledWith(userId, templateId);
+      expect(userTemplateRepository.addFavorite).toHaveBeenCalledWith(userId, templateId, userId);
+    });
+
+    it("marks only a public template as favorite for a caller whose rules reach no template", async () => {
+      const { service, userTemplateRepository } = setup({ canReadTemplates: false });
+      const userId = faker.string.uuid();
+      const templateId = faker.string.uuid();
+
+      await service.addFavoriteTemplate(userId, templateId);
+
+      expect(userTemplateRepository.addFavorite).toHaveBeenCalledWith(userId, templateId, "");
     });
   });
 
@@ -225,11 +314,28 @@ describe(UserTemplatesService.name, () => {
     });
   });
 
-  function setup() {
+  function setup(input: { canReadTemplates?: boolean } = {}) {
+    const ability = createMongoAbility<MongoAbility>(input.canReadTemplates === false ? [] : [{ action: "read", subject: "Template" }]);
     const userTemplateRepository: MockProxy<UserTemplateRepository> = mock<UserTemplateRepository>();
-    const service = new UserTemplatesService(userTemplateRepository);
+    userTemplateRepository.accessibleBy.mockReturnValue(userTemplateRepository);
+    const authService = mock<AuthService>();
+    authService.ability = ability;
+    const deploymentProjectService = mock<DeploymentProjectService>();
+    const service = new UserTemplatesService(userTemplateRepository, authService, deploymentProjectService);
 
-    return { service, userTemplateRepository };
+    return { service, userTemplateRepository, deploymentProjectService, ability };
+  }
+
+  function createTemplateInput(): TemplateInput {
+    return {
+      sdl: faker.lorem.paragraph(),
+      title: faker.lorem.words(3),
+      cpu: faker.number.int({ min: 1, max: 8 }),
+      ram: faker.number.int({ min: 512, max: 8192 }),
+      storage: faker.number.int({ min: 1, max: 100 }),
+      isPublic: true,
+      description: faker.lorem.sentence()
+    };
   }
 
   function createTemplateOutput(overrides?: Partial<TemplateOutput>): TemplateOutput {

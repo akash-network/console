@@ -58,7 +58,10 @@ const saveTemplateRoute = createRoute({
             ram: ResourceQuantitySchema,
             storage: ResourceQuantitySchema,
             isPublic: z.boolean(),
-            description: z.string().max(2000).optional()
+            description: z.string().max(2000).optional(),
+            projectId: z.string().uuid().optional().openapi({
+              description: "Project to file a new template in. A template that already exists stays in its project."
+            })
           })
         }
       }
@@ -73,6 +76,12 @@ const saveTemplateRoute = createRoute({
     },
     401: {
       description: "Unauthorized"
+    },
+    403: {
+      description: "Not allowed to change templates in this project"
+    },
+    404: {
+      description: "Project not found"
     }
   }
 });
@@ -107,6 +116,9 @@ const saveTemplateDescRoute = createRoute({
     },
     401: {
       description: "Unauthorized"
+    },
+    403: {
+      description: "Not allowed to change templates in this project"
     }
   }
 });
@@ -164,6 +176,9 @@ const deleteTemplateRoute = createRoute({
     },
     401: {
       description: "Unauthorized"
+    },
+    403: {
+      description: "Not allowed to change templates in this project"
     }
   }
 });

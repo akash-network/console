@@ -33,8 +33,13 @@ export interface TemplateInput {
   description?: string;
 }
 
-type TemplateRecordInput = TemplateInput & { id?: string };
+type TemplateRecordInput = TemplateInput & { id?: string; userId?: string; copiedFromId?: string; projectId?: string };
 type TemplateRow = ApiPgTables["Templates"]["$inferSelect"];
+
+interface TemplateFiling {
+  projectId?: string;
+  copiedFromId?: string | null;
+}
 
 @singleton()
 export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Templates"], TemplateRecordInput, TemplateOutput> {
@@ -98,8 +103,8 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
     return !!result;
   }
 
-  async addFavorite(userId: string, templateId: string): Promise<void> {
-    if (!(await this.findById(templateId, userId))) return;
+  async addFavorite(userId: string, templateId: string, readerUserId = userId): Promise<void> {
+    if (!(await this.findById(templateId, readerUserId))) return;
 
     await this.cursor.insert(this.favoriteTable).values({ id: randomUUID(), userId, templateId, addedDate: new Date() }).onConflictDoNothing();
   }
@@ -108,7 +113,7 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
     await this.cursor.delete(this.favoriteTable).where(and(eq(this.favoriteTable.userId, userId), eq(this.favoriteTable.templateId, templateId)));
   }
 
-  async getFavoriteTemplates(userId: string): Promise<TemplateOutput[]> {
+  async getFavoriteTemplates(userId: string, readerUserId = userId): Promise<TemplateOutput[]> {
     const items = await this.cursor
       .select({
         id: this.table.id,
@@ -126,38 +131,25 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
       .from(this.favoriteTable)
       .innerJoin(this.table, eq(this.favoriteTable.templateId, this.table.id))
       .leftJoin(Users, eq(this.table.userId, Users.userId))
-      .where(and(eq(this.favoriteTable.userId, userId), this.#readableBy(userId)));
+      .where(and(eq(this.favoriteTable.userId, userId), this.#readableBy(readerUserId)));
     return items.map(item => this.#toFullOutput(item, item.username));
   }
 
-  async upsert(id: string | null | undefined, userId: string, data: TemplateInput): Promise<string> {
-    if (id) {
-      const existing = await this.cursor.query.Templates.findFirst({
-        where: this.whereAccessibleBy(and(eq(this.table.id, id), eq(this.table.userId, userId))),
-        columns: { id: true }
-      });
+  /** Looks past the caller's rules, so a template the author may no longer change is refused rather than copied. */
+  async isAuthoredBy(id: string, userId: string): Promise<boolean> {
+    const [template] = await this.cursor.select({ id: this.table.id }).from(this.table).where(this.#authoredBy(id, userId)).limit(1);
 
-      if (existing) {
-        await this.cursor
-          .update(this.table)
-          .set(data)
-          .where(this.whereAccessibleBy(and(eq(this.table.id, existing.id), eq(this.table.userId, userId))));
-        return existing.id;
-      }
-    }
+    return !!template;
+  }
 
-    const [created] = await this.cursor
-      .insert(this.table)
-      .values(await this.attributeToOrganization({ ...data, id: randomUUID(), userId, copiedFromId: id || undefined }))
-      .returning({ id: this.table.id });
+  async createTemplate(userId: string, data: TemplateInput, { projectId, copiedFromId }: TemplateFiling = {}): Promise<string> {
+    const created = await this.create({ ...data, id: randomUUID(), userId, projectId, copiedFromId: copiedFromId || undefined });
+
     return created.id;
   }
 
   async updateTemplate(id: string, userId: string, data: Partial<TemplateInput>): Promise<void> {
-    await this.cursor
-      .update(this.table)
-      .set(data)
-      .where(this.whereAccessibleBy(and(eq(this.table.id, id), eq(this.table.userId, userId))));
+    await this.updateWhere(this.#authoredBy(id, userId), data);
   }
 
   async detachFromTeams(userId: string): Promise<void> {
@@ -174,7 +166,7 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
 
   async deleteById(id: string | string[], userId?: string): Promise<void> {
     if (typeof id === "string" && userId) {
-      await this.cursor.delete(this.table).where(this.whereAccessibleBy(and(eq(this.table.id, id), eq(this.table.userId, userId))));
+      await this.writeChecked(cursor => cursor.delete(this.table).where(this.#authoredBy(id, userId)).returning());
     } else {
       await super.deleteById(id);
     }
@@ -193,13 +185,17 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
     return this.#toFullOutput(item, item.user?.username);
   }
 
-  /** Public templates are readable by anyone; a private one only by its author, and only inside the active organization in organization mode. */
+  /** Public templates are readable by anyone; a private one only by its author, inside the active organization in organization mode and within the rules attached. */
   #readableBy(readerUserId: string) {
     return or(eq(this.table.isPublic, true), this.#privateTemplatesOf(readerUserId));
   }
 
   #privateTemplatesOf(readerUserId: string) {
-    return readerUserId ? this.whereInOrganization(eq(this.table.userId, readerUserId)) : undefined;
+    return readerUserId ? this.whereAccessibleBy(eq(this.table.userId, readerUserId)) : undefined;
+  }
+
+  #authoredBy(id: string, userId: string) {
+    return this.whereInOrganization(and(eq(this.table.id, id), eq(this.table.userId, userId)));
   }
 
   #toFullOutput(template: Partial<TemplateRow>, username?: string | null): TemplateOutput {
