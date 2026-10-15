@@ -37,7 +37,7 @@ import {
   parseManifestServices,
   parseServicesByPlacement,
   resolveDeploymentGpus,
-  summarizeWorkloadStatus
+  summarizeWorkloadStatusUnlessWithheld
 } from "./DeploymentPlacements/placementModel";
 import { DeploymentVisitControl } from "./DeploymentVisitControl/DeploymentVisitControl";
 import { DeploymentStatusBadge } from "./DeploymentStatusBadge";
@@ -103,7 +103,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
   );
   const statuses = d.useLeaseStatuses(liveLeaseItems, { refetchInterval: 30_000 });
   const { tokenMode } = d.useProviderCredentials();
-  const workload = isLeaseStatusWithheld(tokenMode, statuses) ? undefined : summarizeWorkloadStatus(statuses);
+  const workload = summarizeWorkloadStatusUnlessWithheld(statuses, isLeaseStatusWithheld(tokenMode, statuses));
   const costPerBlockUDenom = liveLeases.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0);
   const liveGpuCount = liveLeases.reduce((sum, lease) => sum + (lease.gpuAmount ?? 0), 0);
 

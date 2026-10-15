@@ -20,7 +20,8 @@ import {
   parseServicesByPlacement,
   resolveDeploymentGpus,
   resolveLeaseGpus,
-  summarizeWorkloadStatus
+  summarizeWorkloadStatus,
+  summarizeWorkloadStatusUnlessWithheld
 } from "./placementModel";
 
 describe("placementModel", () => {
@@ -496,6 +497,16 @@ describe("placementModel", () => {
 
     it("keeps reporting loading, as the service rows do, when a provider has no status for its lease", () => {
       expect(summarizeWorkloadStatus([buildPoll(null)])).toBe("loading");
+    });
+  });
+
+  describe("summarizeWorkloadStatusUnlessWithheld", () => {
+    it("reports what the providers report while the status reaches this token", () => {
+      expect(summarizeWorkloadStatusUnlessWithheld([buildPoll({ web: 1 }), buildPoll({ api: 0 })], false)).toBe("starting");
+    });
+
+    it("reports nothing once the status is withheld from this token, so the chain state speaks instead", () => {
+      expect(summarizeWorkloadStatusUnlessWithheld([buildPoll({ web: 0 })], true)).toBeUndefined();
     });
   });
 });

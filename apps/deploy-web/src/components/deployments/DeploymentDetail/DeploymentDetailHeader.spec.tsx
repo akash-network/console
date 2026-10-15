@@ -106,6 +106,14 @@ describe(DeploymentDetailHeader.name, () => {
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
   });
 
+  it("warns when the provider of a live lease stops answering", () => {
+    const outage = new AxiosError("Service Unavailable", "503", undefined, undefined, mock<AxiosResponse>({ status: 503 }));
+    setup({ availableReplicasByService: null, statusError: outage });
+
+    expect(screen.getByText("Provider not responding")).toBeInTheDocument();
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
   it("falls back to the chain state rather than loading forever when status is not available with view-only access", () => {
     setup({ availableReplicasByService: null, tokenMode: "view-only" });
 

@@ -56,7 +56,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
   onDeploymentClosed,
   dependencies: d = DEPENDENCIES
 }) => {
-  const { leases, endpoints, isLoadingEndpoints, unreachableReason } = d.useDeploymentReachability({ deployment, providers });
+  const { leases, workload, endpoints, isLoadingEndpoints, unreachableReason } = d.useDeploymentReachability({ deployment, providers });
   const [isShowingEndpoints, setIsShowingEndpoints] = useState(false);
   const toggleEndpoints = () => setIsShowingEndpoints(current => !current);
   /** Endpoints can drop below the count that draws the toggle while the panel is open, which would strand it with nothing left to close it. */
@@ -67,7 +67,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
       <TableRow className={cn(isShowingEndpointPanel && "border-b-0")}>
         <TableCell>
           <div className="flex flex-wrap items-center gap-1.5">
-            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} />
+            <d.DeploymentStatusBadge state={deployment.state} leases={leases} isSummarized isClosing={isClosing} workload={workload} />
             <d.DeploymentBadges deployment={deployment} />
           </div>
         </TableCell>

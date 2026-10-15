@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
-import type { ListedDeploymentDto } from "@src/types/deployment";
+import type { LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
+import type { WorkloadStatus } from "../DeploymentDetail/DeploymentPlacements/placementModel";
 import type { VisitEndpoint } from "../DeploymentDetail/DeploymentVisitControl/visitEndpoints";
 import { DEPENDENCIES, DeploymentRow } from "./DeploymentRow";
 
@@ -39,6 +41,34 @@ describe("DeploymentRow", () => {
     const { useDeploymentReachability, providers, deployment } = setup({ deployment: { dseq: "100" } });
 
     expect(useDeploymentReachability).toHaveBeenCalledWith({ deployment, providers });
+  });
+
+  describe("reading the status the way the deployment page does", () => {
+    it("shows the deployment as starting while a service of a live lease has no ready replica", () => {
+      setup({ deployment: { dseq: "100" }, leases: [mock<LeaseDto>({ state: "active" })], workload: "starting", isRenderingStatus: true });
+
+      expect(screen.getByText("Starting")).toBeInTheDocument();
+      expect(screen.queryByText("Running")).not.toBeInTheDocument();
+    });
+
+    it("shows the deployment as running once every service has a ready replica", () => {
+      setup({ deployment: { dseq: "100" }, leases: [mock<LeaseDto>({ state: "active" })], workload: "running", isRenderingStatus: true });
+
+      expect(screen.getByText("Running")).toBeInTheDocument();
+    });
+
+    it("warns when a provider stops answering", () => {
+      setup({ deployment: { dseq: "100" }, leases: [mock<LeaseDto>({ state: "active" })], workload: "unreachable", isRenderingStatus: true });
+
+      expect(screen.getByText("Provider not responding")).toBeInTheDocument();
+      expect(screen.queryByText("Running")).not.toBeInTheDocument();
+    });
+
+    it("falls back to the chain state when the lease status is withheld from this token", () => {
+      setup({ deployment: { dseq: "100" }, leases: [mock<LeaseDto>({ state: "active" })], workload: undefined, isRenderingStatus: true });
+
+      expect(screen.getByText("Running")).toBeInTheDocument();
+    });
   });
 
   it("falls back to the dseq when the deployment has no local name", () => {
@@ -172,11 +202,15 @@ describe("DeploymentRow", () => {
     isClosing?: boolean;
     endpoints?: VisitEndpoint[];
     canManage?: boolean;
+    leases?: LeaseDto[];
+    workload?: WorkloadStatus;
+    isRenderingStatus?: boolean;
   }) {
     let endpoints = input.endpoints ?? [];
     const useDeploymentReachability = vi.fn<typeof DEPENDENCIES.useDeploymentReachability>(() => ({
-      leases: [],
+      leases: input.leases ?? [],
       isLoadingLeases: false,
+      workload: input.workload,
       endpoints,
       isLoadingEndpoints: false,
       unreachableReason: null
@@ -213,7 +247,7 @@ describe("DeploymentRow", () => {
               DeploymentEndpoints,
               DeploymentEndpointsPanel,
               DeploymentBadges,
-              DeploymentStatusBadge,
+              DeploymentStatusBadge: input.isRenderingStatus ? DEPENDENCIES.DeploymentStatusBadge : DeploymentStatusBadge,
               DeploymentActionsMenu,
               DeploymentProjectChip
             })}

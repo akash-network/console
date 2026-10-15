@@ -225,6 +225,59 @@ describe(useDeploymentReachability.name, () => {
     });
   });
 
+  describe("what the workload is doing, read the way the deployment page reads it", () => {
+    it("reports starting while a service of a live lease has no ready replica", () => {
+      const { result } = setup({
+        leases: [lease({ state: "active" })],
+        statuses: [{ services: { web: mock<LeaseServiceStatus>({ uris: [], available: 1 }), worker: mock<LeaseServiceStatus>({ uris: [], available: 0 }) } }]
+      });
+
+      expect(result.current.workload).toBe("starting");
+    });
+
+    it("reports running once every service of every live lease has a ready replica", () => {
+      const { result } = setup({
+        leases: [lease({ state: "active" }), lease({ state: "active", gseq: 2 })],
+        statuses: [
+          { services: { web: mock<LeaseServiceStatus>({ uris: [], available: 1 }) } },
+          { services: { worker: mock<LeaseServiceStatus>({ uris: [], available: 2 }) } }
+        ]
+      });
+
+      expect(result.current.workload).toBe("running");
+    });
+
+    it("reports a provider that stops answering as unreachable", () => {
+      const outage = new AxiosError("Service Unavailable", "503", undefined, undefined, mock<AxiosResponse>({ status: 503 }));
+      const { result } = setup({ leases: [lease({ state: "active" })], statuses: [null], statusError: outage });
+
+      expect(result.current.workload).toBe("unreachable");
+    });
+
+    it("reports nothing with view-only access, so the badge falls back to the chain state", () => {
+      const { result } = setup({
+        leases: [lease({ state: "active" })],
+        statuses: [{ services: { web: mock<LeaseServiceStatus>({ uris: [], available: 0 }) } }],
+        tokenMode: "view-only"
+      });
+
+      expect(result.current.workload).toBeUndefined();
+    });
+
+    it("reports nothing when the status token was refused", () => {
+      const refusal = new AxiosError("Forbidden", "403", undefined, undefined, mock<AxiosResponse>({ status: 403 }));
+      const { result } = setup({ leases: [lease({ state: "active" })], statuses: [null], statusError: refusal, tokenMode: "per-deployment" });
+
+      expect(result.current.workload).toBeUndefined();
+    });
+
+    it("reports nothing for a deployment without a live lease", () => {
+      const { result } = setup({ leases: [lease({ state: "closed" })] });
+
+      expect(result.current.workload).toBeUndefined();
+    });
+  });
+
   describe("when a lease status never settles", () => {
     it("stops waiting and commits to a reason rather than spinning forever", () => {
       vi.useFakeTimers();
