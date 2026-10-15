@@ -2,6 +2,7 @@ import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
+import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import { useTransactionInvoiceMutation } from "./useTransactionInvoiceQueries";
 
 import { act } from "@testing-library/react";
@@ -24,6 +25,15 @@ describe(useTransactionInvoiceMutation.name, () => {
     expect(response).toEqual(INVOICE);
     expect(queryClient.getQueryState(TRANSACTIONS_KEY)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(BILLING_DETAILS_KEY)?.isInvalidated).toBe(false);
+  });
+
+  it("leaves a refusal the button already shows out of error reporting", async () => {
+    const { result, queryClient } = setup();
+
+    await act(() => result.current.mutateAsync({ id: "tx-1" }));
+
+    const [mutation] = queryClient.getMutationCache().getAll();
+    expect(mutation.meta).toEqual(SKIP_REPORTING_REFUSED_INPUT);
   });
 
   function setup() {
