@@ -96,6 +96,8 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    getBillingDetails: { path: "/v1/billing-details", method: "get", operationId: "getBillingDetails", pathParams: [], queryParams: [], hasBody: false },
+    updateBillingDetails: { path: "/v1/billing-details", method: "put", operationId: "updateBillingDetails", pathParams: [], queryParams: [], hasBody: true },
     getFirstPurchaseBonus: {
       path: "/v1/stripe/first-purchase-bonus",
       method: "get",
@@ -104,8 +106,6 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
-    getBillingDetails: { path: "/v1/billing-details", method: "get", operationId: "getBillingDetails", pathParams: [], queryParams: [], hasBody: false },
-    updateBillingDetails: { path: "/v1/billing-details", method: "put", operationId: "updateBillingDetails", pathParams: [], queryParams: [], hasBody: true },
     acceptFairUsePolicy: {
       path: "/v1/user/acceptFairUsePolicy",
       method: "post",
@@ -306,6 +306,19 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    listProjects: { path: "/v1/projects", method: "get", operationId: "listProjects", pathParams: [], queryParams: [], hasBody: false },
+    createProject: { path: "/v1/projects", method: "post", operationId: "createProject", pathParams: [], queryParams: [], hasBody: true },
+    getProject: { path: "/v1/projects/{id}", method: "get", operationId: "getProject", pathParams: ["id"], queryParams: [], hasBody: false },
+    updateProject: { path: "/v1/projects/{id}", method: "patch", operationId: "updateProject", pathParams: ["id"], queryParams: [], hasBody: true },
+    deleteProject: { path: "/v1/projects/{id}", method: "delete", operationId: "deleteProject", pathParams: ["id"], queryParams: [], hasBody: false },
+    listOrganizationActivities: {
+      path: "/v1/organization-activities",
+      method: "get",
+      operationId: "listOrganizationActivities",
+      pathParams: [],
+      queryParams: ["projectId", "limit", "cursor"],
+      hasBody: false
+    },
     listOrganizationMembers: {
       path: "/v1/organization-members",
       method: "get",
@@ -380,19 +393,6 @@ export const operations = {
     },
     previewInvitation: { path: "/v1/invitations/preview", method: "post", operationId: "previewInvitation", pathParams: [], queryParams: [], hasBody: true },
     acceptInvitation: { path: "/v1/invitations/accept", method: "post", operationId: "acceptInvitation", pathParams: [], queryParams: [], hasBody: true },
-    listProjects: { path: "/v1/projects", method: "get", operationId: "listProjects", pathParams: [], queryParams: [], hasBody: false },
-    createProject: { path: "/v1/projects", method: "post", operationId: "createProject", pathParams: [], queryParams: [], hasBody: true },
-    getProject: { path: "/v1/projects/{id}", method: "get", operationId: "getProject", pathParams: ["id"], queryParams: [], hasBody: false },
-    updateProject: { path: "/v1/projects/{id}", method: "patch", operationId: "updateProject", pathParams: ["id"], queryParams: [], hasBody: true },
-    deleteProject: { path: "/v1/projects/{id}", method: "delete", operationId: "deleteProject", pathParams: ["id"], queryParams: [], hasBody: false },
-    listOrganizationActivities: {
-      path: "/v1/organization-activities",
-      method: "get",
-      operationId: "listOrganizationActivities",
-      pathParams: [],
-      queryParams: ["projectId", "limit", "cursor"],
-      hasBody: false
-    },
     listProjectMembers: {
       path: "/v1/projects/{id}/members",
       method: "get",
