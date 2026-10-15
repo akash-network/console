@@ -1,3 +1,4 @@
+import { createMongoAbility, ForbiddenError, type MongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
@@ -8,7 +9,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { type TemplateInput, UserTemplateRepository } from "./user-template.repository";
 
-import { seedOrganization } from "@test/seeders/db/organization.seeder";
+import { seedOrganization, seedProject } from "@test/seeders/db/organization.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 describe(UserTemplateRepository.name, () => {
@@ -106,6 +107,19 @@ describe(UserTemplateRepository.name, () => {
 
       const deleted = await findStoredTemplate(template.id);
       expect(deleted).toBeUndefined();
+    });
+
+    it("refuses to delete a template outside the rules attached and keeps it", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const { organization, defaultProject, otherProject } = await seedOrganizationWithProjects();
+      const template = await createTestTemplate({ userId: user.userId! }, organization.id);
+      const ability = abilityOnProjects(organization.id, { read: [defaultProject.id], manage: [otherProject.id] });
+
+      const deleted = runInOrganization(organization.id, () => userTemplateRepository.accessibleBy(ability, "delete").deleteById(template.id, user.userId!));
+
+      await expect(deleted).rejects.toBeInstanceOf(ForbiddenError);
+      expect(await findStoredTemplate(template.id)).toMatchObject({ id: template.id });
     });
 
     it("does not delete template if userId does not match", async () => {
@@ -234,6 +248,25 @@ describe(UserTemplateRepository.name, () => {
       expect(hidden).toBeUndefined();
     });
 
+    it("returns a public template whatever the rules attached and a private one only within them", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const { organization, otherProject } = await seedOrganizationWithProjects();
+      const [publicTemplate, privateTemplate, readableTemplate] = await Promise.all([
+        createTestTemplate({ userId: author.userId!, isPublic: true }, organization.id),
+        createTestTemplate({ userId: author.userId! }, organization.id),
+        createTestTemplate({ userId: author.userId! }, organization.id)
+      ]);
+      await moveTemplate(readableTemplate.id, otherProject.id);
+      const repository = userTemplateRepository.accessibleBy(abilityOnProjects(organization.id, { read: [otherProject.id], manage: [] }), "read");
+
+      const found = await runInOrganization(organization.id, () =>
+        Promise.all([publicTemplate, privateTemplate, readableTemplate].map(({ id }) => repository.findById(id, author.userId!)))
+      );
+
+      expect(found.map(template => template?.id)).toEqual([publicTemplate.id, undefined, readableTemplate.id]);
+    });
+
     it("keeps a private template from another member of the same organization, in organization mode", async () => {
       const { userTemplateRepository } = setup();
       const author = await createTestUser();
@@ -345,7 +378,7 @@ describe(UserTemplateRepository.name, () => {
     });
   });
 
-  describe("upsert", () => {
+  describe("createTemplate", () => {
     it("creates new template when id is not provided", async () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
@@ -359,7 +392,7 @@ describe(UserTemplateRepository.name, () => {
         description: faker.lorem.sentence()
       };
 
-      const templateId = await userTemplateRepository.upsert(undefined, user.userId!, templateData);
+      const templateId = await userTemplateRepository.createTemplate(user.userId!, templateData);
       createdTemplateIds.push(templateId);
 
       const template = await findStoredTemplate(templateId);
@@ -369,45 +402,7 @@ describe(UserTemplateRepository.name, () => {
       expect(template?.isPublic).toBe(true);
     });
 
-    it("creates new template when id is null", async () => {
-      const { userTemplateRepository } = setup();
-      const user = await createTestUser();
-      const templateData = {
-        sdl: faker.lorem.paragraph(),
-        title: faker.lorem.words(3),
-        cpu: faker.number.int({ min: 1000, max: 10000 }),
-        ram: faker.number.int({ min: 1000000, max: 10000000 }),
-        storage: faker.number.int({ min: 1000000, max: 100000000 })
-      };
-
-      const templateId = await userTemplateRepository.upsert(null, user.userId!, templateData);
-      createdTemplateIds.push(templateId);
-
-      const template = await findStoredTemplate(templateId);
-      expect(template).toBeDefined();
-    });
-
-    it("updates existing template when id matches userId", async () => {
-      const { userTemplateRepository } = setup();
-      const user = await createTestUser();
-      const template = await createTestTemplate({ userId: user.userId! });
-      const newTitle = faker.lorem.words(3);
-      const templateData = {
-        sdl: template.sdl,
-        title: newTitle,
-        cpu: template.cpu,
-        ram: template.ram,
-        storage: template.storage
-      };
-
-      const templateId = await userTemplateRepository.upsert(template.id, user.userId!, templateData);
-
-      expect(templateId).toBe(template.id);
-      const updatedTemplate = await findStoredTemplate(template.id);
-      expect(updatedTemplate?.title).toBe(newTitle);
-    });
-
-    it("creates copy with copiedFromId when id exists but userId does not match", async () => {
+    it("records the template a copy was made from", async () => {
       const { userTemplateRepository } = setup();
       const user1 = await createTestUser();
       const user2 = await createTestUser();
@@ -420,12 +415,12 @@ describe(UserTemplateRepository.name, () => {
         storage: faker.number.int({ min: 1000000, max: 100000000 })
       };
 
-      const newTemplateId = await userTemplateRepository.upsert(originalTemplate.id, user2.userId!, templateData);
+      const newTemplateId = await userTemplateRepository.createTemplate(user2.userId!, templateData, { copiedFromId: originalTemplate.id });
       createdTemplateIds.push(newTemplateId);
 
       expect(newTemplateId).not.toBe(originalTemplate.id);
       const newTemplate = await findStoredTemplate(newTemplateId);
-      expect(newTemplate?.userId).toBe(user2.userId);
+      expect(newTemplate).toMatchObject({ userId: user2.userId, copiedFromId: originalTemplate.id });
     });
 
     it("creates the copy under a new id when the submitted template still carries the original's id", async () => {
@@ -442,7 +437,7 @@ describe(UserTemplateRepository.name, () => {
         storage: faker.number.int({ min: 1000000, max: 100000000 })
       };
 
-      const copyId = await userTemplateRepository.upsert(submittedTemplate.id, copier.userId!, submittedTemplate);
+      const copyId = await userTemplateRepository.createTemplate(copier.userId!, submittedTemplate, { copiedFromId: submittedTemplate.id });
       createdTemplateIds.push(copyId);
 
       expect(copyId).not.toBe(originalTemplate.id);
@@ -450,41 +445,57 @@ describe(UserTemplateRepository.name, () => {
       expect(await findStoredTemplate(originalTemplate.id)).toMatchObject({ userId: owner.userId, title: originalTemplate.title });
     });
 
-    it("updates isPublic when provided", async () => {
+    it("files the template into the project named, or into the organization's default project when none is", async () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
-      const template = await createTestTemplate({ userId: user.userId!, isPublic: false });
+      const { organization, defaultProject, otherProject } = await seedOrganizationWithProjects();
 
-      await userTemplateRepository.upsert(template.id, user.userId!, {
-        sdl: template.sdl,
-        title: template.title,
-        cpu: template.cpu,
-        ram: template.ram,
-        storage: template.storage,
-        isPublic: true
-      });
+      const [inDefault, inNamed] = await runInOrganization(organization.id, () =>
+        Promise.all([
+          userTemplateRepository.createTemplate(user.userId!, buildTemplateInput()),
+          userTemplateRepository.createTemplate(user.userId!, buildTemplateInput(), { projectId: otherProject.id })
+        ])
+      );
+      createdTemplateIds.push(inDefault, inNamed);
 
-      const updatedTemplate = await findStoredTemplate(template.id);
-      expect(updatedTemplate?.isPublic).toBe(true);
+      expect(await findStoredTemplate(inDefault)).toMatchObject({ organizationId: organization.id, projectId: defaultProject.id, copiedFromId: null });
+      expect(await findStoredTemplate(inNamed)).toMatchObject({ organizationId: organization.id, projectId: otherProject.id });
     });
 
-    it("updates description when provided", async () => {
+    it("refuses a template filed outside the rules attached and stores nothing", async () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
-      const template = await createTestTemplate({ userId: user.userId! });
-      const newDescription = faker.lorem.sentence();
+      const { organization, defaultProject, otherProject } = await seedOrganizationWithProjects();
+      const ability = abilityOnProjects(organization.id, { read: [defaultProject.id, otherProject.id], manage: [otherProject.id] });
+      const data = buildTemplateInput();
 
-      await userTemplateRepository.upsert(template.id, user.userId!, {
-        sdl: template.sdl,
-        title: template.title,
-        cpu: template.cpu,
-        ram: template.ram,
-        storage: template.storage,
-        description: newDescription
-      });
+      const created = runInOrganization(organization.id, () => userTemplateRepository.accessibleBy(ability, "create").createTemplate(user.userId!, data));
 
-      const updatedTemplate = await findStoredTemplate(template.id);
-      expect(updatedTemplate?.description).toBe(newDescription);
+      await expect(created).rejects.toBeInstanceOf(ForbiddenError);
+      expect(await findStoredTemplatesTitled(data.title)).toEqual([]);
+    });
+  });
+
+  describe("isAuthoredBy", () => {
+    it("tells whether the user authored the template inside the active organization, whatever the rules attached", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const colleague = await createTestUser();
+      const { organization, otherProject } = await seedOrganizationWithProjects();
+      const other = await seedOrganization();
+      const template = await createTestTemplate({ userId: author.userId! }, organization.id);
+      const elsewhere = await createTestTemplate({ userId: author.userId! }, other.id);
+      const repository = userTemplateRepository.accessibleBy(abilityOnProjects(organization.id, { read: [otherProject.id], manage: [] }), "read");
+
+      const answers = await runInOrganization(organization.id, () =>
+        Promise.all([
+          repository.isAuthoredBy(template.id, author.userId!),
+          repository.isAuthoredBy(template.id, colleague.userId!),
+          repository.isAuthoredBy(elsewhere.id, author.userId!)
+        ])
+      );
+
+      expect(answers).toEqual([true, false, false]);
     });
   });
 
@@ -504,6 +515,36 @@ describe(UserTemplateRepository.name, () => {
       const updatedTemplate = await findStoredTemplate(template.id);
       expect(updatedTemplate?.title).toBe(newTitle);
       expect(updatedTemplate?.description).toBe(newDescription);
+    });
+
+    it("refuses a change outside the rules attached and leaves the template unchanged", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const { organization, defaultProject, otherProject } = await seedOrganizationWithProjects();
+      const template = await createTestTemplate({ userId: user.userId! }, organization.id);
+      const ability = abilityOnProjects(organization.id, { read: [defaultProject.id], manage: [otherProject.id] });
+
+      const updated = runInOrganization(organization.id, () =>
+        userTemplateRepository.accessibleBy(ability, "update").updateTemplate(template.id, user.userId!, { title: faker.lorem.words(4) })
+      );
+
+      await expect(updated).rejects.toBeInstanceOf(ForbiddenError);
+      expect(await findStoredTemplate(template.id)).toMatchObject({ title: template.title });
+    });
+
+    it("changes a template within the rules attached", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const { organization, defaultProject } = await seedOrganizationWithProjects();
+      const template = await createTestTemplate({ userId: user.userId! }, organization.id);
+      const ability = abilityOnProjects(organization.id, { read: [], manage: [defaultProject.id] });
+      const isPublic = !template.isPublic;
+
+      await runInOrganization(organization.id, () =>
+        userTemplateRepository.accessibleBy(ability, "update").updateTemplate(template.id, user.userId!, { isPublic })
+      );
+
+      expect(await findStoredTemplate(template.id)).toMatchObject({ isPublic });
     });
 
     it("does not update template if userId does not match", async () => {
@@ -570,6 +611,20 @@ describe(UserTemplateRepository.name, () => {
       expect(results.map(t => t.id)).toEqual(expect.arrayContaining([publicTemplate.id, privateTemplate.id]));
     });
 
+    it("lists only the templates within the read rules attached", async () => {
+      const { userTemplateRepository } = setup();
+      const user = await createTestUser();
+      const { organization, otherProject } = await seedOrganizationWithProjects();
+      await createTestTemplate({ userId: user.userId! }, organization.id);
+      const inOther = await createTestTemplate({ userId: user.userId! }, organization.id);
+      await moveTemplate(inOther.id, otherProject.id);
+      const repository = userTemplateRepository.accessibleBy(abilityOnProjects(organization.id, { read: [otherProject.id], manage: [] }), "read");
+
+      const results = await runInOrganization(organization.id, () => repository.findAllByUserId(user.userId!));
+
+      expect(results.map(({ id }) => id)).toEqual([inOther.id]);
+    });
+
     it("returns empty array when user has no templates", async () => {
       const { userTemplateRepository } = setup();
       const user = await createTestUser();
@@ -611,8 +666,8 @@ describe(UserTemplateRepository.name, () => {
   async function createTestTemplate(overrides: { userId: string } & Partial<TemplateInput>, organizationId?: string) {
     const { userId, ...data } = overrides;
     const { userTemplateRepository } = setup();
-    const upsert = () =>
-      userTemplateRepository.upsert(undefined, userId, {
+    const create = () =>
+      userTemplateRepository.createTemplate(userId, {
         sdl: faker.lorem.paragraph(),
         title: faker.lorem.words(3),
         description: faker.lorem.sentence(),
@@ -622,10 +677,43 @@ describe(UserTemplateRepository.name, () => {
         isPublic: false,
         ...data
       });
-    const id = organizationId ? await runInOrganization(organizationId, upsert) : await upsert();
+    const id = organizationId ? await runInOrganization(organizationId, create) : await create();
     const template = await findStoredTemplate(id);
     createdTemplateIds.push(id);
     return template!;
+  }
+
+  function buildTemplateInput(): TemplateInput {
+    return { sdl: faker.lorem.paragraph(), title: faker.lorem.words(3), cpu: 1000, ram: 1000000, storage: 1000000 };
+  }
+
+  async function seedOrganizationWithProjects() {
+    const organization = await seedOrganization();
+    const [defaultProject, otherProject] = await Promise.all([
+      seedProject({ organizationId: organization.id, isDefault: true }),
+      seedProject({ organizationId: organization.id })
+    ]);
+
+    return { organization, defaultProject, otherProject };
+  }
+
+  function abilityOnProjects(organizationId: string, projects: { read: string[]; manage: string[] }) {
+    return createMongoAbility<MongoAbility>([
+      { action: "read", subject: "Template", conditions: { organizationId, projectId: { $in: projects.read } } },
+      { action: "manage", subject: "Template", conditions: { organizationId, projectId: { $in: projects.manage } } }
+    ]);
+  }
+
+  async function moveTemplate(id: string, projectId: string) {
+    const templates = resolveTable("Templates");
+
+    await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(templates).set({ projectId }).where(eq(templates.id, id));
+  }
+
+  async function findStoredTemplatesTitled(title: string) {
+    const templates = resolveTable("Templates");
+
+    return await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(templates).where(eq(templates.title, title));
   }
 
   async function findStoredTemplate(id: string) {

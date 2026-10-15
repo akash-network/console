@@ -184,7 +184,7 @@ describe("ability rules", () => {
 
       const rules = legacyRules(user);
 
-      expect(rules).toHaveLength(16);
+      expect(rules).toHaveLength(17);
       expect(rules).toEqual(
         expect.arrayContaining([
           { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: user.id } },
@@ -202,9 +202,17 @@ describe("ability rules", () => {
           { action: "create", subject: "HardwareRequest", conditions: { userId: user.id } },
           { action: ["read", "update"], subject: "Activity", conditions: { userId: user.id } },
           { action: "manage", subject: "FavoriteProvider", conditions: { userId: user.id } },
-          { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } }
+          { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } },
+          { action: "manage", subject: "Template", conditions: { userId: user.userId } }
         ])
       );
+    });
+
+    it("keys no template rule on a user without an Auth0 subject", () => {
+      const rules = legacyRules(createUser({ userId: null }));
+
+      expect(rules.map(({ subject }) => subject)).not.toContain("Template");
+      expect(rules).toHaveLength(16);
     });
 
     it("keeps a user without an email from verifying the email of other users without one", () => {

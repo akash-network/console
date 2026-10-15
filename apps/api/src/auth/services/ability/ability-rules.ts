@@ -9,7 +9,7 @@ import type { UserOutput } from "@src/user/repositories";
 
 export type AbilityRule = RawRuleOf<MongoAbility> & { enabledIf?: FeatureFlagValue };
 
-export type RuleUser = Pick<UserOutput, "id" | "email">;
+export type RuleUser = Pick<UserOutput, "id" | "email" | "userId">;
 
 interface TenantConditions {
   organization: MongoQuery;
@@ -108,8 +108,14 @@ export function legacyRules(user: RuleUser): AbilityRule[] {
     { action: "manage", subject: "DeploymentSetting", conditions: { userId: user.id } },
     { action: "manage", subject: "ApiKey", conditions: { userId: user.id } },
     { action: "manage", subject: "Alert", conditions: { userId: user.id } },
-    { action: "manage", subject: "NotificationChannel", conditions: { userId: user.id } }
+    { action: "manage", subject: "NotificationChannel", conditions: { userId: user.id } },
+    ...authoredTemplateRules(user)
   ];
+}
+
+/** Templates name their author by the Auth0 subject rather than the user id. */
+function authoredTemplateRules({ userId }: RuleUser): AbilityRule[] {
+  return hasEveryId(userId) ? [{ action: "manage", subject: "Template", conditions: { userId } }] : [];
 }
 
 export function organizationRules(user: RuleUser, context: OrganizationContext, apiKey?: Pick<ApiKeyOutput, "projectId">): AbilityRule[] {

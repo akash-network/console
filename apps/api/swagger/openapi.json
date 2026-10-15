@@ -2895,6 +2895,11 @@
                   "description": {
                     "type": "string",
                     "maxLength": 2000
+                  },
+                  "projectId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Project to file a new template in. A template that already exists stays in its project."
                   }
                 },
                 "required": [
@@ -2918,6 +2923,12 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Not allowed to change templates in this project"
+          },
+          "404": {
+            "description": "Project not found"
           }
         }
       }
@@ -2964,6 +2975,9 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Not allowed to change templates in this project"
           }
         }
       }
@@ -3029,6 +3043,9 @@
           },
           "401": {
             "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Not allowed to change templates in this project"
           }
         }
       }

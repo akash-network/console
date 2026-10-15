@@ -263,7 +263,7 @@ describe(AccountDeletionService.name, () => {
     const account = await seedAccount();
     const bystander = await seedAccount();
 
-    const sharedTemplateId = await templateRepository.upsert(null, bystander.user.userId!, templateInput());
+    const sharedTemplateId = await templateRepository.createTemplate(bystander.user.userId!, templateInput());
     await templateRepository.addFavorite(account.user.userId!, sharedTemplateId);
     await templateRepository.addFavorite(bystander.user.userId!, account.templateId);
 
@@ -308,7 +308,7 @@ describe(AccountDeletionService.name, () => {
         .insert(resolveTable("WorkloadProbeEvidence"))
         .values({ walletId: wallet.id, dseq, provider: "akash1provider", service: "web", shellStatus: "ok", verdict: "clean" });
       await db.insert(resolveTable("BlockedEmailDomains")).values({ domain: blockedDomain, triggeredByUserId: user.id });
-      const templateId = await templateRepository.upsert(null, user.userId!, templateInput());
+      const templateId = await templateRepository.createTemplate(user.userId!, templateInput());
 
       const organization = await personalOrganizationService.ensureForUser(user);
       await personalOrganizationService.adoptUserRows(user, organization);
