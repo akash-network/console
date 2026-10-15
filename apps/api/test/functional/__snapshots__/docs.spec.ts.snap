@@ -6591,6 +6591,87 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/deployment-locations/{dseq}": {
+      "get": {
+        "operationId": "getDeploymentLocation",
+        "parameters": [
+          {
+            "description": "Deployment sequence number",
+            "in": "path",
+            "name": "dseq",
+            "required": true,
+            "schema": {
+              "description": "Deployment sequence number",
+              "pattern": "^0*[1-9]\\d*$",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "organizationId": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "organizationSlug": {
+                          "type": "string",
+                        },
+                        "projectId": {
+                          "format": "uuid",
+                          "nullable": true,
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "organizationId",
+                        "organizationSlug",
+                        "projectId",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Where the deployment is filed",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "404": {
+            "description": "No deployment with this dseq in the caller's reach",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Find the organization and project a deployment is filed into, among the caller's organizations",
+        "tags": [
+          "Deployments",
+        ],
+      },
+    },
     "/v1/deployment-names": {
       "get": {
         "operationId": "listDeploymentNames",
@@ -7236,6 +7317,188 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "summary": "Update deployment settings",
         "tags": [
           "Deployment Settings",
+        ],
+      },
+    },
+    "/v1/deployment-spend": {
+      "get": {
+        "operationId": "listDeploymentSpend",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": false,
+            "schema": {
+              "description": "First day of the range (YYYY-MM-DD, UTC), inclusive. Defaults to the first day of endDate's month",
+              "example": "2026-10-01",
+              "format": "date",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": false,
+            "schema": {
+              "description": "Last day of the range (YYYY-MM-DD, UTC), inclusive. Defaults to today",
+              "example": "2026-10-31",
+              "format": "date",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "days": {
+                          "description": "Each project's spend per day, leaving out days it spent nothing",
+                          "items": {
+                            "properties": {
+                              "consumedUsd": {
+                                "description": "What the project's leases cost that day, including costs not settled yet",
+                                "type": "number",
+                              },
+                              "date": {
+                                "description": "The UTC day (YYYY-MM-DD)",
+                                "example": "2026-10-01",
+                                "type": "string",
+                              },
+                              "projectId": {
+                                "description": "Null for the deployments filed in no project",
+                                "format": "uuid",
+                                "nullable": true,
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "date",
+                              "projectId",
+                              "consumedUsd",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "deployments": {
+                          "description": "The deployments that held a lease in the range, most spent first",
+                          "items": {
+                            "properties": {
+                              "consumedUsd": {
+                                "description": "What the deployment's leases cost over the range, including costs not settled yet",
+                                "type": "number",
+                              },
+                              "dseq": {
+                                "type": "string",
+                              },
+                              "hours": {
+                                "description": "How long the deployment held a lease over the range",
+                                "type": "number",
+                              },
+                              "name": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                              "projectId": {
+                                "description": "Null for a deployment filed in no project",
+                                "format": "uuid",
+                                "nullable": true,
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "dseq",
+                              "name",
+                              "projectId",
+                              "consumedUsd",
+                              "hours",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "endDate": {
+                          "type": "string",
+                        },
+                        "projects": {
+                          "description": "The projects the caller can see, and deleted ones that have spend in the range",
+                          "items": {
+                            "properties": {
+                              "isDefault": {
+                                "type": "boolean",
+                              },
+                              "isDeleted": {
+                                "type": "boolean",
+                              },
+                              "name": {
+                                "type": "string",
+                              },
+                              "projectId": {
+                                "format": "uuid",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "projectId",
+                              "name",
+                              "isDefault",
+                              "isDeleted",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "startDate": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate",
+                        "projects",
+                        "days",
+                        "deployments",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Spend of the deployments in the projects the caller can see, with the deployments filed in no project when the caller can see the whole organization",
+          },
+          "400": {
+            "description": "Dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Report what the active organization's deployments consumed over a date range, per deployment and per project and day",
+        "tags": [
+          "Projects",
         ],
       },
     },
@@ -12008,6 +12271,115 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/deployments/{dseq}/project": {
+      "patch": {
+        "operationId": "updateDeploymentProject",
+        "parameters": [
+          {
+            "description": "Deployment sequence number",
+            "in": "path",
+            "name": "dseq",
+            "required": true,
+            "schema": {
+              "description": "Deployment sequence number",
+              "pattern": "^0*[1-9]\\d*$",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "projectId": {
+                        "format": "uuid",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "projectId",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "dseq": {
+                          "pattern": "^0*[1-9]\\d*$",
+                          "type": "string",
+                        },
+                        "projectId": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "dseq",
+                        "projectId",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The project the deployment is now filed into",
+          },
+          "400": {
+            "description": "The dseq is malformed, or the body names no project or one that is not a uuid",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller's role in the active organization does not allow it",
+          },
+          "404": {
+            "description": "No deployment or project with this id in the caller's reach",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Move a deployment to another project of the active organization",
+        "tags": [
+          "Deployments",
+        ],
+      },
+    },
     "/v1/deposit-deployment": {
       "post": {
         "deprecated": true,
@@ -13868,6 +14240,259 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/invitations/accept": {
+      "post": {
+        "operationId": "acceptInvitation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "confirmEmailMismatch": {
+                        "description": "Join even though the invitation was sent to an address that is not the caller's verified email.",
+                        "type": "boolean",
+                      },
+                      "token": {
+                        "description": "The token from the invitation link.",
+                        "pattern": "^[A-Za-z0-9_-]{43}$",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "token",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "hasPaymentMethod": {
+                          "description": "Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in.",
+                          "nullable": true,
+                          "type": "boolean",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "isActive": {
+                          "description": "Whether this request ran in this organization.",
+                          "type": "boolean",
+                        },
+                        "name": {
+                          "type": "string",
+                        },
+                        "role": {
+                          "description": "The caller's role in the organization.",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer",
+                          ],
+                          "type": "string",
+                        },
+                        "slug": {
+                          "type": "string",
+                        },
+                        "type": {
+                          "enum": [
+                            "personal",
+                            "team",
+                          ],
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "type",
+                        "role",
+                        "isActive",
+                        "hasPaymentMethod",
+                        "createdAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The organization the caller now belongs to",
+          },
+          "400": {
+            "description": "The token is not an invitation token",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "Requested with an API key instead of a signed-in session (\`session_required\`)",
+          },
+          "404": {
+            "description": "No invitation has this token",
+          },
+          "409": {
+            "description": "The invitation was sent to an address the caller has not verified and they did not confirm (\`invitation_email_mismatch\`), someone else already accepted it (\`invitation_already_accepted\`), or the caller already belongs to the organization and was not the verified invitee (\`already_member\`)",
+          },
+          "410": {
+            "description": "The invitation expired (\`invitation_expired\`) or was revoked (\`invitation_revoked\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
+        "summary": "Join the organization of an invitation with the role and project access it grants",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/invitations/preview": {
+      "post": {
+        "operationId": "previewInvitation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "token": {
+                        "description": "The token from the invitation link.",
+                        "pattern": "^[A-Za-z0-9_-]{43}$",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "token",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "email": {
+                          "description": "The address the invitation was sent to.",
+                          "type": "string",
+                        },
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "inviterName": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "organizationName": {
+                          "type": "string",
+                        },
+                        "role": {
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer",
+                          ],
+                          "type": "string",
+                        },
+                        "status": {
+                          "enum": [
+                            "pending",
+                            "accepted",
+                            "revoked",
+                            "expired",
+                          ],
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "organizationName",
+                        "inviterName",
+                        "role",
+                        "email",
+                        "status",
+                        "expiresAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Who sent the invitation, to which organization and in which state",
+          },
+          "400": {
+            "description": "The token is not an invitation token",
+          },
+          "404": {
+            "description": "No invitation has this token",
+          },
+        },
+        "security": [],
+        "summary": "Preview an organization invitation from the token of its link",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
     "/v1/leases": {
       "post": {
         "description": "Creates the leases, then sends each provider its manifest. If a provider refuses the manifest once its lease exists, the error carries code \`manifest_not_delivered\` and the status the provider path produced. Send the same request again to retry the manifest, or close the deployment to stop paying for it.",
@@ -15007,6 +15632,1868 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/organization-activities": {
+      "get": {
+        "operationId": "listOrganizationActivities",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "description": "Only the activities of this project.",
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Activities per page, at most 100.",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer",
+            },
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "description": "Where the page starts: the \`nextCursor\` of the page before it. Omit it for the newest activities.",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "description": "Newest first.",
+                      "items": {
+                        "properties": {
+                          "actor": {
+                            "description": "Who did it, null for the system or a since deleted user.",
+                            "nullable": true,
+                            "properties": {
+                              "id": {
+                                "format": "uuid",
+                                "type": "string",
+                              },
+                              "username": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "username",
+                            ],
+                            "type": "object",
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string",
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "payload": {
+                            "additionalProperties": {
+                              "nullable": true,
+                            },
+                            "description": "The names and values the client renders the activity text with, per type.",
+                            "type": "object",
+                          },
+                          "projectId": {
+                            "description": "The project the activity happened in, null for one about the whole organization.",
+                            "format": "uuid",
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "type": {
+                            "enum": [
+                              "organization_created",
+                              "project_created",
+                              "member_invited",
+                              "member_joined",
+                              "deployment_created",
+                              "deployment_closed",
+                              "deployment_moved",
+                              "member_granted",
+                              "member_revoked",
+                              "member_updated",
+                            ],
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "projectId",
+                          "actor",
+                          "type",
+                          "payload",
+                          "createdAt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "nextCursor": {
+                      "description": "Pass it as \`cursor\` to read the next page. Null on the last page.",
+                      "nullable": true,
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "data",
+                    "nextCursor",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "A page of activities",
+          },
+          "400": {
+            "description": "The query or cursor is not valid",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "List what happened in the active organization, newest first, within the caller's projects",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/organization-invitations": {
+      "get": {
+        "operationId": "listOrganizationInvitations",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string",
+                          },
+                          "email": {
+                            "type": "string",
+                          },
+                          "expiresAt": {
+                            "format": "date-time",
+                            "type": "string",
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "invitedBy": {
+                            "nullable": true,
+                            "properties": {
+                              "id": {
+                                "format": "uuid",
+                                "type": "string",
+                              },
+                              "username": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "username",
+                            ],
+                            "type": "object",
+                          },
+                          "projectAccess": {
+                            "description": "\`all\` reaches every project of the organization, including ones created later. \`selected\` reaches only the granted ones.",
+                            "enum": [
+                              "all",
+                              "selected",
+                            ],
+                            "type": "string",
+                          },
+                          "projectGrants": {
+                            "items": {
+                              "properties": {
+                                "projectId": {
+                                  "format": "uuid",
+                                  "type": "string",
+                                },
+                                "role": {
+                                  "enum": [
+                                    "admin",
+                                    "member",
+                                    "viewer",
+                                  ],
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "projectId",
+                                "role",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                          "role": {
+                            "enum": [
+                              "owner",
+                              "admin",
+                              "member",
+                              "billing",
+                              "viewer",
+                            ],
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "email",
+                          "role",
+                          "projectAccess",
+                          "projectGrants",
+                          "invitedBy",
+                          "createdAt",
+                          "expiresAt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The pending invitations",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot see the organization's invitations",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "List the pending invitations of the active organization",
+        "tags": [
+          "Organizations",
+        ],
+      },
+      "post": {
+        "operationId": "createOrganizationInvitations",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "emails": {
+                        "items": {
+                          "format": "email",
+                          "maxLength": 255,
+                          "type": "string",
+                        },
+                        "maxItems": 20,
+                        "minItems": 1,
+                        "type": "array",
+                      },
+                      "projectAccess": {
+                        "description": "Required for a member or viewer invited without project grants, refused with \`project_access_required\` otherwise, and \`selected\` when grants are given. Ignored for owners, admins and billing members, who are stored as \`all\`.",
+                        "enum": [
+                          "all",
+                          "selected",
+                        ],
+                        "type": "string",
+                      },
+                      "projectGrants": {
+                        "items": {
+                          "properties": {
+                            "projectId": {
+                              "format": "uuid",
+                              "type": "string",
+                            },
+                            "role": {
+                              "enum": [
+                                "admin",
+                                "member",
+                                "viewer",
+                              ],
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "projectId",
+                            "role",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      "role": {
+                        "enum": [
+                          "owner",
+                          "admin",
+                          "member",
+                          "billing",
+                          "viewer",
+                        ],
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "emails",
+                      "role",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string",
+                          },
+                          "email": {
+                            "type": "string",
+                          },
+                          "expiresAt": {
+                            "format": "date-time",
+                            "type": "string",
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "invitedBy": {
+                            "nullable": true,
+                            "properties": {
+                              "id": {
+                                "format": "uuid",
+                                "type": "string",
+                              },
+                              "username": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "username",
+                            ],
+                            "type": "object",
+                          },
+                          "projectAccess": {
+                            "description": "\`all\` reaches every project of the organization, including ones created later. \`selected\` reaches only the granted ones.",
+                            "enum": [
+                              "all",
+                              "selected",
+                            ],
+                            "type": "string",
+                          },
+                          "projectGrants": {
+                            "items": {
+                              "properties": {
+                                "projectId": {
+                                  "format": "uuid",
+                                  "type": "string",
+                                },
+                                "role": {
+                                  "enum": [
+                                    "admin",
+                                    "member",
+                                    "viewer",
+                                  ],
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "projectId",
+                                "role",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                          "role": {
+                            "enum": [
+                              "owner",
+                              "admin",
+                              "member",
+                              "billing",
+                              "viewer",
+                            ],
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "email",
+                          "role",
+                          "projectAccess",
+                          "projectGrants",
+                          "invitedBy",
+                          "createdAt",
+                          "expiresAt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "One pending invitation per address, an address that was already invited keeping its existing one",
+          },
+          "400": {
+            "description": "A project grant names a project outside the active organization, or a member or viewer invitation states neither its project access nor a grant (\`project_access_required\`), combines grants with access to every project, or has specific access without any grant, or an owner, admin or billing invitation names project grants",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot invite with this role (\`owner_role_restricted\`), the active organization is a personal one (\`personal_organization\`), or it has too many pending invitations (\`invitation_limit_reached\`)",
+          },
+          "409": {
+            "description": "An address belongs to a member of the organization (\`already_member\`)",
+          },
+          "429": {
+            "description": "Too many invitation emails were sent recently (\`invitation_email_limit_reached\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Invite people to the active organization by email",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/organization-invitations/{id}": {
+      "delete": {
+        "operationId": "deleteOrganizationInvitation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "The invitation was revoked",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (\`owner_role_restricted\`), or the active organization is a personal one (\`personal_organization\`)",
+          },
+          "404": {
+            "description": "No such pending invitation in the active organization",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Revoke a pending invitation of the active organization",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/organization-invitations/{id}/link": {
+      "post": {
+        "operationId": "createOrganizationInvitationLink",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "url": {
+                          "format": "uri",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "url",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The invitation link",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (\`owner_role_restricted\`), or the active organization is a personal one (\`personal_organization\`)",
+          },
+          "404": {
+            "description": "No such pending invitation in the active organization",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Issue a new link for a pending invitation, which stops every earlier link from working",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/organization-invitations/{id}/resend": {
+      "post": {
+        "operationId": "resendOrganizationInvitation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "email": {
+                          "type": "string",
+                        },
+                        "expiresAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "invitedBy": {
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string",
+                            },
+                            "username": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "id",
+                            "username",
+                          ],
+                          "type": "object",
+                        },
+                        "projectAccess": {
+                          "description": "\`all\` reaches every project of the organization, including ones created later. \`selected\` reaches only the granted ones.",
+                          "enum": [
+                            "all",
+                            "selected",
+                          ],
+                          "type": "string",
+                        },
+                        "projectGrants": {
+                          "items": {
+                            "properties": {
+                              "projectId": {
+                                "format": "uuid",
+                                "type": "string",
+                              },
+                              "role": {
+                                "enum": [
+                                  "admin",
+                                  "member",
+                                  "viewer",
+                                ],
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "projectId",
+                              "role",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "role": {
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer",
+                          ],
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "role",
+                        "projectAccess",
+                        "projectGrants",
+                        "invitedBy",
+                        "createdAt",
+                        "expiresAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The renewed invitation",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (\`owner_role_restricted\`), or the active organization is a personal one (\`personal_organization\`)",
+          },
+          "404": {
+            "description": "No such pending invitation in the active organization",
+          },
+          "429": {
+            "description": "Too many invitation emails were sent recently (\`invitation_email_limit_reached\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Email a pending invitation again with a new link and a new expiry",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/organization-members": {
+      "get": {
+        "operationId": "listOrganizationMembers",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string",
+                          },
+                          "email": {
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "projectAccess": {
+                            "description": "\`all\` for owners and admins, the stored access for members and viewers, null for billing members, who reach no project.",
+                            "enum": [
+                              "all",
+                              "selected",
+                            ],
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "projectCount": {
+                            "description": "The live projects a member or viewer on \`selected\` is granted, null for everyone else.",
+                            "nullable": true,
+                            "type": "integer",
+                          },
+                          "role": {
+                            "enum": [
+                              "owner",
+                              "admin",
+                              "member",
+                              "billing",
+                              "viewer",
+                            ],
+                            "type": "string",
+                          },
+                          "userId": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "username": {
+                            "nullable": true,
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "userId",
+                          "username",
+                          "email",
+                          "role",
+                          "projectAccess",
+                          "projectCount",
+                          "createdAt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The organization's members",
+          },
+          "400": {
+            "description": "The organization header names another organization than the API key's (\`organization_mismatch\`)",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot see the organization's members",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "List the members of the active organization",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/organization-members/{id}": {
+      "delete": {
+        "operationId": "deleteOrganizationMember",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "The member was removed",
+          },
+          "400": {
+            "description": "The request is invalid, or the organization header names another organization than the API key's (\`organization_mismatch\`)",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot change this member, the change touches the owner role and the caller is not an owner (\`owner_role_restricted\`), or the active organization is a personal one (\`personal_organization\`)",
+          },
+          "404": {
+            "description": "No such member in the active organization",
+          },
+          "409": {
+            "description": "The organization would be left without an owner (\`last_owner\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Remove a member from the active organization",
+        "tags": [
+          "Organizations",
+        ],
+      },
+      "patch": {
+        "operationId": "updateOrganizationMember",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "projectAccess": {
+                        "description": "Required when someone becomes a member or viewer from another role, refused with \`project_access_required\` otherwise. A member or viewer on \`selected\` needs at least one project grant. Ignored for owners, admins and billing members.",
+                        "enum": [
+                          "all",
+                          "selected",
+                        ],
+                        "type": "string",
+                      },
+                      "projectGrants": {
+                        "description": "Replaces every grant of a member or viewer on \`selected\`, in the body or already stored: grants not listed are removed. Refused for anyone else. Switching to \`all\` removes the member and viewer grants and keeps the admin ones.",
+                        "items": {
+                          "properties": {
+                            "projectId": {
+                              "format": "uuid",
+                              "type": "string",
+                            },
+                            "role": {
+                              "enum": [
+                                "admin",
+                                "member",
+                                "viewer",
+                              ],
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "projectId",
+                            "role",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      "role": {
+                        "enum": [
+                          "owner",
+                          "admin",
+                          "member",
+                          "billing",
+                          "viewer",
+                        ],
+                        "type": "string",
+                      },
+                    },
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "email": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "projectAccess": {
+                          "description": "\`all\` for owners and admins, the stored access for members and viewers, null for billing members, who reach no project.",
+                          "enum": [
+                            "all",
+                            "selected",
+                          ],
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "projectCount": {
+                          "description": "The live projects a member or viewer on \`selected\` is granted, null for everyone else.",
+                          "nullable": true,
+                          "type": "integer",
+                        },
+                        "role": {
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer",
+                          ],
+                          "type": "string",
+                        },
+                        "userId": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "username": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "username",
+                        "email",
+                        "role",
+                        "projectAccess",
+                        "projectCount",
+                        "createdAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The updated member",
+          },
+          "400": {
+            "description": "The request is invalid, someone becoming a member or viewer has no project access stated (\`project_access_required\`), a member or viewer on specific projects would hold no grant, the grants name a project that is not live or someone they do not apply to, or the organization header names another organization than the API key's (\`organization_mismatch\`)",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot change this member, the change touches the owner role and the caller is not an owner (\`owner_role_restricted\`), or the active organization is a personal one (\`personal_organization\`)",
+          },
+          "404": {
+            "description": "No such member in the active organization",
+          },
+          "409": {
+            "description": "The organization would be left without an owner (\`last_owner\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Change the role, project access and project grants of a member of the active organization, all together or not at all",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/organization-members/{id}/ownership-transfer": {
+      "post": {
+        "operationId": "transferOrganizationOwnership",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "email": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "projectAccess": {
+                          "description": "\`all\` for owners and admins, the stored access for members and viewers, null for billing members, who reach no project.",
+                          "enum": [
+                            "all",
+                            "selected",
+                          ],
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "projectCount": {
+                          "description": "The live projects a member or viewer on \`selected\` is granted, null for everyone else.",
+                          "nullable": true,
+                          "type": "integer",
+                        },
+                        "role": {
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer",
+                          ],
+                          "type": "string",
+                        },
+                        "userId": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "username": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "username",
+                        "email",
+                        "role",
+                        "projectAccess",
+                        "projectCount",
+                        "createdAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The member who received ownership",
+          },
+          "400": {
+            "description": "The request is invalid, the member is the caller, or the organization header names another organization than the API key's (\`organization_mismatch\`)",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller is not an owner (\`owner_role_restricted\`), or the active organization is a personal one (\`personal_organization\`)",
+          },
+          "404": {
+            "description": "No such member in the active organization",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Make a member an owner of the active organization and step the calling owner down to admin",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/organization-members/{id}/project-grants": {
+      "get": {
+        "operationId": "listOrganizationMemberProjectGrants",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "description": "The member's grants on live projects, oldest first.",
+                      "items": {
+                        "properties": {
+                          "projectId": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "role": {
+                            "enum": [
+                              "admin",
+                              "member",
+                              "viewer",
+                            ],
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "projectId",
+                          "role",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The member's project grants",
+          },
+          "400": {
+            "description": "The organization header names another organization than the API key's (\`organization_mismatch\`)",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller is neither an owner nor an admin",
+          },
+          "404": {
+            "description": "No such member in the active organization",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "List the project grants of a member of the active organization, for an owner or admin editing them",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/organizations": {
+      "get": {
+        "operationId": "listOrganizations",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string",
+                          },
+                          "hasPaymentMethod": {
+                            "description": "Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in.",
+                            "nullable": true,
+                            "type": "boolean",
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "isActive": {
+                            "description": "Whether this request ran in this organization.",
+                            "type": "boolean",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "role": {
+                            "description": "The caller's role in the organization.",
+                            "enum": [
+                              "owner",
+                              "admin",
+                              "member",
+                              "billing",
+                              "viewer",
+                            ],
+                            "type": "string",
+                          },
+                          "slug": {
+                            "type": "string",
+                          },
+                          "type": {
+                            "enum": [
+                              "personal",
+                              "team",
+                            ],
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "slug",
+                          "type",
+                          "role",
+                          "isActive",
+                          "hasPaymentMethod",
+                          "createdAt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The caller's organizations, or only the API key's organization",
+          },
+          "400": {
+            "description": "The organization header names another organization than the API key's (\`organization_mismatch\`)",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The organization (\`organization_forbidden\`) or project (\`project_forbidden\`) header names one the caller cannot reach",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "List the organizations the caller belongs to, marking the one this request ran in; an API key lists only the organization it acts in",
+        "tags": [
+          "Organizations",
+        ],
+      },
+      "post": {
+        "operationId": "createOrganization",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "name": {
+                        "description": "Unique, ignoring case, among the organizations the caller belongs to.",
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]+$",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "name",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "hasPaymentMethod": {
+                          "description": "Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in.",
+                          "nullable": true,
+                          "type": "boolean",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "isActive": {
+                          "description": "Whether this request ran in this organization.",
+                          "type": "boolean",
+                        },
+                        "name": {
+                          "type": "string",
+                        },
+                        "role": {
+                          "description": "The caller's role in the organization.",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer",
+                          ],
+                          "type": "string",
+                        },
+                        "slug": {
+                          "type": "string",
+                        },
+                        "type": {
+                          "enum": [
+                            "personal",
+                            "team",
+                          ],
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "type",
+                        "role",
+                        "isActive",
+                        "hasPaymentMethod",
+                        "createdAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The created organization",
+          },
+          "400": {
+            "description": "The name is empty, too long or holds a control character",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller has reached their organization limit (\`organization_limit_reached\`), or the request was not made from a signed-in session (\`session_required\`)",
+          },
+          "409": {
+            "description": "The caller already belongs to an organization with this name (\`organization_name_taken\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
+        "summary": "Create a team organization owned by the caller, with its default project and a wallet ready to fund",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/organizations/{id}": {
+      "delete": {
+        "operationId": "deleteOrganization",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "acknowledgedForfeitUsd",
+            "required": false,
+            "schema": {
+              "description": "The credits, in USD, the owner was shown and agreed to forfeit; deleting is refused while the organization holds more.",
+              "example": 12.5,
+              "type": "number",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "The organization was deleted",
+          },
+          "400": {
+            "description": "The organization holds more credits than the owner acknowledged forfeiting (\`forfeit_acknowledgement_required\`)",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller is not an owner, the organization is a personal one (\`personal_organization\`), or the request was not made from a signed-in session (\`session_required\`)",
+          },
+          "404": {
+            "description": "The organization is not the active one",
+          },
+          "409": {
+            "description": "Deployments of the organization are still running or being created (\`active_deployments\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
+        "summary": "Delete the active team organization, forfeiting its remaining credits, once none of its deployments is running",
+        "tags": [
+          "Organizations",
+        ],
+      },
+      "patch": {
+        "operationId": "updateOrganization",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "name": {
+                        "description": "Unique, ignoring case, among the organizations the caller belongs to.",
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]+$",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "name",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "hasPaymentMethod": {
+                          "description": "Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in.",
+                          "nullable": true,
+                          "type": "boolean",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "isActive": {
+                          "description": "Whether this request ran in this organization.",
+                          "type": "boolean",
+                        },
+                        "name": {
+                          "type": "string",
+                        },
+                        "role": {
+                          "description": "The caller's role in the organization.",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer",
+                          ],
+                          "type": "string",
+                        },
+                        "slug": {
+                          "type": "string",
+                        },
+                        "type": {
+                          "enum": [
+                            "personal",
+                            "team",
+                          ],
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "type",
+                        "role",
+                        "isActive",
+                        "hasPaymentMethod",
+                        "createdAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The renamed organization",
+          },
+          "400": {
+            "description": "The name is empty, too long or holds a control character",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot rename the organization, or it is a personal one (\`personal_organization\`)",
+          },
+          "404": {
+            "description": "The organization is not the active one",
+          },
+          "409": {
+            "description": "The caller already belongs to another organization with this name (\`organization_name_taken\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Rename the active organization",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/organizations/{id}/membership": {
+      "delete": {
+        "operationId": "deleteOrganizationMembership",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "The caller left the organization",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The organization is a personal one (\`personal_organization\`), or the request was not made from a signed-in session (\`session_required\`)",
+          },
+          "404": {
+            "description": "The organization is not the active one",
+          },
+          "409": {
+            "description": "The caller owns the organization and has to transfer ownership first (\`owner_cannot_leave\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
+        "summary": "Leave the active team organization, which ends the caller's membership the way removing a member does",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
     "/v1/placement-options": {
       "get": {
         "operationId": "listPlacementOptions",
@@ -15542,6 +18029,1785 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "summary": "Stop product update emails for the user an unsubscribe link was sent to, without signing in (RFC 8058 one-click)",
         "tags": [
           "Users",
+        ],
+      },
+    },
+    "/v1/project-budgets": {
+      "get": {
+        "operationId": "listProjectBudgets",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "description": "Only the budget of this project",
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "alertThresholdPercent": {
+                            "type": "number",
+                          },
+                          "createdAt": {
+                            "type": "string",
+                          },
+                          "currentPeriod": {
+                            "properties": {
+                              "committedUsd": {
+                                "description": "Deposits recorded for the project this month, the figure new deposits are judged against",
+                                "type": "number",
+                              },
+                              "endDate": {
+                                "description": "Last day of the current calendar month (UTC)",
+                                "type": "string",
+                              },
+                              "startDate": {
+                                "description": "First day of the current calendar month (UTC)",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "startDate",
+                              "endDate",
+                              "committedUsd",
+                            ],
+                            "type": "object",
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "monthlyAmountUsd": {
+                            "type": "number",
+                          },
+                          "projectId": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "stopTopUps": {
+                            "type": "boolean",
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "projectId",
+                          "monthlyAmountUsd",
+                          "alertThresholdPercent",
+                          "stopTopUps",
+                          "currentPeriod",
+                          "createdAt",
+                          "updatedAt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The budgets with this month's committed spend",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "List the project budgets of the active organization the caller can read",
+        "tags": [
+          "Projects",
+        ],
+      },
+      "post": {
+        "operationId": "createProjectBudget",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "alertThresholdPercent": {
+                        "description": "Share of the monthly amount at which owners and admins are notified, once per month. Defaults to 80",
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                      },
+                      "monthlyAmountUsd": {
+                        "description": "Committed spend allowed per calendar month (UTC), in USD (1 to 10000000, cents at most)",
+                        "maximum": 10000000,
+                        "minimum": 1,
+                        "type": "number",
+                      },
+                      "projectId": {
+                        "format": "uuid",
+                        "type": "string",
+                      },
+                      "stopTopUps": {
+                        "description": "Whether top-ups of the project's running deployments, manual or automatic, also stop at the budget. Defaults to false",
+                        "type": "boolean",
+                      },
+                    },
+                    "required": [
+                      "projectId",
+                      "monthlyAmountUsd",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "alertThresholdPercent": {
+                          "type": "number",
+                        },
+                        "createdAt": {
+                          "type": "string",
+                        },
+                        "currentPeriod": {
+                          "properties": {
+                            "committedUsd": {
+                              "description": "Deposits recorded for the project this month, the figure new deposits are judged against",
+                              "type": "number",
+                            },
+                            "endDate": {
+                              "description": "Last day of the current calendar month (UTC)",
+                              "type": "string",
+                            },
+                            "startDate": {
+                              "description": "First day of the current calendar month (UTC)",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "startDate",
+                            "endDate",
+                            "committedUsd",
+                          ],
+                          "type": "object",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "monthlyAmountUsd": {
+                          "type": "number",
+                        },
+                        "projectId": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "stopTopUps": {
+                          "type": "boolean",
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "projectId",
+                        "monthlyAmountUsd",
+                        "alertThresholdPercent",
+                        "stopTopUps",
+                        "currentPeriod",
+                        "createdAt",
+                        "updatedAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The created budget",
+          },
+          "400": {
+            "description": "The budget settings are not valid",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "Only owners and admins can change project budgets",
+          },
+          "404": {
+            "description": "No project with this id in the caller's reach",
+          },
+          "409": {
+            "description": "The project already has a budget (\`project_budget_exists\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Set a monthly budget for a project of the active organization",
+        "tags": [
+          "Projects",
+        ],
+      },
+    },
+    "/v1/project-budgets/{id}": {
+      "delete": {
+        "operationId": "deleteProjectBudget",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "The budget is removed",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "Only owners and admins can change project budgets",
+          },
+          "404": {
+            "description": "No budget with this id in the caller's reach",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Remove a project's monthly budget",
+        "tags": [
+          "Projects",
+        ],
+      },
+      "patch": {
+        "operationId": "updateProjectBudget",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "alertThresholdPercent": {
+                        "description": "Share of the monthly amount at which owners and admins are notified, once per month. Defaults to 80",
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                      },
+                      "monthlyAmountUsd": {
+                        "description": "Committed spend allowed per calendar month (UTC), in USD (1 to 10000000, cents at most)",
+                        "maximum": 10000000,
+                        "minimum": 1,
+                        "type": "number",
+                      },
+                      "stopTopUps": {
+                        "description": "Whether top-ups of the project's running deployments, manual or automatic, also stop at the budget. Defaults to false",
+                        "type": "boolean",
+                      },
+                    },
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "alertThresholdPercent": {
+                          "type": "number",
+                        },
+                        "createdAt": {
+                          "type": "string",
+                        },
+                        "currentPeriod": {
+                          "properties": {
+                            "committedUsd": {
+                              "description": "Deposits recorded for the project this month, the figure new deposits are judged against",
+                              "type": "number",
+                            },
+                            "endDate": {
+                              "description": "Last day of the current calendar month (UTC)",
+                              "type": "string",
+                            },
+                            "startDate": {
+                              "description": "First day of the current calendar month (UTC)",
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "startDate",
+                            "endDate",
+                            "committedUsd",
+                          ],
+                          "type": "object",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "monthlyAmountUsd": {
+                          "type": "number",
+                        },
+                        "projectId": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "stopTopUps": {
+                          "type": "boolean",
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "projectId",
+                        "monthlyAmountUsd",
+                        "alertThresholdPercent",
+                        "stopTopUps",
+                        "currentPeriod",
+                        "createdAt",
+                        "updatedAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The updated budget",
+          },
+          "400": {
+            "description": "The budget settings are not valid",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "Only owners and admins can change project budgets",
+          },
+          "404": {
+            "description": "No budget with this id in the caller's reach",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Change a project's monthly budget",
+        "tags": [
+          "Projects",
+        ],
+      },
+    },
+    "/v1/project-members": {
+      "post": {
+        "operationId": "createProjectMember",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "projectId": {
+                        "format": "uuid",
+                        "type": "string",
+                      },
+                      "role": {
+                        "description": "\`viewer\` reads the project; \`member\` also deploys into it and changes its deployments, templates and alerts; \`admin\` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role.",
+                        "enum": [
+                          "admin",
+                          "member",
+                          "viewer",
+                        ],
+                        "type": "string",
+                      },
+                      "userId": {
+                        "description": "A member or viewer of the active organization other than the caller.",
+                        "format": "uuid",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "projectId",
+                      "userId",
+                      "role",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "email": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "id": {
+                          "description": "The grant id, used to change or revoke it.",
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "projectId": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "role": {
+                          "description": "\`viewer\` reads the project; \`member\` also deploys into it and changes its deployments, templates and alerts; \`admin\` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role.",
+                          "enum": [
+                            "admin",
+                            "member",
+                            "viewer",
+                          ],
+                          "type": "string",
+                        },
+                        "userId": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "username": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "projectId",
+                        "userId",
+                        "username",
+                        "email",
+                        "role",
+                        "createdAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The created grant",
+          },
+          "400": {
+            "description": "The body is not valid",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot manage access to projects of the active organization",
+          },
+          "404": {
+            "description": "No such project within the caller's reach, or no such member in the active organization",
+          },
+          "409": {
+            "description": "The user already has access to the project (\`already_granted\`), reaches every project as an owner or admin (\`implicit_project_access\`) or is a billing member (\`billing_role_not_grantable\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Grant a member or viewer of the active organization a role on a project",
+        "tags": [
+          "Projects",
+        ],
+      },
+    },
+    "/v1/project-members/{id}": {
+      "delete": {
+        "operationId": "deleteProjectMember",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "The grant is revoked",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot manage access to projects of the active organization",
+          },
+          "404": {
+            "description": "No grant with this id the caller can manage",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Revoke a grant, effective from the member's next request",
+        "tags": [
+          "Projects",
+        ],
+      },
+      "patch": {
+        "operationId": "updateProjectMember",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "role": {
+                        "description": "\`viewer\` reads the project; \`member\` also deploys into it and changes its deployments, templates and alerts; \`admin\` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role.",
+                        "enum": [
+                          "admin",
+                          "member",
+                          "viewer",
+                        ],
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "role",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "email": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "id": {
+                          "description": "The grant id, used to change or revoke it.",
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "projectId": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "role": {
+                          "description": "\`viewer\` reads the project; \`member\` also deploys into it and changes its deployments, templates and alerts; \`admin\` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role.",
+                          "enum": [
+                            "admin",
+                            "member",
+                            "viewer",
+                          ],
+                          "type": "string",
+                        },
+                        "userId": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "username": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "projectId",
+                        "userId",
+                        "username",
+                        "email",
+                        "role",
+                        "createdAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The updated grant",
+          },
+          "400": {
+            "description": "The body is not valid",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller cannot manage access to projects of the active organization",
+          },
+          "404": {
+            "description": "No grant with this id the caller can manage",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Change the project role a grant gives",
+        "tags": [
+          "Projects",
+        ],
+      },
+    },
+    "/v1/project-spend": {
+      "get": {
+        "operationId": "listProjectSpend",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": false,
+            "schema": {
+              "description": "First day of the range (YYYY-MM-DD, UTC), inclusive. Defaults to the first day of endDate's month",
+              "example": "2026-10-01",
+              "format": "date",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": false,
+            "schema": {
+              "description": "Last day of the range (YYYY-MM-DD, UTC), inclusive. Defaults to today",
+              "example": "2026-10-31",
+              "format": "date",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "endDate": {
+                          "type": "string",
+                        },
+                        "isEstimated": {
+                          "description": "Whether any figure includes an estimate",
+                          "type": "boolean",
+                        },
+                        "projects": {
+                          "items": {
+                            "properties": {
+                              "committedUsd": {
+                                "description": "Deposits signed for the deployments in the range, including ones not yet final",
+                                "type": "number",
+                              },
+                              "consumedUsd": {
+                                "description": "What the deployments' leases cost over the range, including \`estimatedConsumedUsd\`",
+                                "type": "number",
+                              },
+                              "estimatedConsumedUsd": {
+                                "description": "Part of \`consumedUsd\` accrued since the deployment was last settled, an estimate until it is",
+                                "type": "number",
+                              },
+                              "isDefault": {
+                                "type": "boolean",
+                              },
+                              "isDeleted": {
+                                "type": "boolean",
+                              },
+                              "name": {
+                                "type": "string",
+                              },
+                              "projectId": {
+                                "format": "uuid",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "committedUsd",
+                              "consumedUsd",
+                              "estimatedConsumedUsd",
+                              "projectId",
+                              "name",
+                              "isDefault",
+                              "isDeleted",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "startDate": {
+                          "type": "string",
+                        },
+                        "total": {
+                          "description": "The organization's whole spend, the projects plus \`unassigned\`. Null for a caller limited to some projects",
+                          "nullable": true,
+                          "properties": {
+                            "committedUsd": {
+                              "description": "Deposits signed for the deployments in the range, including ones not yet final",
+                              "type": "number",
+                            },
+                            "consumedUsd": {
+                              "description": "What the deployments' leases cost over the range, including \`estimatedConsumedUsd\`",
+                              "type": "number",
+                            },
+                            "estimatedConsumedUsd": {
+                              "description": "Part of \`consumedUsd\` accrued since the deployment was last settled, an estimate until it is",
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "committedUsd",
+                            "consumedUsd",
+                            "estimatedConsumedUsd",
+                          ],
+                          "type": "object",
+                        },
+                        "unassigned": {
+                          "description": "Spend of the organization's deployments filed in no project. Null for a caller limited to some projects",
+                          "nullable": true,
+                          "properties": {
+                            "committedUsd": {
+                              "description": "Deposits signed for the deployments in the range, including ones not yet final",
+                              "type": "number",
+                            },
+                            "consumedUsd": {
+                              "description": "What the deployments' leases cost over the range, including \`estimatedConsumedUsd\`",
+                              "type": "number",
+                            },
+                            "estimatedConsumedUsd": {
+                              "description": "Part of \`consumedUsd\` accrued since the deployment was last settled, an estimate until it is",
+                              "type": "number",
+                            },
+                          },
+                          "required": [
+                            "committedUsd",
+                            "consumedUsd",
+                            "estimatedConsumedUsd",
+                          ],
+                          "type": "object",
+                        },
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate",
+                        "isEstimated",
+                        "projects",
+                        "unassigned",
+                        "total",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Spend of the projects the caller can see, with the organization's total and unassigned remainder when the caller can see the whole organization",
+          },
+          "400": {
+            "description": "Dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Report the active organization's spend per project over a date range",
+        "tags": [
+          "Projects",
+        ],
+      },
+    },
+    "/v1/projects": {
+      "get": {
+        "operationId": "listProjects",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "access": {
+                            "properties": {
+                              "canDeploy": {
+                                "description": "Whether the caller may deploy into the project and change its deployments.",
+                                "type": "boolean",
+                              },
+                              "canManage": {
+                                "description": "Whether the caller may rename the project and decide who else reaches it.",
+                                "type": "boolean",
+                              },
+                            },
+                            "required": [
+                              "canDeploy",
+                              "canManage",
+                            ],
+                            "type": "object",
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string",
+                          },
+                          "createdBy": {
+                            "nullable": true,
+                            "properties": {
+                              "id": {
+                                "format": "uuid",
+                                "type": "string",
+                              },
+                              "username": {
+                                "nullable": true,
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "username",
+                            ],
+                            "type": "object",
+                          },
+                          "deployments": {
+                            "description": "Null when the caller may not read the project's deployments, or when too many are open to count.",
+                            "nullable": true,
+                            "properties": {
+                              "activeCount": {
+                                "minimum": 0,
+                                "type": "integer",
+                              },
+                              "preview": {
+                                "description": "The newest few active deployments, newest first.",
+                                "items": {
+                                  "properties": {
+                                    "dseq": {
+                                      "type": "string",
+                                    },
+                                    "name": {
+                                      "nullable": true,
+                                      "type": "string",
+                                    },
+                                    "status": {
+                                      "description": "\`running\` holds an open lease, \`pending\` holds no lease yet, \`degraded\` lost every lease it had while staying open.",
+                                      "enum": [
+                                        "pending",
+                                        "running",
+                                        "degraded",
+                                      ],
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "dseq",
+                                    "name",
+                                    "status",
+                                  ],
+                                  "type": "object",
+                                },
+                                "type": "array",
+                              },
+                            },
+                            "required": [
+                              "activeCount",
+                              "preview",
+                            ],
+                            "type": "object",
+                          },
+                          "description": {
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "isDefault": {
+                            "type": "boolean",
+                          },
+                          "lastActivityAt": {
+                            "description": "The later of the project's creation and its newest activity the caller may read, such as a deployment created, closed or moved in.",
+                            "format": "date-time",
+                            "type": "string",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "slug": {
+                            "description": "Set from the name when the project is created and kept through renames.",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "slug",
+                          "description",
+                          "isDefault",
+                          "createdAt",
+                          "createdBy",
+                          "lastActivityAt",
+                          "deployments",
+                          "access",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The projects, most recently active first",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "List the projects of the active organization the caller can reach",
+        "tags": [
+          "Projects",
+        ],
+      },
+      "post": {
+        "operationId": "createProject",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "description": {
+                        "maxLength": 140,
+                        "type": "string",
+                      },
+                      "name": {
+                        "description": "Unique within the organization, whatever its case.",
+                        "example": "checkout-api",
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "name",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "createdBy": {
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string",
+                            },
+                            "username": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "id",
+                            "username",
+                          ],
+                          "type": "object",
+                        },
+                        "description": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "isDefault": {
+                          "type": "boolean",
+                        },
+                        "name": {
+                          "type": "string",
+                        },
+                        "slug": {
+                          "description": "Set from the name when the project is created and kept through renames.",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "description",
+                        "isDefault",
+                        "createdAt",
+                        "createdBy",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The created project",
+          },
+          "400": {
+            "description": "The name or description is not valid",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller's role does not allow it, or the organization has reached its project limit (\`project_limit_reached\`)",
+          },
+          "409": {
+            "description": "Another project of the organization has this name (\`project_name_taken\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Create a project in the active organization",
+        "tags": [
+          "Projects",
+        ],
+      },
+    },
+    "/v1/projects/{id}": {
+      "delete": {
+        "operationId": "deleteProject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "The project is deleted",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller's role in the active organization does not allow it",
+          },
+          "404": {
+            "description": "No project with this id in the caller's reach",
+          },
+          "409": {
+            "description": "The project is the organization's default (\`project_is_default\`) or still holds open deployments (\`project_not_empty\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Delete a project that holds no open deployment",
+        "tags": [
+          "Projects",
+        ],
+      },
+      "get": {
+        "operationId": "getProject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "createdBy": {
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string",
+                            },
+                            "username": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "id",
+                            "username",
+                          ],
+                          "type": "object",
+                        },
+                        "description": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "isDefault": {
+                          "type": "boolean",
+                        },
+                        "name": {
+                          "type": "string",
+                        },
+                        "slug": {
+                          "description": "Set from the name when the project is created and kept through renames.",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "description",
+                        "isDefault",
+                        "createdAt",
+                        "createdBy",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The project",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "404": {
+            "description": "No project with this id in the caller's reach",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Get a project of the active organization",
+        "tags": [
+          "Projects",
+        ],
+      },
+      "patch": {
+        "operationId": "updateProject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "description": {
+                        "maxLength": 140,
+                        "nullable": true,
+                        "type": "string",
+                      },
+                      "name": {
+                        "description": "Unique within the organization, whatever its case.",
+                        "example": "checkout-api",
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                    },
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "createdBy": {
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string",
+                            },
+                            "username": {
+                              "nullable": true,
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "id",
+                            "username",
+                          ],
+                          "type": "object",
+                        },
+                        "description": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "isDefault": {
+                          "type": "boolean",
+                        },
+                        "name": {
+                          "type": "string",
+                        },
+                        "slug": {
+                          "description": "Set from the name when the project is created and kept through renames.",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "description",
+                        "isDefault",
+                        "createdAt",
+                        "createdBy",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The updated project",
+          },
+          "400": {
+            "description": "The name or description is not valid",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller's role in the active organization does not allow it",
+          },
+          "404": {
+            "description": "No project with this id in the caller's reach",
+          },
+          "409": {
+            "description": "Another project of the organization has this name (\`project_name_taken\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Rename a project or change its description",
+        "tags": [
+          "Projects",
+        ],
+      },
+    },
+    "/v1/projects/{id}/members": {
+      "get": {
+        "operationId": "listProjectMembers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "description": "Explicit grants only, oldest first. Owners and admins reach every project without one.",
+                      "items": {
+                        "properties": {
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string",
+                          },
+                          "email": {
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "id": {
+                            "description": "The grant id, used to change or revoke it.",
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "projectId": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "role": {
+                            "description": "\`viewer\` reads the project; \`member\` also deploys into it and changes its deployments, templates and alerts; \`admin\` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role.",
+                            "enum": [
+                              "admin",
+                              "member",
+                              "viewer",
+                            ],
+                            "type": "string",
+                          },
+                          "userId": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "username": {
+                            "nullable": true,
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "projectId",
+                          "userId",
+                          "username",
+                          "email",
+                          "role",
+                          "createdAt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "membersWithAllProjects": {
+                      "description": "Members and viewers of the organization who reach every project and hold no grant on this one, oldest first. Their access is changed on the organization's members, not on the project.",
+                      "items": {
+                        "properties": {
+                          "createdAt": {
+                            "description": "When they joined the organization.",
+                            "format": "date-time",
+                            "type": "string",
+                          },
+                          "email": {
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "role": {
+                            "description": "\`viewer\` reads the project; \`member\` also deploys into it and changes its deployments, templates and alerts; \`admin\` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role.",
+                            "enum": [
+                              "admin",
+                              "member",
+                              "viewer",
+                            ],
+                            "type": "string",
+                          },
+                          "userId": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "username": {
+                            "nullable": true,
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "userId",
+                          "username",
+                          "email",
+                          "role",
+                          "createdAt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "data",
+                    "membersWithAllProjects",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The project's grants",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller's role in the active organization does not allow it",
+          },
+          "404": {
+            "description": "No project with this id in the caller's reach",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "List who was granted access to a project",
+        "tags": [
+          "Projects",
         ],
       },
     },
@@ -21532,6 +25798,125 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         },
         "security": [],
         "summary": "Permanently deletes the account a deletion link was sent for",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/me/deletion-eligibility": {
+      "get": {
+        "operationId": "getAccountDeletionEligibility",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "activeDeploymentCount": {
+                          "description": "Running deployments of the account and of the teams going with it, which must be closed first.",
+                          "type": "number",
+                        },
+                        "forfeitableBalanceUsd": {
+                          "description": "The credits, in USD, deleting forfeits: the account's and those of every team going with it.",
+                          "type": "number",
+                        },
+                        "isTrialing": {
+                          "type": "boolean",
+                        },
+                        "teamsDeletedWithAccount": {
+                          "description": "Teams the account is the only member of, deleted along with it.",
+                          "items": {
+                            "properties": {
+                              "activeDeploymentCount": {
+                                "type": "number",
+                              },
+                              "forfeitableBalanceUsd": {
+                                "type": "number",
+                              },
+                              "id": {
+                                "format": "uuid",
+                                "type": "string",
+                              },
+                              "name": {
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "activeDeploymentCount",
+                              "forfeitableBalanceUsd",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "teamsToTransfer": {
+                          "description": "Teams the account is the last owner of while others are members, whose ownership must be transferred first.",
+                          "items": {
+                            "properties": {
+                              "id": {
+                                "format": "uuid",
+                                "type": "string",
+                              },
+                              "name": {
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "activeDeploymentCount",
+                        "forfeitableBalanceUsd",
+                        "isTrialing",
+                        "teamsDeletedWithAccount",
+                        "teamsToTransfer",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The account's deletion eligibility",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "Requested with an API key instead of a signed-in session (\`session_required\`)",
+          },
+          "404": {
+            "description": "Account deletion is not available",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
+        "summary": "What deleting the signed-in user's account would forfeit and take along, and what blocks it",
         "tags": [
           "Users",
         ],

@@ -276,11 +276,28 @@ describe(createRoute.name, () => {
         summary: "Test",
         tags: ["Test"],
         security: SECURITY_NONE,
-        featureFlag: FeatureFlags.ORGANIZATIONS,
+        featureFlag: FeatureFlags.INVOICES,
         responses: { 200: { description: "OK" } }
       });
 
       expect(stripHiddenOperations({ "/gated-resources": { get: { operationId: "listGatedResources", responses: {} } } })).toEqual({});
+    });
+
+    it("publishes the route in the served OpenAPI docs when its flag is published", () => {
+      const operations = { "/team-resources": { get: { operationId: "listTeamResources", responses: {} } } };
+
+      createRoute({
+        method: "get",
+        path: "/team-resources",
+        operationId: "listTeamResources",
+        summary: "Test",
+        tags: ["Test"],
+        security: SECURITY_NONE,
+        featureFlag: FeatureFlags.ORGANIZATIONS,
+        responses: { 200: { description: "OK" } }
+      });
+
+      expect(stripHiddenOperations(operations)).toEqual(operations);
     });
 
     it("leaves a route without an operationId out of the served OpenAPI docs under its method and path", () => {
@@ -290,7 +307,7 @@ describe(createRoute.name, () => {
         summary: "Test",
         tags: ["Test"],
         security: SECURITY_NONE,
-        featureFlag: FeatureFlags.ORGANIZATIONS,
+        featureFlag: FeatureFlags.INVOICES,
         responses: { 200: { description: "OK" } }
       });
 
