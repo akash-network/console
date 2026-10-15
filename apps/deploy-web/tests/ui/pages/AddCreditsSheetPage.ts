@@ -44,10 +44,17 @@ export class AddCreditsSheetPage {
     await addressFrame.getByLabel("State").selectOption(input.state);
   }
 
+  /** Stripe may open the payment element on another method's tab, such as a pay-by-bank promotion, which shows no card fields until Card is picked. */
   async fillStripeCard(input: { number: string; expiry: string; cvc: string }) {
     const cardFrame = this.getCardFrame();
 
     const cardNumber = cardFrame.getByLabel(/card number/i);
+    const cardTab = cardFrame.getByRole("tab", { name: "Card", exact: true });
+    await cardNumber.or(cardTab).first().waitFor({ timeout: 30_000 });
+    if (await cardTab.isVisible()) {
+      await cardTab.click();
+    }
+
     await cardNumber.click();
     await cardNumber.pressSequentially(input.number);
 
