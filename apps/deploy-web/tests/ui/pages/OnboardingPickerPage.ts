@@ -24,6 +24,10 @@ export class OnboardingPickerPage {
     await card.getByRole("button", { name: /deploy now/i }).click();
   }
 
+  async skipOnboarding() {
+    await this.page.getByRole("button", { name: "Skip onboarding - Explore Console" }).click();
+  }
+
   /** Follows the "Deploy image" path — bringing your own Docker image — into the configure screen. */
   async deployImage() {
     await this.page.getByRole("link", { name: /deploy image/i }).click();

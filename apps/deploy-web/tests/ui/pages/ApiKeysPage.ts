@@ -1,7 +1,17 @@
 import type { Page } from "@playwright/test";
 
+import { testEnvConfig } from "../fixture/test-env.config";
+
 export class ApiKeysPage {
   constructor(readonly page: Page) {}
+
+  async goto() {
+    await this.page.goto(`${testEnvConfig.BASE_URL}/user/api-keys`);
+  }
+
+  emptyNotice() {
+    return this.page.getByText("No API keys", { exact: true });
+  }
 
   async waitForPage() {
     await this.page.waitForURL(/\/user\/api-keys/);

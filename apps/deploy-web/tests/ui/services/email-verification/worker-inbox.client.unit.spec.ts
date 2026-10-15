@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { EmailLink } from "./inbox-client";
 import { WorkerInboxClient } from "./worker-inbox.client";
 
 describe(WorkerInboxClient.name, () => {
@@ -26,6 +27,15 @@ describe(WorkerInboxClient.name, () => {
         signal: expect.any(AbortSignal)
       });
       expect(messages).toEqual([{ id: "m1", receivedMs: 123, subject: "Hi" }]);
+    });
+
+    it("passes on the links the worker kept for each message", async () => {
+      const links = [{ text: "Delete my account", href: "https://console.test/user/confirm-delete#token=abc" }];
+      const { client } = setup({ messages: [{ id: "m1", receivedMs: 123, subject: "Confirm", text: "body", links }] });
+
+      const messages = await client.fetchMessages("probe@e2e.example.test");
+
+      expect(messages).toEqual([{ id: "m1", receivedMs: 123, subject: "Confirm", links }]);
     });
 
     it("throws with status and body when the worker responds with an error", async () => {
@@ -64,7 +74,7 @@ describe(WorkerInboxClient.name, () => {
   });
 
   function setup(input?: {
-    messages?: Array<{ id: string; receivedMs: number; subject: string; text: string }>;
+    messages?: Array<{ id: string; receivedMs: number; subject: string; text: string; links?: EmailLink[] }>;
     response?: Response;
     hangsUntilAborted?: boolean;
   }) {

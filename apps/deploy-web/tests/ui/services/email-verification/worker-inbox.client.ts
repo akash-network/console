@@ -1,10 +1,11 @@
-import type { InboxClient, InboxMessage } from "./inbox-client";
+import type { EmailLink, InboxClient, InboxMessage } from "./inbox-client";
 
 interface WorkerInboxMessage {
   id: string;
   receivedMs: number;
   subject: string;
   text: string;
+  links?: EmailLink[];
 }
 
 /** Cap each inbox read so a stalled worker connection aborts and lets InboxCodeStrategy retry within its poll deadline. */
@@ -48,7 +49,7 @@ export class WorkerInboxClient implements InboxClient {
       for (const message of messages) {
         this.#bodiesByMessageId.set(message.id, message.text);
       }
-      return messages.map(({ id, receivedMs, subject }) => ({ id, receivedMs, subject }));
+      return messages.map(({ id, receivedMs, subject, links }) => ({ id, receivedMs, subject, links }));
     } finally {
       clearTimeout(timeout);
     }
