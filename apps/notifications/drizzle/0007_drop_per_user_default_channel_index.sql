@@ -1,0 +1,1 @@
+DROP INDEX "idx_notification_channels_user_id_is_default";

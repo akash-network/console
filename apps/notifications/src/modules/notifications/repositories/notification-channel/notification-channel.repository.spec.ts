@@ -73,6 +73,25 @@ describe(NotificationChannelRepository.name, () => {
       expect(await liveDefaultsOf(repository, { userId })).toEqual([expect.objectContaining({ id: unattributed.id, organizationId: null })]);
     });
 
+    it("creates a team's default for a member who already has the default of their personal organization", async () => {
+      const { repository } = await setup();
+      const userId = faker.string.uuid();
+      const personalOrganizationId = faker.string.uuid();
+      const teamOrganizationId = faker.string.uuid();
+      const personalDefault = channelInput({ userId, organizationId: personalOrganizationId });
+      const teamDefault = channelInput({ userId, organizationId: teamOrganizationId });
+
+      await repository.createDefaultChannel(personalDefault, { kind: "user", userId, organizationId: personalOrganizationId });
+      await repository.createDefaultChannel(teamDefault, { kind: "organization", organizationId: teamOrganizationId });
+
+      expect(await liveDefaultsOf(repository, { userId })).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: personalDefault.id, organizationId: personalOrganizationId }),
+          expect.objectContaining({ id: teamDefault.id, organizationId: teamOrganizationId })
+        ])
+      );
+    });
+
     it("creates only 1 default notification channel per organization, whoever asks", async () => {
       const { repository } = await setup();
       const organizationId = faker.string.uuid();

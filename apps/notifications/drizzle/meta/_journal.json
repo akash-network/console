@@ -50,6 +50,13 @@
       "when": 1791598461667,
       "tag": "0006_scope_alerts_and_channels_to_organizations",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792041460806,
+      "tag": "0007_drop_per_user_default_channel_index",
+      "breakpoints": true
     }
   ]
 }
