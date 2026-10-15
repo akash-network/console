@@ -14,7 +14,7 @@ class DepartedMemberInput extends createZodDto(
         .string()
         .regex(/^[0-9a-f]{64}$/)
         .describe("SHA-256 hex digest of the departed member's lower-cased email address"),
-      fallbackAddresses: z.array(z.string().email()).describe("Where a channel goes once the departed member's address was its only one")
+      fallbackAddresses: z.array(z.string().email()).min(1).describe("Where a channel goes once the departed member's address was its only one")
     })
   })
 ) {}

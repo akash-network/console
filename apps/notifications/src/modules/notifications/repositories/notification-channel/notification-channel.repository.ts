@@ -231,11 +231,15 @@ export class NotificationChannelRepository {
         .from(schema.NotificationChannel)
         .where(this.nonDeleted(eq(schema.NotificationChannel.organizationId, organizationId)))
         .for("update");
+      const isStillHere = (address: string) => sha256OfAddress(address) !== addressSha256;
+      const remainingFallbackAddresses = fallbackAddresses.filter(isStillHere);
       const releasedChannels = channels.flatMap(channel => {
         const { addresses } = notificationChannelConfigSchema.parse(channel.config);
-        const keptAddresses = addresses.filter(address => sha256OfAddress(address) !== addressSha256);
+        const keptAddresses = addresses.filter(isStillHere);
 
-        return keptAddresses.length === addresses.length ? [] : [{ id: channel.id, addresses: keptAddresses.length ? keptAddresses : fallbackAddresses }];
+        return keptAddresses.length === addresses.length
+          ? []
+          : [{ id: channel.id, addresses: keptAddresses.length ? keptAddresses : remainingFallbackAddresses }];
       });
 
       for (const { id, addresses } of releasedChannels) {

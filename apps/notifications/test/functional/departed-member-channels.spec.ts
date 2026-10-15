@@ -49,9 +49,25 @@ describe("Departed member channels (internal)", () => {
 
     const response = await request(app.getHttpServer())
       .post(`/internal/v1/organizations/${organizationId}/departed-members`)
-      .send({ data: { addressSha256: faker.internet.email(), fallbackAddresses: [] } });
+      .send({ data: { addressSha256: faker.internet.email(), fallbackAddresses: [faker.internet.email()] } });
 
     expect(response.status).toBe(400);
+  });
+
+  it("refuses a release without a fallback address, so no channel is left without recipients", async () => {
+    const { app, db, organizationId } = await setup();
+    const departed = faker.internet.email().toLowerCase();
+    const [channel] = await db
+      .insert(NotificationChannel)
+      .values([generateNotificationChannel({ organizationId, isDefault: false, config: { addresses: [departed] } })])
+      .returning();
+
+    const response = await request(app.getHttpServer())
+      .post(`/internal/v1/organizations/${organizationId}/departed-members`)
+      .send({ data: { addressSha256: sha256Of(departed), fallbackAddresses: [] } });
+
+    expect(response.status).toBe(400);
+    expect(await addressesById(db, [channel.id])).toEqual({ [channel.id]: [departed] });
   });
 
   function sha256Of(address: string) {

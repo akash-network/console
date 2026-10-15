@@ -248,6 +248,18 @@ describe(NotificationChannelRepository.name, () => {
       expect(await addressesOf(module, channel.id)).toEqual(owners);
     });
 
+    it("leaves the departed address out of the fallback addresses it hands a channel to", async () => {
+      const { module, repository } = await setup();
+      const organizationId = faker.string.uuid();
+      const departed = faker.internet.email().toLowerCase();
+      const owner = faker.internet.email();
+      const channel = await repository.create(channelInput({ organizationId, addresses: [departed] }));
+
+      await repository.releaseAddressInOrganization({ organizationId, addressSha256: sha256Of(departed), fallbackAddresses: [departed.toUpperCase(), owner] });
+
+      expect(await addressesOf(module, channel.id)).toEqual([owner]);
+    });
+
     it("leaves the channels of other organizations and the deleted ones as they were", async () => {
       const { module, repository } = await setup();
       const organizationId = faker.string.uuid();
