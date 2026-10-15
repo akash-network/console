@@ -61,6 +61,14 @@ describe("Spend figures by project access", () => {
       expect(await response.json()).toEqual({ data: { weeklyCost: WEEKLY_COSTS_BY_PROJECT[2] } });
     });
 
+    it("refuses a billing member's key bound to a project, which reaches no project", async () => {
+      const { requestWithKeyBoundTo } = await setupTeam({ role: "billing" });
+
+      const response = await requestWithKeyBoundTo(2, "/v1/weekly-cost");
+
+      expect(response.status).toBe(403);
+    });
+
     it("answers a personal organization the weekly cost it answered while organizations were off", async () => {
       const personal = await setupPersonal();
       const before = (await (await personal.request("/v1/weekly-cost", { organizationsOn: false })).json()) as GetWeeklyDeploymentCostResponse;
@@ -99,6 +107,14 @@ describe("Spend figures by project access", () => {
 
       expect(response.status).toBe(200);
       expect(await spentDseqsOf(response)).toEqual([dseqs[2]]);
+    });
+
+    it("refuses a billing member's key bound to a project, which reaches no project", async () => {
+      const { requestWithKeyBoundTo } = await setupTeam({ role: "billing" });
+
+      const response = await requestWithKeyBoundTo(2, "/v1/spend-rate");
+
+      expect(response.status).toBe(403);
     });
 
     it("answers a personal organization the spend rate it answered while organizations were off", async () => {
