@@ -28,3 +28,20 @@ export async function seedUserWithWallet({ user: userOverrides, ...overrides }: 
 
   return { user, wallet: { ...wallet, userId: user.id }, address: wallet.address as string };
 }
+
+export async function seedOrganizationWallet(overrides: Omit<Partial<UserWalletInsert>, "userId"> & Pick<UserWalletInsert, "organizationId">) {
+  const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+  const [wallet] = await db
+    .insert(resolveTable("UserWallets"))
+    .values({
+      userId: null,
+      address: createAkashAddress(),
+      deploymentAllowance: "10000000",
+      feeAllowance: "5000000",
+      isTrialing: false,
+      ...overrides
+    })
+    .returning();
+
+  return { ...wallet, address: wallet.address as string };
+}

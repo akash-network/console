@@ -93,6 +93,11 @@ export class NotificationService {
     await this.#retryPolicy.execute(async () => this.notificationsInternalApi.v1.purge({ userId }, { headers }));
   }
 
+  /** One attempt, for the job that calls it retries on its own. */
+  async moveDeploymentAlertsToProject({ organizationId, deployment: { owner, dseq }, projectId }: MoveDeploymentAlertsInput): Promise<void> {
+    await this.notificationsInternalApi.v1.moveDeploymentAlertsToProject({ organizationId, dseq, data: { owner, projectId } });
+  }
+
   async autoEnableDeploymentAlert(input: AutoEnableDeploymentAlertInput): Promise<void> {
     const user = await this.userRepository.findById(input.userId);
     if (!user?.email) {
@@ -210,6 +215,12 @@ export interface AutoEnableDeploymentAlertInput {
   userId: string;
   walletAddress: string;
   dseq: string;
+}
+
+export interface MoveDeploymentAlertsInput {
+  organizationId: string;
+  deployment: { owner: string; dseq: string };
+  projectId: string;
 }
 
 export type CreateNotificationInput = NotificationsInternalOperationDefs["createNotification"]["requestBody"]["content"]["application/json"] & {

@@ -36,6 +36,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/internal/v1/organizations/{organizationId}/deployment-alerts/{dseq}/project": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations["moveDeploymentAlertsToProject"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -54,6 +70,13 @@ export interface components {
           /** Format: uri */
           url: string;
         }[];
+      };
+    };
+    DeploymentAlertsProjectInput: {
+      data: {
+        owner: string;
+        /** Format: uuid */
+        projectId: string;
       };
     };
   };
@@ -98,6 +121,31 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  moveDeploymentAlertsToProject: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organizationId: string;
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DeploymentAlertsProjectInput"];
+      };
+    };
+    responses: {
+      /** @description Files the alerts of a deployment into the project the deployment moved to */
       204: {
         headers: {
           [name: string]: unknown;
