@@ -19,9 +19,9 @@ type OrganizationList = { data: { id: string; name: string }[] };
 
 test.describe("Team organizations", () => {
   test.use({ userType: "new" });
+  test.setTimeout(8 * 60_000);
 
   test("an owner shares one project with an invited teammate, then removes them", async ({ page, browser, auth0 }) => {
-    test.setTimeout(8 * 60_000);
     const { team, sharedProject, hiddenProject } = createNames();
     const inbox = createInboxClient();
     const teammateEmail = inbox.generateEmail();
@@ -91,7 +91,6 @@ test.describe("Team organizations", () => {
   });
 
   test("an API key bound to one project reaches only that project", async ({ page, playwright }) => {
-    test.setTimeout(5 * 60_000);
     const { team, sharedProject, hiddenProject } = createNames();
     const keyName = `e2e-project-key-${Date.now()}`;
     const apiKeys = new ApiKeysPage(page);
