@@ -21,6 +21,21 @@ describe(BillingView.name, () => {
     expect(screen.getAllByRole("columnheader").map(header => header.textContent)).toEqual(["Date", "Amount", "Account source", "Status", "Receipt"]);
   });
 
+  it("names the last column after the receipt and invoice it holds while invoices are turned on", () => {
+    setup({ isInvoicesEnabled: true });
+
+    expect(screen.getAllByRole("columnheader").map(header => header.textContent)).toEqual(["Date", "Amount", "Account source", "Status", "Documents"]);
+  });
+
+  it("puts the invoice of each payment next to its receipt", () => {
+    const transactions = [createMockTransaction({ receiptUrl: "https://example.com/receipt" }), createMockTransaction()];
+    setup({ data: transactions });
+
+    expect(within(cell(0, "Receipt")).getByRole("link", { name: "View receipt" })).toBeInTheDocument();
+    expect(within(cell(0, "Receipt")).getByRole("button", { name: `Invoice of ${transactions[0].id}` })).toBeInTheDocument();
+    expect(within(cell(1, "Receipt")).getByRole("button", { name: `Invoice of ${transactions[1].id}` })).toBeInTheDocument();
+  });
+
   it("shows a skeleton on first load", () => {
     setup({ isLoading: true, data: [] });
 
@@ -228,10 +243,15 @@ describe(BillingView.name, () => {
     return within(rows[rowIndex]).getAllByRole("cell")[columnIndex];
   }
 
-  function setup(input: Partial<Omit<React.ComponentProps<typeof BillingView>, "dependencies">> = {}) {
+  function setup(input: Partial<Omit<React.ComponentProps<typeof BillingView>, "dependencies">> & { isInvoicesEnabled?: boolean } = {}) {
+    const { isInvoicesEnabled = false, ...viewProps } = input;
     const CustomPagination = vi.fn<typeof DEPENDENCIES.CustomPagination>(() => <div data-testid="pagination" />);
     const DateRangePicker = vi.fn<typeof DEPENDENCIES.DateRangePicker>(() => <div />);
     const FormattedNumber = vi.fn((({ value }: { value: number }) => <>{value.toFixed(2)}</>) as typeof DEPENDENCIES.FormattedNumber);
+    const TransactionInvoiceButton = vi.fn<typeof DEPENDENCIES.TransactionInvoiceButton>(({ transaction }) => (
+      <button>{`Invoice of ${transaction.id}`}</button>
+    ));
+    const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag => flag === "invoices" && isInvoicesEnabled);
 
     const props: React.ComponentProps<typeof BillingView> = {
       data: [createMockTransaction()],
@@ -247,12 +267,12 @@ describe(BillingView.name, () => {
       onDateRangeChange: vi.fn(),
       datePreset: "last3Months",
       onDatePresetChange: vi.fn(),
-      ...input,
-      dependencies: { CustomPagination, DateRangePicker, FormattedNumber }
+      ...viewProps,
+      dependencies: { CustomPagination, DateRangePicker, FormattedNumber, TransactionInvoiceButton, useFlag }
     };
 
     render(<BillingView {...props} />);
 
-    return { ...props, CustomPagination, DateRangePicker };
+    return { ...props, CustomPagination, DateRangePicker, TransactionInvoiceButton };
   }
 });

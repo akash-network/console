@@ -20,14 +20,18 @@ import { endOfToday, startOfDay, subYears } from "date-fns";
 import { Calendar, Download, FileText } from "lucide-react";
 
 import { HISTORY_DATE_PRESETS, type HistoryDatePreset, type HistoryDateRange } from "@src/components/billing-usage/BillingContainer/historyDatePresets";
+import { TransactionInvoiceButton } from "@src/components/billing-usage/TransactionInvoiceButton/TransactionInvoiceButton";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
+import { useFlag } from "@src/hooks/useFlag";
 import type { BillingTransaction } from "@src/queries";
 import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
 export const DEPENDENCIES = {
   FormattedNumber,
   DateRangePicker,
-  CustomPagination
+  CustomPagination,
+  TransactionInvoiceButton,
+  useFlag
 };
 
 const TRANSACTION_TYPE_LABELS: Record<BillingTransaction["type"], string> = {
@@ -43,9 +47,9 @@ const STATUS_LABELS: Record<string, string> = {
   refunded: "Refunded"
 };
 
-const COLUMN_HEADERS = ["Date", "Amount", "Account source", "Status", "Receipt"];
+const COLUMN_HEADERS = ["Date", "Amount", "Account source", "Status"];
 
-/** Phones lay a row out as date and amount over source, status and receipt; wider screens give each its own column. */
+/** Phones lay a row out as date and amount over source, status and documents; wider screens give each its own column. */
 const ROW_GRID =
   "grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1.5 px-5 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_72px] sm:gap-y-0";
 
@@ -85,6 +89,8 @@ export const BillingView: React.FC<BillingViewProps> = ({
   onDatePresetChange,
   dependencies: d = DEPENDENCIES
 }) => {
+  const isInvoicesEnabled = d.useFlag("invoices");
+
   if (isError) {
     return (
       <SettingsSection title="History">
@@ -115,7 +121,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
           <div role="table" aria-label="Payment history" aria-busy={isFetching} className="transition-opacity duration-150 aria-busy:opacity-60">
             <div role="rowgroup" className="hidden sm:block">
               <div role="row" className={`${ROW_GRID} py-3.5`}>
-                {COLUMN_HEADERS.map(header => (
+                {[...COLUMN_HEADERS, isInvoicesEnabled ? "Documents" : "Receipt"].map(header => (
                   <span key={header} role="columnheader" className="text-[13px] font-medium">
                     {header}
                   </span>
@@ -142,7 +148,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
                       {STATUS_LABELS[transaction.status] ?? capitalizeFirstLetter(transaction.status)}
                     </span>
                   </span>
-                  <span role="cell" className="justify-self-end sm:justify-self-start">
+                  <span role="cell" className="flex gap-1 justify-self-end sm:justify-self-start">
                     {transaction.receiptUrl && (
                       <a
                         href={transaction.receiptUrl}
@@ -154,6 +160,7 @@ export const BillingView: React.FC<BillingViewProps> = ({
                         <FileText className="h-[17px] w-[17px]" />
                       </a>
                     )}
+                    <d.TransactionInvoiceButton transaction={transaction} />
                   </span>
                 </div>
               ))}

@@ -1,0 +1,41 @@
+import { createProxy } from "@akashnetwork/react-query-proxy";
+import { QueryClient } from "@tanstack/react-query";
+import { describe, expect, it, vi } from "vitest";
+
+import { useTransactionInvoiceMutation } from "./useTransactionInvoiceQueries";
+
+import { act } from "@testing-library/react";
+import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
+
+type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
+
+const TRANSACTIONS_KEY = ["v1", "listStripeTransactions"];
+const BILLING_DETAILS_KEY = ["v1", "getBillingDetails"];
+
+describe(useTransactionInvoiceMutation.name, () => {
+  it("returns the invoice of the payment and refetches the history", async () => {
+    const { result, createStripeTransactionInvoice, queryClient } = setup();
+    queryClient.setQueryData(TRANSACTIONS_KEY, { data: { transactions: [], totalCount: 0, hasMore: false } });
+    queryClient.setQueryData(BILLING_DETAILS_KEY, { data: {} });
+
+    const response = await act(() => result.current.mutateAsync({ id: "tx-1" }));
+
+    expect(createStripeTransactionInvoice).toHaveBeenCalledWith({ id: "tx-1" });
+    expect(response).toEqual(INVOICE);
+    expect(queryClient.getQueryState(TRANSACTIONS_KEY)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(BILLING_DETAILS_KEY)?.isInvalidated).toBe(false);
+  });
+
+  function setup() {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const createStripeTransactionInvoice = vi.fn().mockResolvedValue(INVOICE);
+    const listStripeTransactions = vi.fn().mockResolvedValue({ data: { transactions: [], totalCount: 0, hasMore: false } });
+    const api = createProxy({ v1: { createStripeTransactionInvoice, listStripeTransactions } }) as unknown as ApiService;
+
+    const { result } = setupQuery(() => useTransactionInvoiceMutation(), { services: { api: () => api, queryClient: () => queryClient } });
+
+    return { result, queryClient, createStripeTransactionInvoice };
+  }
+});
+
+const INVOICE = { data: { invoiceId: "in_1", invoicePdfUrl: "https://pay.stripe.com/invoice/pdf" } };
