@@ -24,6 +24,7 @@ import { isUnknownTxOutcome } from "@src/billing/services/external-signer-http-s
 import { ReconcileDeploymentDeposit } from "@src/billing/services/reconcile-deployment-deposit/reconcile-deployment-deposit.handler";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -389,9 +390,21 @@ export class DeploymentDepositLedgerService {
 
   async #writePending(rows: DeploymentDepositInput[]): Promise<DeploymentDepositOutput[]> {
     const written = await this.deploymentDepositRepository.createMany(rows);
+    await this.#assertOrganizationNotDeleted(written);
     await this.#checkUnlessSettled(written);
 
     return written;
+  }
+
+  /** Read after the insert, whose foreign key check waits for a deletion holding the organization row, so no deposit slips past one in progress. */
+  async #assertOrganizationNotDeleted(deposits: DeploymentDepositOutput[]): Promise<void> {
+    if (!deposits.length) return;
+
+    const organization = await this.organizationRepository.findById(deposits[0].organizationId);
+
+    if (organization?.deletedAt) {
+      throw createError(403, "The organization was deleted", { errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
+    }
   }
 
   /** Every pending row is written with this check, which settles it against the chain index unless the signer or a check by its hash settles it first. */

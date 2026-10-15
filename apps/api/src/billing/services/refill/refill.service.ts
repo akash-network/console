@@ -11,7 +11,7 @@ import { ManagedUserWalletService } from "@src/billing/services/managed-user-wal
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
-import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
+import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 
 export interface PaymentAnalyticsContext {
   currency?: string;
@@ -50,6 +50,7 @@ export class RefillService {
     private readonly balancesService: BalancesService,
     private readonly walletInitializerService: WalletInitializerService,
     private readonly analyticsService: AnalyticsService,
+    private readonly organizationRepository: OrganizationRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: RefillService.name });
@@ -170,11 +171,21 @@ export class RefillService {
     }
   }
 
-  /** Holds the wallet row until the settlement commits, so an abuse wipe of the same wallet waits for it instead of revoking between this grant and its bookkeeping. */
+  /** Holds the wallet row until the settlement commits, so an abuse wipe or a team deletion of the same wallet waits for it instead of acting between this grant and its bookkeeping. */
   private async lockActivatedWallet(payer: WalletPayer) {
     const userWallet = await this.ensureActivatedWallet(payer);
+    const lockedWallet = (await this.userWalletRepository.findOneByAndLock({ id: userWallet.id })) ?? userWallet;
 
-    return (await this.userWalletRepository.findOneByAndLock({ id: userWallet.id })) ?? userWallet;
+    if (payer.team) await this.#assertTeamNotDeleted(payer.team.id);
+
+    return lockedWallet;
+  }
+
+  /** Read once the wallet is locked, which a team deletion also locks, so a payment settling after the deletion is refused rather than credited to nobody. */
+  async #assertTeamNotDeleted(organizationId: string): Promise<void> {
+    const team = await this.organizationRepository.findById(organizationId);
+
+    assert(!team?.deletedAt, 409, "The team organization was deleted, so its wallet takes no more credits", { errorCode: "organization_deleted" });
   }
 
   /**
