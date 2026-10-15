@@ -6,8 +6,10 @@ import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import nock from "nock";
 import { setTimeout as delay } from "node:timers/promises";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
+import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
@@ -20,6 +22,10 @@ import {
 } from "@src/organization/services/departed-member-alerts/stop-team-alerts-to-departed-member.handler";
 import { OrganizationMemberService } from "@src/organization/services/organization-member/organization-member.service";
 import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
+import {
+  TeamOrganizationDeleted,
+  TeamOrganizationDeletedHandler
+} from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 import { PurgeDeletedAccount, PurgeDeletedAccountHandler } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
@@ -31,17 +37,24 @@ import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seede
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
+import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
+import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
 
 const DEPLOYMENT_LIST_PATH = "/akash/deployment/v1beta4/deployments/list";
 
 type SeededTeam = Awaited<ReturnType<typeof seedOrganizationWithOwner>>;
 
-const jobWorkers = useJobWorkers(() => [container.resolve(PurgeDeletedAccountHandler), container.resolve(StopTeamAlertsToDepartedMemberHandler)]);
+const jobWorkers = useJobWorkers(() => [
+  container.resolve(PurgeDeletedAccountHandler),
+  container.resolve(StopTeamAlertsToDepartedMemberHandler),
+  container.resolve(TeamOrganizationDeletedHandler)
+]);
 
 describe(AccountDeletionService.name, () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     nock.cleanAll();
   });
 
@@ -230,10 +243,102 @@ describe(AccountDeletionService.name, () => {
     expect(await memberRepository.count({ organizationId: team.organization.id, role: "owner" })).toBe(1);
   });
 
-  it("refuses the last owner of a team organization before erasing anything", async () => {
-    const { service, account, token, answerActiveDeployments, countRowsOwnedBy, ownTeam, findRows } = await setup();
+  it("deletes the teams the account is the only member of along with it, keeping what they paid and deployed", async () => {
+    const { service, db, account, token, answerActiveDeployments, countRowsOwnedBy, ownTeam, findRows } = await setup();
     answerActiveDeployments([]);
     const team = await ownTeam();
+    const accountRows = await team.seedRowsWrittenBy(account.user.id, { withWalletSetting: true });
+
+    await service.confirm({ token });
+
+    expect(await countRowsOwnedBy(account)).toMatchObject({ users: 0 });
+    const [organization] = await db
+      .select()
+      .from(resolveTable("Organizations"))
+      .where(eq(resolveTable("Organizations").id, team.organization.id));
+    expect(organization.deletedAt).toEqual(expect.any(Date));
+    expect(await findRows(accountRows)).toEqual({
+      stripeTransactions: [expect.objectContaining({ userId: null, organizationId: team.organization.id })],
+      paymentMethods: [],
+      walletSettings: [expect.objectContaining({ userId: null, autoReloadEnabled: false })],
+      deploymentSettings: [expect.objectContaining({ userId: null, organizationId: team.organization.id })]
+    });
+    expect(await findJobRows(TeamOrganizationDeleted[JOB_NAME], { data: { organizationId: team.organization.id } })).toEqual([
+      expect.objectContaining({ data: expect.objectContaining({ organizationId: team.organization.id, deletedByUserId: account.user.id }) })
+    ]);
+  });
+
+  it("refuses to forfeit the credits of a team going with the account beyond what was acknowledged, keeping both", async () => {
+    const { service, db, account, token, answerActiveDeployments, countRowsOwnedBy, ownTeam } = await setup();
+    answerActiveDeployments([]);
+    await ownTeam({ balanceUakt: "12500000" });
+
+    await expect(service.confirm({ token })).rejects.toMatchObject({
+      status: 409,
+      errorCode: "forfeit_acknowledgement_required",
+      data: { balanceUsd: 12.5 }
+    });
+
+    expect(await countRowsOwnedBy(account)).toMatchObject({ users: 1 });
+    expect(
+      await db
+        .select()
+        .from(resolveTable("Organizations"))
+        .where(eq(resolveTable("Organizations").createdByUserId, account.user.id))
+    ).toEqual(expect.arrayContaining([expect.objectContaining({ type: "team", deletedAt: null })]));
+  });
+
+  it("waits for a deposit being recorded for a team going with the account, then refuses while the chain may still include it", async () => {
+    const { service, account, token, answerActiveDeployments, countRowsOwnedBy, ownTeam } = await setup();
+    answerActiveDeployments([]);
+    const team = await ownTeam();
+    const dseq = faker.string.numeric(8);
+    const recording = holdTransaction(async () => {
+      await container.resolve(DeploymentDepositRepository).createMany([
+        {
+          organizationId: team.organization.id,
+          owner: team.wallet.address!,
+          dseq,
+          kind: "deployment_create",
+          amount: "5000000",
+          denom: "uact",
+          amountCents: 500
+        }
+      ]);
+    });
+    await recording.held;
+
+    const confirming = service.confirm({ token });
+    await waitForLockWait('select %from "organizations"%for update');
+    recording.release();
+    await recording.committed;
+
+    await expect(confirming).rejects.toMatchObject({ status: 409, errorCode: "active_deployments", data: { dseqs: [dseq] } });
+    expect(await countRowsOwnedBy(account)).toMatchObject({ users: 1 });
+  });
+
+  it("waits for someone joining a team the account owns alone, then refuses as its last owner", async () => {
+    const { service, account, token, answerActiveDeployments, countRowsOwnedBy, ownTeam } = await setup();
+    answerActiveDeployments([]);
+    const team = await ownTeam();
+    const joining = holdTransaction(async () => {
+      await container.resolve(OrganizationMemberRepository).create({ organizationId: team.organization.id, userId: team.owner.id, role: "member" });
+    });
+    await joining.held;
+
+    const confirming = service.confirm({ token });
+    await waitForLockWait('select %from "organizations"%for update');
+    joining.release();
+    await joining.committed;
+
+    await expect(confirming).rejects.toMatchObject({ status: 409, errorCode: "last_owner" });
+    expect(await countRowsOwnedBy(account)).toMatchObject({ users: 1 });
+  });
+
+  it("refuses the last owner of a team organization other people are members of before erasing anything", async () => {
+    const { service, account, token, answerActiveDeployments, countRowsOwnedBy, ownTeam, findRows } = await setup();
+    answerActiveDeployments([]);
+    const team = await ownTeam({ otherMemberRole: "member" });
     const accountRows = await team.seedRowsWrittenBy(account.user.id, { withWalletSetting: true });
     const before = await countRowsOwnedBy(account);
 
@@ -283,6 +388,14 @@ describe(AccountDeletionService.name, () => {
     const templateRepository = container.resolve(UserTemplateRepository);
     const personalOrganizationService = container.resolve(PersonalOrganizationService);
     const restApiNodeUrl = container.resolve(CoreConfigService).get("REST_API_NODE_URL");
+    vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue({
+      price: 1,
+      volume: 0,
+      marketCap: 0,
+      marketCapRank: 0,
+      priceChange24h: 0,
+      priceChangePercentage24: 0
+    });
 
     const account = await seedAccount();
     const bystander = await seedAccount();
@@ -390,7 +503,7 @@ describe(AccountDeletionService.name, () => {
       return team;
     }
 
-    async function ownTeam() {
+    async function ownTeam(input: { otherMemberRole?: OrganizationRole; balanceUakt?: string } = {}) {
       const {
         user: owner,
         organization,
@@ -398,8 +511,24 @@ describe(AccountDeletionService.name, () => {
       } = await seedOrganizationWithOwner({ user: { userId: faker.string.uuid() }, createdByUserId: account.user.id });
       await db.delete(resolveTable("OrganizationMembers")).where(eq(resolveTable("OrganizationMembers").userId, owner.id));
       await seedOrganizationMember({ organizationId: organization.id, userId: account.user.id, role: "owner" });
+      if (input.otherMemberRole) await seedOrganizationMember({ organizationId: organization.id, userId: owner.id, role: input.otherMemberRole });
 
-      return await teamRowsSeeder({ owner, organization, project });
+      const team = await teamRowsSeeder({ owner, organization, project });
+      answerBalanceOf(team.wallet.address!, input.balanceUakt);
+
+      return team;
+    }
+
+    function answerBalanceOf(address: string, balanceUakt: string | undefined) {
+      nock(restApiNodeUrl)
+        .persist()
+        .get(uri => uri.includes("/cosmos/authz/v1beta1/grants") && uri.includes(address))
+        .reply(
+          200,
+          balanceUakt
+            ? createDeploymentGrantResponseSeed({ grantee: address, amount: balanceUakt, grantType: "/akash.escrow.v1.DepositAuthorization" })
+            : { grants: [], pagination: { next_key: null, total: "0" } }
+        );
     }
 
     async function seedTeam() {

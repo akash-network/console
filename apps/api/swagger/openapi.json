@@ -3530,10 +3530,129 @@
             "description": "Account deletion is not available"
           },
           "409": {
-            "description": "The account has active deployments, or is the last owner of a team (`last_owner`)"
+            "description": "The account has active deployments, or is the last owner of a team others belong to (`last_owner`)"
           },
           "429": {
             "description": "A link was sent less than a minute ago"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/user/me/deletion-eligibility": {
+      "get": {
+        "operationId": "getAccountDeletionEligibility",
+        "summary": "What deleting the signed-in user's account would forfeit and take along, and what blocks it",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The account's deletion eligibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "activeDeploymentCount": {
+                          "type": "number",
+                          "description": "Running deployments of the account and of the teams going with it, which must be closed first."
+                        },
+                        "forfeitableBalanceUsd": {
+                          "type": "number",
+                          "description": "The credits, in USD, deleting forfeits: the account's and those of every team going with it."
+                        },
+                        "isTrialing": {
+                          "type": "boolean"
+                        },
+                        "teamsDeletedWithAccount": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "activeDeploymentCount": {
+                                "type": "number"
+                              },
+                              "forfeitableBalanceUsd": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "activeDeploymentCount",
+                              "forfeitableBalanceUsd"
+                            ]
+                          },
+                          "description": "Teams the account is the only member of, deleted along with it."
+                        },
+                        "teamsToTransfer": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ]
+                          },
+                          "description": "Teams the account is the last owner of while others are members, whose ownership must be transferred first."
+                        }
+                      },
+                      "required": [
+                        "activeDeploymentCount",
+                        "forfeitableBalanceUsd",
+                        "isTrialing",
+                        "teamsDeletedWithAccount",
+                        "teamsToTransfer"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Requested with an API key instead of a signed-in session (`session_required`)"
+          },
+          "404": {
+            "description": "Account deletion is not available"
           }
         },
         "parameters": [
@@ -3593,7 +3712,7 @@
             "description": "Account deletion is not available"
           },
           "409": {
-            "description": "The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team (`last_owner`)"
+            "description": "The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team others belong to (`last_owner`)"
           }
         }
       }

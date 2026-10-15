@@ -122,6 +122,14 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    getAccountDeletionEligibility: {
+      path: "/v1/user/me/deletion-eligibility",
+      method: "get",
+      operationId: "getAccountDeletionEligibility",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
     confirmAccountDeletion: {
       path: "/v1/user/me/confirm-deletion",
       method: "post",

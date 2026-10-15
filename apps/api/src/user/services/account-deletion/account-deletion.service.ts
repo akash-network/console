@@ -14,6 +14,12 @@ import { NotificationService } from "@src/notifications/services/notification/no
 import { accountDeletionConfirmationNotification } from "@src/notifications/services/notification-templates/account-deletion-confirmation-notification";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import {
+  type AccountTeams,
+  AccountTeamsService,
+  type LockedTeamGoingWithAccount,
+  type TeamGoingWithAccount
+} from "@src/organization/services/account-teams/account-teams.service";
 import { DepartedMemberAlertsService } from "@src/organization/services/departed-member-alerts/departed-member-alerts.service";
 import { LAST_OWNER_ERROR_CODE } from "@src/organization/services/organization-member/organization-member.service";
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
@@ -31,6 +37,8 @@ export const DELETION_LINK_TTL_MINUTES = 15;
 export const DELETION_LINK_RESEND_COOLDOWN_SECONDS = 60;
 
 type BlockReason = "active_deployments" | "balance_without_forfeit" | "last_owner";
+
+export type AccountDeletionAssessment<Team extends TeamGoingWithAccount = TeamGoingWithAccount> = AccountDeletionEligibility & { teams: AccountTeams<Team> };
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -57,6 +65,7 @@ export class AccountDeletionService {
     private readonly analyticsService: AnalyticsService,
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly deploymentConfig: DeploymentConfigService,
+    private readonly accountTeamsService: AccountTeamsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: AccountDeletionService.name });
@@ -69,9 +78,9 @@ export class AccountDeletionService {
   async initiate(user: UserOutput, input: { forfeitAcknowledged: boolean; ip?: string; userAgent?: string }): Promise<void> {
     await this.assertResendCooldownElapsed(user.id);
 
-    const eligibility = await this.eligibilityService.assess(user.id);
+    const eligibility = await this.assess(user.id);
     this.assertNoActiveDeployments(user.id, eligibility);
-    await this.assertNoTeamLosesItsLastOwner(user.id);
+    this.assertNoTeamLosesItsLastOwner(user.id, eligibility.teams.toTransfer);
 
     if (eligibility.forfeitableBalanceUsd > 0 && !input.forfeitAcknowledged) {
       this.reportBlocked(user.id, "balance_without_forfeit");
@@ -120,18 +129,9 @@ export class AccountDeletionService {
       throw createError(400, "This deletion link has expired. Request a new one from your account settings.", { errorCode: "expired_deletion_token" });
     }
 
-    const eligibility = await this.eligibilityService.assess(user.id);
-    this.assertNoActiveDeployments(user.id, eligibility);
+    const eligibility = await this.eraseAccount(user, record.acknowledgedForfeitUsd);
 
-    if (eligibility.forfeitableBalanceUsd > record.acknowledgedForfeitUsd) {
-      this.reportBlocked(user.id, "balance_without_forfeit");
-      throw createError(409, "This account has more credits than were acknowledged when the deletion was requested. Request a new deletion link.", {
-        errorCode: "forfeit_acknowledgement_required",
-        data: { balanceUsd: eligibility.forfeitableBalanceUsd }
-      });
-    }
-
-    if (!(await this.eraseAccount(user))) return;
+    if (!eligibility) return;
 
     this.logger.info({ event: "ACCOUNT_DELETION_CONFIRMED", userId: user.id });
     this.analyticsService.track(user.id, "account_deletion_confirmed", {
@@ -164,9 +164,7 @@ export class AccountDeletionService {
     });
   }
 
-  /** Inside the erasing transaction the owner locks it takes hold until the account is gone, so no co-owner can step down in between. */
-  private async assertNoTeamLosesItsLastOwner(userId: string): Promise<void> {
-    const organizations = await this.organizationMemberRepository.lockTeamsOwnedOnlyBy(userId);
+  private assertNoTeamLosesItsLastOwner(userId: string, organizations: AccountDeletionAssessment["teams"]["toTransfer"]): void {
     if (organizations.length === 0) return;
 
     this.reportBlocked(userId, "last_owner");
@@ -174,6 +172,33 @@ export class AccountDeletionService {
       errorCode: LAST_OWNER_ERROR_CODE,
       data: { organizations }
     });
+  }
+
+  private assertForfeitAcknowledged(userId: string, { forfeitableBalanceUsd }: AccountDeletionEligibility, acknowledgedForfeitUsd: number): void {
+    if (forfeitableBalanceUsd <= acknowledgedForfeitUsd) return;
+
+    this.reportBlocked(userId, "balance_without_forfeit");
+    throw createError(409, "This account has more credits than were acknowledged when the deletion was requested. Request a new deletion link.", {
+      errorCode: "forfeit_acknowledgement_required",
+      data: { balanceUsd: forfeitableBalanceUsd }
+    });
+  }
+
+  /** The teams the account owns alone are read as they stand, without holding them, for telling the owner what deleting it takes along. */
+  async assess(userId: string): Promise<AccountDeletionAssessment> {
+    const [personal, teams] = await Promise.all([
+      this.eligibilityService.assess(userId),
+      this.organizationMemberRepository.lockTeamsOwnedOnlyBy(userId).then(owned => this.accountTeamsService.assess(owned))
+    ]);
+
+    return withTeams(personal, teams);
+  }
+
+  /** The owner rows and teams it locks hold until the account is gone, so no co-owner steps down, nobody joins and no deposit or payment lands in between. */
+  private async lockAndAssess(userId: string): Promise<AccountDeletionAssessment<LockedTeamGoingWithAccount>> {
+    const teams = await this.accountTeamsService.lockAndAssess(await this.organizationMemberRepository.lockTeamsOwnedOnlyBy(userId));
+
+    return withTeams(await this.eligibilityService.assess(userId), teams);
   }
 
   private reportBlocked(userId: string, reason: BlockReason): void {
@@ -198,12 +223,15 @@ export class AccountDeletionService {
   }
 
   /** Templates, favorites, probe evidence and the personal organization have no foreign key that cascades them with the user row; the wallet row is kept, without owner, so its address stays on record. */
-  private async eraseAccount(user: UserOutput): Promise<boolean> {
+  private async eraseAccount(user: UserOutput, acknowledgedForfeitUsd: number): Promise<AccountDeletionAssessment | undefined> {
     return await this.txService.transaction(async () => {
       const lockedUser = await this.userRepository.findOneByAndLock({ id: user.id });
-      if (!lockedUser) return false;
+      if (!lockedUser) return undefined;
 
-      await this.assertNoTeamLosesItsLastOwner(user.id);
+      const eligibility = await this.lockAndAssess(user.id);
+      this.assertNoActiveDeployments(user.id, eligibility);
+      this.assertNoTeamLosesItsLastOwner(user.id, eligibility.teams.toTransfer);
+      this.assertForfeitAcknowledged(user.id, eligibility, acknowledgedForfeitUsd);
 
       const userWallets = this.userWalletRepository.unscoped("account-deletion");
       const wallet = await userWallets.findOneByUserId(user.id);
@@ -227,7 +255,21 @@ export class AccountDeletionService {
         PURGE_DELETED_ACCOUNT_RETRY_OPTIONS
       );
 
-      return true;
+      await this.accountTeamsService.eraseWithAccount(eligibility.teams.goingWithAccount, user.id);
+
+      return eligibility;
     });
   }
+}
+
+/** One acknowledgement covers the account's credits and those of every team going with it, so the balances are summed to the cent. */
+function withTeams<Team extends TeamGoingWithAccount>(personal: AccountDeletionEligibility, teams: AccountTeams<Team>): AccountDeletionAssessment<Team> {
+  const balancesUsd = [personal.forfeitableBalanceUsd, ...teams.goingWithAccount.map(team => team.forfeitableBalanceUsd)];
+
+  return {
+    activeDeploymentDseqs: [...personal.activeDeploymentDseqs, ...teams.goingWithAccount.flatMap(team => team.activeDeploymentDseqs)],
+    isTrialing: personal.isTrialing,
+    forfeitableBalanceUsd: Math.round(balancesUsd.reduce((total, balanceUsd) => total + balanceUsd, 0) * 100) / 100,
+    teams
+  };
 }

@@ -1,10 +1,15 @@
 import { container } from "tsyringe";
 
 import { createRoute } from "@src/core/lib/create-route/create-route";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { AccountDeletionController } from "@src/user/controllers/account-deletion/account-deletion.controller";
-import { ConfirmAccountDeletionRequestSchema, InitiateAccountDeletionRequestSchema } from "@src/user/http-schemas/account-deletion.schema";
+import {
+  AccountDeletionEligibilityResponseSchema,
+  ConfirmAccountDeletionRequestSchema,
+  InitiateAccountDeletionRequestSchema
+} from "@src/user/http-schemas/account-deletion.schema";
 
 export const accountDeletionRouter = new OpenApiHonoHandler();
 
@@ -27,7 +32,7 @@ const initiateRoute = createRoute({
     401: { description: "Unauthorized" },
     403: { description: "Requested with an API key instead of a signed-in session (`session_required`)" },
     404: { description: "Account deletion is not available" },
-    409: { description: "The account has active deployments, or is the last owner of a team (`last_owner`)" },
+    409: { description: "The account has active deployments, or is the last owner of a team others belong to (`last_owner`)" },
     429: { description: "A link was sent less than a minute ago" }
   }
 });
@@ -37,6 +42,27 @@ accountDeletionRouter.openapi(initiateRoute, async function createAccountDeletio
     .resolve(AccountDeletionController)
     .initiate(c.req.valid("json"), { authMethod: c.get("authMethod"), ip: c.var.clientInfo?.ip, userAgent: c.var.clientInfo?.userAgent });
   return c.body(null, 204);
+});
+
+const eligibilityRoute = createRoute({
+  method: "get",
+  path: "/v1/user/me/deletion-eligibility",
+  // eslint-disable-next-line akash/operation-id-format
+  operationId: "getAccountDeletionEligibility",
+  summary: "What deleting the signed-in user's account would forfeit and take along, and what blocks it",
+  tags: ["Users"],
+  security: SECURITY_BEARER,
+  featureFlag: FeatureFlags.ORGANIZATIONS,
+  responses: {
+    200: { description: "The account's deletion eligibility", content: { "application/json": { schema: AccountDeletionEligibilityResponseSchema } } },
+    401: { description: "Unauthorized" },
+    403: { description: "Requested with an API key instead of a signed-in session (`session_required`)" },
+    404: { description: "Account deletion is not available" }
+  }
+});
+
+accountDeletionRouter.openapi(eligibilityRoute, async function getAccountDeletionEligibility(c) {
+  return c.json(await container.resolve(AccountDeletionController).getEligibility({ authMethod: c.get("authMethod") }), 200);
 });
 
 const confirmRoute = createRoute({
@@ -56,7 +82,9 @@ const confirmRoute = createRoute({
     204: { description: "Account deleted" },
     400: { description: "The link is invalid or expired" },
     404: { description: "Account deletion is not available" },
-    409: { description: "The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team (`last_owner`)" }
+    409: {
+      description: "The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team others belong to (`last_owner`)"
+    }
   }
 });
 

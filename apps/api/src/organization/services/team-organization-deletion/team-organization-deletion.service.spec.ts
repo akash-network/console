@@ -231,6 +231,25 @@ describe(TeamOrganizationDeletionService.name, () => {
     expect(logger.info).not.toHaveBeenCalled();
   });
 
+  describe("assessUnlocked", () => {
+    it("assesses the team's wallet as it stands, past the active organization's scope and without locking anything", async () => {
+      const { service, team, wallet, userWalletRepository, eligibilityService, organizationRepository, depositRepository } = setup({
+        activeDseqs: ["101"],
+        pendingDseqs: ["101", "202"],
+        balanceUsd: 4.25
+      });
+      userWalletRepository.findOneByOrganizationId.mockResolvedValue(wallet as UserWalletOutput);
+
+      expect(await service.assessUnlocked(team.id)).toEqual({ activeDeploymentDseqs: ["101", "202"], forfeitableBalanceUsd: 4.25 });
+      expect(userWalletRepository.unscoped).toHaveBeenCalledWith("organization-deletion");
+      expect(userWalletRepository.findOneByOrganizationId).toHaveBeenCalledWith(team.id);
+      expect(eligibilityService.assessWallet).toHaveBeenCalledWith(wallet);
+      expect(depositRepository.findPendingDseqsOf).toHaveBeenCalledWith(team.id);
+      expect(userWalletRepository.findOneByAndLock).not.toHaveBeenCalled();
+      expect(organizationRepository.findOneByAndLock).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(
     input: {
       context?: null;

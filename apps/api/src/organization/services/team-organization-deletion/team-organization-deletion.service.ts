@@ -24,7 +24,9 @@ export const FORFEIT_ACKNOWLEDGEMENT_REQUIRED_ERROR_CODE = "forfeit_acknowledgem
 
 type BlockReason = "active_deployments" | "balance_without_forfeit";
 
-type TeamEligibility = { activeDeploymentDseqs: string[]; forfeitableBalanceUsd: number };
+export type TeamEligibility = { activeDeploymentDseqs: string[]; forfeitableBalanceUsd: number };
+
+export type LockedTeam = { id: string; wallet: UserWalletOutput | undefined };
 
 @singleton()
 export class TeamOrganizationDeletionService {
@@ -55,10 +57,15 @@ export class TeamOrganizationDeletionService {
     const { id: userId } = this.authService.currentUser;
 
     const { forfeitableBalanceUsd } = await this.txService.transaction(async () => {
-      const wallet = await this.#lockTeam(id);
-      const eligibility = await this.#assess(id, wallet);
+      const team = await this.lockForDeletion(id);
+
+      if (!team) {
+        throw createError(404, "Organization not found");
+      }
+
+      const eligibility = await this.assess(team);
       this.#assertDeletable(userId, id, eligibility, acknowledgedForfeitUsd);
-      await this.#erase(id, { wallet, deletedByUserId: userId });
+      await this.erase(team, userId);
 
       return eligibility;
     });
@@ -66,17 +73,22 @@ export class TeamOrganizationDeletionService {
     this.#logger.info({ event: "TEAM_ORGANIZATION_DELETED", userId, organizationId: id, forfeitedBalanceUsd: forfeitableBalanceUsd });
   }
 
-  /** Locks the team, which a deposit being recorded holds, then its wallet, which a settling card payment holds, so the assessment sees what either commits. */
-  async #lockTeam(id: string): Promise<UserWalletOutput | undefined> {
+  /** Locks the team, which a deposit being recorded holds, then its wallet, which a settling card payment holds, so an assessment made under them sees what either commits. */
+  async lockForDeletion(id: string): Promise<LockedTeam | undefined> {
     if (!(await this.organizationRepository.findOneByAndLock({ id, type: "team", deletedAt: null }))) {
-      throw createError(404, "Organization not found");
+      return undefined;
     }
 
-    return await this.userWalletRepository.unscoped("organization-deletion").findOneByAndLock({ organizationId: id });
+    return { id, wallet: await this.userWalletRepository.unscoped("organization-deletion").findOneByAndLock({ organizationId: id }) };
+  }
+
+  /** Reads the team as it stands without locking anything, for showing what deleting it would take. */
+  async assessUnlocked(id: string): Promise<TeamEligibility> {
+    return await this.assess({ id, wallet: await this.userWalletRepository.unscoped("organization-deletion").findOneByOrganizationId(id) });
   }
 
   /** A deposit still being signed counts as a running deployment, since the chain may include it after the team is gone. */
-  async #assess(id: string, wallet: UserWalletOutput | undefined): Promise<TeamEligibility> {
+  async assess({ id, wallet }: LockedTeam): Promise<TeamEligibility> {
     const [{ activeDeploymentDseqs, forfeitableBalanceUsd }, pendingDseqs] = await Promise.all([
       this.eligibilityService.assessWallet(wallet),
       this.deploymentDepositRepository.unscoped("organization-deletion").findPendingDseqsOf(id)
@@ -104,10 +116,7 @@ export class TeamOrganizationDeletionService {
   }
 
   /** Marks the row deleted rather than removing it, so what the team paid and deployed stays on record. */
-  async #erase(
-    organizationId: string,
-    { wallet, deletedByUserId }: { wallet: Pick<UserWalletOutput, "id"> | undefined; deletedByUserId: string }
-  ): Promise<void> {
+  async erase({ id: organizationId, wallet }: LockedTeam, deletedByUserId: string): Promise<void> {
     const deletedAt = new Date();
 
     await this.organizationRepository.updateById(organizationId, { deletedAt });

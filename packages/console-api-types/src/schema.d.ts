@@ -1480,6 +1480,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/user/me/deletion-eligibility": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** What deleting the signed-in user's account would forfeit and take along, and what blocks it */
+    get: operations["getAccountDeletionEligibility"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/user/me/confirm-deletion": {
     parameters: {
       query?: never;
@@ -9346,7 +9363,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The account has active deployments, or is the last owner of a team (`last_owner`) */
+      /** @description The account has active deployments, or is the last owner of a team others belong to (`last_owner`) */
       409: {
         headers: {
           [name: string]: unknown;
@@ -9355,6 +9372,74 @@ export interface operations {
       };
       /** @description A link was sent less than a minute ago */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getAccountDeletionEligibility: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The account's deletion eligibility */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description Running deployments of the account and of the teams going with it, which must be closed first. */
+              activeDeploymentCount: number;
+              /** @description The credits, in USD, deleting forfeits: the account's and those of every team going with it. */
+              forfeitableBalanceUsd: number;
+              isTrialing: boolean;
+              /** @description Teams the account is the only member of, deleted along with it. */
+              teamsDeletedWithAccount: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+                activeDeploymentCount: number;
+                forfeitableBalanceUsd: number;
+              }[];
+              /** @description Teams the account is the last owner of while others are members, whose ownership must be transferred first. */
+              teamsToTransfer: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+              }[];
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Requested with an API key instead of a signed-in session (`session_required`) */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Account deletion is not available */
+      404: {
         headers: {
           [name: string]: unknown;
         };
@@ -9400,7 +9485,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team (`last_owner`) */
+      /** @description The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team others belong to (`last_owner`) */
       409: {
         headers: {
           [name: string]: unknown;

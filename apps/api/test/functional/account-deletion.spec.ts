@@ -15,11 +15,13 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { type ApiPgDatabase, CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
+import { TeamOrganizationDeleted } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
 import { app } from "@src/rest-app";
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -305,6 +307,149 @@ describe("Account deletion", () => {
         .reply(200, { data: { code: 0, hash: "SOME_HASH", rawLog: "[]" } });
 
       return grantees;
+    }
+  });
+
+  describe("for the only member of a team organization", () => {
+    it("tells the owner what deleting the account forfeits, with the teams going along with it and those to hand over", async () => {
+      const { owner, soleTeam, sharedTeam, request } = await setupSoleOwner({ teamBalanceUakt: "12500000", withSharedTeam: true });
+
+      const response = await request("GET", "/v1/user/me/deletion-eligibility");
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        data: {
+          activeDeploymentCount: 0,
+          forfeitableBalanceUsd: 12.5,
+          isTrialing: true,
+          teamsDeletedWithAccount: [{ id: soleTeam.id, name: soleTeam.name, activeDeploymentCount: 0, forfeitableBalanceUsd: 12.5 }],
+          teamsToTransfer: [{ id: sharedTeam!.id, name: sharedTeam!.name }]
+        }
+      });
+      expect(await userRepository.findById(owner.id)).toBeDefined();
+    });
+
+    it("counts the running deployments of a team going with the account", async () => {
+      const { request } = await setupSoleOwner({ teamDeployments: 1 });
+
+      const response = await request("GET", "/v1/user/me/deletion-eligibility");
+
+      expect(await response.json()).toMatchObject({
+        data: { activeDeploymentCount: 1, teamsDeletedWithAccount: [expect.objectContaining({ activeDeploymentCount: 1 })] }
+      });
+    });
+
+    it("refuses to tell it to a request authenticated with an API key", async () => {
+      const { owner } = await setupSoleOwner();
+      const apiKey = await seedApiKey(owner.id);
+
+      const response = await app.request("/v1/user/me/deletion-eligibility", { headers: { "x-api-key": apiKey } });
+
+      expect(response.status).toBe(403);
+      expect(((await response.json()) as ErrorBody).code).toBe("session_required");
+    });
+
+    it("answers like an unknown path while organizations are off for the caller", async () => {
+      const { request } = await setupSoleOwner({ organizationsOn: false });
+
+      const response = await request("GET", "/v1/user/me/deletion-eligibility");
+
+      expect(response.status).toBe(404);
+    });
+
+    it("deletes the team along with the account once the owner acknowledged forfeiting both balances at once", async () => {
+      const { owner, soleTeam, request } = await setupSoleOwner({ teamBalanceUakt: "12500000" });
+      const sentNotifications = interceptNotifications();
+
+      const initiateResponse = await request("POST", "/v1/user/me/initiate-deletion", { data: { forfeitAcknowledged: true } });
+      const linkToken = new URLSearchParams(new URL(sentNotifications[0].payload.actions[0].url).hash.slice(1)).get("token")!;
+      const confirmResponse = await confirm(linkToken);
+
+      expect(initiateResponse.status).toBe(204);
+      expect(await tokenRepository.findByUserId(owner.id)).toBeUndefined();
+      expect(confirmResponse.status).toBe(204);
+      expect(await userRepository.findById(owner.id)).toBeUndefined();
+      const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+      expect(await db.query.Organizations.findFirst({ where: eq(resolveTable("Organizations").id, soleTeam.id) })).toMatchObject({
+        deletedAt: expect.any(Date)
+      });
+      expect(await findJobRows(TeamOrganizationDeleted[JOB_NAME], { data: { organizationId: soleTeam.id } })).toHaveLength(1);
+    });
+
+    it("asks for the forfeit of the team's credits before sending a link", async () => {
+      const { owner, request } = await setupSoleOwner({ teamBalanceUakt: "12500000" });
+
+      const response = await request("POST", "/v1/user/me/initiate-deletion", { data: { forfeitAcknowledged: false } });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "forfeit_acknowledgement_required", data: { balanceUsd: 12.5 } });
+      expect(await tokenRepository.findByUserId(owner.id)).toBeUndefined();
+    });
+
+    async function setupSoleOwner(input: { teamBalanceUakt?: string; teamDeployments?: number; withSharedTeam?: boolean; organizationsOn?: boolean } = {}) {
+      const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+      const { user: owner, organization: soleTeam } = await seedOrganizationWithOwner({
+        user: { userId: `auth0|${faker.string.alphanumeric(24)}`, email: faker.internet.email() }
+      });
+      const [teamWallet] = await db
+        .insert(resolveTable("UserWallets"))
+        .values({ userId: null, organizationId: soleTeam.id, address: createAkashAddress(), isTrialing: false, activatedAt: new Date() })
+        .returning();
+      const sharedTeam = input.withSharedTeam ? await seedSharedTeamOwnedBy(owner.id) : undefined;
+      const token = faker.string.alphanumeric(40);
+
+      vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async header => (header.replace(/^Bearer +/i, "") === token ? owner.userId! : null));
+      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => {
+        if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
+
+        return flag !== FeatureFlags.ORGANIZATIONS || input.organizationsOn !== false;
+      });
+      vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue({
+        price: 1,
+        volume: 0,
+        marketCap: 0,
+        marketCapRank: 0,
+        priceChange24h: 0,
+        priceChangePercentage24: 0
+      });
+      answerActiveDeployments(
+        Array.from({ length: input.teamDeployments ?? 0 }, () => createDeploymentInfoSeed({ owner: teamWallet.address!, state: "active" }))
+      );
+      answerBalanceOf(teamWallet.address!, input.teamBalanceUakt);
+
+      async function request(method: "GET" | "POST", path: string, body?: unknown) {
+        return await app.request(path, {
+          method,
+          headers: { authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) },
+          body: body ? JSON.stringify(body) : undefined
+        });
+      }
+
+      return { owner, soleTeam, sharedTeam, request };
+    }
+
+    async function seedSharedTeamOwnedBy(ownerId: string) {
+      const { user: member, organization } = await seedOrganizationWithOwner({ user: { userId: faker.string.uuid() } });
+      const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+      await db
+        .update(resolveTable("OrganizationMembers"))
+        .set({ role: "member" })
+        .where(eq(resolveTable("OrganizationMembers").userId, member.id));
+      await seedOrganizationMember({ organizationId: organization.id, userId: ownerId, role: "owner" });
+
+      return organization;
+    }
+
+    function answerBalanceOf(address: string, balanceUakt: string | undefined) {
+      nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+        .persist()
+        .get(uri => uri.includes("/cosmos/authz/v1beta1/grants") && uri.includes(address))
+        .reply(
+          200,
+          balanceUakt
+            ? createDeploymentGrantResponseSeed({ grantee: address, amount: balanceUakt, grantType: "/akash.escrow.v1.DepositAuthorization" })
+            : { grants: [], pagination: { next_key: null, total: "0" } }
+        );
     }
   });
 
