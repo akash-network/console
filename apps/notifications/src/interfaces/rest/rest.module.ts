@@ -8,6 +8,7 @@ import { BrokerModule } from "@src/infrastructure/broker";
 import { DeploymentAlertController } from "@src/interfaces/rest/controllers/deployment-alert/deployment-alert.controller";
 import { HealthzController } from "@src/interfaces/rest/controllers/healthz/healthz.controller";
 import { InternalAccountController } from "@src/interfaces/rest/controllers/internal-account/internal-account.controller";
+import { InternalOrganizationController } from "@src/interfaces/rest/controllers/internal-organization/internal-organization.controller";
 import { AlertModule } from "@src/modules/alert/alert.module";
 import { NotificationsModule } from "@src/modules/notifications/notifications.module";
 import { AlertController } from "./controllers/alert/alert.controller";
@@ -28,7 +29,15 @@ import { AuthService } from "./services/auth/auth.service";
     AccountPurgeService,
     AuthService
   ],
-  controllers: [AlertController, NotificationChannelController, DeploymentAlertController, HealthzController, JobsController, InternalAccountController]
+  controllers: [
+    AlertController,
+    NotificationChannelController,
+    DeploymentAlertController,
+    HealthzController,
+    JobsController,
+    InternalAccountController,
+    InternalOrganizationController
+  ]
 })
 export default class RestModule {
   configure(consumer: MiddlewareConsumer): void {
