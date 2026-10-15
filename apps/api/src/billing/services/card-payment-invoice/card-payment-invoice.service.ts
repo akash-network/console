@@ -36,11 +36,18 @@ export class CardPaymentInvoiceService {
 
   /** Every step reads where Stripe already is before acting, so a retried or concurrent call finishes the same invoice instead of opening a second one. */
   async issueInvoice(transaction: StripeTransactionOutput): Promise<Stripe.Invoice> {
+    const recorded =
+      transaction.type === "payment_intent" && transaction.stripeInvoiceId ? await this.stripe.invoices.retrieve(transaction.stripeInvoiceId) : undefined;
+
+    if (recorded?.status === "paid") {
+      return recorded;
+    }
+
     if (!isInvoiceable(transaction)) {
       throw createError(400, NOT_INVOICEABLE_MESSAGE);
     }
 
-    let invoice = transaction.stripeInvoiceId ? await this.stripe.invoices.retrieve(transaction.stripeInvoiceId) : await this.#createDraft(transaction);
+    let invoice = recorded ?? (await this.#createDraft(transaction));
 
     if (invoice.status === "draft") {
       invoice = await this.#advance(invoice, () => this.#finalize(invoice, transaction));

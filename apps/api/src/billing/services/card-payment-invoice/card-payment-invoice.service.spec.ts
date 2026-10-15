@@ -89,6 +89,36 @@ describe(CardPaymentInvoiceService.name, () => {
       expect(attachPayment).not.toHaveBeenCalled();
     });
 
+    it("keeps serving the paid invoice of a payment refunded after it was issued", async () => {
+      const { service, stripe } = setup();
+      const paid = createTestInvoice({ id: "in_refunded", status: "paid" });
+      vi.spyOn(stripe.invoices, "retrieve").mockResolvedValue(paid);
+
+      const result = await service.issueInvoice(createCardPayment({ status: "refunded", stripeInvoiceId: "in_refunded" }));
+
+      expect(result).toBe(paid);
+    });
+
+    it("refuses to finish the invoice of a payment refunded before it was paid", async () => {
+      const { service, stripe } = setup();
+      vi.spyOn(stripe.invoices, "retrieve").mockResolvedValue(createTestInvoice({ id: "in_open", status: "open" }));
+      const attachPayment = vi.spyOn(stripe.invoices, "attachPayment");
+
+      await expect(service.issueInvoice(createCardPayment({ status: "refunded", stripeInvoiceId: "in_open" }))).rejects.toMatchObject({
+        status: 400,
+        message: NOT_INVOICEABLE_MESSAGE
+      });
+      expect(attachPayment).not.toHaveBeenCalled();
+    });
+
+    it("never looks up the invoice of a coupon claim", async () => {
+      const { service, stripe } = setup();
+      const retrieve = vi.spyOn(stripe.invoices, "retrieve");
+
+      await expect(service.issueInvoice(createCardPayment({ type: "coupon_claim", stripeInvoiceId: "in_coupon" }))).rejects.toMatchObject({ status: 400 });
+      expect(retrieve).not.toHaveBeenCalled();
+    });
+
     it("pays an invoice an earlier attempt finalized but did not pay", async () => {
       const { service, stripe, stripeTransactionRepository } = setup();
       const transaction = createCardPayment({ stripeInvoiceId: "in_open" });

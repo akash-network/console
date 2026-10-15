@@ -64,6 +64,19 @@ describe("Card payment invoices", () => {
       expect(await response.json()).toEqual({ data: { invoiceId: "in_existing", invoicePdfUrl: "https://pay.stripe.com/existing" } });
     });
 
+    it("keeps the invoice of a payment refunded after it was issued downloadable", async () => {
+      const { team, headersOf } = await setup();
+      const payment = await seedCardPayment({ userId: team.owner.id, organizationId: team.id, status: "refunded", stripeInvoiceId: "in_refunded" });
+      nock(STRIPE_API)
+        .get("/v1/invoices/in_refunded")
+        .reply(200, { id: "in_refunded", object: "invoice", status: "paid", invoice_pdf: "https://pay.stripe.com/refunded" });
+
+      const response = await requestInvoice(payment.id, headersOf(team.owner));
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ data: { invoiceId: "in_refunded", invoicePdfUrl: "https://pay.stripe.com/refunded" } });
+    });
+
     it("refuses an admin who asks for an invoice the payment does not have yet, without calling Stripe", async () => {
       const { team, headersOf, memberWith } = await setup();
       const admin = await memberWith("admin");
@@ -111,7 +124,7 @@ describe("Card payment invoices", () => {
     return await app.request(`/v1/stripe/transactions/${transactionId}/invoice`, { method: "POST", headers });
   }
 
-  async function seedCardPayment(input: { userId: string; organizationId: string; status?: "succeeded" | "failed"; stripeInvoiceId?: string }) {
+  async function seedCardPayment(input: { userId: string; organizationId: string; status?: "succeeded" | "failed" | "refunded"; stripeInvoiceId?: string }) {
     const [transaction] = await db
       .insert(resolveTable("StripeTransactions"))
       .values({
