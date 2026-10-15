@@ -127,7 +127,7 @@ describe("Deployment definitions", () => {
     it("sends no deployment update and no manifest", async () => {
       const sdl = sdlWithEnv(["LOG_LEVEL=debug"]);
       const { apiKey } = await setup({ runs: { sdl } });
-      const sendsUpdate = vi.spyOn(signerService, "executeDerivedDecodedTxByUserId");
+      const sendsUpdate = vi.spyOn(signerService, "executeDecodedTxByUserWallet");
       const sendsManifest = vi.spyOn(providerService, "sendManifest");
 
       await record(apiKey, { sdl });
@@ -353,7 +353,7 @@ describe("Deployment definitions", () => {
         findOneUsedBy: async () => wallets[0]
       })
     );
-    vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({
+    vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValue({
       code: 200,
       transactionHash: "fake-transaction-hash",
       hash: "fake-transaction-hash",

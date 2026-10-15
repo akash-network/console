@@ -412,7 +412,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     it("answers 403 to a re-sent seal bound to the SDL the first attempt replaced", async () => {
       const { apiKey, user, sdl } = await setup({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
       const boundSeal = await sealFor(user, { s0_e0: randomUUID() }, sdl);
-      vi.mocked(signerService.executeDerivedDecodedTxByUserId).mockRejectedValueOnce(new Error("update failed"));
+      vi.mocked(signerService.executeDecodedTxByUserWallet).mockRejectedValueOnce(new Error("update failed"));
       await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, boundSeal);
 
       const retry = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, boundSeal);
@@ -424,7 +424,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     it("accepts the re-sent patch once the same values are sealed against the SDL it now stores", async () => {
       const { apiKey, user, sdl } = await setup({ secrets: { s0_e0: randomUUID(), s0_e1: randomUUID() } });
       const rotated = randomUUID();
-      vi.mocked(signerService.executeDerivedDecodedTxByUserId).mockRejectedValueOnce(new Error("update failed"));
+      vi.mocked(signerService.executeDecodedTxByUserWallet).mockRejectedValueOnce(new Error("update failed"));
       await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, await sealFor(user, { s0_e0: rotated }, sdl));
       const applied = (await settingOf(user))!.manifestVersion;
 
@@ -828,7 +828,7 @@ describe("PATCH /v1/deployments/{dseq}", () => {
         findOneUsedBy: async () => wallets[0]
       })
     );
-    vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({
+    vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValue({
       code: 200,
       transactionHash: "fake-transaction-hash",
       hash: "fake-transaction-hash",

@@ -229,6 +229,8 @@ describe(DeploymentWriterService.name, () => {
     }
   };
 
+  const savedVersion = Buffer.from(new Uint8Array([4, 5, 6])).toString("base64");
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
@@ -1750,7 +1752,7 @@ describe(DeploymentWriterService.name, () => {
       const result = await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
 
       expect(rpcMessageService.getUpdateDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ owner: wallet.address, dseq: "100" }));
-      expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledWith("user-1", [updateMsg]);
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [updateMsg], { actingUserId: "user-1" });
       expect(result).toBe(deploymentData);
     });
 
@@ -1833,7 +1835,7 @@ describe(DeploymentWriterService.name, () => {
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
 
       expect(rpcMessageService.getUpdateDeploymentMsg).not.toHaveBeenCalled();
-      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
     it("throws 400 when a sdl reference cannot be resolved", async () => {
@@ -1941,7 +1943,7 @@ describe(DeploymentWriterService.name, () => {
 
       expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
       expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
-      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
       expect(providerService.sendManifest).not.toHaveBeenCalled();
     });
 
@@ -1990,7 +1992,7 @@ describe(DeploymentWriterService.name, () => {
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS });
 
       expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ dseq: "100", manifestVersion: "AQID" }));
-      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
     it("records the definition before it broadcasts or re-sends the manifest", async () => {
@@ -1999,7 +2001,7 @@ describe(DeploymentWriterService.name, () => {
 
       await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_WITH_SECRETS })).rejects.toThrow("db down");
 
-      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
       expect(providerService.sendManifest).not.toHaveBeenCalled();
     });
 
@@ -2009,7 +2011,7 @@ describe(DeploymentWriterService.name, () => {
       await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_TOO_LONG_WITHOUT_ALIASES })).rejects.toMatchObject({ status: 400 });
 
       expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
-      expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
       expect(providerService.sendManifest).not.toHaveBeenCalled();
     });
 
@@ -2561,7 +2563,7 @@ describe(DeploymentWriterService.name, () => {
         });
         expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
         expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
-        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+        expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
         expect(providerService.sendManifest).not.toHaveBeenCalled();
       });
     });
@@ -2649,7 +2651,7 @@ describe(DeploymentWriterService.name, () => {
 
         await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
 
-        expect(signerService.executeDerivedDecodedTxByUserId).toHaveBeenCalledTimes(1);
+        expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledTimes(1);
       });
 
       it("broadcasts nothing when the chain already holds the patched version", async () => {
@@ -2657,7 +2659,7 @@ describe(DeploymentWriterService.name, () => {
 
         await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
 
-        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+        expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
       });
 
       it("sends the resolved manifest to each lease provider once", async () => {
@@ -2713,6 +2715,90 @@ describe(DeploymentWriterService.name, () => {
 
         const [{ sdl }] = vi.mocked(deploymentSettingRepository.replaceDefinitionIfVersionMatches).mock.calls[0];
         expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ sdl }));
+      });
+
+      it("reads the row back through the caller's ability between the write and the broadcast", async () => {
+        const { service, ability, deploymentSettingRepository, unscopedDeploymentSettingRepository, signerService } = setup({ chainHash: "SOMETHING_ELSE" });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(unscopedDeploymentSettingRepository.accessibleBy).toHaveBeenLastCalledWith(ability, "read");
+        expect(deploymentSettingRepository.findOneBy).toHaveBeenLastCalledWith({ userId: "user-1", dseq: "1234" });
+        const readBack = deploymentSettingRepository.findOneBy.mock.invocationCallOrder.at(-1)!;
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches.mock.invocationCallOrder[0]).toBeLessThan(readBack);
+        expect(readBack).toBeLessThan(signerService.executeDecodedTxByUserWallet.mock.invocationCallOrder[0]);
+      });
+
+      it("reads an organization's row back under the member who filed it and signs with the organization's wallet for the caller", async () => {
+        const { service, ability, deploymentSettingRepository, walletReaderService, signerService } = setup({ chainHash: "SOMETHING_ELSE" });
+        const organizationWallet = { ...wallet, userId: null, organizationId: "organization-1" };
+        walletReaderService.getWalletByUserId.mockResolvedValue(organizationWallet);
+        signerService.filedUserIdOf.mockResolvedValue("filer-1");
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(deploymentSettingRepository.findOneBy).toHaveBeenLastCalledWith({ userId: "filer-1", dseq: "1234" });
+        expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(organizationWallet, expect.any(Array), { actingUserId: "user-1" });
+      });
+
+      it("opens the stored token once, applying what it saved from what it already built", async () => {
+        const { service, ability, sdlSecretsService, sdlService } = setup({ held: { s0_e0: "token", s0_e1: "kept" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
+
+        expect(sdlSecretsService.openStored).toHaveBeenCalledTimes(1);
+        expect(sdlService.generateResolvedManifest).toHaveBeenCalledTimes(1);
+      });
+
+      it("logs the patch it saved by its counts and whether it was guarded, as before the split", async () => {
+        const { service, ability, logger } = setup({ held: { s0_e0: "token", s0_e1: "kept" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } }, ifManifestVersion: STORED_VERSION }, ability);
+
+        expect(logger.info).toHaveBeenCalledWith({
+          event: "DEPLOYMENT_PATCH_APPLIED",
+          userId: "user-1",
+          dseq: "1234",
+          patchedServiceCount: 1,
+          secretCount: 2,
+          guarded: true
+        });
+      });
+    });
+
+    describe("a patch a newer one replaced between its write and its broadcast", () => {
+      it("updates nothing on chain and pushes no manifest, the newer patch carrying it", async () => {
+        const { service, ability, signerService, providerService } = setup({ chainHash: "SOMETHING_ELSE", replacedBy: "TkVXRVI=" });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+        expect(providerService.sendManifest).not.toHaveBeenCalled();
+      });
+
+      it("restarts neither the probes nor the gpu read, which the newer patch restarts", async () => {
+        const { service, ability, probeJobService, leaseGpuDetectionJobService } = setup({ isTrialing: true, replacedBy: "TkVXRVI=" });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(probeJobService.restartForUpdatedDeployment).not.toHaveBeenCalled();
+        expect(leaseGpuDetectionJobService.restartForUpdatedDeployment).not.toHaveBeenCalled();
+      });
+
+      it("still answers with the version and the name it saved", async () => {
+        const { service, ability } = setup({ replacedBy: "TkVXRVI=" });
+
+        const result = await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, name: "renamed" }, ability);
+
+        expect(result).toMatchObject({ name: "renamed", manifestVersion: Buffer.from(new Uint8Array([1, 2, 3])).toString("base64") });
+      });
+
+      it("logs the patch it found replaced, naming the deployment", async () => {
+        const { service, ability, logger } = setup({ replacedBy: "TkVXRVI=" });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_PATCH_REPLACED", userId: "user-1", dseq: "1234" });
       });
     });
 
@@ -2796,7 +2882,7 @@ describe(DeploymentWriterService.name, () => {
 
         await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
 
-        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+        expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
         expect(providerService.sendManifest).not.toHaveBeenCalled();
       });
 
@@ -2895,7 +2981,7 @@ describe(DeploymentWriterService.name, () => {
 
         await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed", services: { web: { expose: {} } } }, ability);
 
-        expect(signerService.executeDerivedDecodedTxByUserId).not.toHaveBeenCalled();
+        expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
         expect(providerService.sendManifest).not.toHaveBeenCalled();
       });
 
@@ -2934,6 +3020,7 @@ describe(DeploymentWriterService.name, () => {
       openStoredError?: Error;
       isTrialing?: boolean;
       onChainGroupSpecs?: OnChainGroupSpec[];
+      replacedBy?: string;
     }) {
       const manifestVersion = new Uint8Array([1, 2, 3]);
       const storedToken = input?.storedToken === undefined ? STORED_TOKEN : input.storedToken;
@@ -2950,9 +3037,12 @@ describe(DeploymentWriterService.name, () => {
       scoped.findOneBy.mockResolvedValue(
         hasSetting ? mock<DeploymentSettingsOutput>({ sdl: input?.sdl ?? STORED_SDL, sealedSecrets: storedToken, manifestVersion: storedVersion }) : undefined
       );
-      scoped.replaceDefinitionIfVersionMatches.mockImplementation(async ({ name }) => {
+      scoped.replaceDefinitionIfVersionMatches.mockImplementation(async ({ name, sdl, sealedSecrets, manifestVersion }) => {
         const id = "written" in (input ?? {}) ? input!.written : randomUUID();
-        return id === undefined ? undefined : { id, name: name ?? input?.recordedName ?? null };
+        if (id === undefined) return undefined;
+
+        scoped.findOneBy.mockResolvedValue(mock<DeploymentSettingsOutput>({ sdl, sealedSecrets, manifestVersion: input?.replacedBy ?? manifestVersion }));
+        return { id, name: name ?? input?.recordedName ?? null };
       });
       scoped.upsertName.mockImplementation(async ({ name }) => name);
       deploymentSettingRepository.accessibleBy.mockReturnValue(scoped);
@@ -3046,6 +3136,255 @@ describe(DeploymentWriterService.name, () => {
         sealedFor
       };
     }
+  });
+
+  describe("applySavedPatch", () => {
+    const savedPatch = { userId: "user-1", dseq: "100", manifestVersion: savedVersion };
+
+    it("does nothing once a newer patch replaced the version it was given", async () => {
+      const { service, ability, deploymentReaderService, sdlSecretsService, signerService, providerService, probeJobService, leaseGpuDetectionJobService } =
+        setup({
+          isTrialing: true,
+          storedManifestVersion: "TkVXRVI="
+        });
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).not.toHaveBeenCalled();
+      expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+      expect(probeJobService.restartForUpdatedDeployment).not.toHaveBeenCalled();
+      expect(leaseGpuDetectionJobService.restartForUpdatedDeployment).not.toHaveBeenCalled();
+    });
+
+    it("logs the patch it found replaced, naming the deployment", async () => {
+      const { service, ability, logger } = setup({ storedManifestVersion: "TkVXRVI=" });
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_PATCH_REPLACED", userId: "user-1", dseq: "100" });
+    });
+
+    it("reads the saved row through the ability it is given, looking it up by the deployment alone", async () => {
+      const { service, ability, deploymentSettingRepository, scopedSettingRepository } = setup();
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(deploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
+      expect(scopedSettingRepository.findOneBy).toHaveBeenCalledWith({ userId: "user-1", dseq: "100" });
+    });
+
+    it("answers 404 and applies nothing when the deployment's row holds no definition", async () => {
+      const { service, ability, signerService, providerService } = setup({ sourceSetting: undefined });
+
+      await expect(service.applySavedPatch(savedPatch, ability)).rejects.toMatchObject({ status: 404 });
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("opens the saved token under the user and the deployment it was sealed for", async () => {
+      const { service, ability, sdlSecretsService } = setup();
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: "user-1", dseq: "100", sealedSecrets: "stored.token.aaa.bbb.ccc" });
+    });
+
+    it("rebuilds the manifest from the saved sdl and the values its token holds", async () => {
+      const held = { API_TOKEN: ENV_VALUE, DATABASE_URL: "postgres://db" };
+      const { service, ability, sdlService } = setup({ held });
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ sdl: SDL_OF_A_REDEPLOY, secrets: held }));
+    });
+
+    it("holds a trialing wallet to no trial limit, the save having applied them", async () => {
+      const { service, ability, sdlService } = setup({ isTrialing: true });
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.not.objectContaining({ isTrialing: true }));
+    });
+
+    it("reaches no key service when the saved definition holds no token", async () => {
+      const { service, ability, sdlSecretsService, sdlService } = setup({
+        sourceSetting: mock<DeploymentSettingsOutput>({ sdl: SDL_OF_A_REDEPLOY, sealedSecrets: null, manifestVersion: savedVersion })
+      });
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+      expect(sdlService.generateResolvedManifest).toHaveBeenCalledWith(expect.objectContaining({ secrets: {} }));
+    });
+
+    it("reads the chain without asking any provider for a lease status", async () => {
+      const { service, ability, deploymentReaderService } = setup();
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(wallet, "100");
+      expect(deploymentReaderService.findByWalletAndDseq).not.toHaveBeenCalled();
+    });
+
+    it("updates the chain to the version it rebuilt when the chain holds another", async () => {
+      const { service, ability, signerService, rpcMessageService } = setup({ onChainHash: "c3RhbGU=" });
+      const updateMsg = { typeUrl: "/update", value: MsgUpdateDeployment.fromPartial({}) };
+      rpcMessageService.getUpdateDeploymentMsg.mockReturnValue(updateMsg);
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(rpcMessageService.getUpdateDeploymentMsg).toHaveBeenCalledWith({ owner: wallet.address, dseq: "100", hash: new Uint8Array([4, 5, 6]) });
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [updateMsg], { actingUserId: "user-1" });
+    });
+
+    it("leaves the chain alone when it already holds the saved version, still pushing the manifest", async () => {
+      const { service, ability, signerService, providerService } = setup({ onChainHash: savedVersion });
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).toHaveBeenCalledTimes(1);
+    });
+
+    it("pushes the rebuilt manifest once to each provider holding a lease, with that provider's credentials", async () => {
+      const { service, ability, providerService, deploymentReaderService } = setup();
+      const [lease] = deploymentData.leases;
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue({
+        ...deploymentData,
+        leases: ["provider-1", "provider-2", "provider-1"].map(provider => ({ ...lease, id: { ...lease.id, provider } }))
+      });
+      providerService.toProviderAuth.mockImplementation(async ({ provider }) => ({ type: "jwt", token: `token-for-${provider}` }));
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(providerService.toProviderAuth).toHaveBeenCalledWith({ walletId: wallet.id, provider: "provider-1" });
+      expect(providerService.sendManifest.mock.calls.map(([push]) => push)).toEqual([
+        { provider: "provider-1", dseq: "100", manifest: expect.stringContaining("resolved-group"), auth: { type: "jwt", token: "token-for-provider-1" } },
+        { provider: "provider-2", dseq: "100", manifest: expect.stringContaining("resolved-group"), auth: { type: "jwt", token: "token-for-provider-2" } }
+      ]);
+    });
+
+    it("pushes the manifest again without a second chain update when retried after its update landed", async () => {
+      const { service, ability, signerService, providerService, deploymentReaderService } = setup();
+      providerService.sendManifest.mockRejectedValueOnce(new Error("provider unreachable"));
+      await expect(service.applySavedPatch(savedPatch, ability)).rejects.toThrow("provider unreachable");
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue({
+        ...deploymentData,
+        deployment: { ...deploymentData.deployment, hash: savedVersion }
+      });
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledTimes(1);
+      expect(providerService.sendManifest).toHaveBeenCalledTimes(2);
+    });
+
+    it("starts a trialing wallet's probes and its gpu read over once the manifest is pushed", async () => {
+      const { service, ability, providerService, probeJobService, leaseGpuDetectionJobService } = setup({ isTrialing: true });
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      const pushed = providerService.sendManifest.mock.invocationCallOrder[0];
+      expect(probeJobService.restartForUpdatedDeployment).toHaveBeenCalledWith({ walletId: wallet.id, dseq: "100", updatedAt: expect.any(Date) });
+      expect(leaseGpuDetectionJobService.restartForUpdatedDeployment).toHaveBeenCalledWith({ walletId: wallet.id, dseq: "100", updatedAt: expect.any(Date) });
+      expect(pushed).toBeLessThan(probeJobService.restartForUpdatedDeployment.mock.invocationCallOrder[0]);
+      expect(pushed).toBeLessThan(leaseGpuDetectionJobService.restartForUpdatedDeployment.mock.invocationCallOrder[0]);
+    });
+
+    it("leaves an established wallet's probe schedule alone", async () => {
+      const { service, ability, probeJobService } = setup();
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(probeJobService.restartForUpdatedDeployment).not.toHaveBeenCalled();
+    });
+
+    it("updates nothing and pushes nothing when the saved token will not open", async () => {
+      const { service, ability, sdlSecretsService, signerService, providerService } = setup();
+      sdlSecretsService.openStored.mockRejectedValue(createError(500, SECRET_UNREADABLE_ERROR_MESSAGE));
+
+      await expect(service.applySavedPatch(savedPatch, ability)).rejects.toMatchObject({ status: 500, message: SECRET_UNREADABLE_ERROR_MESSAGE });
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("updates nothing and pushes nothing when the saved definition no longer resolves", async () => {
+      const { service, ability, sdlService, signerService, providerService } = setup();
+      sdlService.generateResolvedManifest.mockResolvedValue({
+        ok: false,
+        value: [
+          { schemaPath: "", instancePath: "", keyword: "sdl-reference", params: {}, message: 'no value supplied for SDL Reference "ac-secret://API_TOKEN"' }
+        ]
+      });
+
+      await expect(service.applySavedPatch(savedPatch, ability)).rejects.toMatchObject({ status: 400 });
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("applies a patch naming no wallet with the wallet of the member who saved it", async () => {
+      const { service, ability, walletReaderService } = setup();
+
+      await service.applySavedPatch(savedPatch, ability);
+
+      expect(walletReaderService.getWalletByUserId).toHaveBeenCalledWith("user-1");
+      expect(walletReaderService.getWalletById).not.toHaveBeenCalled();
+    });
+
+    describe("a patch saved through an organization's wallet", () => {
+      const organizationWallet: WalletInitialized = { ...wallet, id: 42, address: "akash1team", userId: null, organizationId: "organization-1" };
+      const organizationPatch = { ...savedPatch, walletId: organizationWallet.id };
+
+      it("applies it with the wallet it names rather than a wallet of the member who saved it", async () => {
+        const { service, ability, walletReaderService, deploymentReaderService } = setup();
+        walletReaderService.getWalletById.mockResolvedValue(organizationWallet);
+
+        await service.applySavedPatch(organizationPatch, ability);
+
+        expect(walletReaderService.getWalletById).toHaveBeenCalledWith(42);
+        expect(walletReaderService.getWalletByUserId).not.toHaveBeenCalled();
+        expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledWith(organizationWallet, "100");
+      });
+
+      it("reads the saved row and opens its token under the member who filed the deployment", async () => {
+        const { service, ability, walletReaderService, signerService, scopedSettingRepository, sdlSecretsService } = setup();
+        walletReaderService.getWalletById.mockResolvedValue(organizationWallet);
+        signerService.filedUserIdOf.mockResolvedValue("filer-1");
+
+        await service.applySavedPatch(organizationPatch, ability);
+
+        expect(signerService.filedUserIdOf).toHaveBeenCalledWith(organizationWallet, "user-1", "100");
+        expect(scopedSettingRepository.findOneBy).toHaveBeenCalledWith({ userId: "filer-1", dseq: "100" });
+        expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: "filer-1", dseq: "100", sealedSecrets: "stored.token.aaa.bbb.ccc" });
+      });
+
+      it("updates the chain and pushes the manifest with the organization's wallet, for the member who saved the patch", async () => {
+        const { service, ability, walletReaderService, signerService, rpcMessageService, providerService } = setup({ onChainHash: "c3RhbGU=" });
+        walletReaderService.getWalletById.mockResolvedValue(organizationWallet);
+        const updateMsg = { typeUrl: "/update", value: MsgUpdateDeployment.fromPartial({}) };
+        rpcMessageService.getUpdateDeploymentMsg.mockReturnValue(updateMsg);
+
+        await service.applySavedPatch(organizationPatch, ability);
+
+        expect(rpcMessageService.getUpdateDeploymentMsg).toHaveBeenCalledWith(expect.objectContaining({ owner: "akash1team", dseq: "100" }));
+        expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(organizationWallet, [updateMsg], { actingUserId: "user-1" });
+        expect(providerService.toProviderAuth).toHaveBeenCalledWith({ walletId: 42, provider: "provider-1" });
+      });
+
+      it("applies nothing once the deployment is outside the projects of the member who saved it", async () => {
+        const { service, ability, walletReaderService, signerService, sdlSecretsService, providerService } = setup({ onChainHash: "c3RhbGU=" });
+        walletReaderService.getWalletById.mockResolvedValue(organizationWallet);
+        signerService.filedUserIdOf.mockRejectedValue(createError(403, "outside"));
+
+        await expect(service.applySavedPatch(organizationPatch, ability)).rejects.toMatchObject({ status: 403 });
+
+        expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+        expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+        expect(providerService.sendManifest).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe("recordDefinitionByUserIdAndDseq", () => {
@@ -3310,6 +3649,8 @@ describe(DeploymentWriterService.name, () => {
     onChainHash?: string;
     definitionRecordedConcurrently?: boolean;
     filingProjectId?: string;
+    storedManifestVersion?: string;
+    held?: SdlSecrets;
   }) {
     const signerService = mock<ManagedSignerService>();
     signerService.filedUserIdOf.mockImplementation(async (_wallet, actingUserId) => actingUserId);
@@ -3341,7 +3682,8 @@ describe(DeploymentWriterService.name, () => {
         : mock<DeploymentSettingsOutput>({
             sdl: input?.storedSdl ?? SDL_OF_A_REDEPLOY,
             runtimeLimitHours: input?.storedRuntimeLimitHours ?? null,
-            sealedSecrets: "stored.token.aaa.bbb.ccc"
+            sealedSecrets: "stored.token.aaa.bbb.ccc",
+            manifestVersion: input?.storedManifestVersion ?? savedVersion
           })
     );
     scopedSettingRepository.recordDefinitionIfAbsent.mockResolvedValue(input?.definitionRecordedConcurrently ? undefined : DEPLOYMENT_SETTING_ID);
@@ -3357,6 +3699,7 @@ describe(DeploymentWriterService.name, () => {
     const sdlSecretsDerivationService = new SdlSecretsDerivationService(new SdlReferenceService());
     sdlSecretsService.receive.mockResolvedValue({ ok: true, value: input?.received ?? {} });
     sdlSecretsService.sealForStorage.mockResolvedValue(input?.sealedSecrets ?? null);
+    sdlSecretsService.openStored.mockResolvedValue(input?.held ?? {});
 
     const maxCount = input?.maxCount;
     sdlSecretsService.assertStorable.mockImplementation(secrets => {
