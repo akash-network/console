@@ -474,6 +474,8 @@ export class JobQueueService implements Disposable {
                 this.logger.error({
                   event: "JOB_FAILED",
                   jobId: job.id,
+                  queue: queueName,
+                  isFinalAttempt: job.retryCount >= job.retryLimit,
                   error
                 });
                 throw toStorableError(redactQueryError(error));

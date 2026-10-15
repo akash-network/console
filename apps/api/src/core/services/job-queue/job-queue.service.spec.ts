@@ -621,10 +621,28 @@ describe(JobQueueService.name, () => {
       expect(logger.error).toHaveBeenCalledWith({
         event: "JOB_FAILED",
         jobId: job.id,
+        queue: "test",
+        isFinalAttempt: false,
         error: (result as PromiseRejectedResult).reason
       });
       expect(handleFn).toHaveBeenCalledTimes(1);
       expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id, retryCount: 2, retryLimit: 5 });
+    });
+
+    it("marks the failure of a job's last attempt as final", async () => {
+      const error = new Error("Job processing failed");
+      const { service, pgBoss, logger } = setup();
+      const job = { id: "1", retryCount: 5, retryLimit: 5, data: { message: "Job 1", userId: "user-1" } };
+
+      vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkWithMetadataHandler<unknown>) => {
+        await processFn([job as JobWithMetadata<unknown>]);
+        return "work-id";
+      });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: job.id, queue: "test", isFinalAttempt: true, error });
     });
 
     it("rethrows a NUL-free copy of a failing handler's error so pg-boss can store it", async () => {
@@ -642,7 +660,7 @@ describe(JobQueueService.name, () => {
       expect(thrown.name).toBe("DrizzleQueryError");
       expect(thrown.message).toBe("Failed query: insert params: cmd=tr ' ' ' '");
       expect(thrown.stack).toBe("DrizzleQueryError:  \n    at insert");
-      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: expect.any(String), error });
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: expect.any(String), queue: "test", isFinalAttempt: false, error });
     });
 
     it("rethrows a failed query's error without its params or the row its driver error reported, so pg-boss stores neither", async () => {
@@ -658,7 +676,7 @@ describe(JobQueueService.name, () => {
       expect(thrown).not.toHaveProperty("params");
       expect(thrown.cause).toHaveProperty("code", "23502");
       expect(thrown.cause).not.toHaveProperty("detail");
-      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: expect.any(String), error });
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: expect.any(String), queue: "test", isFinalAttempt: false, error });
     });
 
     it("records a failed query on the job's span with its params redacted", async () => {
@@ -872,7 +890,7 @@ describe(JobQueueService.name, () => {
       const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
 
       expect(result.status).toBe("rejected");
-      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: job.id, error });
+      expect(logger.error).toHaveBeenCalledWith({ event: "JOB_FAILED", jobId: job.id, queue: "test", isFinalAttempt: false, error });
       expect(handle).not.toHaveBeenCalled();
     });
 
@@ -1097,7 +1115,7 @@ describe(JobQueueService.name, () => {
   }
 
   function deliverOneJob(pgBoss: PgBoss, data: Record<string, unknown>) {
-    const job = { id: "1", data };
+    const job = { id: "1", retryCount: 0, retryLimit: 5, data };
     vi.spyOn(pgBoss, "work").mockImplementation(async (queueName: string, options: unknown, processFn: WorkWithMetadataHandler<unknown>) => {
       await processFn([job as JobWithMetadata<unknown>]);
       return "work-id";
