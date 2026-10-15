@@ -5,6 +5,7 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { OrganizationActivities } from "@src/organization/model-schemas/organization-activity/organization-activity.schema";
 import { OrganizationMembers } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_SLUG } from "@src/organization/model-schemas/project/project.schema";
 import { GRANT_HOLDING_ORGANIZATION_ROLES, ProjectMembers, type ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
@@ -17,6 +18,9 @@ export type ProjectOutput = Table["$inferSelect"];
 export type ProjectCreator = { id: string; username: string | null };
 
 export type ProjectWithCreator = ProjectOutput & { createdBy: ProjectCreator | null };
+
+/** `lastActivityAt` is null for a project nothing was recorded in yet. */
+export type ProjectWithLastActivity = ProjectWithCreator & { lastActivityAt: Date | null };
 
 export type ProjectGrantOfUser = { projectId: string; role: ProjectRole };
 
@@ -74,6 +78,21 @@ export class ProjectRepository extends OrgScopedRepository<Table, ProjectInput, 
       .orderBy(desc(this.table.isDefault), asc(this.table.createdAt), asc(this.table.id));
 
     return rows.map(({ project, creator }) => ({ ...this.toOutput(project), createdBy: creator }));
+  }
+
+  /** Reads each project's newest activity through the activity index, one lookup per project rather than a scan of the organization's feed. */
+  async findActiveWithLastActivity(): Promise<ProjectWithLastActivity[]> {
+    const lastActivityAt = sql<Date | null>`(
+      select max(${OrganizationActivities.createdAt}) from ${OrganizationActivities}
+      where ${OrganizationActivities.organizationId} = ${this.table.organizationId} and ${OrganizationActivities.projectId} = ${this.table.id}
+    )`.mapWith(OrganizationActivities.createdAt);
+    const rows = await this.cursor
+      .select({ project: this.table, creator: { id: Users.id, username: Users.username }, lastActivityAt })
+      .from(this.table)
+      .leftJoin(Users, eq(Users.id, this.table.createdByUserId))
+      .where(this.whereAccessibleBy(isNull(this.table.deletedAt)));
+
+    return rows.map(({ project, creator, lastActivityAt }) => ({ ...this.toOutput(project), createdBy: creator, lastActivityAt }));
   }
 
   async findActive(organizationId: ProjectOutput["organizationId"], id: ProjectOutput["id"]): Promise<ProjectOutput | undefined> {

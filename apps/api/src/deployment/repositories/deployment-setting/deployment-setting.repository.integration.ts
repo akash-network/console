@@ -2061,12 +2061,12 @@ describe(DeploymentSettingRepository.name, () => {
   });
 
   describe("findUnclosedReachable", () => {
-    it("reads the unflagged rows of the projects a member was granted, with the address owning each on chain", async () => {
+    it("reads the unflagged rows of the projects a member was granted, with their project, name and the address owning each on chain", async () => {
       const { deploymentSettingRepository, runAsMember, seedTeamWallet, active, member, otherProject } = await setupOrganizations();
       const teamAddress = await seedTeamWallet();
       const inActiveOrganization = { organizationId: active.organization.id, projectId: active.project.id };
-      const colleagues = await seedDeploymentSetting({ ...inActiveOrganization, userId: active.user.id });
-      const own = await seedDeploymentSetting({ ...inActiveOrganization, userId: member.id });
+      const colleagues = await seedDeploymentSetting({ ...inActiveOrganization, userId: active.user.id, name: "web" });
+      const own = await seedDeploymentSetting({ ...inActiveOrganization, userId: member.id, name: null });
       await seedDeploymentSetting({ ...inActiveOrganization, userId: active.user.id, closed: true });
       await seedDeploymentSetting({ ...inActiveOrganization, userId: active.user.id, projectId: otherProject.id });
 
@@ -2077,8 +2077,8 @@ describe(DeploymentSettingRepository.name, () => {
       expect(unclosed).toHaveLength(2);
       expect(unclosed).toEqual(
         expect.arrayContaining([
-          { id: colleagues.id, dseq: colleagues.dseq, owner: teamAddress, isRecent: true },
-          { id: own.id, dseq: own.dseq, owner: teamAddress, isRecent: true }
+          { id: colleagues.id, dseq: colleagues.dseq, owner: teamAddress, projectId: active.project.id, name: "web", isRecent: true },
+          { id: own.id, dseq: own.dseq, owner: teamAddress, projectId: active.project.id, name: null, isRecent: true }
         ])
       );
     });

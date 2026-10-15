@@ -28,7 +28,7 @@ const listProjectsRoute = createRoute({
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.ORGANIZATIONS,
   responses: {
-    200: { description: "The projects, default first", content: { "application/json": { schema: ListProjectsResponseSchema } } },
+    200: { description: "The projects, most recently active first", content: { "application/json": { schema: ListProjectsResponseSchema } } },
     401: UNAUTHORIZED
   }
 });

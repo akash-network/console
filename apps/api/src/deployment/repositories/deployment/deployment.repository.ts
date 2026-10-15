@@ -69,6 +69,11 @@ export interface DeploymentClosureState extends DeploymentKey {
   isClosed: boolean;
 }
 
+export interface DeploymentLeaseState extends DeploymentKey {
+  hasLease: boolean;
+  hasOpenLease: boolean;
+}
+
 /** Keeps a deployment whose dseq contains `dseqContaining` or that `dseqs` names, which is how a name matched elsewhere reaches this table. */
 export interface ClosedDeploymentSearch {
   dseqContaining: string;
@@ -105,6 +110,25 @@ export class DeploymentRepository {
     return await this.#chainDb.query<DeploymentClosureState>(
       `/* deployment:closureStatesByOwnerAndDseq */
       SELECT d."owner", d."dseq", d."closedHeight" IS NOT NULL AS "isClosed"
+      FROM deployment d
+      JOIN unnest($1::text[], $2::text[]) AS t(owner, dseq)
+        ON d."owner" = t.owner AND d."dseq" = t.dseq`,
+      {
+        bind: [deployments.map(deployment => deployment.owner), deployments.map(deployment => deployment.dseq)],
+        type: QueryTypes.SELECT
+      }
+    );
+  }
+
+  /** Whether each indexed deployment ever had a lease and still has one open; like {@link findClosureStates}, a deployment the indexer holds no row for is left out. */
+  async findLeaseStates(deployments: DeploymentKey[]): Promise<DeploymentLeaseState[]> {
+    if (deployments.length === 0) return [];
+
+    return await this.#chainDb.query<DeploymentLeaseState>(
+      `/* deployment:leaseStatesByOwnerAndDseq */
+      SELECT d."owner", d."dseq",
+        EXISTS (SELECT 1 FROM lease l WHERE l."deploymentId" = d."id") AS "hasLease",
+        EXISTS (SELECT 1 FROM lease l WHERE l."deploymentId" = d."id" AND l."closedHeight" IS NULL) AS "hasOpenLease"
       FROM deployment d
       JOIN unnest($1::text[], $2::text[]) AS t(owner, dseq)
         ON d."owner" = t.owner AND d."dseq" = t.dseq`,

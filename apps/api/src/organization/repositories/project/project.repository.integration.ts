@@ -14,7 +14,14 @@ import type { OrganizationContext } from "@src/organization/types/organization-c
 import type { UserOutput } from "@src/user/repositories";
 import { ProjectRepository } from "./project.repository";
 
-import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
+import {
+  seedOrganization,
+  seedOrganizationActivity,
+  seedOrganizationMember,
+  seedOrganizationWithOwner,
+  seedProject,
+  seedProjectMember
+} from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 
@@ -201,6 +208,51 @@ describe(ProjectRepository.name, () => {
       );
 
       expect(projects).toEqual([{ ...wanted, createdBy: null }]);
+    });
+  });
+
+  describe("findActiveWithLastActivity", () => {
+    it("gives each live project the time of the newest activity recorded in it, and none to a project nothing was recorded in", async () => {
+      const { repository, organization, user, runIn } = await setup();
+      const [busy, quiet] = [await seedProject({ organizationId: organization.id }), await seedProject({ organizationId: organization.id })];
+      const { organization: foreign, project: foreignProject } = await seedOrganizationWithOwner();
+      await seedProject({ organizationId: organization.id, deletedAt: new Date() });
+      const newest = new Date("2026-10-12T10:00:00.123Z");
+      for (const createdAt of [new Date("2026-10-01T00:00:00.000Z"), newest]) {
+        await seedOrganizationActivity({
+          organizationId: organization.id,
+          projectId: busy.id,
+          type: "project_created",
+          payload: { projectName: "web" },
+          createdAt
+        });
+      }
+      await seedOrganizationActivity({ organizationId: organization.id, createdAt: new Date("2026-10-13T00:00:00.000Z") });
+      await seedOrganizationActivity({ organizationId: foreign.id, projectId: foreignProject.id, createdAt: new Date("2026-10-14T00:00:00.000Z") });
+
+      const projects = await runIn({ user, organizationId: organization.id, role: "owner" }, ability =>
+        repository.accessibleBy(ability, "read").findActiveWithLastActivity()
+      );
+
+      expect(projects).toHaveLength(2);
+      expect(projects).toEqual(
+        expect.arrayContaining([
+          { ...busy, createdBy: null, lastActivityAt: newest },
+          { ...quiet, createdBy: null, lastActivityAt: null }
+        ])
+      );
+    });
+
+    it("lists only the projects a member was granted, with who created them", async () => {
+      const { repository, organization, user, runIn } = await setup();
+      const granted = await seedProject({ organizationId: organization.id, createdByUserId: user.id });
+      await seedProject({ organizationId: organization.id });
+
+      const projects = await runIn({ user, organizationId: organization.id, role: "member", projectScope: createProjectsScope([granted.id]) }, ability =>
+        repository.accessibleBy(ability, "read").findActiveWithLastActivity()
+      );
+
+      expect(projects).toEqual([{ ...granted, createdBy: { id: user.id, username: user.username }, lastActivityAt: null }]);
     });
   });
 
