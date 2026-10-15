@@ -10,7 +10,7 @@ import type { OrganizationOutput } from "@src/types/organization";
 import type { UseProviderJwtResult } from "../useProviderJwt/useProviderJwt";
 import { REFRESH_SKEW_SECONDS, TOKEN_TTL_SECONDS } from "../useProviderJwt/useProviderJwt";
 import type { LeaseAccess } from "./useProviderCredentials";
-import { DEPENDENCIES, isLeaseStatusWithheld, useProviderCredentials } from "./useProviderCredentials";
+import { canRequestScope, DEPENDENCIES, isLeaseStatusWithheld, useProviderCredentials } from "./useProviderCredentials";
 
 import { act } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
@@ -414,13 +414,59 @@ describe(useProviderCredentials.name, () => {
     });
   });
 
-  describe("when the caller only views a team", () => {
-    it.each(["viewer", "billing"] as const)("treats a %s's credentials as unusable and never asks for a token", async role => {
+  describe("when the caller views a team", () => {
+    it.each([
+      { name: "status", scope: ["status" as const] },
+      { name: "logs and events", scope: ["logs" as const, "events" as const] }
+    ])("asks for a token that reads the $name of the deployment named", async ({ scope }) => {
       const generateToken = vi.fn().mockResolvedValue("shared-token");
       const generateDeploymentToken = vi.fn().mockResolvedValue("deployment-token");
-      const { result } = setup({ organization: { role }, providerJwt: { accessToken: null, generateToken, generateDeploymentToken } });
+      const { result } = setup({ organization: { role: "viewer" }, providerJwt: { accessToken: null, generateToken, generateDeploymentToken } });
+      const access = { provider: "akash1provider", dseqs: ["123"], scope };
 
-      await expect(result.current.ensureToken({ access: SHELL_ACCESS })).rejects.toThrow(/view-only access/i);
+      const token = await result.current.ensureToken({ access });
+
+      expect(token).toBe("deployment-token");
+      expect(result.current.tokenMode).toBe("read-only");
+      expect(result.current.details.usable).toBe(true);
+      expect(generateDeploymentToken).toHaveBeenCalledWith(access);
+      expect(generateToken).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { name: "a shell", scope: ["shell" as const] },
+      { name: "a shell alongside logs", scope: ["logs" as const, "shell" as const] },
+      { name: "an attestation", scope: ["attestation" as const] }
+    ])("refuses a token for $name without asking for it", async ({ scope }) => {
+      const generateDeploymentToken = vi.fn().mockResolvedValue("deployment-token");
+      const { result } = setup({ organization: { role: "viewer" }, providerJwt: { generateDeploymentToken } });
+
+      await expect(result.current.ensureToken({ access: { provider: "akash1provider", dseqs: ["123"], scope } })).rejects.toThrow(/view-only access/i);
+      expect(generateDeploymentToken).not.toHaveBeenCalled();
+    });
+
+    it("refuses a token that names no deployment", async () => {
+      const generateDeploymentToken = vi.fn().mockResolvedValue("deployment-token");
+      const { result } = setup({ organization: { role: "viewer" }, providerJwt: { generateDeploymentToken } });
+
+      await expect(result.current.ensureToken()).rejects.toThrow(/no deployment named/i);
+      expect(generateDeploymentToken).not.toHaveBeenCalled();
+    });
+
+    it("treats credentials as unusable without a wallet", () => {
+      const { result } = setup({ organization: { role: "viewer" }, wallet: { hasWallet: false } });
+
+      expect(result.current.details.usable).toBe(false);
+    });
+  });
+
+  describe("when the caller handles a team's billing", () => {
+    it("treats credentials as unusable and never asks for a token", async () => {
+      const generateToken = vi.fn().mockResolvedValue("shared-token");
+      const generateDeploymentToken = vi.fn().mockResolvedValue("deployment-token");
+      const { result } = setup({ organization: { role: "billing" }, providerJwt: { accessToken: null, generateToken, generateDeploymentToken } });
+
+      await expect(result.current.ensureToken({ access: { ...SHELL_ACCESS, scope: ["status"] } })).rejects.toThrow(/view-only access/i);
 
       expect(result.current.tokenMode).toBe("view-only");
       expect(result.current.details).toMatchObject({ usable: false, error: null });
@@ -469,10 +515,25 @@ describe(useProviderCredentials.name, () => {
       { tokenMode: "per-deployment", error: refusal, expected: true },
       { tokenMode: "per-deployment", error: outage, expected: false },
       { tokenMode: "per-deployment", error: null, expected: false },
+      { tokenMode: "read-only", error: refusal, expected: true },
+      { tokenMode: "read-only", error: null, expected: false },
       { tokenMode: "shared", error: refusal, expected: false },
       { tokenMode: "pending", error: null, expected: false }
     ] as const)("answers $expected for $tokenMode polls failing with $error", ({ tokenMode, error, expected }) => {
       expect(isLeaseStatusWithheld(tokenMode, [{ error: null }, { error }])).toBe(expected);
+    });
+  });
+
+  describe(canRequestScope.name, () => {
+    it.each([
+      { tokenMode: "shared", scope: ["shell"], expected: true },
+      { tokenMode: "per-deployment", scope: ["shell"], expected: true },
+      { tokenMode: "read-only", scope: ["status", "events", "logs"], expected: true },
+      { tokenMode: "read-only", scope: ["logs", "shell"], expected: false },
+      { tokenMode: "read-only", scope: ["send-manifest"], expected: false },
+      { tokenMode: "view-only", scope: ["status"], expected: false }
+    ] as const)("answers $expected for $scope with $tokenMode tokens", ({ tokenMode, scope, expected }) => {
+      expect(canRequestScope(tokenMode, scope)).toBe(expected);
     });
   });
 

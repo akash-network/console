@@ -1,3 +1,4 @@
+import type { JwtTokenAccessScope } from "@akashnetwork/chain-sdk/web";
 import { describe, expect, it } from "vitest";
 
 import type { ProviderTokenMode } from "@src/hooks/useProviderCredentials/useProviderCredentials";
@@ -49,7 +50,7 @@ describe(ProviderAuthFallback.name, () => {
     expect(screen.queryByText(VIEW_ONLY_MESSAGE)).not.toBeInTheDocument();
   });
 
-  it.each(["shared", "per-deployment", "pending"] as const)("keeps the usual fallback while tokens are %s", tokenMode => {
+  it.each(["shared", "per-deployment", "read-only", "pending"] as const)("keeps the usual fallback for logs while tokens are %s", tokenMode => {
     setup({ hasAccess: false, error: new Error("boom"), tokenMode });
 
     expect(screen.getByText(ERROR_TITLE)).toBeInTheDocument();
@@ -57,9 +58,21 @@ describe(ProviderAuthFallback.name, () => {
     expect(screen.queryByText(ORGANIZATION_UNAVAILABLE_MESSAGE)).not.toBeInTheDocument();
   });
 
-  function setup(input: { hasAccess: boolean; error: Error | null; tokenMode?: ProviderTokenMode }) {
+  it("tells access that only reads leases why there is no shell", () => {
+    setup({ hasAccess: true, error: null, tokenMode: "read-only", scope: ["shell"] });
+
+    expect(screen.getByText(VIEW_ONLY_MESSAGE)).toBeInTheDocument();
+  });
+
+  function setup(input: { hasAccess: boolean; error: Error | null; tokenMode?: ProviderTokenMode; scope?: JwtTokenAccessScope[] }) {
     return render(
-      <ProviderAuthFallback hasAccess={input.hasAccess} error={input.error} tokenMode={input.tokenMode ?? "shared"} viewOnlyMessage={VIEW_ONLY_MESSAGE} />
+      <ProviderAuthFallback
+        hasAccess={input.hasAccess}
+        error={input.error}
+        tokenMode={input.tokenMode ?? "shared"}
+        scope={input.scope ?? ["logs", "events"]}
+        viewOnlyMessage={VIEW_ONLY_MESSAGE}
+      />
     );
   }
 });

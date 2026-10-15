@@ -8,7 +8,7 @@ import { ViewPanel } from "@src/components/shared/ViewPanel";
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
 import { useProviderAccess } from "@src/hooks/useProviderAccess/useProviderAccess";
-import { LEASE_SHELL_SCOPE, useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+import { canRequestScope, LEASE_SHELL_SCOPE, useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 import { XTerm } from "@src/lib/XTerm";
 import type { XTermRefType } from "@src/lib/XTerm/XTerm";
 import { useLeaseStatus } from "@src/queries/useLeaseQuery";
@@ -61,7 +61,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases, d
   const [shellSessionRequest, requestNewShellSession] = useState({});
   const { data: providers } = d.useProvidersByAddresses(selectedLease ? [selectedLease.provider] : []);
   const providerCredentials = d.useProviderCredentials();
-  const hasShellAccess = d.useProviderAccess(providerCredentials);
+  const hasShellAccess = d.useProviderAccess(providerCredentials) && canRequestScope(providerCredentials.tokenMode, LEASE_SHELL_SCOPE);
   const providerInfo = providers.find(p => p.owner === selectedLease?.provider);
   const providerHostUri = providerInfo?.hostUri;
   const providerAddress = providerInfo?.owner;
@@ -284,6 +284,7 @@ export const DeploymentLeaseShell: React.FunctionComponent<Props> = ({ leases, d
         hasAccess={hasShellAccess}
         error={providerCredentials.details.error}
         tokenMode={providerCredentials.tokenMode}
+        scope={LEASE_SHELL_SCOPE}
         viewOnlyMessage="The shell isn't available for view-only access."
       />
 

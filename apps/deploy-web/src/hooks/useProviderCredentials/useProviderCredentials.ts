@@ -42,10 +42,13 @@ export const LEASE_SHELL_SCOPE: readonly JwtTokenAccessScope[] = ["shell"];
 
 export const LEASE_ATTESTATION_SCOPE: readonly JwtTokenAccessScope[] = ["attestation"];
 
+/** The only actions the API grants a team viewer, none of which changes a lease. */
+const LEASE_READ_SCOPE: readonly JwtTokenAccessScope[] = ["status", "events", "logs"];
+
 const DEPLOYMENT_TOKEN_QUERY_KEY = "PROVIDER_DEPLOYMENT_TOKEN";
 
-/** `view-only` gets no token until the API mints tokens that only read. */
-export type ProviderTokenMode = "shared" | "per-deployment" | "view-only" | "pending" | "organization-unavailable";
+/** `read-only` gets per-deployment tokens that only read leases, and `view-only` gets no token at all. */
+export type ProviderTokenMode = "shared" | "per-deployment" | "read-only" | "view-only" | "pending" | "organization-unavailable";
 
 /** Names what a token is for; a caller who reaches every project gets one token for all of its leases instead. */
 export type LeaseAccess = {
@@ -80,7 +83,7 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
   const tokenMode = providerTokenModeOf(organization);
   const organizationId = organization.activeOrganization?.id;
 
-  const isUsable = tokenMode === "shared" ? !!accessToken && !isTokenExpired : tokenMode === "per-deployment" && hasWallet;
+  const isUsable = tokenMode === "shared" ? !!accessToken && !isTokenExpired : isPerDeployment(tokenMode) && hasWallet;
 
   const [error, setError] = useState<Error | null>(null);
 
@@ -146,9 +149,16 @@ export function useProviderCredentials({ dependencies: d = DEPENDENCIES }: UsePr
     [organizationId]
   );
 
+  const ensureReadOnlyDeploymentToken = useCallback(
+    async (options?: EnsureTokenOptions): Promise<string> =>
+      options?.access && !canRequestScope("read-only", options.access.scope) ? refuseViewOnly() : ensureDeploymentToken(options),
+    [ensureDeploymentToken]
+  );
+
   const ensureToken = {
     shared: ensureSharedToken,
     "per-deployment": ensureDeploymentToken,
+    "read-only": ensureReadOnlyDeploymentToken,
     "view-only": refuseViewOnly,
     pending: refuseUntilKnown,
     "organization-unavailable": refuseUntilKnown
@@ -190,12 +200,26 @@ export function providerTokenModeOf({
   if (!activeOrganization) return isLoading ? "pending" : "shared";
   if (!isLimitedToProjects(activeOrganization)) return "shared";
 
-  return activeOrganization.role === "member" ? "per-deployment" : "view-only";
+  if (activeOrganization.role === "member") return "per-deployment";
+
+  return activeOrganization.role === "viewer" ? "read-only" : "view-only";
+}
+
+/** Whether a token for these lease actions may be asked for at all, so views can say so instead of failing. */
+export function canRequestScope(tokenMode: ProviderTokenMode, scope: readonly JwtTokenAccessScope[]): boolean {
+  if (tokenMode === "view-only") return false;
+  if (tokenMode === "read-only") return scope.every(action => LEASE_READ_SCOPE.includes(action));
+
+  return true;
 }
 
 /** Status the caller may not read, so views should neither wait on it nor blame the provider for it. */
 export function isLeaseStatusWithheld(tokenMode: ProviderTokenMode, polls: readonly { error: unknown }[]): boolean {
-  return tokenMode === "view-only" || (tokenMode === "per-deployment" && polls.some(poll => isClientError(poll.error)));
+  return tokenMode === "view-only" || (isPerDeployment(tokenMode) && polls.some(poll => isClientError(poll.error)));
+}
+
+function isPerDeployment(tokenMode: ProviderTokenMode): boolean {
+  return tokenMode === "per-deployment" || tokenMode === "read-only";
 }
 
 function refuseViewOnly(): Promise<string> {
