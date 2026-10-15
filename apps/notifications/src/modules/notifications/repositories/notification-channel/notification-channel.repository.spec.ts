@@ -231,12 +231,12 @@ describe(NotificationChannelRepository.name, () => {
       const released = await repository.releaseAddressInOrganization({ organizationId, addressSha256: sha256Of(departed), fallbackAddresses: [] });
 
       expect(released).toBe(1);
-      expect(await addressesOf(module, shared.id)).toEqual([teammate]);
+      expect((await repository.findById(shared.id))?.config.addresses).toEqual([teammate]);
       expect(await addressesOf(module, untouched.id)).toEqual([teammate]);
     });
 
     it("hands a channel the address was alone on to the fallback addresses", async () => {
-      const { module, repository } = await setup();
+      const { repository } = await setup();
       const organizationId = faker.string.uuid();
       const departed = faker.internet.email().toLowerCase();
       const owners = [faker.internet.email(), faker.internet.email()];
@@ -245,11 +245,11 @@ describe(NotificationChannelRepository.name, () => {
       const released = await repository.releaseAddressInOrganization({ organizationId, addressSha256: sha256Of(departed), fallbackAddresses: owners });
 
       expect(released).toBe(1);
-      expect(await addressesOf(module, channel.id)).toEqual(owners);
+      expect((await repository.findById(channel.id))?.config.addresses).toEqual(owners);
     });
 
     it("leaves the departed address out of the fallback addresses it hands a channel to", async () => {
-      const { module, repository } = await setup();
+      const { repository } = await setup();
       const organizationId = faker.string.uuid();
       const departed = faker.internet.email().toLowerCase();
       const owner = faker.internet.email();
@@ -257,7 +257,19 @@ describe(NotificationChannelRepository.name, () => {
 
       await repository.releaseAddressInOrganization({ organizationId, addressSha256: sha256Of(departed), fallbackAddresses: [departed.toUpperCase(), owner] });
 
-      expect(await addressesOf(module, channel.id)).toEqual([owner]);
+      expect((await repository.findById(channel.id))?.config.addresses).toEqual([owner]);
+    });
+
+    it("deletes a channel the address was alone on when no fallback address remains", async () => {
+      const { repository } = await setup();
+      const organizationId = faker.string.uuid();
+      const departed = faker.internet.email().toLowerCase();
+      const channel = await repository.create(channelInput({ organizationId, addresses: [departed] }));
+
+      const released = await repository.releaseAddressInOrganization({ organizationId, addressSha256: sha256Of(departed), fallbackAddresses: [departed] });
+
+      expect(released).toBe(1);
+      expect(await repository.findById(channel.id)).toBeUndefined();
     });
 
     it("leaves the channels of other organizations and the deleted ones as they were", async () => {

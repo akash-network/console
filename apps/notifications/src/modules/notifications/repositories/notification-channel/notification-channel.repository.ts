@@ -223,7 +223,7 @@ export class NotificationChannelRepository {
     return notificationChannel && this.toOutput(notificationChannel);
   }
 
-  /** Takes an address off every live channel of the organization and hands a channel it would empty to the fallback addresses; returns how many channels changed. */
+  /** Deletes a channel left with no address rather than keeping it empty, since Novu still emails the channel's creator as its subscriber. */
   async releaseAddressInOrganization({ organizationId, addressSha256, fallbackAddresses }: ReleaseAddressInput): Promise<number> {
     return await this.db.transaction(async tx => {
       const channels = await tx
@@ -243,7 +243,10 @@ export class NotificationChannelRepository {
       });
 
       for (const { id, addresses } of releasedChannels) {
-        await tx.update(schema.NotificationChannel).set({ config: { addresses } }).where(eq(schema.NotificationChannel.id, id));
+        await tx
+          .update(schema.NotificationChannel)
+          .set({ config: { addresses }, ...(addresses.length === 0 && { deletedAt: sql`NOW()` }) })
+          .where(eq(schema.NotificationChannel.id, id));
       }
 
       return releasedChannels.length;

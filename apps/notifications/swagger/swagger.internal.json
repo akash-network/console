@@ -160,9 +160,8 @@
                 "pattern": "^[0-9a-f]{64}$"
               },
               "fallbackAddresses": {
-                "description": "Where a channel goes once the departed member's address was its only one",
+                "description": "Where a channel goes once the departed member's address was its only one; without any, such a channel is deleted",
                 "type": "array",
-                "minItems": 1,
                 "items": {
                   "type": "string",
                   "format": "email"

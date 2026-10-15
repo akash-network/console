@@ -54,7 +54,7 @@ describe("Departed member channels (internal)", () => {
     expect(response.status).toBe(400);
   });
 
-  it("refuses a release without a fallback address, so no channel is left without recipients", async () => {
+  it("deletes a channel the departed member was alone on when the team has no one to hand it to", async () => {
     const { app, db, organizationId } = await setup();
     const departed = faker.internet.email().toLowerCase();
     const [channel] = await db
@@ -66,8 +66,13 @@ describe("Departed member channels (internal)", () => {
       .post(`/internal/v1/organizations/${organizationId}/departed-members`)
       .send({ data: { addressSha256: sha256Of(departed), fallbackAddresses: [] } });
 
-    expect(response.status).toBe(400);
-    expect(await addressesById(db, [channel.id])).toEqual({ [channel.id]: [departed] });
+    expect(response.status).toBe(204);
+    expect(
+      await db
+        .select()
+        .from(NotificationChannel)
+        .where(inArray(NotificationChannel.id, [channel.id]))
+    ).toEqual([expect.objectContaining({ config: { addresses: [] }, deletedAt: expect.any(Date) })]);
   });
 
   function sha256Of(address: string) {
