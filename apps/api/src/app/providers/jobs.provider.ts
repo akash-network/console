@@ -23,6 +23,7 @@ import { NotificationHandler } from "@src/notifications/services/notification-ha
 import { OrganizationInvitationEmailHandler } from "@src/organization/services/organization-invitation-email/organization-invitation-email.handler";
 import { ProjectBudgetAlertHandler } from "@src/organization/services/project-budget-alert/project-budget-alert.handler";
 import { PurgeOrganizationInvitationEmailsHandler } from "@src/organization/services/purge-organization-invitation-emails/purge-organization-invitation-emails.handler";
+import { TeamOrganizationDeletedHandler } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
 import { PurgeDeletedAccountHandler } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
 import { BlockEmailDomainOfWalletHandler } from "@src/workload-abuse/services/block-email-domain-of-wallet/block-email-domain-of-wallet.handler";
 import { EnforceTrialAbuseHandler } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
@@ -82,7 +83,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(PurgeDeletedAccountHandler),
     container.resolve(ExpireConfigureDraftHandler),
     container.resolve(OrganizationInvitationEmailHandler),
-    container.resolve(PurgeOrganizationInvitationEmailsHandler)
+    container.resolve(PurgeOrganizationInvitationEmailsHandler),
+    container.resolve(TeamOrganizationDeletedHandler)
   ]);
 }
 
