@@ -11,15 +11,11 @@ import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { MAX_NUMBERED_SLUG_SUFFIX, toSlug } from "@src/organization/lib/slug/slug";
+import { ORGANIZATION_CONFIG } from "@src/organization/providers/config.provider";
 import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
-import {
-  MAX_TEAM_ORGANIZATIONS_PER_USER,
-  ORGANIZATION_LIMIT_REACHED_ERROR_CODE,
-  ORGANIZATION_NAME_TAKEN_ERROR_CODE,
-  TeamOrganizationService
-} from "./team-organization.service";
+import { ORGANIZATION_LIMIT_REACHED_ERROR_CODE, ORGANIZATION_NAME_TAKEN_ERROR_CODE, TeamOrganizationService } from "./team-organization.service";
 
 import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
@@ -95,8 +91,8 @@ describe(TeamOrganizationService.name, () => {
     });
 
     it("lets only one of several concurrent creations past the limit", async () => {
-      const { service, user, runAs, slowDownWalletProvisioning, countTeamsCreatedBy } = await setup();
-      await seedTeamsCreatedBy(user, MAX_TEAM_ORGANIZATIONS_PER_USER - 1);
+      const { service, user, runAs, slowDownWalletProvisioning, countTeamsCreatedBy, teamLimit } = await setup();
+      await seedTeamsCreatedBy(user, teamLimit - 1);
       slowDownWalletProvisioning();
 
       const outcomes = await Promise.allSettled([1, 2, 3].map(index => runAs(user, () => service.create(`Team ${index}`))));
@@ -106,14 +102,31 @@ describe(TeamOrganizationService.name, () => {
         expect.objectContaining({ reason: expect.objectContaining({ status: 403, errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE }) }),
         expect.objectContaining({ reason: expect.objectContaining({ status: 403, errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE }) })
       ]);
-      expect(await countTeamsCreatedBy(user)).toBe(MAX_TEAM_ORGANIZATIONS_PER_USER);
+      expect(await countTeamsCreatedBy(user)).toBe(teamLimit);
     });
 
-    it("counts deleted organizations toward the limit", async () => {
-      const { service, user, runAs } = await setup();
-      await seedTeamsCreatedBy(user, MAX_TEAM_ORGANIZATIONS_PER_USER, { deletedAt: new Date() });
+    it("counts only the live organizations the caller created toward the limit", async () => {
+      const { service, user, runAs, teamLimit } = await setup();
+      await seedTeamsCreatedBy(user, teamLimit, { deletedAt: new Date() });
+      await seedTeamsCreatedBy(user, teamLimit - 1);
 
-      await expect(runAs(user, () => service.create("Acme Corp"))).rejects.toMatchObject({ status: 403, errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE });
+      await expect(runAs(user, () => service.create(uniqueName()))).resolves.toMatchObject({ role: "owner" });
+      await expect(runAs(user, () => service.create(uniqueName()))).rejects.toMatchObject({
+        status: 403,
+        errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE,
+        data: { limit: teamLimit }
+      });
+    });
+
+    it("does not count organizations the caller only joined toward the limit", async () => {
+      const { service, user, runAs, teamLimit } = await setup();
+      const { user: creator } = await seedOrganizationWithOwner({ type: "personal" });
+      for (let index = 0; index < teamLimit; index++) {
+        const team = await seedOrganization({ createdByUserId: creator.id, type: "team" });
+        await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: "admin" });
+      }
+
+      await expect(runAs(user, () => service.create(uniqueName()))).resolves.toMatchObject({ role: "owner" });
     });
 
     it("lets only one of several concurrent creations with the same name through, whatever its case", async () => {
@@ -214,6 +227,7 @@ describe(TeamOrganizationService.name, () => {
     const executionContextService = container.resolve(ExecutionContextService);
     const abilityService = container.resolve(AbilityService);
     const walletInitializerService = container.resolve(WalletInitializerService);
+    const teamLimit = container.resolve(ORGANIZATION_CONFIG).TEAM_ORGANIZATIONS_PER_USER_LIMIT;
     const { user, organization: personal } = await seedOrganizationWithOwner({ type: "personal" });
 
     function runAs<R>(caller: UserOutput, act: () => Promise<R>, context?: OrganizationContext) {
@@ -267,6 +281,6 @@ describe(TeamOrganizationService.name, () => {
       return { organization, members, projects, wallets };
     }
 
-    return { db, service, user, personal, runAs, slowDownWalletProvisioning, countTeamsCreatedBy, readTeam };
+    return { db, service, user, personal, teamLimit, runAs, slowDownWalletProvisioning, countTeamsCreatedBy, readTeam };
   }
 });

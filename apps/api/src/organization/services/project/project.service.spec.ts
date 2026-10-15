@@ -4,19 +4,22 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
+import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import type { DeploymentSettingRepository, OpenDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { MAX_NUMBERED_SLUG_SUFFIX } from "@src/organization/lib/slug/slug";
 import { PROJECT_NAME_UNIQUE_INDEX } from "@src/organization/model-schemas/project/project.schema";
+import type { OrganizationConfig } from "@src/organization/providers/config.provider";
+import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { ProjectRepository, ProjectWithCreator } from "@src/organization/repositories/project/project.repository";
 import type { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
-import { ProjectService } from "./project.service";
+import { PROJECT_LIMIT_REACHED_ERROR_CODE, ProjectService } from "./project.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { createProject } from "@test/seeders/organization.seeder";
+import { createOrganization, createProject } from "@test/seeders/organization.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
@@ -136,6 +139,57 @@ describe(ProjectService.name, () => {
       await expect(service.create({ name: "web" })).rejects.toMatchObject({ status: 403 });
       expect(projectRepository.createWithFirstFreeSlug).not.toHaveBeenCalled();
     });
+
+    it("locks the organization before writing the project, then counts its live projects before recording anything", async () => {
+      const { service, organizationRepository, projectRepository, organizationActivityService, txService, context } = setup();
+
+      await service.create({ name: "web" });
+
+      expect(organizationRepository.findOneByAndLock).toHaveBeenCalledWith({ id: context.organizationId, deletedAt: null }, { strength: "no key update" });
+      expect(projectRepository.count).toHaveBeenCalledWith({ organizationId: context.organizationId, deletedAt: null });
+      const [transaction] = txService.transaction.mock.invocationCallOrder;
+      const [lock] = organizationRepository.findOneByAndLock.mock.invocationCallOrder;
+      const [write] = projectRepository.createWithFirstFreeSlug.mock.invocationCallOrder;
+      const [count] = projectRepository.count.mock.invocationCallOrder;
+      const [record] = organizationActivityService.record.mock.invocationCallOrder;
+      expect(transaction).toBeLessThan(lock);
+      expect(lock).toBeLessThan(write);
+      expect(write).toBeLessThan(count);
+      expect(count).toBeLessThan(record);
+    });
+
+    it("creates the project that brings the organization to its limit", async () => {
+      const { service, project } = setup({ projectLimit: 10, liveProjectCount: 10 });
+
+      await expect(service.create({ name: "web" })).resolves.toMatchObject({ id: project.id });
+    });
+
+    it("refuses a project past the organization's limit, with the limit, without recording it", async () => {
+      const { service, organizationActivityService, logger, context } = setup({ projectLimit: 10, liveProjectCount: 11 });
+
+      await expect(service.create({ name: "web" })).rejects.toMatchObject({
+        status: 403,
+        errorCode: PROJECT_LIMIT_REACHED_ERROR_CODE,
+        message: "The organization has reached the number of projects it can have",
+        data: { limit: 10 }
+      });
+      expect(logger.info).toHaveBeenCalledWith({ event: "PROJECT_LIMIT_REACHED", organizationId: context.organizationId, limit: 10 });
+      expect(organizationActivityService.record).not.toHaveBeenCalled();
+    });
+
+    it("applies the configured limit", async () => {
+      const atLimit = setup({ projectLimit: 3, liveProjectCount: 3 });
+      const pastLimit = setup({ projectLimit: 3, liveProjectCount: 4 });
+
+      await expect(atLimit.service.create({ name: "web" })).resolves.toMatchObject({ id: atLimit.project.id });
+      await expect(pastLimit.service.create({ name: "web" })).rejects.toMatchObject({ errorCode: PROJECT_LIMIT_REACHED_ERROR_CODE, data: { limit: 3 } });
+    });
+  });
+
+  it("creates its logger under its own name", () => {
+    const { createLogger } = setup();
+
+    expect(createLogger).toHaveBeenCalledWith({ context: ProjectService.name });
   });
 
   describe("update", () => {
@@ -316,7 +370,15 @@ describe(ProjectService.name, () => {
     return new Error("Failed query: insert into projects", { cause: driverError });
   }
 
-  function setup(input: { context?: OrganizationContext | null; username?: string | null; openDeployments?: OpenDeployment[] } = {}) {
+  function setup(
+    input: {
+      context?: OrganizationContext | null;
+      username?: string | null;
+      openDeployments?: OpenDeployment[];
+      projectLimit?: number;
+      liveProjectCount?: number;
+    } = {}
+  ) {
     const user = createUser({ username: input.username === undefined ? faker.internet.userName() : input.username });
     const context = input.context === undefined ? createOrganizationContext() : input.context;
     const ability = mock<AuthService["ability"]>();
@@ -326,9 +388,13 @@ describe(ProjectService.name, () => {
       createWithFirstFreeSlug: vi.fn().mockResolvedValue(project),
       updateBy: vi.fn().mockResolvedValue(project),
       findOneBy: vi.fn().mockResolvedValue(project),
-      findOneByAndLock: vi.fn().mockResolvedValue(project)
+      findOneByAndLock: vi.fn().mockResolvedValue(project),
+      count: vi.fn().mockResolvedValue(input.liveProjectCount ?? 1)
     });
     projectRepository.accessibleBy.mockReturnValue(projectRepository);
+    const organizationRepository = mock<OrganizationRepository>({
+      findOneByAndLock: vi.fn().mockResolvedValue(createOrganization({ id: context?.organizationId }))
+    });
     const deploymentSettingRepository = mock<DeploymentSettingRepository>({
       findOpenInProject: vi.fn().mockResolvedValue(input.openDeployments ?? []),
       count: vi.fn().mockResolvedValue(0)
@@ -340,20 +406,29 @@ describe(ProjectService.name, () => {
     executionContextService.get.mockImplementation(((key: string) =>
       key === "ORGANIZATION_CONTEXT" ? context ?? undefined : undefined) as ExecutionContextService["get"]);
     const txService = mock<TxService>({ transaction: vi.fn(callback => callback()) });
+    const config: OrganizationConfig = { TEAM_ORGANIZATIONS_PER_USER_LIMIT: 3, PROJECTS_PER_ORGANIZATION_LIMIT: input.projectLimit ?? 10 };
+    const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
 
     const service = new ProjectService(
       projectRepository,
+      organizationRepository,
       deploymentSettingRepository,
       deploymentRepository,
       organizationActivityService,
       authService,
       executionContextService,
-      txService
+      txService,
+      config,
+      createLogger
     );
 
     return {
       service,
       projectRepository,
+      organizationRepository,
+      logger,
+      createLogger,
       deploymentSettingRepository,
       deploymentRepository,
       organizationActivityService,

@@ -52,7 +52,7 @@ const createProjectRoute = createRoute({
     201: { description: "The created project", content: { "application/json": { schema: ProjectResponseSchema } } },
     400: { description: "The name or description is not valid" },
     401: UNAUTHORIZED,
-    403: FORBIDDEN,
+    403: { description: "The caller's role does not allow it, or the organization has reached its project limit (`project_limit_reached`)" },
     409: { description: "Another project of the organization has this name (`project_name_taken`)" }
   }
 });

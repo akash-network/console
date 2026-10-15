@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +10,7 @@ import { POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { ORGANIZATION_CONFIG } from "@src/organization/providers/config.provider";
 import { app } from "@src/rest-app";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -146,6 +147,23 @@ describe("Projects", () => {
         "web-app-2",
         `${"a".repeat(38)}-2`
       ]);
+    });
+
+    it("lets the organization grow to its limit of live projects, then refuses the next one and tells the limit", async () => {
+      const { request, team } = await setupCaller({ role: "owner" });
+      const limit = container.resolve(ORGANIZATION_CONFIG).PROJECTS_PER_ORGANIZATION_LIMIT;
+      await seedProject({ organizationId: team.id, deletedAt: new Date() });
+      for (let index = 2; index < limit; index++) {
+        await seedProject({ organizationId: team.id });
+      }
+
+      const last = await request("/v1/projects", { method: "POST", body: { data: { name: "last" } } });
+      const pastLimit = await request("/v1/projects", { method: "POST", body: { data: { name: "past limit" } } });
+
+      expect(last.status).toBe(201);
+      expect(pastLimit.status).toBe(403);
+      expect(await pastLimit.json()).toMatchObject({ code: "project_limit_reached", data: { limit } });
+      expect(await liveProjectNamesOf(team.id)).not.toContain("past limit");
     });
 
     it("accepts a name without a latin letter or digit under a generated slug", async () => {
@@ -385,6 +403,17 @@ describe("Projects", () => {
     const [row] = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(projects).where(eq(projects.id, id));
 
     return row;
+  }
+
+  async function liveProjectNamesOf(organizationId: string) {
+    const projects = resolveTable("Projects");
+    const rows = await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .select({ name: projects.name })
+      .from(projects)
+      .where(and(eq(projects.organizationId, organizationId), isNull(projects.deletedAt)));
+
+    return rows.map(({ name }) => name);
   }
 
   async function deploymentSettingRow(id: string) {
