@@ -11,6 +11,7 @@ import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src
 import type { DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import type { SystemCloseActivityService } from "@src/deployment/services/system-close-activity/system-close-activity.service";
 import { CloseExpiredDeploymentHandler } from "./close-expired-deployment.handler";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -33,6 +34,45 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
     expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address }), setting.dseq, { reason: "runtime_limit_reached" });
     expect(deploymentSettingRepository.updateById).toHaveBeenCalledWith(setting.id, { closed: true });
+  });
+
+  it("records the close in the owner's feed as Console's, because the runtime limit was reached", async () => {
+    const setting = createSetting();
+    const { handler, systemCloseActivityService, wallet } = setup({ setting });
+
+    await handler.handle(createPayload(setting));
+
+    expect(systemCloseActivityService.record).toHaveBeenCalledWith({ wallet, dseq: setting.dseq, reason: "runtime_limit_reached" });
+  });
+
+  it("records a team deployment's close with the organization's wallet, so it reaches the member behind the deployment", async () => {
+    const setting = createSetting();
+    const { handler, systemCloseActivityService, teamWallet } = setup({ setting, ownerWallet: "team" });
+
+    await handler.handle(createPayload(setting));
+
+    expect(systemCloseActivityService.record).toHaveBeenCalledWith({ wallet: teamWallet, dseq: setting.dseq, reason: "runtime_limit_reached" });
+  });
+
+  it("records nothing but still marks the setting closed when the deployment had already closed, since whoever closed it reports that close", async () => {
+    const setting = createSetting();
+    const { handler, systemCloseActivityService, deploymentSettingRepository } = setup({ setting, closedByThisJob: false });
+
+    await handler.handle(createPayload(setting));
+
+    expect(systemCloseActivityService.record).not.toHaveBeenCalled();
+    expect(deploymentSettingRepository.updateById).toHaveBeenCalledWith(setting.id, { closed: true });
+  });
+
+  it("records the close before marking the setting closed, so a retry after a failed mark cannot lose it", async () => {
+    const setting = createSetting();
+    const { handler, systemCloseActivityService, deploymentSettingRepository } = setup({ setting });
+    const markFailure = new Error("connection terminated");
+    deploymentSettingRepository.updateById.mockRejectedValue(markFailure);
+
+    await expect(handler.handle(createPayload(setting))).rejects.toBe(markFailure);
+
+    expect(systemCloseActivityService.record).toHaveBeenCalledTimes(1);
   });
 
   it("does nothing when the setting no longer exists", async () => {
@@ -115,7 +155,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
   it("retries later without closing when the escrow cannot be settled yet", async () => {
     const setting = createSetting();
-    const { handler, deploymentSettingRepository, deploymentCloseJobService } = setup({
+    const { handler, deploymentSettingRepository, deploymentCloseJobService, systemCloseActivityService } = setup({
       setting,
       closeError: new Error("escrow not settled"),
       isUnsettleable: true
@@ -124,6 +164,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     await handler.handle(createPayload(setting));
 
     expect(deploymentSettingRepository.updateById).not.toHaveBeenCalled();
+    expect(systemCloseActivityService.record).not.toHaveBeenCalled();
     expectRetriedLater(deploymentCloseJobService, setting);
   });
 
@@ -197,7 +238,9 @@ describe(CloseExpiredDeploymentHandler.name, () => {
       setting?: DeploymentSettingsOutput;
       address?: string | null;
       hasOwnerWallet?: boolean;
+      ownerWallet?: "personal" | "team";
       closeError?: Error;
+      closedByThisJob?: boolean;
       isUnsettleable?: boolean;
       dryRun?: boolean;
     } = {}
@@ -207,6 +250,7 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     const deploymentWriterService = mock<DeploymentWriterService>();
     const deploymentCloseJobService = mock<DeploymentCloseJobService>();
     const chainErrorService = mock<ChainErrorService>();
+    const systemCloseActivityService = mock<SystemCloseActivityService>();
     const deploymentConfig = mockConfigService<DeploymentConfigService>({
       CLOSE_EXPIRED_DEPLOYMENTS_DRY_RUN: input.dryRun ? "true" : "false"
     });
@@ -215,12 +259,16 @@ describe(CloseExpiredDeploymentHandler.name, () => {
 
     deploymentSettingRepository.findOneBy.mockResolvedValue(input.setting);
     const wallet = createUserWallet({ address: input.address === null ? null : input.address ?? createAkashAddress() });
-    deploymentSettingRepository.findOwnerWalletId.mockResolvedValue(input.hasOwnerWallet === false ? undefined : wallet.id);
-    userWalletRepository.findById.mockResolvedValue(wallet);
+    const teamWallet = { ...createUserWallet({ address: createAkashAddress(), organizationId: faker.string.uuid() }), userId: null };
+    const ownerWallet = input.ownerWallet === "team" ? teamWallet : wallet;
+    deploymentSettingRepository.findOwnerWalletId.mockResolvedValue(input.hasOwnerWallet === false ? undefined : ownerWallet.id);
+    userWalletRepository.findById.mockResolvedValue(ownerWallet);
     chainErrorService.isUnsettleableDeploymentError.mockReturnValue(input.isUnsettleable ?? false);
 
     if (input.closeError) {
       deploymentWriterService.close.mockRejectedValue(input.closeError);
+    } else {
+      deploymentWriterService.close.mockResolvedValue(input.closedByThisJob ?? true);
     }
 
     const handler = new CloseExpiredDeploymentHandler(
@@ -230,18 +278,21 @@ describe(CloseExpiredDeploymentHandler.name, () => {
       deploymentCloseJobService,
       chainErrorService,
       deploymentConfig,
+      systemCloseActivityService,
       createLogger
     );
 
     return {
       handler,
       wallet,
+      teamWallet,
       deploymentSettingRepository,
       userWalletRepository,
       deploymentWriterService,
       deploymentCloseJobService,
       chainErrorService,
       deploymentConfig,
+      systemCloseActivityService,
       logger,
       createLogger
     };

@@ -9,6 +9,7 @@ import { DeploymentSettingRepository } from "@src/deployment/repositories/deploy
 import { type CloseExpiredDeploymentTarget, DeploymentCloseJobService } from "@src/deployment/services/deployment-close-job/deployment-close-job.service";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { SystemCloseActivityService } from "@src/deployment/services/system-close-activity/system-close-activity.service";
 
 /** How long a close that could not go through yet waits before it is tried again. */
 const RETRY_DELAY_MS = minutesToMilliseconds(15);
@@ -49,6 +50,7 @@ export class CloseExpiredDeploymentHandler implements JobHandler<CloseExpiredDep
     private readonly deploymentCloseJobService: DeploymentCloseJobService,
     private readonly chainErrorService: ChainErrorService,
     private readonly deploymentConfig: DeploymentConfigService,
+    private readonly systemCloseActivityService: SystemCloseActivityService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: CloseExpiredDeploymentHandler.name });
@@ -94,8 +96,11 @@ export class CloseExpiredDeploymentHandler implements JobHandler<CloseExpiredDep
       return;
     }
 
+    const initializedWallet = { ...wallet, address: wallet.address };
+    let closedByThisJob: boolean;
+
     try {
-      await this.deploymentWriterService.close({ ...wallet, address: wallet.address }, dseq, { reason: "runtime_limit_reached" });
+      closedByThisJob = await this.deploymentWriterService.close(initializedWallet, dseq, { reason: "runtime_limit_reached" });
     } catch (error) {
       if (error instanceof Error && this.chainErrorService.isUnsettleableDeploymentError(error)) {
         this.logger.warn({
@@ -108,6 +113,10 @@ export class CloseExpiredDeploymentHandler implements JobHandler<CloseExpiredDep
         return;
       }
       throw error;
+    }
+
+    if (closedByThisJob) {
+      await this.systemCloseActivityService.record({ wallet: initializedWallet, dseq, reason: "runtime_limit_reached" });
     }
 
     await this.deploymentSettingRepository.updateById(deploymentSettingId, { closed: true });

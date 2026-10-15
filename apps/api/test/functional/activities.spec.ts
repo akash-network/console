@@ -5,10 +5,25 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import type { ActivityStatus } from "@src/activity/model-schemas";
 import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
-type ActivityBody = { id: string; type: string; status: string; meta: Record<string, unknown>; seenAt: string | null; createdAt: string; updatedAt: string };
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+
+type ActivityBody = {
+  id: string;
+  type: string;
+  status: string;
+  initiator: string;
+  meta: Record<string, unknown>;
+  seenAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 type PageBody = { data: { activities: ActivityBody[]; unseenCount: number; pagination: { limit: number; hasMore: boolean; nextCursor: string | null } } };
 
 describe("Activities", () => {
@@ -52,6 +67,7 @@ describe("Activities", () => {
               id: newer.id,
               type: "deployment_close",
               status: "succeeded",
+              initiator: "user",
               meta: { dseq: "1002" },
               seenAt: null,
               createdAt: "2026-10-05T11:00:00.000Z",
@@ -61,6 +77,7 @@ describe("Activities", () => {
               id: older.id,
               type: "deployment_close",
               status: "failed",
+              initiator: "user",
               meta: { dseq: "1001", error: { code: "close_failed", message: "Nope" } },
               seenAt: null,
               createdAt: "2026-10-05T10:00:00.000Z",
@@ -71,6 +88,49 @@ describe("Activities", () => {
           pagination: { limit: 20, hasMore: false, nextCursor: null }
         }
       });
+    });
+
+    it("shows a close Console made on the caller's behalf as Console's, with why it made it", async () => {
+      const { user, token } = await setup();
+      const systemClose = await activityRepository.create({
+        ...systemClosedActivityOf({ userId: user.id, owner: "akash1owner", dseq: "1003", reason: "no_lease" }),
+        createdAt: new Date("2026-10-05T12:00:00.000Z")
+      });
+
+      const response = await request("/v1/activities", token);
+      const { data } = (await response.json()) as PageBody;
+
+      expect(data.activities).toEqual([
+        {
+          id: systemClose.id,
+          type: "deployment_close",
+          status: "succeeded",
+          initiator: "system",
+          meta: { dseq: "1003", reason: "no_lease" },
+          seenAt: null,
+          createdAt: "2026-10-05T12:00:00.000Z",
+          updatedAt: systemClose.updatedAt
+        }
+      ]);
+      expect(data.unseenCount).toBe(1);
+    });
+
+    it("shows a member Console's close of a team deployment they created while the team is the active organization", async () => {
+      const { user, token } = await setup();
+      const { organization: team } = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: team.id, userId: user.id });
+      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
+      const teamClose = await activityRepository.create(
+        systemClosedActivityOf({ userId: user.id, owner: createAkashAddress(), dseq: "1004", reason: "runtime_limit_reached" })
+      );
+
+      const response = await request("/v1/activities", token, undefined, { organizationId: team.id });
+      const { data } = (await response.json()) as PageBody;
+
+      expect(response.status).toBe(200);
+      expect(data.activities).toEqual([
+        expect.objectContaining({ id: teamClose.id, initiator: "system", meta: { dseq: "1004", reason: "runtime_limit_reached" } })
+      ]);
     });
 
     it("counts every unseen activity of the caller, whatever the page and filters", async () => {
@@ -142,6 +202,7 @@ describe("Activities", () => {
           id: activity.id,
           type: "deployment_close",
           status: "pending",
+          initiator: "user",
           meta: { dseq: "1001" },
           seenAt: null,
           createdAt: "2026-10-05T10:00:00.000Z",
@@ -214,10 +275,14 @@ describe("Activities", () => {
     });
   });
 
-  async function request(path: string, token?: string, data?: Record<string, unknown>) {
+  async function request(path: string, token?: string, data?: Record<string, unknown>, options: { organizationId?: string } = {}) {
     return await app.request(path, {
       method: data ? "POST" : "GET",
-      headers: { "Content-Type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(options.organizationId ? { "x-organization-id": options.organizationId } : {})
+      },
       ...(data ? { body: JSON.stringify({ data }) } : {})
     });
   }

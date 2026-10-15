@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
-import { activityStatusEnum, activityTypeEnum } from "@src/activity/model-schemas";
+import { activityInitiatorEnum, activityStatusEnum, activityTypeEnum, SYSTEM_CLOSE_REASONS } from "@src/activity/model-schemas";
 
 export const MAX_ACTIVITY_PAGE_LIMIT = 100;
 export const DEFAULT_ACTIVITY_PAGE_LIMIT = 20;
@@ -16,11 +16,18 @@ export const ActivitySchema = z.object({
   id: z.string().uuid(),
   type: ActivityTypeSchema,
   status: ActivityStatusSchema,
+  initiator: z.enum(activityInitiatorEnum.enumValues).openapi({
+    description: "Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf."
+  }),
   meta: z.object({
     dseq: z.string().optional().openapi({ description: "The deployment the action was about." }),
     batchId: z.string().optional().openapi({ description: "The bulk close the action was part of, as its request named it." }),
     txHash: z.string().optional().openapi({ description: "Reference of a pending action whose outcome is still being confirmed." }),
-    error: z.object({ code: z.string(), message: z.string() }).optional().openapi({ description: "Why a failed action did not go through." })
+    error: z.object({ code: z.string(), message: z.string() }).optional().openapi({ description: "Why a failed action did not go through." }),
+    reason: z.enum(SYSTEM_CLOSE_REASONS).optional().openapi({
+      description:
+        "Why Console closed the deployment, on a close it made on the user's behalf: `runtime_limit_reached` (the runtime limit set for it ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit)."
+    })
   }),
   seenAt: z.string().datetime().nullable().openapi({ description: "When the user first marked the activity seen." }),
   createdAt: z.string().datetime(),

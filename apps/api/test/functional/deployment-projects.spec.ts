@@ -7,6 +7,7 @@ import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
@@ -24,7 +25,9 @@ import { CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentResponse, PatchDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
+import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
@@ -46,6 +49,8 @@ const SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.ym
 const CLIENT_MANIFEST = '{"client":"supplied"}';
 
 describe("Deployment projects", () => {
+  const activityRepository = container.resolve(ActivityRepository);
+
   beforeAll(async () => {
     await startJobQueues();
     await warmSealingKeyAsBootWould();
@@ -283,6 +288,48 @@ describe("Deployment projects", () => {
       expect(await activitiesOfProject(otherProject.id)).toEqual([
         expect.objectContaining({ type: "deployment_closed", actorUserId: caller.id, payload: { dseq: deployment.dseq, name: "api", reason: null } })
       ]);
+    });
+
+    it("queues a member's own background close of a team deployment when Console's close of it sits in the filer's feed", async () => {
+      const { request, team, otherProject, owner, caller } = await setupCaller({ role: "member", grants: ["other"] });
+      const teamWallet = await teamWalletOf(team.id);
+      const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: otherProject.id });
+      mockActiveDeployment(deployment.dseq);
+      const filersEntry = await activityRepository.create(
+        systemClosedActivityOf({ userId: owner.id, owner: teamWallet.address!, dseq: deployment.dseq, reason: "runtime_limit_reached" })
+      );
+
+      const response = await request(`/v1/deployments/${deployment.dseq}?async=true`, { method: "DELETE" });
+      const { data } = (await response.json()) as { data: { activityId: string } };
+
+      expect(response.status).toBe(202);
+      expect(await activityRepository.findById(data.activityId)).toMatchObject({
+        userId: caller.id,
+        status: "pending",
+        initiator: "user",
+        dedupeKey: `deployment_close.${teamWallet.address}.${deployment.dseq}`
+      });
+      expect(await activityRepository.find({ userId: owner.id })).toEqual([filersEntry]);
+      expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: caller.id, dseq: deployment.dseq }) })).toEqual([
+        expect.objectContaining({ data: expect.objectContaining({ userId: caller.id, activityId: data.activityId, walletId: teamWallet.id }) })
+      ]);
+    });
+
+    it("answers a background close of a team deployment Console already closed for the caller without queuing a close or adding an entry", async () => {
+      const { request, team, otherProject, caller } = await setupCaller({ role: "member", grants: ["other"] });
+      const teamWallet = await teamWalletOf(team.id);
+      const deployment = await seedDeploymentSetting({ userId: caller.id, organizationId: team.id, projectId: otherProject.id });
+      mockActiveDeployment(deployment.dseq);
+      const consolesClose = await activityRepository.create(
+        systemClosedActivityOf({ userId: caller.id, owner: teamWallet.address!, dseq: deployment.dseq, reason: "provider_unreachable" })
+      );
+
+      const response = await request(`/v1/deployments/${deployment.dseq}?async=true`, { method: "DELETE" });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ data: { success: true } });
+      expect(await activityRepository.find({ userId: caller.id })).toEqual([consolesClose]);
+      expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: caller.id, dseq: deployment.dseq }) })).toEqual([]);
     });
   });
 
@@ -591,6 +638,19 @@ describe("Deployment projects", () => {
       headers: { "x-api-key": apiKey, "content-type": "application/json" },
       body: init.body === undefined ? undefined : JSON.stringify(init.body)
     });
+  }
+
+  async function teamWalletOf(organizationId: string) {
+    const wallets = resolveTable("UserWallets");
+    const [wallet] = await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(wallets).where(eq(wallets.organizationId, organizationId));
+
+    return wallet;
+  }
+
+  function mockActiveDeployment(dseq: string) {
+    vi.spyOn(container.resolve(DeploymentReaderService), "findByWalletAndDseqWithoutProviderStatus").mockResolvedValue(
+      mock<DeploymentResponse>({ deployment: { state: "active", id: { dseq } } })
+    );
   }
 
   async function deploymentRow(userId: string, dseq: string) {

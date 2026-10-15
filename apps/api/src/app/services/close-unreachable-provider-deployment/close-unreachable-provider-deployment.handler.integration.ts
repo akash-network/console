@@ -5,9 +5,11 @@ import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-key";
+import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { CHAIN_DB } from "@src/chain";
-import { JOB_NAME, JobQueueService } from "@src/core";
+import { type ApiPgDatabase, JOB_NAME, JobQueueService, POSTGRES_DB, resolveTable } from "@src/core";
 import { CloseUnreachableProviderDeploymentCommand } from "@src/deployment/commands/close-unreachable-provider-deployment.command";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
@@ -18,6 +20,8 @@ import { UserRepository } from "@src/user/repositories";
 import { CloseUnreachableProviderDeploymentHandler } from "./close-unreachable-provider-deployment.handler";
 
 import { createAkashAddress, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
+import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 import { interceptNotifications } from "@test/services/notifications-intercept";
 
@@ -45,6 +49,45 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     expect(close).toHaveBeenCalledWith(expect.objectContaining({ address: deployment.owner }), deployment.dseq, { reason: "provider_unreachable" });
     expect((await findSetting())?.closed).toBe(true);
     expect(sentNotifications()).toHaveLength(1);
+  });
+
+  it("records the close in the owner's feed as Console's, because the provider stopped responding", async () => {
+    const { closeUnreachable, findActivities, deployment } = await setup();
+
+    await closeUnreachable();
+
+    expect(await findActivities()).toEqual([
+      expect.objectContaining({
+        type: "deployment_close",
+        status: "succeeded",
+        initiator: "system",
+        meta: { dseq: deployment.dseq, reason: "provider_unreachable" },
+        dedupeKey: deploymentCloseDedupeKeyOf({ owner: deployment.owner, dseq: deployment.dseq })
+      })
+    ]);
+  });
+
+  it("records a team deployment's close in the feed of the member who created it, keyed by the organization's wallet", async () => {
+    const { closeUnreachable, findActivities, deployment } = await setup({ inTeam: true });
+
+    await closeUnreachable();
+
+    expect(await findActivities()).toEqual([
+      expect.objectContaining({
+        initiator: "system",
+        meta: { dseq: deployment.dseq, reason: "provider_unreachable" },
+        dedupeKey: deploymentCloseDedupeKeyOf({ owner: deployment.owner, dseq: deployment.dseq })
+      })
+    ]);
+  });
+
+  it("adds nothing to the feed when the close had already landed on chain", async () => {
+    const { closeUnreachable, awaitClosedNotice, findActivities } = await setup({ alreadyClosedOnChain: true });
+
+    await closeUnreachable();
+    await awaitClosedNotice();
+
+    expect(await findActivities()).toEqual([]);
   });
 
   it("records nothing when the email it must queue alongside cannot be queued", async () => {
@@ -85,7 +128,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
   });
 
   it("records nothing and tries again later when the escrow cannot be settled", async () => {
-    const { closeUnreachable, close, findSetting, findClosedNotice, findPendingCloseJob } = await setup();
+    const { closeUnreachable, close, findSetting, findClosedNotice, findPendingCloseJob, findActivities } = await setup();
     close.mockRejectedValue(new Error(`failed to execute message: ${UNSETTLEABLE_ESCROW}`));
 
     await closeUnreachable();
@@ -93,20 +136,23 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     expect(await findSetting()).toBeUndefined();
     expect(await findClosedNotice()).toBeUndefined();
     expect(await findPendingCloseJob()).toBeDefined();
+    expect(await findActivities()).toEqual([]);
   });
 
-  async function setup(input: { alsoOnHealthyProvider?: boolean; leaseAlreadyClosed?: boolean; alreadyClosedOnChain?: boolean } = {}) {
+  async function setup(input: { alsoOnHealthyProvider?: boolean; leaseAlreadyClosed?: boolean; alreadyClosedOnChain?: boolean; inTeam?: boolean } = {}) {
     const { enqueue, startWorkers } = await jobWorkers();
-    const userWalletRepository = container.resolve(UserWalletRepository);
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
 
     const owner = createAkashAddress();
     const user = await container.resolve(UserRepository).create({ userId: faker.string.uuid(), email: "owner@example.com" });
-    const { wallet } = await userWalletRepository.getOrCreate({ userId: user.id });
-    await userWalletRepository.updateById(wallet.id, { address: owner });
+    const wallet = input.inTeam ? await seedTeamWalletFiledBy(user.id, owner) : await seedPersonalWallet(user.id, owner);
 
     const darkProvider = await createProvider();
     const deployment = await createDeployment({ owner, dseq: faker.string.numeric(10) });
+
+    if (input.inTeam) {
+      await seedDeploymentSetting({ userId: user.id, organizationId: wallet.organizationId, dseq: deployment.dseq });
+    }
     await seedLease(deployment, darkProvider.owner, 1, input.leaseAlreadyClosed ? 10_000 : undefined);
 
     if (input.alsoOnHealthyProvider) {
@@ -128,6 +174,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
       close,
       sentNotifications,
       findSetting: () => deploymentSettingRepository.findOneBy({ userId: user.id, dseq: deployment.dseq }),
+      findActivities: () => container.resolve(ActivityRepository).find({ userId: user.id }),
       findClosedNotice: async () => (await findJobRows(NotificationJob[JOB_NAME], { singletonKey: noticeKey }))[0],
       findPendingCloseJob: async () =>
         (await findJobRows(CloseUnreachableProviderDeploymentCommand[JOB_NAME], { singletonKey: commandKey, state: "created" }))[0],
@@ -159,6 +206,26 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     };
   }
 });
+
+async function seedPersonalWallet(userId: string, address: string) {
+  const userWalletRepository = container.resolve(UserWalletRepository);
+  const { wallet } = await userWalletRepository.getOrCreate({ userId });
+  await userWalletRepository.updateById(wallet.id, { address });
+
+  return wallet;
+}
+
+async function seedTeamWalletFiledBy(memberId: string, address: string) {
+  const { organization } = await seedOrganizationWithOwner();
+  await seedOrganizationMember({ organizationId: organization.id, userId: memberId });
+  const [wallet] = await container
+    .resolve<ApiPgDatabase>(POSTGRES_DB)
+    .insert(resolveTable("UserWallets"))
+    .values({ userId: null, organizationId: organization.id, address, isTrialing: false })
+    .returning();
+
+  return wallet;
+}
 
 async function seedLease(deployment: { id: string; owner: string; dseq: string }, providerAddress: string, gseq: number, closedHeight?: number) {
   const group = await createDeploymentGroup({ deploymentId: deployment.id, owner: deployment.owner, dseq: deployment.dseq, gseq });
