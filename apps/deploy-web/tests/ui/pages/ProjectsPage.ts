@@ -26,4 +26,18 @@ export class ProjectsPage {
   projectFolder(name: string) {
     return this.page.getByRole("region", { name: "All projects" }).getByRole("link", { name: new RegExp(`^Open ${escapeRegExp(name)}(,|$)`) });
   }
+
+  /** Waits for the project's own page, since this page's header has a "New deployment" link of its own that names no project. */
+  async openProject(name: string) {
+    await this.projectFolder(name).click();
+    await this.page.waitForURL(url => /^\/projects\/[^/]+$/.test(url.pathname));
+  }
+
+  /** The organization's feed entry that links to the named deployment. */
+  deploymentActivity(deploymentName: string) {
+    return this.page
+      .getByRole("region", { name: "Recent activity" })
+      .getByRole("listitem")
+      .filter({ has: this.page.getByRole("link", { name: deploymentName, exact: true }) });
+  }
 }

@@ -1,9 +1,14 @@
 import type { Page } from "@playwright/test";
 
+import { testEnvConfig } from "../fixture/test-env.config";
 import { AddCreditsSheetPage } from "./AddCreditsSheetPage";
 
 export class BillingPage {
   constructor(readonly page: Page) {}
+
+  async goto() {
+    await this.page.goto(`${testEnvConfig.BASE_URL}/billing`);
+  }
 
   async waitForPage() {
     await this.page.waitForURL(/\/billing/);
@@ -29,7 +34,7 @@ export class BillingPage {
   async submitPayment(amount: string) {
     const sheet = new AddCreditsSheetPage(this.page);
     await sheet.waitForOpen();
-    await sheet.getDialog().getByLabel("custom-amount").fill(amount);
+    await sheet.enterCustomAmount(amount);
     await sheet.submit();
   }
 }

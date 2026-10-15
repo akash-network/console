@@ -56,9 +56,18 @@ export class ConfigureDeploymentPage {
     return attempts;
   }
 
+  /** Continues from a picker reached some other way, such as a project's own "New deployment" link, which keeps that project. */
+  async continueWithOwnContainer() {
+    await this.pickStartingPoint("Bring your own container");
+  }
+
   private async openFromPicker(cardTitle: string) {
     await this.page.goto(`${testEnvConfig.BASE_URL}/`, { waitUntil: "commit" });
     await new AppNav(this.page).openDeploy();
+    await this.pickStartingPoint(cardTitle);
+  }
+
+  private async pickStartingPoint(cardTitle: string) {
     await this.page.getByRole("button", { name: cardTitle }).click({ timeout: 60_000 });
     await this.page.getByRole("heading", { name: "Configure your deployment" }).waitFor({ state: "visible", timeout: 30_000 });
   }
@@ -70,6 +79,15 @@ export class ConfigureDeploymentPage {
 
   async fillImageName(image: string) {
     await this.dockerImageInput().fill(image);
+  }
+
+  async fillDeploymentName(name: string) {
+    await this.page.getByRole("textbox", { name: "Deployment name" }).fill(name);
+  }
+
+  /** The "Deploying to {organization} / {project}" line above the configuration. */
+  deployTarget() {
+    return this.page.getByText("Deploying to").locator("..");
   }
 
   async selectDistro(distro: string) {

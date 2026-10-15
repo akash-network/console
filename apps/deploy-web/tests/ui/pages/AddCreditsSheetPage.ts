@@ -15,6 +15,10 @@ export class AddCreditsSheetPage {
     await this.getDialog().getByRole("radio", { name: amount, exact: true }).click();
   }
 
+  async enterCustomAmount(amount: string) {
+    await this.getDialog().getByLabel("custom-amount").fill(amount);
+  }
+
   async fillStripeAddress(input: { name: string; line1: string; city: string; state: string; zip: string }) {
     const addressFrame = this.getAddressFrame();
 
@@ -40,10 +44,17 @@ export class AddCreditsSheetPage {
     await addressFrame.getByLabel("State").selectOption(input.state);
   }
 
+  /** Stripe may open the payment element on another method's tab, such as a pay-by-bank promotion, which shows no card fields until Card is picked. */
   async fillStripeCard(input: { number: string; expiry: string; cvc: string }) {
     const cardFrame = this.getCardFrame();
 
     const cardNumber = cardFrame.getByLabel(/card number/i);
+    const cardTab = cardFrame.getByRole("tab", { name: "Card", exact: true });
+    await cardNumber.or(cardTab).first().waitFor({ timeout: 30_000 });
+    if (await cardTab.isVisible()) {
+      await cardTab.click();
+    }
+
     await cardNumber.click();
     await cardNumber.pressSequentially(input.number);
 

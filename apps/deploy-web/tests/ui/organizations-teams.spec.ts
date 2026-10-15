@@ -4,14 +4,20 @@ import { signInPasswordless } from "./actions/auth";
 import { acceptFairUsePolicyIfPrompted } from "./actions/fair-use-policy";
 import { expect, getUserAgent, openSignedOutPage, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
+import { AddCreditsSheetPage } from "./pages/AddCreditsSheetPage";
 import { ApiKeysPage } from "./pages/ApiKeysPage";
 import { AppNav } from "./pages/AppNav";
+import { BillingPage } from "./pages/BillingPage";
+import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
 import { InvitationPage } from "./pages/InvitationPage";
 import { MembersPage } from "./pages/MembersPage";
 import { OrganizationSwitcher } from "./pages/OrganizationSwitcher";
+import { ProjectPage } from "./pages/ProjectPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { createInboxClient } from "./services/email-verification";
 import { waitForInvitationEmail } from "./services/invitation-inbox";
+
+const STANDARD_TOP_UP_MIN_AMOUNT_USD = "20";
 
 type ProjectList = { data: { id: string; name: string }[] };
 
@@ -144,13 +150,87 @@ test.describe("Team organizations", () => {
       await api?.dispose();
     }
   });
+
+  test("an owner funds the team, deploys into a project, then finds the deployment in it and in the team's activity", async ({ page }) => {
+    const { team, sharedProject: project, deployment } = createNames();
+    const projects = new ProjectsPage(page);
+    const projectPage = new ProjectPage(page);
+    const configure = new ConfigureDeploymentPage(page);
+    let dseq: string | undefined;
+
+    try {
+      await test.step("the owner creates a team and buys it the smallest amount of credits with a card", async () => {
+        await createTeam(page, team);
+        await buyMinimumCredits(page);
+      });
+
+      await test.step("the owner starts a deployment from a new project, which the deployment is headed for", async () => {
+        await createProjects(page, [project]);
+        await projects.openProject(project);
+        await expect(projectPage.heading(project)).toBeVisible();
+        await projectPage.startNewDeployment();
+        await configure.continueWithOwnContainer();
+        await expect(configure.deployTarget()).toContainText(project);
+      });
+
+      await test.step("the deployment is created and leased", async () => {
+        await configure.fillDeploymentName(deployment);
+        await configure.fillImageName("nginx:latest");
+        await configure.requestQuotes();
+        await page.waitForURL(/\/new-deployment\/configure\/\d+/, { timeout: 90_000 });
+        dseq = new URL(page.url()).pathname.match(/\/new-deployment\/configure\/(\d+)/)?.[1];
+        expect(dseq).toBeTruthy();
+
+        await configure.selectFirstAvailableProvider();
+        await expect(configure.reviewDialog()).toBeVisible({ timeout: 30_000 });
+        await configure.confirmAndDeploy();
+        await page.waitForURL(new RegExp(`/deployments/${dseq}(?:[/?]|$)`), { timeout: 180_000 });
+      });
+
+      await test.step("the project holds the deployment", async () => {
+        await projects.goto();
+        await expect(projects.projectFolder(project)).toHaveAccessibleName(`Open ${project}, 1 active deployment`, { timeout: 30_000 });
+        await projects.openProject(project);
+        await expect(projectPage.listedDeployment(deployment)).toBeVisible({ timeout: 30_000 });
+      });
+
+      await test.step("the team's activity names the deployment and the project it went to", async () => {
+        await projects.goto();
+        const activity = projects.deploymentActivity(deployment);
+        await expect(activity).toContainText("deployed", { timeout: 30_000 });
+        await expect(activity.getByRole("link", { name: project, exact: true })).toBeVisible();
+      });
+    } finally {
+      if (dseq) await closeDeployment(page, dseq);
+    }
+  });
 });
 
 /** Every name doubles as its slug, so a project is created under exactly that name and a team is linked to by it. */
 function createNames() {
   const suffix = crypto.randomUUID().slice(0, 8);
 
-  return { team: `e2e-team-${suffix}`, sharedProject: `shared-${suffix}`, hiddenProject: `hidden-${suffix}` };
+  return { team: `e2e-team-${suffix}`, sharedProject: `shared-${suffix}`, hiddenProject: `hidden-${suffix}`, deployment: `e2e-deploy-${suffix}` };
+}
+
+/** A team never gets a trial, so it pays the standard minimum top-up before it can deploy. */
+async function buyMinimumCredits(page: Page) {
+  const billing = new BillingPage(page);
+  const addCredits = new AddCreditsSheetPage(page);
+
+  await billing.goto();
+  await billing.openAddToBalance();
+  await addCredits.waitForOpen();
+  await addCredits.enterCustomAmount(STANDARD_TOP_UP_MIN_AMOUNT_USD);
+  await addCredits.fillStripeAddress({ name: "E2E Test User", line1: "123 Test Street", city: "San Francisco", state: "CA", zip: "94105" });
+  await addCredits.fillStripeCard({ number: "4242424242424242", expiry: "12/30", cvc: "123" });
+  await addCredits.submit();
+  await expect(billing.getPaymentSuccessMessage()).toBeVisible({ timeout: 90_000 });
+}
+
+/** Closed straight through the api, so a deployment the run created is closed even when the page is in no state to drive the UI. */
+async function closeDeployment(page: Page, dseq: string) {
+  await page.request.delete(`${testEnvConfig.BASE_URL}/api/proxy/v1/deployments/${dseq}`, { failOnStatusCode: false, timeout: 60_000 }).catch(() => undefined);
 }
 
 /** Billing shows the full header even while a new user's personal account is still in onboarding. */
