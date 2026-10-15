@@ -5,8 +5,10 @@ import { mock } from "vitest-mock-extended";
 
 import type { TemplateOutputSummaryWithCategory } from "@src/queries/useTemplateQuery";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { Project } from "@src/types/project";
 import { UrlService } from "@src/utils/urlUtils";
+import type { LastConfiguration } from "../useLastConfiguration/useLastConfiguration";
 import { DEPENDENCIES, NewDeploymentPage } from "./NewDeploymentPage";
 
 import { render, screen } from "@testing-library/react";
@@ -14,7 +16,7 @@ import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
-describe("NewDeploymentPage", () => {
+describe(NewDeploymentPage.name, () => {
   it("targets the project the page was opened for", () => {
     const { useDeployTarget } = setup({ requestedProjectId: "project-1" });
 
@@ -69,6 +71,30 @@ describe("NewDeploymentPage", () => {
 
     expect(ImportSdlButton).toHaveBeenCalled();
     expect(AgentModePanel).toHaveBeenCalled();
+  });
+
+  it("offers to pick up the last configuration, filed into the project the page targets", () => {
+    const lastConfiguration = aLastConfiguration();
+    const { LastConfigurationCard } = setup({ lastConfiguration, targetProject: mock<Project>({ id: "project-1", name: "storefront" }) });
+
+    expect(screen.getByRole("region", { name: "Pick up where you left off" })).toBeInTheDocument();
+    expect(LastConfigurationCard).toHaveBeenCalledWith({ ...lastConfiguration, targetProjectId: "project-1" }, expect.anything());
+    expect(screen.getByText(/^Redeploy a previous configuration, start from scratch, or pick a template\./)).toBeInTheDocument();
+  });
+
+  it("leaves the project to the last configuration when the page targets none", () => {
+    const lastConfiguration = aLastConfiguration();
+    const { LastConfigurationCard } = setup({ lastConfiguration });
+
+    expect(LastConfigurationCard).toHaveBeenCalledWith({ ...lastConfiguration, targetProjectId: undefined }, expect.anything());
+  });
+
+  it("hides the last configuration and stops offering a redeploy when there is none", () => {
+    const { LastConfigurationCard } = setup({ lastConfiguration: null });
+
+    expect(screen.queryByRole("region", { name: "Pick up where you left off" })).not.toBeInTheDocument();
+    expect(LastConfigurationCard).not.toHaveBeenCalled();
+    expect(screen.getByText("Start from scratch or pick a template. Everything is editable in the next step.")).toBeInTheDocument();
   });
 
   it("describes each way to start from scratch next to a preview of it", () => {
@@ -156,11 +182,16 @@ describe("NewDeploymentPage", () => {
     return { id, name: id, summary: "", deploy: "", logoUrl: null, category: "General", tags };
   }
 
+  function aLastConfiguration(): LastConfiguration {
+    return { deployment: mock<ListedDeploymentDto>({ dseq: "100" }), definition: { sdl: "sdl", name: "acme", source: "api" } };
+  }
+
   function setup(input: {
     templates?: TemplateOutputSummaryWithCategory[];
     isLoadingTemplates?: boolean;
     requestedProjectId?: string;
     targetProject?: Project;
+    lastConfiguration?: LastConfiguration | null;
   }) {
     const push = vi.fn();
     const replace = vi.fn();
@@ -182,6 +213,7 @@ describe("NewDeploymentPage", () => {
     const LegacyBuilderRedirect = vi.fn(({ children }: PropsWithChildren) => <>{children}</>);
     const AgentModePanel = vi.fn(() => null);
     const ImportSdlButton = vi.fn(() => null);
+    const LastConfigurationCard = vi.fn<typeof DEPENDENCIES.LastConfigurationCard>(() => null);
     const TemplateCard = vi.fn<typeof DEPENDENCIES.TemplateCard>(() => null);
     const Skeleton = vi.fn<typeof DEPENDENCIES.Skeleton>(() => <div />);
     const dependencies = MockComponents(DEPENDENCIES, {
@@ -189,11 +221,13 @@ describe("NewDeploymentPage", () => {
       useTemplates: () => templatesResult,
       useSearchParams: () => searchParams,
       useDeployTarget,
+      useLastConfiguration: () => input.lastConfiguration ?? null,
       DeployTargetChip,
       Layout: Layout as never,
       LegacyBuilderRedirect,
       AgentModePanel,
       ImportSdlButton,
+      LastConfigurationCard,
       StartFromScratchCard: DEPENDENCIES.StartFromScratchCard,
       TemplateCard,
       Skeleton
@@ -215,6 +249,7 @@ describe("NewDeploymentPage", () => {
       LegacyBuilderRedirect,
       AgentModePanel,
       ImportSdlButton,
+      LastConfigurationCard,
       TemplateCard,
       Skeleton,
       CustomNextSeo: dependencies.CustomNextSeo
