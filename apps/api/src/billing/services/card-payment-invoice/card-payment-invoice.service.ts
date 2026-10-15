@@ -34,13 +34,13 @@ export class CardPaymentInvoiceService {
     return await this.issueInvoice(transaction);
   }
 
-  /** Every step reads where Stripe already is before acting, so a retried or concurrent call finishes the same invoice instead of opening a second one. */
   async findPaidInvoice(transaction: StripeTransactionOutput): Promise<Stripe.Invoice | undefined> {
     const recorded = await this.#retrieveRecorded(transaction);
 
     return recorded?.status === "paid" ? recorded : undefined;
   }
 
+  /** Every step reads where Stripe already is before acting, so a retried or concurrent call finishes the same invoice instead of opening a second one. */
   async issueInvoice(transaction: StripeTransactionOutput): Promise<Stripe.Invoice> {
     const recorded = await this.#retrieveRecorded(transaction);
 
