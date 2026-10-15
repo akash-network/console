@@ -35,9 +35,14 @@ export class CardPaymentInvoiceService {
   }
 
   /** Every step reads where Stripe already is before acting, so a retried or concurrent call finishes the same invoice instead of opening a second one. */
+  async findPaidInvoice(transaction: StripeTransactionOutput): Promise<Stripe.Invoice | undefined> {
+    const recorded = await this.#retrieveRecorded(transaction);
+
+    return recorded?.status === "paid" ? recorded : undefined;
+  }
+
   async issueInvoice(transaction: StripeTransactionOutput): Promise<Stripe.Invoice> {
-    const recorded =
-      transaction.type === "payment_intent" && transaction.stripeInvoiceId ? await this.stripe.invoices.retrieve(transaction.stripeInvoiceId) : undefined;
+    const recorded = await this.#retrieveRecorded(transaction);
 
     if (recorded?.status === "paid") {
       return recorded;
@@ -64,6 +69,14 @@ export class CardPaymentInvoiceService {
     this.logger.info({ event: "CARD_PAYMENT_INVOICE_ISSUED", transactionId: transaction.id, invoiceId: invoice.id });
 
     return invoice;
+  }
+
+  async #retrieveRecorded(transaction: StripeTransactionOutput): Promise<Stripe.Invoice | undefined> {
+    if (transaction.type !== "payment_intent" || !transaction.stripeInvoiceId) {
+      return undefined;
+    }
+
+    return await this.stripe.invoices.retrieve(transaction.stripeInvoiceId);
   }
 
   /** The invoice is dated when the payment was made, and pending invoice items on the customer stay out of it. */

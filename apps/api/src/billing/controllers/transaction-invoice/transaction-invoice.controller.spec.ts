@@ -39,16 +39,27 @@ describe(TransactionInvoiceController.name, () => {
       expect(result.data.invoicePdfUrl).toBeNull();
     });
 
-    it("lets a reader download an invoice the payment already has", async () => {
+    it("lets a reader download an invoice the payment already has paid", async () => {
       const { controller, stripeTransactionRepository, cardPaymentInvoiceService, authService } = setup({ deniedRule: "create:StripePayment" });
       const transaction = generateDatabaseStripeTransaction({ stripeInvoiceId: "in_existing" });
       stripeTransactionRepository.findOwnedById.mockResolvedValue(transaction);
-      cardPaymentInvoiceService.issueInvoice.mockResolvedValue(createTestInvoice({ id: "in_existing" }));
+      cardPaymentInvoiceService.findPaidInvoice.mockResolvedValue(createTestInvoice({ id: "in_existing", invoice_pdf: "https://pay.stripe.com/existing" }));
 
-      await controller.getInvoice(transaction.id);
+      const result = await controller.getInvoice(transaction.id);
 
+      expect(cardPaymentInvoiceService.findPaidInvoice).toHaveBeenCalledWith(transaction);
       expect(authService.throwUnlessCan).not.toHaveBeenCalledWith("create", "StripePayment");
-      expect(cardPaymentInvoiceService.issueInvoice).toHaveBeenCalledWith(transaction);
+      expect(cardPaymentInvoiceService.issueInvoice).not.toHaveBeenCalled();
+      expect(result).toEqual({ data: { invoiceId: "in_existing", invoicePdfUrl: "https://pay.stripe.com/existing" } });
+    });
+
+    it("refuses a reader who would have to finish an invoice that is not paid yet", async () => {
+      const { controller, stripeTransactionRepository, cardPaymentInvoiceService } = setup({ deniedRule: "create:StripePayment" });
+      stripeTransactionRepository.findOwnedById.mockResolvedValue(generateDatabaseStripeTransaction({ stripeInvoiceId: "in_draft" }));
+      cardPaymentInvoiceService.findPaidInvoice.mockResolvedValue(undefined);
+
+      await expect(controller.getInvoice("tx-1")).rejects.toMatchObject({ status: 403 });
+      expect(cardPaymentInvoiceService.issueInvoice).not.toHaveBeenCalled();
     });
 
     it("refuses a reader who asks for an invoice the payment does not have yet", async () => {

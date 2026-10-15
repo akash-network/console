@@ -221,6 +221,41 @@ describe(CardPaymentInvoiceService.name, () => {
     });
   });
 
+  describe("findPaidInvoice", () => {
+    it("returns the paid invoice the payment records", async () => {
+      const { service, stripe } = setup();
+      const paid = createTestInvoice({ id: "in_paid", status: "paid" });
+      const retrieve = vi.spyOn(stripe.invoices, "retrieve").mockResolvedValue(paid);
+
+      const result = await service.findPaidInvoice(createCardPayment({ stripeInvoiceId: "in_paid" }));
+
+      expect(result).toBe(paid);
+      expect(retrieve).toHaveBeenCalledWith("in_paid");
+    });
+
+    it.each(["draft", "open"] as const)("returns nothing for a recorded invoice that is still %s", async status => {
+      const { service, stripe } = setup();
+      vi.spyOn(stripe.invoices, "retrieve").mockResolvedValue(createTestInvoice({ id: "in_unpaid", status }));
+
+      const result = await service.findPaidInvoice(createCardPayment({ stripeInvoiceId: "in_unpaid" }));
+
+      expect(result).toBeUndefined();
+    });
+
+    it.each([
+      { case: "a card payment without an invoice", overrides: { stripeInvoiceId: null } },
+      { case: "a coupon claim", overrides: { type: "coupon_claim" as const, stripeInvoiceId: "in_coupon" } }
+    ])("returns nothing for $case without asking Stripe", async ({ overrides }) => {
+      const { service, stripe } = setup();
+      const retrieve = vi.spyOn(stripe.invoices, "retrieve");
+
+      const result = await service.findPaidInvoice(createCardPayment(overrides));
+
+      expect(result).toBeUndefined();
+      expect(retrieve).not.toHaveBeenCalled();
+    });
+  });
+
   describe("issueInvoiceForTransaction", () => {
     it("issues the invoice of the transaction it loads", async () => {
       const { service, stripe, stripeTransactionRepository } = setup();

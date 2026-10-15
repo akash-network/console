@@ -90,6 +90,19 @@ describe("Card payment invoices", () => {
       expect(await findTransaction(payment.id)).toMatchObject({ stripeInvoiceId: null });
     });
 
+    it("refuses an admin who would have to finish an invoice that is not paid yet", async () => {
+      const { team, headersOf, memberWith } = await setup();
+      const admin = await memberWith("admin");
+      const payment = await seedCardPayment({ userId: team.owner.id, organizationId: team.id, stripeInvoiceId: "in_draft" });
+      nock(STRIPE_API).get("/v1/invoices/in_draft").reply(200, { id: "in_draft", object: "invoice", status: "draft", customer: "cus_1" });
+      const finalize = nock(STRIPE_API).post("/v1/invoices/in_draft/finalize").reply(200, {});
+
+      const response = await requestInvoice(payment.id, headersOf(admin));
+
+      expect(response.status).toBe(403);
+      expect(finalize.isDone()).toBe(false);
+    });
+
     it("answers 400 for a transaction that is not a successful card payment", async () => {
       const { team, headersOf } = await setup();
       const payment = await seedCardPayment({ userId: team.owner.id, organizationId: team.id, status: "failed" });

@@ -17,7 +17,7 @@ export class TransactionInvoiceController {
     private readonly cardPaymentInvoiceService: CardPaymentInvoiceService
   ) {}
 
-  /** Anyone who reads the billing history may download an invoice, but only those who may pay can have a missing one issued. */
+  /** Anyone who reads the billing history may download a paid invoice, but only those who may pay can have one issued or finished. */
   @Protected([{ action: "read", subject: "StripePayment" }])
   async getInvoice(transactionId: string): Promise<TransactionInvoiceResponse> {
     const payer = await this.payerService.getCurrentPayer();
@@ -25,11 +25,13 @@ export class TransactionInvoiceController {
 
     assert(transaction, 404, "Transaction not found");
 
-    if (!transaction.stripeInvoiceId) {
+    const paidInvoice = await this.cardPaymentInvoiceService.findPaidInvoice(transaction);
+
+    if (!paidInvoice) {
       this.authService.throwUnlessCan("create", "StripePayment");
     }
 
-    const invoice = await this.cardPaymentInvoiceService.issueInvoice(transaction);
+    const invoice = paidInvoice ?? (await this.cardPaymentInvoiceService.issueInvoice(transaction));
 
     return { data: { invoiceId: invoice.id, invoicePdfUrl: invoice.invoice_pdf ?? null } };
   }
