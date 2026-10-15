@@ -1,13 +1,18 @@
 import { faker } from "@faker-js/faker";
 import { eq, sql } from "drizzle-orm";
+import fs from "fs";
 import nock from "nock";
+import path from "path";
 import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
+import { BILLING_CONFIG } from "@src/billing/providers";
+import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -26,7 +31,9 @@ import {
 } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
+import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
+import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 
 interface TeamIds {
   organizationId: string;
@@ -44,6 +51,9 @@ interface TeamIds {
   grantedDseq: string;
   walletAddress: string;
   transactionId: string;
+  paymentIntentId: string;
+  paymentMethodId: string;
+  templateId: string;
 }
 
 interface TeamRequest {
@@ -57,12 +67,19 @@ interface RouteNamingAnotherTeam {
   status: number;
   ownerStatus: number;
   request: (team: TeamIds, ownTeam: TeamIds) => TeamRequest;
+  echoes?: Array<keyof TeamIds>;
 }
 
 const get = (path: string): TeamRequest => ({ method: "GET", path });
 const post = (path: string, data?: unknown): TeamRequest => ({ method: "POST", path, body: data === undefined ? undefined : { data } });
+const postUnwrapped = (path: string, body: unknown): TeamRequest => ({ method: "POST", path, body });
+const put = (path: string, data: unknown): TeamRequest => ({ method: "PUT", path, body: { data } });
 const patch = (path: string, data: unknown): TeamRequest => ({ method: "PATCH", path, body: { data } });
 const remove = (path: string): TeamRequest => ({ method: "DELETE", path });
+
+const SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+const templateOf = (team: TeamIds) => ({ id: team.templateId, sdl: SDL, title: "Taken", cpu: 100, ram: 100, storage: 100, isPublic: false });
 
 const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
   {
@@ -165,6 +182,32 @@ const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
   },
   { route: "GET /v2/deployment-settings/{dseq}", status: 404, ownerStatus: 200, request: team => get(`/v2/deployment-settings/${team.grantedDseq}`) },
   {
+    route: "POST /v1/deployment-settings filing a deployment of the team under its owner",
+    status: 409,
+    ownerStatus: 201,
+    request: team => post("/v1/deployment-settings", { userId: team.ownerUserId, dseq: team.grantedDseq })
+  },
+  {
+    route: "PATCH /v1/deployment-settings/{userId}/{dseq}",
+    status: 404,
+    ownerStatus: 200,
+    request: team => patch(`/v1/deployment-settings/${team.ownerUserId}/${team.grantedDseq}`, { closeReason: "no_longer_needed" })
+  },
+  {
+    route: "POST /v2/deployment-settings filing a dseq of the team in the caller's own team",
+    status: 201,
+    ownerStatus: 201,
+    request: team => post("/v2/deployment-settings", { dseq: team.grantedDseq }),
+    echoes: ["grantedDseq"]
+  },
+  {
+    route: "PATCH /v2/deployment-settings/{dseq} filing a dseq of the team in the caller's own team",
+    status: 200,
+    ownerStatus: 200,
+    request: team => patch(`/v2/deployment-settings/${team.grantedDseq}`, { autoTopUpEnabled: false }),
+    echoes: ["grantedDseq"]
+  },
+  {
     route: "PATCH /v1/deployments/{dseq}/project moving a deployment of the team",
     status: 404,
     ownerStatus: 200,
@@ -179,11 +222,65 @@ const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
   { route: "GET /v1/deployment-locations/{dseq}", status: 404, ownerStatus: 200, request: team => get(`/v1/deployment-locations/${team.grantedDseq}`) },
   { route: "GET /v1/deployments/{dseq}", status: 404, ownerStatus: 200, request: team => get(`/v1/deployments/${team.grantedDseq}`) },
   {
+    route: "POST /v1/deployments filing into a project of the team",
+    status: 404,
+    ownerStatus: 201,
+    request: team => post("/v1/deployments", { sdl: SDL, projectId: team.otherProjectId })
+  },
+  { route: "PATCH /v1/deployments/{dseq}", status: 404, ownerStatus: 200, request: team => patch(`/v1/deployments/${team.grantedDseq}`, { name: "Taken" }) },
+  { route: "PUT /v1/deployments/{dseq}", status: 404, ownerStatus: 422, request: team => put(`/v1/deployments/${team.grantedDseq}`, { sdl: SDL }) },
+  {
+    route: "POST /v1/deployments/{dseq}/definition",
+    status: 404,
+    ownerStatus: 422,
+    request: team => post(`/v1/deployments/${team.grantedDseq}/definition`, { sdl: SDL })
+  },
+  { route: "DELETE /v1/deployments/{dseq}", status: 404, ownerStatus: 200, request: team => remove(`/v1/deployments/${team.grantedDseq}`) },
+  {
+    route: "POST /v1/deposit-deployment",
+    status: 404,
+    ownerStatus: 200,
+    request: team => post("/v1/deposit-deployment", { dseq: team.grantedDseq, deposit: 5 })
+  },
+  {
     route: "POST /v1/stripe/transactions/{id}/invoice",
     status: 404,
     ownerStatus: 200,
     request: team => post(`/v1/stripe/transactions/${team.transactionId}/invoice`)
-  }
+  },
+  {
+    route: "POST /v1/stripe/transactions/confirm charging a card of the team",
+    status: 403,
+    ownerStatus: 202,
+    request: team => post("/v1/stripe/transactions/confirm", { userId: team.ownerUserId, paymentMethodId: team.paymentMethodId, amount: 20 })
+  },
+  {
+    route: "POST /v1/stripe/payment-methods/default",
+    status: 404,
+    ownerStatus: 200,
+    request: team => post("/v1/stripe/payment-methods/default", { id: team.paymentMethodId })
+  },
+  {
+    route: "POST /v1/stripe/payment-methods/validate",
+    status: 403,
+    ownerStatus: 200,
+    request: team => post("/v1/stripe/payment-methods/validate", { paymentMethodId: team.paymentMethodId, paymentIntentId: team.paymentIntentId })
+  },
+  {
+    route: "DELETE /v1/stripe/payment-methods/{id}",
+    status: 403,
+    ownerStatus: 204,
+    request: team => remove(`/v1/stripe/payment-methods/${team.paymentMethodId}`)
+  },
+  { route: "GET /v1/user/template/{id}", status: 404, ownerStatus: 200, request: team => get(`/v1/user/template/${team.templateId}`) },
+  { route: "POST /v1/user/saveTemplate", status: 200, ownerStatus: 200, request: team => postUnwrapped("/v1/user/saveTemplate", templateOf(team)) },
+  {
+    route: "POST /v1/user/saveTemplateDesc",
+    status: 204,
+    ownerStatus: 204,
+    request: team => postUnwrapped("/v1/user/saveTemplateDesc", { id: team.templateId, description: "Taken" })
+  },
+  { route: "DELETE /v1/user/deleteTemplate/{id}", status: 204, ownerStatus: 204, request: team => remove(`/v1/user/deleteTemplate/${team.templateId}`) }
 ];
 
 const READS_OF_THE_OWN_TEAM: Array<{ route: string; request: (team: TeamIds) => TeamRequest }> = [
@@ -214,7 +311,9 @@ const TEAM_TABLES = [
   "user_wallets",
   "wallet_settings",
   "stripe_transactions",
-  "organization_activities"
+  "organization_activities",
+  "payment_methods",
+  "template"
 ];
 
 describe("Cross-team access", () => {
@@ -234,7 +333,7 @@ describe("Cross-team access", () => {
   });
 
   describe.each(["session", "apiKey"] as const)("a route naming an id of another team, called with the %s of that team's owner", credential => {
-    it.each(ROUTES_NAMING_ANOTHER_TEAM)("answers $status to $route, changing and revealing nothing", async ({ request, status }) => {
+    it.each(ROUTES_NAMING_ANOTHER_TEAM)("answers $status to $route, changing and revealing nothing", async ({ request, status, echoes = [] }) => {
       const { team, otherTeam, otherOwner, send, rowsOf } = await setup();
       const before = await rowsOf(team.organizationId);
 
@@ -242,7 +341,7 @@ describe("Cross-team access", () => {
 
       expect(response.status).toBe(status);
       expect(await rowsOf(team.organizationId)).toEqual(before);
-      expect(await response.text()).not.toMatch(identifiersPattern(team));
+      expect(await response.text()).not.toMatch(identifiersPattern(team, echoes));
     });
   });
 
@@ -345,6 +444,11 @@ describe("Cross-team access", () => {
           post(`/v1/deployment-alerts/${team.grantedDseq}`, { alerts: { deploymentClosed: { notificationChannelId: faker.string.uuid(), enabled: true } } })
       },
       { route: "GET /v1/alerts?dseq", request: (team: TeamIds) => get(`/v1/alerts?dseq=${team.grantedDseq}`) },
+      {
+        route: "POST /v1/alerts",
+        request: (team: TeamIds) =>
+          post("/v1/alerts", { notificationChannelId: faker.string.uuid(), enabled: true, type: "DEPLOYMENT_BALANCE", params: { dseq: team.grantedDseq } })
+      },
       { route: "PATCH /v1/alerts/{id}", request: () => patch(`/v1/alerts/${faker.string.uuid()}`, { enabled: false }) },
       { route: "DELETE /v1/notification-channels/{id}", request: () => remove(`/v1/notification-channels/${faker.string.uuid()}`) }
     ])("forwards $route with the identity of the caller's own team and wallet only", async ({ request }) => {
@@ -360,8 +464,10 @@ describe("Cross-team access", () => {
     });
   });
 
-  function identifiersPattern(team: TeamIds) {
-    const identifiers = Object.values(team).filter(value => value.length >= MIN_IDENTIFIER_LENGTH);
+  function identifiersPattern(team: TeamIds, echoes: Array<keyof TeamIds> = []) {
+    const identifiers = Object.entries(team)
+      .filter(([kind, value]) => value.length >= MIN_IDENTIFIER_LENGTH && !echoes.includes(kind as keyof TeamIds))
+      .map(([, value]) => value);
 
     return new RegExp(identifiers.map(value => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"));
   }
@@ -381,7 +487,8 @@ describe("Cross-team access", () => {
   }
 
   async function seedTeam(sessions: Map<string, string>) {
-    const { user: owner, organization } = await seedOrganizationWithOwner({ user: { userId: faker.string.uuid() } });
+    const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
+    const { user: owner, organization } = await seedOrganizationWithOwner({ stripeCustomerId, user: { userId: faker.string.uuid() } });
     const [grantedProject, otherProject] = await Promise.all([
       seedProject({ organizationId: organization.id, name: "Granted", createdByUserId: owner.id }),
       seedProject({ organizationId: organization.id, name: "Other", createdByUserId: owner.id })
@@ -430,6 +537,21 @@ describe("Cross-team access", () => {
       .get(`/v1/invoices/${transaction.stripeInvoiceId}`)
       .reply(200, { id: transaction.stripeInvoiceId, object: "invoice", status: "paid", invoice_pdf: "https://pay.stripe.com/invoice" });
     const ownerKey = await seedApiKey({ userId: owner.id, organizationId: organization.id });
+    const paymentMethodId = await seedCard({ stripeCustomerId, userId: owner.id, organizationId: organization.id });
+    answerPaymentIntent({ id: transaction.stripePaymentIntentId as string, customer: stripeCustomerId, payment_method: paymentMethodId });
+    const [template] = await db
+      .insert(resolveTable("Templates"))
+      .values({
+        userId: owner.userId!,
+        organizationId: organization.id,
+        projectId: grantedProject.id,
+        title: faker.word.words(2),
+        sdl: SDL,
+        cpu: 100,
+        ram: 100,
+        storage: 100
+      })
+      .returning();
 
     const ids: TeamIds = {
       organizationId: organization.id,
@@ -446,7 +568,10 @@ describe("Cross-team access", () => {
       ownerKeyId: ownerKey.id,
       grantedDseq,
       walletAddress: wallet.address as string,
-      transactionId: transaction.id
+      transactionId: transaction.id,
+      paymentIntentId: transaction.stripePaymentIntentId as string,
+      paymentMethodId,
+      templateId: template.id
     };
     const ownerCredentials = {
       session: { ...signIn(owner.userId!, sessions), "x-organization-id": organization.id },
@@ -454,6 +579,58 @@ describe("Cross-team access", () => {
     };
 
     return { ids, ownerCredentials };
+  }
+
+  async function seedCard(input: { stripeCustomerId: string; userId: string; organizationId: string }) {
+    const card = {
+      id: `pm_${faker.string.alphanumeric(24)}`,
+      object: "payment_method",
+      type: "card",
+      created: 1_700_000_000,
+      customer: input.stripeCustomerId,
+      card: { brand: "visa", last4: "4242", exp_month: 12, exp_year: 2030, fingerprint: faker.string.alphanumeric(16) }
+    };
+    await db.insert(resolveTable("PaymentMethods")).values({
+      userId: input.userId,
+      organizationId: input.organizationId,
+      fingerprint: card.card.fingerprint,
+      paymentMethodId: card.id
+    });
+    nock(STRIPE_API)
+      .persist()
+      .get(`/v1/payment_methods/${card.id}`)
+      .reply(200, card)
+      .post(`/v1/payment_methods/${card.id}/detach`)
+      .reply(200, { ...card, customer: null });
+
+    return card.id;
+  }
+
+  function answerPaymentIntent(paymentIntent: { id: string; customer: string; payment_method: string }) {
+    nock(STRIPE_API)
+      .persist()
+      .get(`/v1/payment_intents/${paymentIntent.id}`)
+      .reply(200, { ...paymentIntent, object: "payment_intent", status: "requires_payment_method" });
+  }
+
+  function answerNewPaymentIntents() {
+    nock(STRIPE_API)
+      .persist()
+      .post("/v1/payment_intents")
+      .reply(200, () => ({ id: `pi_${faker.string.alphanumeric(14)}`, object: "payment_intent", status: "requires_action", client_secret: "secret" }));
+  }
+
+  function answerSigning() {
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(/\/cosmos\/feegrant\/v1beta1\/allowances?\/.*/)
+      .reply(200, uri => (uri.includes("/allowances/") ? { allowances: [createFeeAllowanceResponse()] } : createFeeAllowanceResponse({ amount: "5000000" })))
+      .get(/\/cosmos\/authz\/v1beta1\/grants\?.*/)
+      .reply(200, createDeploymentGrantResponseSeed({ amount: "5000000", grantType: "/akash.escrow.v1.DepositAuthorization" }));
+    nock(container.resolve(BILLING_CONFIG).TX_SIGNER_BASE_URL)
+      .persist()
+      .post(/\/v1\/tx\/.*/)
+      .reply(200, { data: { code: 0, hash: "SOME_HASH", rawLog: "[]" } });
   }
 
   async function seedDepartedMember(organizationId: string, sessions: Map<string, string>) {
@@ -510,6 +687,11 @@ describe("Cross-team access", () => {
     const { ids: otherTeam, ownerCredentials: otherOwner } = await seedTeam(sessions);
     const departedMember = await seedDepartedMember(team.organizationId, sessions);
     answerDeploymentsOnChain([team, otherTeam]);
+    answerNewPaymentIntents();
+    answerSigning();
+    vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue(
+      mock<Awaited<ReturnType<DenomExchangeService["getExchangeRateToUSD"]>>>({ price: 2 })
+    );
 
     const send = async ({ method, path, body }: TeamRequest, headers: Record<string, string>) =>
       await app.request(path, {
