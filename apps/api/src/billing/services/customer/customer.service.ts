@@ -9,6 +9,8 @@ import { type UserOutput, UserRepository } from "@src/user/repositories/user/use
 
 export const ORGANIZATION_PAYMENTS_SETUP_IN_PROGRESS_ERROR_CODE = "organization_payments_setup_in_progress";
 
+const MAX_STRIPE_PAGE_SIZE = 100;
+
 @singleton()
 export class CustomerService {
   constructor(
@@ -99,8 +101,42 @@ export class CustomerService {
     try {
       await this.stripe.customers.del(customerId);
     } catch (error) {
-      if (error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") return;
+      if (isResourceMissing(error)) return;
       throw error;
     }
   }
+
+  /** Keeps the customer, so the payments and invoices filed under it stay on record. */
+  async detachPaymentMethods(customerId: string): Promise<void> {
+    let page: Stripe.ApiList<Stripe.PaymentMethod>;
+
+    do {
+      page = await this.#listPaymentMethods(customerId);
+
+      for (const paymentMethod of page.data) {
+        await this.#detachPaymentMethod(paymentMethod.id);
+      }
+    } while (page.has_more);
+  }
+
+  async #listPaymentMethods(customerId: string): Promise<Stripe.ApiList<Stripe.PaymentMethod>> {
+    try {
+      return await this.stripe.paymentMethods.list({ customer: customerId, limit: MAX_STRIPE_PAGE_SIZE });
+    } catch (error) {
+      if (isResourceMissing(error)) return { object: "list", data: [], has_more: false, url: "" };
+      throw error;
+    }
+  }
+
+  async #detachPaymentMethod(paymentMethodId: string): Promise<void> {
+    try {
+      await this.stripe.paymentMethods.detach(paymentMethodId);
+    } catch (error) {
+      if (!isResourceMissing(error)) throw error;
+    }
+  }
+}
+
+function isResourceMissing(error: unknown): boolean {
+  return error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing";
 }

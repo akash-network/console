@@ -219,6 +219,71 @@ describe(CustomerService.name, () => {
     });
   });
 
+  describe("detachPaymentMethods", () => {
+    it("detaches every payment method of the customer, page after page, and keeps the customer", async () => {
+      const { service, stripe } = setup();
+      const list = vi
+        .spyOn(stripe.paymentMethods, "list")
+        .mockResolvedValueOnce(paymentMethodPage(["pm_1", "pm_2"], { hasMore: true }))
+        .mockResolvedValueOnce(paymentMethodPage(["pm_3"], { hasMore: false }));
+      const detach = vi.spyOn(stripe.paymentMethods, "detach").mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>());
+      const del = vi.spyOn(stripe.customers, "del");
+
+      await service.detachPaymentMethods("cus_1");
+
+      expect(list).toHaveBeenCalledTimes(2);
+      expect(list).toHaveBeenCalledWith({ customer: "cus_1", limit: 100 });
+      expect(detach.mock.calls).toEqual([["pm_1"], ["pm_2"], ["pm_3"]]);
+      expect(del).not.toHaveBeenCalled();
+    });
+
+    it("treats a customer Stripe no longer has as having nothing to detach", async () => {
+      const { service, stripe } = setup();
+      vi.spyOn(stripe.paymentMethods, "list").mockRejectedValue(missingResourceError());
+      const detach = vi.spyOn(stripe.paymentMethods, "detach");
+
+      await expect(service.detachPaymentMethods("cus_1")).resolves.toBeUndefined();
+      expect(detach).not.toHaveBeenCalled();
+    });
+
+    it("goes on past a payment method that is already gone", async () => {
+      const { service, stripe } = setup();
+      vi.spyOn(stripe.paymentMethods, "list").mockResolvedValue(paymentMethodPage(["pm_1", "pm_2"], { hasMore: false }));
+      const detach = vi
+        .spyOn(stripe.paymentMethods, "detach")
+        .mockRejectedValueOnce(missingResourceError())
+        .mockResolvedValue(mock<Stripe.Response<Stripe.PaymentMethod>>());
+
+      await service.detachPaymentMethods("cus_1");
+
+      expect(detach.mock.calls).toEqual([["pm_1"], ["pm_2"]]);
+    });
+
+    it("rethrows any other failure to list or detach", async () => {
+      const { service, stripe } = setup();
+      const outage = new Stripe.errors.StripeAPIError({ type: "api_error", message: "Stripe is down" });
+      const listSpy = vi.spyOn(stripe.paymentMethods, "list").mockRejectedValueOnce(outage);
+
+      await expect(service.detachPaymentMethods("cus_1")).rejects.toBe(outage);
+
+      listSpy.mockResolvedValue(paymentMethodPage(["pm_1"], { hasMore: false }));
+      vi.spyOn(stripe.paymentMethods, "detach").mockRejectedValue(outage);
+
+      await expect(service.detachPaymentMethods("cus_1")).rejects.toBe(outage);
+    });
+
+    function paymentMethodPage(ids: string[], { hasMore }: { hasMore: boolean }) {
+      return mock<Stripe.Response<Stripe.ApiList<Stripe.PaymentMethod>>>({
+        data: ids.map(id => mock<Stripe.PaymentMethod>({ id })),
+        has_more: hasMore
+      });
+    }
+
+    function missingResourceError() {
+      return new Stripe.errors.StripeInvalidRequestError({ type: "invalid_request_error", code: "resource_missing", message: "No such resource" });
+    }
+  });
+
   function setup() {
     const userRepository = mock<UserRepository>();
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
