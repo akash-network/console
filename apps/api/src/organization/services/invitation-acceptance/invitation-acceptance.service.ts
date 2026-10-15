@@ -18,6 +18,7 @@ import { OrganizationMemberRepository } from "@src/organization/repositories/org
 import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { ProjectMemberRepository } from "@src/organization/repositories/project-member/project-member.repository";
 import type { CallerMembership } from "@src/organization/services/organization/organization.service";
+import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import { ALREADY_MEMBER_ERROR_CODE } from "@src/organization/services/organization-invitation/organization-invitation.service";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -49,7 +50,8 @@ export class InvitationAcceptanceService {
     private readonly userRepository: UserRepository,
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
-    private readonly txService: TxService
+    private readonly txService: TxService,
+    private readonly organizationActivityService: OrganizationActivityService
   ) {}
 
   async getPreview(token: string): Promise<InvitationPreview> {
@@ -106,6 +108,7 @@ export class InvitationAcceptanceService {
 
     if (membership) {
       await this.#grantProjects(invitation, invitee);
+      await this.organizationActivityService.recordJoined({ organizationId, type: "member_joined", actorUserId: invitee.id, payload: { role } });
     } else if (!isVerifiedInvitedAddress(invitation, invitee)) {
       throw createError(409, "Already a member of the organization", { errorCode: ALREADY_MEMBER_ERROR_CODE });
     }

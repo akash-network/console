@@ -15,6 +15,7 @@ import type { OrganizationConfig } from "@src/organization/providers/config.prov
 import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectRepository } from "@src/organization/repositories/project/project.repository";
+import type { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import {
   FALLBACK_ORGANIZATION_SLUG_PREFIX,
@@ -50,6 +51,20 @@ describe(TeamOrganizationService.name, () => {
       expect(walletInitializerService.ensureTeamWallet).toHaveBeenCalledWith(organization, user.id);
     });
 
+    it("records the creation in the new team's activity, by the caller and under the team's name", async () => {
+      const { service, user, organization, organizationActivityService } = setup();
+
+      await service.create("Acme Corp");
+
+      expect(organizationActivityService.recordTeamCreated).toHaveBeenCalledTimes(1);
+      expect(organizationActivityService.recordTeamCreated).toHaveBeenCalledWith({
+        organizationId: organization.id,
+        type: "organization_created",
+        actorUserId: user.id,
+        payload: { organizationName: organization.name }
+      });
+    });
+
     it("locks the caller, then checks the limit and the name before writing anything, all in one transaction", async () => {
       const { service, user, txService, organizationRepository, organizationMemberRepository, walletInitializerService, calls } = setup();
 
@@ -68,6 +83,7 @@ describe(TeamOrganizationService.name, () => {
         "createMembership",
         "createDefaultProject",
         "ensureTeamWallet",
+        "recordTeamCreated",
         "transaction:end"
       ]);
       expect(walletInitializerService.ensureTeamWallet).toHaveBeenCalledTimes(1);
@@ -88,7 +104,10 @@ describe(TeamOrganizationService.name, () => {
     });
 
     it("refuses a caller who reached the limit, with the limit, without writing anything", async () => {
-      const { service, user, organizationRepository, organizationMemberRepository, logger } = setup({ teamLimit: 3, createdTeamCount: 3 });
+      const { service, user, organizationRepository, organizationMemberRepository, organizationActivityService, logger } = setup({
+        teamLimit: 3,
+        createdTeamCount: 3
+      });
 
       await expect(service.create("Acme Corp")).rejects.toMatchObject({
         status: 403,
@@ -99,6 +118,7 @@ describe(TeamOrganizationService.name, () => {
       expect(logger.info).toHaveBeenCalledWith({ event: "ORGANIZATION_LIMIT_REACHED", userId: user.id, limit: 3 });
       expect(organizationMemberRepository.isMemberOfOrganizationNamed).not.toHaveBeenCalled();
       expect(organizationRepository.createTeamWithFirstFreeSlug).not.toHaveBeenCalled();
+      expect(organizationActivityService.recordTeamCreated).not.toHaveBeenCalled();
     });
 
     it("applies the configured limit", async () => {
@@ -110,7 +130,7 @@ describe(TeamOrganizationService.name, () => {
     });
 
     it("refuses a name the caller already uses for another organization, without writing anything", async () => {
-      const { service, organizationRepository, logger } = setup({ nameTaken: true });
+      const { service, organizationRepository, organizationActivityService, logger } = setup({ nameTaken: true });
 
       await expect(service.create("Acme Corp")).rejects.toMatchObject({
         status: 409,
@@ -118,6 +138,7 @@ describe(TeamOrganizationService.name, () => {
         message: "You already belong to an organization with this name"
       });
       expect(organizationRepository.createTeamWithFirstFreeSlug).not.toHaveBeenCalled();
+      expect(organizationActivityService.recordTeamCreated).not.toHaveBeenCalled();
       expect(logger.info).not.toHaveBeenCalled();
     });
 
@@ -181,10 +202,11 @@ describe(TeamOrganizationService.name, () => {
     });
 
     it("fails the whole creation when the wallet cannot be provisioned", async () => {
-      const { service, walletInitializerService, logger } = setup();
+      const { service, walletInitializerService, organizationActivityService, logger } = setup();
       walletInitializerService.ensureTeamWallet.mockRejectedValue(new Error("derivation failed"));
 
       await expect(service.create("Acme Corp")).rejects.toThrow("derivation failed");
+      expect(organizationActivityService.recordTeamCreated).not.toHaveBeenCalled();
       expect(logger.info).not.toHaveBeenCalled();
     });
   });
@@ -359,6 +381,10 @@ describe(TeamOrganizationService.name, () => {
       calls.push("ensureTeamWallet");
       return wallet;
     });
+    const organizationActivityService = mock<OrganizationActivityService>();
+    organizationActivityService.recordTeamCreated.mockImplementation(async () => {
+      calls.push("recordTeamCreated");
+    });
     const executionContextService = mock<ExecutionContextService>();
     executionContextService.get.calledWith("ORGANIZATION_CONTEXT").mockReturnValue(context);
     executionContextService.get.calledWith("CURRENT_API_KEY").mockReturnValue(input.apiKey);
@@ -379,6 +405,7 @@ describe(TeamOrganizationService.name, () => {
       organizationMemberRepository,
       projectRepository,
       walletInitializerService,
+      organizationActivityService,
       executionContextService,
       txService,
       config,
@@ -395,6 +422,7 @@ describe(TeamOrganizationService.name, () => {
       organizationMemberRepository,
       projectRepository,
       walletInitializerService,
+      organizationActivityService,
       executionContextService,
       txService,
       logger,

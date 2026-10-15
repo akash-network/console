@@ -19,6 +19,7 @@ import {
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { InvitationEmailLimiter } from "@src/organization/services/invitation-email-limiter/invitation-email-limiter.service";
+import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import { OrganizationInvitationEmailJob } from "@src/organization/services/organization-invitation-email/organization-invitation-email.handler";
 import { OWNER_ROLE_RESTRICTED_ERROR_CODE, PERSONAL_ORGANIZATION_ERROR_CODE } from "@src/organization/services/organization-member/organization-member.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
@@ -49,7 +50,8 @@ export class OrganizationInvitationService {
     private readonly jobQueueService: JobQueueService,
     private readonly deploymentConfig: DeploymentConfigService,
     private readonly emailLimiter: InvitationEmailLimiter,
-    private readonly organizationRepository: OrganizationRepository
+    private readonly organizationRepository: OrganizationRepository,
+    private readonly organizationActivityService: OrganizationActivityService
   ) {}
 
   async listInvitations(): Promise<OrganizationInvitationWithInviter[]> {
@@ -95,7 +97,9 @@ export class OrganizationInvitationService {
         renewed.push(await this.#renew(invitation.id));
       }
 
-      await this.#sendEmails([...created, ...renewed], senderId);
+      const invited = [...created, ...renewed];
+      await this.#sendEmails(invited, senderId);
+      await this.#recordInvited(invited, senderId);
     });
 
     const invitations = await this.#repositoryFor("read").findPendingWithInviters(organizationId, { emails });
@@ -164,6 +168,12 @@ export class OrganizationInvitationService {
 
     for (const { id, tokenHash } of invitations) {
       await this.jobQueueService.enqueue(new OrganizationInvitationEmailJob({ invitationId: id, tokenHash }));
+    }
+  }
+
+  async #recordInvited(invitations: OrganizationInvitationOutput[], senderId: string): Promise<void> {
+    for (const { organizationId, email, role } of invitations) {
+      await this.organizationActivityService.record({ organizationId, type: "member_invited", actorUserId: senderId, payload: { email, role } });
     }
   }
 

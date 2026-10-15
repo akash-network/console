@@ -13,6 +13,7 @@ import { TxService } from "@src/core/services/tx/tx.service";
 import { MAX_NUMBERED_SLUG_SUFFIX, toSlug } from "@src/organization/lib/slug/slug";
 import { ORGANIZATION_CONFIG } from "@src/organization/providers/config.provider";
 import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
 import { ORGANIZATION_LIMIT_REACHED_ERROR_CODE, ORGANIZATION_NAME_TAKEN_ERROR_CODE, TeamOrganizationService } from "./team-organization.service";
@@ -48,8 +49,44 @@ describe(TeamOrganizationService.name, () => {
       });
     });
 
+    it("records the creation in the new team's activity only, by the caller and under the team's name", async () => {
+      const { service, user, personal, runAs, activitiesOf } = await setup();
+      const name = uniqueName();
+
+      const { organization } = await runAs(user, () => service.create(name));
+
+      expect(await activitiesOf({ organizationId: organization.id })).toEqual([
+        expect.objectContaining({ type: "organization_created", actorUserId: user.id, projectId: null, payload: { organizationName: name } })
+      ]);
+      expect(await activitiesOf({ organizationId: personal.id })).toEqual([]);
+    });
+
+    it("records nothing for a creation refused once the caller reached the limit", async () => {
+      const { service, user, runAs, teamLimit, activitiesOf } = await setup();
+      await seedTeamsCreatedBy(user, teamLimit);
+
+      await expect(runAs(user, () => service.create(uniqueName()))).rejects.toMatchObject({ status: 403, errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE });
+
+      expect(await activitiesOf({ actorUserId: user.id })).toEqual([]);
+    });
+
+    it("leaves neither the team nor its activity behind when the creation fails after recording it", async () => {
+      const { service, user, runAs, activitiesOf, countTeamsCreatedBy } = await setup();
+      const organizationActivityService = container.resolve(OrganizationActivityService);
+      const recordTeamCreated = organizationActivityService.recordTeamCreated.bind(organizationActivityService);
+      vi.spyOn(organizationActivityService, "recordTeamCreated").mockImplementation(async activity => {
+        await recordTeamCreated(activity);
+        throw new Error("failed after recording");
+      });
+
+      await expect(runAs(user, () => service.create(uniqueName()))).rejects.toThrow("failed after recording");
+
+      expect(await countTeamsCreatedBy(user)).toBe(0);
+      expect(await activitiesOf({ actorUserId: user.id })).toEqual([]);
+    });
+
     it("leaves nothing behind when the wallet cannot be provisioned", async () => {
-      const { service, user, runAs, db } = await setup();
+      const { service, user, runAs, db, activitiesOf } = await setup();
       vi.spyOn(container.resolve(ManagedUserWalletService), "createWallet").mockRejectedValue(new Error("derivation failed"));
 
       await expect(runAs(user, () => service.create("Acme Corp"))).rejects.toThrow("derivation failed");
@@ -64,6 +101,7 @@ describe(TeamOrganizationService.name, () => {
         .where(eq(resolveTable("UserWallets").createdByUserId, user.id));
       expect(organizations.map(organization => organization.type)).toEqual(["personal"]);
       expect(wallets).toEqual([]);
+      expect(await activitiesOf({ actorUserId: user.id })).toEqual([]);
     });
 
     it("takes the next numbered slug when another organization holds the name's slug", async () => {
@@ -281,6 +319,13 @@ describe(TeamOrganizationService.name, () => {
       return { organization, members, projects, wallets };
     }
 
-    return { db, service, user, personal, teamLimit, runAs, slowDownWalletProvisioning, countTeamsCreatedBy, readTeam };
+    async function activitiesOf(filter: { organizationId: string } | { actorUserId: string }) {
+      const activities = resolveTable("OrganizationActivities");
+      const where = "organizationId" in filter ? eq(activities.organizationId, filter.organizationId) : eq(activities.actorUserId, filter.actorUserId);
+
+      return await db.select().from(activities).where(where);
+    }
+
+    return { db, service, user, personal, teamLimit, runAs, slowDownWalletProvisioning, countTeamsCreatedBy, readTeam, activitiesOf };
   }
 });

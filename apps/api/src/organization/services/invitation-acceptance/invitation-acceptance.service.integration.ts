@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { setTimeout as delay } from "node:timers/promises";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
@@ -61,7 +61,7 @@ describe(InvitationAcceptanceService.name, () => {
     });
 
     it("lets exactly one of several users racing the same link join", async () => {
-      const { service, organization, invite, seedInvitee, runAs } = await setup();
+      const { service, organization, invite, seedInvitee, runAs, joinsRecordedIn } = await setup();
       const invitees = await Promise.all(Array.from({ length: 4 }, () => seedInvitee()));
       const { token, invitation } = await invite({ email: "jane@example.com", role: "member" });
 
@@ -76,6 +76,7 @@ describe(InvitationAcceptanceService.name, () => {
       const members = await container.resolve(OrganizationMemberRepository).find({ organizationId: organization.id, role: "member" });
       expect(members).toHaveLength(1);
       expect(await container.resolve(OrganizationInvitationRepository).findById(invitation.id)).toMatchObject({ acceptedByUserId: members[0].userId });
+      expect(await joinsRecordedIn(organization.id)).toEqual([expect.objectContaining({ actorUserId: members[0].userId })]);
     });
 
     it("keeps one membership and one grant when the same user submits the acceptance several times at once", async () => {
@@ -170,7 +171,7 @@ describe(InvitationAcceptanceService.name, () => {
     });
 
     it("keeps the role of an invitee who already belongs to the organization", async () => {
-      const { service, organization, invite, seedInvitee, runAs } = await setup();
+      const { service, organization, invite, seedInvitee, runAs, joinsRecordedIn } = await setup();
       const invitee = await seedInvitee();
       await seedOrganizationMember({ organizationId: organization.id, userId: invitee.id, role: "viewer" });
       const { token } = await invite({ email: invitee.email!, role: "admin" });
@@ -179,6 +180,20 @@ describe(InvitationAcceptanceService.name, () => {
       expect(await container.resolve(OrganizationMemberRepository).find({ organizationId: organization.id, userId: invitee.id })).toEqual([
         expect.objectContaining({ role: "viewer" })
       ]);
+      expect(await joinsRecordedIn(organization.id)).toEqual([]);
+    });
+
+    it("records the join in the joined organization's activity, by the invitee and with the invited role", async () => {
+      const { service, organization, invite, seedInvitee, runAs, joinsRecordedIn, personalOrganizationIds } = await setup();
+      const invitee = await seedInvitee();
+      const { token } = await invite({ email: invitee.email!, role: "billing" });
+
+      await runAs(invitee, () => service.acceptInvitation({ token }));
+
+      expect(await joinsRecordedIn(organization.id)).toEqual([
+        expect.objectContaining({ actorUserId: invitee.id, projectId: null, payload: { role: "billing" } })
+      ]);
+      expect(await joinsRecordedIn(personalOrganizationIds.get(invitee.id)!)).toEqual([]);
     });
   });
 
@@ -189,6 +204,7 @@ describe(InvitationAcceptanceService.name, () => {
     const abilityService = container.resolve(AbilityService);
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const ProjectMembers = resolveTable("ProjectMembers");
+    const OrganizationActivities = resolveTable("OrganizationActivities");
     const { organization, project, user: owner } = await seedOrganizationWithOwner();
     const personalOrganizationIds = new Map<string, string>();
 
@@ -230,6 +246,13 @@ describe(InvitationAcceptanceService.name, () => {
       return await db.select().from(ProjectMembers).where(eq(ProjectMembers.userId, user.id));
     }
 
-    return { service, txService, organization, owner, project, invite, seedInvitee, runAs, grantsOf };
+    async function joinsRecordedIn(organizationId: string) {
+      return await db
+        .select()
+        .from(OrganizationActivities)
+        .where(and(eq(OrganizationActivities.organizationId, organizationId), eq(OrganizationActivities.type, "member_joined")));
+    }
+
+    return { service, txService, organization, owner, project, invite, seedInvitee, runAs, grantsOf, joinsRecordedIn, personalOrganizationIds };
   }
 });

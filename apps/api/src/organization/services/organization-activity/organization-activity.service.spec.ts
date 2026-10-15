@@ -1,3 +1,4 @@
+import { createMongoAbility, type MongoAbility, type RawRuleOf } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -49,6 +50,42 @@ describe(OrganizationActivityService.name, () => {
     });
   });
 
+  describe("recordTeamCreated", () => {
+    it("files the activity into the new team, outside the organization the request runs in", async () => {
+      const { service, organizationActivityRepository, unscopedRepository } = setup();
+      const activity = {
+        organizationId: faker.string.uuid(),
+        type: "organization_created" as const,
+        actorUserId: faker.string.uuid(),
+        payload: { organizationName: "Acme Corp" }
+      };
+
+      await service.recordTeamCreated(activity);
+
+      expect(organizationActivityRepository.unscoped).toHaveBeenCalledWith("organization-creation");
+      expect(unscopedRepository.create).toHaveBeenCalledWith(activity);
+      expect(organizationActivityRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("recordJoined", () => {
+    it("files the activity into the joined team, outside the organization the request runs in", async () => {
+      const { service, organizationActivityRepository, unscopedRepository } = setup();
+      const activity = {
+        organizationId: faker.string.uuid(),
+        type: "member_joined" as const,
+        actorUserId: faker.string.uuid(),
+        payload: { role: "member" as const }
+      };
+
+      await service.recordJoined(activity);
+
+      expect(organizationActivityRepository.unscoped).toHaveBeenCalledWith("invitation-by-token");
+      expect(unscopedRepository.create).toHaveBeenCalledWith(activity);
+      expect(organizationActivityRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe("list", () => {
     it("reads one activity past the page within the caller's rules and points the next page at the last one shown", async () => {
       const activities = [createOrganizationActivity(), createOrganizationActivity(), createOrganizationActivity()];
@@ -89,18 +126,76 @@ describe(OrganizationActivityService.name, () => {
       await expect(service.list({ limit: 20, cursor: "not-a-cursor" })).rejects.toMatchObject({ status: 400 });
       expect(organizationActivityRepository.findPage).not.toHaveBeenCalled();
     });
+
+    it("shows the invitee's email to a caller who may read the invitations of the activity's organization", async () => {
+      const invited = createInvitedActivity();
+      const { service } = setup({
+        activities: [invited],
+        rules: [{ action: "read", subject: "OrganizationInvitation", conditions: { organizationId: invited.organizationId } }]
+      });
+
+      const page = await service.list({ limit: 20 });
+
+      expect(page.activities).toEqual([invited]);
+    });
+
+    it("hides the invitee's email from a caller who may not read invitations, keeping the rest of the activity", async () => {
+      const invited = createInvitedActivity();
+      const { service } = setup({
+        activities: [invited],
+        rules: [{ action: "read", subject: ["OrganizationActivity", "OrganizationMember"], conditions: { organizationId: invited.organizationId } }]
+      });
+
+      const page = await service.list({ limit: 20 });
+
+      expect(page.activities).toEqual([{ ...invited, payload: { role: "admin" } }]);
+    });
+
+    it("hides the invitee's email from a caller who may read the invitations of another organization only", async () => {
+      const invited = createInvitedActivity();
+      const { service } = setup({
+        activities: [invited],
+        rules: [{ action: "read", subject: "OrganizationInvitation", conditions: { organizationId: faker.string.uuid() } }]
+      });
+
+      const page = await service.list({ limit: 20 });
+
+      expect(page.activities).toEqual([{ ...invited, payload: { role: "admin" } }]);
+    });
+
+    it("leaves the payload of every other type as stored for a caller who may not read invitations", async () => {
+      const joined = createOrganizationActivity({ type: "member_joined", projectId: null, payload: { role: "member", email: "lena@acme.com" } });
+      const { service } = setup({ activities: [joined], rules: [] });
+
+      const page = await service.list({ limit: 20 });
+
+      expect(page.activities).toEqual([joined]);
+    });
+
+    it("points the next page at the last activity shown when it hides an email", async () => {
+      const activities = [createInvitedActivity(), createInvitedActivity()];
+      const { service } = setup({ activities, rules: [] });
+
+      const page = await service.list({ limit: 1 });
+
+      expect(page.nextCursor).toBe(encodeActivityCursor({ createdAt: activities[0].createdAt.toISOString(), id: activities[0].id }));
+    });
   });
 
-  function setup(input: { activities?: OrganizationActivityWithActor[] } = {}) {
-    const ability = mock<AuthService["ability"]>();
+  function createInvitedActivity() {
+    return createOrganizationActivity({ type: "member_invited", projectId: null, payload: { email: "lena@acme.com", role: "admin" } });
+  }
+
+  function setup(input: { activities?: OrganizationActivityWithActor[]; rules?: RawRuleOf<MongoAbility>[] } = {}) {
     const organizationActivityRepository = mock<OrganizationActivityRepository>({ findPage: vi.fn().mockResolvedValue(input.activities ?? []) });
     const unscopedRepository = mock<OrganizationActivityRepository>();
     organizationActivityRepository.accessibleBy.mockReturnValue(organizationActivityRepository);
     organizationActivityRepository.unscoped.mockReturnValue(unscopedRepository);
-    const authService = mock<AuthService>({ ability });
+    const authService = mock<AuthService>();
+    authService.ability = input.rules ? createMongoAbility(input.rules) : mock<AuthService["ability"]>();
 
     const service = new OrganizationActivityService(organizationActivityRepository, authService);
 
-    return { service, organizationActivityRepository, unscopedRepository, ability };
+    return { service, organizationActivityRepository, unscopedRepository, ability: authService.ability };
   }
 });
