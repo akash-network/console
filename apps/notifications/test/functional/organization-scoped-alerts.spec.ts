@@ -22,6 +22,13 @@ import { mockAkashAddress } from "@test/seeders/akash-address.seeder";
 import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
 import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
 
+type Server = Parameters<typeof request>[0];
+
+interface ForeignIds {
+  alertId: string;
+  channelId: string;
+}
+
 describe("Organization-scoped alerts and notification channels", () => {
   it("shares a deployment alert with the members who reach its project", async () => {
     const { app, db, organizationId, projectId, channelId, chainApi } = await setup();
@@ -75,6 +82,67 @@ describe("Organization-scoped alerts and notification channels", () => {
     expect([readRes.status, updateRes.status, deleteRes.status]).toEqual([404, 404, 404]);
     expect(stillEnabled.enabled).toBe(true);
     expect(ownerListRes.body.data.map((alert: { id: string }) => alert.id).sort()).toEqual([hidden.id, visible.id].sort());
+  });
+
+  it.each([
+    { route: "GET /v1/alerts/{id}", send: (server: Server, ids: ForeignIds) => request(server).get(`/v1/alerts/${ids.alertId}`) },
+    {
+      route: "PATCH /v1/alerts/{id}",
+      send: (server: Server, ids: ForeignIds) =>
+        request(server)
+          .patch(`/v1/alerts/${ids.alertId}`)
+          .send({ data: { enabled: false } })
+    },
+    { route: "DELETE /v1/alerts/{id}", send: (server: Server, ids: ForeignIds) => request(server).delete(`/v1/alerts/${ids.alertId}`) },
+    {
+      route: "GET /v1/notification-channels/{id}",
+      send: (server: Server, ids: ForeignIds) => request(server).get(`/v1/notification-channels/${ids.channelId}`)
+    },
+    {
+      route: "PATCH /v1/notification-channels/{id}",
+      send: (server: Server, ids: ForeignIds) =>
+        request(server)
+          .patch(`/v1/notification-channels/${ids.channelId}`)
+          .send({ data: { name: "Taken over" } })
+    },
+    {
+      route: "DELETE /v1/notification-channels/{id}",
+      send: (server: Server, ids: ForeignIds) => request(server).delete(`/v1/notification-channels/${ids.channelId}`)
+    }
+  ])("answers 404 to $route naming an alert or channel of another organization, changing nothing", async ({ send }) => {
+    const { app, db, organizationId, projectId, channelId } = await setup();
+    const [alert] = await db
+      .insert(Alert)
+      .values(generateGeneralAlert({ notificationChannelId: channelId, organizationId, projectId, params: deploymentParams() }))
+      .returning();
+    const [channel] = await db.select().from(NotificationChannel).where(eq(NotificationChannel.id, channelId));
+    const ownerOfAnotherOrganization = memberHeaders({ organizationId: faker.string.uuid(), role: "owner" });
+
+    const res = await send(app.getHttpServer(), { alertId: alert.id, channelId }).set(ownerOfAnotherOrganization);
+    const [storedAlert] = await db.select().from(Alert).where(eq(Alert.id, alert.id));
+    const [storedChannel] = await db.select().from(NotificationChannel).where(eq(NotificationChannel.id, channelId));
+    await app.close();
+
+    expect(res.status).toBe(404);
+    expect(storedAlert).toEqual(alert);
+    expect(storedChannel).toEqual(channel);
+  });
+
+  it("lists no alert or channel of another organization to its owner", async () => {
+    const { app, db, organizationId, projectId, channelId } = await setup();
+    const params = deploymentParams();
+    await db.insert(Alert).values(generateGeneralAlert({ notificationChannelId: channelId, organizationId, projectId, params }));
+    const ownerOfAnotherOrganization = memberHeaders({ organizationId: faker.string.uuid(), role: "owner" });
+    const server = app.getHttpServer();
+
+    const alertsRes = await request(server).get("/v1/alerts").set(ownerOfAnotherOrganization);
+    const channelsRes = await request(server).get("/v1/notification-channels").set(ownerOfAnotherOrganization);
+    const deploymentAlertsRes = await request(server).get(`/v1/deployment-alerts/${params.dseq}`).set(ownerOfAnotherOrganization);
+    await app.close();
+
+    expect(alertsRes.body.data).toEqual([]);
+    expect(channelsRes.body.data).toEqual([]);
+    expect(deploymentAlertsRes.body.data.alerts).toEqual({});
   });
 
   it("lets a viewer read alerts in reach without changing them", async () => {

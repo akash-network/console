@@ -174,19 +174,41 @@ describe(NotificationChannelController.name, () => {
       const id = faker.string.uuid();
       const output = { ...generateMock(notificationChannelOutputSchema), organizationId: null };
 
+      notificationChannelRepository.findById.mockResolvedValue(output);
       alertRepository.countActiveByNotificationChannelId.mockResolvedValue(0);
       notificationChannelRepository.deleteSafelyById.mockResolvedValue(output);
 
       const result = await controller.deleteNotificationChannel(id);
 
+      expect(notificationChannelRepository.accessibleBy).toHaveBeenCalledWith(undefined, "delete");
       expect(notificationChannelRepository.deleteSafelyById).toHaveBeenCalledWith(id);
       expect(result).toEqual(Ok({ data: output }));
     });
 
-    it("should return an error if notification channel is not found", async () => {
-      const { controller, notificationChannelRepository } = await setup();
+    it("answers not found without counting its alerts or deleting it when the caller cannot delete the notification channel", async () => {
+      const { controller, notificationChannelRepository, alertRepository } = await setup();
       const id = faker.string.uuid();
 
+      notificationChannelRepository.findById.mockResolvedValue(undefined);
+      alertRepository.countActiveByNotificationChannelId.mockResolvedValue(1);
+
+      await expect(controller.deleteNotificationChannel(id)).resolves.toMatchObject({
+        err: true,
+        val: expect.objectContaining({
+          message: "Notification channel not found"
+        })
+      });
+      expect(notificationChannelRepository.findById).toHaveBeenCalledWith(id);
+      expect(alertRepository.countActiveByNotificationChannelId).not.toHaveBeenCalled();
+      expect(notificationChannelRepository.deleteSafelyById).not.toHaveBeenCalled();
+    });
+
+    it("should return an error if notification channel is not found", async () => {
+      const { controller, notificationChannelRepository, alertRepository } = await setup();
+      const id = faker.string.uuid();
+
+      notificationChannelRepository.findById.mockResolvedValue({ ...generateMock(notificationChannelOutputSchema), organizationId: null });
+      alertRepository.countActiveByNotificationChannelId.mockResolvedValue(0);
       notificationChannelRepository.deleteSafelyById.mockResolvedValue(undefined);
 
       await expect(controller.deleteNotificationChannel(id)).resolves.toMatchObject({
@@ -202,6 +224,7 @@ describe(NotificationChannelController.name, () => {
       const { controller, notificationChannelRepository, alertRepository } = await setup();
       const id = faker.string.uuid();
 
+      notificationChannelRepository.findById.mockResolvedValue({ ...generateMock(notificationChannelOutputSchema), organizationId: null });
       alertRepository.countActiveByNotificationChannelId.mockResolvedValue(1);
 
       await expect(controller.deleteNotificationChannel(id)).resolves.toMatchObject({
@@ -224,16 +247,16 @@ describe(NotificationChannelController.name, () => {
       expect(notificationChannelRepository.deleteSafelyById).not.toHaveBeenCalled();
     });
 
-    it("deletes the notification channel by a uuid id and answers 404 when none matches", async () => {
+    it("looks the notification channel up by a uuid id and answers 404 when none matches", async () => {
       const { app, notificationChannelRepository, alertRepository } = await setup();
       const id = faker.string.uuid();
-      alertRepository.countActiveByNotificationChannelId.mockResolvedValue(0);
+      notificationChannelRepository.findById.mockResolvedValue(undefined);
 
       const res = await request(app.getHttpServer()).delete(`/v1/notification-channels/${id}`);
 
       expect(res.status).toBe(404);
-      expect(alertRepository.countActiveByNotificationChannelId).toHaveBeenCalledWith(id);
-      expect(notificationChannelRepository.deleteSafelyById).toHaveBeenCalledWith(id);
+      expect(notificationChannelRepository.findById).toHaveBeenCalledWith(id);
+      expect(alertRepository.countActiveByNotificationChannelId).not.toHaveBeenCalled();
     });
   });
 

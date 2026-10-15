@@ -157,12 +157,18 @@ export class NotificationChannelController {
   async deleteNotificationChannel(
     @Param("id", new ParseUUIDPipe()) id: string
   ): Promise<Result<NotificationChannelOutputResponse, NotFoundException | BadRequestException>> {
+    const deletableRepository = this.notificationChannelRepository.accessibleBy(this.authService.ability, "delete");
+
+    if (!(await deletableRepository.findById(id))) {
+      return this.toResponse(undefined);
+    }
+
     const count = await this.alertRepository.countActiveByNotificationChannelId(id);
     if (count > 0) {
       return Err(new BadRequestException("Cannot delete notification channel with alerts"));
     }
 
-    const notificationChannel = await this.notificationChannelRepository.accessibleBy(this.authService.ability, "delete").deleteSafelyById(id);
+    const notificationChannel = await deletableRepository.deleteSafelyById(id);
     return this.toResponse(notificationChannel);
   }
 
