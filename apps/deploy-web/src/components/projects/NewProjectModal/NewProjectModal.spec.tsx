@@ -104,6 +104,24 @@ describe(NewProjectModal.name, () => {
     expect(onCreated).not.toHaveBeenCalled();
   });
 
+  it("tells the organization's project limit when it is reached", async () => {
+    const { user, enqueueSnackbar, onCreated } = setup({
+      createError: new ApiError(403, { code: "project_limit_reached", data: { limit: 10 } }, "POST /v1/projects -> 403")
+    });
+
+    await user.type(screen.getByLabelText("Project name"), "storefront{Enter}");
+
+    await vi.waitFor(() =>
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          props: expect.objectContaining({ title: "Couldn't create the project", subTitle: expect.stringContaining("its limit of 10 projects") })
+        }),
+        { variant: "error" }
+      )
+    );
+    expect(onCreated).not.toHaveBeenCalled();
+  });
+
   it("closes on cancel", async () => {
     const { user, onClose } = setup({});
 

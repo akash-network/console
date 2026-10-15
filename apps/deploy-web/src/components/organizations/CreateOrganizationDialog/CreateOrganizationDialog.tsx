@@ -20,10 +20,12 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Info } from "lucide-react";
 import { useSnackbar } from "notistack";
 
+import { SUPPORT_EMAIL } from "@src/config/ui.config";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useUser } from "@src/hooks/useUser";
 import { useCreateOrganizationInvitationsMutation, useCreateOrganizationMutation } from "@src/queries/useOrganizationQueries";
 import { ORGANIZATION_LIMIT_REACHED_ERROR_CODE, ORGANIZATION_NAME_TAKEN_ERROR_CODE } from "@src/types/organization";
+import { readRefusedLimit } from "@src/utils/refusedLimit";
 import { UrlService } from "@src/utils/urlUtils";
 import { INVALID_EMAIL_MESSAGE, isEmailAddress } from "../emailAddress";
 import { EmailChipsInput } from "../EmailChipsInput/EmailChipsInput";
@@ -31,8 +33,6 @@ import { EmailChipsInput } from "../EmailChipsInput/EmailChipsInput";
 export const DEPENDENCIES = { useActiveOrganization, useUser, useCreateOrganizationMutation, useCreateOrganizationInvitationsMutation, useSnackbar };
 
 export const ORGANIZATION_NAME_TAKEN_MESSAGE = "You already belong to an organization with this name.";
-
-export const ORGANIZATION_LIMIT_REACHED_MESSAGE = "You can't create more organizations right now.";
 
 export const INVALID_ORGANIZATION_NAME_MESSAGE = "This name can't be used. Try another one.";
 
@@ -86,7 +86,7 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
     if (code === ORGANIZATION_NAME_TAKEN_ERROR_CODE) {
       setRefusal({ name: ORGANIZATION_NAME_TAKEN_MESSAGE });
     } else if (code === ORGANIZATION_LIMIT_REACHED_ERROR_CODE) {
-      setRefusal({ form: ORGANIZATION_LIMIT_REACHED_MESSAGE });
+      setRefusal({ form: describeOrganizationLimit(readRefusedLimit(error)) });
     } else if (isApiError(error) && error.status === BAD_REQUEST_STATUS) {
       setRefusal({ name: INVALID_ORGANIZATION_NAME_MESSAGE });
     } else {
@@ -199,3 +199,9 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
     </DialogV2>
   );
 };
+
+function describeOrganizationLimit(limit: number | undefined) {
+  const reached = limit ? `You've reached your limit of ${limit} organizations.` : "You've reached the number of organizations you can create.";
+
+  return `${reached} Contact ${SUPPORT_EMAIL} if you need more.`;
+}

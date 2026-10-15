@@ -5,13 +5,7 @@ import { mock } from "vitest-mock-extended";
 import { INVALID_EMAIL_MESSAGE } from "@src/components/organizations/emailAddress";
 import type { OrganizationOutput } from "@src/types/organization";
 import type { DEPENDENCIES } from "./CreateOrganizationDialog";
-import {
-  CreateOrganizationDialog,
-  INVALID_ORGANIZATION_NAME_MESSAGE,
-  ORGANIZATION_LIMIT_REACHED_MESSAGE,
-  ORGANIZATION_NAME_TAKEN_MESSAGE,
-  OWN_EMAIL_MESSAGE
-} from "./CreateOrganizationDialog";
+import { CreateOrganizationDialog, INVALID_ORGANIZATION_NAME_MESSAGE, ORGANIZATION_NAME_TAKEN_MESSAGE, OWN_EMAIL_MESSAGE } from "./CreateOrganizationDialog";
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -168,14 +162,26 @@ describe("CreateOrganizationDialog", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("tells the user when no more organizations can be created", async () => {
+  it("tells the user their organization limit and where to ask for more once they reach it", async () => {
+    const { user, createOrganization } = setup({});
+    createOrganization.mockRejectedValue(new ApiError(403, { code: "organization_limit_reached", data: { limit: 3 } }, "POST → 403"));
+
+    await user.type(screen.getByLabelText("Organization name"), "Harborline");
+    await user.click(screen.getByRole("button", { name: "Create organization" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("You've reached your limit of 3 organizations. Contact support@akash.network if you need more.");
+  });
+
+  it("tells the user they reached their organization limit when the API does not say what it is", async () => {
     const { user, createOrganization } = setup({});
     createOrganization.mockRejectedValue(new ApiError(403, { code: "organization_limit_reached" }, "POST → 403"));
 
     await user.type(screen.getByLabelText("Organization name"), "Harborline");
     await user.click(screen.getByRole("button", { name: "Create organization" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(ORGANIZATION_LIMIT_REACHED_MESSAGE);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You've reached the number of organizations you can create. Contact support@akash.network if you need more."
+    );
   });
 
   it("points out a name the API cannot accept on the name field", async () => {
