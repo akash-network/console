@@ -17,9 +17,14 @@ export const organizationInvitationsRouter = new OpenApiHonoHandler();
 
 const invitationWriteErrorResponses = {
   401: { description: "Unauthorized" },
-  403: { description: "The caller cannot manage this invitation, or the active organization is a personal one" },
+  403: {
+    description:
+      "The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
+  },
   404: { description: "No such pending invitation in the active organization" }
 };
+
+const INVITATION_EMAIL_LIMIT_REACHED = { description: "Too many invitation emails were sent recently (`invitation_email_limit_reached`)" };
 
 const listOrganizationInvitationsRoute = createRoute({
   method: "get",
@@ -58,9 +63,12 @@ const createOrganizationInvitationsRoute = createRoute({
     },
     400: { description: "A project grant names a project outside the active organization" },
     401: { description: "Unauthorized" },
-    403: { description: "The caller cannot invite with this role, the active organization is a personal one, or it has too many pending invitations" },
-    409: { description: "An address belongs to a member of the organization" },
-    429: { description: "Too many invitation emails were sent recently" }
+    403: {
+      description:
+        "The caller cannot invite with this role (`owner_role_restricted`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`)"
+    },
+    409: { description: "An address belongs to a member of the organization (`already_member`)" },
+    429: INVITATION_EMAIL_LIMIT_REACHED
   }
 });
 
@@ -84,7 +92,7 @@ const resendOrganizationInvitationRoute = createRoute({
   responses: {
     200: { description: "The renewed invitation", content: { "application/json": { schema: OrganizationInvitationResponseSchema } } },
     ...invitationWriteErrorResponses,
-    429: { description: "Too many invitation emails were sent recently" }
+    429: INVITATION_EMAIL_LIMIT_REACHED
   }
 });
 

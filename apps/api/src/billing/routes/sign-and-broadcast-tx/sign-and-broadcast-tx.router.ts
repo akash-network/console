@@ -31,7 +31,16 @@ const route = createRoute({
           schema: SignTxResponseOutputSchema
         }
       }
-    }
+    },
+    400: {
+      description:
+        "A new deployment needs a project (`project_required`), a message type cannot be signed in an organization (`unsupported_message`), a deposit names no deployment or a fractional amount (`invalid_deposit`), or a deposit's denomination cannot be counted against a project budget (`unsupported_deposit_denom`)"
+    },
+    403: {
+      description:
+        "A deployment is filed in a project the caller cannot change, or a caller limited to some projects creates a certificate (`project_forbidden`), a deposit would take its project past its monthly budget (`project_budget_exceeded`), or a message acts for another account than the organization's wallet (`message_signer_mismatch`)"
+    },
+    503: { description: "A deposit could not be priced against its project's budget (`deposit_price_unavailable`). Transient and worth retrying" }
   }
 });
 signAndBroadcastTxRouter.openapi(route, async function routeSignTx(c) {

@@ -35,6 +35,12 @@
             "description": "The ID of the user to get the wallets for",
             "name": "userId",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -182,7 +188,15 @@
           "404": {
             "description": "UserWallet Not Found"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "post": {
         "summary": "Create wallet settings",
@@ -299,7 +313,15 @@
           "404": {
             "description": "UserWallet Not Found"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "put": {
         "summary": "Update wallet settings",
@@ -416,7 +438,15 @@
           "404": {
             "description": "UserWallet Not Found"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "delete": {
         "summary": "Delete wallet settings",
@@ -440,7 +470,15 @@
           "404": {
             "description": "UserWallet Not Found"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/tx": {
@@ -545,8 +583,25 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "A new deployment needs a project (`project_required`), a message type cannot be signed in an organization (`unsupported_message`), a deposit names no deployment or a fractional amount (`invalid_deposit`), or a deposit's denomination cannot be counted against a project budget (`unsupported_deposit_denom`)"
+          },
+          "403": {
+            "description": "A deployment is filed in a project the caller cannot change, or a caller limited to some projects creates a certificate (`project_forbidden`), a deposit would take its project past its monthly budget (`project_budget_exceeded`), or a message acts for another account than the organization's wallet (`message_signer_mismatch`)"
+          },
+          "503": {
+            "description": "A deposit could not be priced against its project's budget (`deposit_price_unavailable`). Transient and worth retrying"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe-webhook": {
@@ -645,7 +700,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/coupons/apply": {
@@ -782,8 +845,19 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Another request is still setting up the team's payments (`organization_payments_setup_in_progress`). Worth retrying"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/payment-methods/setup": {
@@ -829,8 +903,19 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Another request is still setting up the team's payments (`organization_payments_setup_in_progress`). Worth retrying"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/payment-methods/default": {
@@ -877,7 +962,15 @@
           "200": {
             "description": "Payment method is marked as the default successfully."
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "get": {
         "operationId": "getDefaultPaymentMethod",
@@ -1047,7 +1140,15 @@
           "404": {
             "description": "Default payment method not found"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/payment-methods": {
@@ -1219,7 +1320,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/payment-methods/{paymentMethodId}": {
@@ -1248,6 +1357,12 @@
             "required": true,
             "name": "paymentMethodId",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -1321,7 +1436,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/transactions/confirm": {
@@ -1484,7 +1607,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/stripe/transactions": {
@@ -1549,6 +1680,12 @@
             "required": false,
             "name": "endDate",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -1615,6 +1752,28 @@
                               "description": {
                                 "type": "string",
                                 "nullable": true
+                              },
+                              "initiatedBy": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "username": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "email": {
+                                    "type": "string",
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "username",
+                                  "email"
+                                ]
                               }
                             },
                             "required": [
@@ -1699,6 +1858,12 @@
             "required": true,
             "name": "endDate",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -1741,6 +1906,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -1909,7 +2080,15 @@
           "404": {
             "description": "Invoices are not enabled for the caller"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "put": {
         "operationId": "updateBillingDetails",
@@ -2144,8 +2323,72 @@
           },
           "404": {
             "description": "Invoices are not enabled for the caller"
+          },
+          "409": {
+            "description": "Another request is still setting up the team's payments (`organization_payments_setup_in_progress`). Worth retrying"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/stripe/first-purchase-bonus": {
+      "get": {
+        "operationId": "getFirstPurchaseBonus",
+        "summary": "Whether the caller's next qualifying purchase for the active organization earns the first-purchase bonus",
+        "tags": [
+          "Payment"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "First-purchase bonus eligibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "eligible": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "eligible"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/usage/history": {
@@ -2579,7 +2822,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/byUsername/{username}": {
@@ -2697,7 +2948,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/checkUsernameAvailability/{username}": {
@@ -2760,7 +3019,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/skipOnboarding": {
@@ -2784,7 +3051,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/acceptFairUsePolicy": {
@@ -2809,7 +3084,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/template/{id}": {
@@ -2930,7 +3213,15 @@
           "404": {
             "description": "Project not found"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/saveTemplateDesc": {
@@ -2979,7 +3270,15 @@
           "403": {
             "description": "Not allowed to change templates in this project"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/templates/{username}": {
@@ -3032,6 +3331,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -3071,7 +3376,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/addFavoriteTemplate/{templateId}": {
@@ -3097,6 +3410,12 @@
             "required": true,
             "name": "templateId",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -3135,6 +3454,12 @@
             "required": true,
             "name": "templateId",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -3199,18 +3524,26 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "Requested with an API key instead of a signed-in session"
+            "description": "Requested with an API key instead of a signed-in session (`session_required`)"
           },
           "404": {
             "description": "Account deletion is not available"
           },
           "409": {
-            "description": "The account has active deployments"
+            "description": "The account has active deployments, or is the last owner of a team (`last_owner`)"
           },
           "429": {
             "description": "A link was sent less than a minute ago"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/user/me/confirm-deletion": {
@@ -3260,7 +3593,7 @@
             "description": "Account deletion is not available"
           },
           "409": {
-            "description": "The account has active deployments or credits nobody agreed to forfeit"
+            "description": "The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team (`last_owner`)"
           }
         }
       }
@@ -3381,7 +3714,15 @@
           "429": {
             "description": "Too many requests"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/auth/signup": {
@@ -3482,7 +3823,15 @@
           "429": {
             "description": "Too many attempts"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/verify-email": {
@@ -3638,6 +3987,12 @@
             "required": true,
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -3656,7 +4011,9 @@
                           "format": "uuid"
                         },
                         "userId": {
-                          "type": "string"
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The member who filed the deployment, or null once a team organization's member who filed it has deleted their account"
                         },
                         "dseq": {
                           "type": "string",
@@ -3770,6 +4127,12 @@
             "required": true,
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -3831,7 +4194,9 @@
                           "format": "uuid"
                         },
                         "userId": {
-                          "type": "string"
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The member who filed the deployment, or null once a team organization's member who filed it has deleted their account"
                         },
                         "dseq": {
                           "type": "string",
@@ -3929,7 +4294,7 @@
             }
           },
           "409": {
-            "description": "Runtime limit changed concurrently",
+            "description": "Runtime limit changed concurrently. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
             "content": {
               "application/json": {
                 "schema": {
@@ -4012,7 +4377,9 @@
                           "format": "uuid"
                         },
                         "userId": {
-                          "type": "string"
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The member who filed the deployment, or null once a team organization's member who filed it has deleted their account"
                         },
                         "dseq": {
                           "type": "string",
@@ -4072,8 +4439,34 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v2/deployment-settings/{dseq}": {
@@ -4111,6 +4504,12 @@
             "required": false,
             "name": "userId",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -4129,7 +4528,9 @@
                           "format": "uuid"
                         },
                         "userId": {
-                          "type": "string"
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The member who filed the deployment, or null once a team organization's member who filed it has deleted their account"
                         },
                         "dseq": {
                           "type": "string",
@@ -4244,6 +4645,12 @@
             "required": false,
             "name": "userId",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -4305,7 +4712,9 @@
                           "format": "uuid"
                         },
                         "userId": {
-                          "type": "string"
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The member who filed the deployment, or null once a team organization's member who filed it has deleted their account"
                         },
                         "dseq": {
                           "type": "string",
@@ -4403,7 +4812,7 @@
             }
           },
           "409": {
-            "description": "Runtime limit changed concurrently",
+            "description": "Runtime limit changed concurrently. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
             "content": {
               "application/json": {
                 "schema": {
@@ -4485,7 +4894,9 @@
                           "format": "uuid"
                         },
                         "userId": {
-                          "type": "string"
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The member who filed the deployment, or null once a team organization's member who filed it has deleted their account"
                         },
                         "dseq": {
                           "type": "string",
@@ -4545,8 +4956,34 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/deployments/{dseq}": {
@@ -4575,6 +5012,12 @@
             "description": "Deployment sequence number",
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -5181,6 +5624,12 @@
             "required": false,
             "name": "batchId",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -5237,6 +5686,36 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
           }
         }
       },
@@ -5267,6 +5746,12 @@
             "description": "Deployment sequence number",
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -5864,7 +6349,7 @@
             }
           },
           "403": {
-            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
+            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted. With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change",
             "content": {
               "application/json": {
                 "schema": {
@@ -5894,7 +6379,7 @@
             }
           },
           "409": {
-            "description": "The `sealedSecrets` value was sealed to a key the console no longer holds. Refetch `GET /v1/sdl-secrets-context` and seal again",
+            "description": "The `sealedSecrets` value was sealed to a key the console no longer holds. Refetch `GET /v1/sdl-secrets-context` and seal again. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
             "content": {
               "application/json": {
                 "schema": {
@@ -6011,6 +6496,12 @@
             "description": "Deployment sequence number",
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -6766,7 +7257,7 @@
             }
           },
           "403": {
-            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one the console stores for this deployment, as a seal made before an earlier patch of it was recorded is",
+            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one the console stores for this deployment, as a seal made before an earlier patch of it was recorded is. With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change",
             "content": {
               "application/json": {
                 "schema": {
@@ -6826,7 +7317,7 @@
             }
           },
           "409": {
-            "description": "The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. `code` is `deployment_definition_changed` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures",
+            "description": "The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. `code` is `deployment_definition_changed` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values",
             "content": {
               "application/json": {
                 "schema": {
@@ -6978,6 +7469,12 @@
             "required": true,
             "name": "dseq",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -7080,7 +7577,7 @@
                       "inheritSecretsFrom": {
                         "type": "string",
                         "pattern": "^0*[1-9]\\d*$",
-                        "description": "Dseq of one of your own deployments whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in `sealedSecrets` takes precedence over the inherited one."
+                        "description": "Dseq of a deployment you can change, under the same owner as this one, whose stored secrets this deployment starts from, for redeploying an SDL without re-entering its values. The source may be closed. A name also present in `sealedSecrets` takes precedence over the inherited one."
                       },
                       "deposit": {
                         "type": "number",
@@ -7092,6 +7589,11 @@
                         "minimum": 1,
                         "maximum": 48,
                         "description": "Optional runtime limit in hours (1 to 48), counted from lease start. Automatic funding keeps the deployment running until the limit, then the deployment is closed automatically and unused funds are returned. Extend a limit with PATCH /v2/deployment-settings/{dseq}. Omit for always-on funding."
+                      },
+                      "projectId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Project to file the deployment in."
                       }
                     },
                     "required": [
@@ -7159,7 +7661,7 @@
             }
           },
           "400": {
-            "description": "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values",
+            "description": "The SDL leaves a secret reference with no value from either `sealedSecrets` or the deployment named by `inheritSecretsFrom`, supplies a name no service references, would carry more secrets than one deployment may hold, or carries a `sealedSecrets` value that is malformed, tampered with, expired or not a flat object of string values. With `code` `project_required`, a project is needed",
             "content": {
               "application/json": {
                 "schema": {
@@ -7189,7 +7691,7 @@
             }
           },
           "403": {
-            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
+            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted. With `code` `project_budget_exceeded`, the deposit would take the project past its monthly budget",
             "content": {
               "application/json": {
                 "schema": {
@@ -7219,7 +7721,7 @@
             }
           },
           "404": {
-            "description": "No deployment of yours matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists",
+            "description": "No deployment you can change matches `inheritSecretsFrom`. Deliberately says nothing about whether that deployment exists. Also returned for an unknown `projectId`",
             "content": {
               "application/json": {
                 "schema": {
@@ -7308,7 +7810,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "get": {
         "summary": "List deployments with pagination and filtering",
@@ -7386,6 +7896,22 @@
             "required": false,
             "name": "limit",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Lists only the deployments filed in this project. A project the caller cannot reach lists nothing, like one that does not exist. Ignored outside organization mode."
+            },
+            "required": false,
+            "name": "projectId",
+            "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -8151,6 +8677,12 @@
                                   "closed"
                                 ],
                                 "description": "What the console holds about this deployment, or null when it holds nothing."
+                              },
+                              "projectId": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "uuid",
+                                "description": "Project the deployment is filed in, or null for one the console has not filed. Present only for requests in organization mode."
                               }
                             },
                             "required": [
@@ -8234,7 +8766,7 @@
             }
           },
           "422": {
-            "description": "The owner holds more `active` deployments than a search spans. Page through them without a `search` instead. A search of the archive (`state=closed`) is refused this way only while the console's index is unreachable",
+            "description": "The owner holds more `active` deployments than a search spans. Page through them without a `search` instead. A search of the archive (`state=closed`) is refused this way only while the console's index is unreachable. In organization mode, a list that would have to check more open deployments than that cap is refused the same way; narrow it with `projectId`",
             "content": {
               "application/json": {
                 "schema": {
@@ -8843,8 +9375,106 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "With `code` `unsupported_deposit_denom`, the deposit is in a denomination a project budget cannot count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change. With `code` `project_budget_exceeded`, the deposit would take a project that stops top-ups past its monthly budget",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "With `code` `deposit_price_unavailable`, the deposit could not be priced against its project's budget. Transient and worth retrying",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/deployments/{dseq}/definition": {
@@ -8874,6 +9504,12 @@
             "description": "Deployment sequence number",
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -8971,7 +9607,7 @@
             }
           },
           "403": {
-            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
+            "description": "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted. With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change",
             "content": {
               "application/json": {
                 "schema": {
@@ -9031,7 +9667,7 @@
             }
           },
           "409": {
-            "description": "With `code` `deployment_definition_exists`, the console already holds a definition for this deployment, which this route never replaces: patch it instead. Without a code, the `sealedSecrets` value was sealed to a key the console no longer holds, so refetch `GET /v1/sdl-secrets-context` and seal again",
+            "description": "With `code` `deployment_definition_exists`, the console already holds a definition for this deployment, which this route never replaces: patch it instead. With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. Without a code, the `sealedSecrets` value was sealed to a key the console no longer holds, so refetch `GET /v1/sdl-secrets-context` and seal again",
             "content": {
               "application/json": {
                 "schema": {
@@ -11177,7 +11813,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Returns weekly cost for all deployments with auto top-up enabled",
+            "description": "Returns the weekly cost of the deployments with auto top-up enabled, limited to the caller's projects unless the caller may read the organization's whole spend",
             "content": {
               "application/json": {
                 "schema": {
@@ -11188,7 +11824,7 @@
                       "properties": {
                         "weeklyCost": {
                           "type": "number",
-                          "description": "Total weekly cost in USD for all deployments with auto top-up enabled"
+                          "description": "Total weekly cost in USD of the deployments with auto top-up enabled whose spend the caller may read"
                         }
                       },
                       "required": [
@@ -11203,7 +11839,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/spend-rate": {
@@ -11223,7 +11867,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Returns the summed price per block of the live leases of each of the user's deployments",
+            "description": "Returns the summed price per block of the live leases of each deployment of the wallet the request acts through, limited to the caller's projects unless the caller may read the organization's whole spend",
             "content": {
               "application/json": {
                 "schema": {
@@ -11278,7 +11922,7 @@
             }
           },
           "403": {
-            "description": "The user's wallet is not initialized yet",
+            "description": "The wallet is not initialized yet",
             "content": {
               "application/json": {
                 "schema": {
@@ -11308,7 +11952,7 @@
             }
           },
           "404": {
-            "description": "The user has no wallet",
+            "description": "The request has no wallet to act through",
             "content": {
               "application/json": {
                 "schema": {
@@ -11336,6 +11980,204 @@
                 }
               }
             }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/deployments/{dseq}/project": {
+      "patch": {
+        "operationId": "updateDeploymentProject",
+        "summary": "Move a deployment to another project of the active organization",
+        "tags": [
+          "Deployments"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^0*[1-9]\\d*$",
+              "description": "Deployment sequence number"
+            },
+            "required": true,
+            "description": "Deployment sequence number",
+            "name": "dseq",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "projectId": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "required": [
+                      "projectId"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The project the deployment is now filed into",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "dseq": {
+                          "type": "string",
+                          "pattern": "^0*[1-9]\\d*$"
+                        },
+                        "projectId": {
+                          "type": "string",
+                          "format": "uuid"
+                        }
+                      },
+                      "required": [
+                        "dseq",
+                        "projectId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The dseq is malformed, or the body names no project or one that is not a uuid"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller's role in the active organization does not allow it"
+          },
+          "404": {
+            "description": "No deployment or project with this id in the caller's reach"
+          }
+        }
+      }
+    },
+    "/v1/deployment-locations/{dseq}": {
+      "get": {
+        "operationId": "getDeploymentLocation",
+        "summary": "Find the organization and project a deployment is filed into, among the caller's organizations",
+        "tags": [
+          "Deployments"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^0*[1-9]\\d*$",
+              "description": "Deployment sequence number"
+            },
+            "required": true,
+            "description": "Deployment sequence number",
+            "name": "dseq",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Where the deployment is filed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "organizationId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "organizationSlug": {
+                          "type": "string"
+                        },
+                        "projectId": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "uuid"
+                        }
+                      },
+                      "required": [
+                        "organizationId",
+                        "organizationSlug",
+                        "projectId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "No deployment with this dseq in the caller's reach"
           }
         }
       }
@@ -11448,7 +12290,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/leases": {
@@ -12041,6 +12891,78 @@
               }
             }
           },
+          "403": {
+            "description": "With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
           "502": {
             "description": "A provider could not be reached. With code `provider_unreachable` no lease was created, so choose another bid. With code `manifest_not_delivered` the lease exists, as described above.",
             "content": {
@@ -12077,7 +12999,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/akash/market/{version}/leases/list": {
@@ -12471,6 +13401,18 @@
                           },
                           "keyFormat": {
                             "type": "string"
+                          },
+                          "organizationId": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uuid",
+                            "description": "The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization."
+                          },
+                          "projectId": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uuid",
+                            "description": "The only project the key reaches, or null when it reaches every project its owner can."
                           }
                         },
                         "required": [
@@ -12480,7 +13422,9 @@
                           "createdAt",
                           "updatedAt",
                           "lastUsedAt",
-                          "keyFormat"
+                          "keyFormat",
+                          "organizationId",
+                          "projectId"
                         ]
                       }
                     }
@@ -12492,7 +13436,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "post": {
         "summary": "Create new API key",
@@ -12522,6 +13474,11 @@
                       "expiresAt": {
                         "type": "string",
                         "format": "date-time"
+                      },
+                      "projectId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Limits the key to one project of the organization it is created in."
                       }
                     },
                     "required": [
@@ -12575,6 +13532,18 @@
                         "keyFormat": {
                           "type": "string"
                         },
+                        "organizationId": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "uuid",
+                          "description": "The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization."
+                        },
+                        "projectId": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "uuid",
+                          "description": "The only project the key reaches, or null when it reaches every project its owner can."
+                        },
                         "apiKey": {
                           "type": "string"
                         }
@@ -12587,6 +13556,8 @@
                         "updatedAt",
                         "lastUsedAt",
                         "keyFormat",
+                        "organizationId",
+                        "projectId",
                         "apiKey"
                       ]
                     }
@@ -12597,8 +13568,19 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "No project with this `projectId` in the caller's reach"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/api-keys/{id}": {
@@ -12624,6 +13606,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -12664,6 +13652,18 @@
                         },
                         "keyFormat": {
                           "type": "string"
+                        },
+                        "organizationId": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "uuid",
+                          "description": "The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization."
+                        },
+                        "projectId": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "uuid",
+                          "description": "The only project the key reaches, or null when it reaches every project its owner can."
                         }
                       },
                       "required": [
@@ -12673,7 +13673,9 @@
                         "createdAt",
                         "updatedAt",
                         "lastUsedAt",
-                        "keyFormat"
+                        "keyFormat",
+                        "organizationId",
+                        "projectId"
                       ]
                     }
                   },
@@ -12726,6 +13728,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -12788,6 +13796,18 @@
                         },
                         "keyFormat": {
                           "type": "string"
+                        },
+                        "organizationId": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "uuid",
+                          "description": "The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization."
+                        },
+                        "projectId": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "uuid",
+                          "description": "The only project the key reaches, or null when it reaches every project its owner can."
                         }
                       },
                       "required": [
@@ -12797,7 +13817,9 @@
                         "createdAt",
                         "updatedAt",
                         "lastUsedAt",
-                        "keyFormat"
+                        "keyFormat",
+                        "organizationId",
+                        "projectId"
                       ]
                     }
                   },
@@ -12850,6 +13872,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -12901,6 +13929,12 @@
             "required": true,
             "name": "dseq",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -13349,6 +14383,12 @@
             "required": true,
             "name": "dseq",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -13807,7 +14847,15 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/balances": {
@@ -18115,8 +19163,19 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "With `code` `project_forbidden`, the caller is limited to some projects and the token does not name its deployments one by one, or names one filed in a project the caller cannot view, or cannot change when the token does more than read"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/graph-data/{dataName}": {
@@ -22413,7 +23472,15 @@
           "400": {
             "description": "Invalid request body"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/hardware-requests": {
@@ -22832,7 +23899,15 @@
           "429": {
             "description": "Too many requests sent recently"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/activities": {
@@ -22897,6 +23972,12 @@
             "required": false,
             "name": "type",
             "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -23089,6 +24170,12 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -23318,7 +24405,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/favorite-providers": {
@@ -23370,7 +24465,15 @@
           "401": {
             "description": "Unauthorized"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       },
       "post": {
         "operationId": "createFavoriteProviders",
@@ -23458,7 +24561,15 @@
           "422": {
             "description": "The user would have more favorite providers than allowed"
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/favorite-providers/{providerAddress}": {
@@ -23484,6 +24595,12 @@
             "required": true,
             "name": "providerAddress",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -23551,6 +24668,12 @@
             "required": true,
             "name": "draftId",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -23659,6 +24782,12 @@
             "required": true,
             "name": "draftId",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -23823,6 +24952,12 @@
             "required": true,
             "name": "draftId",
             "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -23838,6 +24973,3524 @@
         }
       }
     },
+    "/v1/organizations": {
+      "get": {
+        "operationId": "listOrganizations",
+        "summary": "List the organizations the caller belongs to, marking the one this request ran in; an API key lists only the organization it acts in",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's organizations, or only the API key's organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "personal",
+                              "team"
+                            ]
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "owner",
+                              "admin",
+                              "member",
+                              "billing",
+                              "viewer"
+                            ],
+                            "description": "The caller's role in the organization."
+                          },
+                          "isActive": {
+                            "type": "boolean",
+                            "description": "Whether this request ran in this organization."
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "slug",
+                          "type",
+                          "role",
+                          "isActive",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The organization header names another organization than the API key's (`organization_mismatch`)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The organization (`organization_forbidden`) or project (`project_forbidden`) header names one the caller cannot reach"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createOrganization",
+        "summary": "Create a team organization owned by the caller, with its default project and a wallet ready to fund",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]+$",
+                        "description": "Unique, ignoring case, among the organizations the caller belongs to."
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "personal",
+                            "team"
+                          ]
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer"
+                          ],
+                          "description": "The caller's role in the organization."
+                        },
+                        "isActive": {
+                          "type": "boolean",
+                          "description": "Whether this request ran in this organization."
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "type",
+                        "role",
+                        "isActive",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The name is empty, too long or holds a control character"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller has reached their organization limit (`organization_limit_reached`), or the request was not made from a signed-in session (`session_required`)"
+          },
+          "409": {
+            "description": "The caller already belongs to an organization with this name (`organization_name_taken`)"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/organizations/{id}": {
+      "patch": {
+        "operationId": "updateOrganization",
+        "summary": "Rename the active organization",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]+$",
+                        "description": "Unique, ignoring case, among the organizations the caller belongs to."
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The renamed organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "personal",
+                            "team"
+                          ]
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer"
+                          ],
+                          "description": "The caller's role in the organization."
+                        },
+                        "isActive": {
+                          "type": "boolean",
+                          "description": "Whether this request ran in this organization."
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "type",
+                        "role",
+                        "isActive",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The name is empty, too long or holds a control character"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller cannot rename the organization, or it is a personal one (`personal_organization`)"
+          },
+          "404": {
+            "description": "The organization is not the active one"
+          },
+          "409": {
+            "description": "The caller already belongs to another organization with this name (`organization_name_taken`)"
+          }
+        }
+      }
+    },
+    "/v1/projects": {
+      "get": {
+        "operationId": "listProjects",
+        "summary": "List the projects of the active organization the caller can reach",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The projects, most recently active first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string",
+                            "description": "Set from the name when the project is created and kept through renames."
+                          },
+                          "description": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "isDefault": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "createdBy": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "username": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "username"
+                            ]
+                          },
+                          "lastActivityAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "The later of the project's creation and its newest activity the caller may read, such as a deployment created, closed or moved in."
+                          },
+                          "deployments": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "activeCount": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "preview": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "dseq": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "status": {
+                                      "type": "string",
+                                      "enum": [
+                                        "pending",
+                                        "running",
+                                        "degraded"
+                                      ],
+                                      "description": "`running` holds an open lease, `pending` holds no lease yet, `degraded` lost every lease it had while staying open."
+                                    }
+                                  },
+                                  "required": [
+                                    "dseq",
+                                    "name",
+                                    "status"
+                                  ]
+                                },
+                                "description": "The newest few active deployments, newest first."
+                              }
+                            },
+                            "required": [
+                              "activeCount",
+                              "preview"
+                            ],
+                            "description": "Null when the caller may not read the project's deployments, or when too many are open to count."
+                          },
+                          "access": {
+                            "type": "object",
+                            "properties": {
+                              "canDeploy": {
+                                "type": "boolean",
+                                "description": "Whether the caller may deploy into the project and change its deployments."
+                              },
+                              "canManage": {
+                                "type": "boolean",
+                                "description": "Whether the caller may rename the project and decide who else reaches it."
+                              }
+                            },
+                            "required": [
+                              "canDeploy",
+                              "canManage"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "slug",
+                          "description",
+                          "isDefault",
+                          "createdAt",
+                          "createdBy",
+                          "lastActivityAt",
+                          "deployments",
+                          "access"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createProject",
+        "summary": "Create a project in the active organization",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "Unique within the organization, whatever its case.",
+                        "example": "checkout-api"
+                      },
+                      "description": {
+                        "type": "string",
+                        "maxLength": 140
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string",
+                          "description": "Set from the name when the project is created and kept through renames."
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "createdBy": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "username": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "username"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "description",
+                        "isDefault",
+                        "createdAt",
+                        "createdBy"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The name or description is not valid"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller's role does not allow it, or the organization has reached its project limit (`project_limit_reached`)"
+          },
+          "409": {
+            "description": "Another project of the organization has this name (`project_name_taken`)"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/projects/{id}": {
+      "get": {
+        "operationId": "getProject",
+        "summary": "Get a project of the active organization",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string",
+                          "description": "Set from the name when the project is created and kept through renames."
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "createdBy": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "username": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "username"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "description",
+                        "isDefault",
+                        "createdAt",
+                        "createdBy"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "No project with this id in the caller's reach"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateProject",
+        "summary": "Rename a project or change its description",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "Unique within the organization, whatever its case.",
+                        "example": "checkout-api"
+                      },
+                      "description": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 140
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string",
+                          "description": "Set from the name when the project is created and kept through renames."
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "createdBy": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "username": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "username"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "description",
+                        "isDefault",
+                        "createdAt",
+                        "createdBy"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The name or description is not valid"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller's role in the active organization does not allow it"
+          },
+          "404": {
+            "description": "No project with this id in the caller's reach"
+          },
+          "409": {
+            "description": "Another project of the organization has this name (`project_name_taken`)"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteProject",
+        "summary": "Delete a project that holds no open deployment",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The project is deleted"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller's role in the active organization does not allow it"
+          },
+          "404": {
+            "description": "No project with this id in the caller's reach"
+          },
+          "409": {
+            "description": "The project is the organization's default (`project_is_default`) or still holds open deployments (`project_not_empty`)"
+          }
+        }
+      }
+    },
+    "/v1/organization-activities": {
+      "get": {
+        "operationId": "listOrganizationActivities",
+        "summary": "List what happened in the active organization, newest first, within the caller's projects",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Only the activities of this project."
+            },
+            "required": false,
+            "name": "projectId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Activities per page, at most 100."
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Where the page starts: the `nextCursor` of the page before it. Omit it for the newest activities."
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of activities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "projectId": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "uuid",
+                            "description": "The project the activity happened in, null for one about the whole organization."
+                          },
+                          "actor": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "username": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "username"
+                            ],
+                            "description": "Who did it, null for the system or a since deleted user."
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "organization_created",
+                              "project_created",
+                              "member_invited",
+                              "member_joined",
+                              "deployment_created",
+                              "deployment_closed",
+                              "deployment_moved",
+                              "member_granted",
+                              "member_revoked"
+                            ]
+                          },
+                          "payload": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "nullable": true
+                            },
+                            "description": "The names and values the client renders the activity text with, per type."
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "projectId",
+                          "actor",
+                          "type",
+                          "payload",
+                          "createdAt"
+                        ]
+                      },
+                      "description": "Newest first."
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Pass it as `cursor` to read the next page. Null on the last page."
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "nextCursor"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The query or cursor is not valid"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/organization-members": {
+      "get": {
+        "operationId": "listOrganizationMembers",
+        "summary": "List the members of the active organization",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The organization's members",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "username": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "email": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "owner",
+                              "admin",
+                              "member",
+                              "billing",
+                              "viewer"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "userId",
+                          "username",
+                          "email",
+                          "role",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The organization header names another organization than the API key's (`organization_mismatch`)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller cannot see the organization's members"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/organization-members/{id}": {
+      "patch": {
+        "operationId": "updateOrganizationMember",
+        "summary": "Change the role of a member of the active organization",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "role": {
+                        "type": "string",
+                        "enum": [
+                          "owner",
+                          "admin",
+                          "member",
+                          "billing",
+                          "viewer"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "role"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated member",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "username": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "email": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "username",
+                        "email",
+                        "role",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid, or the organization header names another organization than the API key's (`organization_mismatch`)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller cannot change this member, the change touches the owner role and the caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
+          },
+          "404": {
+            "description": "No such member in the active organization"
+          },
+          "409": {
+            "description": "The organization would be left without an owner (`last_owner`)"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteOrganizationMember",
+        "summary": "Remove a member from the active organization",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The member was removed"
+          },
+          "400": {
+            "description": "The request is invalid, or the organization header names another organization than the API key's (`organization_mismatch`)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller cannot change this member, the change touches the owner role and the caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
+          },
+          "404": {
+            "description": "No such member in the active organization"
+          },
+          "409": {
+            "description": "The organization would be left without an owner (`last_owner`)"
+          }
+        }
+      }
+    },
+    "/v1/organization-members/{id}/ownership-transfer": {
+      "post": {
+        "operationId": "transferOrganizationOwnership",
+        "summary": "Make a member an owner of the active organization and step the calling owner down to admin",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The member who received ownership",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "username": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "email": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "username",
+                        "email",
+                        "role",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is invalid, the member is the caller, or the organization header names another organization than the API key's (`organization_mismatch`)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
+          },
+          "404": {
+            "description": "No such member in the active organization"
+          }
+        }
+      }
+    },
+    "/v1/organization-invitations": {
+      "get": {
+        "operationId": "listOrganizationInvitations",
+        "summary": "List the pending invitations of the active organization",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The pending invitations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "owner",
+                              "admin",
+                              "member",
+                              "billing",
+                              "viewer"
+                            ]
+                          },
+                          "projectGrants": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "projectId": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "role": {
+                                  "type": "string",
+                                  "enum": [
+                                    "admin",
+                                    "member",
+                                    "viewer"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "projectId",
+                                "role"
+                              ]
+                            }
+                          },
+                          "invitedBy": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "username": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "username"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "expiresAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "email",
+                          "role",
+                          "projectGrants",
+                          "invitedBy",
+                          "createdAt",
+                          "expiresAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller cannot see the organization's invitations"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createOrganizationInvitations",
+        "summary": "Invite people to the active organization by email",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "emails": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 255,
+                          "format": "email"
+                        },
+                        "minItems": 1,
+                        "maxItems": 20
+                      },
+                      "role": {
+                        "type": "string",
+                        "enum": [
+                          "owner",
+                          "admin",
+                          "member",
+                          "billing",
+                          "viewer"
+                        ]
+                      },
+                      "projectGrants": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "projectId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "role": {
+                              "type": "string",
+                              "enum": [
+                                "admin",
+                                "member",
+                                "viewer"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "projectId",
+                            "role"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "emails",
+                      "role"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "One pending invitation per address, an address that was already invited keeping its existing one",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "owner",
+                              "admin",
+                              "member",
+                              "billing",
+                              "viewer"
+                            ]
+                          },
+                          "projectGrants": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "projectId": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "role": {
+                                  "type": "string",
+                                  "enum": [
+                                    "admin",
+                                    "member",
+                                    "viewer"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "projectId",
+                                "role"
+                              ]
+                            }
+                          },
+                          "invitedBy": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "username": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "username"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "expiresAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "email",
+                          "role",
+                          "projectGrants",
+                          "invitedBy",
+                          "createdAt",
+                          "expiresAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A project grant names a project outside the active organization"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller cannot invite with this role (`owner_role_restricted`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`)"
+          },
+          "409": {
+            "description": "An address belongs to a member of the organization (`already_member`)"
+          },
+          "429": {
+            "description": "Too many invitation emails were sent recently (`invitation_email_limit_reached`)"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/organization-invitations/{id}/resend": {
+      "post": {
+        "operationId": "resendOrganizationInvitation",
+        "summary": "Email a pending invitation again with a new link and a new expiry",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The renewed invitation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer"
+                          ]
+                        },
+                        "projectGrants": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "projectId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "role": {
+                                "type": "string",
+                                "enum": [
+                                  "admin",
+                                  "member",
+                                  "viewer"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "projectId",
+                              "role"
+                            ]
+                          }
+                        },
+                        "invitedBy": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "username": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "username"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "email",
+                        "role",
+                        "projectGrants",
+                        "invitedBy",
+                        "createdAt",
+                        "expiresAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
+          },
+          "404": {
+            "description": "No such pending invitation in the active organization"
+          },
+          "429": {
+            "description": "Too many invitation emails were sent recently (`invitation_email_limit_reached`)"
+          }
+        }
+      }
+    },
+    "/v1/organization-invitations/{id}/link": {
+      "post": {
+        "operationId": "createOrganizationInvitationLink",
+        "summary": "Issue a new link for a pending invitation, which stops every earlier link from working",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The invitation link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string",
+                          "format": "uri"
+                        }
+                      },
+                      "required": [
+                        "url"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
+          },
+          "404": {
+            "description": "No such pending invitation in the active organization"
+          }
+        }
+      }
+    },
+    "/v1/organization-invitations/{id}": {
+      "delete": {
+        "operationId": "deleteOrganizationInvitation",
+        "summary": "Revoke a pending invitation of the active organization",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The invitation was revoked"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
+          },
+          "404": {
+            "description": "No such pending invitation in the active organization"
+          }
+        }
+      }
+    },
+    "/v1/invitations/preview": {
+      "post": {
+        "operationId": "previewInvitation",
+        "summary": "Preview an organization invitation from the token of its link",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "token": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_-]{43}$",
+                        "description": "The token from the invitation link."
+                      }
+                    },
+                    "required": [
+                      "token"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Who sent the invitation, to which organization and in which state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "organizationName": {
+                          "type": "string"
+                        },
+                        "inviterName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer"
+                          ]
+                        },
+                        "email": {
+                          "type": "string",
+                          "description": "The address the invitation was sent to."
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "accepted",
+                            "revoked",
+                            "expired"
+                          ]
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "organizationName",
+                        "inviterName",
+                        "role",
+                        "email",
+                        "status",
+                        "expiresAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The token is not an invitation token"
+          },
+          "404": {
+            "description": "No invitation has this token"
+          }
+        }
+      }
+    },
+    "/v1/invitations/accept": {
+      "post": {
+        "operationId": "acceptInvitation",
+        "summary": "Join the organization of an invitation with the role and project access it grants",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "token": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_-]{43}$",
+                        "description": "The token from the invitation link."
+                      },
+                      "confirmEmailMismatch": {
+                        "type": "boolean",
+                        "description": "Join even though the invitation was sent to an address that is not the caller's verified email."
+                      }
+                    },
+                    "required": [
+                      "token"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The organization the caller now belongs to",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "personal",
+                            "team"
+                          ]
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer"
+                          ],
+                          "description": "The caller's role in the organization."
+                        },
+                        "isActive": {
+                          "type": "boolean",
+                          "description": "Whether this request ran in this organization."
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "type",
+                        "role",
+                        "isActive",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The token is not an invitation token"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Requested with an API key instead of a signed-in session (`session_required`)"
+          },
+          "404": {
+            "description": "No invitation has this token"
+          },
+          "409": {
+            "description": "The invitation was sent to an address the caller has not verified and they did not confirm (`invitation_email_mismatch`), someone else already accepted it (`invitation_already_accepted`), or the caller already belongs to the organization and was not the verified invitee (`already_member`)"
+          },
+          "410": {
+            "description": "The invitation expired (`invitation_expired`) or was revoked (`invitation_revoked`)"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/projects/{id}/members": {
+      "get": {
+        "operationId": "listProjectMembers",
+        "summary": "List who was granted access to a project",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The project's grants",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The grant id, used to change or revoke it."
+                          },
+                          "projectId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "username": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "email": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "admin",
+                              "member",
+                              "viewer"
+                            ],
+                            "description": "`viewer` reads the project; `member` also deploys into it and changes its deployments, templates and alerts; `admin` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role."
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "projectId",
+                          "userId",
+                          "username",
+                          "email",
+                          "role",
+                          "createdAt"
+                        ]
+                      },
+                      "description": "Explicit grants only, oldest first. Owners and admins reach every project without one."
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller's role in the active organization does not allow it"
+          },
+          "404": {
+            "description": "No project with this id in the caller's reach"
+          }
+        }
+      }
+    },
+    "/v1/project-members": {
+      "post": {
+        "operationId": "createProjectMember",
+        "summary": "Grant a member or viewer of the active organization a role on a project",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "projectId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "userId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "A member or viewer of the active organization other than the caller."
+                      },
+                      "role": {
+                        "type": "string",
+                        "enum": [
+                          "admin",
+                          "member",
+                          "viewer"
+                        ],
+                        "description": "`viewer` reads the project; `member` also deploys into it and changes its deployments, templates and alerts; `admin` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role."
+                      }
+                    },
+                    "required": [
+                      "projectId",
+                      "userId",
+                      "role"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created grant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "The grant id, used to change or revoke it."
+                        },
+                        "projectId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "username": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "email": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "admin",
+                            "member",
+                            "viewer"
+                          ],
+                          "description": "`viewer` reads the project; `member` also deploys into it and changes its deployments, templates and alerts; `admin` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role."
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "projectId",
+                        "userId",
+                        "username",
+                        "email",
+                        "role",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller cannot manage access to projects of the active organization"
+          },
+          "404": {
+            "description": "No such project within the caller's reach, or no such member in the active organization"
+          },
+          "409": {
+            "description": "The user already has access to the project (`already_granted`), reaches every project as an owner or admin (`implicit_project_access`) or is a billing member (`billing_role_not_grantable`)"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/project-members/{id}": {
+      "patch": {
+        "operationId": "updateProjectMember",
+        "summary": "Change the project role a grant gives",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "role": {
+                        "type": "string",
+                        "enum": [
+                          "admin",
+                          "member",
+                          "viewer"
+                        ],
+                        "description": "`viewer` reads the project; `member` also deploys into it and changes its deployments, templates and alerts; `admin` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role."
+                      }
+                    },
+                    "required": [
+                      "role"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated grant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "The grant id, used to change or revoke it."
+                        },
+                        "projectId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "username": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "email": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "admin",
+                            "member",
+                            "viewer"
+                          ],
+                          "description": "`viewer` reads the project; `member` also deploys into it and changes its deployments, templates and alerts; `admin` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role."
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "projectId",
+                        "userId",
+                        "username",
+                        "email",
+                        "role",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller cannot manage access to projects of the active organization"
+          },
+          "404": {
+            "description": "No grant with this id the caller can manage"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteProjectMember",
+        "summary": "Revoke a grant, effective from the member's next request",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The grant is revoked"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller cannot manage access to projects of the active organization"
+          },
+          "404": {
+            "description": "No grant with this id the caller can manage"
+          }
+        }
+      }
+    },
+    "/v1/project-spend": {
+      "get": {
+        "operationId": "listProjectSpend",
+        "summary": "Report the active organization's spend per project over a date range",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "First day of the range (YYYY-MM-DD, UTC), inclusive. Defaults to the first day of endDate's month",
+              "example": "2026-10-01"
+            },
+            "required": false,
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Last day of the range (YYYY-MM-DD, UTC), inclusive. Defaults to today",
+              "example": "2026-10-31"
+            },
+            "required": false,
+            "name": "endDate",
+            "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Spend of the projects the caller can see, with the organization's total and unassigned remainder when the caller can see the whole organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "startDate": {
+                          "type": "string"
+                        },
+                        "endDate": {
+                          "type": "string"
+                        },
+                        "isEstimated": {
+                          "type": "boolean",
+                          "description": "Whether any figure includes an estimate"
+                        },
+                        "projects": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "committedUsd": {
+                                "type": "number",
+                                "description": "Deposits signed for the deployments in the range, including ones not yet final"
+                              },
+                              "consumedUsd": {
+                                "type": "number",
+                                "description": "What the deployments' leases cost over the range, including `estimatedConsumedUsd`"
+                              },
+                              "estimatedConsumedUsd": {
+                                "type": "number",
+                                "description": "Part of `consumedUsd` accrued since the deployment was last settled, an estimate until it is"
+                              },
+                              "projectId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "isDefault": {
+                                "type": "boolean"
+                              },
+                              "isDeleted": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "committedUsd",
+                              "consumedUsd",
+                              "estimatedConsumedUsd",
+                              "projectId",
+                              "name",
+                              "isDefault",
+                              "isDeleted"
+                            ]
+                          }
+                        },
+                        "unassigned": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "committedUsd": {
+                              "type": "number",
+                              "description": "Deposits signed for the deployments in the range, including ones not yet final"
+                            },
+                            "consumedUsd": {
+                              "type": "number",
+                              "description": "What the deployments' leases cost over the range, including `estimatedConsumedUsd`"
+                            },
+                            "estimatedConsumedUsd": {
+                              "type": "number",
+                              "description": "Part of `consumedUsd` accrued since the deployment was last settled, an estimate until it is"
+                            }
+                          },
+                          "required": [
+                            "committedUsd",
+                            "consumedUsd",
+                            "estimatedConsumedUsd"
+                          ],
+                          "description": "Spend of the organization's deployments filed in no project. Null for a caller limited to some projects"
+                        },
+                        "total": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "committedUsd": {
+                              "type": "number",
+                              "description": "Deposits signed for the deployments in the range, including ones not yet final"
+                            },
+                            "consumedUsd": {
+                              "type": "number",
+                              "description": "What the deployments' leases cost over the range, including `estimatedConsumedUsd`"
+                            },
+                            "estimatedConsumedUsd": {
+                              "type": "number",
+                              "description": "Part of `consumedUsd` accrued since the deployment was last settled, an estimate until it is"
+                            }
+                          },
+                          "required": [
+                            "committedUsd",
+                            "consumedUsd",
+                            "estimatedConsumedUsd"
+                          ],
+                          "description": "The organization's whole spend, the projects plus `unassigned`. Null for a caller limited to some projects"
+                        }
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate",
+                        "isEstimated",
+                        "projects",
+                        "unassigned",
+                        "total"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/project-budgets": {
+      "get": {
+        "operationId": "listProjectBudgets",
+        "summary": "List the project budgets of the active organization the caller can read",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Only the budget of this project"
+            },
+            "required": false,
+            "name": "projectId",
+            "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The budgets with this month's committed spend",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "projectId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "monthlyAmountUsd": {
+                            "type": "number"
+                          },
+                          "alertThresholdPercent": {
+                            "type": "number"
+                          },
+                          "stopTopUps": {
+                            "type": "boolean"
+                          },
+                          "currentPeriod": {
+                            "type": "object",
+                            "properties": {
+                              "startDate": {
+                                "type": "string",
+                                "description": "First day of the current calendar month (UTC)"
+                              },
+                              "endDate": {
+                                "type": "string",
+                                "description": "Last day of the current calendar month (UTC)"
+                              },
+                              "committedUsd": {
+                                "type": "number",
+                                "description": "Deposits recorded for the project this month, the figure new deposits are judged against"
+                              }
+                            },
+                            "required": [
+                              "startDate",
+                              "endDate",
+                              "committedUsd"
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "projectId",
+                          "monthlyAmountUsd",
+                          "alertThresholdPercent",
+                          "stopTopUps",
+                          "currentPeriod",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createProjectBudget",
+        "summary": "Set a monthly budget for a project of the active organization",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "projectId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "monthlyAmountUsd": {
+                        "type": "number",
+                        "minimum": 1,
+                        "maximum": 10000000,
+                        "description": "Committed spend allowed per calendar month (UTC), in USD (1 to 10000000, cents at most)"
+                      },
+                      "alertThresholdPercent": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100,
+                        "description": "Share of the monthly amount at which owners and admins are notified, once per month. Defaults to 80"
+                      },
+                      "stopTopUps": {
+                        "type": "boolean",
+                        "description": "Whether top-ups of the project's running deployments, manual or automatic, also stop at the budget. Defaults to false"
+                      }
+                    },
+                    "required": [
+                      "projectId",
+                      "monthlyAmountUsd"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created budget",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "projectId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "monthlyAmountUsd": {
+                          "type": "number"
+                        },
+                        "alertThresholdPercent": {
+                          "type": "number"
+                        },
+                        "stopTopUps": {
+                          "type": "boolean"
+                        },
+                        "currentPeriod": {
+                          "type": "object",
+                          "properties": {
+                            "startDate": {
+                              "type": "string",
+                              "description": "First day of the current calendar month (UTC)"
+                            },
+                            "endDate": {
+                              "type": "string",
+                              "description": "Last day of the current calendar month (UTC)"
+                            },
+                            "committedUsd": {
+                              "type": "number",
+                              "description": "Deposits recorded for the project this month, the figure new deposits are judged against"
+                            }
+                          },
+                          "required": [
+                            "startDate",
+                            "endDate",
+                            "committedUsd"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "projectId",
+                        "monthlyAmountUsd",
+                        "alertThresholdPercent",
+                        "stopTopUps",
+                        "currentPeriod",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The budget settings are not valid"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Only owners and admins can change project budgets"
+          },
+          "404": {
+            "description": "No project with this id in the caller's reach"
+          },
+          "409": {
+            "description": "The project already has a budget (`project_budget_exists`)"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/project-budgets/{id}": {
+      "patch": {
+        "operationId": "updateProjectBudget",
+        "summary": "Change a project's monthly budget",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "monthlyAmountUsd": {
+                        "type": "number",
+                        "minimum": 1,
+                        "maximum": 10000000,
+                        "description": "Committed spend allowed per calendar month (UTC), in USD (1 to 10000000, cents at most)"
+                      },
+                      "alertThresholdPercent": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 100,
+                        "description": "Share of the monthly amount at which owners and admins are notified, once per month. Defaults to 80"
+                      },
+                      "stopTopUps": {
+                        "type": "boolean",
+                        "description": "Whether top-ups of the project's running deployments, manual or automatic, also stop at the budget. Defaults to false"
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated budget",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "projectId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "monthlyAmountUsd": {
+                          "type": "number"
+                        },
+                        "alertThresholdPercent": {
+                          "type": "number"
+                        },
+                        "stopTopUps": {
+                          "type": "boolean"
+                        },
+                        "currentPeriod": {
+                          "type": "object",
+                          "properties": {
+                            "startDate": {
+                              "type": "string",
+                              "description": "First day of the current calendar month (UTC)"
+                            },
+                            "endDate": {
+                              "type": "string",
+                              "description": "Last day of the current calendar month (UTC)"
+                            },
+                            "committedUsd": {
+                              "type": "number",
+                              "description": "Deposits recorded for the project this month, the figure new deposits are judged against"
+                            }
+                          },
+                          "required": [
+                            "startDate",
+                            "endDate",
+                            "committedUsd"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "projectId",
+                        "monthlyAmountUsd",
+                        "alertThresholdPercent",
+                        "stopTopUps",
+                        "currentPeriod",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The budget settings are not valid"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Only owners and admins can change project budgets"
+          },
+          "404": {
+            "description": "No budget with this id in the caller's reach"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteProjectBudget",
+        "summary": "Remove a project's monthly budget",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The budget is removed"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Only owners and admins can change project budgets"
+          },
+          "404": {
+            "description": "No budget with this id in the caller's reach"
+          }
+        }
+      }
+    },
     "/v1/alerts": {
       "post": {
         "operationId": "createAlert",
@@ -23849,6 +28502,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -23963,6 +28622,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -24041,6 +28706,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -24117,6 +28788,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -24203,6 +28880,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -24273,6 +28956,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -24369,6 +29058,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -24431,7 +29126,22 @@
     "/v1/notification-channels/default": {
       "post": {
         "operationId": "createDefaultNotificationChannel",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -24445,6 +29155,46 @@
         "responses": {
           "204": {
             "description": "Creates the default notification channel only if it doesn't exist."
+          },
+          "400": {
+            "description": "Validation error responded when some request parameters are invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error responded when the user is not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error responded when the user is not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error, should probably be reported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -24471,6 +29221,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -24557,6 +29313,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -24653,6 +29415,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -24750,6 +29518,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "requestBody": {
@@ -24836,6 +29610,12 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
           }
         ],
         "responses": {
@@ -29400,6 +34180,27 @@
         "required": [
           "data"
         ]
+      }
+    },
+    "parameters": {
+      "OrganizationIdHeader": {
+        "name": "x-organization-id",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "description": "Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's."
+      },
+      "ProjectIdHeader": {
+        "name": "x-project-id",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one."
       }
     },
     "securitySchemes": {

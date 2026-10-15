@@ -8,7 +8,7 @@ import { z } from "zod";
 import { createRoute, HIDDEN_ROUTES, UNDOCUMENTED_REQUEST_FIELDS } from "../../lib/create-route/create-route";
 import { OpenApiHonoHandler } from "../open-api-hono-handler/open-api-hono-handler";
 import { OpenApiDocsService } from "./openapi-docs.service";
-import { SECURITY_NONE } from "./openapi-security";
+import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "./openapi-security";
 
 describe("OpenApiDocsService", () => {
   const fetchMock = vi.fn();
@@ -174,6 +174,142 @@ describe("OpenApiDocsService", () => {
 
     const publicDocs = await service.generateDocs([handler], { scope: "console" });
     expect(publicDocs.paths["/v1/test-hidden"]).toBeUndefined();
+  });
+
+  describe("organization context headers", () => {
+    const ORGANIZATION_CONTEXT_PARAMETER_REFS = [{ $ref: "#/components/parameters/OrganizationIdHeader" }, { $ref: "#/components/parameters/ProjectIdHeader" }];
+
+    it("declares the organization and project headers as reusable header parameters", async () => {
+      const { service } = setup({});
+
+      const docs = await service.generateDocs([buildOrganizationContextHandler()], { scope: "console" });
+
+      expect(docs.components?.parameters).toEqual({
+        OrganizationIdHeader: expect.objectContaining({ name: "x-organization-id", in: "header", required: false }),
+        ProjectIdHeader: expect.objectContaining({ name: "x-project-id", in: "header", required: false })
+      });
+    });
+
+    it("describes the errors each header can answer with", async () => {
+      const { service } = setup({});
+
+      const docs = await service.generateDocs([buildOrganizationContextHandler()], { scope: "console" });
+
+      expect(docs.components?.parameters).toEqual({
+        OrganizationIdHeader: expect.objectContaining({ description: expect.stringMatching(/organization_forbidden.*organization_mismatch/) }),
+        ProjectIdHeader: expect.objectContaining({ description: expect.stringContaining("project_forbidden") })
+      });
+    });
+
+    it("lists both headers after its own parameters on a route that authenticates the caller", async () => {
+      const { service } = setup({});
+
+      const docs = await service.generateDocs([buildOrganizationContextHandler()], { scope: "console" });
+
+      expect(docs.paths["/v1/test-signed-in/{id}"].get?.parameters).toEqual([
+        expect.objectContaining({ name: "id", in: "path" }),
+        ...ORGANIZATION_CONTEXT_PARAMETER_REFS
+      ]);
+    });
+
+    it("lists only the headers on a route that authenticates the caller and declares no parameters", async () => {
+      const { service } = setup({});
+
+      const docs = await service.generateDocs([buildOrganizationContextHandler()], { scope: "console" });
+
+      expect(docs.paths["/v1/test-signed-in"].get?.parameters).toEqual(ORGANIZATION_CONTEXT_PARAMETER_REFS);
+    });
+
+    it("leaves them off a public route", async () => {
+      const { service } = setup({});
+
+      const docs = await service.generateDocs([buildOrganizationContextHandler()], { scope: "console" });
+
+      expect(docs.paths["/v1/test-public"].get?.parameters).toBeUndefined();
+    });
+
+    it("lists them once per operation however many documents are generated", async () => {
+      const { service } = setup({});
+      const handler = buildOrganizationContextHandler();
+
+      await service.generateDocs([handler], { scope: "console" });
+      const docs = await service.generateDocs([handler], { scope: "console", includeHidden: true });
+
+      expect(docs.paths["/v1/test-signed-in/{id}"].get?.parameters).toHaveLength(3);
+    });
+
+    it("lists them on the merged notifications routes, which are proxied for signed-in callers only", async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "notif-spec-"));
+      const tmpFile = path.join(tmpDir, "swagger.json");
+      await fs.writeFile(
+        tmpFile,
+        JSON.stringify({
+          openapi: "3.0.0",
+          info: { title: "Notif", version: "1.0.0" },
+          paths: {
+            "/v1/alerts": {
+              get: {
+                operationId: "listAlerts",
+                tags: ["v1"],
+                parameters: [{ name: "Authorization", in: "header", required: true }],
+                responses: { "200": { description: "ok" } }
+              }
+            }
+          },
+          components: { schemas: {} }
+        }),
+        "utf8"
+      );
+
+      try {
+        const { service } = setup({ notificationsSwaggerPath: tmpFile });
+
+        const docs = await service.generateDocs([], { scope: "full", source: "file" });
+
+        expect(docs.paths["/v1/alerts"].get?.parameters).toEqual([
+          { name: "Authorization", in: "header", required: true },
+          ...ORGANIZATION_CONTEXT_PARAMETER_REFS
+        ]);
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    function buildOrganizationContextHandler() {
+      const signedInRoute = createRoute({
+        method: "get",
+        path: "/v1/test-signed-in/{id}",
+        operationId: "getTestSignedIn",
+        summary: "Route that authenticates the caller",
+        tags: ["Test"],
+        security: SECURITY_BEARER_OR_API_KEY,
+        request: { params: z.object({ id: z.string() }) },
+        responses: { 200: { description: "OK" } }
+      });
+      const signedInRouteWithoutParameters = createRoute({
+        method: "get",
+        path: "/v1/test-signed-in",
+        operationId: "listTestSignedIn",
+        summary: "Route that authenticates the caller and takes no parameters",
+        tags: ["Test"],
+        security: SECURITY_BEARER_OR_API_KEY,
+        responses: { 200: { description: "OK" } }
+      });
+      const publicRoute = createRoute({
+        method: "get",
+        path: "/v1/test-public",
+        operationId: "listTestPublic",
+        summary: "Public route",
+        tags: ["Test"],
+        security: SECURITY_NONE,
+        responses: { 200: { description: "OK" } }
+      });
+      const handler = new OpenApiHonoHandler();
+      handler.openapi(signedInRoute, c => c.body(null, 200));
+      handler.openapi(signedInRouteWithoutParameters, c => c.body(null, 200));
+      handler.openapi(publicRoute, c => c.body(null, 200));
+      return handler;
+    }
   });
 
   // Routes are built here rather than at module scope so createRoute's HIDDEN_ROUTES

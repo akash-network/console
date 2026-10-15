@@ -1,6 +1,6 @@
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { readFile } from "node:fs/promises";
-import type { ComponentsObject, OpenAPIObject, PathsObject, ReferenceObject } from "openapi3-ts/oas30";
+import type { ComponentsObject, OpenAPIObject, OperationObject, PathsObject, ReferenceObject } from "openapi3-ts/oas30";
 import { inject, singleton } from "tsyringe";
 
 import { memoizeAsync } from "@src/caching/helpers";
@@ -10,8 +10,22 @@ import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import type { NotificationsConfig } from "@src/notifications/config/env.config";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import type { OpenApiHonoHandler } from "../open-api-hono-handler/open-api-hono-handler";
+import { ORGANIZATION_CONTEXT_PARAMETERS } from "./openapi-parameters";
 
 const logger = createOtelLogger({ context: "OpenApiDocsService" });
+
+const ORGANIZATION_CONTEXT_PARAMETER_REFS: ReferenceObject[] = Object.keys(ORGANIZATION_CONTEXT_PARAMETERS).map(name => ({
+  $ref: `#/components/parameters/${name}`
+}));
+
+function authenticatesCaller(operation: OperationObject): boolean {
+  return !!operation.security?.length;
+}
+
+/** The notifications routes are proxied for signed-in callers only, though their own spec declares no per-operation security. */
+function proxiedForSignedInCaller(): boolean {
+  return true;
+}
 
 interface PropertyHolder {
   properties?: Record<string, PropertyHolder | undefined>;
@@ -44,6 +58,7 @@ export class OpenApiDocsService {
         paths: {},
         components: {
           schemas: {},
+          parameters: { ...ORGANIZATION_CONTEXT_PARAMETERS },
           securitySchemes: {
             BearerAuth: {
               type: "http",
@@ -75,7 +90,7 @@ export class OpenApiDocsService {
           // routes (e.g. Stripe) are typed and addressable via api.v1.*; the served /v1/doc keeps
           // stripping them so the public Swagger surface stays clean.
           const paths = options.includeHidden ? handlerDocs.paths : stripHiddenOperations(handlerDocs.paths);
-          Object.assign(docs.paths, this.#stripUndocumentedRequestFields(paths));
+          Object.assign(docs.paths, this.#documentOrganizationContextHeaders(this.#stripUndocumentedRequestFields(paths), authenticatesCaller));
         } catch (error) {
           logger.error({
             name: `Error generating OpenAPI docs for handler, example path: ${handler.routes[0]?.path || "unknown"}`,
@@ -87,7 +102,7 @@ export class OpenApiDocsService {
       if (options.scope === "full") {
         const externalDocs = await this.#loadExternalNotificationsSpec(source);
         if (externalDocs?.paths) {
-          const filteredPaths = this.#filterPrivateRoutes(externalDocs.paths);
+          const filteredPaths = this.#documentOrganizationContextHeaders(this.#filterPrivateRoutes(externalDocs.paths), proxiedForSignedInCaller);
           Object.assign(docs.paths, filteredPaths);
 
           if (externalDocs?.components?.schemas) {
@@ -148,6 +163,19 @@ export class OpenApiDocsService {
       logger.warn({ event: "EXTERNAL_OPENAPI_FETCH_ERROR", error, url: externalOpenApiUrl });
       return null;
     }
+  }
+
+  /** The auth interceptor resolves the organization and project of every signed-in request from these headers, whichever route it reaches. */
+  #documentOrganizationContextHeaders(paths: PathsObject, appliesTo: (operation: OperationObject) => boolean): PathsObject {
+    for (const pathItem of Object.values(paths)) {
+      for (const operation of Object.values(pathItem ?? {}) as OperationObject[]) {
+        if (appliesTo(operation)) {
+          operation.parameters = [...(operation.parameters ?? []), ...ORGANIZATION_CONTEXT_PARAMETER_REFS];
+        }
+      }
+    }
+
+    return paths;
   }
 
   /** Strips withheld properties from the document rather than the schema, because `@hono/zod-openapi` hands that same schema to `zValidator`. */

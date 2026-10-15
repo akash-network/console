@@ -3,6 +3,27 @@
 exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
 {
   "components": {
+    "parameters": {
+      "OrganizationIdHeader": {
+        "description": "Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 \`organization_forbidden\` when the caller is not a member, and 400 \`organization_mismatch\` when it names another organization than the API key's.",
+        "in": "header",
+        "name": "x-organization-id",
+        "required": false,
+        "schema": {
+          "type": "string",
+        },
+      },
+      "ProjectIdHeader": {
+        "description": "Id of a project of the active organization to limit the request to. Answers 403 \`project_forbidden\` when the caller cannot reach the project, or the API key is limited to another one.",
+        "in": "header",
+        "name": "x-project-id",
+        "required": false,
+        "schema": {
+          "format": "uuid",
+          "type": "string",
+        },
+      },
+    },
     "schemas": {},
     "securitySchemes": {
       "ApiKeyAuth": {
@@ -1573,6 +1594,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "type": "string",
             },
           },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
         ],
         "responses": {
           "200": {
@@ -1754,6 +1781,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     "/v1/activities/seen": {
       "post": {
         "operationId": "markActivitiesSeen",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1866,6 +1901,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "format": "uuid",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "responses": {
@@ -2629,6 +2670,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     "/v1/api-keys": {
       "get": {
         "operationId": "listApiKeys",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "200": {
             "content": {
@@ -2719,6 +2768,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
       "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2829,6 +2886,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "API key created successfully",
           },
+          "404": {
+            "description": "No project with this \`projectId\` in the caller's reach",
+          },
         },
         "security": [
           {
@@ -2855,6 +2915,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "format": "uuid",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "responses": {
@@ -2903,6 +2969,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "format": "uuid",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "responses": {
@@ -3019,6 +3091,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "format": "uuid",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "requestBody": {
@@ -3757,6 +3835,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "type": "string",
             },
           },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
         ],
         "responses": {
           "200": {
@@ -4204,6 +4288,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "responses": {
@@ -5102,6 +5192,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/certificates": {
       "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "400": {
             "content": {
@@ -5139,6 +5237,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     "/v1/confidential-compute/attestation/validate": {
       "post": {
         "operationId": "validateConfidentialComputeAttestation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5404,6 +5510,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "type": "string",
             },
           },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
         ],
         "responses": {
           "204": {
@@ -5441,6 +5553,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "pattern": "^[A-Za-z0-9_-]{1,64}$",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "responses": {
@@ -5549,6 +5667,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "pattern": "^[A-Za-z0-9_-]{1,64}$",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "requestBody": {
@@ -5704,6 +5828,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/create-jwt-token": {
       "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -5764,6 +5896,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "JWT token created successfully",
+          },
+          "403": {
+            "description": "With \`code\` \`project_forbidden\`, the caller is limited to some projects and the token does not name its deployments one by one, or names one filed in a project the caller cannot view, or cannot change when the token does more than read",
           },
         },
         "security": [
@@ -6382,6 +6517,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "type": "array",
             },
           },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
         ],
         "responses": {
           "200": {
@@ -6455,6 +6596,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/deployment-settings": {
       "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6567,6 +6716,24 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "Deployment settings created successfully",
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "message",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
+          },
         },
         "security": [
           {
@@ -6604,6 +6771,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "responses": {
@@ -6738,6 +6911,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "requestBody": {
@@ -6914,7 +7093,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "Runtime limit changed concurrently",
+            "description": "Runtime limit changed concurrently. With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
           },
         },
         "security": [
@@ -7680,6 +7859,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "format": "uuid",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "responses": {
@@ -8579,6 +8764,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
       },
       "post": {
         "operationId": "createDeployment",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -8747,7 +8940,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted",
+            "description": "The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted. With \`code\` \`project_budget_exceeded\`, the deposit would take the project past its monthly budget",
           },
           "404": {
             "content": {
@@ -8892,6 +9085,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "type": "string",
             },
           },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
         ],
         "responses": {
           "200": {
@@ -8948,6 +9147,36 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "The close passed every check and will finish in the background",
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "With \`code\` \`project_forbidden\`, the deployment is filed in a project the caller cannot change",
+          },
         },
         "security": [
           {
@@ -8975,6 +9204,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "responses": {
@@ -9559,6 +9794,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "requestBody": {
@@ -10341,7 +10582,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one the console stores for this deployment, as a seal made before an earlier patch of it was recorded is",
+            "description": "The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one the console stores for this deployment, as a seal made before an earlier patch of it was recorded is. With \`code\` \`project_forbidden\`, the deployment is filed in a project the caller cannot change",
           },
           "404": {
             "content": {
@@ -10401,7 +10642,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The deployment definition changed between this patch reading it and writing it. A patch naming no \`ifManifestVersion\` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. \`code\` is \`deployment_definition_changed\` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures",
+            "description": "The deployment definition changed between this patch reading it and writing it. A patch naming no \`ifManifestVersion\` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. \`code\` is \`deployment_definition_changed\` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures. With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With \`code\` \`stored_secrets_unavailable\`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values",
           },
           "422": {
             "content": {
@@ -10522,6 +10763,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "requestBody": {
@@ -11146,7 +11393,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted",
+            "description": "The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted. With \`code\` \`project_forbidden\`, the deployment is filed in a project the caller cannot change",
           },
           "409": {
             "content": {
@@ -11176,7 +11423,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The \`sealedSecrets\` value was sealed to a key the console no longer holds. Refetch \`GET /v1/sdl-secrets-context\` and seal again",
+            "description": "The \`sealedSecrets\` value was sealed to a key the console no longer holds. Refetch \`GET /v1/sdl-secrets-context\` and seal again. With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
           },
           "422": {
             "content": {
@@ -11268,6 +11515,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "pattern": "^0*[1-9]\\d*$",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "requestBody": {
@@ -11392,7 +11645,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted",
+            "description": "The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted. With \`code\` \`project_forbidden\`, the deployment is filed in a project the caller cannot change",
           },
           "404": {
             "content": {
@@ -11452,7 +11705,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "With \`code\` \`deployment_definition_exists\`, the console already holds a definition for this deployment, which this route never replaces: patch it instead. Without a code, the \`sealedSecrets\` value was sealed to a key the console no longer holds, so refetch \`GET /v1/sdl-secrets-context\` and seal again",
+            "description": "With \`code\` \`deployment_definition_exists\`, the console already holds a definition for this deployment, which this route never replaces: patch it instead. With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. Without a code, the \`sealedSecrets\` value was sealed to a key the console no longer holds, so refetch \`GET /v1/sdl-secrets-context\` and seal again",
           },
           "422": {
             "content": {
@@ -11534,6 +11787,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "deprecated": true,
         "description": "Deprecated. Managed deployments are funded automatically; this endpoint will be removed in a future release.",
         "operationId": "depositDeployment",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -12095,6 +12356,96 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "Deposit successful",
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "With \`code\` \`unsupported_deposit_denom\`, the deposit is in a denomination a project budget cannot count",
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "With \`code\` \`project_forbidden\`, the deployment is filed in a project the caller cannot change. With \`code\` \`project_budget_exceeded\`, the deposit would take a project that stops top-ups past its monthly budget",
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "With \`code\` \`deposit_price_unavailable\`, the deposit could not be priced against its project's budget. Transient and worth retrying",
+          },
         },
         "security": [
           {
@@ -12113,6 +12464,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     "/v1/favorite-providers": {
       "get": {
         "operationId": "listFavoriteProviders",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "200": {
             "content": {
@@ -12163,6 +12522,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
       },
       "post": {
         "operationId": "createFavoriteProviders",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -12261,6 +12628,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "schema": {
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "responses": {
@@ -12845,6 +13218,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     "/v1/hardware-requests": {
       "post": {
         "operationId": "createHardwareRequest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -13265,6 +13646,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
       "post": {
         "description": "Creates the leases, then sends each provider its manifest. If a provider refuses the manifest once its lease exists, the error carries code \`manifest_not_delivered\` and the status the provider path produced. Send the same request again to retry the manifest, or close the deployment to stop paying for it.",
         "operationId": "createLease",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -13838,6 +14227,78 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "Leases created and manifest sent",
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "data": {
+                      "additionalProperties": {
+                        "nullable": true,
+                      },
+                      "type": "object",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "With \`code\` \`project_forbidden\`, the deployment is filed in a project the caller cannot change",
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "data": {
+                      "additionalProperties": {
+                        "nullable": true,
+                      },
+                      "type": "object",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With \`code\` \`stored_secrets_unavailable\`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values",
           },
           "502": {
             "content": {
@@ -19253,6 +19714,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     "/v1/sdl-secrets-context": {
       "get": {
         "operationId": "getSDLSecretsContext",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "200": {
             "content": {
@@ -19363,6 +19832,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/send-verification-code": {
       "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "200": {
             "content": {
@@ -19449,6 +19926,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     "/v1/spend-rate": {
       "get": {
         "operationId": "getSpendRate",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "200": {
             "content": {
@@ -20017,6 +20502,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/tx": {
       "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -20105,6 +20598,15 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "Returns a signed transaction",
+          },
+          "400": {
+            "description": "A new deployment needs a project (\`project_required\`), a message type cannot be signed in an organization (\`unsupported_message\`), a deposit names no deployment or a fractional amount (\`invalid_deposit\`), or a deposit's denomination cannot be counted against a project budget (\`unsupported_deposit_denom\`)",
+          },
+          "403": {
+            "description": "A deployment is filed in a project the caller cannot change, or a caller limited to some projects creates a certificate (\`project_forbidden\`), a deposit would take its project past its monthly budget (\`project_budget_exceeded\`), or a message acts for another account than the organization's wallet (\`message_signer_mismatch\`)",
+          },
+          "503": {
+            "description": "A deposit could not be priced against its project's budget (\`deposit_price_unavailable\`). Transient and worth retrying",
           },
         },
         "security": [
@@ -20335,6 +20837,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     "/v1/user/acceptFairUsePolicy": {
       "post": {
         "operationId": "acceptFairUsePolicy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "204": {
             "description": "Fair Use Policy accepted",
@@ -20368,6 +20878,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "format": "uuid",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "responses": {
@@ -20493,6 +21009,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "type": "string",
             },
           },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
         ],
         "responses": {
           "200": {
@@ -20524,6 +21046,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/user/favoriteTemplates": {
       "get": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "200": {
             "description": "Returns favorite templates",
@@ -20548,6 +21078,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/user/me": {
       "get": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "200": {
             "content": {
@@ -20687,7 +21225,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Account deletion is not available",
           },
           "409": {
-            "description": "The account has active deployments or credits nobody agreed to forfeit",
+            "description": "The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team (\`last_owner\`)",
           },
         },
         "security": [],
@@ -20700,6 +21238,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     "/v1/user/me/initiate-deletion": {
       "post": {
         "operationId": "createAccountDeletionRequest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -20737,13 +21283,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Unauthorized",
           },
           "403": {
-            "description": "Requested with an API key instead of a signed-in session",
+            "description": "Requested with an API key instead of a signed-in session (\`session_required\`)",
           },
           "404": {
             "description": "Account deletion is not available",
           },
           "409": {
-            "description": "The account has active deployments",
+            "description": "The account has active deployments, or is the last owner of a team (\`last_owner\`)",
           },
           "429": {
             "description": "A link was sent less than a minute ago",
@@ -20771,6 +21317,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "format": "uuid",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "responses": {
@@ -20800,6 +21352,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/user/saveTemplate": {
       "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -20890,6 +21450,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/user/saveTemplateDesc": {
       "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -20939,6 +21507,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/user/skipOnboarding": {
       "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "204": {
             "description": "Onboarding skipped",
@@ -20963,6 +21539,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/user/subscribeToNewsletter": {
       "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "200": {
             "description": "Subscribed successfully",
@@ -21045,6 +21629,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/user/updateSettings": {
       "put": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -21343,6 +21935,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/verify-email-code": {
       "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -21396,6 +21996,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
       "delete": {
         "description": "Deletes wallet settings for a user wallet",
         "operationId": "deleteWalletSettings",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "204": {
             "description": "Wallet settings deleted successfully",
@@ -21420,6 +22028,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
       "get": {
         "description": "Retrieves the wallet settings for the current user's wallet",
         "operationId": "getWalletSettings",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "200": {
             "content": {
@@ -21492,6 +22108,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
       "post": {
         "description": "Creates wallet settings for a user wallet",
         "operationId": "createWalletSettings",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -21609,6 +22233,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
       "put": {
         "description": "Updates wallet settings for a user wallet",
         "operationId": "updateWalletSettings",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -21737,6 +22369,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "type": "string",
             },
           },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
         ],
         "responses": {
           "200": {
@@ -21826,6 +22464,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/weekly-cost": {
       "get": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "responses": {
           "200": {
             "content": {
@@ -21871,6 +22517,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v2/deployment-settings": {
       "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -21982,6 +22636,24 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "Deployment settings created successfully",
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "message",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
+          },
         },
         "security": [
           {
@@ -22020,6 +22692,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "format": "uuid",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "responses": {
@@ -22155,6 +22833,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "format": "uuid",
               "type": "string",
             },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
           },
         ],
         "requestBody": {
@@ -22331,7 +23015,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "Runtime limit changed concurrently",
+            "description": "Runtime limit changed concurrently. With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization",
           },
         },
         "security": [

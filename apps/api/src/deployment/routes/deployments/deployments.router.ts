@@ -51,6 +51,11 @@ import {
   FallbackDeploymentListQuerySchema,
   FallbackDeploymentListResponseSchema
 } from "@src/deployment/http-schemas/deployment-rpc.schema";
+import {
+  PROJECT_FORBIDDEN_DESCRIPTION,
+  RECORD_UNFILED_DESCRIPTION,
+  SECRETS_SEALED_FOR_DEPARTED_MEMBER_DESCRIPTION
+} from "@src/deployment/routes/team-deployment-error-descriptions";
 import { FallbackDeploymentReaderService } from "@src/deployment/services/fallback-deployment-reader/fallback-deployment-reader.service";
 import { PROJECT_ID_HEADER } from "@src/organization/services/organization-context/organization-context.resolver";
 
@@ -163,7 +168,8 @@ const postRoute = createRoute({
       }
     },
     403: {
-      description: "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
+      description:
+        "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted. With `code` `project_budget_exceeded`, the deposit would take the project past its monthly budget",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -231,6 +237,14 @@ const deleteRoute = createRoute({
           schema: CloseDeploymentAcceptedResponseSchema
         }
       }
+    },
+    403: {
+      description: PROJECT_FORBIDDEN_DESCRIPTION,
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
     }
   }
 });
@@ -264,6 +278,30 @@ const depositRoute = createRoute({
       content: {
         "application/json": {
           schema: DepositDeploymentResponseSchema
+        }
+      }
+    },
+    400: {
+      description: "With `code` `unsupported_deposit_denom`, the deposit is in a denomination a project budget cannot count",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    403: {
+      description: `${PROJECT_FORBIDDEN_DESCRIPTION}. With \`code\` \`project_budget_exceeded\`, the deposit would take a project that stops top-ups past its monthly budget`,
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
+    503: {
+      description: "With `code` `deposit_price_unavailable`, the deposit could not be priced against its project's budget. Transient and worth retrying",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
         }
       }
     }
@@ -316,7 +354,7 @@ const updateRoute = createRoute({
       }
     },
     403: {
-      description: "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
+      description: `The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted. ${PROJECT_FORBIDDEN_DESCRIPTION}`,
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -324,7 +362,7 @@ const updateRoute = createRoute({
       }
     },
     409: {
-      description: "The `sealedSecrets` value was sealed to a key the console no longer holds. Refetch `GET /v1/sdl-secrets-context` and seal again",
+      description: `The \`sealedSecrets\` value was sealed to a key the console no longer holds. Refetch \`GET /v1/sdl-secrets-context\` and seal again. ${RECORD_UNFILED_DESCRIPTION}`,
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -397,8 +435,7 @@ const patchRoute = createRoute({
       }
     },
     403: {
-      description:
-        "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one the console stores for this deployment, as a seal made before an earlier patch of it was recorded is",
+      description: `The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one the console stores for this deployment, as a seal made before an earlier patch of it was recorded is. ${PROJECT_FORBIDDEN_DESCRIPTION}`,
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -415,8 +452,7 @@ const patchRoute = createRoute({
       }
     },
     409: {
-      description:
-        "The deployment definition changed between this patch reading it and writing it. A patch naming no `ifManifestVersion` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. `code` is `deployment_definition_changed` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures",
+      description: `The deployment definition changed between this patch reading it and writing it. A patch naming no \`ifManifestVersion\` is guarded on the version it read, so a concurrent patch produces this too. Re-sending the identical patch is not a conflict, because the version it recomputes is the one the row already holds. \`code\` is \`deployment_definition_changed\` for this case, which a reload of the definition cures; a 409 without it answers a seal made against a retired key, which a fresh seal cures. ${RECORD_UNFILED_DESCRIPTION}. ${SECRETS_SEALED_FOR_DEPARTED_MEMBER_DESCRIPTION}`,
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -498,7 +534,7 @@ const createDefinitionRoute = createRoute({
       }
     },
     403: {
-      description: "The `sealedSecrets` value was sealed for a different user, or bound to a different SDL than the one submitted",
+      description: `The \`sealedSecrets\` value was sealed for a different user, or bound to a different SDL than the one submitted. ${PROJECT_FORBIDDEN_DESCRIPTION}`,
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -514,8 +550,7 @@ const createDefinitionRoute = createRoute({
       }
     },
     409: {
-      description:
-        "With `code` `deployment_definition_exists`, the console already holds a definition for this deployment, which this route never replaces: patch it instead. Without a code, the `sealedSecrets` value was sealed to a key the console no longer holds, so refetch `GET /v1/sdl-secrets-context` and seal again",
+      description: `With \`code\` \`deployment_definition_exists\`, the console already holds a definition for this deployment, which this route never replaces: patch it instead. ${RECORD_UNFILED_DESCRIPTION}. Without a code, the \`sealedSecrets\` value was sealed to a key the console no longer holds, so refetch \`GET /v1/sdl-secrets-context\` and seal again`,
       content: {
         "application/json": {
           schema: ErrorResponseSchema
