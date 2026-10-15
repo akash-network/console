@@ -1,14 +1,15 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
 import Stripe from "stripe";
+import { container } from "tsyringe";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import { IssueCardPaymentInvoiceCommand } from "@src/billing/commands/issue-card-payment-invoice.command";
-import type { StripeTransactionRepository } from "@src/billing/repositories";
-import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
+import { StripeTransactionRepository } from "@src/billing/repositories";
+import { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import { PayerService } from "@src/billing/services/payer/payer.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
@@ -22,14 +23,16 @@ import type { UserRepository } from "@src/user/repositories/user/user.repository
 import { AUTO_RECHARGE_METADATA_KEY, StripeTransactionService } from "./stripe-transaction.service";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
+import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganization } from "@test/seeders/organization.seeder";
 import { createTestUser } from "@test/seeders/user-test.seeder";
 
 /**
  * These cover the webhook-facing settlement/refund methods, which route through `@WithTransaction`
  * writers that open a real DB transaction and so can't run as unit specs — they live here (DB-backed
- * `integration` project). The repositories are still mocked; only the transaction wrapper needs the
- * database.
+ * `integration` project). The repositories are still mocked, except where a test needs a database
+ * constraint to fire.
  */
 describe(StripeTransactionService.name, () => {
   describe("settlePaymentIntent", () => {
@@ -276,10 +279,8 @@ describe(StripeTransactionService.name, () => {
         })
       );
 
-      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(
-        internalTransaction.id,
-        expect.objectContaining({ status: "succeeded", bonusAmount })
-      );
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(internalTransaction.id, expect.objectContaining({ status: "succeeded" }));
+      expect(firstPurchaseBonusService.recordGrant).toHaveBeenCalledWith(internalTransaction, bonusAmount);
       expect(refillService.topUpWallet).toHaveBeenCalledWith(
         amount + bonusAmount,
         { userId: mockUser.id, organizationId: null },
@@ -327,6 +328,49 @@ describe(StripeTransactionService.name, () => {
       expect(refillService.topUpWallet).toHaveBeenCalledWith(amount, { userId: mockUser.id, organizationId: null }, expect.anything());
       expect(firstPurchaseBonusService.trackBonusGranted).not.toHaveBeenCalled();
       expect(outcome.bonusGrant).toBeUndefined();
+    });
+
+    it("credits the payment without the bonus when recording the bonus is refused", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService, firstPurchaseBonusService } = setup();
+      const mockUser = createTestUser();
+      const internalTransaction = generateDatabaseStripeTransaction({ status: "created" });
+      const amount = 15000;
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(1500);
+      firstPurchaseBonusService.recordGrant.mockResolvedValue(0);
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_123",
+          customer: mockUser.stripeCustomerId,
+          amount,
+          amount_received: amount,
+          metadata: { internal_transaction_id: internalTransaction.id }
+        })
+      );
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(internalTransaction.id, expect.objectContaining({ status: "succeeded" }));
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(
+        amount,
+        { userId: mockUser.id, organizationId: null },
+        {
+          endTrial: undefined,
+          payment: {
+            currency: internalTransaction.currency,
+            cardBrand: undefined,
+            paymentMethodType: undefined,
+            transactionId: internalTransaction.id,
+            source: "payment_intent",
+            isAutoRecharge: false
+          }
+        }
+      );
+      expect(firstPurchaseBonusService.trackBonusGranted).not.toHaveBeenCalled();
+      expect(outcome.bonusGrant).toBeUndefined();
+      expect(outcome.creditsAdded).toMatchObject({ paidAmountCents: amount, bonusAmountCents: 0 });
     });
 
     it("returns the auto recharge and reports the top-up as automatic when the payment intent carries the auto_recharge marker", async () => {
@@ -1333,11 +1377,51 @@ describe(StripeTransactionService.name, () => {
     });
   });
 
-  function setup() {
+  describe("when the eligibility check lets a person's second bonus through", () => {
+    it("grants one bonus and credits both payments when two of the person's purchases for different teams settle at once", async () => {
+      const { service, persistedTransactions, persistedBonusService, refillService, logger } = setup({ persistTransactions: true });
+      const person = await seedUser();
+      const teams = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
+      const purchases = await Promise.all(
+        teams.map(({ organization }) =>
+          persistedTransactions.create({ userId: person.id, organizationId: organization.id, type: "payment_intent", status: "pending", amount: 10000 })
+        )
+      );
+      vi.spyOn(persistedBonusService, "getEligibleBonusAmount").mockResolvedValue(1000);
+
+      await Promise.all(
+        purchases.map(purchase =>
+          service.settleSucceededTransaction({
+            transactionId: purchase.id,
+            chargeId: `ch_${faker.string.alphanumeric(24)}`,
+            paymentMethodType: "card",
+            cardBrand: "visa",
+            cardLast4: "4242",
+            receiptUrl: undefined,
+            stripePaymentIntentId: `pi_${faker.string.alphanumeric(24)}`,
+            paymentAmount: purchase.amount,
+            customerUserId: undefined,
+            eventDescription: `payment_intent for ${purchase.id}`,
+            isAutoRecharge: false
+          })
+        )
+      );
+
+      const settled = await Promise.all(purchases.map(purchase => persistedTransactions.findById(purchase.id)));
+      expect(settled.map(purchase => purchase?.status)).toEqual(["succeeded", "succeeded"]);
+      expect(settled.map(purchase => purchase?.bonusAmount ?? 0).sort((a, b) => a - b)).toEqual([0, 1000]);
+      expect(refillService.topUpWallet.mock.calls.map(([amount]) => amount).sort((a, b) => a - b)).toEqual([10000, 11000]);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "FIRST_PURCHASE_BONUS_REFUSED", userId: person.id }));
+    });
+  });
+
+  function setup(input: { persistTransactions?: boolean } = {}) {
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
+    const persistedTransactions = container.resolve(StripeTransactionRepository);
     const refillService = mock<RefillService>();
     const firstPurchaseBonusService = mock<FirstPurchaseBonusService>();
     firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(0);
+    firstPurchaseBonusService.recordGrant.mockImplementation(async (_transaction, bonusCents) => bonusCents);
     const userRepository = mock<UserRepository>();
     const organizationRepository = mock<OrganizationRepository>();
     const payerService = new PayerService(mock<AuthService>(), mock<ExecutionContextService>(), organizationRepository, userRepository);
@@ -1346,6 +1430,7 @@ describe(StripeTransactionService.name, () => {
     const featureFlagsService = mock<FeatureFlagsService>();
     featureFlagsService.isEnabled.mockReturnValue(false);
     const logger = mock<LoggerService>();
+    const persistedBonusService = new FirstPurchaseBonusService(persistedTransactions, analyticsService, userRepository, organizationRepository, () => logger);
 
     const toppedUpWallet = { walletId: 42, address: "akash1toppedupwallet" };
     refillService.topUpWallet.mockResolvedValue(toppedUpWallet);
@@ -1354,9 +1439,9 @@ describe(StripeTransactionService.name, () => {
 
     const service = new StripeTransactionService(
       stripe,
-      stripeTransactionRepository,
+      input.persistTransactions ? persistedTransactions : stripeTransactionRepository,
       refillService,
-      firstPurchaseBonusService,
+      input.persistTransactions ? persistedBonusService : firstPurchaseBonusService,
       mock<TimerService>(),
       payerService,
       domainEventsService,
@@ -1370,6 +1455,8 @@ describe(StripeTransactionService.name, () => {
       service,
       stripe,
       stripeTransactionRepository,
+      persistedTransactions,
+      persistedBonusService,
       refillService,
       firstPurchaseBonusService,
       userRepository,
