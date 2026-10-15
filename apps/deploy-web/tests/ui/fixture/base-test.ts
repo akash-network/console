@@ -1,5 +1,5 @@
-import type { Page } from "@playwright/test";
-import { test as baseTest } from "@playwright/test";
+import type { Browser, Page } from "@playwright/test";
+import { devices, test as baseTest } from "@playwright/test";
 
 import { loginExistingUser, registerNewUser } from "../actions/auth";
 import { closeAllActiveDeployments } from "../actions/deployment-janitor";
@@ -7,6 +7,7 @@ import { acceptFairUsePolicyIfPrompted } from "../actions/fair-use-policy";
 import { Auth0ManagementService } from "../services/auth0-management.service";
 import { createEmailVerificationStrategy, type EmailVerificationStrategy } from "../services/email-verification";
 import { testEnvConfig } from "./test-env.config";
+import { getUserAgent } from "./user-agent";
 
 export * from "@playwright/test";
 export { getUserAgent } from "./user-agent";
@@ -89,6 +90,16 @@ export async function injectUIConfig(page: Page) {
   await page.addInitScript(siteKey => {
     (window as any).__AK_INJECTED_CONFIG__ = Object.freeze({ NEXT_PUBLIC_TURNSTILE_SITE_KEY: siteKey });
   }, ALWAYS_PASS_INVISIBLE_SITE_KEY);
+}
+
+/** A second person in the same test, signed out in a browser context of their own and set up like the fixture's page; the caller closes its context. */
+export async function openSignedOutPage(browser: Browser): Promise<Page> {
+  const context = await browser.newContext({ ...devices["Desktop Chrome"], userAgent: getUserAgent() });
+  const page = await context.newPage();
+  await injectUIConfig(page);
+  await routeTestingClientToken(page);
+
+  return page;
 }
 
 /**

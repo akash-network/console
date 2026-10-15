@@ -7,10 +7,15 @@ export class ApiKeysPage {
     await this.page.waitForURL(/\/user\/api-keys/);
   }
 
-  async createKey(name: string) {
+  /** A project binds the key to it; the field exists only in a team organization. */
+  async createKey(name: string, options: { projectName?: string } = {}) {
     await this.page.getByRole("button", { name: "Create new key" }).click();
     const dialog = this.page.getByRole("dialog", { name: "Create a new API key" });
     await dialog.getByLabel("Name").fill(name);
+    if (options.projectName) {
+      await dialog.getByRole("combobox", { name: "Project" }).click();
+      await this.page.getByRole("option", { name: options.projectName, exact: true }).click();
+    }
     await dialog.getByRole("button", { name: "Create key" }).click();
   }
 
