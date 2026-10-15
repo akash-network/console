@@ -16,6 +16,7 @@ import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 const STRIPE_API = "https://api.stripe.com";
+const STRIPE_FILES = "https://pay.stripe.com";
 
 describe("Card payment invoices", () => {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
@@ -41,12 +42,12 @@ describe("Card payment invoices", () => {
       nock(STRIPE_API).post(`/v1/invoices/${invoiceId}/finalize`).reply(200, { id: invoiceId, object: "invoice", status: "open", customer: customerId });
       nock(STRIPE_API)
         .post(`/v1/invoices/${invoiceId}/attach_payment`)
-        .reply(200, { id: invoiceId, object: "invoice", status: "paid", customer: customerId, invoice_pdf: "https://pay.stripe.com/invoice/pdf" });
+        .reply(200, { id: invoiceId, object: "invoice", status: "paid", customer: customerId, invoice_pdf: `${STRIPE_FILES}/invoice/${invoiceId}/pdf` });
+      nock(STRIPE_FILES).get(`/invoice/${invoiceId}/pdf`).reply(200, "%PDF-issued", { "Content-Type": "application/pdf" });
 
       const response = await requestInvoice(payment.id, headersOf(team.owner));
 
-      expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ data: { invoiceId, invoicePdfUrl: "https://pay.stripe.com/invoice/pdf" } });
+      await expectPdf(response, "%PDF-issued");
       expect(await findTransaction(payment.id)).toMatchObject({ stripeInvoiceId: invoiceId });
     });
 
@@ -56,12 +57,12 @@ describe("Card payment invoices", () => {
       const payment = await seedCardPayment({ userId: team.owner.id, organizationId: team.id, stripeInvoiceId: "in_existing" });
       nock(STRIPE_API)
         .get("/v1/invoices/in_existing")
-        .reply(200, { id: "in_existing", object: "invoice", status: "paid", invoice_pdf: "https://pay.stripe.com/existing" });
+        .reply(200, { id: "in_existing", object: "invoice", status: "paid", invoice_pdf: `${STRIPE_FILES}/invoice/in_existing/pdf` });
+      nock(STRIPE_FILES).get("/invoice/in_existing/pdf").reply(200, "%PDF-existing", { "Content-Type": "application/pdf" });
 
       const response = await requestInvoice(payment.id, headersOf(admin));
 
-      expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ data: { invoiceId: "in_existing", invoicePdfUrl: "https://pay.stripe.com/existing" } });
+      await expectPdf(response, "%PDF-existing");
     });
 
     it("keeps the invoice of a payment refunded after it was issued downloadable", async () => {
@@ -69,12 +70,12 @@ describe("Card payment invoices", () => {
       const payment = await seedCardPayment({ userId: team.owner.id, organizationId: team.id, status: "refunded", stripeInvoiceId: "in_refunded" });
       nock(STRIPE_API)
         .get("/v1/invoices/in_refunded")
-        .reply(200, { id: "in_refunded", object: "invoice", status: "paid", invoice_pdf: "https://pay.stripe.com/refunded" });
+        .reply(200, { id: "in_refunded", object: "invoice", status: "paid", invoice_pdf: `${STRIPE_FILES}/invoice/in_refunded/pdf` });
+      nock(STRIPE_FILES).get("/invoice/in_refunded/pdf").reply(200, "%PDF-refunded", { "Content-Type": "application/pdf" });
 
       const response = await requestInvoice(payment.id, headersOf(team.owner));
 
-      expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ data: { invoiceId: "in_refunded", invoicePdfUrl: "https://pay.stripe.com/refunded" } });
+      await expectPdf(response, "%PDF-refunded");
     });
 
     it("refuses an admin who asks for an invoice the payment does not have yet, without calling Stripe", async () => {
@@ -132,6 +133,13 @@ describe("Card payment invoices", () => {
       expect(response.status).toBe(404);
     });
   });
+
+  async function expectPdf(response: Response, content: string) {
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/pdf");
+    expect(response.headers.get("content-disposition")).toBe("attachment");
+    expect(await response.text()).toBe(content);
+  }
 
   async function requestInvoice(transactionId: string, headers: Record<string, string>) {
     return await app.request(`/v1/stripe/transactions/${transactionId}/invoice`, { method: "POST", headers });

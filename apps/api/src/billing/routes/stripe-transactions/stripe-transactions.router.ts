@@ -10,7 +10,7 @@ import {
   CustomerTransactionsQuerySchema,
   CustomerTransactionsResponseSchema
 } from "@src/billing/http-schemas/stripe.schema";
-import { TransactionInvoiceParamsSchema, TransactionInvoiceResponseSchema } from "@src/billing/http-schemas/transaction-invoice.schema";
+import { TransactionInvoiceParamsSchema } from "@src/billing/http-schemas/transaction-invoice.schema";
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
@@ -157,7 +157,7 @@ const createTransactionInvoiceRoute = createRoute({
   method: "post",
   operationId: "createStripeTransactionInvoice",
   path: "/v1/stripe/transactions/{id}/invoice",
-  summary: "Get the invoice of a card payment, issuing it first when it has none",
+  summary: "Download the invoice PDF of a card payment, issuing the invoice first when it has none",
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.INVOICES,
@@ -166,10 +166,13 @@ const createTransactionInvoiceRoute = createRoute({
   },
   responses: {
     200: {
-      description: "The paid invoice of the card payment",
+      description: "PDF of the card payment's paid invoice",
       content: {
-        "application/json": {
-          schema: TransactionInvoiceResponseSchema
+        "application/pdf": {
+          schema: {
+            type: "string",
+            format: "binary"
+          }
         }
       }
     },
@@ -180,5 +183,12 @@ const createTransactionInvoiceRoute = createRoute({
 });
 stripeTransactionsRouter.openapi(createTransactionInvoiceRoute, async function createTransactionInvoice(c) {
   const { id } = c.req.valid("param");
-  return c.json(await container.resolve(TransactionInvoiceController).getInvoice(id), 200);
+  const pdf = await container.resolve(TransactionInvoiceController).getInvoicePdf(id);
+
+  return new Response(pdf, {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": "attachment"
+    }
+  });
 });

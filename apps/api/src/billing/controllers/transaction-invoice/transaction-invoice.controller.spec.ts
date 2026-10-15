@@ -14,43 +14,41 @@ import { createTeamPayer } from "@test/seeders/payer.seeder";
 import { createTestInvoice } from "@test/seeders/stripe-test-data.seeder";
 
 describe(TransactionInvoiceController.name, () => {
-  describe("getInvoice", () => {
+  describe("getInvoicePdf", () => {
     it("issues the invoice of a payment of the current payer and returns its PDF", async () => {
       const { controller, stripeTransactionRepository, cardPaymentInvoiceService, authService, payer } = setup();
       const transaction = generateDatabaseStripeTransaction({ status: "succeeded" });
+      const invoice = createTestInvoice({ id: "in_1" });
+      const pdf = new Blob(["%PDF"]).stream();
       stripeTransactionRepository.findOwnedById.mockResolvedValue(transaction);
-      cardPaymentInvoiceService.issueInvoice.mockResolvedValue(createTestInvoice({ id: "in_1", invoice_pdf: "https://pay.stripe.com/pdf" }));
+      cardPaymentInvoiceService.issueInvoice.mockResolvedValue(invoice);
+      cardPaymentInvoiceService.fetchPdf.mockResolvedValue(pdf);
 
-      const result = await controller.getInvoice(transaction.id);
+      const result = await controller.getInvoicePdf(transaction.id);
 
       expect(stripeTransactionRepository.findOwnedById).toHaveBeenCalledWith(transaction.id, { organizationId: payer.team!.id });
       expect(authService.throwUnlessCan).toHaveBeenCalledWith("create", "StripePayment");
       expect(cardPaymentInvoiceService.issueInvoice).toHaveBeenCalledWith(transaction);
-      expect(result).toEqual({ data: { invoiceId: "in_1", invoicePdfUrl: "https://pay.stripe.com/pdf" } });
-    });
-
-    it("returns no PDF link for an invoice Stripe has none for", async () => {
-      const { controller, stripeTransactionRepository, cardPaymentInvoiceService } = setup();
-      stripeTransactionRepository.findOwnedById.mockResolvedValue(generateDatabaseStripeTransaction({ stripeInvoiceId: "in_1" }));
-      cardPaymentInvoiceService.issueInvoice.mockResolvedValue(createTestInvoice({ id: "in_1", invoice_pdf: null }));
-
-      const result = await controller.getInvoice("tx-1");
-
-      expect(result.data.invoicePdfUrl).toBeNull();
+      expect(cardPaymentInvoiceService.fetchPdf).toHaveBeenCalledWith(invoice);
+      expect(result).toBe(pdf);
     });
 
     it("lets a reader download an invoice the payment already has paid", async () => {
       const { controller, stripeTransactionRepository, cardPaymentInvoiceService, authService } = setup({ deniedRule: "create:StripePayment" });
       const transaction = generateDatabaseStripeTransaction({ stripeInvoiceId: "in_existing" });
+      const paid = createTestInvoice({ id: "in_existing" });
+      const pdf = new Blob(["%PDF"]).stream();
       stripeTransactionRepository.findOwnedById.mockResolvedValue(transaction);
-      cardPaymentInvoiceService.findPaidInvoice.mockResolvedValue(createTestInvoice({ id: "in_existing", invoice_pdf: "https://pay.stripe.com/existing" }));
+      cardPaymentInvoiceService.findPaidInvoice.mockResolvedValue(paid);
+      cardPaymentInvoiceService.fetchPdf.mockResolvedValue(pdf);
 
-      const result = await controller.getInvoice(transaction.id);
+      const result = await controller.getInvoicePdf(transaction.id);
 
       expect(cardPaymentInvoiceService.findPaidInvoice).toHaveBeenCalledWith(transaction);
       expect(authService.throwUnlessCan).not.toHaveBeenCalledWith("create", "StripePayment");
       expect(cardPaymentInvoiceService.issueInvoice).not.toHaveBeenCalled();
-      expect(result).toEqual({ data: { invoiceId: "in_existing", invoicePdfUrl: "https://pay.stripe.com/existing" } });
+      expect(cardPaymentInvoiceService.fetchPdf).toHaveBeenCalledWith(paid);
+      expect(result).toBe(pdf);
     });
 
     it("refuses a reader who would have to finish an invoice that is not paid yet", async () => {
@@ -58,7 +56,7 @@ describe(TransactionInvoiceController.name, () => {
       stripeTransactionRepository.findOwnedById.mockResolvedValue(generateDatabaseStripeTransaction({ stripeInvoiceId: "in_draft" }));
       cardPaymentInvoiceService.findPaidInvoice.mockResolvedValue(undefined);
 
-      await expect(controller.getInvoice("tx-1")).rejects.toMatchObject({ status: 403 });
+      await expect(controller.getInvoicePdf("tx-1")).rejects.toMatchObject({ status: 403 });
       expect(cardPaymentInvoiceService.issueInvoice).not.toHaveBeenCalled();
     });
 
@@ -66,7 +64,7 @@ describe(TransactionInvoiceController.name, () => {
       const { controller, stripeTransactionRepository, cardPaymentInvoiceService } = setup({ deniedRule: "create:StripePayment" });
       stripeTransactionRepository.findOwnedById.mockResolvedValue(generateDatabaseStripeTransaction({ stripeInvoiceId: null }));
 
-      await expect(controller.getInvoice("tx-1")).rejects.toMatchObject({ status: 403 });
+      await expect(controller.getInvoicePdf("tx-1")).rejects.toMatchObject({ status: 403 });
       expect(cardPaymentInvoiceService.issueInvoice).not.toHaveBeenCalled();
     });
 
@@ -74,14 +72,14 @@ describe(TransactionInvoiceController.name, () => {
       const { controller, stripeTransactionRepository, cardPaymentInvoiceService } = setup();
       stripeTransactionRepository.findOwnedById.mockResolvedValue(undefined);
 
-      await expect(controller.getInvoice("tx-other")).rejects.toMatchObject({ status: 404, message: "Transaction not found" });
+      await expect(controller.getInvoicePdf("tx-other")).rejects.toMatchObject({ status: 404, message: "Transaction not found" });
       expect(cardPaymentInvoiceService.issueInvoice).not.toHaveBeenCalled();
     });
 
     it("refuses a caller who cannot read the billing", async () => {
       const { controller, stripeTransactionRepository } = setup({ deniedRule: "read:StripePayment" });
 
-      await expect(Promise.resolve().then(() => controller.getInvoice("tx-1"))).rejects.toMatchObject({ status: 403 });
+      await expect(Promise.resolve().then(() => controller.getInvoicePdf("tx-1"))).rejects.toMatchObject({ status: 403 });
       expect(stripeTransactionRepository.findOwnedById).not.toHaveBeenCalled();
     });
   });

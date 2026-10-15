@@ -70,48 +70,39 @@ describe(TransactionInvoiceButton.name, () => {
     expect(screen.getByRole("button", { name: "Get invoice" })).toBeInTheDocument();
   });
 
-  it("opens the invoice PDF in the tab it opened on the click", async () => {
-    const { transaction, mutateAsync, open, tab, resolveInvoice } = setup({
-      transaction: createMockTransaction({ type: "payment_intent", stripeInvoiceId: "in_1" })
+  it("saves the invoice PDF in place, named after the payment date, without opening a tab", async () => {
+    const created = new Date(2026, 9, 14, 12);
+    const { transaction, mutateAsync, savedFiles, open, resolveInvoice } = setup({
+      transaction: createMockTransaction({ type: "payment_intent", stripeInvoiceId: "in_1", created: created.getTime() / 1000 })
     });
+    const pdf = new Blob(["%PDF"], { type: "application/pdf" });
 
     await userEvent.click(screen.getByRole("button", { name: "Download invoice" }));
 
-    expect(open).toHaveBeenCalledWith("", "_blank");
-    expect(mutateAsync).toHaveBeenCalledWith({ id: transaction.id });
-    expect(tab.location.href).toBe("about:blank");
+    expect(mutateAsync).toHaveBeenCalledWith(transaction.id);
+    expect(savedFiles).toEqual([]);
 
-    resolveInvoice({ data: { invoiceId: "in_1", invoicePdfUrl: "https://pay.stripe.com/invoice/pdf" } });
+    resolveInvoice(pdf);
 
-    await waitFor(() => expect(tab.location.href).toBe("https://pay.stripe.com/invoice/pdf"));
-    expect(tab.close).not.toHaveBeenCalled();
+    await waitFor(() => expect(savedFiles).toEqual([{ href: "blob:invoice", download: "akash-invoice-2026-10-14.pdf" }]));
+    expect(URL.createObjectURL).toHaveBeenCalledWith(pdf);
+    expect(open).not.toHaveBeenCalled();
   });
 
-  it("closes the tab and explains when the invoice can't be fetched", async () => {
-    const { tab, enqueueSnackbar, rejectInvoice } = setup({ transaction: createMockTransaction({ type: "payment_intent", stripeInvoiceId: "in_1" }) });
+  it("explains when the invoice can't be fetched and saves nothing", async () => {
+    const { enqueueSnackbar, savedFiles, rejectInvoice } = setup({ transaction: createMockTransaction({ type: "payment_intent", stripeInvoiceId: "in_1" }) });
 
     await userEvent.click(screen.getByRole("button", { name: "Download invoice" }));
     rejectInvoice(new Error("Stripe is down"));
 
-    await waitFor(() => expect(tab.close).toHaveBeenCalled());
-    expect(tab.location.href).toBe("about:blank");
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "error" });
-  });
-
-  it("closes the tab and explains when the invoice has no PDF yet", async () => {
-    const { tab, enqueueSnackbar, resolveInvoice } = setup({ transaction: createMockTransaction({ type: "payment_intent", stripeInvoiceId: "in_1" }) });
-
-    await userEvent.click(screen.getByRole("button", { name: "Download invoice" }));
-    resolveInvoice({ data: { invoiceId: "in_1", invoicePdfUrl: null } });
-
-    await waitFor(() => expect(tab.close).toHaveBeenCalled());
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "error" });
+    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "error" }));
+    expect(savedFiles).toEqual([]);
   });
 
   it("shows a spinner and blocks a second click while the invoice is on its way", () => {
     setup({ transaction: createMockTransaction({ type: "payment_intent", stripeInvoiceId: "in_1" }), isPending: true });
 
-    expect(screen.getByRole("button", { name: "Download invoice" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Preparing invoice…" })).toBeDisabled();
     expect(screen.getByRole("status")).toBeInTheDocument();
   });
 
@@ -127,8 +118,8 @@ describe(TransactionInvoiceButton.name, () => {
       : undefined;
     const invoiceResponse = Promise.withResolvers<Awaited<ReturnType<InvoiceMutation["mutateAsync"]>>>();
     const mutateAsync = vi.fn<InvoiceMutation["mutateAsync"]>(() => invoiceResponse.promise);
-    const tab = mock<Window>({ opener: {}, location: mock<Location>({ href: "about:blank" }) });
-    const open = vi.spyOn(window, "open").mockReturnValue(tab);
+    const open = vi.spyOn(window, "open");
+    const savedFiles = spyOnFileDownloads();
     onTestFinished(() => open.mockRestore());
     const enqueueSnackbar = vi.fn();
 
@@ -145,10 +136,27 @@ describe(TransactionInvoiceButton.name, () => {
       transaction: input.transaction,
       mutateAsync,
       open,
-      tab,
+      savedFiles,
       enqueueSnackbar,
       resolveInvoice: invoiceResponse.resolve,
       rejectInvoice: invoiceResponse.reject
     };
+  }
+
+  function spyOnFileDownloads() {
+    const savedFiles: { href: string | null; download: string | null }[] = [];
+    const { createObjectURL, revokeObjectURL } = URL;
+    URL.createObjectURL = vi.fn(() => "blob:invoice");
+    URL.revokeObjectURL = vi.fn();
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      savedFiles.push({ href: this.getAttribute("href"), download: this.getAttribute("download") });
+    });
+    onTestFinished(() => {
+      click.mockRestore();
+      URL.createObjectURL = createObjectURL;
+      URL.revokeObjectURL = revokeObjectURL;
+    });
+
+    return savedFiles;
   }
 });

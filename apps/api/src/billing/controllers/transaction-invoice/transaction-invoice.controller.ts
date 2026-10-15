@@ -2,7 +2,6 @@ import assert from "http-assert";
 import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
-import type { TransactionInvoiceResponse } from "@src/billing/http-schemas/transaction-invoice.schema";
 import { StripeTransactionRepository } from "@src/billing/repositories";
 import { CardPaymentInvoiceService } from "@src/billing/services/card-payment-invoice/card-payment-invoice.service";
 import { billingOwnerOf } from "@src/billing/services/payer/payer";
@@ -19,7 +18,7 @@ export class TransactionInvoiceController {
 
   /** Anyone who reads the billing history may download a paid invoice, but only those who may pay can have one issued or finished. */
   @Protected([{ action: "read", subject: "StripePayment" }])
-  async getInvoice(transactionId: string): Promise<TransactionInvoiceResponse> {
+  async getInvoicePdf(transactionId: string): Promise<ReadableStream<Uint8Array>> {
     const payer = await this.payerService.getCurrentPayer();
     const transaction = await this.stripeTransactionRepository.findOwnedById(transactionId, billingOwnerOf(payer));
 
@@ -33,6 +32,6 @@ export class TransactionInvoiceController {
 
     const invoice = paidInvoice ?? (await this.cardPaymentInvoiceService.issueInvoice(transaction));
 
-    return { data: { invoiceId: invoice.id, invoicePdfUrl: invoice.invoice_pdf ?? null } };
+    return await this.cardPaymentInvoiceService.fetchPdf(invoice);
   }
 }

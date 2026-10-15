@@ -1719,7 +1719,7 @@
     "/v1/stripe/transactions/{id}/invoice": {
       "post": {
         "operationId": "createStripeTransactionInvoice",
-        "summary": "Get the invoice of a card payment, issuing it first when it has none",
+        "summary": "Download the invoice PDF of a card payment, issuing the invoice first when it has none",
         "tags": [
           "Payment"
         ],
@@ -1745,33 +1745,12 @@
         ],
         "responses": {
           "200": {
-            "description": "The paid invoice of the card payment",
+            "description": "PDF of the card payment's paid invoice",
             "content": {
-              "application/json": {
+              "application/pdf": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "invoiceId": {
-                          "type": "string"
-                        },
-                        "invoicePdfUrl": {
-                          "type": "string",
-                          "nullable": true,
-                          "description": "Link to download the invoice PDF"
-                        }
-                      },
-                      "required": [
-                        "invoiceId",
-                        "invoicePdfUrl"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ]
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }

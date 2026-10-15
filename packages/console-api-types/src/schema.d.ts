@@ -420,7 +420,7 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Get the invoice of a card payment, issuing it first when it has none */
+    /** Download the invoice PDF of a card payment, issuing the invoice first when it has none */
     post: operations["createStripeTransactionInvoice"];
     delete?: never;
     options?: never;
@@ -8705,19 +8705,13 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description The paid invoice of the card payment */
+      /** @description PDF of the card payment's paid invoice */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": {
-            data: {
-              invoiceId: string;
-              /** @description Link to download the invoice PDF */
-              invoicePdfUrl: string | null;
-            };
-          };
+          "application/pdf": string;
         };
       };
       /** @description The transaction is not a successful card payment */

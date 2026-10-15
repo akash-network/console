@@ -10,6 +10,9 @@ export const INVOICE_LINE_DESCRIPTION = "Akash Console credits";
 
 export const NOT_INVOICEABLE_MESSAGE = "Only a successful card payment can have an invoice";
 
+/** Stripe renders an invoice's PDF on its first download, which can take several seconds. */
+const INVOICE_PDF_TIMEOUT_MS = 30_000;
+
 type InvoiceableTransaction = StripeTransactionOutput & { stripePaymentIntentId: string };
 
 @singleton()
@@ -38,6 +41,20 @@ export class CardPaymentInvoiceService {
     const recorded = await this.#retrieveRecorded(transaction);
 
     return recorded?.status === "paid" ? recorded : undefined;
+  }
+
+  async fetchPdf(invoice: Stripe.Invoice): Promise<ReadableStream<Uint8Array>> {
+    if (!invoice.invoice_pdf) {
+      throw new Error(`Invoice ${invoice.id} has no PDF`);
+    }
+
+    const response = await fetch(invoice.invoice_pdf, { signal: AbortSignal.timeout(INVOICE_PDF_TIMEOUT_MS) });
+
+    if (!response.ok || !response.body) {
+      throw new Error(`Stripe returned ${response.status} for the PDF of invoice ${invoice.id}`);
+    }
+
+    return response.body;
   }
 
   /** Every step reads where Stripe already is before acting, so a retried or concurrent call finishes the same invoice instead of opening a second one. */

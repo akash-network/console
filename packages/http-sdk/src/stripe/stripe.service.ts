@@ -85,6 +85,14 @@ export class StripeService {
     );
   }
 
+  async downloadTransactionInvoice(transactionId: string): Promise<Blob> {
+    return extractData(
+      await this.#httpClient.post(`/v1/stripe/transactions/${encodeURIComponent(transactionId)}/invoice`, undefined, {
+        responseType: "blob"
+      })
+    );
+  }
+
   async findPrices(config?: AxiosRequestConfig): Promise<StripePrice[]> {
     return extractData(await this.#httpClient.get("/v1/stripe/prices", config)).data;
   }

@@ -43,11 +43,24 @@ describe(StripeService.name, () => {
     });
   });
 
-  function setup(input?: { payload?: unknown }) {
+  describe("downloadTransactionInvoice", () => {
+    it("posts for the invoice of the transaction and returns the PDF as a blob", async () => {
+      const pdf = new Blob(["%PDF"], { type: "application/pdf" });
+      const { service, httpClient } = setup({ pdf });
+
+      const result = await service.downloadTransactionInvoice("tx-1");
+
+      expect(httpClient.post).toHaveBeenCalledWith("/v1/stripe/transactions/tx-1/invoice", undefined, { responseType: "blob" });
+      expect(result).toBe(pdf);
+    });
+  });
+
+  function setup(input?: { payload?: unknown; pdf?: Blob }) {
     const payload = input?.payload ?? { transactions: [], totalCount: 0, hasMore: false };
     const httpClient = {
-      get: vi.fn().mockResolvedValue({ data: { data: payload } })
-    } as unknown as HttpClient & { get: ReturnType<typeof vi.fn> };
+      get: vi.fn().mockResolvedValue({ data: { data: payload } }),
+      post: vi.fn().mockResolvedValue({ data: input?.pdf })
+    } as unknown as HttpClient & { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
     const service = new StripeService(httpClient);
     return { service, httpClient };
   }
