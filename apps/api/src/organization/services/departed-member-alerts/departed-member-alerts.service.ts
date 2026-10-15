@@ -1,10 +1,13 @@
-import { createHash } from "node:crypto";
 import { singleton } from "tsyringe";
 
 import { JobQueueService } from "@src/core";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
-import { STOP_TEAM_ALERTS_TO_DEPARTED_MEMBER_RETRY_OPTIONS, StopTeamAlertsToDepartedMember } from "./stop-team-alerts-to-departed-member.handler";
+import {
+  addressSha256Of,
+  STOP_TEAM_ALERTS_TO_DEPARTED_MEMBER_RETRY_OPTIONS,
+  StopTeamAlertsToDepartedMember
+} from "./stop-team-alerts-to-departed-member.handler";
 
 /** Queues taking a member's address off a team's alert channels, in the transaction that ends the membership, so a notifications outage cannot keep it there. */
 @singleton()
@@ -32,7 +35,7 @@ export class DepartedMemberAlertsService {
 
     if (!user?.email) return;
 
-    const addressSha256 = createHash("sha256").update(user.email.toLowerCase()).digest("hex");
+    const addressSha256 = addressSha256Of(user.email);
 
     for (const organizationId of organizationIds) {
       await this.jobQueueService.enqueue(

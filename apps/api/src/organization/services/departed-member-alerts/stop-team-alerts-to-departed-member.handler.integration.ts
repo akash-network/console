@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import nock from "nock";
+import { createHash } from "node:crypto";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -48,6 +49,18 @@ describe(StopTeamAlertsToDepartedMemberHandler.name, () => {
     expect(releaseRequests()).toEqual([{ data: { addressSha256: job.addressSha256, fallbackAddresses: [admin.email, viewer.email] } }]);
   });
 
+  it("leaves the address on the team's channels when it belongs to a member again by the time the job runs", async () => {
+    const { organization, stopAlerts, releaseRequests } = await setup({ notificationsStatus: 204 });
+    const address = faker.internet.email();
+    const rejoinedMember = await seedUser({ email: address.toUpperCase() });
+    await seedOrganizationMember({ organizationId: organization.id, userId: rejoinedMember.id, role: "viewer" });
+
+    await stopAlerts({ userId: rejoinedMember.id, address });
+    await expectJobCompleted(StopTeamAlertsToDepartedMember[JOB_NAME], { data: { organizationId: organization.id } });
+
+    expect(releaseRequests()).toEqual([]);
+  });
+
   it("keeps the job for a retry while the notifications service cannot take it", async () => {
     const { organization, stopAlerts } = await setup({ notificationsStatus: 404 });
 
@@ -76,11 +89,13 @@ describe(StopTeamAlertsToDepartedMemberHandler.name, () => {
         return [input.notificationsStatus, input.notificationsStatus === 204 ? "" : { message: "Cannot POST" }];
       });
 
-    const stopAlerts = async () => {
+    const stopAlerts = async (departure?: { userId: string; address: string }) => {
       const data = {
         organizationId: organization.id,
-        userId: faker.string.uuid(),
-        addressSha256: faker.string.hexadecimal({ length: 64, prefix: "", casing: "lower" })
+        userId: departure?.userId ?? faker.string.uuid(),
+        addressSha256: departure
+          ? createHash("sha256").update(departure.address.toLowerCase()).digest("hex")
+          : faker.string.hexadecimal({ length: 64, prefix: "", casing: "lower" })
       };
       await enqueue(new StopTeamAlertsToDepartedMember(data), STOP_TEAM_ALERTS_TO_DEPARTED_MEMBER_RETRY_OPTIONS);
       await startWorkers();

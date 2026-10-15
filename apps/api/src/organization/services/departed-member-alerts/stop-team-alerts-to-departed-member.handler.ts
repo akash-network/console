@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, type EnqueueOptions, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
@@ -23,6 +24,10 @@ export const STOP_TEAM_ALERTS_TO_DEPARTED_MEMBER_RETRY_OPTIONS = {
   retryDelay: 30,
   retryDelayMax: 60 * 60
 } satisfies EnqueueOptions;
+
+export function addressSha256Of(address: string): string {
+  return createHash("sha256").update(address.toLowerCase()).digest("hex");
+}
 
 /** The owners with an email, or every member with one when no owner has an email, so an emptied channel still reaches the team. */
 function fallbackAddressesOf(members: OrganizationMemberWithUser[]): string[] {
@@ -50,9 +55,15 @@ export class StopTeamAlertsToDepartedMemberHandler implements JobHandler<StopTea
     return [];
   }
 
-  /** Reads the members when it runs, so a channel the member was alone on goes to whoever owns the team by then. */
+  /** Reads the members when it runs, so an address that is a member's again stays and an emptied channel goes to the team's owners by then. */
   async handle({ organizationId, userId, addressSha256 }: JobPayload<StopTeamAlertsToDepartedMember>): Promise<void> {
     const members = await this.organizationMemberRepository.findAllWithUsers(organizationId);
+    const addressBelongsToCurrentMember = members.some(({ email }) => !!email && addressSha256Of(email) === addressSha256);
+
+    if (addressBelongsToCurrentMember) {
+      this.#logger.info({ event: "DEPARTED_MEMBER_ADDRESS_KEPT_FOR_CURRENT_MEMBER", organizationId, userId });
+      return;
+    }
 
     await this.notificationService.releaseDepartedMemberAddress({ organizationId, addressSha256, fallbackAddresses: fallbackAddressesOf(members) });
 
