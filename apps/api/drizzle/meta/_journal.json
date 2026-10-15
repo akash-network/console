@@ -589,6 +589,13 @@
       "when": 1792007483067,
       "tag": "0083_activities_initiator_dedupe_key",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1792071416845,
+      "tag": "0084_keep_team_templates_without_author",
+      "breakpoints": true
     }
   ]
 }

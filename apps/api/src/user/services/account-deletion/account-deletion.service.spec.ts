@@ -268,13 +268,16 @@ describe(AccountDeletionService.name, () => {
       );
     });
 
-    it("keeps the records the member wrote for team organizations before the user row cascades", async () => {
-      const { service, user, userRepository, teamRecordRetentionService } = setup({ storedToken: {} });
+    it("keeps the records the member wrote for team organizations before the user row cascades and the templates go", async () => {
+      const { service, user, userRepository, userTemplateRepository, teamRecordRetentionService } = setup({ storedToken: {} });
 
       await service.confirm({ token: "link-token" });
 
-      expect(teamRecordRetentionService.releaseFromTeams).toHaveBeenCalledWith(user.id);
+      expect(teamRecordRetentionService.releaseFromTeams).toHaveBeenCalledWith(user);
       expect(teamRecordRetentionService.releaseFromTeams.mock.invocationCallOrder[0]).toBeLessThan(userRepository.deleteById.mock.invocationCallOrder[0]);
+      expect(teamRecordRetentionService.releaseFromTeams.mock.invocationCallOrder[0]).toBeLessThan(
+        userTemplateRepository.deleteAllOwnedBy.mock.invocationCallOrder[0]
+      );
     });
 
     it("checks the team owners once the user row is locked, inside the erasing transaction", async () => {

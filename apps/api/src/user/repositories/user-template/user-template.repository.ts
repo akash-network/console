@@ -6,11 +6,13 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
 export interface TemplateOutput {
   id: string;
-  userId: string;
+  /** Null on a team template whose author deleted their account. */
+  userId: string | null;
   title: string;
   description: string;
   cpu: number;
@@ -123,7 +125,7 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
       })
       .from(this.favoriteTable)
       .innerJoin(this.table, eq(this.favoriteTable.templateId, this.table.id))
-      .innerJoin(Users, eq(this.table.userId, Users.userId))
+      .leftJoin(Users, eq(this.table.userId, Users.userId))
       .where(and(eq(this.favoriteTable.userId, userId), this.#readableBy(userId)));
     return items.map(item => this.#toFullOutput(item, item.username));
   }
@@ -156,6 +158,13 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
       .update(this.table)
       .set(data)
       .where(this.whereAccessibleBy(and(eq(this.table.id, id), eq(this.table.userId, userId))));
+  }
+
+  async detachFromTeams(userId: string): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ userId: null })
+      .where(this.unscoped("account-deletion").whereAccessibleBy(writtenForTeamBy(this.table, userId)));
   }
 
   async deleteAllOwnedBy(userId: string): Promise<void> {
@@ -196,7 +205,7 @@ export class UserTemplateRepository extends OrgScopedRepository<ApiPgTables["Tem
   #toFullOutput(template: Partial<TemplateRow>, username?: string | null): TemplateOutput {
     return {
       id: template.id!,
-      userId: template.userId!,
+      userId: template.userId ?? null,
       title: template.title!,
       description: template.description ?? "",
       cpu: template.cpu!,
