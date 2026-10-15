@@ -16,6 +16,7 @@ import type {
 import type { Membership, OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { ProjectMemberRepository } from "@src/organization/repositories/project-member/project-member.repository";
+import type { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import { ALREADY_MEMBER_ERROR_CODE } from "@src/organization/services/organization-invitation/organization-invitation.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
@@ -107,6 +108,21 @@ describe(InvitationAcceptanceService.name, () => {
       expect(userRepository.updateById).toHaveBeenCalledWith(invitee.id, { lastUsedOrganizationId: invitation.organizationId });
     });
 
+    it("records the join in the organization's activity, by the invitee and with the invited role", async () => {
+      const invitation = createOrganizationInvitation({ role: "billing" });
+      const { service, invitee, organizationActivityService } = setup({ invitation });
+
+      await service.acceptInvitation({ token: createInvitationToken() });
+
+      expect(organizationActivityService.recordJoined).toHaveBeenCalledTimes(1);
+      expect(organizationActivityService.recordJoined).toHaveBeenCalledWith({
+        organizationId: invitation.organizationId,
+        type: "member_joined",
+        actorUserId: invitee.id,
+        payload: { role: "billing" }
+      });
+    });
+
     it("answers the joined organization as inactive while the request ran in another one", async () => {
       const invitation = createOrganizationInvitation();
       const membership = createMembership({ organizationId: invitation.organizationId, role: "member" });
@@ -142,10 +158,11 @@ describe(InvitationAcceptanceService.name, () => {
     it("keeps the role and grants of an invitee who is already a member and consumes the invitation", async () => {
       const invitation = createOrganizationInvitation({ role: "owner", projectGrants: [{ projectId: faker.string.uuid(), role: "admin" }] });
       const membership = createMembership({ organizationId: invitation.organizationId, role: "viewer" });
-      const { service, invitee, unscopedRepositories } = setup({ invitation, membership, isAlreadyMember: true });
+      const { service, invitee, unscopedRepositories, organizationActivityService } = setup({ invitation, membership, isAlreadyMember: true });
 
       await expect(service.acceptInvitation({ token: createInvitationToken() })).resolves.toMatchObject({ role: "viewer" });
       expect(unscopedRepositories.projectMembers.createManyUnlessExist).not.toHaveBeenCalled();
+      expect(organizationActivityService.recordJoined).not.toHaveBeenCalled();
       expect(unscopedRepositories.invitations.updateById).toHaveBeenCalledWith(invitation.id, expect.objectContaining({ acceptedByUserId: invitee.id }));
     });
 
@@ -154,7 +171,7 @@ describe(InvitationAcceptanceService.name, () => {
       { case: "whose matching email is not verified", invitee: { email: "jane@example.com", emailVerified: false } }
     ])("refuses a member $case who confirmed, leaving the invitation pending", async ({ invitee }) => {
       const invitation = createOrganizationInvitation({ email: "jane@example.com" });
-      const { service, unscopedRepositories, userRepository } = setup({ invitation, invitee, isAlreadyMember: true });
+      const { service, unscopedRepositories, userRepository, organizationActivityService } = setup({ invitation, invitee, isAlreadyMember: true });
 
       await expect(service.acceptInvitation({ token: createInvitationToken(), confirmEmailMismatch: true })).rejects.toMatchObject({
         status: 409,
@@ -163,6 +180,7 @@ describe(InvitationAcceptanceService.name, () => {
       });
       expect(unscopedRepositories.invitations.updateById).not.toHaveBeenCalled();
       expect(userRepository.updateById).not.toHaveBeenCalled();
+      expect(organizationActivityService.recordJoined).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -210,13 +228,14 @@ describe(InvitationAcceptanceService.name, () => {
     });
 
     it("answers the organization again to the invitee who already accepted, without writing a membership", async () => {
-      const { service, invitee, unscopedRepositories, userRepository } = setup({ invitation: undefined });
+      const { service, invitee, unscopedRepositories, userRepository, organizationActivityService } = setup({ invitation: undefined });
       const invitation = createOrganizationInvitation({ status: "accepted", acceptedByUserId: invitee.id, email: "someone-else@example.com" });
       unscopedRepositories.invitations.findOneBy.mockResolvedValue(invitation);
       unscopedRepositories.invitations.findOneByAndLock.mockResolvedValue(invitation);
 
       await expect(service.acceptInvitation({ token: createInvitationToken() })).resolves.toMatchObject({ isActive: false });
       expect(unscopedRepositories.members.createUnlessExists).not.toHaveBeenCalled();
+      expect(organizationActivityService.recordJoined).not.toHaveBeenCalled();
       expect(unscopedRepositories.invitations.updateById).not.toHaveBeenCalled();
       expect(userRepository.updateById).toHaveBeenCalledWith(invitee.id, { lastUsedOrganizationId: invitation.organizationId });
     });
@@ -366,6 +385,7 @@ describe(InvitationAcceptanceService.name, () => {
       .calledWith("ORGANIZATION_CONTEXT")
       .mockReturnValue(input.context === undefined ? createOrganizationContext() : input.context ?? undefined);
     const txService = mock<TxService>({ transaction: vi.fn(cb => cb()) });
+    const organizationActivityService = mock<OrganizationActivityService>();
     const service = new InvitationAcceptanceService(
       invitationRepository,
       organizationRepository,
@@ -375,9 +395,20 @@ describe(InvitationAcceptanceService.name, () => {
       userRepository,
       authService,
       executionContextService,
-      txService
+      txService,
+      organizationActivityService
     );
 
-    return { service, invitee, txService, invitationRepository, organizationRepository, organizationMemberRepository, userRepository, unscopedRepositories };
+    return {
+      service,
+      invitee,
+      txService,
+      invitationRepository,
+      organizationRepository,
+      organizationMemberRepository,
+      userRepository,
+      unscopedRepositories,
+      organizationActivityService
+    };
   }
 });

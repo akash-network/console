@@ -1,7 +1,8 @@
 import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -21,6 +22,10 @@ import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 type ActivityPage = { data: { id: string }[]; nextCursor: string | null };
 
 describe("Organization activities", () => {
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -107,6 +112,38 @@ describe("Organization activities", () => {
       expect(idsOf(await response.json())).toEqual([organizationWide.id]);
     });
 
+    it.each(["owner", "admin"] as const)("shows a %s the address an invitation went to", async role => {
+      const { listActivities, team, owner } = await setupCaller({ role });
+      const invited = await seedOrganizationActivity({
+        organizationId: team.id,
+        actorUserId: owner.id,
+        type: "member_invited",
+        payload: { email: "lena@acme.com", role: "member" }
+      });
+
+      const response = await listActivities({});
+
+      expect(((await response.json()) as ActivityPage).data).toEqual([
+        expect.objectContaining({ id: invited.id, payload: { email: "lena@acme.com", role: "member" } })
+      ]);
+    });
+
+    it.each(["member", "viewer", "billing"] as const)("keeps the address an invitation went to from a %s", async role => {
+      const { listActivities, team, owner } = await setupCaller({ role });
+      const invited = await seedOrganizationActivity({
+        organizationId: team.id,
+        actorUserId: owner.id,
+        type: "member_invited",
+        payload: { email: "lena@acme.com", role: "member" }
+      });
+
+      const response = await listActivities({});
+
+      expect(((await response.json()) as ActivityPage).data).toEqual([
+        expect.objectContaining({ id: invited.id, actor: { id: owner.id, username: owner.username }, payload: { role: "member" } })
+      ]);
+    });
+
     it("refuses a cursor it did not hand out", async () => {
       const { listActivities } = await setupCaller({ role: "owner" });
 
@@ -132,17 +169,67 @@ describe("Organization activities", () => {
     });
   });
 
+  describe("a team forming", () => {
+    it("shows the team's creation, an invitation and the invitee joining, each by who did it", async () => {
+      const { user: owner } = await seedOrganizationWithOwner({ type: "personal", user: createSignedUpUserInput() });
+      const admin = await seedUser(createSignedUpUserInput());
+      const { user: invitee } = await seedOrganizationWithOwner({
+        type: "personal",
+        user: { ...createSignedUpUserInput(), email: faker.internet.email().toLowerCase(), emailVerified: true }
+      });
+      const [ownerBearer, adminBearer, inviteeBearer] = signInAll([owner.userId!, admin.userId!, invitee.userId!]);
+      enableOrganizationsFor([owner.id, admin.id, invitee.id]);
+      const name = `Acme ${faker.string.alphanumeric(10)}`;
+
+      const created = await post("/v1/organizations", { authorization: ownerBearer }, { name });
+      const { data: team } = (await created.json()) as { data: { id: string } };
+      await seedOrganizationMember({ organizationId: team.id, userId: admin.id, role: "admin" });
+      const asAdmin = { authorization: adminBearer, "x-organization-id": team.id };
+      const invited = await post("/v1/organization-invitations", asAdmin, { emails: [invitee.email!], role: "member" });
+      const [invitation] = ((await invited.json()) as { data: { id: string }[] }).data;
+      const linked = await app.request(`/v1/organization-invitations/${invitation.id}/link`, { method: "POST", headers: asAdmin });
+      const { url } = ((await linked.json()) as { data: { url: string } }).data;
+      const accepted = await post("/v1/invitations/accept", { authorization: inviteeBearer }, { token: url.split("#token=")[1] });
+      const response = await app.request("/v1/organization-activities", { headers: { authorization: ownerBearer, "x-organization-id": team.id } });
+
+      expect([created.status, invited.status, linked.status, accepted.status]).toEqual([201, 201, 200, 200]);
+      expect(((await response.json()) as ActivityPage).data).toEqual([
+        expect.objectContaining({ projectId: null, actor: { id: invitee.id, username: invitee.username }, type: "member_joined", payload: { role: "member" } }),
+        expect.objectContaining({
+          projectId: null,
+          actor: { id: admin.id, username: admin.username },
+          type: "member_invited",
+          payload: { email: invitee.email, role: "member" }
+        }),
+        expect.objectContaining({
+          projectId: null,
+          actor: { id: owner.id, username: owner.username },
+          type: "organization_created",
+          payload: { organizationName: name }
+        })
+      ]);
+    });
+  });
+
   function idsOf(body: unknown) {
     return (body as ActivityPage).data.map(({ id }) => id);
   }
 
+  async function post(path: string, headers: Record<string, string>, data: unknown) {
+    return await app.request(path, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ data }) });
+  }
+
   function signIn(externalUserId: string) {
-    const token = faker.string.alphanumeric(40);
-    vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async header =>
-      header.replace(/^Bearer +/i, "") === token ? externalUserId : null
+    return signInAll([externalUserId])[0];
+  }
+
+  function signInAll(externalUserIds: string[]) {
+    const externalUserIdByToken = new Map(externalUserIds.map(externalUserId => [faker.string.alphanumeric(40), externalUserId]));
+    vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
+      async header => externalUserIdByToken.get(header.replace(/^Bearer +/i, "")) ?? null
     );
 
-    return `Bearer ${token}`;
+    return [...externalUserIdByToken.keys()].map(token => `Bearer ${token}`);
   }
 
   function enableOrganizationsFor(userIds: string[]) {

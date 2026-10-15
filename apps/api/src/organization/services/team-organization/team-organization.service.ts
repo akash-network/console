@@ -14,6 +14,7 @@ import { type OrganizationOutput, OrganizationRepository } from "@src/organizati
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { CallerMembership } from "@src/organization/services/organization/organization.service";
+import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 
 export const ORGANIZATION_NAME_TAKEN_ERROR_CODE = "organization_name_taken";
@@ -35,6 +36,7 @@ export class TeamOrganizationService {
     private readonly organizationMemberRepository: OrganizationMemberRepository,
     private readonly projectRepository: ProjectRepository,
     private readonly walletInitializerService: WalletInitializerService,
+    private readonly organizationActivityService: OrganizationActivityService,
     private readonly executionContextService: ExecutionContextService,
     private readonly txService: TxService,
     @inject(ORGANIZATION_CONFIG) private readonly config: OrganizationConfig,
@@ -51,8 +53,15 @@ export class TeamOrganizationService {
       await this.organizationRepository.lockUserForOrganizationChanges(userId);
       await this.#assertBelowCreationLimit(userId);
       await this.#assertNameFree(userId, name);
+      const team = await this.#provisionTeam(name, userId);
+      await this.organizationActivityService.recordTeamCreated({
+        organizationId: team.id,
+        type: "organization_created",
+        actorUserId: userId,
+        payload: { organizationName: team.name }
+      });
 
-      return await this.#provisionTeam(name, userId);
+      return team;
     });
 
     this.#logger.info({ event: "TEAM_ORGANIZATION_CREATED", userId, organizationId: organization.id });

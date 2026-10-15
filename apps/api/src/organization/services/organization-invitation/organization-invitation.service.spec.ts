@@ -20,6 +20,7 @@ import type {
 import type { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { InvitationEmailLimiter } from "@src/organization/services/invitation-email-limiter/invitation-email-limiter.service";
+import type { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import { OrganizationInvitationEmailJob } from "@src/organization/services/organization-invitation-email/organization-invitation-email.handler";
 import { OWNER_ROLE_RESTRICTED_ERROR_CODE, PERSONAL_ORGANIZATION_ERROR_CODE } from "@src/organization/services/organization-member/organization-member.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
@@ -130,6 +131,33 @@ describe(OrganizationInvitationService.name, () => {
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(new OrganizationInvitationEmailJob({ invitationId: renewed.id, tokenHash: renewed.tokenHash }));
     });
 
+    it("records every new and renewed invitation in the organization's activity, by the sender and with each invitation's role", async () => {
+      const context = createOrganizationContext();
+      const expired = createOrganizationInvitationWithInviter({ email: "jane@example.com", role: "viewer", expiresAt: new Date(Date.now() - 1000) });
+      const stillPending = createOrganizationInvitationWithInviter({ email: "jim@example.com", role: "member" });
+      const created = createOrganizationInvitation({ organizationId: context.organizationId, email: "joe@example.com", role: "admin" });
+      const renewed = createOrganizationInvitation({ id: expired.id, organizationId: context.organizationId, email: "jane@example.com", role: "viewer" });
+      const { service, caller, repositories, invitationRepository, organizationActivityService } = setup({ context, updated: renewed });
+      invitationRepository.findPendingWithInviters.mockResolvedValue([expired, stillPending]);
+      repositories.create.createUnlessPending.mockResolvedValue([created]);
+
+      await service.createInvitations({ emails: ["jane@example.com", "joe@example.com", "jim@example.com"], role: "admin" });
+
+      expect(organizationActivityService.record.mock.calls).toEqual([
+        [{ organizationId: context.organizationId, type: "member_invited", actorUserId: caller.id, payload: { email: "joe@example.com", role: "admin" } }],
+        [{ organizationId: context.organizationId, type: "member_invited", actorUserId: caller.id, payload: { email: "jane@example.com", role: "viewer" } }]
+      ]);
+    });
+
+    it("records nothing when every address already holds a live pending invitation", async () => {
+      const { service, invitationRepository, organizationActivityService } = setup({});
+      invitationRepository.findPendingWithInviters.mockResolvedValue([createOrganizationInvitationWithInviter({ email: "jane@example.com" })]);
+
+      await service.createInvitations({ emails: ["jane@example.com"], role: "member" });
+
+      expect(organizationActivityService.record).not.toHaveBeenCalled();
+    });
+
     it("refuses to let an admin renew an expired invitation to become an owner", async () => {
       const { service, repositories, invitationRepository } = setup({ context: createOrganizationContext({ role: "admin" }) });
       invitationRepository.findPendingWithInviters.mockResolvedValue([
@@ -160,8 +188,8 @@ describe(OrganizationInvitationService.name, () => {
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
-    it("writes the invitations and their emails in one transaction", async () => {
-      const { service, txService, repositories, jobQueueService } = setup({});
+    it("writes the invitations, their emails and their activity in one transaction", async () => {
+      const { service, txService, repositories, jobQueueService, organizationActivityService } = setup({});
       repositories.create.createUnlessPending.mockResolvedValue([createOrganizationInvitation()]);
       txService.transaction.mockImplementation(async () => undefined);
 
@@ -169,6 +197,7 @@ describe(OrganizationInvitationService.name, () => {
 
       expect(repositories.create.createUnlessPending).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(organizationActivityService.record).not.toHaveBeenCalled();
     });
 
     it("lets an owner invite someone as an owner", async () => {
@@ -209,7 +238,7 @@ describe(OrganizationInvitationService.name, () => {
     });
 
     it("refuses an address that belongs to a member of the organization", async () => {
-      const { service, context, repositories, organizationMemberRepository } = setup({});
+      const { service, context, repositories, organizationMemberRepository, organizationActivityService } = setup({});
       organizationMemberRepository.findEmailsOfMembers.mockResolvedValue(["jane@example.com"]);
 
       await expect(service.createInvitations({ emails: ["Jane@example.com", "joe@example.com"], role: "member" })).rejects.toMatchObject({
@@ -219,6 +248,7 @@ describe(OrganizationInvitationService.name, () => {
       });
       expect(organizationMemberRepository.findEmailsOfMembers).toHaveBeenCalledWith(context.organizationId, ["jane@example.com", "joe@example.com"]);
       expect(repositories.create.createUnlessPending).not.toHaveBeenCalled();
+      expect(organizationActivityService.record).not.toHaveBeenCalled();
     });
 
     it("grants the invitations projects of the active organization", async () => {
@@ -272,7 +302,7 @@ describe(OrganizationInvitationService.name, () => {
     });
 
     it("refuses invitations beyond the pending invitation limit of the organization", async () => {
-      const { service, repositories, invitationRepository } = setup({});
+      const { service, repositories, invitationRepository, organizationActivityService } = setup({});
       invitationRepository.countPending.mockResolvedValue(MAX_PENDING_INVITATIONS_PER_ORGANIZATION - 1);
 
       await expect(service.createInvitations({ emails: ["jane@example.com", "joe@example.com"], role: "member" })).rejects.toMatchObject({
@@ -280,6 +310,7 @@ describe(OrganizationInvitationService.name, () => {
         errorCode: INVITATION_LIMIT_REACHED_ERROR_CODE
       });
       expect(repositories.create.createUnlessPending).not.toHaveBeenCalled();
+      expect(organizationActivityService.record).not.toHaveBeenCalled();
     });
 
     it("returns the pending invitations of a full organization without counting them again", async () => {
@@ -308,12 +339,13 @@ describe(OrganizationInvitationService.name, () => {
     });
 
     it("invites nobody once the email limits are reached", async () => {
-      const { service, repositories, emailLimiter, jobQueueService } = setup({});
+      const { service, repositories, emailLimiter, jobQueueService, organizationActivityService } = setup({});
       emailLimiter.assertWithinLimits.mockRejectedValue(new Error("limit reached"));
 
       await expect(service.createInvitations({ emails: ["jane@example.com"], role: "member" })).rejects.toThrow("limit reached");
       expect(repositories.create.createUnlessPending).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(organizationActivityService.record).not.toHaveBeenCalled();
     });
   });
 
@@ -348,10 +380,14 @@ describe(OrganizationInvitationService.name, () => {
       const invitation = createOrganizationInvitation();
       const renewed = createOrganizationInvitation({ id: invitation.id });
       const listed = createOrganizationInvitationWithInviter({ id: invitation.id });
-      const { service, context, ability, invitationRepository, repositories, jobQueueService } = setup({ invitation, updated: renewed });
+      const { service, context, ability, invitationRepository, repositories, jobQueueService, organizationActivityService } = setup({
+        invitation,
+        updated: renewed
+      });
       repositories.read.findPendingWithInviters.mockResolvedValue([listed]);
 
       await expect(service.resendInvitation(invitation.id)).resolves.toEqual(listed);
+      expect(organizationActivityService.record).not.toHaveBeenCalled();
 
       expect(repositories.read.findOneBy).toHaveBeenCalledWith({ id: invitation.id, organizationId: context.organizationId, status: "pending" });
       expect(invitationRepository.accessibleBy).toHaveBeenCalledWith(ability, "update");
@@ -406,7 +442,7 @@ describe(OrganizationInvitationService.name, () => {
   describe("createInvitationLink", () => {
     it("issues a new token and links to it while storing only its hash", async () => {
       const invitation = createOrganizationInvitation();
-      const { service, ability, invitationRepository, repositories, jobQueueService } = setup({ invitation, updated: invitation });
+      const { service, ability, invitationRepository, repositories, jobQueueService, organizationActivityService } = setup({ invitation, updated: invitation });
 
       const url = await service.createInvitationLink(invitation.id);
 
@@ -419,6 +455,7 @@ describe(OrganizationInvitationService.name, () => {
         { returning: true }
       );
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(organizationActivityService.record).not.toHaveBeenCalled();
     });
 
     it("gives an expired invitation a new expiry along with the new token", async () => {
@@ -456,10 +493,11 @@ describe(OrganizationInvitationService.name, () => {
     it("marks the invitation revoked", async () => {
       vi.useFakeTimers({ now: new Date("2026-10-09T12:00:00Z") });
       const invitation = createOrganizationInvitation();
-      const { service, ability, invitationRepository, repositories } = setup({ invitation });
+      const { service, ability, invitationRepository, repositories, organizationActivityService } = setup({ invitation });
 
       await service.revokeInvitation(invitation.id);
 
+      expect(organizationActivityService.record).not.toHaveBeenCalled();
       expect(invitationRepository.accessibleBy).toHaveBeenCalledWith(ability, "delete");
       expect(repositories.delete.updateBy).toHaveBeenCalledWith(
         { id: invitation.id, status: "pending" },
@@ -525,6 +563,7 @@ describe(OrganizationInvitationService.name, () => {
     const deploymentConfig = mockConfigService<DeploymentConfigService>({ DEPLOY_WEB_BASE_URL });
     const emailLimiter = mock<InvitationEmailLimiter>();
     const organizationRepository = mock<OrganizationRepository>();
+    const organizationActivityService = mock<OrganizationActivityService>();
     const service = new OrganizationInvitationService(
       invitationRepository,
       organizationMemberRepository,
@@ -535,7 +574,8 @@ describe(OrganizationInvitationService.name, () => {
       jobQueueService,
       deploymentConfig,
       emailLimiter,
-      organizationRepository
+      organizationRepository,
+      organizationActivityService
     );
 
     return {
@@ -550,6 +590,7 @@ describe(OrganizationInvitationService.name, () => {
       jobQueueService,
       emailLimiter,
       organizationRepository,
+      organizationActivityService,
       context: context ?? createOrganizationContext()
     };
   }
