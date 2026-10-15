@@ -334,6 +334,20 @@ describe(NotificationService.name, () => {
     });
   });
 
+  describe("releaseDepartedMemberAddress", () => {
+    it("asks the notifications service to take the address off the organization's channels", async () => {
+      const { service, apiInternal } = setup();
+      apiInternal.v1.releaseDepartedMember.mockResolvedValueOnce(undefined as never);
+
+      await service.releaseDepartedMemberAddress({ organizationId: "organization-1", addressSha256: "digest", fallbackAddresses: ["owner@example.com"] });
+
+      expect(apiInternal.v1.releaseDepartedMember).toHaveBeenCalledWith({
+        organizationId: "organization-1",
+        data: { addressSha256: "digest", fallbackAddresses: ["owner@example.com"] }
+      });
+    });
+  });
+
   describe("autoEnableDeploymentAlert", () => {
     it("files the alert into the organization and project of the deployment", async () => {
       const { service, api, userRepository, deploymentSettingRepository } = setup();

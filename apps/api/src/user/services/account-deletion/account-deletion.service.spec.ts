@@ -13,6 +13,7 @@ import type { DeploymentConfigService } from "@src/deployment/services/deploymen
 import type { CreateNotificationInput, NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import type { DepartedMemberAlertsService } from "@src/organization/services/departed-member-alerts/departed-member-alerts.service";
 import type {
   AccountDeletionTokenOutput,
   AccountDeletionTokenRepository
@@ -280,6 +281,15 @@ describe(AccountDeletionService.name, () => {
       );
     });
 
+    it("stops every team's alerts to the member before the user row cascades their memberships away", async () => {
+      const { service, user, userRepository, departedMemberAlertsService } = setup({ storedToken: {} });
+
+      await service.confirm({ token: "link-token" });
+
+      expect(departedMemberAlertsService.stopEveryTeamAlertTo).toHaveBeenCalledWith(user.id);
+      expect(departedMemberAlertsService.stopEveryTeamAlertTo.mock.invocationCallOrder[0]).toBeLessThan(userRepository.deleteById.mock.invocationCallOrder[0]);
+    });
+
     it("checks the team owners once the user row is locked, inside the erasing transaction", async () => {
       const { service, user, userRepository, organizationMemberRepository, txService } = setup({ storedToken: {} });
       txService.transaction.mockImplementation(async callback => {
@@ -297,7 +307,16 @@ describe(AccountDeletionService.name, () => {
 
     it("erases nothing while the account is the last owner of a team organization", async () => {
       const team = { id: faker.string.uuid(), name: "Acme" };
-      const { service, user, userRepository, userTemplateRepository, teamRecordRetentionService, jobQueueService, analyticsService } = setup({
+      const {
+        service,
+        user,
+        userRepository,
+        userTemplateRepository,
+        teamRecordRetentionService,
+        departedMemberAlertsService,
+        jobQueueService,
+        analyticsService
+      } = setup({
         storedToken: {},
         teamsOwnedOnlyByUser: [team]
       });
@@ -306,6 +325,7 @@ describe(AccountDeletionService.name, () => {
 
       expect(userTemplateRepository.deleteAllOwnedBy).not.toHaveBeenCalled();
       expect(teamRecordRetentionService.releaseFromTeams).not.toHaveBeenCalled();
+      expect(departedMemberAlertsService.stopEveryTeamAlertTo).not.toHaveBeenCalled();
       expect(userRepository.deleteById).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
       expect(analyticsService.track).toHaveBeenCalledWith(user.id, "account_deletion_blocked", { reason: "last_owner" });
@@ -547,6 +567,7 @@ describe(AccountDeletionService.name, () => {
     const organizationMemberRepository = mock<OrganizationMemberRepository>();
     organizationMemberRepository.lockTeamsOwnedOnlyBy.mockResolvedValue(input.teamsOwnedOnlyByUser ?? []);
     const teamRecordRetentionService = mock<TeamRecordRetentionService>();
+    const departedMemberAlertsService = mock<DepartedMemberAlertsService>();
 
     const notificationService = mock<NotificationService>();
     if (input.emailFails) notificationService.createNotification.mockRejectedValue(input.emailFails);
@@ -573,6 +594,7 @@ describe(AccountDeletionService.name, () => {
       organizationRepository,
       organizationMemberRepository,
       teamRecordRetentionService,
+      departedMemberAlertsService,
       notificationService,
       jobQueueService,
       txService,
@@ -595,6 +617,7 @@ describe(AccountDeletionService.name, () => {
       organizationRepository,
       organizationMemberRepository,
       teamRecordRetentionService,
+      departedMemberAlertsService,
       notificationService,
       jobQueueService,
       txService,

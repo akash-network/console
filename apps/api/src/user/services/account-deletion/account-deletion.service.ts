@@ -14,6 +14,7 @@ import { NotificationService } from "@src/notifications/services/notification/no
 import { accountDeletionConfirmationNotification } from "@src/notifications/services/notification-templates/account-deletion-confirmation-notification";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import { DepartedMemberAlertsService } from "@src/organization/services/departed-member-alerts/departed-member-alerts.service";
 import { LAST_OWNER_ERROR_CODE } from "@src/organization/services/organization-member/organization-member.service";
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
 import { type UserOutput, UserRepository } from "@src/user/repositories/user/user.repository";
@@ -49,6 +50,7 @@ export class AccountDeletionService {
     private readonly organizationRepository: OrganizationRepository,
     private readonly organizationMemberRepository: OrganizationMemberRepository,
     private readonly teamRecordRetentionService: TeamRecordRetentionService,
+    private readonly departedMemberAlertsService: DepartedMemberAlertsService,
     private readonly notificationService: NotificationService,
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
@@ -210,6 +212,7 @@ export class AccountDeletionService {
       await this.teamRecordRetentionService.releaseFromTeams(lockedUser);
       if (lockedUser.userId) await this.userTemplateRepository.deleteAllOwnedBy(lockedUser.userId);
       if (wallet) await this.workloadProbeEvidenceRepository.deleteByWalletId(wallet.id);
+      await this.departedMemberAlertsService.stopEveryTeamAlertTo(user.id);
       await this.userRepository.deleteById(user.id);
       if (wallet) await userWallets.detachFromOrganization(wallet.id);
       if (personalOrganization) await this.organizationRepository.deleteById(personalOrganization.id);

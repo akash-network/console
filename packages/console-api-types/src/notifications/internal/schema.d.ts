@@ -36,6 +36,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/internal/v1/organizations/{organizationId}/departed-members": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["releaseDepartedMember"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/internal/v1/organizations/{organizationId}/deployment-alerts/{dseq}/project": {
     parameters: {
       query?: never;
@@ -70,6 +86,14 @@ export interface components {
           /** Format: uri */
           url: string;
         }[];
+      };
+    };
+    DepartedMemberInput: {
+      data: {
+        /** @description SHA-256 hex digest of the departed member's lower-cased email address */
+        addressSha256: string;
+        /** @description Where a channel goes once the departed member's address was its only one; without any, such a channel is deleted */
+        fallbackAddresses: string[];
       };
     };
     DeploymentAlertsProjectInput: {
@@ -121,6 +145,30 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  releaseDepartedMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organizationId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DepartedMemberInput"];
+      };
+    };
+    responses: {
+      /** @description Stops the organization's notification channels from emailing a member who left it */
       204: {
         headers: {
           [name: string]: unknown;

@@ -21,6 +21,7 @@ import { RecordLeaseGpuOffersHandler } from "@src/deployment/services/record-lea
 import { HardwareRequestEmailHandler } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertHandler } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
+import { StopTeamAlertsToDepartedMemberHandler } from "@src/organization/services/departed-member-alerts/stop-team-alerts-to-departed-member.handler";
 import { OrganizationInvitationEmailHandler } from "@src/organization/services/organization-invitation-email/organization-invitation-email.handler";
 import { ProjectBudgetAlertHandler } from "@src/organization/services/project-budget-alert/project-budget-alert.handler";
 import { PurgeOrganizationInvitationEmailsHandler } from "@src/organization/services/purge-organization-invitation-emails/purge-organization-invitation-emails.handler";
@@ -86,7 +87,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(OrganizationInvitationEmailHandler),
     container.resolve(PurgeOrganizationInvitationEmailsHandler),
     container.resolve(TeamOrganizationDeletedHandler),
-    container.resolve(MoveDeploymentAlertsHandler)
+    container.resolve(MoveDeploymentAlertsHandler),
+    container.resolve(StopTeamAlertsToDepartedMemberHandler)
   ]);
 }
 

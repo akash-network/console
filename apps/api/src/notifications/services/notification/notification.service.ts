@@ -98,6 +98,11 @@ export class NotificationService {
     await this.notificationsInternalApi.v1.moveDeploymentAlertsToProject({ organizationId, dseq, data: { owner, projectId } });
   }
 
+  /** Leaves retrying to the job that calls it. */
+  async releaseDepartedMemberAddress({ organizationId, ...data }: ReleaseDepartedMemberAddressInput): Promise<void> {
+    await this.notificationsInternalApi.v1.releaseDepartedMember({ organizationId, data });
+  }
+
   async autoEnableDeploymentAlert(input: AutoEnableDeploymentAlertInput): Promise<void> {
     const user = await this.userRepository.findById(input.userId);
     if (!user?.email) {
@@ -209,6 +214,12 @@ function defaultChannelInput(email: string) {
 interface UserInput {
   id: string;
   email?: string | null;
+}
+
+export interface ReleaseDepartedMemberAddressInput {
+  organizationId: string;
+  addressSha256: string;
+  fallbackAddresses: string[];
 }
 
 export interface AutoEnableDeploymentAlertInput {

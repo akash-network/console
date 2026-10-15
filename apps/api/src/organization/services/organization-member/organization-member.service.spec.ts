@@ -11,6 +11,7 @@ import type {
   OrganizationMemberRepository,
   OrganizationMemberWithUser
 } from "@src/organization/repositories/organization-member/organization-member.repository";
+import type { DepartedMemberAlertsService } from "@src/organization/services/departed-member-alerts/departed-member-alerts.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import {
   LAST_OWNER_ERROR_CODE,
@@ -189,15 +190,25 @@ describe(OrganizationMemberService.name, () => {
       expect(repositories.delete.deleteById).toHaveBeenCalledWith(member.id);
     });
 
-    it("runs the checks and the removal in one transaction", async () => {
+    it("stops the team's alerts to the removed member", async () => {
+      const member = createOrganizationMember({ role: "member" });
+      const { service, context, departedMemberAlertsService } = setup({ member, callerIsOwner: true });
+
+      await service.removeMember(member.id);
+
+      expect(departedMemberAlertsService.stopTeamAlertsTo).toHaveBeenCalledWith(member.userId, context.organizationId);
+    });
+
+    it("runs the checks, the removal and the alert stop in one transaction", async () => {
       const member = createOrganizationMember();
-      const { service, txService, repositories } = setup({ member, callerIsOwner: true });
+      const { service, txService, repositories, departedMemberAlertsService } = setup({ member, callerIsOwner: true });
       txService.transaction.mockImplementation(async () => undefined);
 
       await service.removeMember(member.id);
 
       expect(txService.transaction).toHaveBeenCalledTimes(1);
       expect(repositories.delete.deleteById).not.toHaveBeenCalled();
+      expect(departedMemberAlertsService.stopTeamAlertsTo).not.toHaveBeenCalled();
     });
 
     it("refuses to remove a member of a personal organization", async () => {
@@ -248,11 +259,12 @@ describe(OrganizationMemberService.name, () => {
     });
 
     it("refuses to remove the last owner", async () => {
-      const { service, repositories, owners } = setup({ callerIsOwner: true });
+      const { service, repositories, owners, departedMemberAlertsService } = setup({ callerIsOwner: true });
       repositories.read.findById.mockResolvedValue(owners[0]);
 
       await expect(service.removeMember(owners[0].id)).rejects.toMatchObject({ status: 409, errorCode: LAST_OWNER_ERROR_CODE });
       expect(repositories.delete.deleteById).not.toHaveBeenCalled();
+      expect(departedMemberAlertsService.stopTeamAlertsTo).not.toHaveBeenCalled();
     });
   });
 
@@ -385,7 +397,8 @@ describe(OrganizationMemberService.name, () => {
     const executionContextService = mock<ExecutionContextService>();
     executionContextService.get.calledWith("ORGANIZATION_CONTEXT").mockReturnValue(context ?? undefined);
     const txService = mock<TxService>({ transaction: vi.fn(cb => cb()) });
-    const service = new OrganizationMemberService(organizationMemberRepository, authService, executionContextService, txService);
+    const departedMemberAlertsService = mock<DepartedMemberAlertsService>();
+    const service = new OrganizationMemberService(organizationMemberRepository, authService, executionContextService, txService, departedMemberAlertsService);
 
     return {
       service,
@@ -395,6 +408,7 @@ describe(OrganizationMemberService.name, () => {
       repositories,
       organizationMemberRepository,
       txService,
+      departedMemberAlertsService,
       context: context ?? createOrganizationContext()
     };
   }

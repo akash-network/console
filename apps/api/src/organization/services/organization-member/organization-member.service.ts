@@ -11,6 +11,7 @@ import {
   OrganizationMemberRepository,
   type OrganizationMemberWithUser
 } from "@src/organization/repositories/organization-member/organization-member.repository";
+import { DepartedMemberAlertsService } from "@src/organization/services/departed-member-alerts/departed-member-alerts.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 
 export const LAST_OWNER_ERROR_CODE = "last_owner";
@@ -25,7 +26,8 @@ export class OrganizationMemberService {
     private readonly organizationMemberRepository: OrganizationMemberRepository,
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
-    private readonly txService: TxService
+    private readonly txService: TxService,
+    private readonly departedMemberAlertsService: DepartedMemberAlertsService
   ) {}
 
   async listMembers(): Promise<OrganizationMemberWithUser[]> {
@@ -65,6 +67,7 @@ export class OrganizationMemberService {
       }
 
       await this.#repositoryFor("delete").deleteById(member.id);
+      await this.departedMemberAlertsService.stopTeamAlertsTo(member.userId, organizationId);
     });
   }
 

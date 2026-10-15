@@ -14,6 +14,10 @@ import { CoreConfigService } from "@src/core/services/core-config/core-config.se
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import {
+  StopTeamAlertsToDepartedMember,
+  StopTeamAlertsToDepartedMemberHandler
+} from "@src/organization/services/departed-member-alerts/stop-team-alerts-to-departed-member.handler";
 import { OrganizationMemberService } from "@src/organization/services/organization-member/organization-member.service";
 import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
@@ -34,7 +38,7 @@ const DEPLOYMENT_LIST_PATH = "/akash/deployment/v1beta4/deployments/list";
 
 type SeededTeam = Awaited<ReturnType<typeof seedOrganizationWithOwner>>;
 
-const jobWorkers = useJobWorkers(() => [container.resolve(PurgeDeletedAccountHandler)]);
+const jobWorkers = useJobWorkers(() => [container.resolve(PurgeDeletedAccountHandler), container.resolve(StopTeamAlertsToDepartedMemberHandler)]);
 
 describe(AccountDeletionService.name, () => {
   afterEach(() => {
@@ -120,6 +124,26 @@ describe(AccountDeletionService.name, () => {
       personalOrganizationId: account.organization.id,
       version: 1
     });
+  });
+
+  it("queues stopping the alerts of every team the account belonged to, keyed on a digest of its address", async () => {
+    const { service, db, account, token, answerActiveDeployments, joinTeam } = await setup();
+    answerActiveDeployments([]);
+    const email = faker.internet.email();
+    await db
+      .update(resolveTable("Users"))
+      .set({ email })
+      .where(eq(resolveTable("Users").id, account.user.id));
+    const teams = [await joinTeam("member"), await joinTeam("viewer")];
+
+    await service.confirm({ token });
+
+    const jobs = await findJobRows(StopTeamAlertsToDepartedMember[JOB_NAME], { data: { userId: account.user.id } });
+    const addressSha256 = createHash("sha256").update(email.toLowerCase()).digest("hex");
+    expect(jobs.map(({ data }) => data)).toEqual(
+      expect.arrayContaining(teams.map(({ organization }) => ({ organizationId: organization.id, userId: account.user.id, addressSha256, version: 1 })))
+    );
+    expect(jobs).toHaveLength(teams.length);
   });
 
   it("keeps what the account wrote for a team organization without naming it, and erases what it wrote for itself", async () => {
