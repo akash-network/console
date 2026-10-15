@@ -1716,6 +1716,78 @@
         }
       }
     },
+    "/v1/stripe/transactions/{id}/invoice": {
+      "post": {
+        "operationId": "createStripeTransactionInvoice",
+        "summary": "Get the invoice of a card payment, issuing it first when it has none",
+        "tags": [
+          "Payment"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "ID of the card payment's transaction"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The paid invoice of the card payment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "invoiceId": {
+                          "type": "string"
+                        },
+                        "invoicePdfUrl": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Link to download the invoice PDF"
+                        }
+                      },
+                      "required": [
+                        "invoiceId",
+                        "invoicePdfUrl"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The transaction is not a successful card payment"
+          },
+          "403": {
+            "description": "The caller cannot read this billing, or cannot have a missing invoice issued"
+          },
+          "404": {
+            "description": "No such transaction for the caller, or invoices are not enabled for the caller"
+          }
+        }
+      }
+    },
     "/v1/billing-details": {
       "get": {
         "operationId": "getBillingDetails",

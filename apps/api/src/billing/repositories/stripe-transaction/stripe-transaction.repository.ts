@@ -92,6 +92,14 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return rows.map(({ transaction, initiator }) => ({ ...this.toOutput(transaction), initiatedBy: initiator }));
   }
 
+  async findOwnedById(id: string, owner: BillingOwner): Promise<StripeTransactionOutput | undefined> {
+    const item = await this.cursor.query.StripeTransactions.findFirst({
+      where: this.whereAccessibleBy(and(eq(this.table.id, id), ownedBy(this.table, owner)))
+    });
+
+    return item ? this.toOutput(item) : undefined;
+  }
+
   #ownedWithin(options: Pick<FindTransactionsOptions, "owner" | "startDate" | "endDate" | "status">): SQL | undefined {
     return and(
       ownedBy(this.table, options.owner),

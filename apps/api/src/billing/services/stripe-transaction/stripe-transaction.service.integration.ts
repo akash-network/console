@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
+import { IssueCardPaymentInvoiceCommand } from "@src/billing/commands/issue-card-payment-invoice.command";
 import type { StripeTransactionRepository } from "@src/billing/repositories";
 import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import { PayerService } from "@src/billing/services/payer/payer.service";
@@ -13,6 +14,8 @@ import type { RefillService } from "@src/billing/services/refill/refill.service"
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -90,6 +93,48 @@ describe(StripeTransactionService.name, () => {
       expect(domainEventsService.publish).toHaveBeenCalledWith(expect.objectContaining({ name: FundDrainingDeploymentsCommand.name, data: toppedUpWallet }), {
         singletonKey: `${FundDrainingDeploymentsCommand.name}.${toppedUpWallet.walletId}`
       });
+    });
+
+    it("queues the invoice of a settled card payment while invoices are on for the buyer", async () => {
+      const { service, userRepository, stripeTransactionRepository, domainEventsService, featureFlagsService } = setup();
+      const mockUser = createTestUser();
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", status: "created", amount: 1500 });
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(transaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+      featureFlagsService.isEnabled.mockImplementation(flag => flag === FeatureFlags.INVOICES);
+
+      await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_inv",
+          customer: mockUser.stripeCustomerId,
+          amount: 1500,
+          metadata: { internal_transaction_id: transaction.id }
+        })
+      );
+
+      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.INVOICES, { userId: mockUser.id });
+      expect(domainEventsService.publish).toHaveBeenCalledWith(new IssueCardPaymentInvoiceCommand({ transactionId: transaction.id }));
+    });
+
+    it("queues no invoice while invoices are off for the buyer", async () => {
+      const { service, userRepository, stripeTransactionRepository, domainEventsService } = setup();
+      const mockUser = createTestUser();
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", status: "created", amount: 1500 });
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(transaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+
+      await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_inv",
+          customer: mockUser.stripeCustomerId,
+          amount: 1500,
+          metadata: { internal_transaction_id: transaction.id }
+        })
+      );
+
+      expect(domainEventsService.publish).not.toHaveBeenCalledWith(expect.any(IssueCardPaymentInvoiceCommand));
     });
 
     it("returns early when customer ID is missing", async () => {
@@ -581,6 +626,37 @@ describe(StripeTransactionService.name, () => {
       expect(stripeTransactionRepository.findByInvoiceId).toHaveBeenCalledWith("in_no_match");
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it("leaves alone the paid invoice issued for an already credited card payment", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService, logger } = setup();
+      const mockUser = createTestUser();
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", status: "succeeded", stripeInvoiceId: "in_card" });
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByInvoiceId.mockResolvedValue(transaction);
+
+      const outcome = await service.settleInvoice(
+        createInvoicePaidEvent({ id: "in_card", customer: mockUser.stripeCustomerId, amount_paid: transaction.amount })
+      );
+
+      expect(outcome).toEqual({});
+      expect(stripeTransactionRepository.findOneByAndLock).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({ event: "INVOICE_OF_SETTLED_CARD_PAYMENT", invoiceId: "in_card", transactionId: transaction.id });
+    });
+
+    it("queues no card payment invoice when a coupon claim's invoice settles", async () => {
+      const { service, userRepository, stripeTransactionRepository, domainEventsService, featureFlagsService } = setup();
+      const mockUser = createTestUser();
+      const transaction = generateDatabaseStripeTransaction({ type: "coupon_claim", status: "pending", stripeInvoiceId: "in_coupon" });
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByInvoiceId.mockResolvedValue(transaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+      featureFlagsService.isEnabled.mockReturnValue(true);
+
+      await service.settleInvoice(createInvoicePaidEvent({ id: "in_coupon", customer: mockUser.stripeCustomerId, amount_paid: 0 }));
+
+      expect(domainEventsService.publish).not.toHaveBeenCalledWith(expect.any(IssueCardPaymentInvoiceCommand));
     });
 
     it("returns early when already processed (idempotency)", async () => {
@@ -1267,6 +1343,8 @@ describe(StripeTransactionService.name, () => {
     const payerService = new PayerService(mock<AuthService>(), mock<ExecutionContextService>(), organizationRepository, userRepository);
     const domainEventsService = mock<DomainEventsService>();
     const analyticsService = mock<AnalyticsService>();
+    const featureFlagsService = mock<FeatureFlagsService>();
+    featureFlagsService.isEnabled.mockReturnValue(false);
     const logger = mock<LoggerService>();
 
     const toppedUpWallet = { walletId: 42, address: "akash1toppedupwallet" };
@@ -1284,6 +1362,7 @@ describe(StripeTransactionService.name, () => {
       domainEventsService,
       analyticsService,
       organizationRepository,
+      featureFlagsService,
       () => logger
     );
 
@@ -1297,6 +1376,7 @@ describe(StripeTransactionService.name, () => {
       organizationRepository,
       domainEventsService,
       analyticsService,
+      featureFlagsService,
       logger,
       toppedUpWallet
     };

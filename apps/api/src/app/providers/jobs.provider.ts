@@ -1,6 +1,7 @@
 import { container } from "tsyringe";
 
 import { ActivateTrialHandler } from "@src/billing/services/activate-trial/activate-trial.handler";
+import { CardPaymentInvoiceHandler } from "@src/billing/services/card-payment-invoice/card-payment-invoice.handler";
 import { ReconcileDeploymentDepositHandler } from "@src/billing/services/reconcile-deployment-deposit/reconcile-deployment-deposit.handler";
 import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-balance-reload-check/wallet-balance-reload-check.handler";
 import { WalletCreditsExhaustedCheckHandler } from "@src/billing/services/wallet-credits-exhausted-check/wallet-credits-exhausted-check.handler";
@@ -60,6 +61,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(FirstPurchaseBonusGrantedHandler),
     container.resolve(AutoRechargeSucceededHandler),
     container.resolve(CreditsAddedSlackAlertHandler),
+    container.resolve(CardPaymentInvoiceHandler),
     container.resolve(ActivateTrialHandler),
     container.resolve(DeleteUnbackedDeploymentSettingHandler),
     container.resolve(CloseDeploymentHandler),

@@ -6,6 +6,7 @@
   "src/billing/controllers/billing-details/billing-details.controller.spec.ts",
   "src/billing/controllers/first-purchase-bonus/first-purchase-bonus.controller.spec.ts",
   "src/billing/controllers/stripe/stripe.controller.spec.ts",
+  "src/billing/controllers/transaction-invoice/transaction-invoice.controller.spec.ts",
   "src/billing/controllers/wallet-settings/wallet-settings.controller.spec.ts",
   "src/billing/controllers/wallet/wallet.controller.spec.ts",
   "src/billing/services/activate-trial/trial-activation-instrumentation.service.spec.ts",
