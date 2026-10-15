@@ -303,6 +303,37 @@ describe(NotificationService.name, () => {
     });
   });
 
+  describe("moveDeploymentAlertsToProject", () => {
+    it("asks the notifications service to file the organization's alerts of the owner's deployment into the project", async () => {
+      const { service, apiInternal } = setup();
+      apiInternal.v1.moveDeploymentAlertsToProject.mockResolvedValueOnce(undefined as never);
+
+      await service.moveDeploymentAlertsToProject({
+        organizationId: "organization-1",
+        deployment: { owner: "akash1owner", dseq: "123" },
+        projectId: "project-1"
+      });
+
+      expect(apiInternal.v1.moveDeploymentAlertsToProject).toHaveBeenCalledWith({
+        organizationId: "organization-1",
+        dseq: "123",
+        data: { owner: "akash1owner", projectId: "project-1" }
+      });
+    });
+
+    it("fails without retrying when the notifications service fails, leaving retries to its caller", async () => {
+      const { service, apiInternal } = setup();
+      const error = new ApiError(503, { message: "unavailable" }, "PUT /internal/v1/organizations/organization-1/deployment-alerts/123/project → 503");
+      apiInternal.v1.moveDeploymentAlertsToProject.mockRejectedValueOnce(error);
+
+      await expect(
+        service.moveDeploymentAlertsToProject({ organizationId: "organization-1", deployment: { owner: "akash1owner", dseq: "123" }, projectId: "project-1" })
+      ).rejects.toBe(error);
+
+      expect(apiInternal.v1.moveDeploymentAlertsToProject).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("autoEnableDeploymentAlert", () => {
     it("files the alert into the organization and project of the deployment", async () => {
       const { service, api, userRepository, deploymentSettingRepository } = setup();

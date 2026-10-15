@@ -23,7 +23,7 @@ import { DeploymentSettingRepository, UNFILED_DEPLOYMENT_ERROR_CODE } from "./de
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
-import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedOrganizationWallet, seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createLeaseGpuOffer } from "@test/seeders/lease-gpu-offer.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
 import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
@@ -212,6 +212,50 @@ describe(DeploymentSettingRepository.name, () => {
       const { organization } = await seedOrganizationWithOwner();
 
       expect(await container.resolve(DeploymentSettingRepository).findProjectIdsInOrganizationByDseqs(organization.id, [])).toEqual(new Map());
+    });
+  });
+
+  describe("findFilingInOrganization", () => {
+    it("reads the project and the team wallet of a team's deployment, the older row deciding a shared dseq", async () => {
+      const { user, organization, project } = await seedOrganizationWithOwner();
+      const teamWallet = await seedOrganizationWallet({ organizationId: organization.id, createdByUserId: user.id });
+      const colleague = await seedUser();
+      const otherProject = await seedProject({ organizationId: organization.id });
+      const older = await seedDeploymentSetting({
+        userId: user.id,
+        organizationId: organization.id,
+        projectId: otherProject.id,
+        createdAt: new Date("2026-01-01T00:00:00.000Z")
+      });
+      await seedDeploymentSetting({
+        userId: colleague.id,
+        organizationId: organization.id,
+        projectId: project.id,
+        dseq: older.dseq,
+        createdAt: new Date("2026-02-01T00:00:00.000Z")
+      });
+
+      const filing = await container.resolve(DeploymentSettingRepository).findFilingInOrganization(organization.id, older.dseq);
+
+      expect(filing).toEqual({ projectId: otherProject.id, ownerAddress: teamWallet.address });
+    });
+
+    it("reads the user's own wallet for a deployment of their personal organization", async () => {
+      const { user, address } = await seedUserWithWallet();
+      const organization = await seedOrganization({ type: "personal", createdByUserId: user.id });
+      const project = await seedProject({ organizationId: organization.id });
+      const setting = await seedDeploymentSetting({ userId: user.id, organizationId: organization.id, projectId: project.id });
+
+      const filing = await container.resolve(DeploymentSettingRepository).findFilingInOrganization(organization.id, setting.dseq);
+
+      expect(filing).toEqual({ projectId: project.id, ownerAddress: address });
+    });
+
+    it("reads nothing for a dseq the organization has no row for", async () => {
+      const [tenant, foreign] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
+      const foreignSetting = await seedDeploymentSetting({ userId: foreign.user.id, organizationId: foreign.organization.id, projectId: foreign.project.id });
+
+      expect(await container.resolve(DeploymentSettingRepository).findFilingInOrganization(tenant.organization.id, foreignSetting.dseq)).toBeUndefined();
     });
   });
 

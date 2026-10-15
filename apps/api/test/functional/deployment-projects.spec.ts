@@ -27,6 +27,7 @@ import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-fl
 import type { DeploymentResponse, PatchDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
+import { MoveDeploymentAlertsJob } from "@src/deployment/services/move-deployment-alerts/move-deployment-alerts.job";
 import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -474,6 +475,9 @@ describe("Deployment projects", () => {
           payload: { dseq: deployment.dseq, name: "api", toProjectName: otherProject.name }
         })
       ]);
+      expect(await alertMovesOf(team.id, deployment.dseq)).toEqual([
+        expect.objectContaining({ data: { organizationId: team.id, dseq: deployment.dseq, version: 1 } })
+      ]);
     });
 
     it.each<OrganizationRole>(["member", "viewer", "billing"])("refuses a %s and leaves the deployment where it is", async role => {
@@ -484,6 +488,7 @@ describe("Deployment projects", () => {
 
       expect(response.status).toBe(403);
       expect(await deploymentRow(caller.id, deployment.dseq)).toMatchObject({ projectId: defaultProject.id });
+      expect(await alertMovesOf(team.id, deployment.dseq)).toEqual([]);
     });
 
     it("answers 404 to a project-bound API key moving a deployment out of a project beyond its reach", async () => {
@@ -687,6 +692,10 @@ describe("Deployment projects", () => {
     const activities = resolveTable("OrganizationActivities");
 
     return await container.resolve<ApiPgDatabase>(POSTGRES_DB).select().from(activities).where(eq(activities.projectId, projectId));
+  }
+
+  async function alertMovesOf(organizationId: string, dseq: string) {
+    return await findJobRows(MoveDeploymentAlertsJob[JOB_NAME], { data: { organizationId, dseq } });
   }
 
   function signIn(externalUserId: string) {

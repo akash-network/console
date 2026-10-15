@@ -5,12 +5,14 @@ import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type {
   DeploymentLocation,
   DeploymentSettingRepository,
   DeploymentSettingsOutput
 } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { MOVE_DEPLOYMENT_ALERTS_RETRY_OPTIONS, MoveDeploymentAlertsJob } from "@src/deployment/services/move-deployment-alerts/move-deployment-alerts.job";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
@@ -177,6 +179,17 @@ describe(DeploymentProjectService.name, () => {
       });
     });
 
+    it("queues the move of the deployment's alerts of the organization into the target project", async () => {
+      const { service, jobQueueService, deployment, target, context } = setup();
+
+      await service.move(deployment.dseq, target.id);
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new MoveDeploymentAlertsJob({ organizationId: context.organizationId, dseq: deployment.dseq }),
+        MOVE_DEPLOYMENT_ALERTS_RETRY_OPTIONS
+      );
+    });
+
     it("reads and writes the deployment under the caller's update rules, inside one transaction", async () => {
       const { service, deploymentSettingRepository, scopedSettingRepository, projectRepository, txService, ability, deployment, target } = setup();
 
@@ -198,14 +211,15 @@ describe(DeploymentProjectService.name, () => {
       expect(scopedSettingRepository.updateById).toHaveBeenCalledWith(own.id, { projectId: target.id });
     });
 
-    it("changes nothing and records nothing for a deployment already in the target project", async () => {
-      const { service, scopedSettingRepository, organizationActivityService, deployment, target } = setup();
+    it("changes nothing, records nothing and queues nothing for a deployment already in the target project", async () => {
+      const { service, scopedSettingRepository, organizationActivityService, jobQueueService, deployment, target } = setup();
       scopedSettingRepository.find.mockResolvedValue([{ ...deployment, projectId: target.id }]);
 
       await expect(service.move(deployment.dseq, target.id)).resolves.toEqual({ dseq: deployment.dseq, projectId: target.id });
 
       expect(scopedSettingRepository.updateById).not.toHaveBeenCalled();
       expect(organizationActivityService.record).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
     it.each<OrganizationRole>(["member", "viewer", "billing"])("refuses a %s with 403 before reading anything", async role => {
@@ -240,13 +254,14 @@ describe(DeploymentProjectService.name, () => {
     });
 
     it("refuses with 404 a target project that is deleted or belongs to another organization", async () => {
-      const { service, scopedSettingRepository, projectRepository, organizationActivityService, deployment } = setup();
+      const { service, scopedSettingRepository, projectRepository, organizationActivityService, jobQueueService, deployment } = setup();
       projectRepository.findActiveAndLock.mockResolvedValue(undefined);
 
       await expect(service.move(deployment.dseq, faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Project not found" });
 
       expect(scopedSettingRepository.updateById).not.toHaveBeenCalled();
       expect(organizationActivityService.record).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
     it("refuses with 404 a target project outside the caller's scope", async () => {
@@ -340,6 +355,7 @@ describe(DeploymentProjectService.name, () => {
     executionContextService.get.calledWith("ORGANIZATION_CONTEXT").mockReturnValue(context);
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async callback => await callback());
+    const jobQueueService = mock<JobQueueService>();
 
     const service = new DeploymentProjectService(
       projectRepository,
@@ -347,7 +363,8 @@ describe(DeploymentProjectService.name, () => {
       organizationActivityService,
       authService,
       executionContextService,
-      txService
+      txService,
+      jobQueueService
     );
 
     return {
@@ -357,6 +374,7 @@ describe(DeploymentProjectService.name, () => {
       scopedSettingRepository,
       organizationActivityService,
       txService,
+      jobQueueService,
       ability,
       context,
       user,

@@ -36,6 +36,8 @@ export type RecentNvidiaDriver = { driverVersion: string; lastSeenDate: string }
 
 export type DeploymentLocation = { organizationId: string; organizationSlug: string; projectId: string | null };
 
+export type DeploymentFiling = Pick<DeploymentSettingsDbOutput, "projectId"> & { ownerAddress: string | null };
+
 /** One organization and, when the request is narrowed, the projects of it a location lookup may answer for. */
 export type DeploymentReach = { organizationId: string; projectIds?: readonly string[] };
 
@@ -726,6 +728,20 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     }
 
     return projectIds;
+  }
+
+  /** Read from the older row of a shared dseq like {@link findProjectIdsInOrganizationByDseqs}, with the address of the wallet that owns the deployment on chain. */
+  async findFilingInOrganization(organizationId: string, dseq: string): Promise<DeploymentFiling | undefined> {
+    const [filing] = await this.cursor
+      .select({ projectId: this.table.projectId, ownerAddress: UserWallets.address })
+      .from(this.table)
+      .leftJoin(TeamOrganizations, isFiledInTeam)
+      .leftJoin(UserWallets, eq(UserWallets.id, ownerWalletId))
+      .where(this.whereInOrganization(and(eq(this.table.organizationId, organizationId), eq(this.table.dseq, dseq))))
+      .orderBy(asc(this.table.createdAt), asc(this.table.id))
+      .limit(1);
+
+    return filing;
   }
 
   async markAsClosedInProject({ organizationId, projectId }: { organizationId: string; projectId: string }, ids: string[]): Promise<void> {

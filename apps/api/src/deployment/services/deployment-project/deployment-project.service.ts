@@ -4,6 +4,7 @@ import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import {
   type DeploymentLocation,
@@ -11,6 +12,7 @@ import {
   DeploymentSettingRepository,
   type DeploymentSettingsOutput
 } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { MOVE_DEPLOYMENT_ALERTS_RETRY_OPTIONS, MoveDeploymentAlertsJob } from "@src/deployment/services/move-deployment-alerts/move-deployment-alerts.job";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { type ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
@@ -35,7 +37,8 @@ export class DeploymentProjectService {
     private readonly organizationActivityService: OrganizationActivityService,
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
-    private readonly txService: TxService
+    private readonly txService: TxService,
+    private readonly jobQueueService: JobQueueService
   ) {}
 
   /** Undefined outside organization mode, where the requested project is ignored and the row is filed the way every other write is. */
@@ -92,6 +95,10 @@ export class DeploymentProjectService {
 
       await repository.updateById(deployment.id, { projectId: target.id });
       await this.#recordMoved(context, deployment, target);
+      await this.jobQueueService.enqueue(
+        new MoveDeploymentAlertsJob({ organizationId: context.organizationId, dseq: deployment.dseq }),
+        MOVE_DEPLOYMENT_ALERTS_RETRY_OPTIONS
+      );
     });
 
     return { dseq, projectId };
