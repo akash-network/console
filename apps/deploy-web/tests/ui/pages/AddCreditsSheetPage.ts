@@ -15,6 +15,10 @@ export class AddCreditsSheetPage {
     await this.getDialog().getByRole("radio", { name: amount, exact: true }).click();
   }
 
+  async enterCustomAmount(amount: string) {
+    await this.getDialog().getByLabel("custom-amount").fill(amount);
+  }
+
   async fillStripeAddress(input: { name: string; line1: string; city: string; state: string; zip: string }) {
     const addressFrame = this.getAddressFrame();
 
