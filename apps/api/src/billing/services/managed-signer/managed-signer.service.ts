@@ -390,6 +390,7 @@ export class ManagedSignerService {
   }
 
   async #assertBroadcastable(userWallet: UserWalletOutput, messages: EncodeObject[]): Promise<void> {
+    this.#assertCertificatesWithinProjectScope(messages);
     await this.assertDeploymentsInProjectScope(userWallet, existingDeploymentDseqsOf(messages));
     await this.#assertActivatedForSpending(userWallet, messages);
     await this.#validateBalances(userWallet, messages);
@@ -446,11 +447,18 @@ export class ManagedSignerService {
     return (await this.filterDeploymentsInProjectScope(userWallet, [dseq], action)).length > 0;
   }
 
+  /** A certificate lets its holder reach every deployment of the wallet at its providers, beyond the projects a caller is limited to. */
+  #assertCertificatesWithinProjectScope(messages: EncodeObject[]): void {
+    if (this.#isLimitedToProjects() && messages.some(message => typeOf(message) === MsgCreateCertificate.$type)) {
+      throw createError(403, "A certificate reaches every project's deployments, so only a caller who reaches every project may create one", {
+        errorCode: PROJECT_FORBIDDEN_ERROR_CODE
+      });
+    }
+  }
+
   /** Keeps every deployment for a caller who reaches every project; otherwise only those every row of which is reachable for the action, in two queries whatever the count. */
   async filterDeploymentsInProjectScope(userWallet: UserWalletOutput, dseqs: readonly string[], action: "read" | "update"): Promise<string[]> {
-    const organizationContext = this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
-
-    if (organizationContext?.mode !== "organization" || organizationContext.projectScope.kind === "all") return [...dseqs];
+    if (!this.#isLimitedToProjects()) return [...dseqs];
 
     const [filed, reachable] = await Promise.all([
       this.deploymentSettingRepository.findFiledRowsOfWallet(userWallet, dseqs),
@@ -460,6 +468,12 @@ export class ManagedSignerService {
     const reachableCounts = countBy(reachable, row => row.dseq);
 
     return dseqs.filter(dseq => filedCounts[dseq] > 0 && reachableCounts[dseq] === filedCounts[dseq]);
+  }
+
+  #isLimitedToProjects(): boolean {
+    const organizationContext = this.executionContextService.hasContext() ? this.executionContextService.get("ORGANIZATION_CONTEXT") : undefined;
+
+    return organizationContext?.mode === "organization" && organizationContext.projectScope.kind === "projects";
   }
 
   /**

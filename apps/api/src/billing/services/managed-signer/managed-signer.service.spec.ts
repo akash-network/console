@@ -2037,6 +2037,32 @@ describe(ManagedSignerService.name, () => {
 
       expect(deploymentSettingRepository.accessibleBy).not.toHaveBeenCalled();
     });
+
+    it("refuses a certificate, which reaches the deployments of every project, before anything is signed", async () => {
+      const { service, txManagerService } = setupForTeam({ organizationContext: projectScoped });
+
+      await expect(service.executeDerivedDecodedTxByUserId("member-1", [createDeploymentMessageFor(123), certificateMessage()])).rejects.toMatchObject({
+        status: 403,
+        errorCode: "project_forbidden"
+      });
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
+    it("creates a certificate for a caller who reaches every project", async () => {
+      const { service, txManagerService } = setupForTeam({ organizationContext: createOrganizationContext({ projectScope: { kind: "all" } }) });
+
+      await service.executeDerivedDecodedTxByUserId("member-1", [certificateMessage()]);
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalled();
+    });
+
+    it("creates a certificate in legacy mode", async () => {
+      const { service, txManagerService } = setupForTeam({ organizationContext: { ...projectScoped, mode: "legacy" } });
+
+      await service.executeDerivedDecodedTxByUserId("member-1", [certificateMessage()]);
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalled();
+    });
   });
 
   describe("isDeploymentInProjectScope", () => {
@@ -2301,6 +2327,13 @@ describe(ManagedSignerService.name, () => {
     return {
       typeUrl: MsgCloseDeployment.$type,
       value: MsgCloseDeployment.fromPartial({ id: { owner: "akash1test", dseq } })
+    };
+  }
+
+  function certificateMessage(): EncodeObject {
+    return {
+      typeUrl: `/${MsgCreateCertificate.$type}`,
+      value: MsgCreateCertificate.fromPartial({ owner: "akash1test", cert: Buffer.from("cert"), pubkey: Buffer.from("pubkey") })
     };
   }
 
