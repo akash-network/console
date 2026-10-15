@@ -35,6 +35,19 @@ describe(StopTeamAlertsToDepartedMemberHandler.name, () => {
     expect(releaseRequests()).toEqual([{ data: { addressSha256: job.addressSha256, fallbackAddresses: [owner.email] } }]);
   });
 
+  it("hands emptied channels to every member with an email when no owner has one", async () => {
+    const { organization, stopAlerts, releaseRequests } = await setup({ notificationsStatus: 204, ownerEmail: null });
+    const admin = await seedUser({ email: faker.internet.email() });
+    await seedOrganizationMember({ organizationId: organization.id, userId: admin.id, role: "admin" });
+    const viewer = await seedUser({ email: faker.internet.email() });
+    await seedOrganizationMember({ organizationId: organization.id, userId: viewer.id, role: "viewer" });
+
+    const job = await stopAlerts();
+    await expectJobCompleted(StopTeamAlertsToDepartedMember[JOB_NAME], { data: { organizationId: organization.id } });
+
+    expect(releaseRequests()).toEqual([{ data: { addressSha256: job.addressSha256, fallbackAddresses: [admin.email, viewer.email] } }]);
+  });
+
   it("keeps the job for a retry while the notifications service cannot take it", async () => {
     const { organization, stopAlerts } = await setup({ notificationsStatus: 404 });
 
@@ -49,9 +62,10 @@ describe(StopTeamAlertsToDepartedMemberHandler.name, () => {
     );
   });
 
-  async function setup(input: { notificationsStatus: number }) {
+  async function setup(input: { notificationsStatus: number; ownerEmail?: string | null }) {
     const { enqueue, startWorkers } = await jobWorkers();
-    const { organization, user: owner } = await seedOrganizationWithOwner({ user: { email: faker.internet.email() } });
+    const ownerEmail = input.ownerEmail === undefined ? faker.internet.email() : input.ownerEmail;
+    const { organization, user: owner } = await seedOrganizationWithOwner({ user: { email: ownerEmail } });
     const requests: unknown[] = [];
 
     nock(container.resolve(NOTIFICATIONS_CONFIG).NOTIFICATIONS_API_BASE_URL as string)
