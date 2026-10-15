@@ -13,7 +13,7 @@ export const Templates = pgTable(
       .primaryKey()
       .notNull()
       .default(sql`uuid_generate_v4()`),
-    userId: varchar("userId", { length: 255 }).notNull(),
+    userId: varchar("userId", { length: 255 }),
     organizationId: uuid("organization_id").references(() => Organizations.id),
     projectId: uuid("project_id"),
     copiedFromId: uuid("copiedFromId"),

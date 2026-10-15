@@ -207,9 +207,9 @@ export class AccountDeletionService {
       const wallet = await userWallets.findOneByUserId(user.id);
       const personalOrganization = await this.organizationRepository.findPersonalByUserId(user.id);
 
+      await this.teamRecordRetentionService.releaseFromTeams(lockedUser);
       if (lockedUser.userId) await this.userTemplateRepository.deleteAllOwnedBy(lockedUser.userId);
       if (wallet) await this.workloadProbeEvidenceRepository.deleteByWalletId(wallet.id);
-      await this.teamRecordRetentionService.releaseFromTeams(user.id);
       await this.userRepository.deleteById(user.id);
       if (wallet) await userWallets.detachFromOrganization(wallet.id);
       if (personalOrganization) await this.organizationRepository.deleteById(personalOrganization.id);

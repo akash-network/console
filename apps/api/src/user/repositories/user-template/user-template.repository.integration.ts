@@ -245,9 +245,53 @@ describe(UserTemplateRepository.name, () => {
 
       expect(result).toBeUndefined();
     });
+
+    it("returns a public team template whose author deleted their account without naming an author", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const team = await seedOrganization();
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true }, team.id);
+      await userTemplateRepository.detachFromTeams(author.userId!);
+
+      expect(await userTemplateRepository.findById(template.id, "")).toMatchObject({ id: template.id, userId: null, username: "" });
+    });
+  });
+
+  describe("detachFromTeams", () => {
+    it("names no author on the templates the user saved for team organizations and leaves the others as they are", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const colleague = await createTestUser();
+      const [team, personal] = await Promise.all([seedOrganization(), seedOrganization({ type: "personal" })]);
+      const teamTemplate = await createTestTemplate({ userId: author.userId! }, team.id);
+      const personalTemplate = await createTestTemplate({ userId: author.userId! }, personal.id);
+      const unfiledTemplate = await createTestTemplate({ userId: author.userId! });
+      const colleagueTemplate = await createTestTemplate({ userId: colleague.userId! }, team.id);
+
+      await userTemplateRepository.detachFromTeams(author.userId!);
+
+      expect(await findStoredTemplate(teamTemplate.id)).toMatchObject({ userId: null, organizationId: team.id, title: teamTemplate.title });
+      expect(await findStoredTemplate(personalTemplate.id)).toMatchObject({ userId: author.userId, organizationId: personal.id });
+      expect(await findStoredTemplate(unfiledTemplate.id)).toMatchObject({ userId: author.userId, organizationId: null });
+      expect(await findStoredTemplate(colleagueTemplate.id)).toMatchObject({ userId: colleague.userId, organizationId: team.id });
+    });
   });
 
   describe("getFavoriteTemplates", () => {
+    it("keeps listing a favorite public team template whose author deleted their account", async () => {
+      const { userTemplateRepository } = setup();
+      const author = await createTestUser();
+      const reader = await createTestUser();
+      const team = await seedOrganization();
+      const template = await createTestTemplate({ userId: author.userId!, isPublic: true }, team.id);
+      await recordFavorite({ userId: reader.userId!, templateId: template.id });
+      await userTemplateRepository.detachFromTeams(author.userId!);
+
+      const results = await userTemplateRepository.getFavoriteTemplates(reader.userId!);
+
+      expect(results).toEqual([expect.objectContaining({ id: template.id, userId: null, username: "" })]);
+    });
+
     it("leaves out another user's private template marked as favorite", async () => {
       const { userTemplateRepository } = setup();
       const author = await createTestUser();

@@ -146,6 +146,24 @@ describe(AccountDeletionService.name, () => {
     expect(await team.memberCount()).toBe(1);
   });
 
+  it("keeps the templates the account saved for a team, and the teammates' favorites of them, without naming their author", async () => {
+    const { service, account, token, answerActiveDeployments, joinTeam, templateRepository, seedTemplate, findTemplates } = await setup();
+    answerActiveDeployments([]);
+    const team = await joinTeam("member");
+    const teamTemplate = await seedTemplate({ userId: account.user.userId!, organizationId: team.organization.id, projectId: team.project.id, isPublic: true });
+    const unfiledTemplate = await seedTemplate({ userId: account.user.userId!, organizationId: null, projectId: null });
+    const teammateTemplate = await seedTemplate({ userId: team.owner.userId!, organizationId: team.organization.id, projectId: team.project.id });
+    await templateRepository.addFavorite(team.owner.userId!, teamTemplate.id);
+
+    await service.confirm({ token });
+
+    expect(await findTemplates([teamTemplate.id, unfiledTemplate.id, account.templateId, teammateTemplate.id])).toEqual([
+      expect.objectContaining({ id: teamTemplate.id, userId: null, organizationId: team.organization.id, projectId: team.project.id, sdl: teamTemplate.sdl }),
+      expect.objectContaining({ id: teammateTemplate.id, userId: team.owner.userId })
+    ]);
+    expect(await templateRepository.isFavorite(teamTemplate.id, team.owner.userId!)).toBe(true);
+  });
+
   it("erases every row the account wrote for its personal organization rather than keeping it unnamed", async () => {
     const { service, account, token, answerActiveDeployments, joinTeam, countRowsFiledUnder, seedUnfiledRowsOf, findRows } = await setup();
     answerActiveDeployments([]);
@@ -428,6 +446,21 @@ describe(AccountDeletionService.name, () => {
       };
     }
 
+    async function seedTemplate(input: { userId: string; organizationId: string | null; projectId: string | null; isPublic?: boolean }) {
+      const [template] = await db
+        .insert(resolveTable("Templates"))
+        .values({ ...input, ...templateInput() })
+        .returning();
+
+      return template;
+    }
+
+    async function findTemplates(ids: string[]) {
+      const rows = await rowsOf(resolveTable("Templates"), ids);
+
+      return ids.flatMap(id => rows.filter(row => row.id === id));
+    }
+
     async function rowsOf(table: PgTable & { id: PgColumn }, ids: string[]) {
       return ids.length ? await db.select().from(table).where(inArray(table.id, ids)) : [];
     }
@@ -461,7 +494,10 @@ describe(AccountDeletionService.name, () => {
       ownTeam,
       findRows,
       countRowsFiledUnder,
-      seedUnfiledRowsOf
+      seedUnfiledRowsOf,
+      templateRepository,
+      seedTemplate,
+      findTemplates
     };
   }
 });
