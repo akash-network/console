@@ -144,6 +144,24 @@ describe(ChooseProjectModal.name, () => {
     expect(onChosen).not.toHaveBeenCalled();
   });
 
+  it("tells the organization's project limit when it is reached", async () => {
+    const { onChosen, enqueueSnackbar } = setup({
+      projects: [],
+      createError: new ApiError(403, { code: "project_limit_reached", data: { limit: 10 } }, "POST /v1/projects -> 403")
+    });
+
+    await userEvent.type(screen.getByLabelText("Project name"), "billing");
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({ title: "Couldn't create the project", subTitle: expect.stringContaining("its limit of 10 projects") })
+      }),
+      { variant: "error" }
+    );
+    expect(onChosen).not.toHaveBeenCalled();
+  });
+
   it("does not submit while a project is being created", () => {
     const { onChosen } = setup({ initialProjectId: "storefront", isPending: true });
 

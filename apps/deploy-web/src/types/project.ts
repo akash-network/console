@@ -27,6 +27,9 @@ export type CreateProjectInput = operationDefs["createProject"]["requestBody"]["
 /** The `code` of the 409 `createProject` returns when the active organization already has a project by that name. */
 export const PROJECT_NAME_TAKEN_ERROR_CODE = "project_name_taken";
 
+/** The `code` of the 403 `createProject` returns when the active organization already holds as many live projects as it may. */
+export const PROJECT_LIMIT_REACHED_ERROR_CODE = "project_limit_reached";
+
 /** The `code` of the 409 `deleteProject` answers for the organization's default project. */
 export const PROJECT_IS_DEFAULT_ERROR_CODE = "project_is_default";
 

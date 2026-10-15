@@ -20,6 +20,7 @@ import { useSnackbar } from "notistack";
 import { isProjectNameTakenError, useCreateProjectMutation } from "@src/queries/useProjectsQuery";
 import type { Project } from "@src/types/project";
 import { MAX_PROJECT_DESCRIPTION_LENGTH } from "@src/types/project";
+import { describeProjectCreationFailure } from "../projectCreationFailure";
 import { ProjectNameField, toProjectSlug } from "../ProjectNameField/ProjectNameField";
 
 export const DEPENDENCIES = { useCreateProjectMutation, useSnackbar };
@@ -60,7 +61,9 @@ export function NewProjectModal({ organizationName, existingSlugs, onClose, onCr
         setRefusedSlugs(current => [...current, slug]);
         return;
       }
-      enqueueSnackbar(<Snackbar title="Couldn't create the project" subTitle="Try again in a moment." iconVariant="error" />, { variant: "error" });
+      enqueueSnackbar(<Snackbar title="Couldn't create the project" subTitle={describeProjectCreationFailure(error)} iconVariant="error" />, {
+        variant: "error"
+      });
     }
   };
 
