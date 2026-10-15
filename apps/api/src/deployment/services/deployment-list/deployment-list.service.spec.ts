@@ -254,7 +254,15 @@ describe(DeploymentListService.name, () => {
   }
 
   function unclosedRow(overrides: Partial<UnclosedReachableDeployment> = {}): UnclosedReachableDeployment {
-    return { id: faker.string.uuid(), dseq: faker.string.numeric(8), owner: createAkashAddress(), isRecent: false, ...overrides };
+    return {
+      id: faker.string.uuid(),
+      dseq: faker.string.numeric(8),
+      owner: createAkashAddress(),
+      projectId: faker.string.uuid(),
+      name: null,
+      isRecent: false,
+      ...overrides
+    };
   }
 
   function reachable(overrides: Partial<ReachableDeployment> = {}): ReachableDeployment {

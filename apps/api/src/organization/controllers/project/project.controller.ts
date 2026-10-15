@@ -3,13 +3,14 @@ import { singleton } from "tsyringe";
 import { Protected } from "@src/auth/services/auth.service";
 import type {
   CreateProjectRequest,
+  ListedProjectResponseItem,
   ListProjectsResponse,
   ProjectResponse,
   ProjectResponseItem,
   UpdateProjectRequest
 } from "@src/organization/http-schemas/project.schema";
 import type { ProjectWithCreator } from "@src/organization/repositories/project/project.repository";
-import { ProjectService } from "@src/organization/services/project/project.service";
+import { type ListedProject, ProjectService } from "@src/organization/services/project/project.service";
 
 @singleton()
 export class ProjectController {
@@ -19,7 +20,7 @@ export class ProjectController {
   async list(): Promise<ListProjectsResponse> {
     const projects = await this.projectService.list();
 
-    return { data: projects.map(toProjectResponse) };
+    return { data: projects.map(toListedProjectResponse) };
   }
 
   @Protected()
@@ -45,4 +46,8 @@ export class ProjectController {
 
 function toProjectResponse({ id, name, slug, description, isDefault, createdAt, createdBy }: ProjectWithCreator): ProjectResponseItem {
   return { id, name, slug, description, isDefault, createdAt: createdAt.toISOString(), createdBy };
+}
+
+function toListedProjectResponse(project: ListedProject): ListedProjectResponseItem {
+  return { ...toProjectResponse(project), lastActivityAt: project.lastActivityAt.toISOString(), deployments: project.deployments, access: project.access };
 }

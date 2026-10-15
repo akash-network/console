@@ -15,9 +15,18 @@ import { app } from "@src/rest-app";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
+import {
+  seedOrganizationActivity,
+  seedOrganizationMember,
+  seedOrganizationWithOwner,
+  seedProject,
+  seedProjectMember
+} from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeployment } from "@test/seeders/deployment.seeder";
+import { createDeploymentGroup } from "@test/seeders/deployment-group.seeder";
+import { createLease } from "@test/seeders/lease.seeder";
+import { createProvider } from "@test/seeders/provider.seeder";
 
 describe("Projects", () => {
   afterEach(() => {
@@ -29,15 +38,18 @@ describe("Projects", () => {
   });
 
   describe("GET /v1/projects", () => {
-    it("lists the live projects of the active organization, default first, with who created them", async () => {
+    it("lists the live projects of the active organization, most recently active first, with who created them", async () => {
       const { request, team, defaultProject, owner } = await setupCaller({ role: "admin" });
       const project = await seedProject({ organizationId: team.id, createdByUserId: owner.id, description: "Storefront" });
       await seedProject({ organizationId: team.id, deletedAt: new Date() });
       await seedOrganizationWithOwner();
+      const latestActivityAt = new Date(project.createdAt.getTime() + 60_000);
+      await seedOrganizationActivity({ organizationId: team.id, projectId: defaultProject.id, createdAt: latestActivityAt });
 
       const response = await request("/v1/projects");
 
       expect(response.status).toBe(200);
+      const emptyAndManaged = { deployments: { activeCount: 0, preview: [] }, access: { canDeploy: true, canManage: true } };
       expect(await response.json()).toEqual({
         data: [
           {
@@ -47,7 +59,9 @@ describe("Projects", () => {
             description: null,
             isDefault: true,
             createdAt: defaultProject.createdAt.toISOString(),
-            createdBy: { id: owner.id, username: owner.username }
+            createdBy: { id: owner.id, username: owner.username },
+            lastActivityAt: latestActivityAt.toISOString(),
+            ...emptyAndManaged
           },
           {
             id: project.id,
@@ -56,10 +70,82 @@ describe("Projects", () => {
             description: "Storefront",
             isDefault: false,
             createdAt: project.createdAt.toISOString(),
-            createdBy: { id: owner.id, username: owner.username }
+            createdBy: { id: owner.id, username: owner.username },
+            lastActivityAt: project.createdAt.toISOString(),
+            ...emptyAndManaged
           }
         ]
       });
+    });
+
+    it("counts each project's deployments open on chain and previews the newest with the state of their leases", async () => {
+      const { request, team, defaultProject, owner } = await setupCaller({ role: "owner" });
+      const address = await seedTeamWallet(team.id);
+      const inDefault = { userId: owner.id, organizationId: team.id, projectId: defaultProject.id };
+      const running = await seedDeploymentOnChain({ ...inDefault, dseq: "4004", name: "web" }, address, { leases: [{ closedHeight: undefined }] });
+      const degraded = await seedDeploymentOnChain({ ...inDefault, dseq: "4003" }, address, { leases: [{ closedHeight: 5_000_000 }] });
+      const pending = await seedDeploymentOnChain({ ...inDefault, dseq: "4002" }, address, { leases: [] });
+      await seedDeploymentOnChain({ ...inDefault, dseq: "4001" }, address, { leases: [] });
+      await seedDeploymentOnChain({ ...inDefault, dseq: "4005" }, address, { leases: [], closedHeight: 5_000_000 });
+
+      const response = await request("/v1/projects");
+
+      expect(response.status).toBe(200);
+      expect(projectsIn(await response.json()).find(({ id }) => id === defaultProject.id)?.deployments).toEqual({
+        activeCount: 4,
+        preview: [
+          { dseq: running.dseq, name: "web", status: "running" },
+          { dseq: degraded.dseq, name: null, status: "degraded" },
+          { dseq: pending.dseq, name: null, status: "pending" }
+        ]
+      });
+    });
+
+    it("never tells a member what runs in the projects it was not granted, and lets it deploy only where its grant writes", async () => {
+      const { request, team, defaultProject, owner, user } = await setupCaller({ role: "member" });
+      const address = await seedTeamWallet(team.id);
+      const [written, viewed] = [await seedProject({ organizationId: team.id }), await seedProject({ organizationId: team.id })];
+      await seedProjectMember({ organizationId: team.id, projectId: written.id, userId: user.id, role: "member" });
+      await seedProjectMember({ organizationId: team.id, projectId: viewed.id, userId: user.id, role: "viewer" });
+      await seedDeploymentOnChain({ userId: owner.id, organizationId: team.id, projectId: written.id }, address, { leases: [] });
+      await seedDeploymentOnChain({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id }, address, { leases: [] });
+
+      const response = await request("/v1/projects");
+
+      expect(response.status).toBe(200);
+      const projects = projectsIn(await response.json());
+      expect(projects.map(({ id }) => id).sort()).toEqual([written.id, viewed.id].sort());
+      expect(projects.find(({ id }) => id === written.id)).toMatchObject({
+        deployments: { activeCount: 1 },
+        access: { canDeploy: true, canManage: false }
+      });
+      expect(projects.find(({ id }) => id === viewed.id)).toMatchObject({
+        deployments: { activeCount: 0, preview: [] },
+        access: { canDeploy: false, canManage: false }
+      });
+    });
+
+    it("tells a billing member which projects exist but nothing of what runs or happens in them", async () => {
+      const { request, team, defaultProject, owner } = await setupCaller({ role: "billing" });
+      const address = await seedTeamWallet(team.id);
+      await seedDeploymentOnChain({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id }, address, { leases: [] });
+      await seedOrganizationActivity({
+        organizationId: team.id,
+        projectId: defaultProject.id,
+        createdAt: new Date(defaultProject.createdAt.getTime() + 60_000)
+      });
+
+      const response = await request("/v1/projects");
+
+      expect(response.status).toBe(200);
+      expect(projectsIn(await response.json())).toEqual([
+        expect.objectContaining({
+          id: defaultProject.id,
+          lastActivityAt: defaultProject.createdAt.toISOString(),
+          deployments: null,
+          access: { canDeploy: false, canManage: false }
+        })
+      ]);
     });
 
     it.each(["member", "viewer"] as const)("lists to a %s only the projects it was granted", async role => {
@@ -396,6 +482,36 @@ describe("Projects", () => {
 
   function idsOf(body: unknown) {
     return (body as { data: { id: string }[] }).data.map(({ id }) => id);
+  }
+
+  function projectsIn(body: unknown) {
+    return (body as { data: Array<{ id: string; deployments: unknown; access: unknown }> }).data;
+  }
+
+  async function seedDeploymentOnChain(
+    setting: { userId: string; organizationId: string; projectId: string; dseq?: string; name?: string },
+    address: string,
+    chain: { leases: Array<{ closedHeight?: number }>; closedHeight?: number }
+  ) {
+    const filed = await seedDeploymentSetting(setting);
+    const deployment = await createDeployment({ owner: address, dseq: filed.dseq, closedHeight: chain.closedHeight });
+    for (const [index, lease] of chain.leases.entries()) {
+      const [group, provider] = await Promise.all([
+        createDeploymentGroup({ deploymentId: deployment.id, owner: address, dseq: filed.dseq, gseq: index + 1 }),
+        createProvider()
+      ]);
+      await createLease({
+        deploymentId: deployment.id,
+        deploymentGroupId: group.id,
+        owner: address,
+        dseq: filed.dseq,
+        gseq: index + 1,
+        providerAddress: provider.owner,
+        ...lease
+      });
+    }
+
+    return filed;
   }
 
   async function projectRow(id: string) {

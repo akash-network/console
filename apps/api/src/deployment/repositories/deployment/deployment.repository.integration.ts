@@ -181,6 +181,45 @@ describe(DeploymentRepository.name, () => {
     });
   });
 
+  describe("findLeaseStates", () => {
+    it("tells a deployment with an open lease, one whose leases all closed and one never leased apart", async () => {
+      const { repository, owner, base } = setup();
+      const [leased, ended, neverLeased] = await Promise.all([1, 2, 3].map(() => seedOpenDeployment(owner, { createdHeight: base })));
+      await seedLease(leased, { gseq: 1, closedHeight: base + 1 });
+      await seedLease(leased, { gseq: 2 });
+      await seedLease(ended, { closedHeight: base + 1 });
+
+      const states = await repository.findLeaseStates([leased, ended, neverLeased].map(({ dseq }) => ({ owner, dseq })));
+
+      expect(states).toHaveLength(3);
+      expect(states).toEqual(
+        expect.arrayContaining([
+          { owner, dseq: leased.dseq, hasLease: true, hasOpenLease: true },
+          { owner, dseq: ended.dseq, hasLease: true, hasOpenLease: false },
+          { owner, dseq: neverLeased.dseq, hasLease: false, hasOpenLease: false }
+        ])
+      );
+    });
+
+    it("leaves out a deployment the indexer holds no row for, or that another owner holds", async () => {
+      const { repository, owner, base } = setup();
+      const deployment = await seedOpenDeployment(owner, { createdHeight: base });
+
+      const states = await repository.findLeaseStates([
+        { owner: createAkashAddress(), dseq: deployment.dseq },
+        { owner, dseq: "999999999999" }
+      ]);
+
+      expect(states).toEqual([]);
+    });
+
+    it("returns nothing for an empty batch without querying", async () => {
+      const { repository } = setup();
+
+      await expect(repository.findLeaseStates([])).resolves.toEqual([]);
+    });
+  });
+
   describe("findStaleDeployments", () => {
     it("returns an open deployment that never had a lease", async () => {
       const { repository, owner, base } = setup();

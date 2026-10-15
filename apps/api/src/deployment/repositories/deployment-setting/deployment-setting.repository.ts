@@ -86,7 +86,14 @@ export type ReachableDeploymentQuery = {
   search?: string;
 };
 
-export type UnclosedReachableDeployment = { id: string; dseq: string; owner: string; isRecent: boolean };
+export type UnclosedReachableDeployment = {
+  id: string;
+  dseq: string;
+  owner: string;
+  projectId: string | null;
+  name: string | null;
+  isRecent: boolean;
+};
 
 /** The rows a page is drawn from: the named ones, or every row flagged closed plus the named ones. */
 export type ReachablePageScope = { ids: string[] } | { flaggedClosedOrIds: string[] };
@@ -320,6 +327,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         id: this.table.id,
         dseq: this.table.dseq,
         owner: sql<string>`${UserWallets.address}`,
+        name: this.table.name,
         isRecent: sql<boolean>`coalesce(${this.table.createdAt} > now() - make_interval(mins => ${recentMinutes}), false)`,
         ...this.#ruleColumns
       })
@@ -331,7 +339,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .limit(limit);
     this.compareWithShadow(rows);
 
-    return rows.map(({ id, dseq, owner, isRecent }) => ({ id, dseq, owner, isRecent }));
+    return rows.map(({ id, dseq, owner, projectId, name, isRecent }) => ({ id, dseq, owner, projectId, name, isRecent }));
   }
 
   /** One page of reachable rows in dseq order, with the address owning each on chain, and how many rows the page is drawn from. */

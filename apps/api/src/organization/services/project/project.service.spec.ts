@@ -1,38 +1,161 @@
+import { createMongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { PostgresError } from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { organizationRules } from "@src/auth/services/ability/ability-rules";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import type { DeploymentSettingRepository, OpenDeployment } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type {
+  ProjectDeploymentSummary,
+  ProjectDeploymentSummaryService
+} from "@src/deployment/services/project-deployment-summary/project-deployment-summary.service";
 import { MAX_NUMBERED_SLUG_SUFFIX } from "@src/organization/lib/slug/slug";
 import { PROJECT_NAME_UNIQUE_INDEX } from "@src/organization/model-schemas/project/project.schema";
 import type { OrganizationConfig } from "@src/organization/providers/config.provider";
 import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
-import type { ProjectRepository, ProjectWithCreator } from "@src/organization/repositories/project/project.repository";
+import type { ProjectRepository, ProjectWithCreator, ProjectWithLastActivity } from "@src/organization/repositories/project/project.repository";
 import type { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import { PROJECT_LIMIT_REACHED_ERROR_CODE, ProjectService } from "./project.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createOrganization, createProject } from "@test/seeders/organization.seeder";
-import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
 describe(ProjectService.name, () => {
   describe("list", () => {
-    it("lists the active projects the caller may read", async () => {
-      const { service, projectRepository, ability, project } = setup();
+    it("lists the projects the caller may read with their deployments, last activity and the caller's access", async () => {
+      const context = createOrganizationContext({ role: "owner" });
+      const project = listedProject({ organizationId: context.organizationId, createdAt: new Date("2026-10-01"), lastActivityAt: new Date("2026-10-10") });
+      const summary = { activeCount: 1, preview: [{ dseq: "42", name: "web", status: "running" as const }] };
+      const { service, projectRepository, projectDeploymentSummaryService, ability } = setup({
+        context,
+        ability: abilityOf(context),
+        listed: [project],
+        summaries: new Map([[project.id, summary]])
+      });
 
       const projects = await service.list();
 
-      expect(projects).toEqual([project]);
+      expect(projects).toEqual([{ ...project, lastActivityAt: new Date("2026-10-10"), deployments: summary, access: { canDeploy: true, canManage: true } }]);
       expect(projectRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
-      expect(projectRepository.findActiveWithCreator).toHaveBeenCalledWith();
+      expect(projectDeploymentSummaryService.summarizeByProject).toHaveBeenCalledWith(context.organizationId);
+    });
+
+    it("orders the projects by their last activity, then newest first, then by id", async () => {
+      const context = createOrganizationContext();
+      const at = (day: string) => new Date(`2026-10-${day}`);
+      const inOrganization = { organizationId: context.organizationId };
+      const active = listedProject({ ...inOrganization, createdAt: at("01"), lastActivityAt: at("12") });
+      const [older, newer] = [listedProject({ ...inOrganization, createdAt: at("02") }), listedProject({ ...inOrganization, createdAt: at("03") })];
+      const [first, second] = [
+        listedProject({ ...inOrganization, id: "00000000-0000-4000-8000-000000000001", createdAt: at("02") }),
+        listedProject({ ...inOrganization, id: "00000000-0000-4000-8000-000000000002", createdAt: at("02") })
+      ];
+      const { service } = setup({ context, ability: abilityOf(context), listed: [second, older, newer, first, active] });
+
+      const projects = await service.list();
+
+      expect(projects.map(({ id }) => id)).toEqual([active.id, newer.id, ...[older, first, second].map(({ id }) => id).sort()]);
+    });
+
+    it("dates a project nothing happened in since its creation by its creation", async () => {
+      const context = createOrganizationContext();
+      const createdAt = new Date("2026-10-05");
+      const { service } = setup({
+        context,
+        ability: abilityOf(context),
+        listed: [
+          listedProject({ organizationId: context.organizationId, createdAt, lastActivityAt: null }),
+          listedProject({ organizationId: context.organizationId, createdAt, lastActivityAt: new Date("2026-10-04") })
+        ]
+      });
+
+      const projects = await service.list();
+
+      expect(projects.map(({ lastActivityAt }) => lastActivityAt)).toEqual([createdAt, createdAt]);
+    });
+
+    it("tells a billing member nothing of what runs or happens in the projects it cannot open, and no right in them", async () => {
+      const context = createOrganizationContext({ role: "billing", projectScope: createProjectsScope([]) });
+      const createdAt = new Date("2026-10-01");
+      const project = listedProject({ organizationId: context.organizationId, createdAt, lastActivityAt: new Date("2026-10-10") });
+      const { service } = setup({
+        context,
+        ability: abilityOf(context),
+        listed: [project],
+        summaries: new Map([[project.id, { activeCount: 3, preview: [] }]])
+      });
+
+      const [listed] = await service.list();
+
+      expect(listed).toMatchObject({ lastActivityAt: createdAt, deployments: null, access: { canDeploy: false, canManage: false } });
+    });
+
+    it("lets a member deploy into the projects it writes to and manage only those it administers", async () => {
+      const [administered, written, viewed] = [faker.string.uuid(), faker.string.uuid(), faker.string.uuid()];
+      const context = createOrganizationContext({
+        role: "member",
+        projectScope: createProjectsScope([administered, written, viewed], { writableProjectIds: [administered, written], adminProjectIds: [administered] })
+      });
+      const { service } = setup({
+        context,
+        ability: abilityOf(context),
+        listed: [administered, written, viewed].map((id, index) =>
+          listedProject({ id, organizationId: context.organizationId, createdAt: new Date(2026, 9, 3 - index) })
+        )
+      });
+
+      const projects = await service.list();
+
+      expect(projects.map(({ access }) => access)).toEqual([
+        { canDeploy: true, canManage: true },
+        { canDeploy: true, canManage: false },
+        { canDeploy: false, canManage: false }
+      ]);
+      expect(projects.map(({ deployments }) => deployments)).toEqual([0, 1, 2].map(() => ({ activeCount: 0, preview: [] })));
+    });
+
+    it("lets a key bound to a project deploy into it but not manage it", async () => {
+      const projectId = faker.string.uuid();
+      const context = createOrganizationContext({ role: "owner", projectScope: createProjectsScope([projectId], { adminProjectIds: [projectId] }) });
+      const project = listedProject({ id: projectId, organizationId: context.organizationId });
+      const { service } = setup({ context, ability: abilityOf(context, { projectId }), listed: [project] });
+
+      const [listed] = await service.list();
+
+      expect(listed.access).toEqual({ canDeploy: true, canManage: false });
+    });
+
+    it("shows no deployments of any project when too many are open to count", async () => {
+      const context = createOrganizationContext();
+      const { service } = setup({
+        context,
+        ability: abilityOf(context),
+        listed: [listedProject({ organizationId: context.organizationId })],
+        summaries: undefined
+      });
+
+      const [listed] = await service.list();
+
+      expect(listed.deployments).toBeNull();
+    });
+
+    it("reads no deployment when the caller reaches no project", async () => {
+      const context = createOrganizationContext({ role: "member", projectScope: createProjectsScope([]) });
+      const { service, projectDeploymentSummaryService } = setup({ context, ability: abilityOf(context), listed: [] });
+
+      const projects = await service.list();
+
+      expect(projects).toEqual([]);
+      expect(projectDeploymentSummaryService.summarizeByProject).not.toHaveBeenCalled();
     });
   });
 
@@ -370,6 +493,14 @@ describe(ProjectService.name, () => {
     return new Error("Failed query: insert into projects", { cause: driverError });
   }
 
+  function listedProject(overrides: Partial<ProjectWithLastActivity> = {}): ProjectWithLastActivity {
+    return { ...createProject(overrides), createdBy: null, lastActivityAt: null, ...overrides };
+  }
+
+  function abilityOf(context: OrganizationContext, apiKey?: { projectId: string }) {
+    return createMongoAbility(organizationRules(createUser(), context, apiKey));
+  }
+
   function setup(
     input: {
       context?: OrganizationContext | null;
@@ -377,14 +508,18 @@ describe(ProjectService.name, () => {
       openDeployments?: OpenDeployment[];
       projectLimit?: number;
       liveProjectCount?: number;
+      ability?: AuthService["ability"];
+      listed?: ProjectWithLastActivity[];
+      summaries?: Map<string, ProjectDeploymentSummary>;
     } = {}
   ) {
     const user = createUser({ username: input.username === undefined ? faker.internet.userName() : input.username });
     const context = input.context === undefined ? createOrganizationContext() : input.context;
-    const ability = mock<AuthService["ability"]>();
+    const ability = input.ability ?? mock<AuthService["ability"]>();
     const project: ProjectWithCreator = { ...createProject({ organizationId: context?.organizationId }), createdBy: { id: user.id, username: user.username } };
     const projectRepository = mock<ProjectRepository>({
       findActiveWithCreator: vi.fn().mockResolvedValue([project]),
+      findActiveWithLastActivity: vi.fn().mockResolvedValue(input.listed ?? []),
       createWithFirstFreeSlug: vi.fn().mockResolvedValue(project),
       updateBy: vi.fn().mockResolvedValue(project),
       findOneBy: vi.fn().mockResolvedValue(project),
@@ -400,8 +535,11 @@ describe(ProjectService.name, () => {
       count: vi.fn().mockResolvedValue(0)
     });
     const deploymentRepository = mock<DeploymentRepository>({ findClosureStates: vi.fn().mockResolvedValue([]) });
+    const projectDeploymentSummaryService = mock<ProjectDeploymentSummaryService>();
+    projectDeploymentSummaryService.summarizeByProject.mockResolvedValue("summaries" in input ? input.summaries : new Map());
     const organizationActivityService = mock<OrganizationActivityService>();
-    const authService = mock<AuthService>({ ability, currentUser: user });
+    const authService = mock<AuthService>({ currentUser: user });
+    authService.ability = ability;
     const executionContextService = mock<ExecutionContextService>();
     executionContextService.get.mockImplementation(((key: string) =>
       key === "ORGANIZATION_CONTEXT" ? context ?? undefined : undefined) as ExecutionContextService["get"]);
@@ -415,6 +553,7 @@ describe(ProjectService.name, () => {
       organizationRepository,
       deploymentSettingRepository,
       deploymentRepository,
+      projectDeploymentSummaryService,
       organizationActivityService,
       authService,
       executionContextService,
@@ -431,6 +570,7 @@ describe(ProjectService.name, () => {
       createLogger,
       deploymentSettingRepository,
       deploymentRepository,
+      projectDeploymentSummaryService,
       organizationActivityService,
       txService,
       ability,

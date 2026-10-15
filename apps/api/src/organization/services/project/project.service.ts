@@ -1,3 +1,4 @@
+import { subject } from "@casl/ability";
 import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
@@ -9,11 +10,21 @@ import { TxService } from "@src/core/services/tx/tx.service";
 import { closureKey, normalizeDseq } from "@src/deployment/lib/deployment-closure-key/deployment-closure-key";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import {
+  type ProjectDeploymentSummary,
+  ProjectDeploymentSummaryService
+} from "@src/deployment/services/project-deployment-summary/project-deployment-summary.service";
 import { slugCandidates } from "@src/organization/lib/slug/slug";
 import { PROJECT_NAME_UNIQUE_INDEX } from "@src/organization/model-schemas/project/project.schema";
 import { ORGANIZATION_CONFIG, type OrganizationConfig } from "@src/organization/providers/config.provider";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
-import { type ProjectInput, type ProjectOutput, ProjectRepository, type ProjectWithCreator } from "@src/organization/repositories/project/project.repository";
+import {
+  type ProjectInput,
+  type ProjectOutput,
+  ProjectRepository,
+  type ProjectWithCreator,
+  type ProjectWithLastActivity
+} from "@src/organization/repositories/project/project.repository";
 import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 
 export interface ProjectChanges {
@@ -22,6 +33,15 @@ export interface ProjectChanges {
 }
 
 export const PROJECT_LIMIT_REACHED_ERROR_CODE = "project_limit_reached";
+
+/** `deployments` is null when the caller may not read the project's deployments or too many are open to count. */
+export type ListedProject = ProjectWithCreator & {
+  lastActivityAt: Date;
+  deployments: ProjectDeploymentSummary | null;
+  access: { canDeploy: boolean; canManage: boolean };
+};
+
+const NO_ACTIVE_DEPLOYMENTS: ProjectDeploymentSummary = { activeCount: 0, preview: [] };
 
 const FALLBACK_PROJECT_SLUG_PREFIX = "project";
 
@@ -34,6 +54,7 @@ export class ProjectService {
     private readonly organizationRepository: OrganizationRepository,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
     private readonly deploymentRepository: DeploymentRepository,
+    private readonly projectDeploymentSummaryService: ProjectDeploymentSummaryService,
     private readonly organizationActivityService: OrganizationActivityService,
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
@@ -44,8 +65,13 @@ export class ProjectService {
     this.#logger = createLogger({ context: ProjectService.name });
   }
 
-  async list(): Promise<ProjectWithCreator[]> {
-    return await this.projectRepository.accessibleBy(this.authService.ability, "read").findActiveWithCreator();
+  /** Most recently active first; summaries and activity times only cover what the caller may read in each project. */
+  async list(): Promise<ListedProject[]> {
+    const { ability } = this.authService;
+    const projects = await this.projectRepository.accessibleBy(ability, "read").findActiveWithLastActivity();
+    const summaries = projects.length > 0 ? await this.projectDeploymentSummaryService.summarizeByProject(this.#activeOrganizationId()) : undefined;
+
+    return projects.map(project => listedFor(ability, project, summaries)).sort(mostRecentlyActiveFirst);
   }
 
   async get(id: string): Promise<ProjectWithCreator> {
@@ -156,6 +182,31 @@ export class ProjectService {
 
     return context.organizationId;
   }
+}
+
+/** Each project's own fields are checked against the ability, so a caller listing a project it cannot open learns nothing of what runs in it. */
+function listedFor(
+  ability: AuthService["ability"],
+  project: ProjectWithLastActivity,
+  summaries: Map<string, ProjectDeploymentSummary> | undefined
+): ListedProject {
+  const inProject = { organizationId: project.organizationId, projectId: project.id };
+  const readsActivity = ability.can("read", subject("OrganizationActivity", { ...inProject }));
+  const readsDeployments = ability.can("read", subject("DeploymentSetting", { ...inProject }));
+
+  return {
+    ...project,
+    lastActivityAt: readsActivity && project.lastActivityAt && project.lastActivityAt > project.createdAt ? project.lastActivityAt : project.createdAt,
+    deployments: readsDeployments && summaries ? summaries.get(project.id) ?? NO_ACTIVE_DEPLOYMENTS : null,
+    access: {
+      canDeploy: ability.can("create", subject("DeploymentSetting", { ...inProject })),
+      canManage: ability.can("update", subject("Project", { organizationId: project.organizationId, id: project.id }))
+    }
+  };
+}
+
+function mostRecentlyActiveFirst(a: ListedProject, b: ListedProject): number {
+  return b.lastActivityAt.getTime() - a.lastActivityAt.getTime() || b.createdAt.getTime() - a.createdAt.getTime() || a.id.localeCompare(b.id);
 }
 
 function assertDeletable(project: ProjectOutput | undefined): ProjectOutput {
