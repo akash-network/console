@@ -77,13 +77,32 @@ describe("Tx Sign", () => {
 
       const res = await app.request("/v1/tx", {
         method: "POST",
-        body: await createMessageForDeployment(user.id, wallet.address),
+        body: await createMessageForDeployment(user.id, wallet.address, { withCertificate: false }),
         headers: { "Content-Type": "application/json", "x-api-key": apiKey }
       });
 
       expect(res.status).toBe(200);
       const records = publish.mock.calls.map(([event]) => event).filter(event => event instanceof RecordDeploymentSetting);
       expect(records.map(({ data }) => data)).toEqual([expect.objectContaining({ userId: user.id, organizationId: organization.id, projectId: project.id })]);
+    });
+
+    it("refuses a certificate to a project-bound API key, which it would let reach every project, recording nothing", async () => {
+      const { user, wallet } = await setup({ deploymentAllowance: DEPLOYMENT_DEPOSIT_UDENOM });
+      const { organization } = await personalMembershipOf(user.id);
+      const project = await seedProject({ organizationId: organization.id });
+      const apiKey = await seedApiKey({ userId: user.id, organizationId: organization.id, projectId: project.id });
+      enableOrganizationsFor(user.id);
+      const publish = vi.spyOn(container.resolve(DomainEventsService), "publish");
+
+      const res = await app.request("/v1/tx", {
+        method: "POST",
+        body: await createMessageForDeployment(user.id, wallet.address),
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey }
+      });
+
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ code: "project_forbidden" });
+      expect(publish.mock.calls.map(([event]) => event).filter(event => event instanceof RecordDeploymentSetting)).toEqual([]);
     });
 
     it("records the deposit of a deployment it creates in the deployment's project, confirmed once the transaction lands", async () => {
@@ -96,7 +115,7 @@ describe("Tx Sign", () => {
 
       const res = await app.request("/v1/tx", {
         method: "POST",
-        body: await createMessageForDeployment(user.id, wallet.address),
+        body: await createMessageForDeployment(user.id, wallet.address, { withCertificate: false }),
         headers: { "Content-Type": "application/json", "x-api-key": apiKey }
       });
 
@@ -137,7 +156,7 @@ describe("Tx Sign", () => {
 
       const res = await app.request("/v1/tx", {
         method: "POST",
-        body: await createMessageForDeployment(user.id, wallet.address, "uact"),
+        body: await createMessageForDeployment(user.id, wallet.address, { denom: "uact" }),
         headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` }
       });
 
@@ -376,21 +395,26 @@ describe("Tx Sign", () => {
   }
 
   const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
-  async function createMessageForDeployment(userId: string, address: string, denom = container.resolve(BILLING_CONFIG).DEPLOYMENT_GRANT_DENOM) {
+  async function createMessageForDeployment(
+    userId: string,
+    address: string,
+    { denom = container.resolve(BILLING_CONFIG).DEPLOYMENT_GRANT_DENOM, withCertificate = true }: { denom?: string; withCertificate?: boolean } = {}
+  ) {
     const { cert, publicKey } = await certificateManager.generatePEM(address);
     const manifest = generateManifest(yaml.template(yml));
     if (!manifest.ok) throw new Error("Failed to generate manifest");
     const currentHeight = await container.resolve(BlockHttpService).getCurrentHeight();
+    const certificate = {
+      typeUrl: `/akash.cert.${certVersion}.MsgCreateCertificate`,
+      value: {
+        owner: address,
+        cert: Buffer.from(cert),
+        pubkey: Buffer.from(publicKey)
+      }
+    };
 
     const messages = [
-      {
-        typeUrl: `/akash.cert.${certVersion}.MsgCreateCertificate`,
-        value: {
-          owner: address,
-          cert: Buffer.from(cert),
-          pubkey: Buffer.from(publicKey)
-        }
-      },
+      ...(withCertificate ? [certificate] : []),
       {
         typeUrl: `/akash.deployment.${deploymentVersion}.MsgCreateDeployment`,
         value: {

@@ -1,3 +1,5 @@
+import { certificateManager } from "@akashnetwork/chain-sdk";
+import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { Registry } from "@cosmjs/proto-signing";
 import { and, eq } from "drizzle-orm";
@@ -176,6 +178,51 @@ describe("Organization wallet", () => {
       expect(response.status).toBe(200);
       expect(signedIndexes).toEqual([wallet.id]);
     });
+
+    it("refuses a certificate for the team wallet to a member limited to one project, since it would reach every project", async () => {
+      const { user, token, team, teamWallet, signedIndexes } = await setup({ role: "member" });
+      const granted = await seedProject({ organizationId: team.id });
+      await seedProjectMember({ organizationId: team.id, projectId: granted.id, userId: user.id });
+
+      const response = await createCertificate(user.id, teamWallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "project_forbidden" });
+      expect(signedIndexes).toEqual([]);
+    });
+
+    it("refuses a certificate for the team wallet to an admin whose request is narrowed to one project", async () => {
+      const { user, token, team, teamWallet, signedIndexes } = await setup({ role: "admin" });
+      const project = await seedProject({ organizationId: team.id });
+
+      const response = await createCertificate(user.id, teamWallet.address, {
+        authorization: `Bearer ${token}`,
+        "x-organization-id": team.id,
+        "x-project-id": project.id
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "project_forbidden" });
+      expect(signedIndexes).toEqual([]);
+    });
+
+    it("creates a certificate for the team wallet for an admin, who reaches every project", async () => {
+      const { user, token, team, teamWallet, signedIndexes } = await setup({ role: "admin" });
+
+      const response = await createCertificate(user.id, teamWallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+
+      expect(response.status).toBe(200);
+      expect(signedIndexes).toEqual([teamWallet.id]);
+    });
+
+    it("creates a certificate for a member's own wallet while organizations are off for them", async () => {
+      const { user, token, team, wallet, signedIndexes } = await setup({ role: "member", organizationsOn: false });
+
+      const response = await createCertificate(user.id, wallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+
+      expect(response.status).toBe(200);
+      expect(signedIndexes).toEqual([wallet.id]);
+    });
   });
 
   describe("reading deployments as an organization viewer", () => {
@@ -337,6 +384,22 @@ describe("Organization wallet", () => {
 
   async function signTx(userId: string, owner: string, headers: Record<string, string>) {
     const message = { typeUrl: `/${MsgCloseDeployment.$type}`, value: MsgCloseDeployment.fromPartial({ id: { owner, dseq: 123 } }) };
+
+    return await app.request("/v1/tx", {
+      method: "POST",
+      body: JSON.stringify({
+        data: { userId, messages: [{ typeUrl: message.typeUrl, value: Buffer.from(registry.encode(message)).toString("base64") }] }
+      }),
+      headers: { "Content-Type": "application/json", ...headers }
+    });
+  }
+
+  async function createCertificate(userId: string, owner: string, headers: Record<string, string>) {
+    const { cert, publicKey } = await certificateManager.generatePEM(owner);
+    const message = {
+      typeUrl: `/${MsgCreateCertificate.$type}`,
+      value: MsgCreateCertificate.fromPartial({ owner, cert: Buffer.from(cert), pubkey: Buffer.from(publicKey) })
+    };
 
     return await app.request("/v1/tx", {
       method: "POST",
