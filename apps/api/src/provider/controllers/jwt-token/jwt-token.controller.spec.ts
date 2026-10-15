@@ -44,6 +44,7 @@ describe(JwtTokenController.name, () => {
 
     describe("when the caller is limited to some projects", () => {
       const projectScoped = createOrganizationContext({ role: "member", projectScope: createProjectsScope(["project-a"]) });
+      const viewerScoped = createOrganizationContext({ role: "viewer", projectScope: createProjectsScope(["project-a"], { writableProjectIds: [] }) });
 
       it("grants a token for deployments listed one by one once they are checked against the caller's projects", async () => {
         const user = createUser();
@@ -56,10 +57,99 @@ describe(JwtTokenController.name, () => {
         userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
         providerJwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
 
-        const result = await controller.createJwtToken(granularPayload([{ dseq: 1 }, { dseq: 2 }]));
+        const result = await controller.createJwtToken(granularPayload([{ dseq: 1 }, { dseq: 2 }], ["shell"]));
 
         expect(result.unwrap()).toEqual({ token: jwtToken });
-        expect(signerService.assertDeploymentsInProjectScope).toHaveBeenCalledWith(wallet, ["1", "2"]);
+        expect(userWalletRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "sign");
+        expect(signerService.assertDeploymentsInProjectScope).toHaveBeenCalledWith(wallet, ["1", "2"], "update");
+      });
+
+      it.each([{ scope: ["status"] }, { scope: ["logs", "events"] }, { scope: ["status", "events", "logs"] }])(
+        "grants a token that only reads $scope once the caller may read the deployments, with a wallet they may only read",
+        async ({ scope }) => {
+          const user = createUser();
+          const { controller, authService, userWalletRepository, providerJwtTokenService, signerService, jwtToken, wallet } = setup({
+            user,
+            organizationContext: viewerScoped
+          });
+          authService.currentUser = user;
+          userWalletRepository.accessibleBy.mockReturnThis();
+          userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
+          providerJwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
+          const payload = granularPayload([{ dseq: 1 }, { dseq: 2 }], scope);
+
+          const result = await controller.createJwtToken(payload);
+
+          expect(result.unwrap()).toEqual({ token: jwtToken });
+          expect(userWalletRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
+          expect(signerService.assertDeploymentsInProjectScope).toHaveBeenCalledWith(wallet, ["1", "2"], "read");
+          expect(providerJwtTokenService.generateJwtToken).toHaveBeenCalledWith({ walletId: wallet.id, leases: payload.leases, ttl: payload.ttl });
+        }
+      );
+
+      it.each([
+        { scope: ["shell"] },
+        { scope: ["send-manifest"] },
+        { scope: ["restart"] },
+        { scope: ["get-manifest"] },
+        { scope: ["logs", "shell"] },
+        { scope: "logs" }
+      ])("checks a token granting $scope against the projects the caller may manage, with a wallet they may sign with", async ({ scope }) => {
+        const user = createUser();
+        const { controller, authService, userWalletRepository, providerJwtTokenService, signerService, jwtToken, wallet } = setup({
+          user,
+          organizationContext: viewerScoped
+        });
+        authService.currentUser = user;
+        userWalletRepository.accessibleBy.mockReturnThis();
+        userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
+        providerJwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
+
+        await controller.createJwtToken(granularPayload([{ dseq: 1 }], scope));
+
+        expect(userWalletRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "sign");
+        expect(signerService.assertDeploymentsInProjectScope).toHaveBeenCalledWith(wallet, ["1"], "update");
+      });
+
+      it("checks a token against the projects the caller may manage when any of its deployments is granted more than reading", async () => {
+        const user = createUser();
+        const { controller, authService, userWalletRepository, providerJwtTokenService, signerService, jwtToken, wallet } = setup({
+          user,
+          organizationContext: viewerScoped
+        });
+        authService.currentUser = user;
+        userWalletRepository.accessibleBy.mockReturnThis();
+        userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
+        providerJwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
+
+        await controller.createJwtToken({
+          ttl: 3600,
+          leases: {
+            access: "granular",
+            permissions: [
+              { provider: "akash1provider", access: "granular", deployments: [{ dseq: 1, scope: ["logs"] }] },
+              { provider: "akash1other", access: "granular", deployments: [{ dseq: 2, scope: ["shell"] }] }
+            ]
+          }
+        });
+
+        expect(userWalletRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "sign");
+        expect(signerService.assertDeploymentsInProjectScope).toHaveBeenCalledWith(wallet, ["1", "2"], "update");
+      });
+
+      it("refuses a token that only reads a deployment outside the projects the caller may read", async () => {
+        const user = createUser();
+        const { controller, authService, userWalletRepository, providerJwtTokenService, signerService, wallet } = setup({
+          user,
+          organizationContext: viewerScoped
+        });
+        authService.currentUser = user;
+        userWalletRepository.accessibleBy.mockReturnThis();
+        userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
+        signerService.assertDeploymentsInProjectScope.mockRejectedValue(createError(403, "outside", { errorCode: "project_forbidden" }));
+
+        await expect(controller.createJwtToken(granularPayload([{ dseq: 1 }], ["logs"]))).rejects.toMatchObject({ status: 403 });
+        expect(providerJwtTokenService.generateJwtToken).not.toHaveBeenCalled();
       });
 
       it("refuses a token for a deployment outside the caller's projects", async () => {
@@ -92,7 +182,7 @@ describe(JwtTokenController.name, () => {
 
         const result = await controller.createJwtToken({ ttl: 3600, leases });
 
-        expect(result.err && result.val).toMatchObject({ status: 403, errorCode: "project_forbidden" });
+        expect(result.err && result.val).toMatchObject({ status: 403, errorCode: "project_forbidden", message: "Name the deployments the token is for" });
         expect(providerJwtTokenService.generateJwtToken).not.toHaveBeenCalled();
       });
 
@@ -113,12 +203,12 @@ describe(JwtTokenController.name, () => {
         expect(providerJwtTokenService.generateJwtToken).not.toHaveBeenCalled();
       });
 
-      function granularPayload(deployments: { dseq: number }[]): CreateJwtTokenRequest {
+      function granularPayload(deployments: { dseq: number }[], scope: unknown = ["logs"]): CreateJwtTokenRequest {
         return {
           ttl: 3600,
           leases: {
             access: "granular",
-            permissions: [{ provider: "akash1provider", access: "granular", deployments: deployments.map(({ dseq }) => ({ dseq, scope: ["logs"] })) }]
+            permissions: [{ provider: "akash1provider", access: "granular", deployments: deployments.map(({ dseq }) => ({ dseq, scope })) }]
           }
         };
       }

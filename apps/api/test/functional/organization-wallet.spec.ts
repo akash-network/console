@@ -8,6 +8,8 @@ import path from "node:path";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import type { WalletListOutputResponse } from "@src/billing/http-schemas/wallet.schema";
 import { BILLING_CONFIG } from "@src/billing/providers";
@@ -294,6 +296,81 @@ describe("Organization wallet", () => {
       expect(response.status).toBe(400);
       expect(await response.json()).toMatchObject({ message: "ttl must be at most 3600 seconds" });
     });
+
+    it("grants a viewer a token that reads the status, events and logs of a deployment in their project", async () => {
+      const { token, team } = await setupFiledDeployments({ role: "viewer" });
+      const leases = deploymentLeases("123", ["status", "events", "logs"]);
+
+      const response = await requestProviderToken(leases, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+
+      expect(response.status).toBe(201);
+      expect(leasesGrantedBy(await response.json())).toEqual(leases);
+    });
+
+    it("refuses a viewer a token that reads a deployment filed in a project they were not granted", async () => {
+      const { token, team } = await setupFiledDeployments({ role: "viewer" });
+
+      const response = await requestProviderToken(deploymentLeases("456", ["logs"]), { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "project_forbidden" });
+    });
+
+    it.each([{ scope: ["shell"] }, { scope: ["send-manifest"] }, { scope: ["restart"] }, { scope: ["logs", "shell"] }])(
+      "refuses a viewer a token granting $scope on a deployment in their project",
+      async ({ scope }) => {
+        const { token, team } = await setupFiledDeployments({ role: "viewer" });
+
+        const response = await requestProviderToken(deploymentLeases("123", scope), { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+
+        expect(response.status).toBe(403);
+      }
+    );
+
+    it("grants a member who only views a project a token that reads its deployment but not one that opens a shell", async () => {
+      const { user, token, team } = await setup({ role: "member" });
+      const viewed = await seedProject({ organizationId: team.id });
+      await seedProjectMember({ organizationId: team.id, projectId: viewed.id, userId: user.id, role: "viewer" });
+      await seedDeploymentSetting({ userId: team.createdByUserId!, organizationId: team.id, projectId: viewed.id, dseq: "123" });
+      const headers = { authorization: `Bearer ${token}`, "x-organization-id": team.id };
+
+      const logs = await requestProviderToken(deploymentLeases("123", ["logs", "events"]), headers);
+      const shell = await requestProviderToken(deploymentLeases("123", ["shell"]), headers);
+
+      expect(logs.status).toBe(201);
+      expect(shell.status).toBe(403);
+      expect(await shell.json()).toMatchObject({ code: "project_forbidden" });
+    });
+
+    it("keeps granting a member a token that opens a shell on a deployment in a project they work in", async () => {
+      const { token, team } = await setupFiledDeployments({ role: "member" });
+      const leases = deploymentLeases("123", ["shell", "status", "logs"]);
+
+      const response = await requestProviderToken(leases, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+
+      expect(response.status).toBe(201);
+      expect(leasesGrantedBy(await response.json())).toEqual(leases);
+    });
+
+    it("refuses a billing member a token that reads a deployment", async () => {
+      const { token, team } = await setupFiledDeployments({ role: "billing" });
+
+      const response = await requestProviderToken(deploymentLeases("123", ["status"]), { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+
+      expect(response.status).toBe(403);
+    });
+
+    it("keeps a key bound to one project from reading a deployment filed in another", async () => {
+      const { user, team, granted } = await setupFiledDeployments({ role: "admin" });
+      const apiKey = await seedApiKey({ userId: user.id, organizationId: team.id, projectId: granted.id });
+
+      const inside = await requestProviderToken(deploymentLeases("123", ["logs"]), { "x-api-key": apiKey });
+      const outside = await requestProviderToken(deploymentLeases("456", ["logs"]), { "x-api-key": apiKey });
+
+      expect(inside.status).toBe(201);
+      expect(outside.status).toBe(403);
+      expect(await outside.json()).toMatchObject({ code: "project_forbidden" });
+    });
   });
 
   describe("PATCH /v2/deployment-settings/{dseq}", () => {
@@ -441,7 +518,41 @@ describe("Organization wallet", () => {
       .get(uri => uri.includes("/leases/list") && uri.includes(owner))
       .reply(200, { leases: [], pagination: { next_key: null, total: "0" } });
 
-    return context;
+    return { ...context, granted, other };
+  }
+
+  async function requestProviderToken(leases: ReturnType<typeof deploymentLeases>, headers: Record<string, string>) {
+    return await app.request("/v1/create-jwt-token", {
+      method: "POST",
+      body: JSON.stringify({ data: { ttl: 1800, leases } }),
+      headers: { "Content-Type": "application/json", ...headers }
+    });
+  }
+
+  function deploymentLeases(dseq: string, scope: string[]) {
+    return {
+      access: "granular",
+      permissions: [{ provider: createAkashAddress(), access: "granular", deployments: [{ dseq: Number(dseq), scope, services: ["*"] }] }]
+    };
+  }
+
+  function leasesGrantedBy(body: unknown) {
+    const { token } = (body as { data: { token: string } }).data;
+
+    return JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString()).leases;
+  }
+
+  async function seedApiKey(input: { userId: string; organizationId: string; projectId: string }) {
+    const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
+    const apiKey = apiKeyGenerator.generateApiKey();
+    await container.resolve(ApiKeyRepository).create({
+      ...input,
+      hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
+      keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
+      name: "ci"
+    });
+
+    return apiKey;
   }
 
   async function seedLiveLease(owner: string, dseq: string) {
