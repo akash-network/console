@@ -31,6 +31,8 @@ type Caller = OrganizationRole | "projectKey";
 
 interface Team {
   organizationId: string;
+  ownerUserId: string;
+  paymentMethodId: string;
   defaultProjectId: string;
   grantedProjectId: string;
   otherProjectId: string;
@@ -159,6 +161,13 @@ const ROUTE_ACCESS: RouteAccess[] = [
   { route: "POST /v1/api-keys", request: () => post("/v1/api-keys", { name: "ci" }), statusFor: access(201, 201, 201, 201, 201, 403) },
   { route: "GET /v1/organization-activities", request: () => get("/v1/organization-activities"), statusFor: access(200, 200, 200, 200, 200, 200) },
   { route: "GET /v1/project-spend", request: () => get("/v1/project-spend"), statusFor: access(200, 200, 200, 200, 200, 200) },
+  { route: "GET /v1/wallets", request: team => get(`/v1/wallets?userId=${team.ownerUserId}`), statusFor: access(200, 200, 200, 200, 200, 200) },
+  { route: "GET /v1/stripe/payment-methods", request: () => get("/v1/stripe/payment-methods"), statusFor: access(200, 200, 403, 200, 403, 403) },
+  {
+    route: "POST /v1/stripe/payment-methods/default",
+    request: team => post("/v1/stripe/payment-methods/default", { id: team.paymentMethodId }),
+    statusFor: access(200, 403, 403, 200, 403, 403)
+  },
   { route: "GET /v1/wallet-settings", request: () => get("/v1/wallet-settings"), statusFor: access(200, 200, 200, 200, 200, 403) },
   { route: "DELETE /v1/wallet-settings", request: () => remove("/v1/wallet-settings"), statusFor: access(204, 403, 403, 204, 403, 403) },
   { route: "GET /v1/stripe/transactions", request: () => get("/v1/stripe/transactions"), statusFor: access(200, 200, 403, 200, 403, 403) },
@@ -300,7 +309,8 @@ describe("Team role access", () => {
   });
 
   async function seedTeam(sessions: Map<string, string>) {
-    const { user: owner, organization, project: defaultProject } = await seedOrganizationWithOwner({ user: { userId: faker.string.uuid() } });
+    const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
+    const { user: owner, organization, project: defaultProject } = await seedOrganizationWithOwner({ stripeCustomerId, user: { userId: faker.string.uuid() } });
     const [grantedProject, otherProject, emptyProject] = await Promise.all([
       seedProject({ organizationId: organization.id, name: "Granted", createdByUserId: owner.id }),
       seedProject({ organizationId: organization.id, name: "Other", createdByUserId: owner.id }),
@@ -341,9 +351,12 @@ describe("Team role access", () => {
     const transaction = await seedPaidCardPayment(owner.id, organization.id);
     const projectKey = await seedApiKey({ userId: owner.id, organizationId: organization.id, projectId: grantedProject.id });
     answerDeploymentsOnChain(wallet.address as string, [grantedDseq, otherDseq]);
+    const paymentMethodId = answerCardOnStripe(stripeCustomerId);
 
     const team: Team = {
       organizationId: organization.id,
+      ownerUserId: owner.id,
+      paymentMethodId,
       defaultProjectId: defaultProject.id,
       grantedProjectId: grantedProject.id,
       otherProjectId: otherProject.id,
@@ -388,6 +401,25 @@ describe("Team role access", () => {
       .reply(200, { id: stripeInvoiceId, object: "invoice", status: "paid", invoice_pdf: "https://pay.stripe.com/invoice" });
 
     return transaction;
+  }
+
+  function answerCardOnStripe(stripeCustomerId: string) {
+    const card = {
+      id: `pm_${faker.string.alphanumeric(24)}`,
+      object: "payment_method",
+      type: "card",
+      created: 1_700_000_000,
+      customer: stripeCustomerId,
+      card: { brand: "visa", last4: "4242", exp_month: 12, exp_year: 2030, fingerprint: faker.string.alphanumeric(16) }
+    };
+    nock("https://api.stripe.com")
+      .persist()
+      .get(`/v1/payment_methods/${card.id}`)
+      .reply(200, card)
+      .get(uri => uri.startsWith("/v1/payment_methods?"))
+      .reply(200, { object: "list", data: [card], has_more: false, url: "/v1/payment_methods" });
+
+    return card.id;
   }
 
   async function seedApiKey(input: { userId: string; organizationId: string; projectId: string }) {
