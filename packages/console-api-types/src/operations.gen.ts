@@ -88,6 +88,14 @@ export const operations = {
       queryParams: ["timezone", "startDate", "endDate"],
       hasBody: false
     },
+    createStripeTransactionInvoice: {
+      path: "/v1/stripe/transactions/{id}/invoice",
+      method: "post",
+      operationId: "createStripeTransactionInvoice",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
     getFirstPurchaseBonus: {
       path: "/v1/stripe/first-purchase-bonus",
       method: "get",

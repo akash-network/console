@@ -411,6 +411,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/stripe/transactions/{id}/invoice": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Get the invoice of a card payment, issuing it first when it has none */
+    post: operations["createStripeTransactionInvoice"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/billing-details": {
     parameters: {
       query?: never;
@@ -8674,6 +8691,55 @@ export interface operations {
         content: {
           "text/csv": string;
         };
+      };
+    };
+  };
+  createStripeTransactionInvoice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The paid invoice of the card payment */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              invoiceId: string;
+              /** @description Link to download the invoice PDF */
+              invoicePdfUrl: string | null;
+            };
+          };
+        };
+      };
+      /** @description The transaction is not a successful card payment */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller cannot read this billing, or cannot have a missing invoice issued */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No such transaction for the caller, or invoices are not enabled for the caller */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

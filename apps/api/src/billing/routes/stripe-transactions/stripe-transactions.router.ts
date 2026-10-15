@@ -2,6 +2,7 @@ import { Readable } from "stream";
 import { container } from "tsyringe";
 
 import { StripeController } from "@src/billing/controllers/stripe/stripe.controller";
+import { TransactionInvoiceController } from "@src/billing/controllers/transaction-invoice/transaction-invoice.controller";
 import {
   ConfirmPaymentRequestSchema,
   ConfirmPaymentResponseSchema,
@@ -9,7 +10,9 @@ import {
   CustomerTransactionsQuerySchema,
   CustomerTransactionsResponseSchema
 } from "@src/billing/http-schemas/stripe.schema";
+import { TransactionInvoiceParamsSchema, TransactionInvoiceResponseSchema } from "@src/billing/http-schemas/transaction-invoice.schema";
 import { createRoute } from "@src/core/lib/create-route/create-route";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
@@ -148,4 +151,34 @@ stripeTransactionsRouter.openapi(exportTransactionsCsvRoute, async function expo
       "Transfer-Encoding": "chunked"
     }
   });
+});
+
+const createTransactionInvoiceRoute = createRoute({
+  method: "post",
+  operationId: "createStripeTransactionInvoice",
+  path: "/v1/stripe/transactions/{id}/invoice",
+  summary: "Get the invoice of a card payment, issuing it first when it has none",
+  tags: ["Payment"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  featureFlag: FeatureFlags.INVOICES,
+  request: {
+    params: TransactionInvoiceParamsSchema
+  },
+  responses: {
+    200: {
+      description: "The paid invoice of the card payment",
+      content: {
+        "application/json": {
+          schema: TransactionInvoiceResponseSchema
+        }
+      }
+    },
+    400: { description: "The transaction is not a successful card payment" },
+    403: { description: "The caller cannot read this billing, or cannot have a missing invoice issued" },
+    404: { description: "No such transaction for the caller, or invoices are not enabled for the caller" }
+  }
+});
+stripeTransactionsRouter.openapi(createTransactionInvoiceRoute, async function createTransactionInvoice(c) {
+  const { id } = c.req.valid("param");
+  return c.json(await container.resolve(TransactionInvoiceController).getInvoice(id), 200);
 });

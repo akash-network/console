@@ -6,6 +6,7 @@ import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
+import { IssueCardPaymentInvoiceCommand } from "@src/billing/commands/issue-card-payment-invoice.command";
 import type { CreditsAdded } from "@src/billing/events/credits-added";
 import { PaymentIntentResult } from "@src/billing/http-schemas/stripe.schema";
 import { CARD_DECLINED_ERROR_CODE } from "@src/billing/lib/card-decline/card-decline";
@@ -26,6 +27,8 @@ import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSA
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { TimerService } from "@src/core/services/timer/timer.service";
 import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 
@@ -125,6 +128,7 @@ export class StripeTransactionService {
     private readonly domainEventsService: DomainEventsService,
     private readonly analyticsService: AnalyticsService,
     private readonly organizationRepository: OrganizationRepository,
+    private readonly featureFlagsService: FeatureFlagsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: StripeTransactionService.name });
@@ -556,6 +560,10 @@ export class StripeTransactionService {
       }
     });
 
+    if (transaction.type === "payment_intent" && this.featureFlagsService.isEnabled(FeatureFlags.INVOICES, { userId: actingUserId ?? undefined })) {
+      await this.domainEventsService.publish(new IssueCardPaymentInvoiceCommand({ transactionId: transaction.id }));
+    }
+
     if (bonusAmount > 0 && actingUserId) {
       this.firstPurchaseBonusService.trackBonusGranted(actingUserId, params.paymentAmount, bonusAmount);
       this.loggerService.info({
@@ -620,6 +628,15 @@ export class StripeTransactionService {
       this.loggerService.info({
         event: "INVOICE_NO_MATCHING_TRANSACTION",
         invoiceId: invoice.id
+      });
+      return {};
+    }
+
+    if (transaction.type === "payment_intent") {
+      this.loggerService.info({
+        event: "INVOICE_OF_SETTLED_CARD_PAYMENT",
+        invoiceId: invoice.id,
+        transactionId: transaction.id
       });
       return {};
     }

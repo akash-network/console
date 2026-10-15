@@ -51,7 +51,8 @@ export const StripeTransactions = pgTable(
   table => ({
     // Partial unique index: enforces one transaction row per invoice (manual-credit/coupon paths) and
     // indexes the findByInvoiceId lookup. Exactly-once crediting comes from the locked status check in
-    // the webhook; this index just guarantees a single row to credit. payment_intent rows leave it null.
+    // the webhook; this index just guarantees a single row to credit. A payment_intent row gets the
+    // invoice issued after its payment settled, which the webhook leaves alone since the charge credited it.
     stripeInvoiceIdUnique: uniqueIndex("stripe_transactions_stripe_invoice_id_unique")
       .on(table.stripeInvoiceId)
       .where(sql`${table.stripeInvoiceId} IS NOT NULL`),
