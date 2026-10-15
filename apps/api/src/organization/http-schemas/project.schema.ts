@@ -50,7 +50,7 @@ const ProjectDeploymentSummarySchema = z
           dseq: z.string(),
           name: z.string().nullable(),
           status: z.enum(PROJECT_DEPLOYMENT_STATUSES).openapi({
-            description: "Read from the chain index: `pending` holds no lease yet, `degraded` lost every lease it had while staying open."
+            description: "`running` holds an open lease, `pending` holds no lease yet, `degraded` lost every lease it had while staying open."
           })
         })
       )

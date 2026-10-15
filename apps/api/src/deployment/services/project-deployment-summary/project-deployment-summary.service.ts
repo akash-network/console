@@ -56,7 +56,7 @@ export class ProjectDeploymentSummaryService {
         projectId,
         {
           activeCount: open.length,
-          preview: previewOf(open).map(deployment => ({ dseq: deployment.dseq, name: deployment.name, status: statusOf(deployment) }))
+          preview: previewOf(open).map(deployment => ({ dseq: normalizeDseq(deployment.dseq), name: deployment.name, status: statusOf(deployment) }))
         }
       ])
     );

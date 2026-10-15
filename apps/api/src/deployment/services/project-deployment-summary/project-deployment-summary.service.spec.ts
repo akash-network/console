@@ -15,7 +15,7 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 describe(ProjectDeploymentSummaryService.name, () => {
   describe("summarizeByProject", () => {
-    it("counts each project's active deployments and previews the newest three, newest first by dseq", async () => {
+    it("counts each project's active deployments and previews the newest three by their normalized dseq, newest first", async () => {
       const [web, api] = [faker.string.uuid(), faker.string.uuid()];
       const inWeb = ["9", "1000", "0100", "10", "1786772209416"].map(dseq => unclosed({ projectId: web, dseq }));
       const inApi = unclosed({ projectId: api, dseq: "42", name: "api" });
@@ -25,7 +25,7 @@ describe(ProjectDeploymentSummaryService.name, () => {
 
       expect(summaries).toEqual(
         new Map([
-          [web, { activeCount: 5, preview: ["1786772209416", "1000", "0100"].map(dseq => ({ dseq, name: null, status: "pending" })) }],
+          [web, { activeCount: 5, preview: ["1786772209416", "1000", "100"].map(dseq => ({ dseq, name: null, status: "pending" })) }],
           [api, { activeCount: 1, preview: [{ dseq: "42", name: "api", status: "pending" }] }]
         ])
       );
