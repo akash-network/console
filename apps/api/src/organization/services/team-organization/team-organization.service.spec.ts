@@ -11,13 +11,13 @@ import type { ExecutionContextService } from "@src/core/services/execution-conte
 import type { TxService } from "@src/core/services/tx/tx.service";
 import { PERSONAL_ORGANIZATION_SLUG_PREFIX } from "@src/organization/lib/personal-organization/personal-organization";
 import { MAX_NUMBERED_SLUG_SUFFIX } from "@src/organization/lib/slug/slug";
+import type { OrganizationConfig } from "@src/organization/providers/config.provider";
 import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import {
   FALLBACK_ORGANIZATION_SLUG_PREFIX,
-  MAX_TEAM_ORGANIZATIONS_PER_USER,
   ORGANIZATION_LIMIT_REACHED_ERROR_CODE,
   ORGANIZATION_NAME_TAKEN_ERROR_CODE,
   PERSONAL_ORGANIZATION_ERROR_CODE,
@@ -57,12 +57,12 @@ describe(TeamOrganizationService.name, () => {
 
       expect(txService.transaction).toHaveBeenCalledTimes(1);
       expect(organizationRepository.lockUserForOrganizationChanges).toHaveBeenCalledWith(user.id);
-      expect(organizationRepository.countTeamsCreatedBy).toHaveBeenCalledWith(user.id);
+      expect(organizationRepository.countLiveTeamsCreatedBy).toHaveBeenCalledWith(user.id);
       expect(organizationMemberRepository.isMemberOfOrganizationNamed).toHaveBeenCalledWith(user.id, "Acme Corp", undefined);
       expect(calls).toEqual([
         "transaction:start",
         "lockUserForOrganizationChanges",
-        "countTeamsCreatedBy",
+        "countLiveTeamsCreatedBy",
         "isMemberOfOrganizationNamed",
         "createTeamWithFirstFreeSlug",
         "createMembership",
@@ -82,22 +82,31 @@ describe(TeamOrganizationService.name, () => {
     });
 
     it("lets a caller create one more organization while under the limit", async () => {
-      const { service, organization } = setup({ createdTeamCount: MAX_TEAM_ORGANIZATIONS_PER_USER - 1 });
+      const { service, organization } = setup({ teamLimit: 3, createdTeamCount: 2 });
 
       await expect(service.create("Acme Corp")).resolves.toMatchObject({ organization });
     });
 
-    it("refuses a caller who reached the limit, without writing anything", async () => {
-      const { service, user, organizationRepository, organizationMemberRepository, logger } = setup({ createdTeamCount: MAX_TEAM_ORGANIZATIONS_PER_USER });
+    it("refuses a caller who reached the limit, with the limit, without writing anything", async () => {
+      const { service, user, organizationRepository, organizationMemberRepository, logger } = setup({ teamLimit: 3, createdTeamCount: 3 });
 
       await expect(service.create("Acme Corp")).rejects.toMatchObject({
         status: 403,
         errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE,
-        message: "You have reached the number of organizations you can create"
+        message: "You have reached the number of organizations you can create",
+        data: { limit: 3 }
       });
-      expect(logger.info).toHaveBeenCalledWith({ event: "ORGANIZATION_LIMIT_REACHED", userId: user.id });
+      expect(logger.info).toHaveBeenCalledWith({ event: "ORGANIZATION_LIMIT_REACHED", userId: user.id, limit: 3 });
       expect(organizationMemberRepository.isMemberOfOrganizationNamed).not.toHaveBeenCalled();
       expect(organizationRepository.createTeamWithFirstFreeSlug).not.toHaveBeenCalled();
+    });
+
+    it("applies the configured limit", async () => {
+      const underLimit = setup({ teamLimit: 5, createdTeamCount: 4 });
+      const atLimit = setup({ teamLimit: 5, createdTeamCount: 5 });
+
+      await expect(underLimit.service.create("Acme Corp")).resolves.toMatchObject({ organization: underLimit.organization });
+      await expect(atLimit.service.create("Acme Corp")).rejects.toMatchObject({ errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE, data: { limit: 5 } });
     });
 
     it("refuses a name the caller already uses for another organization, without writing anything", async () => {
@@ -290,6 +299,7 @@ describe(TeamOrganizationService.name, () => {
     input: {
       context?: OrganizationContext;
       apiKey?: ApiKeyOutput;
+      teamLimit?: number;
       createdTeamCount?: number;
       nameTaken?: boolean;
       renamed?: OrganizationOutput | null;
@@ -316,8 +326,8 @@ describe(TeamOrganizationService.name, () => {
     organizationRepository.lockUserForOrganizationChanges.mockImplementation(async () => {
       calls.push("lockUserForOrganizationChanges");
     });
-    organizationRepository.countTeamsCreatedBy.mockImplementation(async () => {
-      calls.push("countTeamsCreatedBy");
+    organizationRepository.countLiveTeamsCreatedBy.mockImplementation(async () => {
+      calls.push("countLiveTeamsCreatedBy");
       return input.createdTeamCount ?? 0;
     });
     organizationRepository.findOneByAndLock.mockImplementation(async () => {
@@ -359,6 +369,7 @@ describe(TeamOrganizationService.name, () => {
       calls.push("transaction:end");
       return result;
     });
+    const config: OrganizationConfig = { TEAM_ORGANIZATIONS_PER_USER_LIMIT: input.teamLimit ?? 3, PROJECTS_PER_ORGANIZATION_LIMIT: 10 };
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -370,6 +381,7 @@ describe(TeamOrganizationService.name, () => {
       walletInitializerService,
       executionContextService,
       txService,
+      config,
       createLogger
     );
 

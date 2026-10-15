@@ -64,8 +64,8 @@ export class OrganizationRepository extends BaseRepository<Table, OrganizationIn
     return undefined;
   }
 
-  async countTeamsCreatedBy(userId: string): Promise<number> {
-    return await this.count({ createdByUserId: userId, type: "team" });
+  async countLiveTeamsCreatedBy(userId: string): Promise<number> {
+    return await this.count({ createdByUserId: userId, type: "team", deletedAt: null });
   }
 
   /** Row-locks the user until the ambient transaction ends, so the organizations they create or rename are checked one change at a time. */

@@ -9,6 +9,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { TxService } from "@src/core/services/tx/tx.service";
 import { PERSONAL_ORGANIZATION_SLUG_PREFIX } from "@src/organization/lib/personal-organization/personal-organization";
 import { slugCandidates, toSlug } from "@src/organization/lib/slug/slug";
+import { ORGANIZATION_CONFIG, type OrganizationConfig } from "@src/organization/providers/config.provider";
 import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
@@ -18,9 +19,6 @@ import type { OrganizationContext } from "@src/organization/types/organization-c
 export const ORGANIZATION_NAME_TAKEN_ERROR_CODE = "organization_name_taken";
 export const ORGANIZATION_LIMIT_REACHED_ERROR_CODE = "organization_limit_reached";
 export const PERSONAL_ORGANIZATION_ERROR_CODE = "personal_organization";
-
-/** Counts every team organization a user ever created, deleted ones included. */
-export const MAX_TEAM_ORGANIZATIONS_PER_USER = 10;
 
 export const FALLBACK_ORGANIZATION_SLUG_PREFIX = "organization";
 export const TEAM_SLUG_PREFIX = "team";
@@ -39,6 +37,7 @@ export class TeamOrganizationService {
     private readonly walletInitializerService: WalletInitializerService,
     private readonly executionContextService: ExecutionContextService,
     private readonly txService: TxService,
+    @inject(ORGANIZATION_CONFIG) private readonly config: OrganizationConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: TeamOrganizationService.name });
@@ -101,10 +100,14 @@ export class TeamOrganizationService {
   }
 
   async #assertBelowCreationLimit(userId: string): Promise<void> {
-    if ((await this.organizationRepository.countTeamsCreatedBy(userId)) < MAX_TEAM_ORGANIZATIONS_PER_USER) return;
+    const limit = this.config.TEAM_ORGANIZATIONS_PER_USER_LIMIT;
+    if ((await this.organizationRepository.countLiveTeamsCreatedBy(userId)) < limit) return;
 
-    this.#logger.info({ event: "ORGANIZATION_LIMIT_REACHED", userId });
-    throw createError(403, "You have reached the number of organizations you can create", { errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE });
+    this.#logger.info({ event: "ORGANIZATION_LIMIT_REACHED", userId, limit });
+    throw createError(403, "You have reached the number of organizations you can create", {
+      errorCode: ORGANIZATION_LIMIT_REACHED_ERROR_CODE,
+      data: { limit }
+    });
   }
 
   async #assertNameFree(userId: string, name: string, exceptOrganizationId?: string): Promise<void> {

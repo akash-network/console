@@ -15,7 +15,7 @@ import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { MAX_ORGANIZATION_NAME_LENGTH } from "@src/organization/model-schemas/organization/organization.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
-import { MAX_TEAM_ORGANIZATIONS_PER_USER } from "@src/organization/services/team-organization/team-organization.service";
+import { ORGANIZATION_CONFIG } from "@src/organization/providers/config.provider";
 import { app } from "@src/rest-app";
 
 import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
@@ -86,16 +86,30 @@ describe("Organization creation and renaming", () => {
       expect(await response.json()).toMatchObject({ code: "organization_name_taken" });
     });
 
-    it("refuses a caller who reached the number of organizations they can create, deleted ones included", async () => {
+    it("refuses a caller who reached the number of live organizations they can create, and tells the limit", async () => {
       const { user, bearer } = await setupCaller({});
-      for (let index = 0; index < MAX_TEAM_ORGANIZATIONS_PER_USER; index++) {
-        await seedOrganization({ createdByUserId: user.id, type: "team", deletedAt: new Date() });
+      const limit = container.resolve(ORGANIZATION_CONFIG).TEAM_ORGANIZATIONS_PER_USER_LIMIT;
+      for (let index = 0; index < limit; index++) {
+        await seedOrganization({ createdByUserId: user.id, type: "team" });
       }
 
       const response = await createOrganization({ authorization: bearer }, { name: "Acme Corp" });
 
       expect(response.status).toBe(403);
-      expect(await response.json()).toMatchObject({ code: "organization_limit_reached" });
+      expect(await response.json()).toMatchObject({ code: "organization_limit_reached", data: { limit } });
+    });
+
+    it("lets a caller create an organization again once one of theirs is deleted", async () => {
+      const { user, bearer } = await setupCaller({});
+      const limit = container.resolve(ORGANIZATION_CONFIG).TEAM_ORGANIZATIONS_PER_USER_LIMIT;
+      await seedOrganization({ createdByUserId: user.id, type: "team", deletedAt: new Date() });
+      for (let index = 1; index < limit; index++) {
+        await seedOrganization({ createdByUserId: user.id, type: "team" });
+      }
+
+      const response = await createOrganization({ authorization: bearer }, { name: "Acme Corp" });
+
+      expect(response.status).toBe(201);
     });
 
     it("refuses a blank name", async () => {

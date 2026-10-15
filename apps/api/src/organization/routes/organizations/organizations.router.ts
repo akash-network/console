@@ -53,7 +53,9 @@ const createOrganizationRoute = createRoute({
     201: { description: "The created organization", content: { "application/json": { schema: OrganizationResponseSchema } } },
     400: { description: "The name is empty, too long or holds a control character" },
     401: { description: "Unauthorized" },
-    403: { description: "The caller cannot create more organizations, or the request was not made from a signed-in session" },
+    403: {
+      description: "The caller has reached their organization limit (`organization_limit_reached`), or the request was not made from a signed-in session"
+    },
     409: { description: "The caller already belongs to an organization with this name" }
   }
 });
