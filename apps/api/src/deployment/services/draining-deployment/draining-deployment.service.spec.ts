@@ -1,4 +1,3 @@
-import type { AnyAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { addWeeks } from "date-fns";
 import { millisecondsInHour, minutesInHour } from "date-fns/constants";
@@ -973,118 +972,6 @@ describe(DrainingDeploymentService.name, () => {
     });
   });
 
-  describe("calculateWeeklyDeploymentCost", () => {
-    it("calculates weekly cost for all active deployments", async () => {
-      const { service, userId, ability, userWalletRepository } = await setupCalculateWeeklyCost({
-        deployments: [{ blockRate: 50 }, { blockRate: 75 }],
-        expectedFiatAmount: 12.5
-      });
-
-      const result = await service.calculateWeeklyDeploymentCost(userId, ability);
-
-      expect(result).toBe(12.5);
-      expect(userWalletRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
-      expect(userWalletRepository.findOneUsedBy).toHaveBeenCalledWith(userId);
-    });
-
-    it("returns 0 when user wallet not found", async () => {
-      const { service, userId, ability } = await setupCalculateWeeklyCost({
-        userWallet: undefined,
-        deployments: [{ blockRate: 50 }]
-      });
-
-      const result = await service.calculateWeeklyDeploymentCost(userId, ability);
-
-      expect(result).toBe(0);
-    });
-
-    it("returns 0 when user wallet has no address", async () => {
-      const { service, userId, ability } = await setupCalculateWeeklyCost({
-        userWallet: createUserWallet({ address: null }),
-        deployments: [{ blockRate: 50 }]
-      });
-
-      const result = await service.calculateWeeklyDeploymentCost(userId, ability);
-
-      expect(result).toBe(0);
-    });
-
-    it("returns 0 when no deployments found", async () => {
-      const { service, userId, ability } = await setupCalculateWeeklyCost({
-        deployments: []
-      });
-
-      const result = await service.calculateWeeklyDeploymentCost(userId, ability);
-
-      expect(result).toBe(0);
-    });
-
-    it("excludes deployments with blockRate <= 0", async () => {
-      const { service, userId, ability } = await setupCalculateWeeklyCost({
-        deployments: [{ blockRate: 0 }, { blockRate: -10 }]
-      });
-
-      const result = await service.calculateWeeklyDeploymentCost(userId, ability);
-
-      expect(result).toBe(0);
-    });
-
-    it("caps a runtime-limited deployment at its remaining hours like the credits-low threshold", async () => {
-      const blockRate = 50;
-      const runtimeLimitHours = 12;
-      const { service, userId, ability, balancesService } = await setupCalculateWeeklyCost({
-        deployments: [{ blockRate, runtimeLimitHours }],
-        expectedFiatAmount: 3.6
-      });
-
-      const result = await service.calculateWeeklyDeploymentCost(userId, ability);
-
-      expect(balancesService.toFiatAmount).toHaveBeenCalledWith(Math.floor(blockRate * averageBlockCountInAnHour * runtimeLimitHours));
-      expect(result).toBe(3.6);
-    });
-
-    async function setupCalculateWeeklyCost(input: {
-      userWallet?: ReturnType<typeof createUserWallet> | undefined;
-      deployments: Array<{ blockRate: number; runtimeLimitHours?: number }>;
-      expectedFiatAmount?: number;
-    }) {
-      const userId = faker.string.uuid();
-      const address = createAkashAddress();
-      const userWallet = "userWallet" in input ? input.userWallet : createUserWallet({ address, userId });
-      const ability = mock<AnyAbility>();
-
-      const baseSetup = setup();
-      baseSetup.userWalletRepository.accessibleBy.mockReturnValue(baseSetup.userWalletRepository);
-      baseSetup.userWalletRepository.findOneUsedBy.mockResolvedValue(userWallet);
-      baseSetup.userWalletRepository.findOneBy.mockResolvedValue(userWallet);
-
-      const deploymentSettings = input.deployments.map(deployment =>
-        createAutoTopUpDeployment({ address, runtimeLimitHours: deployment.runtimeLimitHours ?? null })
-      );
-      const leaseRates = deploymentSettings.map((setting, idx) => ({
-        dseq: setting.dseq,
-        blockRate: input.deployments[idx]?.blockRate ?? 0
-      }));
-
-      baseSetup.deploymentSettingRepository.findAutoTopUpDeploymentsByOwner.mockResolvedValue(deploymentSettings);
-
-      baseSetup.rpcService.findActiveLeaseRates.mockResolvedValue(leaseRates);
-
-      baseSetup.balancesService.toFiatAmount.mockImplementation(async (uaktAmount: number) => {
-        if (uaktAmount === 0) {
-          return 0;
-        }
-        return input.expectedFiatAmount ?? 0;
-      });
-
-      return {
-        ...baseSetup,
-        userId,
-        ability
-      };
-    }
-  });
-
   describe("calculateWeeklyCoverageForAddress", () => {
     it("calculates seven days of burn in fiat for always-on deployments still open", async () => {
       const blockRate1 = 50;
@@ -1367,6 +1254,33 @@ describe(DrainingDeploymentService.name, () => {
 
       expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [], hasAutoTopUpSettings: true });
       expect(balancesService.toFiatAmount).not.toHaveBeenCalled();
+    });
+
+    it("bills only the deployments the caller's filter keeps", async () => {
+      const blockRate = 75;
+      const { service, address, balancesService, rpcService } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate: 50 }, { blockRate }]
+      });
+      const keepDseqs = vi.fn(async (dseqs: string[]) => dseqs.filter(dseq => dseq === "1001"));
+
+      const result = await service.calculateWeeklyCoverageForAddress(address, keepDseqs);
+
+      const expectedCredits = Math.floor(blockRate * averageBlockCountInAnHour * 24 * 7);
+      expect(keepDseqs).toHaveBeenCalledExactlyOnceWith(["1000", "1001"]);
+      expect(rpcService.findActiveLeaseRates).toHaveBeenCalledWith(address, ["1001"]);
+      expect(balancesService.toFiatAmount).toHaveBeenCalledExactlyOnceWith(expectedCredits);
+      expect(result.weeklyCostUsd).toBe(usdFromCredits(expectedCredits));
+    });
+
+    it("reports no auto top-up settings when the caller's filter keeps none", async () => {
+      const { service, address, rpcService } = await setupWeeklyBurnForAddress({
+        deployments: [{ blockRate: 50 }]
+      });
+
+      const result = await service.calculateWeeklyCoverageForAddress(address, async () => []);
+
+      expect(result).toEqual({ weeklyCostUsd: 0, cumulativeDailyCostsUsd: [], hasAutoTopUpSettings: false });
+      expect(rpcService.findActiveLeaseRates).not.toHaveBeenCalled();
     });
 
     function usdFromCredits(credits: number) {
