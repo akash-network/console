@@ -9,6 +9,7 @@ import { RefillService } from "@src/billing/services/refill/refill.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
+import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 
 import { createOrganization } from "@test/seeders/organization.seeder";
 import { createInitializedUserWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -113,6 +114,50 @@ describe(RefillService.name, () => {
       expect(userWalletRepository.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(
         managedUserWalletService.authorizeSpending.mock.invocationCallOrder[0]
       );
+    });
+
+    it("refuses to credit a team that was deleted while the payment settled, reading the team only once the wallet is locked", async () => {
+      const { service, userWalletRepository, managedUserWalletService, walletInitializerService, organizationRepository } = setup();
+      const team = createOrganization({ type: "team" });
+      const teamWallet = createInitializedUserWallet({ organizationId: team.id });
+      walletInitializerService.ensureTeamWallet.mockResolvedValue(teamWallet);
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      userWalletRepository.findOneByAndLock.mockResolvedValue(teamWallet);
+      organizationRepository.findById.mockResolvedValue({ ...team, deletedAt: new Date() });
+
+      await expect(service.topUpWallet(amountUsd, { userId, organizationId: team.id, team })).rejects.toMatchObject({
+        status: 409,
+        errorCode: "organization_deleted",
+        message: "The team organization was deleted, so its wallet takes no more credits"
+      });
+      expect(organizationRepository.findById).toHaveBeenCalledWith(team.id);
+      expect(organizationRepository.findById.mock.invocationCallOrder[0]).toBeGreaterThan(userWalletRepository.findOneByAndLock.mock.invocationCallOrder[0]);
+      expect(managedUserWalletService.authorizeSpending).not.toHaveBeenCalled();
+    });
+
+    it("credits a team that is still live once its wallet is locked", async () => {
+      const { service, userWalletRepository, managedUserWalletService, walletInitializerService, organizationRepository, balancesService } = setup();
+      const team = createOrganization({ type: "team" });
+      const teamWallet = createInitializedUserWallet({ organizationId: team.id });
+      walletInitializerService.ensureTeamWallet.mockResolvedValue(teamWallet);
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      userWalletRepository.findOneByAndLock.mockResolvedValue(teamWallet);
+      organizationRepository.findById.mockResolvedValue(team);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
+
+      expect(await service.topUpWallet(amountUsd, { userId, organizationId: team.id, team })).toEqual({ walletId: teamWallet.id, address: teamWallet.address });
+      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledTimes(1);
+    });
+
+    it("reads no organization for a payment into a member's own wallet", async () => {
+      const { service, userWalletRepository, walletInitializerService, organizationRepository, balancesService } = setup();
+      walletInitializerService.ensureWallet.mockResolvedValue(createInitializedUserWallet({ userId }));
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
+
+      await service.topUpWallet(amountUsd, { userId });
+
+      expect(organizationRepository.findById).not.toHaveBeenCalled();
     });
 
     it("asks to clear the abuse lock on every payment, so a lock applied after the wallet was read is still cleared", async () => {
@@ -256,6 +301,7 @@ describe(RefillService.name, () => {
       const balancesService = mock<BalancesService>();
       const walletInitializerService = mock<WalletInitializerService>();
       const analyticsService = mock<AnalyticsService>();
+      const organizationRepository = mock<OrganizationRepository>();
       const logger = mock<ReturnType<CreateLogger>>();
       const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -269,6 +315,7 @@ describe(RefillService.name, () => {
         balancesService,
         walletInitializerService,
         analyticsService,
+        organizationRepository,
         createLogger
       );
 
@@ -281,6 +328,7 @@ describe(RefillService.name, () => {
         balancesService,
         walletInitializerService,
         analyticsService,
+        organizationRepository,
         logger
       };
     }
@@ -424,6 +472,7 @@ describe(RefillService.name, () => {
       const balancesService = mock<BalancesService>();
       const walletInitializerService = mock<WalletInitializerService>();
       const analyticsService = mock<AnalyticsService>();
+      const organizationRepository = mock<OrganizationRepository>();
       const logger = mock<ReturnType<CreateLogger>>();
       const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -437,6 +486,7 @@ describe(RefillService.name, () => {
         balancesService,
         walletInitializerService,
         analyticsService,
+        organizationRepository,
         createLogger
       );
 
@@ -449,6 +499,7 @@ describe(RefillService.name, () => {
         balancesService,
         walletInitializerService,
         analyticsService,
+        organizationRepository,
         logger
       };
     }

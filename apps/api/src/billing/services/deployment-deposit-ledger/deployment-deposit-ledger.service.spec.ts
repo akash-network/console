@@ -32,6 +32,7 @@ import type { UserOutput } from "@src/user/repositories";
 import { DeploymentDepositLedgerService, type PendingDeposits } from "./deployment-deposit-ledger.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { createOrganization } from "@test/seeders/organization.seeder";
 import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -358,6 +359,34 @@ describe(DeploymentDepositLedgerService.name, () => {
 
       await expect(service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "12" })])).rejects.toBe(refusal);
       expect(deploymentDepositRepository.createMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses a deposit, inside the budgets' transaction, once the organization it is recorded in was deleted", async () => {
+      const { service, wallet, organizationRepository, deploymentDepositRepository, projectBudgetEnforcementService, jobQueueService } = setup({
+        walletOrganizationType: "team"
+      });
+      organizationRepository.findById.mockResolvedValue(createOrganization({ id: wallet.organizationId!, deletedAt: new Date() }));
+
+      await expect(service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "14", denom: "uact" })])).rejects.toMatchObject({
+        status: 403,
+        errorCode: "organization_forbidden",
+        message: "The organization was deleted"
+      });
+      expect(organizationRepository.findById).toHaveBeenLastCalledWith(wallet.organizationId);
+      expect(organizationRepository.findById.mock.invocationCallOrder.at(-1)).toBeGreaterThan(
+        deploymentDepositRepository.createMany.mock.invocationCallOrder[0]
+      );
+      expect(projectBudgetEnforcementService.enforce).toHaveBeenCalledTimes(1);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("reads no organization when the budgets let nothing be written", async () => {
+      const { service, wallet, organizationRepository, deploymentDepositRepository } = setup();
+      deploymentDepositRepository.createMany.mockResolvedValue([]);
+
+      await service.recordPending(wallet.id, [createMessage({ owner: wallet.address!, dseq: "15", denom: "uact" })]);
+
+      expect(organizationRepository.findById).not.toHaveBeenCalled();
     });
 
     it("returns no rows when the budgets record nothing", async () => {
@@ -919,7 +948,7 @@ describe(DeploymentDepositLedgerService.name, () => {
     const organizationContext =
       mode === "job" ? undefined : createOrganizationContext({ organizationId: wallet.organizationId!, mode, projectScope: input.projectScope });
     const organizationRepository = mock<OrganizationRepository>({
-      findById: vi.fn().mockResolvedValue(mock<OrganizationOutput>({ id: wallet.organizationId!, type: input.walletOrganizationType ?? "personal" }))
+      findById: vi.fn().mockResolvedValue(createOrganization({ id: wallet.organizationId!, type: input.walletOrganizationType ?? "personal" }))
     });
     const userWalletRepository = mock<UserWalletRepository>({ findById: vi.fn().mockResolvedValue(wallet) });
     const deploymentDepositRepository = mock<DeploymentDepositRepository>({

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { ProjectBudgetAlertHandler } from "@src/organization/services/project-budget-alert/project-budget-alert.handler";
 import { ReconcileDeploymentDeposit, ReconcileDeploymentDepositHandler } from "../reconcile-deployment-deposit/reconcile-deployment-deposit.handler";
 import { DeploymentDepositLedgerService } from "./deployment-deposit-ledger.service";
@@ -15,6 +16,7 @@ import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seede
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
+import { holdTransaction, waitForLockWait } from "@test/services/lock-wait";
 
 const jobQueue = useJobWorkers(() => [container.resolve(ProjectBudgetAlertHandler), container.resolve(ReconcileDeploymentDepositHandler)]);
 
@@ -42,6 +44,24 @@ describe(DeploymentDepositLedgerService.name, () => {
     expect(
       await findJobRows(ReconcileDeploymentDeposit[JOB_NAME], { singletonKey: `${ReconcileDeploymentDeposit[JOB_NAME]}.unsettled.${recorded[0].id}` })
     ).toEqual([expect.objectContaining({ data: expect.objectContaining({ depositIds: recorded.map(({ id }) => id) }) })]);
+  });
+
+  it("holds a top-up behind a deletion that has locked its organization, then refuses it once the deletion commits", async () => {
+    const { ledger, wallet, topUp, organization, dseq } = await setup({ stopTopUps: false });
+    const organizations = container.resolve(OrganizationRepository);
+    const deletion = holdTransaction(async () => {
+      await organizations.findOneByAndLock({ id: organization.id });
+      await organizations.updateById(organization.id, { deletedAt: new Date() });
+    });
+    await deletion.held;
+
+    const recording = ledger.recordPending(wallet.id, [topUp]);
+    await waitForLockWait('insert into "deployment_deposits"%');
+    deletion.release();
+    await deletion.committed;
+
+    await expect(recording).rejects.toMatchObject({ status: 403, errorCode: "organization_forbidden" });
+    expect(await findDeploymentDepositsOf(organization.id)).not.toContainEqual(expect.objectContaining({ dseq, kind: "top_up" }));
   });
 
   async function setup(input: { stopTopUps: boolean }) {
