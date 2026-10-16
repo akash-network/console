@@ -129,3 +129,33 @@ organizationsRouter.openapi(deleteOrganizationRoute, async function routeDeleteO
 
   return c.body(null, 204);
 });
+
+const deleteOrganizationMembershipRoute = createRoute({
+  method: "delete",
+  path: "/v1/organizations/{id}/membership",
+  operationId: "deleteOrganizationMembership",
+  summary: "Leave the active team organization, which ends the caller's membership the way removing a member does",
+  tags: ["Organizations"],
+  security: SECURITY_BEARER,
+  featureFlag: FeatureFlags.ORGANIZATIONS,
+  request: {
+    params: OrganizationParamsSchema
+  },
+  responses: {
+    204: { description: "The caller left the organization" },
+    401: { description: "Unauthorized" },
+    403: {
+      description: "The organization is a personal one (`personal_organization`), or the request was not made from a signed-in session (`session_required`)"
+    },
+    404: { description: "The organization is not the active one" },
+    409: { description: "The caller owns the organization and has to transfer ownership first (`owner_cannot_leave`)" }
+  }
+});
+
+organizationsRouter.openapi(deleteOrganizationMembershipRoute, async function routeDeleteOrganizationMembership(c) {
+  const { id } = c.req.valid("param");
+
+  await container.resolve(OrganizationController).leave(id, { authMethod: c.get("authMethod") });
+
+  return c.body(null, 204);
+});

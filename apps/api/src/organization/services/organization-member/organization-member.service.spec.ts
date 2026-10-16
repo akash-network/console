@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { TxService } from "@src/core/services";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type {
   OrganizationMemberOutput,
   OrganizationMemberRepository,
@@ -16,6 +17,7 @@ import type { OrganizationContext } from "@src/organization/types/organization-c
 import {
   LAST_OWNER_ERROR_CODE,
   OrganizationMemberService,
+  OWNER_CANNOT_LEAVE_ERROR_CODE,
   OWNER_ROLE_RESTRICTED_ERROR_CODE,
   PERSONAL_ORGANIZATION_ERROR_CODE
 } from "./organization-member.service";
@@ -268,6 +270,84 @@ describe(OrganizationMemberService.name, () => {
     });
   });
 
+  describe("leave", () => {
+    it("ends the caller's own membership of the active team and stops the team's alerts to them", async () => {
+      const { service, context, caller, callerMembership, organizationMemberRepository, departedMemberAlertsService } = setup({ callerRole: "member" });
+
+      await service.leave(context.organizationId);
+
+      expect(organizationMemberRepository.lockOwners).toHaveBeenCalledWith(context.organizationId);
+      expect(organizationMemberRepository.findOneBy).toHaveBeenCalledWith({ organizationId: context.organizationId, userId: caller.id });
+      expect(organizationMemberRepository.deleteById).toHaveBeenCalledWith(callerMembership?.id);
+      expect(departedMemberAlertsService.stopTeamAlertsTo).toHaveBeenCalledWith(caller.id, context.organizationId);
+      expect(organizationMemberRepository.accessibleBy).not.toHaveBeenCalled();
+    });
+
+    it.each(["admin", "billing", "viewer"] as const)("lets a caller with role %s leave", async callerRole => {
+      const { service, context, callerMembership, organizationMemberRepository } = setup({ callerRole });
+
+      await service.leave(context.organizationId);
+
+      expect(organizationMemberRepository.deleteById).toHaveBeenCalledWith(callerMembership?.id);
+    });
+
+    it("runs the lookup, the removal and the alert stop in one transaction", async () => {
+      const { service, context, txService, organizationMemberRepository, departedMemberAlertsService } = setup({ callerRole: "member" });
+      txService.transaction.mockImplementation(async () => undefined);
+
+      await service.leave(context.organizationId);
+
+      expect(txService.transaction).toHaveBeenCalledTimes(1);
+      expect(organizationMemberRepository.lockOwners).not.toHaveBeenCalled();
+      expect(organizationMemberRepository.deleteById).not.toHaveBeenCalled();
+      expect(departedMemberAlertsService.stopTeamAlertsTo).not.toHaveBeenCalled();
+    });
+
+    it("refuses the owner, who has to transfer ownership first", async () => {
+      const { service, context, organizationMemberRepository, departedMemberAlertsService } = setup({ callerRole: "owner" });
+
+      await expect(service.leave(context.organizationId)).rejects.toMatchObject({
+        status: 409,
+        errorCode: OWNER_CANNOT_LEAVE_ERROR_CODE,
+        message: "Transfer ownership of the organization before leaving it"
+      });
+      expect(organizationMemberRepository.deleteById).not.toHaveBeenCalled();
+      expect(departedMemberAlertsService.stopTeamAlertsTo).not.toHaveBeenCalled();
+    });
+
+    it("refuses to leave a personal organization", async () => {
+      const context = createOrganizationContext({ organizationType: "personal" });
+      const { service, organizationMemberRepository } = setup({ callerRole: "owner", context });
+
+      await expect(service.leave(context.organizationId)).rejects.toMatchObject({
+        status: 403,
+        errorCode: PERSONAL_ORGANIZATION_ERROR_CODE,
+        message: "A personal organization cannot be left"
+      });
+      expect(organizationMemberRepository.lockOwners).not.toHaveBeenCalled();
+    });
+
+    it("answers not found for an organization other than the active one", async () => {
+      const { service, organizationMemberRepository } = setup({ callerRole: "member" });
+
+      await expect(service.leave(faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Organization not found" });
+      expect(organizationMemberRepository.lockOwners).not.toHaveBeenCalled();
+    });
+
+    it("answers not found when the caller no longer belongs to the active team", async () => {
+      const { service, context, organizationMemberRepository } = setup({});
+
+      await expect(service.leave(context.organizationId)).rejects.toMatchObject({ status: 404, message: "Organization not found" });
+      expect(organizationMemberRepository.deleteById).not.toHaveBeenCalled();
+    });
+
+    it("refuses a request without an active organization", async () => {
+      const { service } = setup({ context: null, callerRole: "member" });
+
+      await expect(service.leave(faker.string.uuid())).rejects.toMatchObject({ status: 403, message: "No active organization" });
+    });
+  });
+
   describe("transferOwnership", () => {
     it("makes the member an owner and the calling owner an admin", async () => {
       const member = createOrganizationMember({ role: "member" });
@@ -374,10 +454,14 @@ describe(OrganizationMemberService.name, () => {
     callerIsOwner?: boolean;
     otherOwners?: OrganizationMemberOutput[];
     member?: OrganizationMemberOutput;
+    callerRole?: OrganizationRole;
     context?: OrganizationContext | null;
   }) {
     const caller = createUser();
     const context = input.context === undefined ? createOrganizationContext() : input.context;
+    const callerMembership = input.callerRole
+      ? createOrganizationMember({ role: input.callerRole, userId: caller.id, organizationId: context?.organizationId })
+      : undefined;
     const callerMemberships = input.callerIsOwner ? [createOrganizationMember({ role: "owner", userId: caller.id })] : [];
     const owners = [...callerMemberships, ...(input.otherOwners ?? [])];
     const updatedMember = createOrganizationMemberWithUser({ id: input.member?.id });
@@ -390,7 +474,10 @@ describe(OrganizationMemberService.name, () => {
       update: mock<OrganizationMemberRepository>(),
       delete: mock<OrganizationMemberRepository>()
     };
-    const organizationMemberRepository = mock<OrganizationMemberRepository>({ lockOwners: vi.fn().mockResolvedValue(owners) });
+    const organizationMemberRepository = mock<OrganizationMemberRepository>({
+      lockOwners: vi.fn().mockResolvedValue(owners),
+      findOneBy: vi.fn().mockResolvedValue(callerMembership)
+    });
     organizationMemberRepository.accessibleBy.mockImplementation((_, action) => repositories[action as keyof typeof repositories]);
     const authService = mock<AuthService>({ currentUser: caller });
     authService.ability = ability;
@@ -402,6 +489,8 @@ describe(OrganizationMemberService.name, () => {
 
     return {
       service,
+      caller,
+      callerMembership,
       owners,
       updatedMember,
       ability,
