@@ -177,7 +177,7 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
                 isEstimated: !!projectSpend.data?.isEstimated,
                 isPartial: !!projectSpend.data && !projectSpend.data.total,
                 isLoading: projectSpend.isLoading || teamSpend.isLoading,
-                isError: projectSpend.isError
+                isError: projectSpend.isError || teamSpend.isError
               }
             : null,
         projectScope: isTeamUsage ? { projects: scopeProjects, selected: projectScope, onChange: setProjectScope } : null,

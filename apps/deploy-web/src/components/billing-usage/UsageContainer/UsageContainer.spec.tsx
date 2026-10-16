@@ -207,6 +207,12 @@ describe(UsageContainer.name, () => {
     expect(child.projectSpend?.isError).toBe(true);
   });
 
+  it("fails the spend by project when the deployments behind its counts can't be read", async () => {
+    const { child } = await setup({ ...TEAM_OWNER, projectSpend: buildProjectSpendReport(), isDeploymentSpendError: true });
+
+    expect(child.projectSpend?.isError).toBe(true);
+  });
+
   it("reads a team's usage from its deployment spend over the range and the previous period", async () => {
     const report = buildDeploymentSpend(0);
     const { child, useDeploymentSpendQuery } = await setup({
