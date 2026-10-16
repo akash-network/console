@@ -4,8 +4,12 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
+import type { DeploymentSpendReport } from "@src/types/deployment-spend";
 import type { OrganizationOutput, OrganizationRole } from "@src/types/organization";
+import type { Project } from "@src/types/project";
+import { perBlockToHourly } from "@src/utils/priceUtils";
 import { buildUsageCsv } from "./buildUsageCsv";
+import { scopeUsage } from "./teamUsage";
 import type { ChildrenProps, DEPENDENCIES } from "./UsageContainer";
 import { UsageContainer } from "./UsageContainer";
 import { getPreviousPeriod, getUsagePresetRange } from "./usageDatePresets";
@@ -150,6 +154,93 @@ describe(UsageContainer.name, () => {
     expect(child.projectSpendRange).toBeNull();
   });
 
+  it("reads a team's usage from its deployment spend over the range and the previous period", async () => {
+    const report = buildDeploymentSpend(0);
+    const { child, useDeploymentSpendQuery } = await setup({
+      ...TEAM_OWNER,
+      deploymentSpend: report,
+      previousDeploymentSpend: buildDeploymentSpend(1, 0.5)
+    });
+    const last30Days = getUsagePresetRange("last30Days");
+    const previousPeriod = getPreviousPeriod(last30Days);
+
+    expect(useDeploymentSpendQuery).toHaveBeenCalledWith(spendRangeOf(last30Days), { enabled: true });
+    expect(useDeploymentSpendQuery).toHaveBeenCalledWith(spendRangeOf(previousPeriod), { enabled: true });
+    expect(child.usageHistoryData).toEqual(scopeUsage(report, null).dailySpend);
+    expect(child.usageHistoryStatsData).toEqual(scopeUsage(report, null).stats);
+    expect(child.spendChangePercent).not.toBeNull();
+  });
+
+  it("offers a team's projects to narrow the page to, starting on every project", async () => {
+    const { child } = await setup({ ...TEAM_OWNER, projects: [mock<Project>({ id: "storefront", name: "Storefront" })] });
+
+    expect(child.projectScope?.projects).toEqual([{ id: "storefront", name: "Storefront" }]);
+    expect(child.projectScope?.selected).toBeNull();
+  });
+
+  it("narrows the figures and the spend rate to the picked project and drops the spend by project", async () => {
+    const report = buildDeploymentSpend(0);
+    const perBlockUsdByDseq = new Map([
+      ["1", 0.01],
+      ["2", 0.02]
+    ]);
+    const { child, childCapturer } = await setup({ ...TEAM_OWNER, deploymentSpend: report, perBlockUsdByDseq });
+
+    act(() => child.projectScope!.onChange("storefront"));
+    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "storefront");
+
+    expect(narrowed.usageHistoryData).toEqual(scopeUsage(report, "storefront").dailySpend);
+    expect(narrowed.usageHistoryStatsData.totalDeployments).toBe(1);
+    expect(narrowed.spendRate.perHourUsd).toBeCloseTo(perBlockToHourly(0.01), 10);
+    expect(narrowed.projectSpendRange).toBeNull();
+  });
+
+  it("keeps the whole organization's spend rate on every project", async () => {
+    const { child } = await setup({ ...TEAM_OWNER, deploymentSpend: buildDeploymentSpend(0), spendRate: { perHourUsd: 3, isLoading: false, isError: false } });
+
+    expect(child.spendRate.perHourUsd).toBe(3);
+  });
+
+  it("holds a project's spend rate back until its deployments are read", async () => {
+    const { child, childCapturer } = await setup({ ...TEAM_OWNER, isDeploymentSpendLoading: true });
+
+    act(() => child.projectScope!.onChange("storefront"));
+    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "storefront");
+
+    expect(child.spendRate.isLoading).toBe(false);
+    expect(narrowed.spendRate.isLoading).toBe(true);
+  });
+
+  it("passes a team's loading and error flags through", async () => {
+    const { child } = await setup({ ...TEAM_OWNER, isDeploymentSpendLoading: true, isDeploymentSpendError: true });
+
+    expect(child.usageHistoryData).toEqual([]);
+    expect(child.isUsageHistoryLoading).toBe(true);
+    expect(child.isUsageHistoryStatsLoading).toBe(true);
+    expect(child.isUsageHistoryError).toBe(true);
+    expect(child.isUsageHistoryStatsError).toBe(true);
+  });
+
+  it("has no spend comparison until a team's previous period loads", async () => {
+    const { child } = await setup({ ...TEAM_OWNER, deploymentSpend: buildDeploymentSpend(0) });
+
+    expect(child.spendChangePercent).toBeNull();
+  });
+
+  it("offers no project while a team's projects load", async () => {
+    const { child } = await setup({ ...TEAM_OWNER, projects: undefined });
+
+    expect(child.projectScope?.projects).toEqual([]);
+  });
+
+  it("reads no deployment spend nor projects and offers no project filter outside a team", async () => {
+    const { child, useDeploymentSpendQuery, useProjectsQuery } = await setup({ organization: { type: "personal", role: "owner" }, projectsEnabled: false });
+
+    expect(child.projectScope).toBeNull();
+    expect(useDeploymentSpendQuery).toHaveBeenCalledWith(expect.anything(), { enabled: false });
+    expect(useProjectsQuery).toHaveBeenCalledWith({ enabled: false });
+  });
+
   it("downloads the usage on screen as a CSV", async () => {
     const { child, usageHistory, usageStats } = await setup();
     const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:usage");
@@ -176,6 +267,12 @@ describe(UsageContainer.name, () => {
       spendRate?: { perHourUsd: number; isLoading: boolean; isError: boolean };
       organization?: Pick<OrganizationOutput, "type" | "role">;
       projectsEnabled?: boolean;
+      deploymentSpend?: DeploymentSpendReport;
+      previousDeploymentSpend?: DeploymentSpendReport;
+      isDeploymentSpendLoading?: boolean;
+      isDeploymentSpendError?: boolean;
+      projects?: Project[];
+      perBlockUsdByDseq?: Map<string, number>;
     } = {}
   ) {
     const usageHistory = "usageHistory" in input ? input.usageHistory : buildUsageHistory();
@@ -203,6 +300,7 @@ describe(UsageContainer.name, () => {
 
     const spendRate = Object.assign(
       mock<ReturnType<typeof DEPENDENCIES.useCurrentSpendRate>>(),
+      { perBlockUsdByDseq: input.perBlockUsdByDseq ?? new Map() },
       input.spendRate ?? { perHourUsd: 0, isLoading: false, isError: false }
     );
     const useCurrentSpendRate: typeof DEPENDENCIES.useCurrentSpendRate = () => spendRate;
@@ -211,19 +309,60 @@ describe(UsageContainer.name, () => {
     const useActiveOrganization: typeof DEPENDENCIES.useActiveOrganization = () =>
       mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ activeOrganization, projectsEnabled: input.projectsEnabled ?? false });
 
+    const today = format(startOfToday(), "yyyy-MM-dd");
+    const deploymentSpendQuery = (data: DeploymentSpendReport | undefined) =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentSpendQuery>>(), {
+        data,
+        isLoading: input.isDeploymentSpendLoading ?? false,
+        isError: input.isDeploymentSpendError ?? false
+      });
+    const useDeploymentSpendQuery = vi.fn<typeof DEPENDENCIES.useDeploymentSpendQuery>(range =>
+      deploymentSpendQuery(range.endDate < today ? input.previousDeploymentSpend : input.deploymentSpend)
+    );
+    const useProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectsQuery>(() =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>(), { data: input.projects })
+    );
+
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
 
     render(
-      <UsageContainer dependencies={{ useWallet, useUsage, useUsageStats, useCurrentSpendRate, useActiveOrganization }}>
+      <UsageContainer
+        dependencies={{ useWallet, useUsage, useUsageStats, useCurrentSpendRate, useActiveOrganization, useDeploymentSpendQuery, useProjectsQuery }}
+      >
         {props => childCapturer.renderChild(props)}
       </UsageContainer>
     );
 
     const child = await childCapturer.awaitChild();
 
-    return { child, childCapturer, useUsage, useUsageStats, usageHistory, usageStats };
+    return { child, childCapturer, useUsage, useUsageStats, useDeploymentSpendQuery, useProjectsQuery, usageHistory, usageStats };
   }
 });
+
+const TEAM_OWNER = { organization: { type: "team", role: "owner" }, projectsEnabled: true } as const;
+
+function spendRangeOf(range: { from: Date; to: Date }) {
+  return { startDate: format(range.from, "yyyy-MM-dd"), endDate: format(range.to, "yyyy-MM-dd") };
+}
+
+function buildDeploymentSpend(periodsAgo: number, scale = 1): DeploymentSpendReport {
+  const range = getUsagePresetRange("last30Days");
+  const { from, to } = periodsAgo ? getPreviousPeriod(range) : range;
+  const day = format(subDays(startOfToday(), 30 * periodsAgo + 2), "yyyy-MM-dd");
+
+  return {
+    ...spendRangeOf({ from, to }),
+    projects: [],
+    days: [
+      { date: day, projectId: "storefront", consumedUsd: 4 * scale },
+      { date: day, projectId: "marketing", consumedUsd: 6 * scale }
+    ],
+    deployments: [
+      { dseq: "1", name: "web", projectId: "storefront", consumedUsd: 4 * scale, hours: 24 },
+      { dseq: "2", name: null, projectId: "marketing", consumedUsd: 6 * scale, hours: 24 }
+    ]
+  };
+}
 
 function buildDay(daysAgo: number, dailyUsdSpent: number) {
   return buildUsageHistoryItem({ date: format(subDays(startOfToday(), daysAgo), "yyyy-MM-dd"), dailyUsdSpent });

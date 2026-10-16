@@ -1,10 +1,11 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { ProjectScopeControl } from "@src/components/billing-usage/UsageContainer/UsageContainer";
 import type { UsageDatePreset } from "@src/components/billing-usage/UsageContainer/usageDatePresets";
 import { UsageHeaderActions } from "./UsageHeaderActions";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(UsageHeaderActions.name, () => {
@@ -37,9 +38,51 @@ describe(UsageHeaderActions.name, () => {
     expect(screen.getByRole("button", { name: "Export CSV" })).toBeDisabled();
   });
 
-  function setup(input: { datePreset?: UsageDatePreset; isExportDisabled?: boolean } = {}) {
+  it("offers no project filter outside a team", () => {
+    setup();
+
+    expect(screen.queryByRole("combobox", { name: "Projects" })).not.toBeInTheDocument();
+  });
+
+  it("shows every project until one is picked", () => {
+    setup({ projectScope: { selected: null } });
+
+    expect(screen.getByRole("combobox", { name: "Projects" })).toHaveTextContent("All projects");
+  });
+
+  it("narrows the page to the project picked from the menu", async () => {
+    const { onProjectScopeChange } = setup({ projectScope: { selected: null } });
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Projects" }));
+    await userEvent.click(screen.getByRole("option", { name: "storefront" }));
+
+    expect(onProjectScopeChange).toHaveBeenCalledWith("storefront-id");
+  });
+
+  it("goes back to every project", async () => {
+    const { onProjectScopeChange } = setup({ projectScope: { selected: "storefront-id" } });
+
+    expect(screen.getByRole("combobox", { name: "Projects" })).toHaveTextContent("storefront");
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Projects" }));
+    await userEvent.click(screen.getByRole("option", { name: "All projects" }));
+
+    expect(onProjectScopeChange).toHaveBeenCalledWith(null);
+  });
+
+  it("offers only every project while the team has none to list", async () => {
+    setup({ projectScope: { selected: null, projects: [] } });
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Projects" }));
+
+    expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["All projects"]);
+    expect(within(screen.getByRole("listbox")).queryByText("Projects")).not.toBeInTheDocument();
+  });
+
+  function setup(input: { datePreset?: UsageDatePreset; isExportDisabled?: boolean; projectScope?: Partial<ProjectScopeControl> } = {}) {
     const onDatePresetChange = vi.fn();
     const onExport = vi.fn();
+    const onProjectScopeChange = vi.fn();
 
     render(
       <UsageHeaderActions
@@ -47,9 +90,20 @@ describe(UsageHeaderActions.name, () => {
         onDatePresetChange={onDatePresetChange}
         onExport={onExport}
         isExportDisabled={input.isExportDisabled ?? false}
+        projectScope={
+          input.projectScope && {
+            projects: [
+              { id: "storefront-id", name: "storefront" },
+              { id: "marketing-id", name: "marketing" }
+            ],
+            selected: null,
+            onChange: onProjectScopeChange,
+            ...input.projectScope
+          }
+        }
       />
     );
 
-    return { onDatePresetChange, onExport };
+    return { onDatePresetChange, onExport, onProjectScopeChange };
   }
 });
