@@ -43,9 +43,10 @@ describe(ReconcileLeaseCreateHandler.name, () => {
     await reconcile({ createLeaseJobId: faker.string.uuid() });
 
     await expectJobCompleted(CreateLease[JOB_NAME], { singletonKey });
-    expect(finish).toHaveBeenCalledWith({ wallet: expect.objectContaining({ id: walletId }), userId: expect.any(String) }, [
-      expect.objectContaining({ gseq: 1, oseq: 1 })
-    ]);
+    expect(finish).toHaveBeenCalledWith(
+      { wallet: expect.objectContaining({ id: walletId }), userId: expect.any(String), assertMayStillSign: expect.any(Function) },
+      [expect.objectContaining({ gseq: 1, oseq: 1 })]
+    );
     expect(await findJobRows(ReconcileLeaseCreate[JOB_NAME], { data: { activityId }, state: "created" })).toHaveLength(1);
     expect(await findActivity()).toMatchObject({ status: "succeeded" });
   });

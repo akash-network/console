@@ -6,7 +6,11 @@ import { mock } from "vitest-mock-extended";
 import type { ActivityService } from "@src/activity/services/activity/activity.service";
 import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import type { LeaseService } from "@src/deployment/services/lease/lease.service";
+import type { LeaseService, QueuedLeaseSigner } from "@src/deployment/services/lease/lease.service";
+import {
+  ACCESS_REVOKED_ERROR_CODE,
+  type MemberDeploymentAccessService
+} from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import { createdLeaseActivityOf, failedLeaseActivityOf } from "@src/deployment/utils/lease-activity/lease-activity";
 import { CreateLeaseHandler } from "./create-lease.handler";
 
@@ -49,7 +53,7 @@ describe(CreateLeaseHandler.name, () => {
     await handler.handle(PAYLOAD, { id: "job-1", retryCount: 0, retryLimit: 6 });
 
     expect(walletReaderService.getWalletById).toHaveBeenCalledWith(7);
-    expect(leaseService.createQueuedLeases).toHaveBeenCalledWith({ wallet, userId: "user-1" }, LEASES);
+    expect(leaseService.createQueuedLeases).toHaveBeenCalledWith({ wallet, userId: "user-1", assertMayStillSign: expect.any(Function) }, LEASES);
     expect(activityService.settle).toHaveBeenCalledWith("activity-1", createdLeaseActivityOf(KEY));
   });
 
@@ -60,23 +64,52 @@ describe(CreateLeaseHandler.name, () => {
     await handler.handle(TEAM_PAYLOAD, { id: "job-1", retryCount: 0, retryLimit: 6 });
 
     expect(walletReaderService.getWalletById).toHaveBeenCalledWith(8);
-    expect(leaseService.createQueuedLeases).toHaveBeenCalledWith({ wallet: teamWallet, userId: "user-1" }, LEASES);
+    expect(leaseService.createQueuedLeases).toHaveBeenCalledWith({ wallet: teamWallet, userId: "user-1", assertMayStillSign: expect.any(Function) }, LEASES);
     expect(activityService.settle).toHaveBeenCalledWith("activity-1", expect.objectContaining({ userId: "user-1", status: "succeeded" }));
+  });
+
+  it("checks the member's access again for the wallet and deployment the request named when the lease service is about to sign", async () => {
+    const { handler, leaseService, memberDeploymentAccessService } = setup({ wallet: createOrganizationWallet({ id: 8, organizationId: "team-org-1" }) });
+    leaseService.createQueuedLeases.mockImplementation(async (signer: QueuedLeaseSigner) => await signer.assertMayStillSign());
+
+    await handler.handle(TEAM_PAYLOAD, { id: "job-1", retryCount: 0, retryLimit: 6 });
+
+    expect(memberDeploymentAccessService.assertMayStillSign).toHaveBeenCalledWith({ userId: "user-1", walletId: 8, dseq: "100" });
+  });
+
+  it("leaves the member's access unchecked until the lease service is about to sign", async () => {
+    const { handler, memberDeploymentAccessService } = setup();
+
+    await handler.handle(PAYLOAD, { id: "job-1", retryCount: 0, retryLimit: 6 });
+
+    expect(memberDeploymentAccessService.assertMayStillSign).not.toHaveBeenCalled();
   });
 
   it.each([
     { attempt: "the first attempt", retryCount: 0 },
-    { attempt: "a retry", retryCount: 3 }
-  ])("records a wallet it may no longer sign with as failed on $attempt and ends the job", async ({ retryCount }) => {
-    const { handler, walletReaderService, leaseService, activityService, logger } = setup();
+    { attempt: "a retry", retryCount: 3 },
+    { attempt: "the last attempt", retryCount: 6 }
+  ])("records access the member lost as failed on $attempt and ends the job without a retry", async ({ retryCount }) => {
+    const { handler, leaseService, activityService, logger } = setup();
+    const revoked = createError(403, "You no longer have access to this deployment.", { errorCode: ACCESS_REVOKED_ERROR_CODE });
+    leaseService.createQueuedLeases.mockRejectedValue(revoked);
+
+    await handler.handle(TEAM_PAYLOAD, { id: "job-1", retryCount, retryLimit: 6 });
+
+    expect(activityService.settle).toHaveBeenCalledTimes(1);
+    expect(activityService.settle).toHaveBeenCalledWith("activity-1", failedLeaseActivityOf(KEY, revoked));
+    expect(logger.warn).toHaveBeenCalledWith({ event: "BACKGROUND_LEASE_REFUSED", activityId: "activity-1", dseq: "100", error: revoked });
+  });
+
+  it("records a wallet it can no longer read as failed on the first attempt and ends the job", async () => {
+    const { handler, walletReaderService, leaseService, activityService } = setup();
     const missing = createError(404, "UserWallet Not Found");
     walletReaderService.getWalletById.mockRejectedValue(missing);
 
-    await handler.handle(PAYLOAD, { id: "job-1", retryCount, retryLimit: 6 });
+    await handler.handle(PAYLOAD, { id: "job-1", retryCount: 0, retryLimit: 6 });
 
     expect(leaseService.createQueuedLeases).not.toHaveBeenCalled();
     expect(activityService.settle).toHaveBeenCalledWith("activity-1", failedLeaseActivityOf(KEY, missing));
-    expect(logger.warn).toHaveBeenCalledWith({ event: "BACKGROUND_LEASE_REFUSED", activityId: "activity-1", dseq: "100", error: missing });
   });
 
   it.each([
@@ -196,13 +229,14 @@ describe(CreateLeaseHandler.name, () => {
     const walletReaderService = mock<WalletReaderService>();
     walletReaderService.getWalletById.mockResolvedValue(input?.wallet ?? createInitializedUserWallet({ id: 7, userId: "user-1" }));
     const leaseService = mock<LeaseService>();
+    const memberDeploymentAccessService = mock<MemberDeploymentAccessService>();
     const activityService = mock<ActivityService>();
     activityService.isPending.mockResolvedValue(input?.pending ?? true);
     const logger = mock<LoggerService>();
     const createLogger = vi.fn(() => logger);
 
-    const handler = new CreateLeaseHandler(walletReaderService, leaseService, activityService, createLogger);
+    const handler = new CreateLeaseHandler(walletReaderService, leaseService, activityService, memberDeploymentAccessService, createLogger);
 
-    return { handler, walletReaderService, leaseService, activityService, logger, createLogger };
+    return { handler, walletReaderService, leaseService, activityService, memberDeploymentAccessService, logger, createLogger };
   }
 });

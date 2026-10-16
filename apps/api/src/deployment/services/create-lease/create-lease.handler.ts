@@ -4,7 +4,8 @@ import { inject, singleton } from "tsyringe";
 import { ActivityService } from "@src/activity/services/activity/activity.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { type CreateLogger, type JobHandler, type JobMeta, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
-import { LeaseService, type LeaseSigner } from "@src/deployment/services/lease/lease.service";
+import { LeaseService, type QueuedLeaseSigner } from "@src/deployment/services/lease/lease.service";
+import { isAccessRevoked, MemberDeploymentAccessService } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import { createdLeaseActivityOf, failedLeaseActivityOf } from "@src/deployment/utils/lease-activity/lease-activity";
 import { CreateLease } from "./create-lease.job";
 
@@ -21,6 +22,7 @@ export class CreateLeaseHandler implements JobHandler<CreateLease> {
     private readonly walletReaderService: WalletReaderService,
     private readonly leaseService: LeaseService,
     private readonly activityService: ActivityService,
+    private readonly memberDeploymentAccessService: MemberDeploymentAccessService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: CreateLeaseHandler.name });
@@ -36,47 +38,33 @@ export class CreateLeaseHandler implements JobHandler<CreateLease> {
     ];
   }
 
-  /** Creating the leases is safe to repeat, so a failure is retried and settles the activity only once it is a refusal or the last attempt. */
+  /** Creating the leases is safe to repeat, so a failure is retried and settles the activity only once it is final or the last attempt. */
   async handle(data: JobPayload<CreateLease>, job?: JobMeta): Promise<void> {
     if (!(await this.activityService.isPending(data.activityId))) return;
 
-    const signer = await this.#signerOf(data, job);
-    if (!signer) return;
-
     try {
-      await this.leaseService.createQueuedLeases(signer, data.leases);
+      await this.leaseService.createQueuedLeases(await this.#signerOf(data), data.leases);
     } catch (error) {
-      if (isRefusalOnFirstAttempt(error, job)) return await this.#refuse(data, error);
+      if (isFinal(error, job)) return await this.#refuse(data, error);
+      if (isLastAttempt(job)) await this.activityService.settle(data.activityId, failedLeaseActivityOf(data, error));
 
-      await this.#failOnLastAttempt(data, error, job);
       throw error;
     }
 
     await this.activityService.settle(data.activityId, createdLeaseActivityOf(data));
   }
 
-  /** Retrying cannot give back a wallet the job may no longer sign with, so that refusal is final on any attempt. */
-  async #signerOf(data: JobPayload<CreateLease>, job?: JobMeta): Promise<LeaseSigner | undefined> {
-    try {
-      return { wallet: await this.walletReaderService.getWalletById(data.walletId), userId: data.userId };
-    } catch (error) {
-      if (!isRefusal(error)) {
-        await this.#failOnLastAttempt(data, error, job);
-        throw error;
-      }
-
-      await this.#refuse(data, error);
-      return undefined;
-    }
+  async #signerOf({ userId, walletId, leases }: JobPayload<CreateLease>): Promise<QueuedLeaseSigner> {
+    return {
+      wallet: await this.walletReaderService.getWalletById(walletId),
+      userId,
+      assertMayStillSign: () => this.memberDeploymentAccessService.assertMayStillSign({ userId, walletId, dseq: leases[0].dseq })
+    };
   }
 
-  async #refuse({ userId, leases, activityId }: JobPayload<CreateLease>, error: unknown): Promise<void> {
-    this.#logger.warn({ event: "BACKGROUND_LEASE_REFUSED", activityId, dseq: leases[0].dseq, error });
-    await this.activityService.settle(activityId, failedLeaseActivityOf({ userId, leases }, error));
-  }
-
-  async #failOnLastAttempt({ userId, leases, activityId }: JobPayload<CreateLease>, error: unknown, job?: JobMeta): Promise<void> {
-    if (isLastAttempt(job)) await this.activityService.settle(activityId, failedLeaseActivityOf({ userId, leases }, error));
+  async #refuse(data: JobPayload<CreateLease>, error: unknown): Promise<void> {
+    this.#logger.warn({ event: "BACKGROUND_LEASE_REFUSED", activityId: data.activityId, dseq: data.leases[0].dseq, error });
+    await this.activityService.settle(data.activityId, failedLeaseActivityOf(data, error));
   }
 }
 
@@ -84,13 +72,10 @@ function isLastAttempt(job?: JobMeta): boolean {
   return !job || job.retryCount >= job.retryLimit;
 }
 
-function isRefusal(error: unknown): boolean {
-  return isHttpError(error) && error.status < 500;
-}
-
-/** Only a first attempt's refusal is final, since a later one may be refused over a lease an earlier attempt landed out of sight, and a manifest the provider refused is retried because its lease already exists. */
-function isRefusalOnFirstAttempt(error: unknown, job?: JobMeta): boolean {
-  if (!isRefusal(error) || job?.retryCount) return false;
+/** Access the member lost is final on any attempt, since no retry gives it back; any other refusal is final only on the first attempt, since a later one may be refused over a lease an earlier attempt landed out of sight, and a manifest the provider refused is retried because its lease already exists. */
+function isFinal(error: unknown, job?: JobMeta): boolean {
+  if (isAccessRevoked(error)) return true;
+  if (!isHttpError(error) || error.status >= 500 || job?.retryCount) return false;
 
   return (error as { errorCode?: string }).errorCode !== "manifest_not_delivered";
 }

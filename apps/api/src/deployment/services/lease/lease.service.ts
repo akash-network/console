@@ -27,6 +27,9 @@ type Leases = CreateLeaseRequest["leases"];
 /** The wallet a lease is signed with and the member acting through it, who is not the wallet's user on a team wallet. */
 export type LeaseSigner = { wallet: WalletInitialized; userId: string };
 
+/** A queued request's signer, whose access is checked again only once the chain shows no lease an earlier attempt landed, so a landed lease still settles as created. */
+export type QueuedLeaseSigner = LeaseSigner & { assertMayStillSign: () => Promise<void> };
+
 @singleton()
 export class LeaseService {
   readonly #logger: ReturnType<CreateLogger>;
@@ -84,9 +87,9 @@ export class LeaseService {
 
   /** What a queued request's job runs with the wallet the request resolved: the manifest comes from what the console stored, which the request already derived once, and the job settles the activity rather than recording one. */
   @Trace()
-  public async createQueuedLeases(signer: LeaseSigner, leases: LeasePlacement[]): Promise<void> {
+  public async createQueuedLeases(signer: QueuedLeaseSigner, leases: LeasePlacement[]): Promise<void> {
     const manifests = await this.#manifestsByDseq(leases, signer, undefined);
-    const creation = await this.#planCreation(signer.wallet, leases);
+    const creation = await this.#planCreation(signer.wallet, leases, signer.assertMayStillSign);
 
     await this.#createOrAdoptLeases(signer, leases, creation);
     await this.#sendManifests(signer.wallet, leases, manifests);
@@ -120,7 +123,7 @@ export class LeaseService {
   }
 
   /** Runs every refusal before anything is recorded or queued, and resolves the messages that create the leases, or undefined for leases an earlier attempt landed, which a refusal found on a second read turns out to be. */
-  async #planCreation(wallet: WalletInitialized, leases: Leases): Promise<EncodeObject[] | undefined> {
+  async #planCreation(wallet: WalletInitialized, leases: Leases, assertMayStillSign?: () => Promise<void>): Promise<EncodeObject[] | undefined> {
     if (await this.leasesExist(wallet.address, leases)) return undefined;
 
     const messages = leases.map(({ dseq, gseq, oseq, provider }) =>
@@ -128,6 +131,7 @@ export class LeaseService {
     );
 
     try {
+      await assertMayStillSign?.();
       await this.#refuseLeasesOnClosedBids(wallet.address, leases);
       await this.#assertProvidersReachable(leases);
       await this.signerService.assertCanBroadcastByUserWallet(wallet, messages);

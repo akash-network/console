@@ -16,6 +16,7 @@ import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deploym
 import { CREATE_LEASE_RETRY_OPTIONS, CreateLease, createLeaseKeyFor } from "@src/deployment/services/create-lease/create-lease.job";
 import type { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import type { LeaseManifestService } from "@src/deployment/services/lease-manifest/lease-manifest.service";
+import { ACCESS_REVOKED_ERROR_CODE } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import { ReconcileLeaseCreate, reconcileLeaseCreateOptionsFor } from "@src/deployment/services/reconcile-lease-create/reconcile-lease-create.job";
 import { createdLeaseActivityOf, failedLeaseActivityOf, pendingLeaseActivityOf } from "@src/deployment/utils/lease-activity/lease-activity";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -29,6 +30,7 @@ import { createInitializedUserWallet, createOrganizationWallet } from "@test/see
 const MANIFEST = '{"version":"v2","groups":[]}';
 const DERIVED_MANIFEST = '{"version":"v2","groups":[{"name":"derived"}]}';
 const LEASE_ON_CLOSED_BID = createError(400, "Failed to create lease: Cannot create lease: The selected bid is no longer open.");
+const ACCESS_REVOKED = createError(403, "You no longer have access to this deployment.", { errorCode: ACCESS_REVOKED_ERROR_CODE });
 
 describe(LeaseService.name, () => {
   afterEach(() => {
@@ -78,9 +80,7 @@ describe(LeaseService.name, () => {
       await service.createLeasesAndSendManifest({ leases, manifest: MANIFEST, userId: wallet.userId });
 
       expect(vi.mocked(providerService.assertReachable).mock.calls).toEqual([[provider], [other]]);
-      expect(providerService.assertReachable.mock.invocationCallOrder[1]).toBeLessThan(
-        signerService.executeDecodedTxByUserWallet.mock.invocationCallOrder[0]
-      );
+      expect(providerService.assertReachable.mock.invocationCallOrder[1]).toBeLessThan(signerService.executeDecodedTxByUserWallet.mock.invocationCallOrder[0]);
     });
 
     it("broadcasts nothing and sends no manifest when any provider is unreachable", async () => {
@@ -989,11 +989,13 @@ describe(LeaseService.name, () => {
   });
 
   describe("createQueuedLeases", () => {
+    const assertMayStillSign = vi.fn(async () => undefined);
+
     it("creates the leases with the wallet it is given and sends the manifest derived from the stored definition, recording nothing", async () => {
       const { service, signerService, providerService, leaseManifestService, activityService, walletReaderService, wallet } = setup();
       const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
 
-      await service.createQueuedLeases({ wallet, userId: wallet.userId }, [lease]);
+      await service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign }, [lease]);
 
       expect(walletReaderService.getWalletByUserId).not.toHaveBeenCalled();
       expect(leaseManifestService.deriveFor).toHaveBeenCalledWith({ dseq: "100", userId: wallet.userId });
@@ -1009,7 +1011,7 @@ describe(LeaseService.name, () => {
       signerService.filedUserIdOf.mockResolvedValue("filer-1");
       const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
 
-      await service.createQueuedLeases({ wallet: teamWallet, userId: wallet.userId }, [lease]);
+      await service.createQueuedLeases({ wallet: teamWallet, userId: wallet.userId, assertMayStillSign }, [lease]);
 
       expect(signerService.filedUserIdOf).toHaveBeenCalledWith(teamWallet, wallet.userId, "100");
       expect(leaseManifestService.deriveFor).toHaveBeenCalledWith({ dseq: "100", userId: "filer-1" });
@@ -1021,8 +1023,62 @@ describe(LeaseService.name, () => {
       const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
       const { service, signerService, providerService, wallet } = setup({ onChain: owner => [leaseOnChain(owner, lease)] });
 
-      await service.createQueuedLeases({ wallet, userId: wallet.userId }, [lease]);
+      await service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign }, [lease]);
 
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(signerService.followUpLandedLeases).toHaveBeenCalledWith(wallet, [lease], wallet.userId);
+      expect(providerService.sendManifest).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves the member's access unchecked for leases an earlier attempt landed, so they settle as created", async () => {
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const { service, wallet } = setup({ onChain: owner => [leaseOnChain(owner, lease)] });
+      const lostAccess = vi.fn(async () => {
+        throw ACCESS_REVOKED;
+      });
+
+      await service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign: lostAccess }, [lease]);
+
+      expect(lostAccess).not.toHaveBeenCalled();
+    });
+
+    it("checks the member's access once the chain shows no landed lease, before the pre-flight checks and the signature", async () => {
+      const { service, signerService, providerService, wallet } = setup();
+      const checkAccess = vi.fn(async () => undefined);
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+
+      await service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign: checkAccess }, [lease]);
+
+      expect(checkAccess).toHaveBeenCalledTimes(1);
+      expect(checkAccess.mock.invocationCallOrder[0]).toBeLessThan(providerService.assertReachable.mock.invocationCallOrder[0]);
+      expect(checkAccess.mock.invocationCallOrder[0]).toBeLessThan(signerService.executeDecodedTxByUserWallet.mock.invocationCallOrder[0]);
+    });
+
+    it("signs nothing for a member who lost access, and passes the refusal on", async () => {
+      const { service, signerService, providerService, wallet } = setup();
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const lostAccess = vi.fn(async () => {
+        throw ACCESS_REVOKED;
+      });
+
+      await expect(service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign: lostAccess }, [lease])).rejects.toBe(ACCESS_REVOKED);
+
+      expect(signerService.assertCanBroadcastByUserWallet).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("completes a lease a second read finds an earlier attempt landed, even for a member who lost access", async () => {
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      const { service, signerService, providerService, leaseHttpService, wallet } = setup({ onChain: owner => [leaseOnChain(owner, lease)] });
+      leaseHttpService.list.mockResolvedValueOnce({ leases: [], pagination: { next_key: null, total: "0" } });
+      const lostAccess = vi.fn(async () => {
+        throw ACCESS_REVOKED;
+      });
+
+      await service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign: lostAccess }, [lease]);
+
+      expect(lostAccess).toHaveBeenCalledTimes(1);
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
       expect(signerService.followUpLandedLeases).toHaveBeenCalledWith(wallet, [lease], wallet.userId);
       expect(providerService.sendManifest).toHaveBeenCalledTimes(1);
@@ -1032,7 +1088,7 @@ describe(LeaseService.name, () => {
       const { service, signerService, activityService, wallet } = setup({ derived: null });
       const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
 
-      await expect(service.createQueuedLeases({ wallet, userId: wallet.userId }, [lease])).rejects.toMatchObject({ status: 422 });
+      await expect(service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign }, [lease])).rejects.toMatchObject({ status: 422 });
 
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
       expect(activityService.record).not.toHaveBeenCalled();
@@ -1044,7 +1100,7 @@ describe(LeaseService.name, () => {
       signerService.executeDecodedTxByUserWallet.mockRejectedValue(failure);
       const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
 
-      await expect(service.createQueuedLeases({ wallet, userId: wallet.userId }, [lease])).rejects.toBe(failure);
+      await expect(service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign }, [lease])).rejects.toBe(failure);
 
       expect(activityService.record).not.toHaveBeenCalled();
       expect(activityService.open).not.toHaveBeenCalled();
