@@ -18,6 +18,13 @@ describe(OrganizationSettingsPage.name, () => {
     expect(screen.queryByText(/Only admins can rename it/)).not.toBeInTheDocument();
   });
 
+  it.each(["owner", "admin", "member", "viewer", "billing"] as const)("offers a %s to leave the organization in the danger zone", role => {
+    const { LeaveOrganizationSetting } = setup({ role });
+
+    expect(screen.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
+    expect(LeaveOrganizationSetting.mock.lastCall?.[0]).toEqual(expect.objectContaining({ organization: expect.objectContaining({ id: "org-2", role }) }));
+  });
+
   it("lets an admin rename the organization but not transfer it", () => {
     const { OrganizationNameSetting, OwnershipTransferSetting } = setup({ role: "admin" });
 
@@ -81,12 +88,14 @@ describe(OrganizationSettingsPage.name, () => {
     const SettingsLayout = vi.fn<typeof DEPENDENCIES.SettingsLayout>(({ children }) => <>{children}</>);
     const OrganizationNameSetting = vi.fn<typeof DEPENDENCIES.OrganizationNameSetting>(() => null);
     const OwnershipTransferSetting = vi.fn<typeof DEPENDENCIES.OwnershipTransferSetting>(() => null);
+    const LeaveOrganizationSetting = vi.fn<typeof DEPENDENCIES.LeaveOrganizationSetting>(() => null);
 
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
       SettingsLayout,
       OrganizationNameSetting,
       OwnershipTransferSetting,
+      LeaveOrganizationSetting,
       useFlag: () => input.isEnabled ?? true,
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
@@ -98,6 +107,6 @@ describe(OrganizationSettingsPage.name, () => {
 
     render(<OrganizationSettingsPage dependencies={dependencies} />);
 
-    return { replace, Layout, SettingsLayout, OrganizationNameSetting, OwnershipTransferSetting };
+    return { replace, Layout, SettingsLayout, OrganizationNameSetting, OwnershipTransferSetting, LeaveOrganizationSetting };
   }
 });

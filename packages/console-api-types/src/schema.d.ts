@@ -7082,6 +7082,23 @@ export interface paths {
     patch: operations["updateOrganization"];
     trace?: never;
   };
+  "/v1/organizations/{id}/membership": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Leave the active team organization, which ends the caller's membership the way removing a member does */
+    delete: operations["deleteOrganizationMembership"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/projects": {
     parameters: {
       query?: never;
@@ -13606,6 +13623,59 @@ export interface operations {
         content?: never;
       };
       /** @description The caller already belongs to another organization with this name (`organization_name_taken`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteOrganizationMembership: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The caller left the organization */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The organization is a personal one (`personal_organization`), or the request was not made from a signed-in session (`session_required`) */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The organization is not the active one */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller owns the organization and has to transfer ownership first (`owner_cannot_leave`) */
       409: {
         headers: {
           [name: string]: unknown;

@@ -57,3 +57,10 @@ export function replaceCachedOrganization(queryClient: QueryClient, updated: Org
     response => response && { data: response.data.map(organization => (organization.id === updated.id ? updated : organization)) }
   );
 }
+
+/** Leaves the cached memberships alone, since the switch out of the left team clears them and reloads them without it. */
+export function useLeaveOrganizationMutation() {
+  const { api } = useServices();
+
+  return api.v1.deleteOrganizationMembership.useMutation({ meta: SKIP_REPORTING_REFUSED_INPUT });
+}

@@ -322,6 +322,14 @@ export const operations = {
       queryParams: ["acknowledgedForfeitUsd"],
       hasBody: false
     },
+    deleteOrganizationMembership: {
+      path: "/v1/organizations/{id}/membership",
+      method: "delete",
+      operationId: "deleteOrganizationMembership",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
     listProjects: { path: "/v1/projects", method: "get", operationId: "listProjects", pathParams: [], queryParams: [], hasBody: false },
     createProject: { path: "/v1/projects", method: "post", operationId: "createProject", pathParams: [], queryParams: [], hasBody: true },
     getProject: { path: "/v1/projects/{id}", method: "get", operationId: "getProject", pathParams: ["id"], queryParams: [], hasBody: false },
