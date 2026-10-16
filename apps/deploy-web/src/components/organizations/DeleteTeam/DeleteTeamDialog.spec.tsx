@@ -4,7 +4,7 @@ import { createProxy } from "@akashnetwork/react-query-proxy";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { AccountDeletionEligibility } from "@src/components/user/DeleteAccount/useAccountDeletionEligibility";
+import type { WalletDeletionEligibility } from "@src/components/user/DeleteAccount/useAccountDeletionEligibility";
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
 import type { OrganizationOutput } from "@src/types/organization";
 import { DeleteTeamDialog, DEPENDENCIES } from "./DeleteTeamDialog";
@@ -219,7 +219,7 @@ describe(DeleteTeamDialog.name, () => {
     await user.click(screen.getByRole("button", { name: "Delete team" }));
   }
 
-  function setup(input: { eligibility: AccountDeletionEligibility; response?: Promise<unknown>; organizations?: OrganizationOutput[] }) {
+  function setup(input: { eligibility: WalletDeletionEligibility; response?: Promise<unknown>; organizations?: OrganizationOutput[] }) {
     const response = input.response ?? Promise.resolve(undefined);
     response.catch(() => undefined);
     const deleteOrganization = vi.fn(() => response);
@@ -230,7 +230,7 @@ describe(DeleteTeamDialog.name, () => {
     const onClose = vi.fn();
     const dependencies: typeof DEPENDENCIES = {
       ...DEPENDENCIES,
-      useAccountDeletionEligibility: () => input.eligibility,
+      useWalletDeletionEligibility: () => input.eligibility,
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ organizations: input.organizations ?? [PERSONAL], switchOrganization }),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })

@@ -18,21 +18,30 @@ export type AccountDeletionEligibility =
   | { status: "forfeit"; balanceUsd: number; teamsDeletedWithAccount: TeamReference[] }
   | { status: "clean"; teamsDeletedWithAccount: TeamReference[] };
 
+export type WalletDeletionEligibility =
+  | { status: "loading" }
+  | { status: "blocked"; activeDeploymentCount: number }
+  | { status: "forfeit"; balanceUsd: number }
+  | { status: "clean" };
+
 type ServerEligibility = NonNullable<ReturnType<typeof useAccountDeletionEligibilityQuery>["data"]>;
 
 /** With organizations on, the API tells which teams go with the account and which need a new owner; if it can't answer, the wallet still tells what the account alone forfeits. */
 export function useAccountDeletionEligibility(dependencies: typeof DEPENDENCIES = DEPENDENCIES): AccountDeletionEligibility {
   const isOrganizationsEnabled = dependencies.useFlag("organizations");
   const serverEligibility = dependencies.useAccountDeletionEligibilityQuery({ enabled: isOrganizationsEnabled });
-  const walletEligibility = useWalletEligibility(dependencies);
+  const walletEligibility = useWalletDeletionEligibility(dependencies);
 
-  if (!isOrganizationsEnabled || serverEligibility.isError) return walletEligibility;
+  if (!isOrganizationsEnabled || serverEligibility.isError) return withoutTeams(walletEligibility);
   if (!serverEligibility.data) return { status: "loading" };
 
   return eligibilityFromServer(serverEligibility.data);
 }
 
-function useWalletEligibility(dependencies: typeof DEPENDENCIES): AccountDeletionEligibility {
+/** Reads the active organization's wallet only, which for a team is everything deleting it would close or forfeit. */
+export function useWalletDeletionEligibility(
+  dependencies: Pick<typeof DEPENDENCIES, "useWallet" | "useBalances" | "useWalletBalance"> = DEPENDENCIES
+): WalletDeletionEligibility {
   const { address, isTrialing } = dependencies.useWallet();
   const { data: balances, isLoading } = dependencies.useBalances(address);
   const { balance } = dependencies.useWalletBalance();
@@ -40,12 +49,24 @@ function useWalletEligibility(dependencies: typeof DEPENDENCIES): AccountDeletio
   if (isLoading) return { status: "loading" };
 
   const activeDeploymentCount = balances?.activeDeployments.length ?? 0;
-  if (activeDeploymentCount > 0) return { status: "blocked", activeDeploymentCount, teamsWithDeployments: [] };
+  if (activeDeploymentCount > 0) return { status: "blocked", activeDeploymentCount };
 
   const balanceUsd = isTrialing ? 0 : balance?.totalDeploymentGrantsUSD ?? 0;
-  if (balanceUsd >= SMALLEST_FORFEITABLE_BALANCE_USD) return { status: "forfeit", balanceUsd, teamsDeletedWithAccount: [] };
+  if (balanceUsd >= SMALLEST_FORFEITABLE_BALANCE_USD) return { status: "forfeit", balanceUsd };
 
-  return { status: "clean", teamsDeletedWithAccount: [] };
+  return { status: "clean" };
+}
+
+function withoutTeams(eligibility: WalletDeletionEligibility): AccountDeletionEligibility {
+  switch (eligibility.status) {
+    case "blocked":
+      return { ...eligibility, teamsWithDeployments: [] };
+    case "forfeit":
+    case "clean":
+      return { ...eligibility, teamsDeletedWithAccount: [] };
+    default:
+      return eligibility;
+  }
 }
 
 function eligibilityFromServer({

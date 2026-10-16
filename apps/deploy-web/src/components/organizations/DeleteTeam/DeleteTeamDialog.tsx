@@ -23,14 +23,14 @@ import Link from "next/link";
 import { useSnackbar } from "notistack";
 
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
-import { type AccountDeletionEligibility, useAccountDeletionEligibility } from "@src/components/user/DeleteAccount/useAccountDeletionEligibility";
+import { useWalletDeletionEligibility, type WalletDeletionEligibility } from "@src/components/user/DeleteAccount/useAccountDeletionEligibility";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useDeleteOrganizationMutation } from "@src/queries/useOrganizationQueries";
 import type { OrganizationOutput } from "@src/types/organization";
 import { UrlService } from "@src/utils/urlUtils";
 
-export const DEPENDENCIES = { useAccountDeletionEligibility, useDeleteOrganizationMutation, useActiveOrganization, useSnackbar };
+export const DEPENDENCIES = { useWalletDeletionEligibility, useDeleteOrganizationMutation, useActiveOrganization, useSnackbar };
 
 type Step =
   | { name: "assess" }
@@ -40,7 +40,7 @@ type Step =
 
 type DeletionRefusalBody = { data?: { activeDeploymentCount?: number; balanceUsd?: number } };
 
-function stepFor(eligibility: AccountDeletionEligibility): Step | undefined {
+function stepFor(eligibility: WalletDeletionEligibility): Step | undefined {
   switch (eligibility.status) {
     case "blocked":
       return { name: "blocked", activeDeploymentCount: eligibility.activeDeploymentCount };
@@ -69,7 +69,7 @@ type Props = {
 };
 
 export const DeleteTeamDialog: FC<Props> = ({ organization, onClose, dependencies: d = DEPENDENCIES }) => {
-  const eligibility = d.useAccountDeletionEligibility();
+  const eligibility = d.useWalletDeletionEligibility();
   const { organizations, switchOrganization } = d.useActiveOrganization();
   const { enqueueSnackbar } = d.useSnackbar();
   const deleteOrganization = d.useDeleteOrganizationMutation();
