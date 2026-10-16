@@ -16,7 +16,12 @@ import {
   StopTeamAlertsToDepartedMemberHandler
 } from "@src/organization/services/departed-member-alerts/stop-team-alerts-to-departed-member.handler";
 import type { UserOutput } from "@src/user/repositories";
-import { LAST_OWNER_ERROR_CODE, OrganizationMemberService, OWNER_ROLE_RESTRICTED_ERROR_CODE } from "./organization-member.service";
+import {
+  LAST_OWNER_ERROR_CODE,
+  OrganizationMemberService,
+  OWNER_CANNOT_LEAVE_ERROR_CODE,
+  OWNER_ROLE_RESTRICTED_ERROR_CODE
+} from "./organization-member.service";
 
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProjectMember } from "@test/seeders/db/organization.seeder";
@@ -167,6 +172,46 @@ describe(OrganizationMemberService.name, () => {
 
       const jobs = await findJobRows(StopTeamAlertsToDepartedMember[JOB_NAME], { data: { userId: member.id } });
       expect(jobs.map(({ data }) => data)).toEqual([{ organizationId: organization.id, userId: member.id, addressSha256, version: 1 }]);
+    });
+  });
+
+  describe("leave", () => {
+    it("drops the leaving member's project grants, keeps their deployments with the team and queues stopping its alerts to them", async () => {
+      const { service, repository, organization, project, runAs } = await setup();
+      const member = await seedUser({ email: faker.internet.email() });
+      const membership = await seedOrganizationMember({ organizationId: organization.id, userId: member.id, role: "member" });
+      await seedProjectMember({ organizationId: organization.id, projectId: project.id, userId: member.id });
+      const deployment = await seedDeploymentSetting({ userId: member.id, organizationId: organization.id, projectId: project.id });
+
+      await runAs(member, "member", () => service.leave(organization.id));
+
+      const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+      const ProjectMembers = resolveTable("ProjectMembers");
+      const DeploymentSettings = resolveTable("DeploymentSettings");
+      expect(await repository.findById(membership.id)).toBeUndefined();
+      expect(await db.select().from(ProjectMembers).where(eq(ProjectMembers.userId, member.id))).toEqual([]);
+      expect(await db.select().from(DeploymentSettings).where(eq(DeploymentSettings.id, deployment.id))).toEqual([
+        expect.objectContaining({ userId: member.id, organizationId: organization.id, projectId: project.id })
+      ]);
+      const jobs = await findJobRows(StopTeamAlertsToDepartedMember[JOB_NAME], { data: { userId: member.id } });
+      expect(jobs.map(({ data }) => data)).toEqual([expect.objectContaining({ organizationId: organization.id, userId: member.id })]);
+    });
+
+    it("refuses a member who is handed ownership while leaving", async () => {
+      const { service, repository, txService, organization, owners, runAs } = await setup();
+      const member = await seedUser();
+      const membership = await seedOrganizationMember({ organizationId: organization.id, userId: member.id, role: "admin" });
+
+      const transfer = txService.transaction(async () => {
+        await runAs(owners[0].user, "owner", () => service.transferOwnership(membership.id));
+        await delay(200);
+      });
+      await delay(50);
+      const leaving = runAs(member, "admin", () => service.leave(organization.id));
+
+      await expect(transfer).resolves.toBeUndefined();
+      await expect(leaving).rejects.toMatchObject({ status: 409, errorCode: OWNER_CANNOT_LEAVE_ERROR_CODE });
+      expect(await repository.findById(membership.id)).toMatchObject({ role: "owner" });
     });
   });
 

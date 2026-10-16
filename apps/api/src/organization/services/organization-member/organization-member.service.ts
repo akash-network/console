@@ -17,6 +17,7 @@ import type { OrganizationContext } from "@src/organization/types/organization-c
 export const LAST_OWNER_ERROR_CODE = "last_owner";
 export const OWNER_ROLE_RESTRICTED_ERROR_CODE = "owner_role_restricted";
 export const PERSONAL_ORGANIZATION_ERROR_CODE = "personal_organization";
+export const OWNER_CANNOT_LEAVE_ERROR_CODE = "owner_cannot_leave";
 
 type MemberAction = "read" | "update" | "delete";
 
@@ -66,8 +67,29 @@ export class OrganizationMemberService {
         await this.assertAnotherOwnerRemains(organizationId, member.userId);
       }
 
-      await this.#repositoryFor("delete").deleteById(member.id);
-      await this.departedMemberAlertsService.stopTeamAlertsTo(member.userId, organizationId);
+      await this.#endMembership(this.#repositoryFor("delete"), member, organizationId);
+    });
+  }
+
+  /** Needs no permission over other members, since the only membership it reads or deletes is the caller's own. */
+  async leave(organizationId: string): Promise<void> {
+    const context = this.#activeOrganization();
+    assert(context.organizationId === organizationId, 404, "Organization not found");
+
+    if (context.organizationType === "personal") {
+      throw createError(403, "A personal organization cannot be left", { errorCode: PERSONAL_ORGANIZATION_ERROR_CODE });
+    }
+
+    await this.txService.transaction(async () => {
+      await this.organizationMemberRepository.lockOwners(organizationId);
+      const membership = await this.organizationMemberRepository.findOneBy({ organizationId, userId: this.authService.currentUser.id });
+      assert(membership, 404, "Organization not found");
+
+      if (membership.role === "owner") {
+        throw createError(409, "Transfer ownership of the organization before leaving it", { errorCode: OWNER_CANNOT_LEAVE_ERROR_CODE });
+      }
+
+      await this.#endMembership(this.organizationMemberRepository, membership, organizationId);
     });
   }
 
@@ -101,6 +123,12 @@ export class OrganizationMemberService {
     if (remainingOwners.length === 0) {
       throw createError(409, "An organization needs at least one owner", { errorCode: LAST_OWNER_ERROR_CODE });
     }
+  }
+
+  /** Leaving and being removed both end here, so either way the member loses the same access and alerts. */
+  async #endMembership(repository: OrganizationMemberRepository, member: OrganizationMemberOutput, organizationId: string): Promise<void> {
+    await repository.deleteById(member.id);
+    await this.departedMemberAlertsService.stopTeamAlertsTo(member.userId, organizationId);
   }
 
   #assertOwnerRoleUntouchedByNonOwner(owners: OrganizationMemberOutput[], roles: OrganizationRole[]) {

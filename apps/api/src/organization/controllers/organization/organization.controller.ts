@@ -12,6 +12,7 @@ import type {
   UpdateOrganizationRequest
 } from "@src/organization/http-schemas/organization.schema";
 import { type CallerOrganization, OrganizationService } from "@src/organization/services/organization/organization.service";
+import { OrganizationMemberService } from "@src/organization/services/organization-member/organization-member.service";
 import { TeamOrganizationService } from "@src/organization/services/team-organization/team-organization.service";
 import { TeamOrganizationDeletionService } from "@src/organization/services/team-organization-deletion/team-organization-deletion.service";
 
@@ -20,7 +21,8 @@ export class OrganizationController {
   constructor(
     private readonly organizationService: OrganizationService,
     private readonly teamOrganizationService: TeamOrganizationService,
-    private readonly teamOrganizationDeletionService: TeamOrganizationDeletionService
+    private readonly teamOrganizationDeletionService: TeamOrganizationDeletionService,
+    private readonly organizationMemberService: OrganizationMemberService
   ) {}
 
   @Protected()
@@ -52,6 +54,13 @@ export class OrganizationController {
     assert(origin.authMethod === "bearer", 403, "An organization can only be deleted from a signed-in Console session.", { errorCode: "session_required" });
 
     await this.teamOrganizationDeletionService.delete(id, { acknowledgedForfeitUsd });
+  }
+
+  @Protected()
+  async leave(id: string, origin: { authMethod?: AuthMethod }): Promise<void> {
+    assert(origin.authMethod === "bearer", 403, "An organization can only be left from a signed-in Console session.", { errorCode: "session_required" });
+
+    await this.organizationMemberService.leave(id);
   }
 }
 
