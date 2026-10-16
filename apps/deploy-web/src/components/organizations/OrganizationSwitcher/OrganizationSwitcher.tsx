@@ -21,7 +21,7 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
   /** "header" keeps the trigger compact on phones; "sheet" fills the width of the mobile navigation sheet. */
   layout?: "header" | "sheet";
-  /** Adds the "Create organization" row; headers that cannot host the dialog leave it out. */
+  /** Adds the "Create organization" row and shows the switcher without a team; headers that cannot host the dialog leave it out. */
   onCreateOrganization?: () => void;
   /** Called after a selection so a surrounding sheet can close. */
   onNavigate?: () => void;
@@ -34,12 +34,15 @@ const SECTION_LABEL_CLASSES = "px-[9px] pb-[5px] pt-2 font-mono text-[10.5px] fo
 
 const ROW_CLASSES = "min-h-9 cursor-pointer gap-2.5 rounded-[7px] px-[9px] py-0 text-[13.5px] font-medium focus:bg-muted focus:text-foreground";
 
+const NO_TEAMS_MESSAGE = "You're not in any organizations yet. Create one to share projects, deployments and billing with your team.";
+
 export function OrganizationSwitcher({ dependencies: d = DEPENDENCIES, layout = "header", onCreateOrganization, onNavigate }: Props) {
   const { organizations, activeOrganization, switchOrganization } = d.useActiveOrganization();
   const personalOrganization = organizations.find(organization => organization.type === "personal");
   const teamOrganizations = organizations.filter(organization => organization.type === "team");
+  const hasTeams = teamOrganizations.length > 0;
 
-  if (!activeOrganization || teamOrganizations.length === 0) return null;
+  if (!activeOrganization || (!hasTeams && !onCreateOrganization)) return null;
 
   const select = (organization: OrganizationOutput) => {
     if (organization.id !== activeOrganization.id) switchOrganization(organization.id);
@@ -76,7 +79,11 @@ export function OrganizationSwitcher({ dependencies: d = DEPENDENCIES, layout = 
         <DropdownMenuLabel className={SECTION_LABEL_CLASSES}>Personal account</DropdownMenuLabel>
         {personalOrganization && renderRow(personalOrganization)}
         <DropdownMenuLabel className={SECTION_LABEL_CLASSES}>Organizations</DropdownMenuLabel>
-        {teamOrganizations.map(renderRow)}
+        {hasTeams ? (
+          teamOrganizations.map(renderRow)
+        ) : (
+          <p className="text-pretty px-[9px] pb-[9px] pt-px text-[12.5px] leading-[18px] text-muted-foreground">{NO_TEAMS_MESSAGE}</p>
+        )}
         {onCreateOrganization && (
           <>
             <DropdownMenuSeparator className="my-[5px] bg-border" />

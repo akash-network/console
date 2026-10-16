@@ -9,8 +9,34 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(OrganizationSwitcher.name, () => {
-  it("stays out of the way for a user who only has the personal organization", () => {
-    const { container } = setup({ teams: [] });
+  it("shows a person without a team their personal account, an empty organizations section and the create row", async () => {
+    const { user } = setup({ activeId: "org-1", teams: [] });
+
+    await user.click(screen.getByRole("button", { name: "alice, switch organization" }));
+
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByRole("menuitemradio", { name: /alice/, checked: true })).toBeInTheDocument();
+    expect(within(menu).getAllByRole("menuitemradio")).toHaveLength(1);
+    expect(within(menu).getByText("Organizations")).toBeInTheDocument();
+    expect(
+      within(menu).getByText("You're not in any organizations yet. Create one to share projects, deployments and billing with your team.")
+    ).toBeInTheDocument();
+    expect(within(menu).getByRole("separator")).toBeInTheDocument();
+    expect(within(menu).getByRole("menuitem", { name: "Create organization" })).toBeInTheDocument();
+  });
+
+  it("lets a person without a team create an organization", async () => {
+    const { user, onCreateOrganization, onNavigate } = setup({ activeId: "org-1", teams: [] });
+
+    await user.click(screen.getByRole("button", { name: /switch organization/ }));
+    await user.click(await screen.findByRole("menuitem", { name: "Create organization" }));
+
+    expect(onCreateOrganization).toHaveBeenCalledOnce();
+    expect(onNavigate).toHaveBeenCalledOnce();
+  });
+
+  it("stays out of the way for a person without a team where no organization can be created", () => {
+    const { container } = setup({ activeId: "org-1", teams: [], canCreate: false });
 
     expect(container).toBeEmptyDOMElement();
   });
@@ -44,6 +70,7 @@ describe(OrganizationSwitcher.name, () => {
     ).toEqual(["A" + "alice", "A" + "Acme Corp" + "Admin", "N" + "Northwind Labs" + "Member"]);
     expect(within(menu).getByRole("menuitemradio", { name: /Acme Corp/, checked: true })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitemradio", { name: /alice/, checked: false })).toBeInTheDocument();
+    expect(within(menu).queryByText(/not in any organizations/)).not.toBeInTheDocument();
   });
 
   it("switches to the chosen organization", async () => {
