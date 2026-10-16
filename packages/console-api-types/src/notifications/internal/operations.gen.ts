@@ -12,6 +12,14 @@ export const operations = {
       hasBody: true
     },
     purge: { path: "/internal/v1/users/{userId}/purge", method: "post", operationId: "purge", pathParams: ["userId"], queryParams: [], hasBody: false },
+    releaseDepartedMember: {
+      path: "/internal/v1/organizations/{organizationId}/departed-members",
+      method: "post",
+      operationId: "releaseDepartedMember",
+      pathParams: ["organizationId"],
+      queryParams: [],
+      hasBody: true
+    },
     moveDeploymentAlertsToProject: {
       path: "/internal/v1/organizations/{organizationId}/deployment-alerts/{dseq}/project",
       method: "put",

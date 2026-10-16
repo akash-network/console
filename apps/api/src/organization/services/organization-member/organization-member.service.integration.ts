@@ -1,14 +1,20 @@
+import { faker } from "@faker-js/faker";
 import { and, eq } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
-import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
+import { type ApiPgDatabase, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import {
+  StopTeamAlertsToDepartedMember,
+  StopTeamAlertsToDepartedMemberHandler
+} from "@src/organization/services/departed-member-alerts/stop-team-alerts-to-departed-member.handler";
 import type { UserOutput } from "@src/user/repositories";
 import { LAST_OWNER_ERROR_CODE, OrganizationMemberService, OWNER_ROLE_RESTRICTED_ERROR_CODE } from "./organization-member.service";
 
@@ -16,6 +22,9 @@ import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seede
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
+
+const jobWorkers = useJobWorkers(() => [container.resolve(StopTeamAlertsToDepartedMemberHandler)]);
 
 describe(OrganizationMemberService.name, () => {
   describe("assertAnotherOwnerRemains", () => {
@@ -147,6 +156,18 @@ describe(OrganizationMemberService.name, () => {
         expect.objectContaining({ userId: member.id, organizationId: organization.id, projectId: project.id })
       ]);
     });
+
+    it("queues stopping the team's alerts to the removed member, keyed on a digest of their address", async () => {
+      const { service, organization, owners, runAs } = await setup();
+      const member = await seedUser({ email: faker.internet.email() });
+      const membership = await seedOrganizationMember({ organizationId: organization.id, userId: member.id, role: "member" });
+      const addressSha256 = createHash("sha256").update(member.email!.toLowerCase()).digest("hex");
+
+      await runAs(owners[0].user, "owner", () => service.removeMember(membership.id));
+
+      const jobs = await findJobRows(StopTeamAlertsToDepartedMember[JOB_NAME], { data: { userId: member.id } });
+      expect(jobs.map(({ data }) => data)).toEqual([{ organizationId: organization.id, userId: member.id, addressSha256, version: 1 }]);
+    });
   });
 
   describe("transferOwnership", () => {
@@ -163,6 +184,7 @@ describe(OrganizationMemberService.name, () => {
   });
 
   async function setup() {
+    await jobWorkers();
     const service = container.resolve(OrganizationMemberService);
     const repository = container.resolve(OrganizationMemberRepository);
     const txService = container.resolve(TxService);
