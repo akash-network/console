@@ -128,6 +128,7 @@ const INVITATION: OrganizationInvitationOutput = {
   id: "invitation-1",
   email: "carol@acme.io",
   role: "member",
+  projectAccess: "all",
   projectGrants: [],
   invitedBy: { id: "user-1", username: "alice" },
   createdAt: "2026-10-01T00:00:00Z",
