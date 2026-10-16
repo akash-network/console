@@ -31,6 +31,7 @@ interface AddCreditsSheetProps {
   description?: React.ReactNode;
   /** Where the sheet was opened from (e.g. the onboarding reason); sent with the lifecycle and payment events for funnel segmentation. */
   context?: string;
+  nextStepLabel?: string;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -43,6 +44,7 @@ export function AddCreditsSheet({
   initialTab,
   description = DEFAULT_DESCRIPTION,
   context,
+  nextStepLabel = "Done",
   dependencies: d = DEPENDENCIES
 }: AddCreditsSheetProps) {
   const { analyticsService } = d.useServices();
@@ -101,7 +103,13 @@ export function AddCreditsSheet({
         </d.SheetHeader>
 
         {open && purchase && (
-          <PurchaseSuccess amount={purchase.amount} bonusAmount={purchase.bonusAmount} onDone={() => requestOpenChange(false)} dependencies={d} />
+          <PurchaseSuccess
+            amount={purchase.amount}
+            bonusAmount={purchase.bonusAmount}
+            nextStepLabel={nextStepLabel}
+            onDone={() => requestOpenChange(false)}
+            dependencies={d}
+          />
         )}
 
         {open && !purchase && (
@@ -121,11 +129,13 @@ export function AddCreditsSheet({
 function PurchaseSuccess({
   amount,
   bonusAmount,
+  nextStepLabel,
   onDone,
   dependencies: d
 }: {
   amount: number;
   bonusAmount?: number;
+  nextStepLabel: string;
   onDone: () => void;
   dependencies: Pick<typeof DEPENDENCIES, "useWalletBalance">;
 }) {
@@ -141,7 +151,7 @@ function PurchaseSuccess({
         <p className="text-3xl font-semibold">{balance && !isLoading ? formatUsd(balance.totalUsd) : "Updating balance…"}</p>
       </div>
       <Button className="w-full" onClick={onDone}>
-        Done
+        {nextStepLabel}
       </Button>
     </div>
   );

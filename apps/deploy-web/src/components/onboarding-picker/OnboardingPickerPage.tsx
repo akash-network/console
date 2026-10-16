@@ -199,6 +199,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
           onOpenChange={open => setAddCreditsSheetReason(open ? "unlock-gpu" : null)}
           onRedeemed={() => setAddCreditsSheetReason(null)}
           initialTab={addCreditsSheetReason === "hackathon-coupon" ? "coupon" : "purchase"}
+          nextStepLabel={addCreditsSheetReason === "unlock-gpu" ? "Continue to deploy" : undefined}
           onDone={() => {
             if (addCreditsSheetReason === "unlock-gpu") {
               redirectToConfigure(TEMPLATE_IDS.llmChatbot);

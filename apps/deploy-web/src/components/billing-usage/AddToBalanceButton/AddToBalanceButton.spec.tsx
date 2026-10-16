@@ -44,30 +44,13 @@ describe(AddToBalanceButton.name, () => {
     expect(screen.getByTestId("add-credits-sheet")).toBeInTheDocument();
   });
 
-  it("shows the payment success animation and closes the sheet when a purchase completes", () => {
-    const { dependencies, MockAddCreditsSheet } = setup({
-      searchParamsGet: key => (key === "openPayment" ? "true" : null),
-      defaultPaymentMethod: { id: "pm_123" }
-    });
-
-    act(() => MockAddCreditsSheet.mock.calls.at(-1)![0].onDone(100));
-
-    expect(dependencies.PaymentSuccessAnimation).toHaveBeenCalledWith(expect.objectContaining({ show: true, amount: "100" }), expect.anything());
-    expect(MockAddCreditsSheet).toHaveBeenCalledWith(expect.objectContaining({ open: false }), expect.anything());
-  });
-
-  it("forwards the granted first-purchase bonus to the payment success animation", () => {
-    const { dependencies, MockAddCreditsSheet } = setup({
-      searchParamsGet: key => (key === "openPayment" ? "true" : null),
-      defaultPaymentMethod: { id: "pm_123" }
-    });
+  it("closes the sheet once its own confirmation of a purchase is dismissed", () => {
+    const { MockAddCreditsSheet } = setup({ searchParamsGet: () => null });
+    fireEvent.click(screen.getByRole("button", { name: /add to balance/i }));
 
     act(() => MockAddCreditsSheet.mock.calls.at(-1)![0].onDone(100, 10));
 
-    expect(dependencies.PaymentSuccessAnimation).toHaveBeenCalledWith(
-      expect.objectContaining({ show: true, amount: "100", bonusAmount: "10" }),
-      expect.anything()
-    );
+    expect(screen.queryByTestId("add-credits-sheet")).not.toBeInTheDocument();
   });
 
   function setup(input: {

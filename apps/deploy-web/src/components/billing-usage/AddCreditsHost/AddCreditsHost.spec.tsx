@@ -47,24 +47,24 @@ describe("AddCreditsHost", () => {
     expect(screen.getByTestId("add-credits-sheet")).toHaveAttribute("data-open", "false");
   });
 
-  it("closes the sheet and celebrates the credited total once a purchase completes", () => {
+  it("clears the request once the sheet's own confirmation of a purchase is dismissed", () => {
     const { open, store } = setup();
     open({ context: "review_funding_impact" });
 
     act(() => screen.getByRole("button", { name: "done" }).click());
 
     expect(store.get(addCreditsRequestAtom)).toBeNull();
-    expect(screen.getByTestId("payment-success")).toHaveTextContent("100+10");
+    expect(screen.getByTestId("add-credits-sheet")).toHaveAttribute("data-open", "false");
   });
 
-  it("closes the sheet without celebrating when a coupon is redeemed instead", () => {
+  it("clears the request when a coupon is redeemed instead", () => {
     const { open, store } = setup();
     open({ initialTab: "coupon" });
 
     act(() => screen.getByRole("button", { name: "redeemed" }).click());
 
     expect(store.get(addCreditsRequestAtom)).toBeNull();
-    expect(screen.queryByTestId("payment-success")).not.toBeInTheDocument();
+    expect(screen.getByTestId("add-credits-sheet")).toHaveAttribute("data-open", "false");
   });
 
   function setup() {
@@ -77,19 +77,10 @@ describe("AddCreditsHost", () => {
         <button onClick={() => onRedeemed?.()}>redeemed</button>
       </div>
     );
-    const PaymentSuccessAnimation: typeof DEPENDENCIES.PaymentSuccessAnimation = ({ show, amount, bonusAmount }) => (
-      <>
-        {show && (
-          <div data-testid="payment-success">
-            {amount}+{bonusAmount}
-          </div>
-        )}
-      </>
-    );
 
     render(
       <JotaiProvider store={store}>
-        <AddCreditsHost dependencies={{ AddCreditsSheet, PaymentSuccessAnimation }} />
+        <AddCreditsHost dependencies={{ AddCreditsSheet }} />
       </JotaiProvider>
     );
 

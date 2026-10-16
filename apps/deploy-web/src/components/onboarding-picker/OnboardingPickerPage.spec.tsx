@@ -154,6 +154,25 @@ describe(OnboardingPickerPage.name, () => {
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: LLM_ID, sdlStrategy: "default", bidStrategy: "auto" }));
   });
 
+  it("labels the purchase confirmation with the deploy step when the sheet unlocks the LLM template", () => {
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isTrialing: true, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
+
+    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).nextStepLabel).toBe("Continue to deploy");
+  });
+
+  it("leaves the purchase confirmation on its default label when the sheet opens for a hackathon coupon", () => {
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isTrialing: true, isHackathonsEnabled: true, searchParams: "redeemCoupon=true", dependencies: { AddCreditsSheet } });
+
+    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
+    expect(sheetProps.open).toBe(true);
+    expect(sheetProps.nextStepLabel).toBeUndefined();
+  });
+
   it("renders the skip-onboarding button in the body with the picker source", () => {
     const SkipOnboardingButton = vi.fn(ComponentMock);
     setup({ dependencies: { SkipOnboardingButton } });
