@@ -5,7 +5,7 @@ import { AppNav } from "./AppNav";
 export class OrganizationSwitcher {
   constructor(readonly page: Page) {}
 
-  /** Rendered only while the user belongs to at least one team, named after the organization the page runs in. */
+  /** Rendered for every signed-in user, named after the organization the page runs in. */
   trigger(activeOrganizationName?: string) {
     const name = activeOrganizationName ? `${activeOrganizationName}, switch organization` : /, switch organization$/;
     return this.page.getByRole("button", { name });
