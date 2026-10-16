@@ -43,10 +43,17 @@ const ANNOUNCEMENTS: Record<Activity["type"], (activity: FinishedActivity, label
     return status === "succeeded"
       ? { title: `${upperFirst(deployment)} closed`, subTitle: "It no longer runs or costs anything.", variant: "success" }
       : { title: `Couldn't close ${deployment}`, subTitle: meta.error?.message ?? "Try closing it again.", variant: "error" };
+  },
+  deployment_create: ({ status, meta }, labelDeployment) => {
+    const deployment = labelDeployment(meta.dseq);
+
+    return status === "succeeded"
+      ? { title: `${upperFirst(deployment)} created`, subTitle: "Choose a provider to start it.", variant: "success" }
+      : { title: `Couldn't create ${deployment}`, subTitle: meta.error?.message ?? "Try creating it again.", variant: "error" };
   }
 };
 
-const BATCH_ANNOUNCEMENTS: Record<Activity["type"], (batch: FinishedActivity[], labelDeployment: LabelDeployment) => Announcement> = {
+const BATCH_ANNOUNCEMENTS: Partial<Record<Activity["type"], (batch: FinishedActivity[], labelDeployment: LabelDeployment) => Announcement>> = {
   deployment_close: (batch, labelDeployment) => {
     const notClosed = batch.filter(activity => activity.status === "failed").map(activity => labelDeployment(activity.meta.dseq));
 
@@ -107,8 +114,9 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         const [first, ...rest] = batch;
         if (!first) continue;
 
-        if (rest.length === 0) announceActivity(first);
-        else announce(BATCH_ANNOUNCEMENTS[first.type](batch, labelDeployment), SUMMARY_DESTINATION);
+        const announceBatch = BATCH_ANNOUNCEMENTS[first.type];
+        if (rest.length === 0 || !announceBatch) announceActivity(first);
+        else announce(announceBatch(batch, labelDeployment), SUMMARY_DESTINATION);
       }
 
       function announceActivity(activity: FinishedActivity) {

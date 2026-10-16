@@ -16,7 +16,7 @@ import { FAIR_USE_POLICY_REQUIRED_ERROR_CODE, TrialValidationService } from "./t
 import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createBid } from "@test/seeders/bid.seeder";
 import { createUser } from "@test/seeders/user.seeder";
-import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(TrialValidationService.name, () => {
   describe("validateLeaseGpuModels", () => {
@@ -294,6 +294,24 @@ describe(TrialValidationService.name, () => {
       await service.validateFairUsePolicyAccepted([createDeploymentMessage()], wallet);
 
       expect(userRepository.findById).not.toHaveBeenCalled();
+    });
+
+    it("decides the gate for the wallet's own user, whoever runs the check", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const { service, featureFlagsService } = setupFairUse({ flagEnabled: false });
+
+      await service.validateFairUsePolicyAccepted([createDeploymentMessage()], wallet);
+
+      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith("fair_use_policy_gate", { userId: wallet.userId });
+    });
+
+    it("decides the gate for whoever runs the check when the wallet belongs to an organization", async () => {
+      const wallet = { ...createOrganizationWallet(), isTrialing: true };
+      const { service, featureFlagsService } = setupFairUse({ flagEnabled: false });
+
+      await service.validateFairUsePolicyAccepted([createDeploymentMessage()], wallet);
+
+      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith("fair_use_policy_gate", { userId: undefined });
     });
 
     it("passes when the trial user has accepted the policy", async () => {

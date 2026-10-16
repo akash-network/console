@@ -1151,6 +1151,14 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     return this.requireWrittenRow(row).id;
   }
 
+  /** Written before every create is sent, so the compensation proves the deployment absent from the last moment a create could have been sent rather than from when the record was written. */
+  async recordCreateAttempt(id: DeploymentSettingsOutput["id"]): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ updatedAt: sql`now()` })
+      .where(eq(this.table.id, id));
+  }
+
   /** The expected version is compared inside this statement's own WHERE, not by a prior read, so two patches racing over one document cannot both write. */
   async replaceDefinitionIfVersionMatches({
     userId,

@@ -27,7 +27,7 @@ const BLOCK_HEIGHT_HEADER = "x-cosmos-block-height";
  * It is also a floor no configuration can undermine: a grace period shortened below it does not start
  * deleting early, it just makes the compensation retry until the chain has moved far enough on.
  */
-const CHAIN_PROGRESS_MARGIN_IN_MIN = 10;
+export const CHAIN_PROGRESS_MARGIN_IN_MIN = 10;
 
 /**
  * The one error a missing deployment produces, and the only one that may be read as an answer rather than a

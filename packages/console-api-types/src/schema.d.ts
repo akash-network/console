@@ -10909,7 +10909,9 @@ export interface operations {
   };
   createDeployment: {
     parameters: {
-      query?: never;
+      query?: {
+        async?: "true" | "false";
+      };
       header?: {
         /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
         "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
@@ -10962,6 +10964,25 @@ export interface operations {
                 transactionHash: string;
                 rawLog: string;
               };
+            };
+          };
+        };
+      };
+      /** @description The create passed every check and will finish in the background */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              dseq: string;
+              manifest: string;
+              /**
+               * Format: uuid
+               * @description The activity that reports how the create ends.
+               */
+              activityId: string;
             };
           };
         };
@@ -12781,7 +12802,7 @@ export interface operations {
         limit?: number;
         cursor?: string;
         status?: "pending" | "succeeded" | "failed";
-        type?: "deployment_close";
+        type?: "deployment_close" | "deployment_create";
       };
       header?: {
         /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
@@ -12810,7 +12831,7 @@ export interface operations {
                  * @description What the action was.
                  * @enum {string}
                  */
-                type: "deployment_close";
+                type: "deployment_close" | "deployment_create";
                 /**
                  * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
                  * @enum {string}
@@ -12908,7 +12929,7 @@ export interface operations {
                * @description What the action was.
                * @enum {string}
                */
-              type: "deployment_close";
+              type: "deployment_close" | "deployment_create";
               /**
                * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
                * @enum {string}

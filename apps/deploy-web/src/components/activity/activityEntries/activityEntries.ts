@@ -16,6 +16,11 @@ export interface ActivityEntry {
 
 type LabelDeployment = (dseq: string | undefined) => string;
 
+const ENTRY_WORDING = {
+  deployment_close: { pending: "Closing", succeeded: "Closed", failed: "Couldn't close", retry: "Try closing it again." },
+  deployment_create: { pending: "Creating", succeeded: "Created", failed: "Couldn't create", retry: "Try creating it again." }
+} satisfies Record<Activity["type"], { pending: string; succeeded: string; failed: string; retry: string }>;
+
 /** A bulk close reads as one entry, placed where its newest close is, so it never crowds out everything else. */
 export function activityEntriesOf(activities: Activity[], labelDeployment: LabelDeployment, limit: number): ActivityEntry[] {
   const entries: ActivityEntry[] = [];
@@ -40,14 +45,15 @@ export function activityEntriesOf(activities: Activity[], labelDeployment: Label
 }
 
 export function activityEntryOf(activity: Activity, labelDeployment: LabelDeployment): ActivityEntry {
-  const { id, status, meta, createdAt } = activity;
+  const { id, type, status, meta, createdAt } = activity;
+  const wording = ENTRY_WORDING[type];
   const deployment = labelDeployment(meta.dseq);
   const { href } = activityDestinationOf(activity);
 
-  if (status === "pending") return { id, status, title: `Closing ${deployment}`, href, createdAt };
-  if (status === "succeeded") return { id, status, title: `Closed ${deployment}`, href, createdAt };
+  if (status === "pending") return { id, status, title: `${wording.pending} ${deployment}`, href, createdAt };
+  if (status === "succeeded") return { id, status, title: `${wording.succeeded} ${deployment}`, href, createdAt };
 
-  return { id, status, title: `Couldn't close ${deployment}`, detail: meta.error?.message ?? "Try closing it again.", href, createdAt };
+  return { id, status, title: `${wording.failed} ${deployment}`, detail: meta.error?.message ?? wording.retry, href, createdAt };
 }
 
 function batchEntryOf(batchId: string, batch: Activity[], labelDeployment: LabelDeployment): ActivityEntry {
