@@ -5,6 +5,7 @@ import { Card, DateRangePicker, Skeleton, ToggleGroup, ToggleGroupItem } from "@
 import { endOfToday, format, getDaysInMonth, startOfDay, subYears } from "date-fns";
 
 import { DailySpendChart } from "@src/components/billing-usage/DailySpendChart/DailySpendChart";
+import { DeploymentSpendList } from "@src/components/billing-usage/DeploymentSpendList/DeploymentSpendList";
 import type { ChildrenProps } from "@src/components/billing-usage/UsageContainer/UsageContainer";
 import { countDaysInRange, USAGE_DATE_PRESETS, type UsageDatePreset, type UsageDateRange } from "@src/components/billing-usage/UsageContainer/usageDatePresets";
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
@@ -13,7 +14,8 @@ import { ProjectSpendReport } from "@src/components/projects/ProjectSpendReport/
 export const DEPENDENCIES = {
   DailySpendChart,
   DateRangePicker,
-  ProjectSpendReport
+  ProjectSpendReport,
+  DeploymentSpendList
 };
 
 const CHART_RANGE_OPTIONS = [
@@ -49,10 +51,12 @@ export const UsageView: FC<UsageViewProps> = ({
   onDatePresetChange,
   projectSpendRange,
   dailySpendBreakdown,
+  deploymentSpend,
   dependencies: d = DEPENDENCIES
 }) => {
   const statsError = isUsageHistoryStatsError ? LOAD_ERROR : undefined;
-  const totalSpendCaption = [getRangeLabel(datePreset, dateRange), describeChange(spendChangePercent)].filter(Boolean).join(" · ");
+  const rangeLabel = getRangeLabel(datePreset, dateRange);
+  const totalSpendCaption = [rangeLabel, describeChange(spendChangePercent)].filter(Boolean).join(" · ");
   const daysInRange = countDaysInRange(dateRange);
 
   return (
@@ -123,6 +127,8 @@ export const UsageView: FC<UsageViewProps> = ({
       />
 
       {projectSpendRange && <d.ProjectSpendReport range={projectSpendRange} />}
+
+      {deploymentSpend && <d.DeploymentSpendList {...deploymentSpend} rangeLabel={rangeLabel} />}
     </div>
   );
 };

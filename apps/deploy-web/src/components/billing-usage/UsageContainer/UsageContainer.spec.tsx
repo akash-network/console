@@ -9,7 +9,7 @@ import type { OrganizationOutput, OrganizationRole } from "@src/types/organizati
 import type { Project } from "@src/types/project";
 import { perBlockToHourly } from "@src/utils/priceUtils";
 import { buildUsageCsv } from "./buildUsageCsv";
-import { scopeUsage } from "./teamUsage";
+import { deploymentRowsOf, scopeUsage } from "./teamUsage";
 import type { ChildrenProps, DEPENDENCIES } from "./UsageContainer";
 import { UsageContainer } from "./UsageContainer";
 import { getPreviousPeriod, getUsagePresetRange } from "./usageDatePresets";
@@ -289,11 +289,47 @@ describe(UsageContainer.name, () => {
     expect(narrowed.dailySpendBreakdown?.caption).toBe("Each bar is one day's total for this project");
   });
 
+  it("breaks a team's spend down by deployment across every project", async () => {
+    const report = { ...buildDeploymentSpend(0), projects: [buildReportProject("storefront", "Storefront"), buildReportProject("marketing", "Marketing")] };
+    const { child } = await setup({ ...TEAM_OWNER, deploymentSpend: report });
+
+    expect(child.deploymentSpend).toEqual({
+      title: "Spend by deployment",
+      rows: deploymentRowsOf(report, null),
+      showsProject: true,
+      isLoading: false,
+      isError: false
+    });
+  });
+
+  it("breaks the picked project's spend down by deployment without repeating the project", async () => {
+    const report = buildDeploymentSpend(0);
+    const { child, childCapturer } = await setup({
+      ...TEAM_OWNER,
+      deploymentSpend: report,
+      projects: [mock<Project>({ id: "storefront", name: "Storefront" })]
+    });
+
+    act(() => child.projectScope!.onChange("storefront"));
+    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "storefront");
+
+    expect(narrowed.deploymentSpend).toEqual(
+      expect.objectContaining({ title: "Spend by deployment · Storefront", rows: deploymentRowsOf(report, "storefront"), showsProject: false })
+    );
+  });
+
+  it("passes the loading and error flags of a team's deployment spend through", async () => {
+    const { child } = await setup({ ...TEAM_OWNER, isDeploymentSpendLoading: true, isDeploymentSpendError: true });
+
+    expect(child.deploymentSpend).toEqual(expect.objectContaining({ rows: [], isLoading: true, isError: true }));
+  });
+
   it("reads no deployment spend nor projects and offers no project filter outside a team", async () => {
     const { child, useDeploymentSpendQuery, useProjectsQuery } = await setup({ organization: { type: "personal", role: "owner" }, projectsEnabled: false });
 
     expect(child.projectScope).toBeNull();
     expect(child.dailySpendBreakdown).toBeNull();
+    expect(child.deploymentSpend).toBeNull();
     expect(useDeploymentSpendQuery).toHaveBeenCalledWith(expect.anything(), { enabled: false });
     expect(useProjectsQuery).toHaveBeenCalledWith({ enabled: false });
   });

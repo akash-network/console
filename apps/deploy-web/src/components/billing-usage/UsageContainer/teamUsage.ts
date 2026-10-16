@@ -10,6 +10,21 @@ export type ProjectScope = string | null;
 /** Project ids are uuids, so the deployments filed in no project get a key no project can take. */
 const UNASSIGNED_SERIES_KEY = "unassigned";
 
+const UNASSIGNED_LABEL = "Unassigned";
+
+/** The api lists every project its deployments are filed in, so this shows only if that contract breaks. */
+const UNKNOWN_PROJECT_LABEL = "Unknown project";
+
+export type DeploymentSpendRow = {
+  dseq: string;
+  name: string | null;
+  projectName: string;
+  hours: number;
+  hourlyRateUsd: number;
+  consumedUsd: number;
+  sharePercent: number;
+};
+
 export type ScopedUsage = {
   dailySpend: DailySpend[];
   stats: UsageHistoryStats;
@@ -49,17 +64,40 @@ export function scopeUsage(report: DeploymentSpendReport, scope: ProjectScope): 
 export function projectSeriesOf(report: DeploymentSpendReport, onSelect: (projectId: string) => void): SpendSeries[] {
   const spendByKey = new Map<string, number>();
   report.days.forEach(({ projectId, consumedUsd }) => spendByKey.set(seriesKeyOf(projectId), (spendByKey.get(seriesKeyOf(projectId)) ?? 0) + consumedUsd));
-  const projectSeries = report.projects.map(({ projectId, name, isDeleted }) =>
-    isDeleted ? { key: projectId, label: `${name} (deleted)` } : { key: projectId, label: name, onSelect: () => onSelect(projectId) }
+  const projectSeries = report.projects.map(project =>
+    project.isDeleted
+      ? { key: project.projectId, label: projectLabelOf(project) }
+      : { key: project.projectId, label: projectLabelOf(project), onSelect: () => onSelect(project.projectId) }
   );
 
-  return [...projectSeries, { key: UNASSIGNED_SERIES_KEY, label: "Unassigned" }]
+  return [...projectSeries, { key: UNASSIGNED_SERIES_KEY, label: UNASSIGNED_LABEL }]
     .filter(({ key }) => spendByKey.has(key))
     .sort((left, right) => spendByKey.get(right.key)! - spendByKey.get(left.key)!);
 }
 
+/** The api lists the biggest spender first, and each share is of the scope's total so a project's rows add up to all of it. */
+export function deploymentRowsOf(report: DeploymentSpendReport, scope: ProjectScope): DeploymentSpendRow[] {
+  const projectNames = new Map(report.projects.map(project => [project.projectId, projectLabelOf(project)]));
+  const deployments = report.deployments.filter(({ projectId }) => isInScope(projectId, scope));
+  const totalUsd = sumOf(deployments.map(({ consumedUsd }) => consumedUsd));
+
+  return deployments.map(({ dseq, name, projectId, hours, consumedUsd }) => ({
+    dseq,
+    name,
+    projectName: projectId === null ? UNASSIGNED_LABEL : projectNames.get(projectId) ?? UNKNOWN_PROJECT_LABEL,
+    hours,
+    hourlyRateUsd: hours > 0 ? consumedUsd / hours : 0,
+    consumedUsd,
+    sharePercent: totalUsd > 0 ? (consumedUsd / totalUsd) * 100 : 0
+  }));
+}
+
 export function hourlyRateOf(perBlockUsdByDseq: Map<string, number>, dseqs: string[]): number {
   return perBlockToHourly(dseqs.reduce((total, dseq) => total + (perBlockUsdByDseq.get(dseq) ?? 0), 0));
+}
+
+function projectLabelOf({ name, isDeleted }: DeploymentSpendReport["projects"][number]): string {
+  return isDeleted ? `${name} (deleted)` : name;
 }
 
 function seriesKeyOf(projectId: string | null): string {

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { DeploymentSpendReport } from "@src/types/deployment-spend";
 import { perBlockToHourly } from "@src/utils/priceUtils";
-import { hourlyRateOf, isInScope, projectSeriesOf, scopeUsage } from "./teamUsage";
+import { deploymentRowsOf, hourlyRateOf, isInScope, projectSeriesOf, scopeUsage } from "./teamUsage";
 
 describe(scopeUsage.name, () => {
   it("adds up every project and the unassigned spend of each day for the whole organization", () => {
@@ -84,6 +84,65 @@ function buildReport(range: Pick<DeploymentSpendReport, "startDate" | "endDate">
     ]
   };
 }
+
+describe(deploymentRowsOf.name, () => {
+  it("lists every deployment of the organization with its project, hourly rate and share of the total", () => {
+    expect(deploymentRowsOf(buildReport(), null)).toEqual([
+      {
+        dseq: "1",
+        name: "web",
+        projectName: "Storefront",
+        hours: 48,
+        hourlyRateUsd: 3.1 / 48,
+        consumedUsd: 3.1,
+        sharePercent: expect.closeTo((3.1 / 3.8) * 100, 10)
+      },
+      {
+        dseq: "2",
+        name: null,
+        projectName: "Marketing",
+        hours: 5,
+        hourlyRateUsd: 0.5 / 5,
+        consumedUsd: 0.5,
+        sharePercent: expect.closeTo((0.5 / 3.8) * 100, 10)
+      },
+      {
+        dseq: "3",
+        name: null,
+        projectName: "Unassigned",
+        hours: 2,
+        hourlyRateUsd: 0.2 / 2,
+        consumedUsd: 0.2,
+        sharePercent: expect.closeTo((0.2 / 3.8) * 100, 10)
+      }
+    ]);
+  });
+
+  it("keeps the deployments of the project the page is narrowed to and shares out its total", () => {
+    expect(deploymentRowsOf(buildReport(), "marketing")).toEqual([expect.objectContaining({ dseq: "2", sharePercent: 100 })]);
+  });
+
+  it("labels the deployments of a deleted project", () => {
+    const report = buildReport();
+    report.projects[0] = { ...report.projects[0], isDeleted: true };
+
+    expect(deploymentRowsOf(report, "marketing")[0].projectName).toBe("Marketing (deleted)");
+  });
+
+  it("names no project it wasn't given", () => {
+    const report = buildReport();
+    report.deployments[0] = { ...report.deployments[0], projectId: "elsewhere" };
+
+    expect(deploymentRowsOf(report, null)[0].projectName).toBe("Unknown project");
+  });
+
+  it("gives a deployment without hours no rate and a scope without spend no shares", () => {
+    const report = buildReport();
+    report.deployments = [{ dseq: "4", name: null, projectId: "storefront", consumedUsd: 0, hours: 0 }];
+
+    expect(deploymentRowsOf(report, null)).toEqual([expect.objectContaining({ hourlyRateUsd: 0, sharePercent: 0 })]);
+  });
+});
 
 describe(isInScope.name, () => {
   it("counts every project and the unassigned spend in the whole organization", () => {
