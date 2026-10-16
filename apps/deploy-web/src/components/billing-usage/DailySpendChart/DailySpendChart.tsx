@@ -6,7 +6,9 @@ import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 
-export type DailySpend = { date: string; dailyUsdSpent: number };
+export type DailySpend = { date: string; dailyUsdSpent: number; spendBySeries?: Record<string, number> };
+
+export type SpendSeries = { key: string; label: string; onSelect?: () => void };
 
 export const DEPENDENCIES = {
   Card,
@@ -19,15 +21,30 @@ const CHART_CONFIG = { dailyUsdSpent: { label: "Spend" } } satisfies ChartConfig
 /** Above this many bars the gap between them shrinks to a hairline so a year still fits. */
 const MAX_DAYS_WITH_WIDE_GAPS = 31;
 
+/** The last series keeps this much of the foreground, so even the lightest stack stands out from the empty track. */
+const MIN_SERIES_SHADE_PERCENT = 25;
+
+const DEFAULT_CAPTION = "Each bar is one day's total across all deployments";
+
 export type DailySpendChartProps = {
   data: DailySpend[];
   isLoading: boolean;
   isError: boolean;
   rangeToggle?: ReactNode;
+  series?: SpendSeries[];
+  caption?: string;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const DailySpendChart: FC<DailySpendChartProps> = ({ data, isLoading, isError, rangeToggle, dependencies: d = DEPENDENCIES }) => {
+export const DailySpendChart: FC<DailySpendChartProps> = ({
+  data,
+  isLoading,
+  isError,
+  rangeToggle,
+  series = [],
+  caption = DEFAULT_CAPTION,
+  dependencies: d = DEPENDENCIES
+}) => {
   const gradientId = `daily-spend-${useId().replace(/:/g, "")}`;
   const total = data.reduce((sum, day) => sum + day.dailyUsdSpent, 0);
   const isReady = !isLoading && !isError;
@@ -42,10 +59,12 @@ export const DailySpendChart: FC<DailySpendChartProps> = ({ data, isLoading, isE
             {isLoading && <d.Skeleton className="h-6 w-28" />}
             {isReady && <UsdValue value={total} />}
           </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">Each bar is one day's total across all deployments</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{caption}</p>
         </div>
         {rangeToggle}
       </div>
+
+      {hasSpend && series.length > 0 && <SeriesLegend series={series} />}
 
       {isError && (
         <p className="flex h-[140px] items-center justify-center text-center text-sm text-muted-foreground">
@@ -70,8 +89,20 @@ export const DailySpendChart: FC<DailySpendChartProps> = ({ data, isLoading, isE
             </defs>
             <XAxis dataKey="date" hide />
             <YAxis hide domain={[0, "dataMax"]} />
-            <ChartTooltip cursor={{ fill: "hsl(var(--muted))" }} content={<DailySpendTooltip />} />
-            <Bar dataKey="dailyUsdSpent" fill={`url(#${gradientId})`} radius={2} isAnimationActive={false} />
+            <ChartTooltip cursor={{ fill: "hsl(var(--muted))" }} content={<DailySpendTooltip series={series} />} />
+            {series.length > 0 ? (
+              series.map(({ key }, index) => (
+                <Bar
+                  key={key}
+                  dataKey={(day: DailySpend) => day.spendBySeries?.[key] ?? 0}
+                  stackId="daily-spend"
+                  fill={seriesShade(index, series.length)}
+                  isAnimationActive={false}
+                />
+              ))
+            ) : (
+              <Bar dataKey="dailyUsdSpent" fill={`url(#${gradientId})`} radius={2} isAnimationActive={false} />
+            )}
           </BarChart>
         </d.ChartContainer>
       )}
@@ -85,10 +116,11 @@ export const DailySpendChart: FC<DailySpendChartProps> = ({ data, isLoading, isE
   );
 };
 
-export const DailySpendTooltip: FC<{ active?: boolean; payload?: Array<{ payload: DailySpend }> }> = ({ active, payload }) => {
+export const DailySpendTooltip: FC<{ active?: boolean; payload?: Array<{ payload: DailySpend }>; series: SpendSeries[] }> = ({ active, payload, series }) => {
   if (!active || !payload?.length) return null;
 
   const day = payload[0].payload;
+  const spentSeries = series.map(({ key, label }) => ({ key, label, amount: day.spendBySeries?.[key] ?? 0 })).filter(({ amount }) => amount > 0);
 
   return (
     <div className="rounded-lg bg-foreground px-2.5 py-2 text-xs text-background shadow-lg">
@@ -96,9 +128,47 @@ export const DailySpendTooltip: FC<{ active?: boolean; payload?: Array<{ payload
       <div className="font-mono font-semibold tabular-nums">
         <UsdValue value={day.dailyUsdSpent} />
       </div>
+      {spentSeries.map(({ key, label, amount }) => (
+        <div key={key} className="flex justify-between gap-3">
+          <span className="truncate">{label}</span>
+          <span className="font-mono tabular-nums">
+            <UsdValue value={amount} />
+          </span>
+        </div>
+      ))}
     </div>
   );
 };
+
+const SeriesLegend: FC<{ series: SpendSeries[] }> = ({ series }) => (
+  <ul aria-label="Legend" className="mb-3 flex flex-wrap gap-x-3.5 gap-y-1.5 font-mono text-[11.5px] text-muted-foreground">
+    {series.map(({ key, label, onSelect }, index) => {
+      const swatch = <span aria-hidden className="h-2 w-2 shrink-0 rounded-sm" style={{ background: seriesShade(index, series.length) }} />;
+
+      return (
+        <li key={key}>
+          {onSelect ? (
+            <button type="button" onClick={onSelect} title={`Show only ${label}`} className="inline-flex items-center gap-1.5 hover:text-foreground">
+              {swatch}
+              {label}
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              {swatch}
+              {label}
+            </span>
+          )}
+        </li>
+      );
+    })}
+  </ul>
+);
+
+function seriesShade(index: number, count: number) {
+  const fade = count > 1 ? (index / (count - 1)) * (100 - MIN_SERIES_SHADE_PERCENT) : 0;
+
+  return `color-mix(in oklab, hsl(var(--foreground)) ${Math.round(100 - fade)}%, hsl(var(--muted)))`;
+}
 
 function getTickLabels(days: DailySpend[]) {
   const lastIndex = days.length - 1;

@@ -48,6 +48,7 @@ export const UsageView: FC<UsageViewProps> = ({
   datePreset,
   onDatePresetChange,
   projectSpendRange,
+  dailySpendBreakdown,
   dependencies: d = DEPENDENCIES
 }) => {
   const statsError = isUsageHistoryStatsError ? LOAD_ERROR : undefined;
@@ -117,6 +118,8 @@ export const UsageView: FC<UsageViewProps> = ({
         isLoading={isUsageHistoryLoading}
         isError={isUsageHistoryError}
         rangeToggle={<ChartRangeToggle datePreset={datePreset} onDatePresetChange={onDatePresetChange} />}
+        caption={dailySpendBreakdown?.caption}
+        series={dailySpendBreakdown?.series}
       />
 
       {projectSpendRange && <d.ProjectSpendReport range={projectSpendRange} />}

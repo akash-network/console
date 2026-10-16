@@ -1,12 +1,14 @@
 import React, { type ComponentPropsWithoutRef, forwardRef, type ReactElement } from "react";
 import { IntlProvider } from "react-intl";
 import { format, startOfToday, subDays } from "date-fns";
+import { Bar, type BarProps } from "recharts";
 import { describe, expect, it, vi } from "vitest";
 
-import type { DailySpend } from "./DailySpendChart";
+import type { DailySpend, SpendSeries } from "./DailySpendChart";
 import { DailySpendChart, DailySpendTooltip, DEPENDENCIES } from "./DailySpendChart";
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(DailySpendChart.name, () => {
@@ -92,11 +94,79 @@ describe(DailySpendChart.name, () => {
     expect(screen.getByRole("button", { name: "7d" })).toBeInTheDocument();
   });
 
-  function setup(input: { days: DailySpend[]; isLoading?: boolean; isError?: boolean; rangeToggle?: React.ReactNode }) {
+  it("says what each bar adds up when no caption is given", () => {
+    setup({ days: [buildDay(0, 1)] });
+
+    expect(screen.getByText("Each bar is one day's total across all deployments")).toBeInTheDocument();
+  });
+
+  it("shows the caption it is given", () => {
+    setup({ days: [buildDay(0, 1)], caption: "Each bar is one day's total for Storefront" });
+
+    expect(screen.getByText("Each bar is one day's total for Storefront")).toBeInTheDocument();
+  });
+
+  it("draws each day as one bar without series", () => {
+    const { bars } = setup({ days: [buildDay(0, 1)] });
+
+    expect(bars()).toHaveLength(1);
+    expect(bars()[0]).toEqual(expect.objectContaining({ dataKey: "dailyUsdSpent", isAnimationActive: false }));
+    expect(screen.queryByRole("list", { name: "Legend" })).not.toBeInTheDocument();
+  });
+
+  it("stacks the series of each day from the darkest shade to the lightest", () => {
+    const day = buildDay(0, 2.5, { storefront: 2, marketing: 0.5 });
+    const { bars } = setup({ days: [day], series: buildSeries() });
+
+    expect(bars().map(({ stackId, fill, isAnimationActive }) => ({ stackId, fill, isAnimationActive }))).toEqual([
+      { stackId: "daily-spend", fill: shadeOf(100), isAnimationActive: false },
+      { stackId: "daily-spend", fill: shadeOf(63), isAnimationActive: false },
+      { stackId: "daily-spend", fill: shadeOf(25), isAnimationActive: false }
+    ]);
+    expect(bars().map(({ dataKey }) => (dataKey as (spend: DailySpend) => number)(day))).toEqual([2, 0.5, 0]);
+    expect(bars().map(({ dataKey }) => (dataKey as (spend: DailySpend) => number)(buildDay(1, 0)))).toEqual([0, 0, 0]);
+  });
+
+  it("fills a lone series with the full foreground", () => {
+    const { bars } = setup({ days: [buildDay(0, 1, { storefront: 1 })], series: [{ key: "storefront", label: "Storefront" }] });
+
+    expect(bars()[0].fill).toBe(shadeOf(100));
+  });
+
+  it("lists the series in a legend and narrows the page to the one picked", async () => {
+    const series = buildSeries();
+    setup({ days: [buildDay(0, 2.5, { storefront: 2, marketing: 0.5 })], series });
+
+    await userEvent.click(screen.getByRole("button", { name: "Marketing" }));
+
+    expect(screen.getByRole("list", { name: "Legend" })).toHaveTextContent("StorefrontMarketingUnassigned");
+    expect(screen.getByRole("button", { name: "Storefront" })).toHaveAttribute("title", "Show only Storefront");
+    expect(screen.queryByRole("button", { name: "Unassigned" })).not.toBeInTheDocument();
+    expect(series[1].onSelect).toHaveBeenCalled();
+  });
+
+  it("leaves the legend out of a range without spend", () => {
+    setup({ days: [buildDay(0, 0)], series: buildSeries() });
+
+    expect(screen.queryByRole("list", { name: "Legend" })).not.toBeInTheDocument();
+  });
+
+  function setup(input: {
+    days: DailySpend[];
+    isLoading?: boolean;
+    isError?: boolean;
+    rangeToggle?: React.ReactNode;
+    series?: SpendSeries[];
+    caption?: string;
+  }) {
     const renderChartContainer = vi.fn((_props: ComponentPropsWithoutRef<typeof DEPENDENCIES.ChartContainer>) => null);
     const ChartContainer = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof DEPENDENCIES.ChartContainer>>(props => renderChartContainer(props));
     const dependencies = MockComponents(DEPENDENCIES, { ChartContainer });
-    const chartProps = () => (renderChartContainer.mock.lastCall![0].children as ReactElement).props;
+    const chartProps = () => (renderChartContainer.mock.lastCall![0].children as ReactElement<{ children: React.ReactNode }>).props;
+    const bars = () =>
+      React.Children.toArray(chartProps().children)
+        .filter((child): child is ReactElement<BarProps> => (child as ReactElement).type === Bar)
+        .map(({ props }) => props);
 
     render(
       <IntlProvider locale="en-US">
@@ -105,12 +175,26 @@ describe(DailySpendChart.name, () => {
           isLoading={input.isLoading ?? false}
           isError={input.isError ?? false}
           rangeToggle={input.rangeToggle}
+          series={input.series}
+          caption={input.caption}
           dependencies={dependencies}
         />
       </IntlProvider>
     );
 
-    return { ...dependencies, ChartContainer: renderChartContainer, chartProps };
+    return { ...dependencies, ChartContainer: renderChartContainer, chartProps, bars };
+  }
+
+  function buildSeries(): SpendSeries[] {
+    return [
+      { key: "storefront", label: "Storefront", onSelect: vi.fn() },
+      { key: "marketing", label: "Marketing", onSelect: vi.fn() },
+      { key: "unassigned", label: "Unassigned" }
+    ];
+  }
+
+  function shadeOf(foregroundPercent: number) {
+    return `color-mix(in oklab, hsl(var(--foreground)) ${foregroundPercent}%, hsl(var(--muted)))`;
   }
 });
 
@@ -118,7 +202,7 @@ describe(DailySpendTooltip.name, () => {
   it("shows the hovered day's date and spend", () => {
     render(
       <IntlProvider locale="en-US">
-        <DailySpendTooltip active payload={[{ payload: { date: "2026-10-01", dailyUsdSpent: 12.5 } }]} />
+        <DailySpendTooltip active payload={[{ payload: { date: "2026-10-01", dailyUsdSpent: 12.5 } }]} series={[]} />
       </IntlProvider>
     );
 
@@ -126,10 +210,39 @@ describe(DailySpendTooltip.name, () => {
     expect(screen.getByText("$12.50")).toBeInTheDocument();
   });
 
+  it("breaks the hovered day down by the series that spent on it", () => {
+    const series = [
+      { key: "storefront", label: "Storefront" },
+      { key: "marketing", label: "Marketing" },
+      { key: "unassigned", label: "Unassigned" }
+    ];
+    const day = { date: "2026-10-01", dailyUsdSpent: 2.5, spendBySeries: { storefront: 2, marketing: 0.5, unassigned: 0 } };
+    render(
+      <IntlProvider locale="en-US">
+        <DailySpendTooltip active payload={[{ payload: day }]} series={series} />
+      </IntlProvider>
+    );
+
+    expect(screen.getByText("Storefront").parentElement).toHaveTextContent("Storefront$2.00");
+    expect(screen.getByText("Marketing").parentElement).toHaveTextContent("Marketing$0.50");
+    expect(screen.queryByText("Unassigned")).not.toBeInTheDocument();
+  });
+
+  it("shows only the total of a hovered day that no series spent on", () => {
+    render(
+      <IntlProvider locale="en-US">
+        <DailySpendTooltip active payload={[{ payload: { date: "2026-10-01", dailyUsdSpent: 0 } }]} series={[{ key: "storefront", label: "Storefront" }]} />
+      </IntlProvider>
+    );
+
+    expect(screen.getByText("$0.00")).toBeInTheDocument();
+    expect(screen.queryByText("Storefront")).not.toBeInTheDocument();
+  });
+
   it("renders nothing without a hovered day's data", () => {
     const { container } = render(
       <IntlProvider locale="en-US">
-        <DailySpendTooltip active />
+        <DailySpendTooltip active series={[]} />
       </IntlProvider>
     );
 
@@ -139,7 +252,7 @@ describe(DailySpendTooltip.name, () => {
   it("renders nothing while no day is hovered", () => {
     const { container } = render(
       <IntlProvider locale="en-US">
-        <DailySpendTooltip active={false} payload={[{ payload: { date: "2026-10-01", dailyUsdSpent: 12.5 } }]} />
+        <DailySpendTooltip active={false} payload={[{ payload: { date: "2026-10-01", dailyUsdSpent: 12.5 } }]} series={[]} />
       </IntlProvider>
     );
 
@@ -147,6 +260,6 @@ describe(DailySpendTooltip.name, () => {
   });
 });
 
-function buildDay(daysAgo: number, dailyUsdSpent: number): DailySpend {
-  return { date: format(subDays(startOfToday(), daysAgo), "yyyy-MM-dd"), dailyUsdSpent };
+function buildDay(daysAgo: number, dailyUsdSpent: number, spendBySeries?: Record<string, number>): DailySpend {
+  return { date: format(subDays(startOfToday(), daysAgo), "yyyy-MM-dd"), dailyUsdSpent, spendBySeries };
 }
