@@ -208,6 +208,23 @@ describe("Organization members", () => {
       expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role: "viewer", projectAccess: "selected" });
     });
 
+    it("finds a grant the member holds outside the project the request is narrowed to", async () => {
+      const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: "billing" });
+      const narrowedTo = await seedProject({ organizationId: organization.id });
+      const granted = await seedProject({ organizationId: organization.id });
+      await seedProjectMember({ organizationId: organization.id, projectId: granted.id, userId: target.id, role: "viewer" });
+
+      const response = await request("PATCH", `/v1/organization-members/${membershipOf(target).id}`, {
+        asUser: owner,
+        organizationId: organization.id,
+        projectId: narrowedTo.id,
+        body: { data: { role: "viewer", projectAccess: "selected" } }
+      });
+
+      expect(response.status).toBe(200);
+      expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role: "viewer", projectAccess: "selected" });
+    });
+
     it("answers not found for a member of another organization", async () => {
       const { organization, owner, request } = await setup({ callerRole: "owner" });
       const { membership: foreign } = await seedOrganizationWithOwner();
@@ -389,8 +406,12 @@ describe("Organization members", () => {
       return memberships.get(user.id)!;
     }
 
-    async function request(method: string, path: string, options: { asUser: UserOutput; organizationId: string; body?: unknown }) {
-      const headers = { authorization: `Bearer ${tokenByUserId.get(options.asUser.id)}`, "x-organization-id": options.organizationId };
+    async function request(method: string, path: string, options: { asUser: UserOutput; organizationId: string; projectId?: string; body?: unknown }) {
+      const headers = {
+        authorization: `Bearer ${tokenByUserId.get(options.asUser.id)}`,
+        "x-organization-id": options.organizationId,
+        ...(options.projectId && { "x-project-id": options.projectId })
+      };
 
       if (options.body === undefined) {
         return await app.request(path, { method, headers });

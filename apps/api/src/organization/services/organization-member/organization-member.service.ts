@@ -146,8 +146,9 @@ export class OrganizationMemberService {
     await this.departedMemberAlertsService.stopTeamAlertsTo(member.userId, organizationId);
   }
 
+  /** Reads the grants across the organization, since a request narrowed to one project would hide the ones held in others. */
   async #assertHoldsAProjectGrant({ organizationId, userId }: OrganizationMemberOutput): Promise<void> {
-    const grants = await this.projectMemberRepository.accessibleBy(this.authService.ability, "read").findLiveGrantsOf(organizationId, userId);
+    const grants = await this.projectMemberRepository.unscoped("member-access-validation").findLiveGrantsOf(organizationId, userId);
     assert(grants.length > 0, 400, "A member or viewer with access to specific projects needs at least one project grant");
   }
 

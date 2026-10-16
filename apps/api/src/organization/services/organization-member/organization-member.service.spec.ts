@@ -209,7 +209,7 @@ describe(OrganizationMemberService.name, () => {
 
     it("makes a billing member a viewer of specific projects while they hold a project grant", async () => {
       const member = createOrganizationMember({ role: "billing", projectAccess: "all" });
-      const { service, repositories, projectMemberRepository, projectMemberReads, ability } = setup({
+      const { service, repositories, projectMemberRepository, projectMemberReads } = setup({
         member,
         callerIsOwner: true,
         grants: [{ projectId: faker.string.uuid(), role: "viewer" }]
@@ -217,7 +217,7 @@ describe(OrganizationMemberService.name, () => {
 
       await service.updateRole(member.id, { role: "viewer", projectAccess: "selected" });
 
-      expect(projectMemberRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
+      expect(projectMemberRepository.unscoped).toHaveBeenCalledWith("member-access-validation");
       expect(projectMemberReads.findLiveGrantsOf).toHaveBeenCalledWith(member.organizationId, member.userId);
       expect(repositories.update.updateById).toHaveBeenCalledWith(member.id, { role: "viewer", projectAccess: "selected" });
     });
@@ -565,7 +565,7 @@ describe(OrganizationMemberService.name, () => {
     const departedMemberAlertsService = mock<DepartedMemberAlertsService>();
     const projectMemberReads = mock<ProjectMemberRepository>({ findLiveGrantsOf: vi.fn().mockResolvedValue(input.grants ?? []) });
     const projectMemberRepository = mock<ProjectMemberRepository>();
-    projectMemberRepository.accessibleBy.mockReturnValue(projectMemberReads);
+    projectMemberRepository.unscoped.mockReturnValue(projectMemberReads);
     const service = new OrganizationMemberService(
       organizationMemberRepository,
       projectMemberRepository,
