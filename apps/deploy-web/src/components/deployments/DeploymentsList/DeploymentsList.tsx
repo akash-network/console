@@ -19,6 +19,7 @@ import Link from "next/link";
 import { NextSeo } from "next-seo";
 
 import { ProjectScopeProvider } from "@src/components/projects/ProjectScope/ProjectScope";
+import { SectionLabel } from "@src/components/projects/SectionLabel/SectionLabel";
 import { ViewOnlyNotice } from "@src/components/projects/ViewOnlyNotice/ViewOnlyNotice";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";
@@ -241,7 +242,16 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
             {project ? (
               <ProjectScopeProvider value={project.id}>
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-                  <div className="min-w-0">{content}</div>
+                  <section aria-label="Deployments" className="min-w-0">
+                    <SectionLabel
+                      rightSlot={
+                        model.activeTotal !== null && <span className="whitespace-nowrap text-xs text-muted-foreground">{model.activeTotal} active</span>
+                      }
+                    >
+                      Deployments
+                    </SectionLabel>
+                    {content}
+                  </section>
                   <aside className="min-w-0 space-y-6">{project.aside}</aside>
                 </div>
               </ProjectScopeProvider>
