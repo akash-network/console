@@ -1,8 +1,12 @@
 import { z } from "@hono/zod-openapi";
 
-import { organizationRoleEnum } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { organizationRoleEnum, projectAccessEnum } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 
 const OrganizationRoleSchema = z.enum(organizationRoleEnum.enumValues);
+
+export const ProjectAccessSchema = z.enum(projectAccessEnum.enumValues).openapi({
+  description: "`all` reaches every project of the organization, including ones created later. `selected` reaches only the granted ones."
+});
 
 export const OrganizationMemberSchema = z.object({
   id: z.string().uuid(),
@@ -27,7 +31,11 @@ export const OrganizationMemberParamsSchema = z.object({
 
 export const UpdateOrganizationMemberRequestSchema = z.object({
   data: z.object({
-    role: OrganizationRoleSchema
+    role: OrganizationRoleSchema,
+    projectAccess: ProjectAccessSchema.optional().openapi({
+      description:
+        "Required when someone becomes a member or viewer from another role, refused with `project_access_required` otherwise. A member or viewer on `selected` needs at least one project grant. Ignored for owners, admins and billing members."
+    })
   })
 });
 

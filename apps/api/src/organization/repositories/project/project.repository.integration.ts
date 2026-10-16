@@ -102,6 +102,18 @@ describe(ProjectRepository.name, () => {
     });
   });
 
+  describe("findActiveIdsOf", () => {
+    it("lists every live project of the organization and nothing else", async () => {
+      const { repository, organization } = await setup();
+      const first = await seedProject({ organizationId: organization.id });
+      const second = await seedProject({ organizationId: organization.id });
+      await seedProject({ organizationId: organization.id, deletedAt: new Date() });
+      await seedProject({ organizationId: (await seedOrganization()).id });
+
+      expect((await repository.findActiveIdsOf(organization.id)).sort()).toEqual([first.id, second.id].sort());
+    });
+  });
+
   describe("findActiveGrantsOf", () => {
     it("lists the live projects of the organization granted to the user with the project role and nothing else", async () => {
       const { repository, organization, user } = await setup();

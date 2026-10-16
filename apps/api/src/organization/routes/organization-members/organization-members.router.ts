@@ -53,7 +53,7 @@ const updateOrganizationMemberRoute = createRoute({
   method: "patch",
   path: "/v1/organization-members/{id}",
   operationId: "updateOrganizationMember",
-  summary: "Change the role of a member of the active organization",
+  summary: "Change the role and project access of a member of the active organization",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.ORGANIZATIONS,
@@ -63,7 +63,11 @@ const updateOrganizationMemberRoute = createRoute({
   },
   responses: {
     200: { description: "The updated member", content: { "application/json": { schema: OrganizationMemberResponseSchema } } },
-    ...memberWriteErrorResponses
+    ...memberWriteErrorResponses,
+    400: {
+      description:
+        "The request is invalid, someone becoming a member or viewer has no project access stated (`project_access_required`), a member or viewer on specific projects would hold no grant, or the organization header names another organization than the API key's (`organization_mismatch`)"
+    }
   }
 });
 

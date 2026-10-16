@@ -119,6 +119,17 @@ export class ProjectRepository extends OrgScopedRepository<Table, ProjectInput, 
     return project && this.toOutput(project);
   }
 
+  async findActiveIdsOf(organizationId: ProjectOutput["organizationId"]): Promise<string[]> {
+    const projects = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(
+        this.unscoped("active-organization-resolution").whereAccessibleBy(and(eq(this.table.organizationId, organizationId), isNull(this.table.deletedAt)))
+      );
+
+    return projects.map(project => project.id);
+  }
+
   async findActiveGrantsOf(organizationId: ProjectOutput["organizationId"], userId: string): Promise<ProjectGrantOfUser[]> {
     return await this.cursor
       .select({ projectId: this.table.id, role: ProjectMembers.role })

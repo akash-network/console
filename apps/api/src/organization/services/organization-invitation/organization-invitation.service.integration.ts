@@ -28,7 +28,9 @@ describe(OrganizationInvitationService.name, () => {
       );
 
       const outcomes = await Promise.allSettled(
-        ["jane@example.com", "joe@example.com"].map(email => runAs(owner, () => service.createInvitations({ emails: [email], role: "member" })))
+        ["jane@example.com", "joe@example.com"].map(email =>
+          runAs(owner, () => service.createInvitations({ emails: [email], role: "member", projectAccess: "all" }))
+        )
       );
 
       expect(outcomes.map(outcome => outcome.status).sort()).toEqual(["fulfilled", "rejected"]);

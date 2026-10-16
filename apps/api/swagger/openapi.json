@@ -26453,7 +26453,7 @@
     "/v1/organization-members/{id}": {
       "patch": {
         "operationId": "updateOrganizationMember",
-        "summary": "Change the role of a member of the active organization",
+        "summary": "Change the role and project access of a member of the active organization",
         "tags": [
           "Organizations"
         ],
@@ -26501,6 +26501,14 @@
                           "billing",
                           "viewer"
                         ]
+                      },
+                      "projectAccess": {
+                        "type": "string",
+                        "enum": [
+                          "all",
+                          "selected"
+                        ],
+                        "description": "Required when someone becomes a member or viewer from another role, refused with `project_access_required` otherwise. A member or viewer on `selected` needs at least one project grant. Ignored for owners, admins and billing members."
                       }
                     },
                     "required": [
@@ -26575,7 +26583,7 @@
             }
           },
           "400": {
-            "description": "The request is invalid, or the organization header names another organization than the API key's (`organization_mismatch`)"
+            "description": "The request is invalid, someone becoming a member or viewer has no project access stated (`project_access_required`), a member or viewer on specific projects would hold no grant, or the organization header names another organization than the API key's (`organization_mismatch`)"
           },
           "401": {
             "description": "Unauthorized"
@@ -26795,6 +26803,14 @@
                               "viewer"
                             ]
                           },
+                          "projectAccess": {
+                            "type": "string",
+                            "enum": [
+                              "all",
+                              "selected"
+                            ],
+                            "description": "`all` reaches every project of the organization, including ones created later. `selected` reaches only the granted ones."
+                          },
                           "projectGrants": {
                             "type": "array",
                             "items": {
@@ -26850,6 +26866,7 @@
                           "id",
                           "email",
                           "role",
+                          "projectAccess",
                           "projectGrants",
                           "invitedBy",
                           "createdAt",
@@ -26925,6 +26942,14 @@
                           "viewer"
                         ]
                       },
+                      "projectAccess": {
+                        "type": "string",
+                        "enum": [
+                          "all",
+                          "selected"
+                        ],
+                        "description": "Required for a member or viewer invited without project grants, refused with `project_access_required` otherwise, and `selected` when grants are given. Ignored for owners, admins and billing members, who are stored as `all`."
+                      },
                       "projectGrants": {
                         "type": "array",
                         "items": {
@@ -26993,6 +27018,14 @@
                               "viewer"
                             ]
                           },
+                          "projectAccess": {
+                            "type": "string",
+                            "enum": [
+                              "all",
+                              "selected"
+                            ],
+                            "description": "`all` reaches every project of the organization, including ones created later. `selected` reaches only the granted ones."
+                          },
                           "projectGrants": {
                             "type": "array",
                             "items": {
@@ -27048,6 +27081,7 @@
                           "id",
                           "email",
                           "role",
+                          "projectAccess",
                           "projectGrants",
                           "invitedBy",
                           "createdAt",
@@ -27064,7 +27098,7 @@
             }
           },
           "400": {
-            "description": "A project grant names a project outside the active organization"
+            "description": "A project grant names a project outside the active organization, or a member or viewer invitation states neither its project access nor a grant (`project_access_required`), combines grants with access to every project, or has specific access without any grant, or an owner, admin or billing invitation names project grants"
           },
           "401": {
             "description": "Unauthorized"
@@ -27149,6 +27183,14 @@
                             "viewer"
                           ]
                         },
+                        "projectAccess": {
+                          "type": "string",
+                          "enum": [
+                            "all",
+                            "selected"
+                          ],
+                          "description": "`all` reaches every project of the organization, including ones created later. `selected` reaches only the granted ones."
+                        },
                         "projectGrants": {
                           "type": "array",
                           "items": {
@@ -27204,6 +27246,7 @@
                         "id",
                         "email",
                         "role",
+                        "projectAccess",
                         "projectGrants",
                         "invitedBy",
                         "createdAt",

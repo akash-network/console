@@ -14,7 +14,7 @@ export type OrganizationInvitationOutput = Table["$inferSelect"];
 
 export type OrganizationInvitationWithInviter = Pick<
   OrganizationInvitationOutput,
-  "id" | "organizationId" | "email" | "role" | "projectGrants" | "createdAt" | "expiresAt"
+  "id" | "organizationId" | "email" | "role" | "projectAccess" | "projectGrants" | "createdAt" | "expiresAt"
 > & {
   invitedBy: { id: string; username: string | null } | null;
 };
@@ -24,7 +24,10 @@ export type OrganizationInvitationPreview = Pick<OrganizationInvitationOutput, "
   inviterName: string | null;
 };
 
-type NewInvitation = Pick<OrganizationInvitationInput, "organizationId" | "email" | "role" | "projectGrants" | "tokenHash" | "expiresAt" | "invitedByUserId">;
+type NewInvitation = Pick<
+  OrganizationInvitationInput,
+  "organizationId" | "email" | "role" | "projectAccess" | "projectGrants" | "tokenHash" | "expiresAt" | "invitedByUserId"
+>;
 
 @singleton()
 export class OrganizationInvitationRepository extends OrgScopedRepository<Table, OrganizationInvitationInput, OrganizationInvitationOutput> {
@@ -75,6 +78,7 @@ export class OrganizationInvitationRepository extends OrgScopedRepository<Table,
         organizationId: this.table.organizationId,
         email: this.table.email,
         role: this.table.role,
+        projectAccess: this.table.projectAccess,
         projectGrants: this.table.projectGrants,
         createdAt: this.table.createdAt,
         expiresAt: this.table.expiresAt,

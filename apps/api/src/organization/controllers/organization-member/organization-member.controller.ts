@@ -21,8 +21,8 @@ export class OrganizationMemberController {
   }
 
   @Protected([{ action: "update", subject: "OrganizationMember" }])
-  async update(id: string, { role }: UpdateOrganizationMemberRequest["data"]): Promise<OrganizationMemberResponse> {
-    return { data: toOrganizationMember(await this.organizationMemberService.updateRole(id, role)) };
+  async update(id: string, change: UpdateOrganizationMemberRequest["data"]): Promise<OrganizationMemberResponse> {
+    return { data: toOrganizationMember(await this.organizationMemberService.updateRole(id, change)) };
   }
 
   @Protected([{ action: "delete", subject: "OrganizationMember" }])

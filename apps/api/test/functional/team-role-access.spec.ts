@@ -125,7 +125,7 @@ const ROUTE_ACCESS: RouteAccess[] = [
   { route: "GET /v1/organization-invitations", request: () => get("/v1/organization-invitations"), statusFor: access(200, 200, 403, 403, 403, 403) },
   {
     route: "POST /v1/organization-invitations",
-    request: () => post("/v1/organization-invitations", { emails: [faker.internet.email()], role: "member" }),
+    request: () => post("/v1/organization-invitations", { emails: [faker.internet.email()], role: "member", projectAccess: "all" }),
     statusFor: access(201, 201, 403, 403, 403, 403)
   },
   {

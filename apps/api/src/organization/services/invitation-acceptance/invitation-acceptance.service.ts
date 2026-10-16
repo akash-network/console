@@ -103,8 +103,10 @@ export class InvitationAcceptanceService {
 
   /** A user who already belongs to the organization keeps their role and project grants, and consumes only an invitation sent to their verified address. */
   async #join(invitation: OrganizationInvitationOutput, invitee: Invitee): Promise<void> {
-    const { id, organizationId, role } = invitation;
-    const membership = await this.organizationMemberRepository.unscoped("invitation-by-token").createUnlessExists({ organizationId, userId: invitee.id, role });
+    const { id, organizationId, role, projectAccess } = invitation;
+    const membership = await this.organizationMemberRepository
+      .unscoped("invitation-by-token")
+      .createUnlessExists({ organizationId, userId: invitee.id, role, projectAccess });
 
     if (membership) {
       await this.#grantProjects(invitation, invitee);
@@ -118,8 +120,8 @@ export class InvitationAcceptanceService {
       .updateById(id, { status: "accepted", acceptedByUserId: invitee.id, acceptedAt: new Date() });
   }
 
-  async #grantProjects({ organizationId, projectGrants }: OrganizationInvitationOutput, invitee: Invitee): Promise<void> {
-    if (projectGrants.length === 0) return;
+  async #grantProjects({ organizationId, projectAccess, projectGrants }: OrganizationInvitationOutput, invitee: Invitee): Promise<void> {
+    if (projectAccess === "all" || projectGrants.length === 0) return;
 
     const liveProjectIds = new Set(
       await this.projectRepository.unscoped("invitation-by-token").findActiveIdsAmong(

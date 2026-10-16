@@ -424,6 +424,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .innerJoin(Organizations, and(eq(Organizations.id, this.table.organizationId), isNull(Organizations.deletedAt)))
       .innerJoin(OrganizationMembers, and(eq(OrganizationMembers.organizationId, Organizations.id), eq(OrganizationMembers.userId, userId)))
       .leftJoin(ProjectMembers, and(eq(ProjectMembers.projectId, this.table.projectId), eq(ProjectMembers.userId, userId)))
+      .leftJoin(Projects, and(eq(Projects.organizationId, this.table.organizationId), eq(Projects.id, this.table.projectId)))
       .where(
         this.unscoped("deployment-location").whereAccessibleBy(
           and(
@@ -432,7 +433,12 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
             within?.projectIds && inArray(this.table.projectId, [...within.projectIds]),
             or(
               inArray(OrganizationMembers.role, ROLES_REACHING_EVERY_PROJECT),
-              and(inArray(OrganizationMembers.role, ROLES_REACHING_GRANTED_PROJECTS), isNotNull(ProjectMembers.id))
+              and(
+                inArray(OrganizationMembers.role, ROLES_REACHING_GRANTED_PROJECTS),
+                isNotNull(Projects.id),
+                isNull(Projects.deletedAt),
+                or(isNotNull(ProjectMembers.id), eq(OrganizationMembers.projectAccess, "all"))
+              )
             )
           )
         )

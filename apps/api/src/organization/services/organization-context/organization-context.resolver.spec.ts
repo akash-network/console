@@ -6,8 +6,11 @@ import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
-import type { Membership, OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import type {
+  MembershipWithProjectAccess,
+  OrganizationMemberRepository
+} from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectGrantOfUser, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -231,6 +234,22 @@ describe(OrganizationContextResolver.name, () => {
         kind: "projects",
         projectIds: [grantedProjectIds[1]],
         writableProjectIds: [grantedProjectIds[1]],
+        adminProjectIds: []
+      });
+      expect(unreached?.projectScope).toEqual({ kind: "projects", projectIds: [], writableProjectIds: [], adminProjectIds: [] });
+    });
+
+    it("keeps the key's project only while it is live for a member with access to every project", async () => {
+      const liveProjectIds = [faker.string.uuid(), faker.string.uuid()];
+      const { resolver, team, user } = setup({ teamRole: "member", projectAccess: "all", liveProjectIds });
+
+      const reached = await resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: liveProjectIds[0] } });
+      const unreached = await resolver.resolve({ user, apiKey: { organizationId: team.organization.id, projectId: faker.string.uuid() } });
+
+      expect(reached?.projectScope).toEqual({
+        kind: "projects",
+        projectIds: [liveProjectIds[0]],
+        writableProjectIds: [liveProjectIds[0]],
         adminProjectIds: []
       });
       expect(unreached?.projectScope).toEqual({ kind: "projects", projectIds: [], writableProjectIds: [], adminProjectIds: [] });
@@ -542,6 +561,66 @@ describe(OrganizationContextResolver.name, () => {
       });
     });
 
+    it("reaches only the granted projects as a member with access to specific projects", async () => {
+      const grantedProjectIds = [faker.string.uuid()];
+      const { resolver, team, user, projectRepository } = setup({ teamRole: "member", projectAccess: "selected", grantedProjectIds });
+
+      const context = await resolver.resolve({ user, organizationHeader: team.organization.id });
+
+      expect(context?.projectScope).toMatchObject({ projectIds: grantedProjectIds });
+      expect(projectRepository.findActiveIdsOf).not.toHaveBeenCalled();
+    });
+
+    it("reaches and writes in every live project as a member with access to every project, administering only the projects granted as admin", async () => {
+      const liveProjectIds = [faker.string.uuid(), faker.string.uuid(), faker.string.uuid()];
+      const grants = [
+        { projectId: liveProjectIds[0], role: "member" as const },
+        { projectId: liveProjectIds[1], role: "admin" as const }
+      ];
+      const { resolver, team, user, projectRepository } = setup({ teamRole: "member", projectAccess: "all", liveProjectIds, grants });
+
+      const context = await resolver.resolve({ user, organizationHeader: team.organization.id });
+
+      expect(context?.projectScope).toEqual({
+        kind: "projects",
+        projectIds: liveProjectIds,
+        writableProjectIds: liveProjectIds,
+        adminProjectIds: [liveProjectIds[1]]
+      });
+      expect(projectRepository.findActiveIdsOf).toHaveBeenCalledWith(team.organization.id);
+      expect(projectRepository.findActiveGrantsOf).toHaveBeenCalledWith(team.organization.id, user.id);
+    });
+
+    it("reaches every live project for reading only as a viewer with access to every project, whatever the project roles", async () => {
+      const liveProjectIds = [faker.string.uuid(), faker.string.uuid()];
+      const grants = [{ projectId: liveProjectIds[0], role: "admin" as const }];
+      const { resolver, team, user } = setup({ teamRole: "viewer", projectAccess: "all", liveProjectIds, grants });
+
+      const context = await resolver.resolve({ user, organizationHeader: team.organization.id });
+
+      expect(context?.projectScope).toEqual({ kind: "projects", projectIds: liveProjectIds, writableProjectIds: [], adminProjectIds: [] });
+    });
+
+    it("reaches a project created after the member joined on their next request", async () => {
+      const [firstProjectId, laterProjectId] = [faker.string.uuid(), faker.string.uuid()];
+      const { resolver, team, user, projectRepository } = setup({ teamRole: "member", projectAccess: "all", liveProjectIds: [firstProjectId] });
+
+      const before = await resolver.resolve({ user, organizationHeader: team.organization.id });
+      projectRepository.findActiveIdsOf.mockResolvedValue([firstProjectId, laterProjectId]);
+      const after = await resolver.resolve({ user, organizationHeader: team.organization.id });
+
+      expect(before?.projectScope).toMatchObject({ projectIds: [firstProjectId] });
+      expect(after?.projectScope).toMatchObject({ projectIds: [firstProjectId, laterProjectId], writableProjectIds: [firstProjectId, laterProjectId] });
+    });
+
+    it.each<OrganizationRole>(["owner", "admin", "billing"])("ignores the project access of %s", async role => {
+      const { resolver, team, user, projectRepository } = setup({ teamRole: role, projectAccess: "all" });
+
+      await resolver.resolve({ user, organizationHeader: team.organization.id });
+
+      expect(projectRepository.findActiveIdsOf).not.toHaveBeenCalled();
+    });
+
     it("reaches no project as billing", async () => {
       const { resolver, team, user, projectRepository } = setup({ teamRole: "billing" });
 
@@ -590,6 +669,22 @@ describe(OrganizationContextResolver.name, () => {
       expect(projectRepository.findActive).not.toHaveBeenCalled();
     });
 
+    it("narrows every live project of a member with access to every project down to the named one", async () => {
+      const liveProjectIds = [faker.string.uuid(), faker.string.uuid()];
+      const { resolver, team, user } = setup({ teamRole: "member", projectAccess: "all", liveProjectIds });
+
+      const context = await resolver.resolve({ user, organizationHeader: team.organization.id, projectHeader: liveProjectIds[1] });
+      const outside = resolver.resolve({ user, organizationHeader: team.organization.id, projectHeader: faker.string.uuid() });
+
+      expect(context?.projectScope).toEqual({
+        kind: "projects",
+        projectIds: [liveProjectIds[1]],
+        writableProjectIds: [liveProjectIds[1]],
+        adminProjectIds: []
+      });
+      await expect(outside).rejects.toMatchObject({ status: 403, errorCode: PROJECT_FORBIDDEN_ERROR_CODE });
+    });
+
     it("rejects a project outside the caller's grants", async () => {
       const { resolver, team, user, projectRepository } = setup({ teamRole: "viewer", grantedProjectIds: [faker.string.uuid()] });
 
@@ -626,13 +721,23 @@ describe(OrganizationContextResolver.name, () => {
     organizationsOn?: boolean;
     enforceOn?: boolean;
     teamRole?: OrganizationRole;
+    projectAccess?: ProjectAccess;
+    liveProjectIds?: string[];
     grantedProjectIds?: string[];
     grants?: ProjectGrantOfUser[];
     withoutPersonalMembership?: boolean;
   }) {
     const user: OrganizationContextRequest["user"] = createUser();
-    const personal: Membership = { role: "owner", organization: createOrganization({ type: "personal", createdByUserId: user.id }) };
-    const team: Membership = { role: input.teamRole ?? "owner", organization: createOrganization({ type: "team" }) };
+    const personal: MembershipWithProjectAccess = {
+      role: "owner",
+      projectAccess: "all",
+      organization: createOrganization({ type: "personal", createdByUserId: user.id })
+    };
+    const team: MembershipWithProjectAccess = {
+      role: input.teamRole ?? "owner",
+      projectAccess: input.projectAccess ?? "selected",
+      organization: createOrganization({ type: "team" })
+    };
     const memberships = input.withoutPersonalMembership ? [team] : [personal, team];
 
     const featureFlagsService = mock<FeatureFlagsService>({
@@ -652,6 +757,7 @@ describe(OrganizationContextResolver.name, () => {
     });
     const projectRepository = mock<ProjectRepository>({
       findActiveGrantsOf: vi.fn().mockResolvedValue(input.grants ?? (input.grantedProjectIds ?? []).map(projectId => ({ projectId, role: "member" }))),
+      findActiveIdsOf: vi.fn().mockResolvedValue(input.liveProjectIds ?? []),
       findActive: vi.fn().mockResolvedValue(undefined)
     });
     const personalOrganizationService = mock<PersonalOrganizationService>();

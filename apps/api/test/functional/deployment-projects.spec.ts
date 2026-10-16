@@ -29,7 +29,8 @@ import { CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { MoveDeploymentAlertsJob } from "@src/deployment/services/move-deployment-alerts/move-deployment-alerts.job";
 import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
-import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { createInvitationToken, hashInvitationToken } from "@src/organization/lib/invitation-token/invitation-token";
+import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
 import { marketVersion } from "@src/utils/constants";
@@ -39,7 +40,13 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createBid } from "@test/seeders/bid.seeder";
 import { findDeploymentDepositsOf } from "@test/seeders/db/deployment-deposit.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
+import {
+  seedOrganizationInvitation,
+  seedOrganizationMember,
+  seedOrganizationWithOwner,
+  seedProject,
+  seedProjectMember
+} from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 import { findJobRows } from "@test/services/job-queue-harness";
@@ -99,6 +106,19 @@ describe("Deployment projects", () => {
         })
       ]);
       expect(reloadTargets).toEqual([{ walletId: teamWallet.id }]);
+    });
+
+    it("files the deployment of a member who joined with access to every project into a project created after they joined", async () => {
+      const { request, team, caller, invitationToken } = await setupCaller({ role: "member", invitedWith: "all" });
+
+      const accepted = await request("/v1/invitations/accept", { method: "POST", organizationHeader: false, body: { data: { token: invitationToken } } });
+      const laterProject = await seedProject({ organizationId: team.id });
+      const response = await request("/v1/deployments", { method: "POST", body: { data: { sdl: SDL, projectId: laterProject.id } } });
+      const { data } = (await response.json()) as { data: { dseq: string } };
+
+      expect(accepted.status).toBe(200);
+      expect(response.status).toBe(201);
+      expect(await deploymentRow(caller.id, data.dseq)).toMatchObject({ organizationId: team.id, projectId: laterProject.id });
     });
 
     it("files a deployment naming no project into the default project", async () => {
@@ -779,11 +799,24 @@ describe("Deployment projects", () => {
     return { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}` };
   }
 
-  async function setupCaller(input: { role: OrganizationRole; organizationsOn?: boolean; grants?: Array<"default" | "other"> }) {
+  async function setupCaller(input: { role: OrganizationRole; organizationsOn?: boolean; grants?: Array<"default" | "other">; invitedWith?: ProjectAccess }) {
     const { user: owner, organization: team, project: defaultProject } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
     const otherProject = await seedProject({ organizationId: team.id });
-    const caller = input.role === "owner" ? owner : await seedUser(createSignedUpUserInput());
-    if (input.role !== "owner") {
+    const caller =
+      input.role === "owner"
+        ? owner
+        : await seedUser({ ...createSignedUpUserInput(), ...(input.invitedWith && { email: faker.internet.email().toLowerCase(), emailVerified: true }) });
+    const invitationToken = createInvitationToken();
+    if (input.invitedWith) {
+      await seedOrganizationInvitation({
+        organizationId: team.id,
+        email: caller.email!,
+        role: input.role,
+        projectAccess: input.invitedWith,
+        tokenHash: hashInvitationToken(invitationToken),
+        invitedByUserId: owner.id
+      });
+    } else if (input.role !== "owner") {
       await seedOrganizationMember({ organizationId: team.id, userId: caller.id, role: input.role });
     }
     for (const grant of input.grants ?? []) {
@@ -806,6 +839,6 @@ describe("Deployment projects", () => {
         body: init.body === undefined ? undefined : JSON.stringify(init.body)
       });
 
-    return { request, team, defaultProject, otherProject, owner, caller, signer, teamWallet, signedIndexes, reloadTargets };
+    return { request, team, defaultProject, otherProject, owner, caller, signer, teamWallet, signedIndexes, reloadTargets, invitationToken };
   }
 });

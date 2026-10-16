@@ -6,7 +6,7 @@ import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repositor
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
-import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 import type { UserOutput } from "@src/user/repositories";
@@ -29,6 +29,8 @@ export interface Membership {
   organization: ApiPgTables["Organizations"]["$inferSelect"];
 }
 
+export type MembershipWithProjectAccess = Membership & { projectAccess: ProjectAccess };
+
 @singleton()
 export class OrganizationMemberRepository extends OrgScopedRepository<Table, OrganizationMemberInput, OrganizationMemberOutput> {
   constructor(
@@ -45,7 +47,9 @@ export class OrganizationMemberRepository extends OrgScopedRepository<Table, Org
   }
 
   /** Returns nothing when the user is already a member, so a repeated call never aborts the caller's transaction. */
-  async createUnlessExists(input: Pick<OrganizationMemberInput, "organizationId" | "userId" | "role">): Promise<OrganizationMemberOutput | undefined> {
+  async createUnlessExists(
+    input: Pick<OrganizationMemberInput, "organizationId" | "userId" | "role" | "projectAccess">
+  ): Promise<OrganizationMemberOutput | undefined> {
     const values = await this.attributeToOrganization(input);
     this.ability?.throwUnlessCanExecute(values);
     const [created] = await this.cursor
@@ -151,7 +155,7 @@ export class OrganizationMemberRepository extends OrgScopedRepository<Table, Org
     return contacts.map(({ user }) => user);
   }
 
-  async findActiveMembership(userId: OrganizationMemberOutput["userId"], lookup: OrganizationLookup): Promise<Membership | undefined> {
+  async findActiveMembership(userId: OrganizationMemberOutput["userId"], lookup: OrganizationLookup): Promise<MembershipWithProjectAccess | undefined> {
     const [membership] = await this.#selectActiveMemberships(and(eq(this.table.userId, userId), organizationMatching(userId, lookup)));
 
     return membership;
@@ -180,7 +184,7 @@ export class OrganizationMemberRepository extends OrgScopedRepository<Table, Org
 
   #selectActiveMemberships(where: SQL | undefined) {
     return this.cursor
-      .select({ role: this.table.role, organization: Organizations })
+      .select({ role: this.table.role, projectAccess: this.table.projectAccess, organization: Organizations })
       .from(this.table)
       .innerJoin(Organizations, eq(Organizations.id, this.table.organizationId))
       .where(this.unscoped("own-memberships").whereAccessibleBy(and(where, isNull(Organizations.deletedAt))))

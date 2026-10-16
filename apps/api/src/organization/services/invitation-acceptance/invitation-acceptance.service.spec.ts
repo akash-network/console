@@ -63,12 +63,13 @@ describe(InvitationAcceptanceService.name, () => {
   });
 
   describe("acceptInvitation", () => {
-    it("adds the invitee with the invited role and the grants of live projects, then marks the invitation accepted", async () => {
+    it("adds the invitee with the invited role, project access and grants of live projects, then marks the invitation accepted", async () => {
       vi.useFakeTimers({ now: new Date("2026-10-10T12:00:00.000Z") });
       const token = createInvitationToken();
       const [grantedProjectId, deletedProjectId] = [faker.string.uuid(), faker.string.uuid()];
       const invitation = createOrganizationInvitation({
-        role: "admin",
+        role: "member",
+        projectAccess: "selected",
         projectGrants: [
           { projectId: grantedProjectId, role: "viewer" },
           { projectId: deletedProjectId, role: "member" }
@@ -93,7 +94,8 @@ describe(InvitationAcceptanceService.name, () => {
       expect(unscopedRepositories.members.createUnlessExists).toHaveBeenCalledWith({
         organizationId: invitation.organizationId,
         userId: invitee.id,
-        role: "admin"
+        role: "member",
+        projectAccess: "selected"
       });
       expect(unscopedRepositories.projects.findActiveIdsAmong).toHaveBeenCalledWith(invitation.organizationId, [grantedProjectId, deletedProjectId]);
       expect(unscopedRepositories.projectMembers.createManyUnlessExist).toHaveBeenCalledWith([
@@ -144,6 +146,26 @@ describe(InvitationAcceptanceService.name, () => {
       const { service } = setup({ invitation, context: null });
 
       await expect(service.acceptInvitation({ token: createInvitationToken() })).resolves.toMatchObject({ isActive: false });
+    });
+
+    it("adds the invitee with access to every project and without grants when the invitation reaches every project", async () => {
+      const invitation = createOrganizationInvitation({
+        role: "viewer",
+        projectAccess: "all",
+        projectGrants: [{ projectId: faker.string.uuid(), role: "viewer" }]
+      });
+      const { service, invitee, unscopedRepositories } = setup({ invitation });
+
+      await service.acceptInvitation({ token: createInvitationToken() });
+
+      expect(unscopedRepositories.members.createUnlessExists).toHaveBeenCalledWith({
+        organizationId: invitation.organizationId,
+        userId: invitee.id,
+        role: "viewer",
+        projectAccess: "all"
+      });
+      expect(unscopedRepositories.projects.findActiveIdsAmong).not.toHaveBeenCalled();
+      expect(unscopedRepositories.projectMembers.createManyUnlessExist).not.toHaveBeenCalled();
     });
 
     it("grants no project when the invitation names none", async () => {
