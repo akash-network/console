@@ -102,13 +102,11 @@ describe("Organization invitations", () => {
   describe("POST /v1/organization-invitations", () => {
     it.each<OrganizationRole>(["owner", "admin"])("lets a caller with role %s invite people and queues an email for each", async role => {
       const { organization, caller, request } = await setup({ callerRole: role });
-      const project = await seedProject({ organizationId: organization.id });
-      const projectGrants = [{ projectId: project.id, role: "viewer" }];
 
       const response = await request("POST", "/v1/organization-invitations", {
         asUser: caller,
         organizationId: organization.id,
-        body: { data: { emails: [" Jane@Example.com", "joe@example.com", "jane@example.com"], role: "admin", projectGrants } }
+        body: { data: { emails: [" Jane@Example.com", "joe@example.com", "jane@example.com"], role: "admin" } }
       });
 
       expect(response.status).toBe(201);
@@ -119,7 +117,7 @@ describe("Organization invitations", () => {
           email,
           role: "admin",
           projectAccess: "all",
-          projectGrants,
+          projectGrants: [],
           invitedBy: { id: caller.id, username: caller.username },
           createdAt: expect.any(String),
           expiresAt: expect.any(String)
@@ -330,6 +328,20 @@ describe("Organization invitations", () => {
 
       expect(response.status).toBe(400);
       expect(await response.json()).toMatchObject({ code });
+      expect(await invitationRepository.count({ organizationId: organization.id })).toBe(0);
+    });
+
+    it.each<OrganizationRole>(["admin", "billing"])("refuses project grants on a %s invitation", async role => {
+      const { organization, owner, request } = await setup({ callerRole: "owner" });
+      const project = await seedProject({ organizationId: organization.id });
+
+      const response = await request("POST", "/v1/organization-invitations", {
+        asUser: owner,
+        organizationId: organization.id,
+        body: { data: { emails: ["jane@example.com"], role, projectGrants: [{ projectId: project.id, role: "member" }] } }
+      });
+
+      expect(response.status).toBe(400);
       expect(await invitationRepository.count({ organizationId: organization.id })).toBe(0);
     });
 

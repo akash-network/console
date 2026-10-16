@@ -63,7 +63,7 @@ const createOrganizationInvitationsRoute = createRoute({
     },
     400: {
       description:
-        "A project grant names a project outside the active organization, or a member or viewer invitation states neither its project access nor a grant (`project_access_required`), combines grants with access to every project, or has specific access without any grant"
+        "A project grant names a project outside the active organization, or a member or viewer invitation states neither its project access nor a grant (`project_access_required`), combines grants with access to every project, or has specific access without any grant, or an owner, admin or billing invitation names project grants"
     },
     401: { description: "Unauthorized" },
     403: {

@@ -327,6 +327,18 @@ describe(OrganizationInvitationService.name, () => {
       expect(repositories.create.createUnlessPending).toHaveBeenCalledWith([expect.objectContaining({ role, projectAccess: "all" })]);
     });
 
+    it.each<OrganizationRole>(["owner", "admin", "billing"])("refuses project grants on a %s invitation, which reaches projects without them", async role => {
+      const { service, repositories, projectRepository } = setup({});
+      const projectGrants = [{ projectId: faker.string.uuid(), role: "member" as const }];
+
+      await expect(service.createInvitations({ emails: ["jane@example.com"], role, projectGrants })).rejects.toMatchObject({
+        status: 400,
+        message: "Project grants only apply to a member or viewer invitation"
+      });
+      expect(projectRepository.findActiveIdsAmong).not.toHaveBeenCalled();
+      expect(repositories.create.createUnlessPending).not.toHaveBeenCalled();
+    });
+
     it("refuses a project grant outside the active organization", async () => {
       const { service, repositories, projectRepository } = setup({});
       const projectGrants = [

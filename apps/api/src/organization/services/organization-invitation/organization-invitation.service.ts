@@ -245,7 +245,10 @@ export class OrganizationInvitationService {
 }
 
 function projectAccessOfInvitation(role: OrganizationRole, requested: ProjectAccess | undefined, projectGrants: ProjectGrant[]): ProjectAccess {
-  if (!GRANT_HOLDING_ORGANIZATION_ROLES.includes(role)) return "all";
+  if (!GRANT_HOLDING_ORGANIZATION_ROLES.includes(role)) {
+    assert(projectGrants.length === 0, 400, "Project grants only apply to a member or viewer invitation");
+    return "all";
+  }
 
   if (!requested && projectGrants.length === 0) {
     throw projectAccessRequired("Choose whether a member or viewer invitation reaches every project or specific ones");
