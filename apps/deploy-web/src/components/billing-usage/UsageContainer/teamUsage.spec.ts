@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { spendShade } from "@src/components/billing-usage/spendShade";
 import type { DeploymentSpendReport } from "@src/types/deployment-spend";
 import { perBlockToHourly } from "@src/utils/priceUtils";
-import { deploymentRowsOf, hourlyRateOf, isInScope, projectSeriesOf, scopeUsage } from "./teamUsage";
+import { deploymentRowsOf, hourlyRateOf, isInScope, projectSeriesOf, projectSpendRowsOf, scopeUsage } from "./teamUsage";
+
+import { buildProjectSpend, buildProjectSpendReport, buildSpendAmounts } from "@tests/seeders/projectSpend";
 
 describe(scopeUsage.name, () => {
   it("adds up every project and the unassigned spend of each day for the whole organization", () => {
@@ -142,6 +145,96 @@ describe(deploymentRowsOf.name, () => {
 
     expect(deploymentRowsOf(report, null)).toEqual([expect.objectContaining({ hourlyRateUsd: 0, sharePercent: 0 })]);
   });
+});
+
+describe(projectSpendRowsOf.name, () => {
+  it("ranks the projects and the unassigned spend by consumption, with each one's deployments, hours and committed spend", () => {
+    const rows = projectSpendRowsOf(buildSpend(), buildReport(), vi.fn());
+
+    expect(rows.map(({ onSelect, ...row }) => row)).toEqual([
+      {
+        key: "storefront",
+        label: "Storefront",
+        deploymentCount: 1,
+        hours: 48,
+        consumedUsd: 3.1,
+        committedUsd: 5,
+        sharePercent: expect.closeTo((3.1 / 3.8) * 100, 10),
+        shade: spendShade(0, 3)
+      },
+      {
+        key: "marketing",
+        label: "Marketing",
+        deploymentCount: 1,
+        hours: 5,
+        consumedUsd: 0.5,
+        committedUsd: 1,
+        sharePercent: expect.closeTo((0.5 / 3.8) * 100, 10),
+        shade: spendShade(1, 3)
+      },
+      {
+        key: "unassigned",
+        label: "Unassigned",
+        deploymentCount: 1,
+        hours: 2,
+        consumedUsd: 0.2,
+        committedUsd: 0,
+        sharePercent: expect.closeTo((0.2 / 3.8) * 100, 10),
+        shade: spendShade(2, 3)
+      },
+      { key: "idle", label: "Idle", deploymentCount: 0, hours: 0, consumedUsd: 0, committedUsd: 0, sharePercent: 0, shade: null }
+    ]);
+    expect(rows[2].onSelect).toBeUndefined();
+  });
+
+  it("narrows the page to the project of the row picked", () => {
+    const onSelect = vi.fn();
+
+    projectSpendRowsOf(buildSpend(), buildReport(), onSelect)[1].onSelect!();
+
+    expect(onSelect).toHaveBeenCalledWith("marketing");
+  });
+
+  it("labels a deleted project and offers no way to narrow to it", () => {
+    const spend = buildSpend();
+    spend.projects[0] = { ...spend.projects[0], isDeleted: true };
+
+    const marketing = projectSpendRowsOf(spend, buildReport(), vi.fn()).find(({ key }) => key === "marketing");
+
+    expect(marketing).toEqual(expect.objectContaining({ label: "Marketing (deleted)", onSelect: undefined }));
+  });
+
+  it("lists the unassigned spend while it holds committed spend alone", () => {
+    const rows = projectSpendRowsOf(buildSpend({ unassigned: buildSpendAmounts({ committedUsd: 2 }) }), undefined, vi.fn());
+
+    expect(rows.map(({ key }) => key)).toContain("unassigned");
+  });
+
+  it("leaves out unassigned spend that is empty or hidden from the caller", () => {
+    const keysOf = (unassigned: ReturnType<typeof buildSpendAmounts> | null) =>
+      projectSpendRowsOf(buildSpend({ unassigned }), buildReport(), vi.fn()).map(({ key }) => key);
+
+    expect(keysOf(buildSpendAmounts())).not.toContain("unassigned");
+    expect(keysOf(null)).not.toContain("unassigned");
+  });
+
+  it("counts no deployment nor shade until the deployments are read, and shares nothing out of no consumption", () => {
+    const rows = projectSpendRowsOf(buildProjectSpendReport({ projects: [buildProjectSpend({ projectId: "storefront" })] }), undefined, vi.fn());
+
+    expect(rows).toEqual([expect.objectContaining({ deploymentCount: 0, hours: 0, sharePercent: 0, shade: null })]);
+  });
+
+  function buildSpend(overrides: Parameters<typeof buildProjectSpendReport>[0] = {}) {
+    return buildProjectSpendReport({
+      projects: [
+        buildProjectSpend({ projectId: "marketing", name: "Marketing", consumedUsd: 0.5, committedUsd: 1 }),
+        buildProjectSpend({ projectId: "idle", name: "Idle" }),
+        buildProjectSpend({ projectId: "storefront", name: "Storefront", consumedUsd: 3.1, committedUsd: 5 })
+      ],
+      unassigned: buildSpendAmounts({ consumedUsd: 0.2 }),
+      ...overrides
+    });
+  }
 });
 
 describe(isInScope.name, () => {

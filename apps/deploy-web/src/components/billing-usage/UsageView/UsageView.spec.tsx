@@ -4,10 +4,10 @@ import { getDaysInMonth } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 
 import type { DeploymentSpendSection } from "@src/components/billing-usage/DeploymentSpendList/DeploymentSpendList";
+import type { ProjectSpendSection } from "@src/components/billing-usage/ProjectSpendList/ProjectSpendList";
 import type { ChildrenProps, DailySpendBreakdown } from "@src/components/billing-usage/UsageContainer/UsageContainer";
 import { getUsagePresetRange, type UsageDatePreset, type UsageDateRange } from "@src/components/billing-usage/UsageContainer/usageDatePresets";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
-import type { SpendRange } from "@src/types/project-budget";
 import { DEPENDENCIES, UsageView } from "./UsageView";
 
 import { render, screen, within } from "@testing-library/react";
@@ -190,10 +190,11 @@ describe(UsageView.name, () => {
     expect(onDateRangeChange).toHaveBeenCalledWith({ from: new Date(2026, 5, 1), to: new Date(2026, 5, 30) });
   });
 
-  it("reports spend by project over the range it is given", () => {
-    const { ProjectSpendReport } = setup({ projectSpendRange: { startDate: "2026-06-01", endDate: "2026-06-30" } });
+  it("breaks spend down by project over the range on screen", () => {
+    const projectSpend: ProjectSpendSection = { rows: [], isEstimated: true, isPartial: false, isLoading: false, isError: false };
+    const { ProjectSpendList } = setup({ datePreset: "last90Days", projectSpend });
 
-    expect(ProjectSpendReport).toHaveBeenCalledWith({ range: { startDate: "2026-06-01", endDate: "2026-06-30" } }, expect.anything());
+    expect(ProjectSpendList).toHaveBeenCalledWith({ ...projectSpend, rangeLabel: "Last 90 days" }, expect.anything());
   });
 
   it("splits the daily spend the way it is told to", () => {
@@ -225,10 +226,10 @@ describe(UsageView.name, () => {
     expect(DeploymentSpendList).not.toHaveBeenCalled();
   });
 
-  it("leaves spend by project out without a range for it", () => {
-    const { ProjectSpendReport } = setup({ projectSpendRange: null });
+  it("leaves spend by project out without a breakdown for it", () => {
+    const { ProjectSpendList } = setup({ projectSpend: null });
 
-    expect(ProjectSpendReport).not.toHaveBeenCalled();
+    expect(ProjectSpendList).not.toHaveBeenCalled();
   });
 
   function setup(
@@ -243,7 +244,7 @@ describe(UsageView.name, () => {
       spendRate?: ChildrenProps["spendRate"];
       datePreset?: UsageDatePreset;
       dateRange?: UsageDateRange;
-      projectSpendRange?: SpendRange | null;
+      projectSpend?: ProjectSpendSection | null;
       dailySpendBreakdown?: DailySpendBreakdown | null;
       deploymentSpend?: DeploymentSpendSection | null;
     } = {}
@@ -269,7 +270,7 @@ describe(UsageView.name, () => {
           onDatePresetChange={onDatePresetChange}
           dateRange={input.dateRange ?? getUsagePresetRange(input.datePreset && input.datePreset !== "custom" ? input.datePreset : "last30Days")}
           onDateRangeChange={onDateRangeChange}
-          projectSpendRange={input.projectSpendRange ?? null}
+          projectSpend={input.projectSpend ?? null}
           dailySpendBreakdown={input.dailySpendBreakdown ?? null}
           deploymentSpend={input.deploymentSpend ?? null}
           dependencies={dependencies}
