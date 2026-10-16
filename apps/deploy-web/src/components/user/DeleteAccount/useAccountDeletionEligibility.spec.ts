@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { WalletBalance } from "@src/hooks/useWalletBalance";
 import type { Balances } from "@src/types";
 import type { DEPENDENCIES } from "./useAccountDeletionEligibility";
-import { useAccountDeletionEligibility } from "./useAccountDeletionEligibility";
+import { useAccountDeletionEligibility, useWalletDeletionEligibility } from "./useAccountDeletionEligibility";
 
 import { renderHook } from "@testing-library/react";
 
@@ -125,6 +125,33 @@ describe(useAccountDeletionEligibility.name, () => {
     });
   });
 
+  describe("for the active organization's wallet alone", () => {
+    it("tells a team what it forfeits even while the account still has teams to hand over", () => {
+      const { result, dependencies } = setup({ organizationsOn: true, grantsUsd: 12.5, server: { forfeitableBalanceUsd: 4, teamsToTransfer: [GLOBEX] } });
+
+      const { result: walletResult } = renderHook(() => useWalletDeletionEligibility(dependencies));
+
+      expect(result.current).toEqual({ status: "transfer", teamsToTransfer: [GLOBEX] });
+      expect(walletResult.current).toEqual({ status: "forfeit", balanceUsd: 12.5 });
+    });
+
+    it("blocks a team on its own running deployments", () => {
+      const { dependencies } = setup({ organizationsOn: true, activeDeploymentCount: 2, server: {} });
+
+      const { result } = renderHook(() => useWalletDeletionEligibility(dependencies));
+
+      expect(result.current).toEqual({ status: "blocked", activeDeploymentCount: 2 });
+    });
+
+    it("lets a team with nothing left go", () => {
+      const { dependencies } = setup({ organizationsOn: true, server: { forfeitableBalanceUsd: 4 } });
+
+      const { result } = renderHook(() => useWalletDeletionEligibility(dependencies));
+
+      expect(result.current).toEqual({ status: "clean" });
+    });
+  });
+
   function setup(input: {
     address?: string;
     isTrialing?: boolean;
@@ -166,10 +193,10 @@ describe(useAccountDeletionEligibility.name, () => {
       () => serverQuery as ReturnType<typeof DEPENDENCIES.useAccountDeletionEligibilityQuery>
     );
 
-    const { result } = renderHook(() =>
-      useAccountDeletionEligibility({ useWallet, useBalances, useWalletBalance, useFlag, useAccountDeletionEligibilityQuery })
-    );
+    const dependencies: typeof DEPENDENCIES = { useWallet, useBalances, useWalletBalance, useFlag, useAccountDeletionEligibilityQuery };
 
-    return { result, useBalances, useFlag, useAccountDeletionEligibilityQuery };
+    const { result } = renderHook(() => useAccountDeletionEligibility(dependencies));
+
+    return { result, dependencies, useBalances, useFlag, useAccountDeletionEligibilityQuery };
   }
 });

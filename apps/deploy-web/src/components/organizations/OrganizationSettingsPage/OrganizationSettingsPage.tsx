@@ -8,8 +8,10 @@ import Layout from "@src/components/layout/Layout";
 import { SettingsCard, SettingsRow } from "@src/components/layout/SettingsCard/SettingsCard";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
+import { DeleteTeamSetting } from "@src/components/organizations/DeleteTeam/DeleteTeamSetting";
 import { LeaveOrganizationSetting } from "@src/components/organizations/LeaveOrganization/LeaveOrganizationSetting";
 import {
+  canDeleteOrganization,
   canRenameOrganization,
   canTransferOwnership,
   hasGeneralSettingsPage,
@@ -28,6 +30,7 @@ export const DEPENDENCIES = {
   OrganizationNameSetting,
   OwnershipTransferSetting,
   LeaveOrganizationSetting,
+  DeleteTeamSetting,
   useFlag,
   useActiveOrganization,
   useRouter
@@ -94,6 +97,7 @@ export function OrganizationSettingsPage({ dependencies: d = DEPENDENCIES }: Pro
           <SettingsSection title="Danger zone">
             <SettingsCard destructive>
               <d.LeaveOrganizationSetting organization={organization} />
+              {canDeleteOrganization(organization.role) && <d.DeleteTeamSetting organization={organization} />}
             </SettingsCard>
           </SettingsSection>
         </div>
