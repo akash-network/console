@@ -1,11 +1,12 @@
 import type { BatchObservableResult, Counter, Histogram, Meter, ObservableGauge } from "@opentelemetry/api";
 import { subMinutes } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
-import { mock } from "vitest-mock-extended";
+import { mock, type MockProxy } from "vitest-mock-extended";
 
 import { activityInitiatorEnum, activityStatusEnum, activityTypeEnum } from "@src/activity/model-schemas";
 import type { ActivityRepository, PendingActivitySummary } from "@src/activity/repositories/activity/activity.repository";
 import type { CreateLogger, MetricsService } from "@src/core";
+import type { TxService } from "@src/core/services";
 import { ActivityInstrumentationService } from "./activity-instrumentation.service";
 
 import { createActivity } from "@test/seeders/activity.seeder";
@@ -127,6 +128,37 @@ describe(ActivityInstrumentationService.name, () => {
     });
   });
 
+  describe("inside a transaction", () => {
+    it.each([
+      ["an open", "activities_opened_total", (service: ActivityInstrumentationService) => service.trackOpened({ type: "deployment_close", initiator: "user" })],
+      [
+        "a record",
+        "activities_recorded_total",
+        (service: ActivityInstrumentationService) => service.trackRecorded({ type: "deployment_close", status: "succeeded", initiator: "system" })
+      ],
+      ["a settle", "activities_settled_total", (service: ActivityInstrumentationService) => service.trackSettled(createActivity({ status: "failed" }))]
+    ] as const)("counts %s only once the transaction it was written in commits", (_, metric, track) => {
+      const { service, counters, commit } = setup({ inTransaction: true });
+
+      track(service);
+      const countedBeforeCommit = counters[metric].add.mock.calls.filter(([value]) => value === 1);
+      commit();
+
+      expect(countedBeforeCommit).toEqual([]);
+      expect(counters[metric].add).toHaveBeenCalledWith(1, expect.any(Object));
+    });
+
+    it("counts nothing for a transaction that never commits", () => {
+      const { service, opened, settleDuration } = setup({ inTransaction: true });
+
+      service.trackOpened({ type: "deployment_close", initiator: "user" });
+      service.trackSettled(createActivity({ status: "succeeded" }));
+
+      expect(opened.add).not.toHaveBeenCalledWith(1, expect.anything());
+      expect(settleDuration.record).not.toHaveBeenCalled();
+    });
+  });
+
   describe("when the backlog gauges are collected", () => {
     it("reports how many activities of each type are in progress and how old the oldest one is", async () => {
       const { observeBacklog, pending, oldestPendingAge } = setup({
@@ -163,7 +195,7 @@ describe(ActivityInstrumentationService.name, () => {
     });
   });
 
-  function setup(input: { pendingSummaries?: PendingActivitySummary[] | Error; failingCounters?: boolean } = {}) {
+  function setup(input: { pendingSummaries?: PendingActivitySummary[] | Error; failingCounters?: boolean; inTransaction?: boolean } = {}) {
     const meter = mock<Meter>();
     const metricsService = mock<MetricsService>();
     metricsService.getMeter.mockReturnValue(meter);
@@ -171,7 +203,11 @@ describe(ActivityInstrumentationService.name, () => {
     const opened = mock<Counter>();
     const settled = mock<Counter>();
     const recorded = mock<Counter>();
-    const counters: Record<string, Counter> = { activities_opened_total: opened, activities_settled_total: settled, activities_recorded_total: recorded };
+    const counters: Record<string, MockProxy<Counter>> = {
+      activities_opened_total: opened,
+      activities_settled_total: settled,
+      activities_recorded_total: recorded
+    };
     metricsService.createCounter.mockImplementation((_, name) => counters[name]);
     if (input.failingCounters) {
       opened.add.mockImplementation(() => {
@@ -194,7 +230,12 @@ describe(ActivityInstrumentationService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new ActivityInstrumentationService(metricsService, activityRepository, createLogger);
+    const txService = mock<TxService>();
+    const onCommit: Array<() => void> = [];
+    txService.afterCommit.mockImplementation(run => (input.inTransaction ? onCommit.push(run) : run()));
+    const commit = () => onCommit.forEach(run => run());
+
+    const service = new ActivityInstrumentationService(metricsService, activityRepository, txService, createLogger);
 
     async function observeBacklog() {
       const result = mock<BatchObservableResult>();
@@ -203,6 +244,21 @@ describe(ActivityInstrumentationService.name, () => {
       return result;
     }
 
-    return { service, metricsService, meter, opened, settled, recorded, settleDuration, pending, oldestPendingAge, logger, createLogger, observeBacklog };
+    return {
+      service,
+      metricsService,
+      meter,
+      opened,
+      settled,
+      recorded,
+      counters,
+      settleDuration,
+      pending,
+      oldestPendingAge,
+      logger,
+      createLogger,
+      commit,
+      observeBacklog
+    };
   }
 });

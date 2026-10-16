@@ -7,33 +7,38 @@ import { container, singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg } from "@src/core/providers/postgres.provider";
 
-type TxType = "PG_TX";
-
 export type ApiTransaction = PgTransaction<PostgresJsQueryResultHKT, ApiPgTables, ExtractTablesWithRelations<ApiPgTables>>;
+
+type TxContext = { tx: ApiTransaction; onCommit: Array<() => void> };
 
 @singleton()
 export class TxService {
-  private readonly storage = new AsyncLocalStorage<Map<TxType, ApiTransaction>>();
+  private readonly storage = new AsyncLocalStorage<TxContext>();
 
   constructor(@InjectPg() private readonly pg: ApiPgDatabase) {}
 
   async transaction<T>(cb: () => Promise<T>) {
-    const existingTx = this.storage.getStore()?.get("PG_TX");
-
-    if (existingTx) {
+    if (this.storage.getStore()) {
       return await cb();
     }
 
-    return await this.pg.transaction(async tx => {
-      return this.storage.run(new Map(), async () => {
-        this.storage.getStore()?.set("PG_TX", tx);
-        return await cb();
-      });
-    });
+    const onCommit: TxContext["onCommit"] = [];
+    const result = await this.pg.transaction(async tx => await this.storage.run({ tx, onCommit }, cb));
+    onCommit.forEach(run => run());
+
+    return result;
+  }
+
+  /** Runs once the outermost transaction commits, never after a rollback, and right away outside a transaction; `run` must not throw, since its transaction has already committed. */
+  afterCommit(run: () => void): void {
+    const context = this.storage.getStore();
+
+    if (context) context.onCommit.push(run);
+    else run();
   }
 
   getPgTx() {
-    return this.storage.getStore()?.get("PG_TX");
+    return this.storage.getStore()?.tx;
   }
 
   getConnection(): Sql | undefined {

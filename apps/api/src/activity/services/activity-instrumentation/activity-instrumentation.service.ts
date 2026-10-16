@@ -4,6 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { activityInitiatorEnum, activityStatusEnum, activityTypeEnum, type NewActivity } from "@src/activity/model-schemas";
 import { type ActivityOutput, ActivityRepository, type PendingActivitySummary } from "@src/activity/repositories/activity/activity.repository";
 import { type CreateLogger, LOGGER_FACTORY, MetricsService } from "@src/core";
+import { TxService } from "@src/core/services";
 
 const OUTCOME_STATUSES = activityStatusEnum.enumValues.filter(status => status !== "pending");
 
@@ -16,8 +17,15 @@ export class ActivityInstrumentationService {
   readonly #recorded: Counter;
   readonly #settleDuration: Histogram;
   readonly #logger: ReturnType<CreateLogger>;
+  readonly #txService: TxService;
 
-  constructor(metricsService: MetricsService, activityRepository: ActivityRepository, @inject(LOGGER_FACTORY) createLogger: CreateLogger) {
+  constructor(
+    metricsService: MetricsService,
+    activityRepository: ActivityRepository,
+    txService: TxService,
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+  ) {
+    this.#txService = txService;
     this.#logger = createLogger({ context: ActivityInstrumentationService.name });
     const meter = metricsService.getMeter("activity");
 
@@ -40,19 +48,19 @@ export class ActivityInstrumentationService {
   }
 
   trackOpened({ type, initiator }: Omit<TrackedActivity, "status">): void {
-    this.#measure(() => this.#opened.add(1, { type, initiator }));
+    this.#measureOnCommit(() => this.#opened.add(1, { type, initiator }));
   }
 
   trackRecorded({ type, status, initiator }: TrackedActivity): void {
     if (status === "pending") return this.trackOpened({ type, initiator });
 
-    this.#measure(() => this.#recorded.add(1, { type, status, initiator }));
+    this.#measureOnCommit(() => this.#recorded.add(1, { type, status, initiator }));
   }
 
   trackSettled({ type, status, initiator, createdAt, updatedAt }: ActivityOutput): void {
     if (status === "pending") return;
 
-    this.#measure(() => {
+    this.#measureOnCommit(() => {
       this.#settled.add(1, { type, status, initiator });
       this.#settleDuration.record(secondsBetween(new Date(createdAt), new Date(updatedAt)), { type, status });
     });
@@ -102,6 +110,10 @@ export class ActivityInstrumentationService {
     } catch (error) {
       this.#logger.warn({ event: "PENDING_ACTIVITIES_SUMMARY_FAILED", error });
     }
+  }
+
+  #measureOnCommit(record: () => void): void {
+    this.#txService.afterCommit(() => this.#measure(record));
   }
 
   /** Telemetry must never fail the action it measures. */
