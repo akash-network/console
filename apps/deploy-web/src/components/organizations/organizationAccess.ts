@@ -24,6 +24,8 @@ export const isProjectsUiEnabled = (organization: OrganizationOutput): boolean =
 
 export const canManageMembers = (role: OrganizationRole): boolean => role === "owner" || role === "admin";
 
+export const canDeleteOrganization = (role: OrganizationRole): boolean => role === "owner";
+
 /** Creating, renaming and deleting projects is for owners and admins; the api refuses everyone else. */
 export const canManageProjects = (role: OrganizationRole): boolean => role === "owner" || role === "admin";
 

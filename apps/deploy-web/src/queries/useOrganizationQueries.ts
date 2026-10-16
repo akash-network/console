@@ -23,6 +23,12 @@ export function useCreateOrganizationMutation() {
   });
 }
 
+export function useDeleteOrganizationMutation() {
+  const { api } = useServices();
+
+  return api.v1.deleteOrganization.useMutation({ meta: SKIP_REPORTING_REFUSED_INPUT });
+}
+
 /** Invites into the active organization, which the proxy takes from the organization cookie only. */
 export function useCreateOrganizationInvitationsMutation() {
   const { api } = useServices();

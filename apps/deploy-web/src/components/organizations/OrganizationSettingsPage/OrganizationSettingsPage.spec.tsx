@@ -25,6 +25,22 @@ describe(OrganizationSettingsPage.name, () => {
     expect(LeaveOrganizationSetting.mock.lastCall?.[0]).toEqual(expect.objectContaining({ organization: expect.objectContaining({ id: "org-2", role }) }));
   });
 
+  it("offers the owner to delete the team in the danger zone too", () => {
+    const { LeaveOrganizationSetting, DeleteTeamSetting } = setup({ role: "owner" });
+
+    expect(screen.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
+    expect(LeaveOrganizationSetting).toHaveBeenCalled();
+    expect(DeleteTeamSetting.mock.lastCall?.[0]).toEqual(
+      expect.objectContaining({ organization: expect.objectContaining({ id: "org-2", name: "Acme Corp" }) })
+    );
+  });
+
+  it.each(["admin", "member", "viewer", "billing"] as const)("does not offer a %s to delete the team", role => {
+    const { DeleteTeamSetting } = setup({ role });
+
+    expect(DeleteTeamSetting).not.toHaveBeenCalled();
+  });
+
   it("lets an admin rename the organization but not transfer it", () => {
     const { OrganizationNameSetting, OwnershipTransferSetting } = setup({ role: "admin" });
 
@@ -90,6 +106,7 @@ describe(OrganizationSettingsPage.name, () => {
     const OrganizationNameSetting = vi.fn<typeof DEPENDENCIES.OrganizationNameSetting>(() => null);
     const OwnershipTransferSetting = vi.fn<typeof DEPENDENCIES.OwnershipTransferSetting>(() => null);
     const LeaveOrganizationSetting = vi.fn<typeof DEPENDENCIES.LeaveOrganizationSetting>(() => null);
+    const DeleteTeamSetting = vi.fn<typeof DEPENDENCIES.DeleteTeamSetting>(() => null);
 
     const dependencies = MockComponents(DEPENDENCIES, {
       Layout,
@@ -97,6 +114,7 @@ describe(OrganizationSettingsPage.name, () => {
       OrganizationNameSetting,
       OwnershipTransferSetting,
       LeaveOrganizationSetting,
+      DeleteTeamSetting,
       useFlag: () => input.isEnabled ?? true,
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
@@ -108,6 +126,6 @@ describe(OrganizationSettingsPage.name, () => {
 
     render(<OrganizationSettingsPage dependencies={dependencies} />);
 
-    return { replace, Layout, SettingsLayout, OrganizationNameSetting, OwnershipTransferSetting, LeaveOrganizationSetting };
+    return { replace, Layout, SettingsLayout, OrganizationNameSetting, OwnershipTransferSetting, LeaveOrganizationSetting, DeleteTeamSetting };
   }
 });

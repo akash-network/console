@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { OrganizationOutput } from "@src/types/organization";
 import {
   canChangeDeployments,
+  canDeleteOrganization,
   canManageBilling,
   canManageProjects,
   canRenameOrganization,
@@ -42,6 +43,16 @@ describe("organizationAccess", () => {
     ["viewer", false]
   ] as const)("lets an %s manage billing: %s", (role, expected) => {
     expect(canManageBilling(role)).toBe(expected);
+  });
+
+  it.each([
+    ["owner", true],
+    ["admin", false],
+    ["member", false],
+    ["billing", false],
+    ["viewer", false]
+  ] as const)("lets an %s delete the organization: %s", (role, expected) => {
+    expect(canDeleteOrganization(role)).toBe(expected);
   });
 
   it("turns the projects experience on for a team organization only", () => {
