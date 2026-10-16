@@ -6,6 +6,7 @@ import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.reposit
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
+import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
@@ -17,6 +18,7 @@ import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("Organizations", () => {
   const userRepository = container.resolve(UserRepository);
+  const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -44,9 +46,19 @@ describe("Organizations", () => {
             type: "personal",
             role: "owner",
             isActive: true,
+            hasPaymentMethod: false,
             createdAt: personal.createdAt.toISOString()
           },
-          { id: team.id, name: team.name, slug: team.slug, type: "team", role: "member", isActive: false, createdAt: team.createdAt.toISOString() }
+          {
+            id: team.id,
+            name: team.name,
+            slug: team.slug,
+            type: "team",
+            role: "member",
+            isActive: false,
+            hasPaymentMethod: null,
+            createdAt: team.createdAt.toISOString()
+          }
         ]
       });
     });
@@ -78,6 +90,41 @@ describe("Organizations", () => {
       const response = await listOrganizations({});
 
       expect(response.status).toBe(401);
+    });
+  });
+
+  describe("payment method", () => {
+    it("tells any member of the active team that the team has a payment method", async () => {
+      const { team, bearer } = await setupCaller({ teamRole: "viewer" });
+      const { user: owner } = await seedOrganizationWithOwner();
+      await seedPaymentMethod({ organizationId: team.id, userId: owner.id });
+
+      const response = await listOrganizations({ authorization: bearer, "x-organization-id": team.id });
+
+      expect(await activeOrganizationOf(response)).toMatchObject({ id: team.id, hasPaymentMethod: true });
+    });
+
+    it("tells that the active team has no payment method while only its members hold cards", async () => {
+      const { personal, team, user, bearer } = await setupCaller({ teamRole: "billing" });
+      const { organization: otherTeam } = await seedOrganizationWithOwner();
+      await seedPaymentMethod({ organizationId: personal.id, userId: user.id });
+      await seedPaymentMethod({ organizationId: otherTeam.id, userId: user.id });
+
+      const response = await listOrganizations({ authorization: bearer, "x-organization-id": team.id });
+
+      expect(await activeOrganizationOf(response)).toMatchObject({ id: team.id, hasPaymentMethod: false });
+    });
+
+    it("reads the caller's own cards in their active personal organization, leaving out the ones they added for a team", async () => {
+      const { personal, team, user, bearer } = await setupCaller({});
+      await seedPaymentMethod({ organizationId: team.id, userId: user.id });
+      const withoutOwnCard = await activeOrganizationOf(await listOrganizations({ authorization: bearer }));
+
+      await seedPaymentMethod({ organizationId: personal.id, userId: user.id });
+      const withOwnCard = await activeOrganizationOf(await listOrganizations({ authorization: bearer }));
+
+      expect(withoutOwnCard).toMatchObject({ id: personal.id, hasPaymentMethod: false });
+      expect(withOwnCard).toMatchObject({ id: personal.id, hasPaymentMethod: true });
     });
   });
 
@@ -237,10 +284,22 @@ describe("Organizations", () => {
   }
 
   async function activeOrganizationIdOf(response: Response) {
-    expect(response.status).toBe(200);
-    const { data } = (await response.json()) as { data: { id: string; isActive: boolean }[] };
+    return (await activeOrganizationOf(response))?.id;
+  }
 
-    return data.find(organization => organization.isActive)?.id;
+  async function activeOrganizationOf(response: Response) {
+    expect(response.status).toBe(200);
+    const { data } = (await response.json()) as { data: { id: string; isActive: boolean; hasPaymentMethod: boolean | null }[] };
+
+    return data.find(organization => organization.isActive);
+  }
+
+  async function seedPaymentMethod(input: { organizationId: string | null; userId: string }) {
+    await db.insert(resolveTable("PaymentMethods")).values({
+      ...input,
+      fingerprint: faker.string.alphanumeric(16),
+      paymentMethodId: `pm_${faker.string.alphanumeric(14)}`
+    });
   }
 
   function signIn(externalUserId: string) {

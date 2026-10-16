@@ -11,7 +11,7 @@ import type {
   SingleOrganizationResponse,
   UpdateOrganizationRequest
 } from "@src/organization/http-schemas/organization.schema";
-import { type CallerMembership, OrganizationService } from "@src/organization/services/organization/organization.service";
+import { type CallerOrganization, OrganizationService } from "@src/organization/services/organization/organization.service";
 import { TeamOrganizationService } from "@src/organization/services/team-organization/team-organization.service";
 import { TeamOrganizationDeletionService } from "@src/organization/services/team-organization-deletion/team-organization-deletion.service";
 
@@ -26,20 +26,25 @@ export class OrganizationController {
   @Protected()
   async list(): Promise<ListOrganizationsResponse> {
     const memberships = await this.organizationService.listCallerMemberships();
+    const organizations = await Promise.all(memberships.map(membership => this.organizationService.withPaymentMethodStatus(membership)));
 
-    return { data: memberships.map(toOrganizationResponse) };
+    return { data: organizations.map(toOrganizationResponse) };
   }
 
   @Protected()
   async create({ name }: CreateOrganizationRequest["data"], origin: { authMethod?: AuthMethod }): Promise<SingleOrganizationResponse> {
     assert(origin.authMethod === "bearer", 403, "An organization can only be created from a signed-in Console session.", { errorCode: "session_required" });
 
-    return { data: toOrganizationResponse(await this.teamOrganizationService.create(name)) };
+    const created = await this.teamOrganizationService.create(name);
+
+    return { data: toOrganizationResponse(await this.organizationService.withPaymentMethodStatus(created)) };
   }
 
   @Protected([{ action: "update", subject: "Organization" }])
   async update(id: string, { name }: UpdateOrganizationRequest["data"]): Promise<SingleOrganizationResponse> {
-    return { data: toOrganizationResponse(await this.teamOrganizationService.rename(id, name)) };
+    const renamed = await this.teamOrganizationService.rename(id, name);
+
+    return { data: toOrganizationResponse(await this.organizationService.withPaymentMethodStatus(renamed)) };
   }
 
   @Protected()
@@ -50,8 +55,8 @@ export class OrganizationController {
   }
 }
 
-export function toOrganizationResponse({ role, isActive, organization }: CallerMembership): OrganizationResponse {
+export function toOrganizationResponse({ role, isActive, hasPaymentMethod, organization }: CallerOrganization): OrganizationResponse {
   const { id, name, slug, type, createdAt } = organization;
 
-  return { id, name, slug, type, role, isActive, createdAt: createdAt.toISOString() };
+  return { id, name, slug, type, role, isActive, hasPaymentMethod, createdAt: createdAt.toISOString() };
 }

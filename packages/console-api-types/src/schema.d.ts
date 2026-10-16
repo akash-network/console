@@ -13348,6 +13348,8 @@ export interface operations {
               role: "owner" | "admin" | "member" | "billing" | "viewer";
               /** @description Whether this request ran in this organization. */
               isActive: boolean;
+              /** @description Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in. */
+              hasPaymentMethod: boolean | null;
               /** Format: date-time */
               createdAt: string;
             }[];
@@ -13421,6 +13423,8 @@ export interface operations {
               role: "owner" | "admin" | "member" | "billing" | "viewer";
               /** @description Whether this request ran in this organization. */
               isActive: boolean;
+              /** @description Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in. */
+              hasPaymentMethod: boolean | null;
               /** Format: date-time */
               createdAt: string;
             };
@@ -13565,6 +13569,8 @@ export interface operations {
               role: "owner" | "admin" | "member" | "billing" | "viewer";
               /** @description Whether this request ran in this organization. */
               isActive: boolean;
+              /** @description Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in. */
+              hasPaymentMethod: boolean | null;
               /** Format: date-time */
               createdAt: string;
             };
@@ -14733,6 +14739,8 @@ export interface operations {
               role: "owner" | "admin" | "member" | "billing" | "viewer";
               /** @description Whether this request ran in this organization. */
               isActive: boolean;
+              /** @description Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in. */
+              hasPaymentMethod: boolean | null;
               /** Format: date-time */
               createdAt: string;
             };

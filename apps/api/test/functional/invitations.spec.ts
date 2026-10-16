@@ -119,6 +119,7 @@ describe("Invitations", () => {
           type: "team",
           role: "member",
           isActive: false,
+          hasPaymentMethod: null,
           createdAt: organization.createdAt.toISOString()
         }
       });

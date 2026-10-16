@@ -48,6 +48,7 @@ describe("Organization creation and renaming", () => {
         type: "team",
         role: "owner",
         isActive: false,
+        hasPaymentMethod: null,
         createdAt: expect.any(String)
       });
       expect(await readOrganizationRows(data.id)).toEqual({
@@ -213,7 +214,16 @@ describe("Organization creation and renaming", () => {
 
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
-        data: { id: team.id, name: "Acme Labs", slug: team.slug, type: "team", role: "owner", isActive: true, createdAt: team.createdAt.toISOString() }
+        data: {
+          id: team.id,
+          name: "Acme Labs",
+          slug: team.slug,
+          type: "team",
+          role: "owner",
+          isActive: true,
+          hasPaymentMethod: false,
+          createdAt: team.createdAt.toISOString()
+        }
       });
     });
 
