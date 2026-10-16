@@ -5,6 +5,7 @@ import { atomWithStorage } from "jotai/utils";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useHasFundingBanner } from "@src/hooks/useHasFundingBanner";
+import { useTeamWithoutPaymentMethod } from "@src/hooks/useTeamWithoutPaymentMethod";
 import { useWhen } from "@src/hooks/useWhen";
 import { useBlockchainStatus } from "../context/BlockchainStatusProvider";
 
@@ -29,6 +30,7 @@ interface ITopBannerContext {
   setIsGenericBannerOpen: (isGenericBannerOpen: boolean) => void;
   isGenericBannerOpen: boolean;
   isBlockchainDown: boolean;
+  hasTeamPaymentMethodBanner: boolean;
   hasFundingBanner: boolean;
 }
 
@@ -49,6 +51,7 @@ export function useTopBanner(): ITopBannerContext {
   const maintenanceBannerFlag = useVariant("maintenance_banner");
   const genericBannerFlag = useVariant("generic_banner");
   const { isBlockchainDown } = useBlockchainStatus();
+  const hasTeamPaymentMethodBanner = !!useTeamWithoutPaymentMethod();
   const hasFundingBanner = useHasFundingBanner();
   const { dismissId } = useGenericBannerDetails();
 
@@ -61,8 +64,8 @@ export function useTopBanner(): ITopBannerContext {
   });
 
   const hasBanner = useMemo(
-    () => isMaintenanceBannerOpen || isGenericBannerOpen || isBlockchainDown || hasFundingBanner,
-    [isMaintenanceBannerOpen, isGenericBannerOpen, isBlockchainDown, hasFundingBanner]
+    () => isMaintenanceBannerOpen || isGenericBannerOpen || isBlockchainDown || hasTeamPaymentMethodBanner || hasFundingBanner,
+    [isMaintenanceBannerOpen, isGenericBannerOpen, isBlockchainDown, hasTeamPaymentMethodBanner, hasFundingBanner]
   );
 
   return useMemo(
@@ -73,9 +76,19 @@ export function useTopBanner(): ITopBannerContext {
       isGenericBannerOpen,
       setIsGenericBannerOpen,
       isBlockchainDown,
+      hasTeamPaymentMethodBanner,
       hasFundingBanner
     }),
-    [hasBanner, isMaintenanceBannerOpen, setIsMaintenanceBannerOpen, isGenericBannerOpen, setIsGenericBannerOpen, isBlockchainDown, hasFundingBanner]
+    [
+      hasBanner,
+      isMaintenanceBannerOpen,
+      setIsMaintenanceBannerOpen,
+      isGenericBannerOpen,
+      setIsGenericBannerOpen,
+      isBlockchainDown,
+      hasTeamPaymentMethodBanner,
+      hasFundingBanner
+    ]
   );
 }
 

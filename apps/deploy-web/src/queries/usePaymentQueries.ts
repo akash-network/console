@@ -90,21 +90,24 @@ export const useSetupIntentMutation = () => {
 };
 
 /**
- * Refreshes the payment-methods list, then the default-payment-method query. The order is load
- * bearing: the awaited list refetch resolves only after the server-side read-repair in
+ * Refreshes the payment-methods list, then the queries derived from it. The order is load
+ * bearing: the awaited list fetch resolves only after the server-side read-repair in
  * getPaymentMethods has committed, so the following default fetch observes the healed state rather
- * than the stale drift it was about to repair, and the wallet settings observe the auto top-up
- * pause that same repair lifts.
+ * than the stale drift it was about to repair, the wallet settings observe the auto top-up
+ * pause that same repair lifts, and the organizations observe a team's first card. The list is
+ * fetched even when no page shows it, since a card added from the team billing banner is often
+ * recorded by that repair before its webhook lands.
  */
 export const useRefreshPaymentMethods = () => {
-  const { api } = useServices();
+  const { api, stripe } = useServices();
   const queryClient = useQueryClient();
 
   return useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: QueryKeys.getPaymentMethodsKey() });
+    await queryClient.prefetchQuery({ queryKey: QueryKeys.getPaymentMethodsKey(), queryFn: () => stripe.getPaymentMethods() });
     await queryClient.invalidateQueries({ queryKey: api.v1.getDefaultPaymentMethod.getKey() });
     await queryClient.invalidateQueries({ queryKey: api.v1.getWalletSettings.getKey() });
-  }, [api, queryClient]);
+    await queryClient.invalidateQueries({ queryKey: api.v1.listOrganizations.getKey() });
+  }, [api, stripe, queryClient]);
 };
 
 export const usePaymentMutations = () => {

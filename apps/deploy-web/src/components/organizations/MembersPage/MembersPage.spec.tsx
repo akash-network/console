@@ -116,6 +116,7 @@ describe(MembersPage.name, () => {
       type: input.type ?? "team",
       role: input.role ?? "owner",
       isActive: true,
+      hasPaymentMethod: true,
       createdAt: "2026-02-01T00:00:00Z"
     };
     const replace = vi.fn();

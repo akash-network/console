@@ -163,13 +163,14 @@ describe("usePaymentQueries", () => {
   });
 
   describe("usePaymentMutations", () => {
-    it("invalidates transactions, payment methods, and the default method after a settled payment", async () => {
+    it("refreshes transactions, payment methods, and the default method after a settled payment", async () => {
       const mockPaymentResponse = createMockPaymentResponse({ requiresAction: false });
       const stripeService = mock<StripeService>({
-        confirmPayment: vi.fn().mockResolvedValue(mockPaymentResponse)
+        confirmPayment: vi.fn().mockResolvedValue(mockPaymentResponse),
+        getPaymentMethods: vi.fn().mockResolvedValue([])
       });
       const api = createProxy({
-        v1: { listStripeTransactions: vi.fn(), getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn() }
+        v1: { listStripeTransactions: vi.fn(), getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn(), listOrganizations: vi.fn() }
       }) as unknown as ApiService;
       const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
         services: { stripe: () => stripeService, api: () => api }
@@ -188,7 +189,7 @@ describe("usePaymentQueries", () => {
       await vi.waitFor(() => {
         expect(stripeService.confirmPayment).toHaveBeenCalled();
         expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.listStripeTransactions.getKey() });
-        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentMethodsKey() });
+        expect(stripeService.getPaymentMethods).toHaveBeenCalled();
         expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.getDefaultPaymentMethod.getKey() });
       });
     });
@@ -217,7 +218,7 @@ describe("usePaymentQueries", () => {
         expect(stripeService.confirmPayment).toHaveBeenCalled();
         expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.listStripeTransactions.getKey() });
       });
-      expect(invalidateQueriesSpy).not.toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentMethodsKey() });
+      expect(stripeService.getPaymentMethods).not.toHaveBeenCalled();
     });
 
     it("applies coupon and invalidate discounts", async () => {
@@ -260,12 +261,15 @@ describe("usePaymentQueries", () => {
       });
     });
 
-    it("removes payment method and invalidates the methods, default and wallet settings queries", async () => {
+    it("removes payment method and refreshes the methods, default, wallet settings and organizations queries", async () => {
       const mockRemovedPaymentMethod = createMockRemovedPaymentMethod();
       const stripeService = mock<StripeService>({
-        removePaymentMethod: vi.fn().mockResolvedValue(mockRemovedPaymentMethod)
+        removePaymentMethod: vi.fn().mockResolvedValue(mockRemovedPaymentMethod),
+        getPaymentMethods: vi.fn().mockResolvedValue([])
       });
-      const api = createProxy({ v1: { getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn() } }) as unknown as ApiService;
+      const api = createProxy({
+        v1: { getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn(), listOrganizations: vi.fn() }
+      }) as unknown as ApiService;
       const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
         services: { stripe: () => stripeService, api: () => api }
       });
@@ -278,18 +282,22 @@ describe("usePaymentQueries", () => {
 
       await vi.waitFor(() => {
         expect(stripeService.removePaymentMethod).toHaveBeenCalledWith(mockRemovedPaymentMethod.id);
-        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentMethodsKey() });
+        expect(stripeService.getPaymentMethods).toHaveBeenCalled();
         expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.getDefaultPaymentMethod.getKey() });
         expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.getWalletSettings.getKey() });
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.listOrganizations.getKey() });
       });
     });
 
-    it("validates payment method after 3DS and invalidates the methods and default queries", async () => {
+    it("validates payment method after 3DS and refreshes the methods and default queries", async () => {
       const mockValidationResponse = { success: true };
       const stripeService = mock<StripeService>({
-        validatePaymentMethodAfter3DS: vi.fn().mockResolvedValue(mockValidationResponse)
+        validatePaymentMethodAfter3DS: vi.fn().mockResolvedValue(mockValidationResponse),
+        getPaymentMethods: vi.fn().mockResolvedValue([])
       });
-      const api = createProxy({ v1: { getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn() } }) as unknown as ApiService;
+      const api = createProxy({
+        v1: { getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn(), listOrganizations: vi.fn() }
+      }) as unknown as ApiService;
       const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
         services: { stripe: () => stripeService, api: () => api }
       });
@@ -308,16 +316,19 @@ describe("usePaymentQueries", () => {
           paymentMethodId: "pm_123",
           paymentIntentId: "pi_123"
         });
-        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: QueryKeys.getPaymentMethodsKey() });
+        expect(stripeService.getPaymentMethods).toHaveBeenCalled();
         expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.getDefaultPaymentMethod.getKey() });
       });
     });
 
     it("refreshes the wallet settings so an auto top-up pause lifted by the new card stops showing", async () => {
       const stripeService = mock<StripeService>({
-        setPaymentMethodAsDefault: vi.fn().mockResolvedValue(createMockPaymentMethod({ isDefault: true }))
+        setPaymentMethodAsDefault: vi.fn().mockResolvedValue(createMockPaymentMethod({ isDefault: true })),
+        getPaymentMethods: vi.fn().mockResolvedValue([])
       });
-      const api = createProxy({ v1: { getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn() } }) as unknown as ApiService;
+      const api = createProxy({
+        v1: { getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn(), listOrganizations: vi.fn() }
+      }) as unknown as ApiService;
       const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
         services: { stripe: () => stripeService, api: () => api }
       });
@@ -333,38 +344,61 @@ describe("usePaymentQueries", () => {
       });
     });
 
-    it("waits for the methods invalidation to settle before invalidating the default query", async () => {
-      const mockPaymentMethod = createMockPaymentMethod({ isDefault: true });
+    it("waits for the methods list to load before invalidating the default and organizations queries", async () => {
+      let resolvePaymentMethods!: (methods: never[]) => void;
       const stripeService = mock<StripeService>({
-        setPaymentMethodAsDefault: vi.fn().mockResolvedValue(mockPaymentMethod)
+        setPaymentMethodAsDefault: vi.fn().mockResolvedValue(createMockPaymentMethod({ isDefault: true })),
+        getPaymentMethods: vi.fn().mockReturnValue(
+          new Promise(resolve => {
+            resolvePaymentMethods = resolve;
+          })
+        )
       });
-      const api = createProxy({ v1: { getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn() } }) as unknown as ApiService;
+      const api = createProxy({
+        v1: { getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn(), listOrganizations: vi.fn() }
+      }) as unknown as ApiService;
       const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
         services: { stripe: () => stripeService, api: () => api }
       });
-
-      let resolveMethodsInvalidation!: () => void;
-      const methodsInvalidation = new Promise<void>(resolve => {
-        resolveMethodsInvalidation = resolve;
-      });
-      const invalidateQueriesSpy = vi
-        .spyOn(queryClient, "invalidateQueries")
-        .mockImplementationOnce(() => methodsInvalidation)
-        .mockResolvedValue(undefined);
+      const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
 
       await act(async () => {
         await result.current.setPaymentMethodAsDefault.mutateAsync("pm_123");
       });
 
       await vi.waitFor(() => {
-        expect(invalidateQueriesSpy).toHaveBeenNthCalledWith(1, { queryKey: QueryKeys.getPaymentMethodsKey() });
+        expect(stripeService.getPaymentMethods).toHaveBeenCalled();
       });
-      expect(invalidateQueriesSpy).toHaveBeenCalledTimes(1);
+      expect(invalidateQueriesSpy).not.toHaveBeenCalled();
 
-      resolveMethodsInvalidation();
+      resolvePaymentMethods([]);
 
       await vi.waitFor(() => {
-        expect(invalidateQueriesSpy).toHaveBeenNthCalledWith(2, { queryKey: api.v1.getDefaultPaymentMethod.getKey() });
+        expect(invalidateQueriesSpy).toHaveBeenNthCalledWith(1, { queryKey: api.v1.getDefaultPaymentMethod.getKey() });
+        expect(invalidateQueriesSpy).toHaveBeenNthCalledWith(3, { queryKey: api.v1.listOrganizations.getKey() });
+      });
+      expect(queryClient.getQueryData(QueryKeys.getPaymentMethodsKey())).toEqual([]);
+    });
+
+    it("still refreshes the organizations when the methods list fails to load", async () => {
+      const stripeService = mock<StripeService>({
+        setPaymentMethodAsDefault: vi.fn().mockResolvedValue(createMockPaymentMethod({ isDefault: true })),
+        getPaymentMethods: vi.fn().mockRejectedValue(new Error("Stripe is unavailable"))
+      });
+      const api = createProxy({
+        v1: { getDefaultPaymentMethod: vi.fn(), getWalletSettings: vi.fn(), listOrganizations: vi.fn() }
+      }) as unknown as ApiService;
+      const { result, queryClient } = setupQueryWithClient(() => usePaymentMutations(), {
+        services: { stripe: () => stripeService, api: () => api }
+      });
+      const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+      await act(async () => {
+        await result.current.setPaymentMethodAsDefault.mutateAsync("pm_123");
+      });
+
+      await vi.waitFor(() => {
+        expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: api.v1.listOrganizations.getKey() });
       });
     });
   });

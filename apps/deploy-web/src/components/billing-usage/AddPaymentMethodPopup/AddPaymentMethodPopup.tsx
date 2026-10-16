@@ -16,7 +16,8 @@ interface AddPaymentMethodPopupProps {
 
 export const AddPaymentMethodPopup: React.FC<AddPaymentMethodPopupProps> = ({ open, onClose, clientSecret, isDarkMode, onSuccess }) => {
   const { stripeService } = useServices();
-  const stripePromise = useMemo(() => stripeService.getStripe(), [stripeService]);
+  const hasSetupIntent = !!clientSecret;
+  const stripePromise = useMemo(() => (hasSetupIntent ? stripeService.getStripe() : null), [stripeService, hasSetupIntent]);
 
   return (
     <Popup open={open} onClose={onClose} title="Add New Payment Method" variant="custom" actions={[]}>

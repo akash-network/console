@@ -7,8 +7,26 @@ import { useOpenDeploymentInItsOrganization } from "./useOpenDeploymentInItsOrga
 
 import { renderHook } from "@testing-library/react";
 
-const PERSONAL: OrganizationOutput = { id: "org-1", name: "alice", slug: "alice", type: "personal", role: "owner", isActive: true, createdAt: "" };
-const TEAM: OrganizationOutput = { id: "org-2", name: "Acme Corp", slug: "acme-corp", type: "team", role: "member", isActive: false, createdAt: "" };
+const PERSONAL: OrganizationOutput = {
+  id: "org-1",
+  name: "alice",
+  slug: "alice",
+  type: "personal",
+  role: "owner",
+  isActive: true,
+  hasPaymentMethod: true,
+  createdAt: ""
+};
+const TEAM: OrganizationOutput = {
+  id: "org-2",
+  name: "Acme Corp",
+  slug: "acme-corp",
+  type: "team",
+  role: "member",
+  isActive: false,
+  hasPaymentMethod: null,
+  createdAt: ""
+};
 
 describe(useOpenDeploymentInItsOrganization.name, () => {
   it("switches to the organization the deployment belongs to, back on the same deployment and tab", () => {
