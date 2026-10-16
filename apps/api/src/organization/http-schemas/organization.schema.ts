@@ -10,6 +10,10 @@ export const OrganizationSchema = z.object({
   type: z.enum(organizationTypeEnum.enumValues),
   role: z.enum(organizationRoleEnum.enumValues).openapi({ description: "The caller's role in the organization." }),
   isActive: z.boolean().openapi({ description: "Whether this request ran in this organization." }),
+  hasPaymentMethod: z.boolean().nullable().openapi({
+    description:
+      "Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in."
+  }),
   createdAt: z.string().datetime()
 });
 

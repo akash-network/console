@@ -11,10 +11,14 @@ import type {
   PreviewInvitationRequest
 } from "@src/organization/http-schemas/invitation.schema";
 import { InvitationAcceptanceService } from "@src/organization/services/invitation-acceptance/invitation-acceptance.service";
+import { OrganizationService } from "@src/organization/services/organization/organization.service";
 
 @singleton()
 export class InvitationController {
-  constructor(private readonly invitationAcceptanceService: InvitationAcceptanceService) {}
+  constructor(
+    private readonly invitationAcceptanceService: InvitationAcceptanceService,
+    private readonly organizationService: OrganizationService
+  ) {}
 
   async preview({ token }: PreviewInvitationRequest["data"]): Promise<InvitationPreviewResponse> {
     const { organizationName, inviterName, role, email, status, expiresAt } = await this.invitationAcceptanceService.getPreview(token);
@@ -26,6 +30,8 @@ export class InvitationController {
   async accept(input: AcceptInvitationRequest["data"], origin: { authMethod?: AuthMethod }): Promise<AcceptInvitationResponse> {
     assert(origin.authMethod === "bearer", 403, "An invitation can only be accepted from a signed-in Console session.", { errorCode: "session_required" });
 
-    return { data: toOrganizationResponse(await this.invitationAcceptanceService.acceptInvitation(input)) };
+    const joined = await this.invitationAcceptanceService.acceptInvitation(input);
+
+    return { data: toOrganizationResponse(await this.organizationService.withPaymentMethodStatus(joined)) };
   }
 }
