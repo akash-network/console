@@ -15,6 +15,7 @@ describe("OrganizationNameSetting", () => {
 
     expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Acme Corp");
     expect(screen.getByRole("textbox", { name: "Name" })).toHaveAccessibleDescription("Shown to members across Console and in invitations.");
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveAttribute("aria-invalid", "false");
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
@@ -80,6 +81,7 @@ describe("OrganizationNameSetting", () => {
     await user.type(screen.getByRole("textbox", { name: "Name" }), "globex{Enter}");
 
     expect(screen.getByText("You already belong to an organization with this name.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(renameOrganization).not.toHaveBeenCalled();
   });

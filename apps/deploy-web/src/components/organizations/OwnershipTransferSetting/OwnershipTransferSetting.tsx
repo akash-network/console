@@ -75,8 +75,8 @@ export const OwnershipTransferSetting: FC<Props> = ({ organization, dependencies
           ))}
         </SelectContent>
       </Select>
-      <LoadingButton type="button" variant="outline" size="md" className="gap-1.5" loading={isPending} disabled={!newOwner} onClick={handOverOwnership}>
-        <Crown className="h-4 w-4" aria-hidden />
+      <LoadingButton type="button" variant="outline" size="md" loading={isPending} disabled={!newOwner} onClick={handOverOwnership}>
+        <Crown className="mr-1.5 h-4 w-4" aria-hidden />
         Transfer
       </LoadingButton>
     </SettingsRow>
