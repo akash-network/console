@@ -19,7 +19,7 @@ export type OrganizationInvitationWithInviter = Pick<
   invitedBy: { id: string; username: string | null } | null;
 };
 
-export type OrganizationInvitationPreview = Pick<OrganizationInvitationOutput, "role" | "email" | "status" | "expiresAt"> & {
+export type OrganizationInvitationPreview = Pick<OrganizationInvitationOutput, "organizationId" | "role" | "email" | "status" | "expiresAt"> & {
   organizationName: string;
   inviterName: string | null;
 };
@@ -99,6 +99,7 @@ export class OrganizationInvitationRepository extends OrgScopedRepository<Table,
   async findPreviewByTokenHash(tokenHash: OrganizationInvitationOutput["tokenHash"]): Promise<OrganizationInvitationPreview | undefined> {
     const [preview] = await this.cursor
       .select({
+        organizationId: this.table.organizationId,
         organizationName: Organizations.name,
         inviterName: Users.username,
         role: this.table.role,

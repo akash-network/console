@@ -43,6 +43,7 @@ describe("Invitations", () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
         data: {
+          organizationId: organization.id,
           organizationName: organization.name,
           inviterName: owner.username,
           role: "admin",

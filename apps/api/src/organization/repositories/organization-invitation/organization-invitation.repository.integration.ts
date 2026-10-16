@@ -131,6 +131,7 @@ describe(OrganizationInvitationRepository.name, () => {
       await seedOrganizationInvitation({ organizationId: organization.id });
 
       expect(await repository.findPreviewByTokenHash(invitation.tokenHash)).toEqual({
+        organizationId: organization.id,
         organizationName: organization.name,
         inviterName: inviter.username,
         role: "admin",
