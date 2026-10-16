@@ -16,6 +16,7 @@ export class OrganizationSwitcher {
     await this.page.getByRole("menuitem", { name: "Create organization" }).click();
     const dialog = this.page.getByRole("dialog", { name: "Create an organization" });
     await dialog.getByLabel("Organization name").fill(name);
+    await dialog.getByRole("radio", { name: /^Set up later/ }).click();
     await dialog.getByRole("button", { name: "Create organization" }).click();
   }
 

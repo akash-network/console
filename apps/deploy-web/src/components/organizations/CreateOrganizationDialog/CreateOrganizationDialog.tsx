@@ -1,6 +1,6 @@
 "use client";
 import type { FC, FormEvent } from "react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { extractApiErrorCode, isApiError } from "@akashnetwork/openapi-sdk";
 import {
   Button,
@@ -20,9 +20,15 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Info } from "lucide-react";
 import { useSnackbar } from "notistack";
 
+import type { NewCardHandle } from "@src/components/organizations/NewCardFields/NewCardFields";
+import { CARD_SAVE_FAILED_REASON } from "@src/components/organizations/NewCardFields/NewCardFields";
+import type { BillingChoice } from "@src/components/organizations/OrganizationBillingField/OrganizationBillingField";
+import { OrganizationBillingField } from "@src/components/organizations/OrganizationBillingField/OrganizationBillingField";
 import { SUPPORT_EMAIL } from "@src/config/ui.config";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
+import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
+import { serializeActiveOrganizationCookie } from "@src/lib/active-organization/active-organization-cookie";
 import { useCreateOrganizationInvitationsMutation, useCreateOrganizationMutation } from "@src/queries/useOrganizationQueries";
 import { ORGANIZATION_LIMIT_REACHED_ERROR_CODE, ORGANIZATION_NAME_TAKEN_ERROR_CODE } from "@src/types/organization";
 import { readRefusedLimit } from "@src/utils/refusedLimit";
@@ -30,7 +36,14 @@ import { UrlService } from "@src/utils/urlUtils";
 import { INVALID_EMAIL_MESSAGE, isEmailAddress } from "../emailAddress";
 import { EmailChipsInput } from "../EmailChipsInput/EmailChipsInput";
 
-export const DEPENDENCIES = { useActiveOrganization, useUser, useCreateOrganizationMutation, useCreateOrganizationInvitationsMutation, useSnackbar };
+export const DEPENDENCIES = {
+  useActiveOrganization,
+  useUser,
+  useCreateOrganizationMutation,
+  useCreateOrganizationInvitationsMutation,
+  useSnackbar,
+  OrganizationBillingField
+};
 
 export const ORGANIZATION_NAME_TAKEN_MESSAGE = "You already belong to an organization with this name.";
 
@@ -42,7 +55,7 @@ export const MAX_ORGANIZATION_NAME_LENGTH = 64;
 
 const INVITE_HINT = "They join as Members. You can change roles later.";
 
-const OWNER_NOTE = "You'll be the organization's owner. Its billing is separate from your personal account.";
+const OWNER_NOTE = "You'll be the organization's owner.";
 
 const BAD_REQUEST_STATUS = 400;
 
@@ -57,11 +70,16 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
   const { organizations, switchOrganization } = d.useActiveOrganization();
   const { user } = d.useUser();
   const { enqueueSnackbar } = d.useSnackbar();
-  const { mutateAsync: createOrganization, isPending } = d.useCreateOrganizationMutation();
+  const { stripe, errorHandler } = useServices();
+  const { mutateAsync: createOrganization } = d.useCreateOrganizationMutation();
   const { mutateAsync: inviteToActiveOrganization } = d.useCreateOrganizationInvitationsMutation();
   const [name, setName] = useState("");
   const [emails, setEmails] = useState<string[]>([]);
   const [refusal, setRefusal] = useState<Refusal>({});
+  const [billingChoice, setBillingChoice] = useState<BillingChoice>();
+  const [isCardComplete, setIsCardComplete] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const cardRef = useRef<NewCardHandle>(null);
   const formId = useId();
   const nameId = `${formId}-name`;
   const nameErrorId = `${formId}-name-error`;
@@ -74,11 +92,17 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
   const ownEmail = user?.email?.toLowerCase();
   const getEmailError = (email: string) => (!isEmailAddress(email) ? INVALID_EMAIL_MESSAGE : email === ownEmail ? OWN_EMAIL_MESSAGE : null);
   const firstBadEmail = emails.find(email => getEmailError(email));
-  const canSubmit = trimmedName.length > 0 && !nameError && !firstBadEmail && !isPending;
+  const isBillingChosen = billingChoice === "later" || isCardComplete;
+  const canSubmit = trimmedName.length > 0 && !nameError && !firstBadEmail && isBillingChosen && !isSubmitting;
 
   const typeName = (value: string) => {
     setName(value);
     setRefusal({});
+  };
+
+  const chooseBilling = (choice: BillingChoice) => {
+    setBillingChoice(choice);
+    setIsCardComplete(false);
   };
 
   const reportRefusal = (error: unknown) => {
@@ -108,9 +132,48 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
     }
   };
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!canSubmit) return;
+  const reportCreated = (organizationName: string, cardFailure: string | undefined) => {
+    if (cardFailure) {
+      enqueueSnackbar(
+        <Snackbar
+          title={`Created ${organizationName}, but your card wasn't saved`}
+          subTitle={`${cardFailure} You can add a card in Billing.`}
+          iconVariant="warning"
+        />,
+        { variant: "warning" }
+      );
+    } else {
+      enqueueSnackbar(<Snackbar title={`Created ${organizationName}`} iconVariant="success" />, { variant: "success" });
+    }
+  };
+
+  const reportBillingError = (error: unknown) => errorHandler.reportError({ error, tags: { category: "billing" } });
+
+  const confirmCard = async (card: NewCardHandle) => {
+    try {
+      const { clientSecret } = await stripe.createSetupIntent();
+      return await card.save(clientSecret);
+    } catch (error) {
+      reportBillingError(error);
+      return CARD_SAVE_FAILED_REASON;
+    }
+  };
+
+  /** The API files a team's new card, and makes its first one the default, when a member next reads the team's cards. */
+  const recordCardAsDefault = () => stripe.getPaymentMethods().catch(reportBillingError);
+
+  /** The proxy reads the organization of every request from its cookie only, so this saves the card on the new team's own customer. */
+  const saveCardToOrganization = async (card: NewCardHandle, organizationId: string) => {
+    document.cookie = serializeActiveOrganizationCookie(organizationId);
+    const cardFailure = await confirmCard(card);
+    if (!cardFailure) await recordCardAsDefault();
+
+    return cardFailure;
+  };
+
+  const createAndEnterOrganization = async () => {
+    const card = cardRef.current;
+    if (card && !(await card.validate())) return;
 
     const created = await createOrganization({ data: { name: trimmedName } }).then(
       response => response.data,
@@ -121,7 +184,8 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
     );
     if (!created) return;
 
-    enqueueSnackbar(<Snackbar title={`Created ${created.name}`} iconVariant="success" />, { variant: "success" });
+    const cardFailure = card ? await saveCardToOrganization(card, created.id) : undefined;
+    reportCreated(created.name, cardFailure);
     const hasSwitched = switchOrganization(created.id, { destination: UrlService.members() });
     onClose();
 
@@ -133,9 +197,21 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
     }
   };
 
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!canSubmit) return;
+
+    setIsSubmitting(true);
+    try {
+      await createAndEnterOrganization();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <DialogV2 open onOpenChange={isOpen => (!isOpen && !isPending ? onClose() : undefined)}>
-      <DialogV2Content className="max-w-[520px]" hideCloseButton={isPending}>
+    <DialogV2 open onOpenChange={isOpen => (!isOpen && !isSubmitting ? onClose() : undefined)}>
+      <DialogV2Content className="max-w-[520px]" hideCloseButton={isSubmitting}>
         <DialogV2Header>
           <DialogV2Title>Create an organization</DialogV2Title>
           <DialogV2Description>Share projects, deployments and billing with your team.</DialogV2Description>
@@ -163,6 +239,15 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
               )}
             </div>
 
+            <d.OrganizationBillingField
+              organizationName={trimmedName}
+              choice={billingChoice}
+              onChoiceChange={chooseBilling}
+              cardRef={cardRef}
+              onCardCompleteChange={setIsCardComplete}
+              disabled={isSubmitting}
+            />
+
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2">
                 <Label htmlFor={emailsId}>Invite teammates</Label>
@@ -188,10 +273,10 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
         </DialogV2Body>
 
         <DialogV2Footer className="flex items-center justify-end gap-2">
-          <Button type="button" variant="ghost" disabled={isPending} onClick={onClose}>
+          <Button type="button" variant="ghost" disabled={isSubmitting} onClick={onClose}>
             Cancel
           </Button>
-          <LoadingButton type="submit" form={formId} loading={isPending} disabled={!canSubmit}>
+          <LoadingButton type="submit" form={formId} loading={isSubmitting} disabled={!canSubmit}>
             Create organization
           </LoadingButton>
         </DialogV2Footer>
