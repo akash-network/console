@@ -68,6 +68,7 @@ interface TeamRequest {
 interface RouteNamingAnotherTeam {
   route: string;
   status: number;
+  apiKeyStatus?: number;
   ownerStatus: number;
   request: (team: TeamIds, ownTeam: TeamIds) => TeamRequest;
   echoes?: Array<keyof TeamIds>;
@@ -81,6 +82,8 @@ const patch = (path: string, data: unknown): TeamRequest => ({ method: "PATCH", 
 const remove = (path: string): TeamRequest => ({ method: "DELETE", path });
 
 const SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
+const MAX_ACKNOWLEDGED_FORFEIT_USD = 1_000_000;
 
 const templateOf = (team: TeamIds) => ({ id: team.templateId, sdl: SDL, title: "Taken", cpu: 100, ram: 100, storage: 100, isPublic: false });
 
@@ -99,6 +102,13 @@ const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
     status: 404,
     ownerStatus: 200,
     request: team => patch(`/v1/organizations/${team.organizationId}`, { name: "Taken" })
+  },
+  {
+    route: "DELETE /v1/organizations/{id}",
+    status: 404,
+    apiKeyStatus: 403,
+    ownerStatus: 204,
+    request: team => remove(`/v1/organizations/${team.organizationId}?acknowledgedForfeitUsd=${MAX_ACKNOWLEDGED_FORFEIT_USD}`)
   },
   {
     route: "PATCH /v1/organization-members/{id}",
@@ -336,7 +346,8 @@ const READS_OF_THE_OWN_TEAM: Array<{ route: string; request: (team: TeamIds) => 
   { route: "GET /v1/project-spend", request: () => get("/v1/project-spend") },
   { route: "GET /v1/api-keys", request: () => get("/v1/api-keys") },
   { route: "GET /v1/wallets?userId", request: team => get(`/v1/wallets?userId=${team.ownerUserId}`) },
-  { route: "GET /v1/stripe/transactions", request: () => get("/v1/stripe/transactions") }
+  { route: "GET /v1/stripe/transactions", request: () => get("/v1/stripe/transactions") },
+  { route: "GET /v1/user/me/deletion-eligibility", request: () => get("/v1/user/me/deletion-eligibility") }
 ];
 
 const MIN_IDENTIFIER_LENGTH = 12;
@@ -376,13 +387,13 @@ describe("Cross-team access", () => {
   });
 
   describe.each(["session", "apiKey"] as const)("a route naming an id of another team, called with the %s of that team's owner", credential => {
-    it.each(ROUTES_NAMING_ANOTHER_TEAM)("answers $status to $route, changing and revealing nothing", async ({ request, status, echoes = [] }) => {
+    it.each(ROUTES_NAMING_ANOTHER_TEAM)("answers $route as pinned, changing and revealing nothing", async ({ request, status, apiKeyStatus, echoes = [] }) => {
       const { team, otherTeam, otherOwner, send, rowsOf } = await setup();
       const before = await rowsOf(team.organizationId);
 
       const response = await send(request(team, otherTeam), otherOwner[credential]);
 
-      expect(response.status).toBe(status);
+      expect(response.status).toBe(credential === "apiKey" ? apiKeyStatus ?? status : status);
       expect(await rowsOf(team.organizationId)).toEqual(before);
       expect(await response.text()).not.toMatch(identifiersPattern(team, echoes));
     });
@@ -417,6 +428,15 @@ describe("Cross-team access", () => {
 
       expect(response.status).toBe(200);
       expect(await response.text()).not.toMatch(identifiersPattern(team));
+    });
+
+    it("names only the caller's own team in GET /v1/user/me/deletion-eligibility", async () => {
+      const { otherTeam, otherOwner, send } = await setup();
+
+      const response = await send(get("/v1/user/me/deletion-eligibility"), otherOwner.session);
+
+      const { data } = (await response.json()) as { data: { teamsDeletedWithAccount: Array<{ id: string }>; teamsToTransfer: Array<{ id: string }> } };
+      expect([...data.teamsDeletedWithAccount, ...data.teamsToTransfer].map(({ id }) => id)).toEqual([otherTeam.organizationId]);
     });
 
     it("names no deployment of another team in GET /v1/deployment-names", async () => {
@@ -716,7 +736,9 @@ describe("Cross-team access", () => {
           : [404, createDeploymentInfoErrorSeed()];
       })
       .get(uri => uri.includes("/leases/list"))
-      .reply(200, { leases: [], pagination: { next_key: null, total: "0" } });
+      .reply(200, { leases: [], pagination: { next_key: null, total: "0" } })
+      .get(uri => uri.includes("/deployments/list"))
+      .reply(200, { deployments: [], pagination: { next_key: null, total: "0" } });
   }
 
   async function setup() {
