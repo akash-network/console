@@ -34,8 +34,10 @@ export class CloseDeploymentHandler implements JobHandler<CloseDeployment> {
     const close = { userId, owner: wallet.address, dseq, batchId };
 
     try {
-      await this.memberDeploymentAccessService.assertMayStillAct({ userId, walletId, dseq });
-      await this.deploymentWriterService.close(wallet, dseq, { actingUserId: userId });
+      await this.deploymentWriterService.close(wallet, dseq, {
+        actingUserId: userId,
+        assertMayStillSign: () => this.memberDeploymentAccessService.assertMayStillSign({ userId, walletId, dseq })
+      });
     } catch (error) {
       return await this.#settleFailure(activityId, close, error, job);
     }

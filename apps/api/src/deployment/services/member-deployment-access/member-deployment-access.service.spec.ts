@@ -22,11 +22,11 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 describe(MemberDeploymentAccessService.name, () => {
   const REVOKED = { status: 403, errorCode: ACCESS_REVOKED_ERROR_CODE, message: "You no longer have access to this deployment." };
 
-  describe("assertMayStillAct", () => {
+  describe("assertMayStillSign", () => {
     it("lets a job signing with the member's own wallet act without reading anything", async () => {
       const { service, userWalletRepository, userRepository, organizationContextResolver, member } = setup();
 
-      await expect(service.assertMayStillAct({ userId: member.id, dseq: "100" })).resolves.toBeUndefined();
+      await expect(service.assertMayStillSign({ userId: member.id, dseq: "100" })).resolves.toBeUndefined();
 
       expect(userWalletRepository.unscoped).not.toHaveBeenCalled();
       expect(userRepository.findById).not.toHaveBeenCalled();
@@ -36,7 +36,7 @@ describe(MemberDeploymentAccessService.name, () => {
     it("lets a job act with a personal wallet named by id when it belongs to the member", async () => {
       const { service, organizationContextResolver, managedSignerService, member } = setup({ wallet: "personal" });
 
-      await expect(service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" })).resolves.toBeUndefined();
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).resolves.toBeUndefined();
 
       expect(organizationContextResolver.resolveBoundTo).not.toHaveBeenCalled();
       expect(managedSignerService.isDeploymentInProjectScope).not.toHaveBeenCalled();
@@ -45,7 +45,7 @@ describe(MemberDeploymentAccessService.name, () => {
     it("reads the wallet named by id outside the organization scoping a job might carry", async () => {
       const { service, userWalletRepository, unscopedWallets, member } = setup();
 
-      await service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" });
+      await service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" });
 
       expect(userWalletRepository.unscoped).toHaveBeenCalledWith("member-access-validation");
       expect(unscopedWallets.findById).toHaveBeenCalledWith(7);
@@ -54,20 +54,20 @@ describe(MemberDeploymentAccessService.name, () => {
     it("refuses a personal wallet of another user", async () => {
       const { service, member } = setup({ wallet: "another user's" });
 
-      await expect(service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
     });
 
     it("refuses a wallet that no longer exists", async () => {
       const { service, unscopedWallets, member } = setup();
       unscopedWallets.findById.mockResolvedValue(undefined);
 
-      await expect(service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
     });
 
     it("refuses a wallet that no longer belongs to any organization", async () => {
       const { service, organizationContextResolver, member } = setup({ wallet: "detached" });
 
-      await expect(service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
       expect(organizationContextResolver.resolveBoundTo).not.toHaveBeenCalled();
     });
 
@@ -75,7 +75,7 @@ describe(MemberDeploymentAccessService.name, () => {
       const { service, userRepository, organizationContextResolver, member } = setup();
       userRepository.findById.mockResolvedValue(undefined);
 
-      await expect(service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
       expect(userRepository.findById).toHaveBeenCalledWith(member.id);
       expect(organizationContextResolver.resolveBoundTo).not.toHaveBeenCalled();
     });
@@ -83,7 +83,7 @@ describe(MemberDeploymentAccessService.name, () => {
     it("rebuilds the member's context in the organization the wallet belongs to", async () => {
       const { service, organizationContextResolver, member, wallet } = setup();
 
-      await service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" });
+      await service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" });
 
       expect(organizationContextResolver.resolveBoundTo).toHaveBeenCalledWith(member, wallet.organizationId);
     });
@@ -94,7 +94,7 @@ describe(MemberDeploymentAccessService.name, () => {
         createError(403, "Not a member of this organization", { errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE })
       );
 
-      await expect(service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
       expect(abilityService.getAbilityFor).not.toHaveBeenCalled();
     });
 
@@ -102,7 +102,7 @@ describe(MemberDeploymentAccessService.name, () => {
       const { service, organizationContextResolver, member } = setup();
       organizationContextResolver.resolveBoundTo.mockResolvedValue(undefined);
 
-      await expect(service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
     });
 
     it("passes on any other failure to resolve the member's context, so the job retries it", async () => {
@@ -110,7 +110,7 @@ describe(MemberDeploymentAccessService.name, () => {
       const outage = createError(503, "Database unavailable");
       organizationContextResolver.resolveBoundTo.mockRejectedValue(outage);
 
-      await expect(service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toBe(outage);
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toBe(outage);
     });
 
     it("passes on a failure that is no HTTP error, so the job retries it", async () => {
@@ -118,7 +118,7 @@ describe(MemberDeploymentAccessService.name, () => {
       const outage = new Error("connection terminated");
       organizationContextResolver.resolveBoundTo.mockRejectedValue(outage);
 
-      await expect(service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toBe(outage);
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toBe(outage);
     });
 
     it("builds the member's ability in their rebuilt context", async () => {
@@ -130,7 +130,7 @@ describe(MemberDeploymentAccessService.name, () => {
         return ability;
       });
 
-      await service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" });
+      await service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" });
 
       expect(abilityService.getAbilityFor).toHaveBeenCalledWith("REGULAR_USER", member);
       expect(seen).toEqual({ context, user: member });
@@ -140,7 +140,7 @@ describe(MemberDeploymentAccessService.name, () => {
       const { service, abilityService, managedSignerService, member } = setup();
       abilityService.getAbilityFor.mockReturnValue(createMongoAbility([{ action: "read", subject: "UserWallet" }]));
 
-      await expect(service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
       expect(managedSignerService.isDeploymentInProjectScope).not.toHaveBeenCalled();
     });
 
@@ -150,14 +150,14 @@ describe(MemberDeploymentAccessService.name, () => {
         createMongoAbility([{ action: "sign", subject: "UserWallet", conditions: { organizationId: faker.string.uuid() } }])
       );
 
-      await expect(service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
     });
 
     it("refuses a member who may no longer manage the deployment's project", async () => {
       const { service, managedSignerService, member } = setup();
       managedSignerService.isDeploymentInProjectScope.mockResolvedValue(false);
 
-      await expect(service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).rejects.toMatchObject(REVOKED);
     });
 
     it("checks the deployment against the projects the member may manage, as their request was", async () => {
@@ -169,7 +169,7 @@ describe(MemberDeploymentAccessService.name, () => {
         return true;
       });
 
-      await service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" });
+      await service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" });
 
       expect(managedSignerService.isDeploymentInProjectScope).toHaveBeenCalledWith(wallet, "100", "update");
       expect(seen).toEqual({ context, ability });
@@ -178,27 +178,33 @@ describe(MemberDeploymentAccessService.name, () => {
     it("lets a member who still holds every access act", async () => {
       const { service, member } = setup();
 
-      await expect(service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" })).resolves.toBeUndefined();
+      await expect(service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" })).resolves.toBeUndefined();
     });
 
     it("leaves the job's own context as it was", async () => {
       const { service, executionContextService, member } = setup();
       const jobAbility = createMongoAbility();
+      const jobUser = createUser({ id: "bg-job-user" });
 
       const after = await executionContextService.runWithContext(async () => {
         executionContextService.set("ABILITY", jobAbility);
-        await service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" });
-        return { context: executionContextService.get("ORGANIZATION_CONTEXT"), ability: executionContextService.get("ABILITY") };
+        executionContextService.set("CURRENT_USER", jobUser);
+        await service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" });
+        return {
+          context: executionContextService.get("ORGANIZATION_CONTEXT"),
+          ability: executionContextService.get("ABILITY"),
+          user: executionContextService.get("CURRENT_USER")
+        };
       });
 
-      expect(after).toEqual({ context: undefined, ability: jobAbility });
+      expect(after).toEqual({ context: undefined, ability: jobAbility, user: jobUser });
     });
 
     it("logs what the member lost along with the action refused", async () => {
       const { service, managedSignerService, logger, member } = setup();
       managedSignerService.isDeploymentInProjectScope.mockResolvedValue(false);
 
-      await service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" }).catch(() => undefined);
+      await service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" }).catch(() => undefined);
 
       expect(logger.warn).toHaveBeenCalledWith({
         event: "MEMBER_ACCESS_REVOKED",
@@ -212,7 +218,7 @@ describe(MemberDeploymentAccessService.name, () => {
     it("logs nothing for a member who still holds every access", async () => {
       const { service, logger, member } = setup();
 
-      await service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" });
+      await service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" });
 
       expect(logger.warn).not.toHaveBeenCalled();
     });
@@ -229,7 +235,7 @@ describe(MemberDeploymentAccessService.name, () => {
       const { service, managedSignerService, member } = setup();
       managedSignerService.isDeploymentInProjectScope.mockResolvedValue(false);
 
-      const refusal = await service.assertMayStillAct({ userId: member.id, walletId: 7, dseq: "100" }).catch((error: unknown) => error);
+      const refusal = await service.assertMayStillSign({ userId: member.id, walletId: 7, dseq: "100" }).catch((error: unknown) => error);
 
       expect(isAccessRevoked(refusal)).toBe(true);
     });

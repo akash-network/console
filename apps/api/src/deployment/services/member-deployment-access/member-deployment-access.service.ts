@@ -14,8 +14,8 @@ import { type UserOutput, UserRepository } from "@src/user/repositories";
 
 export const ACCESS_REVOKED_ERROR_CODE = "access_revoked";
 
-/** What a job queued for a member acts on; `walletId` is absent when the job signs with the member's own wallet. */
-export type MemberDeploymentAction = { userId: string; walletId?: number; dseq: string };
+/** A signature a job queued for a member is about to make; `walletId` is absent when it signs with the member's own wallet. */
+export type MemberSigning = { userId: string; walletId?: number; dseq: string };
 
 type AccessRevocation = "wallet_gone" | "wallet_of_another_user" | "user_gone" | "not_a_member" | "cannot_sign" | "outside_project_scope";
 
@@ -23,6 +23,7 @@ export function isAccessRevoked(error: unknown): boolean {
   return isHttpError(error) && error.errorCode === ACCESS_REVOKED_ERROR_CODE;
 }
 
+/** Re-runs the checks the request that queued a job ran, against the member's membership, role and project access as they stand now. */
 @singleton()
 export class MemberDeploymentAccessService {
   readonly #logger: ReturnType<CreateLogger>;
@@ -39,17 +40,17 @@ export class MemberDeploymentAccessService {
     this.#logger = createLogger({ context: MemberDeploymentAccessService.name });
   }
 
-  /** A job signs long after the request that queued it, so it re-runs that request's checks against the member's membership, role and project access as they stand now. */
-  async assertMayStillAct(action: MemberDeploymentAction): Promise<void> {
-    const revocation = await this.#revocationOf(action);
+  /** Gates the signature rather than the job: call it right before signing, once the chain shows an earlier attempt landed nothing, so a landed action still settles as it landed. */
+  async assertMayStillSign(signing: MemberSigning): Promise<void> {
+    const revocation = await this.#revocationOf(signing);
 
     if (!revocation) return;
 
-    this.#logger.warn({ event: "MEMBER_ACCESS_REVOKED", ...action, revocation });
+    this.#logger.warn({ event: "MEMBER_ACCESS_REVOKED", ...signing, revocation });
     throw createError(403, "You no longer have access to this deployment.", { errorCode: ACCESS_REVOKED_ERROR_CODE });
   }
 
-  async #revocationOf({ userId, walletId, dseq }: MemberDeploymentAction): Promise<AccessRevocation | undefined> {
+  async #revocationOf({ userId, walletId, dseq }: MemberSigning): Promise<AccessRevocation | undefined> {
     if (walletId === undefined) return undefined;
 
     const wallet = await this.userWalletRepository.unscoped("member-access-validation").findById(walletId);

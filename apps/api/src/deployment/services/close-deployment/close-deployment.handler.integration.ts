@@ -5,13 +5,16 @@ import { eq } from "drizzle-orm";
 import createError from "http-errors";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-key";
 import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
+import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { type ApiPgDatabase, type EnqueueOptions, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { ACCESS_REVOKED_ERROR_CODE } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import { pendingCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { CloseDeploymentHandler } from "./close-deployment.handler";
@@ -34,22 +37,22 @@ describe(CloseDeploymentHandler.name, () => {
   });
 
   it("closes the deployment with the user's wallet and records the close as succeeded, run the way a worker runs it", async () => {
-    const { actor, wallet, dseq, close, closeInBackground, findActivity, awaitCompleted } = await setup();
+    const { actor, wallet, dseq, sign, closeInBackground, findActivity, awaitCompleted } = await setup();
 
     await closeInBackground();
 
     await awaitCompleted();
-    expect(close).toHaveBeenCalledWith(expect.objectContaining({ id: wallet.id, address: wallet.address }), dseq, { actingUserId: actor.id });
+    expect(sign).toHaveBeenCalledWith(expect.objectContaining({ id: wallet.id, address: wallet.address }), expect.any(Array), { actingUserId: actor.id });
     expect(await findActivity()).toMatchObject({ status: "succeeded", meta: { dseq } });
   });
 
   it("closes a team deployment for a member who still has access to its project, under the organization wallet's key the request opened it with", async () => {
-    const { actor, owner, dseq, close, closeInBackground, findActivity, awaitCompleted } = await setup({ inTeam: true });
+    const { actor, owner, dseq, sign, closeInBackground, findActivity, awaitCompleted } = await setup({ inTeam: true });
 
     await closeInBackground();
 
     await awaitCompleted();
-    expect(close).toHaveBeenCalledWith(expect.objectContaining({ userId: null, address: owner }), dseq, { actingUserId: actor.id });
+    expect(sign).toHaveBeenCalledWith(expect.objectContaining({ userId: null, address: owner }), expect.any(Array), { actingUserId: actor.id });
     expect(await findActivity()).toMatchObject({ status: "succeeded", dedupeKey: deploymentCloseDedupeKeyOf({ owner, dseq }) });
   });
 
@@ -59,13 +62,23 @@ describe(CloseDeploymentHandler.name, () => {
     { change: "became a viewer of the team", revoke: "role" },
     { change: "saw the team deleted", revoke: "team" }
   ] as const)("signs nothing and records the close as failed without a retry for a member who $change since the close was queued", async ({ revoke }) => {
-    const { close, closeInBackground, findActivity, awaitCompleted } = await setup({ inTeam: true, revoke });
+    const { sign, closeInBackground, findActivity, awaitCompleted } = await setup({ inTeam: true, revoke });
 
     await closeInBackground();
 
     await awaitCompleted();
-    expect(close).not.toHaveBeenCalled();
+    expect(sign).not.toHaveBeenCalled();
     expect(await findActivity()).toMatchObject({ status: "failed", dedupeKey: null, meta: { error: ACCESS_REVOKED } });
+  });
+
+  it("records as succeeded a close an earlier attempt landed on chain, even for a member removed from the team since", async () => {
+    const { owner, dseq, sign, closeInBackground, findActivity, awaitCompleted } = await setup({ inTeam: true, revoke: "membership", onChain: "closed" });
+
+    await closeInBackground();
+
+    await awaitCompleted();
+    expect(sign).not.toHaveBeenCalled();
+    expect(await findActivity()).toMatchObject({ status: "succeeded", dedupeKey: deploymentCloseDedupeKeyOf({ owner, dseq }) });
   });
 
   it("keeps the bulk close the close was part of in the activity it settles", async () => {
@@ -78,8 +91,8 @@ describe(CloseDeploymentHandler.name, () => {
   });
 
   it("records the close as failed with its reason once the last attempt fails", async () => {
-    const { close, closeInBackground, findActivity, waitForJobIn } = await setup();
-    close.mockRejectedValue(createError(400, "Deployment is not open"));
+    const { sign, closeInBackground, findActivity, waitForJobIn } = await setup();
+    sign.mockRejectedValue(createError(400, "Deployment is not open"));
 
     await closeInBackground({ retryLimit: 0 });
 
@@ -88,8 +101,8 @@ describe(CloseDeploymentHandler.name, () => {
   });
 
   it("keeps the activity pending while the close still has retries to come", async () => {
-    const { close, closeInBackground, findActivity, waitForJobIn } = await setup();
-    close.mockRejectedValue(new Error("node unreachable"));
+    const { sign, closeInBackground, findActivity, waitForJobIn } = await setup();
+    sign.mockRejectedValue(new Error("node unreachable"));
 
     await closeInBackground({ retryLimit: 3, retryDelay: 3600 });
 
@@ -97,7 +110,7 @@ describe(CloseDeploymentHandler.name, () => {
     expect(await findActivity()).toMatchObject({ status: "pending" });
   });
 
-  async function setup(input: { batchId?: string; inTeam?: boolean; revoke?: Revocation } = {}) {
+  async function setup(input: { batchId?: string; inTeam?: boolean; revoke?: Revocation; onChain?: "active" | "closed" } = {}) {
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
     const { enqueue, startWorkers } = await jobWorkers();
     const activityRepository = container.resolve(ActivityRepository);
@@ -106,7 +119,12 @@ describe(CloseDeploymentHandler.name, () => {
     const { actor, wallet, dseq } = team ?? (await seedPersonalDeployment());
     const owner = wallet.address;
     const activity = await activityRepository.create(pendingCloseActivityOf({ userId: actor.id, owner, dseq, batchId: input.batchId }));
-    const close = vi.spyOn(container.resolve(DeploymentWriterService), "close").mockResolvedValue(true);
+    vi.spyOn(container.resolve(DeploymentReaderService), "findByWalletAndDseqWithoutProviderStatus").mockResolvedValue(
+      mock<DeploymentResponse>({ deployment: { state: input.onChain ?? "active", id: { dseq } } })
+    );
+    const sign = vi
+      .spyOn(container.resolve(ManagedSignerService), "executeDecodedTxByUserWallet")
+      .mockResolvedValue({ code: 0, hash: "TX-HASH", transactionHash: "TX-HASH", rawLog: "[]" });
     const singletonKey = closeDeploymentKeyFor({ userId: actor.id, dseq });
 
     return {
@@ -114,7 +132,7 @@ describe(CloseDeploymentHandler.name, () => {
       wallet,
       owner,
       dseq,
-      close,
+      sign,
       awaitCompleted: () => expectJobCompleted(CloseDeployment[JOB_NAME], { singletonKey }),
       closeInBackground: async (retryOverrides: EnqueueOptions = {}) => {
         await enqueue(new CloseDeployment({ userId: actor.id, dseq, activityId: activity.id, batchId: input.batchId, walletId: team?.wallet.id }), {

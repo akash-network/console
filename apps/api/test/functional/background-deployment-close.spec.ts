@@ -73,6 +73,19 @@ describe("Background close of a team deployment", () => {
     });
   });
 
+  it("records as succeeded a close that landed on chain before the job ran, though the member was removed since", async () => {
+    const { requestClose, revokeAccess, closeOnChain, runCloseJobs, findActivity, broadcasts } = await setup();
+
+    const response = await requestClose();
+    await revokeAccess("membership");
+    closeOnChain();
+    await runCloseJobs();
+
+    expect(response.status).toBe(202);
+    expect(broadcasts()).toBe(0);
+    expect(await findActivity(response)).toMatchObject({ status: "succeeded" });
+  });
+
   async function setup() {
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
     const { organization } = await seedOrganizationWithOwner();
@@ -83,7 +96,7 @@ describe("Background close of a team deployment", () => {
     const wallet = await seedOrganizationWallet({ organizationId: organization.id, activatedAt: new Date() });
     const { dseq } = await seedDeploymentSetting({ userId: member.id, organizationId: organization.id, projectId: project.id });
     const apiKey = await seedApiKey({ userId: member.id, organizationId: organization.id });
-    answerDeploymentOnChain(wallet.address, dseq);
+    const chain = answerDeploymentOnChain(wallet.address, dseq);
     const broadcasts = answerSigning();
 
     const revocations: Record<Revocation, () => Promise<unknown>> = {
@@ -98,6 +111,7 @@ describe("Background close of a team deployment", () => {
 
     return {
       broadcasts,
+      closeOnChain: chain.close,
       requestClose: () => app.request(`/v1/deployments/${dseq}?async=true`, { method: "DELETE", headers: { "x-api-key": apiKey } }),
       revokeAccess: async (revocation: Revocation) => await revocations[revocation](),
       runCloseJobs: async () => {
@@ -129,6 +143,7 @@ describe("Background close of a team deployment", () => {
   }
 
   function answerDeploymentOnChain(owner: string, dseq: string) {
+    let state = "active";
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(uri => uri.includes("/deployments/info"))
@@ -136,10 +151,12 @@ describe("Background close of a team deployment", () => {
         const query = new URL(uri, "http://chain").searchParams;
         const isDeployed = query.get("id.owner") === owner && query.get("id.dseq") === dseq;
 
-        return isDeployed ? [200, createDeploymentInfoSeed({ owner, dseq })] : [404, createDeploymentInfoErrorSeed()];
+        return isDeployed ? [200, createDeploymentInfoSeed({ owner, dseq, state })] : [404, createDeploymentInfoErrorSeed()];
       })
       .get(uri => uri.includes("/leases/list"))
       .reply(200, { leases: [], pagination: { next_key: null, total: "0" } });
+
+    return { close: () => (state = "closed") };
   }
 
   function answerSigning() {
