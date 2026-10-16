@@ -208,7 +208,10 @@ const PendingInvitation: FC<InvitationViewProps> = ({ invitation, token, onSettl
   return (
     <>
       <div className="flex items-center gap-3">
-        <OrganizationAvatar organization={{ name: invitation.organizationName, type: "team" }} size={40} />
+        <OrganizationAvatar
+          organization={{ id: invitation.organizationId ?? invitation.organizationName, name: invitation.organizationName, type: "team" }}
+          size={40}
+        />
         <h1 className="text-lg font-semibold">Join {invitation.organizationName}</h1>
       </div>
       <p className="text-sm text-muted-foreground">

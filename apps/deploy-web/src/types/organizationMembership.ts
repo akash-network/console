@@ -6,7 +6,10 @@ export type OrganizationInvitationOutput = operationDefs["listOrganizationInvita
 
 export type ProjectAccess = OrganizationInvitationOutput["projectAccess"];
 
-export type InvitationPreviewOutput = operationDefs["previewInvitation"]["responses"][200]["content"]["application/json"]["data"];
+type InvitationPreviewResponse = operationDefs["previewInvitation"]["responses"][200]["content"]["application/json"]["data"];
+
+/** The web can reach prod before the api that answers with `organizationId`, so a preview may come without it. */
+export type InvitationPreviewOutput = Omit<InvitationPreviewResponse, "organizationId"> & Partial<Pick<InvitationPreviewResponse, "organizationId">>;
 
 export const OWNER_ROLE_RESTRICTED_ERROR_CODE = "owner_role_restricted";
 

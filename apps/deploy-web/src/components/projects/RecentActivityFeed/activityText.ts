@@ -45,6 +45,8 @@ export function describeActivity(activity: OrganizationActivity): ActivityText {
       return { segments: [text("removed access for"), strong(payload.username ?? "a member")], systemIcon: "activity" };
     case "member_updated":
       return { segments: [text("changed"), strong(payload.username ?? "a member"), text(`to ${describeMemberAccess(payload)}`)], systemIcon: "activity" };
+    case "organization_renamed":
+      return { segments: describeRename(payload), systemIcon: "activity" };
     default:
       return { segments: [text("made a change")], systemIcon: "activity" };
   }
@@ -68,6 +70,11 @@ function describeClosedDeployment(activity: OrganizationActivity): ActivityText 
 function deploymentSegment(payload: OrganizationActivityPayload): ActivitySegment {
   const label = payload.name || (payload.dseq ? `#${payload.dseq}` : "a deployment");
   return payload.dseq ? { kind: "deployment", text: label, dseq: payload.dseq } : strong(label);
+}
+
+function describeRename({ fromName, toName }: OrganizationActivityPayload): ActivitySegment[] {
+  if (!fromName || !toName) return [text("renamed the organization")];
+  return [text("renamed the organization from"), strong(fromName), text("to"), strong(toName)];
 }
 
 /** Owners, admins and billing members are recorded with the project access their role implies, so only members and viewers name theirs. */

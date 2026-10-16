@@ -7,18 +7,18 @@ const FNV_OFFSET_BASIS = 2166136261;
 
 const FNV_PRIME = 16777619;
 
-/** FNV-1a over the name, so an organization keeps the same hue wherever it is drawn. */
-export function organizationHue(name: string): number {
+/** FNV-1a over the seed, so the same seed draws the same hue wherever it is shown. */
+export function hueOf(seed: string): number {
   let hash = FNV_OFFSET_BASIS;
-  for (let index = 0; index < name.length; index++) {
-    hash ^= name.charCodeAt(index);
+  for (let index = 0; index < seed.length; index++) {
+    hash ^= seed.charCodeAt(index);
     hash = Math.imul(hash, FNV_PRIME);
   }
   return (hash >>> 0) % 360;
 }
 
 type Props = {
-  organization: Pick<OrganizationOutput, "name" | "type">;
+  organization: Pick<OrganizationOutput, "id" | "name" | "type">;
   size?: number;
   className?: string;
 };
@@ -37,7 +37,7 @@ export function OrganizationAvatar({ organization, size = 22, className }: Props
     );
   }
 
-  const hue = organizationHue(organization.name);
+  const hue = hueOf(organization.id);
 
   return (
     <span

@@ -14123,7 +14123,8 @@ export interface operations {
                 | "deployment_moved"
                 | "member_granted"
                 | "member_revoked"
-                | "member_updated";
+                | "member_updated"
+                | "organization_renamed";
               /** @description The names and values the client renders the activity text with, per type. */
               payload: {
                 [key: string]: unknown;
@@ -14903,6 +14904,11 @@ export interface operations {
         content: {
           "application/json": {
             data: {
+              /**
+               * Format: uuid
+               * @description The organization the invitation joins, the same id it has once the invitee is a member.
+               */
+              organizationId: string;
               organizationName: string;
               inviterName: string | null;
               /** @enum {string} */
