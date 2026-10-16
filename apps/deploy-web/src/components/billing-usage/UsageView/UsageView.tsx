@@ -6,15 +6,15 @@ import { endOfToday, format, getDaysInMonth, startOfDay, subYears } from "date-f
 
 import { DailySpendChart } from "@src/components/billing-usage/DailySpendChart/DailySpendChart";
 import { DeploymentSpendList } from "@src/components/billing-usage/DeploymentSpendList/DeploymentSpendList";
+import { ProjectSpendList } from "@src/components/billing-usage/ProjectSpendList/ProjectSpendList";
 import type { ChildrenProps } from "@src/components/billing-usage/UsageContainer/UsageContainer";
 import { countDaysInRange, USAGE_DATE_PRESETS, type UsageDatePreset, type UsageDateRange } from "@src/components/billing-usage/UsageContainer/usageDatePresets";
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
-import { ProjectSpendReport } from "@src/components/projects/ProjectSpendReport/ProjectSpendReport";
 
 export const DEPENDENCIES = {
   DailySpendChart,
   DateRangePicker,
-  ProjectSpendReport,
+  ProjectSpendList,
   DeploymentSpendList
 };
 
@@ -49,7 +49,7 @@ export const UsageView: FC<UsageViewProps> = ({
   onDateRangeChange,
   datePreset,
   onDatePresetChange,
-  projectSpendRange,
+  projectSpend,
   dailySpendBreakdown,
   deploymentSpend,
   dependencies: d = DEPENDENCIES
@@ -126,7 +126,7 @@ export const UsageView: FC<UsageViewProps> = ({
         series={dailySpendBreakdown?.series}
       />
 
-      {projectSpendRange && <d.ProjectSpendReport range={projectSpendRange} />}
+      {projectSpend && <d.ProjectSpendList {...projectSpend} rangeLabel={rangeLabel} />}
 
       {deploymentSpend && <d.DeploymentSpendList {...deploymentSpend} rangeLabel={rangeLabel} />}
     </div>

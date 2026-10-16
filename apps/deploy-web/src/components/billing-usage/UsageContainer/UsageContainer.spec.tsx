@@ -7,14 +7,16 @@ import type { UsageHistory, UsageHistoryStats } from "@src/types";
 import type { DeploymentSpendReport } from "@src/types/deployment-spend";
 import type { OrganizationOutput, OrganizationRole } from "@src/types/organization";
 import type { Project } from "@src/types/project";
+import type { ProjectSpendReport } from "@src/types/project-budget";
 import { perBlockToHourly } from "@src/utils/priceUtils";
 import { buildUsageCsv } from "./buildUsageCsv";
-import { deploymentRowsOf, scopeUsage } from "./teamUsage";
+import { deploymentRowsOf, projectSpendRowsOf, scopeUsage } from "./teamUsage";
 import type { ChildrenProps, DEPENDENCIES } from "./UsageContainer";
 import { UsageContainer } from "./UsageContainer";
 import { getPreviousPeriod, getUsagePresetRange } from "./usageDatePresets";
 
 import { act, render } from "@testing-library/react";
+import { buildProjectSpend, buildProjectSpendReport, buildSpendAmounts } from "@tests/seeders/projectSpend";
 import { buildUsageHistory, buildUsageHistoryItem, buildUsageHistoryStats } from "@tests/seeders/usage";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
 
@@ -125,33 +127,84 @@ describe(UsageContainer.name, () => {
   });
 
   it.each(["owner", "admin", "billing"] satisfies OrganizationRole[])("shows a team's %s the spend by project over the range on screen", async role => {
-    const { child, childCapturer } = await setup({ organization: { type: "team", role }, projectsEnabled: true });
+    const { child, childCapturer, useProjectSpendQuery } = await setup({ organization: { type: "team", role }, projectsEnabled: true });
     const last30Days = getUsagePresetRange("last30Days");
 
-    expect(child.projectSpendRange).toEqual({ startDate: format(last30Days.from, "yyyy-MM-dd"), endDate: format(last30Days.to, "yyyy-MM-dd") });
+    expect(child.projectSpend).not.toBeNull();
+    expect(useProjectSpendQuery).toHaveBeenLastCalledWith(spendRangeOf(last30Days), { enabled: true });
 
     act(() => child.onDateRangeChange({ from: new Date(2026, 5, 1), to: new Date(2026, 5, 20) }));
-    const updated = await childCapturer.awaitChild(next => next.datePreset === "custom");
+    await childCapturer.awaitChild(next => next.datePreset === "custom");
 
-    expect(updated.projectSpendRange).toEqual({ startDate: "2026-06-01", endDate: "2026-06-20" });
+    expect(useProjectSpendQuery).toHaveBeenLastCalledWith({ startDate: "2026-06-01", endDate: "2026-06-20" }, { enabled: true });
   });
 
   it.each(["member", "viewer"] satisfies OrganizationRole[])("keeps the spend by project from a team's %s", async role => {
-    const { child } = await setup({ organization: { type: "team", role }, projectsEnabled: true });
+    const { child, useProjectSpendQuery } = await setup({ organization: { type: "team", role }, projectsEnabled: true });
 
-    expect(child.projectSpendRange).toBeNull();
+    expect(child.projectSpend).toBeNull();
+    expect(useProjectSpendQuery).toHaveBeenCalledWith(expect.anything(), { enabled: false });
   });
 
   it("shows no spend by project in a personal account", async () => {
     const { child } = await setup({ organization: { type: "personal", role: "owner" }, projectsEnabled: false });
 
-    expect(child.projectSpendRange).toBeNull();
+    expect(child.projectSpend).toBeNull();
   });
 
   it("shows no spend by project while organizations are off", async () => {
     const { child } = await setup({ organization: undefined, projectsEnabled: false });
 
-    expect(child.projectSpendRange).toBeNull();
+    expect(child.projectSpend).toBeNull();
+  });
+
+  it("ranks a team's spend by project with each project's deployments and its shade in the daily chart", async () => {
+    const deploymentSpend = buildDeploymentSpend(0);
+    const projectSpend = buildProjectSpendReport({
+      projects: [
+        buildProjectSpend({ projectId: "storefront", name: "Storefront", consumedUsd: 4 }),
+        buildProjectSpend({ projectId: "marketing", name: "Marketing", consumedUsd: 6 })
+      ]
+    });
+    const { child } = await setup({ ...TEAM_OWNER, deploymentSpend, projectSpend });
+
+    const withoutSelect = (rows: ReturnType<typeof projectSpendRowsOf>) => rows.map(({ onSelect, ...row }) => row);
+    expect(withoutSelect(child.projectSpend!.rows)).toEqual(withoutSelect(projectSpendRowsOf(projectSpend, deploymentSpend, vi.fn())));
+    expect(child.projectSpend).toEqual(expect.objectContaining({ isEstimated: false, isPartial: false, isLoading: false, isError: false }));
+  });
+
+  it("narrows the page to the project picked from the spend by project", async () => {
+    const projectSpend = buildProjectSpendReport({ projects: [buildProjectSpend({ projectId: "marketing", consumedUsd: 6 })] });
+    const { child, childCapturer } = await setup({ ...TEAM_OWNER, deploymentSpend: buildDeploymentSpend(0), projectSpend });
+
+    act(() => child.projectSpend!.rows[0].onSelect!());
+    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "marketing");
+
+    expect(narrowed.projectSpend).toBeNull();
+  });
+
+  it("flags an estimated spend by project and one limited to the projects the caller can open", async () => {
+    const { child } = await setup({ ...TEAM_OWNER, projectSpend: buildProjectSpendReport({ isEstimated: true, total: null }) });
+
+    expect(child.projectSpend).toEqual(expect.objectContaining({ isEstimated: true, isPartial: true }));
+  });
+
+  it("flags nothing while the spend by project loads", async () => {
+    const { child } = await setup({ ...TEAM_OWNER, projectSpend: undefined, isProjectSpendLoading: true });
+
+    expect(child.projectSpend).toEqual({ rows: [], isEstimated: false, isPartial: false, isLoading: true, isError: false });
+  });
+
+  it("holds the spend by project back until the deployments are read", async () => {
+    const { child } = await setup({ ...TEAM_OWNER, projectSpend: buildProjectSpendReport(), isDeploymentSpendLoading: true });
+
+    expect(child.projectSpend?.isLoading).toBe(true);
+  });
+
+  it("passes a failed load of the spend by project through", async () => {
+    const { child } = await setup({ ...TEAM_OWNER, isProjectSpendError: true });
+
+    expect(child.projectSpend?.isError).toBe(true);
   });
 
   it("reads a team's usage from its deployment spend over the range and the previous period", async () => {
@@ -192,7 +245,7 @@ describe(UsageContainer.name, () => {
     expect(narrowed.usageHistoryData).toEqual(scopeUsage(report, "storefront").dailySpend);
     expect(narrowed.usageHistoryStatsData.totalDeployments).toBe(1);
     expect(narrowed.spendRate.perHourUsd).toBeCloseTo(perBlockToHourly(0.01), 10);
-    expect(narrowed.projectSpendRange).toBeNull();
+    expect(narrowed.projectSpend).toBeNull();
   });
 
   it("keeps the whole organization's spend rate on every project", async () => {
@@ -366,6 +419,9 @@ describe(UsageContainer.name, () => {
       isDeploymentSpendError?: boolean;
       projects?: Project[];
       perBlockUsdByDseq?: Map<string, number>;
+      projectSpend?: ProjectSpendReport;
+      isProjectSpendLoading?: boolean;
+      isProjectSpendError?: boolean;
     } = {}
   ) {
     const usageHistory = "usageHistory" in input ? input.usageHistory : buildUsageHistory();
@@ -412,6 +468,14 @@ describe(UsageContainer.name, () => {
     const useDeploymentSpendQuery = vi.fn<typeof DEPENDENCIES.useDeploymentSpendQuery>(range =>
       deploymentSpendQuery(range.endDate < today ? input.previousDeploymentSpend : input.deploymentSpend)
     );
+    const projectSpend = "projectSpend" in input ? input.projectSpend : buildProjectSpendReport({ unassigned: buildSpendAmounts() });
+    const useProjectSpendQuery = vi.fn<typeof DEPENDENCIES.useProjectSpendQuery>(() =>
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProjectSpendQuery>>(), {
+        data: projectSpend,
+        isLoading: input.isProjectSpendLoading ?? false,
+        isError: input.isProjectSpendError ?? false
+      })
+    );
     const useProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectsQuery>(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>(), { data: input.projects })
     );
@@ -420,7 +484,16 @@ describe(UsageContainer.name, () => {
 
     render(
       <UsageContainer
-        dependencies={{ useWallet, useUsage, useUsageStats, useCurrentSpendRate, useActiveOrganization, useDeploymentSpendQuery, useProjectsQuery }}
+        dependencies={{
+          useWallet,
+          useUsage,
+          useUsageStats,
+          useCurrentSpendRate,
+          useActiveOrganization,
+          useDeploymentSpendQuery,
+          useProjectSpendQuery,
+          useProjectsQuery
+        }}
       >
         {props => childCapturer.renderChild(props)}
       </UsageContainer>
@@ -428,7 +501,7 @@ describe(UsageContainer.name, () => {
 
     const child = await childCapturer.awaitChild();
 
-    return { child, childCapturer, useUsage, useUsageStats, useDeploymentSpendQuery, useProjectsQuery, usageHistory, usageStats };
+    return { child, childCapturer, useUsage, useUsageStats, useDeploymentSpendQuery, useProjectSpendQuery, useProjectsQuery, usageHistory, usageStats };
   }
 });
 

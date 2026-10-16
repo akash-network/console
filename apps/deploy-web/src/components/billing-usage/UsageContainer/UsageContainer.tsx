@@ -3,12 +3,13 @@ import { format } from "date-fns";
 
 import type { DailySpend, SpendSeries } from "@src/components/billing-usage/DailySpendChart/DailySpendChart";
 import type { DeploymentSpendSection } from "@src/components/billing-usage/DeploymentSpendList/DeploymentSpendList";
+import type { ProjectSpendSection } from "@src/components/billing-usage/ProjectSpendList/ProjectSpendList";
 import { useCurrentSpendRate } from "@src/components/billing-usage/useCurrentSpendRate";
 import { canViewBillingAndUsage } from "@src/components/organizations/organizationAccess";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsage, useUsageStats } from "@src/queries";
-import { useDeploymentSpendQuery } from "@src/queries/useProjectBudgetQueries";
+import { useDeploymentSpendQuery, useProjectSpendQuery } from "@src/queries/useProjectBudgetQueries";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import type { UsageHistoryStats } from "@src/types";
 import type { DeploymentSpendReport } from "@src/types/deployment-spend";
@@ -17,7 +18,7 @@ import { createDateRange } from "@src/utils/dateUtils";
 import { downloadCsv } from "@src/utils/domUtils";
 import { buildUsageCsv } from "./buildUsageCsv";
 import { getSpendChangePercent } from "./getSpendChangePercent";
-import { deploymentRowsOf, hourlyRateOf, type ProjectScope, projectSeriesOf, type ScopedUsage, scopeUsage } from "./teamUsage";
+import { deploymentRowsOf, hourlyRateOf, type ProjectScope, projectSeriesOf, projectSpendRowsOf, type ScopedUsage, scopeUsage } from "./teamUsage";
 import {
   countDaysInRange,
   DEFAULT_USAGE_DATE_PRESET,
@@ -34,6 +35,7 @@ export const DEPENDENCIES = {
   useCurrentSpendRate,
   useActiveOrganization,
   useDeploymentSpendQuery,
+  useProjectSpendQuery,
   useProjectsQuery
 };
 
@@ -68,7 +70,7 @@ export type ChildrenProps = {
   canExport: boolean;
   onExport: () => void;
   /** Null unless the caller may see a team's spend by project and the page covers every project. */
-  projectSpendRange: SpendRange | null;
+  projectSpend: ProjectSpendSection | null;
   /** Null outside a team, whose usage alone can be narrowed to one project. */
   projectScope: ProjectScopeControl | null;
   /** Null outside a team, whose daily spend alone is split by project. */
@@ -105,6 +107,7 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
   const [projectScope, setProjectScope] = useState<ProjectScope>(null);
   const teamSpend = d.useDeploymentSpendQuery(toSpendRange(dateRange), { enabled: isTeamUsage });
   const previousTeamSpend = d.useDeploymentSpendQuery(toSpendRange(previousPeriod), { enabled: isTeamUsage });
+  const projectSpend = d.useProjectSpendQuery(toSpendRange(dateRange), { enabled: isTeamUsage });
   const projects = d.useProjectsQuery({ enabled: isTeamUsage });
   const scopedUsage = teamSpend.data && scopeUsage(teamSpend.data, projectScope);
   const scopeProjects = (projects.data ?? []).map(({ id, name }) => ({ id, name }));
@@ -167,7 +170,16 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
         onDatePresetChange: changeDatePreset,
         canExport: !!usageHistory.data && !!usageStats.data && !usageHistory.isError && !usageStats.isError,
         onExport: exportCsv,
-        projectSpendRange: isTeamUsage && !isScopedToProject ? toSpendRange(dateRange) : null,
+        projectSpend:
+          isTeamUsage && !isScopedToProject
+            ? {
+                rows: projectSpend.data ? projectSpendRowsOf(projectSpend.data, teamSpend.data, setProjectScope) : [],
+                isEstimated: !!projectSpend.data?.isEstimated,
+                isPartial: !!projectSpend.data && !projectSpend.data.total,
+                isLoading: projectSpend.isLoading || teamSpend.isLoading,
+                isError: projectSpend.isError
+              }
+            : null,
         projectScope: isTeamUsage ? { projects: scopeProjects, selected: projectScope, onChange: setProjectScope } : null,
         dailySpendBreakdown: isTeamUsage ? dailySpendBreakdownOf({ report: teamSpend.data, scopedProjectName, onSelect: setProjectScope }) : null,
         deploymentSpend: isTeamUsage
