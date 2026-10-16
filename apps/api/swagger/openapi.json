@@ -25152,6 +25152,11 @@
                             "type": "boolean",
                             "description": "Whether this request ran in this organization."
                           },
+                          "hasPaymentMethod": {
+                            "type": "boolean",
+                            "nullable": true,
+                            "description": "Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in."
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -25164,6 +25169,7 @@
                           "type",
                           "role",
                           "isActive",
+                          "hasPaymentMethod",
                           "createdAt"
                         ]
                       }
@@ -25279,6 +25285,11 @@
                           "type": "boolean",
                           "description": "Whether this request ran in this organization."
                         },
+                        "hasPaymentMethod": {
+                          "type": "boolean",
+                          "nullable": true,
+                          "description": "Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in."
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -25291,6 +25302,7 @@
                         "type",
                         "role",
                         "isActive",
+                        "hasPaymentMethod",
                         "createdAt"
                       ]
                     }
@@ -25430,6 +25442,11 @@
                           "type": "boolean",
                           "description": "Whether this request ran in this organization."
                         },
+                        "hasPaymentMethod": {
+                          "type": "boolean",
+                          "nullable": true,
+                          "description": "Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in."
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -25442,6 +25459,7 @@
                         "type",
                         "role",
                         "isActive",
+                        "hasPaymentMethod",
                         "createdAt"
                       ]
                     }
@@ -27503,6 +27521,11 @@
                           "type": "boolean",
                           "description": "Whether this request ran in this organization."
                         },
+                        "hasPaymentMethod": {
+                          "type": "boolean",
+                          "nullable": true,
+                          "description": "Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in."
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -27515,6 +27538,7 @@
                         "type",
                         "role",
                         "isActive",
+                        "hasPaymentMethod",
                         "createdAt"
                       ]
                     }
