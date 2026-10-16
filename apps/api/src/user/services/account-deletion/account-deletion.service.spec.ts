@@ -13,6 +13,7 @@ import type { DeploymentConfigService } from "@src/deployment/services/deploymen
 import type { CreateNotificationInput, NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import type { AccountTeamsService, LockedTeamGoingWithAccount, TeamReference } from "@src/organization/services/account-teams/account-teams.service";
 import type { DepartedMemberAlertsService } from "@src/organization/services/departed-member-alerts/departed-member-alerts.service";
 import type {
   AccountDeletionTokenOutput,
@@ -148,6 +149,37 @@ describe(AccountDeletionService.name, () => {
       expect(notificationService.createNotification).not.toHaveBeenCalled();
       expect(analyticsService.track).toHaveBeenCalledWith(user.id, "account_deletion_blocked", { reason: "last_owner" });
       expect(logger.info).toHaveBeenCalledWith({ event: "ACCOUNT_DELETION_BLOCKED", userId: user.id, reason: "last_owner" });
+    });
+
+    it("asks one acknowledgement for the credits of the account and of every team going with it", async () => {
+      const { service, user, tokenRepository, notificationService, accountTeamsService, organizationMemberRepository } = setup({
+        eligibility: { ...CLEAN_ACCOUNT, forfeitableBalanceUsd: 0.1 },
+        teamsGoingWithAccount: [teamGoingWithAccount({ forfeitableBalanceUsd: 0.2 })]
+      });
+
+      await expect(service.initiate(user, { forfeitAcknowledged: false })).rejects.toMatchObject({
+        status: 400,
+        errorCode: "forfeit_acknowledgement_required",
+        data: { balanceUsd: 0.3 }
+      });
+      await service.initiate(user, { forfeitAcknowledged: true });
+
+      expect(accountTeamsService.assess).toHaveBeenCalledWith(await organizationMemberRepository.lockTeamsOwnedOnlyBy.mock.results[0].value);
+      expect(tokenRepository.replaceForUser).toHaveBeenCalledWith(expect.objectContaining({ acknowledgedForfeitUsd: 0.3 }));
+      expect(sentNotification(notificationService).payload.description).toContain("$0.30");
+    });
+
+    it("refuses while a team going with the account still runs a deployment, counting it with the account's own", async () => {
+      const { service, user } = setup({
+        eligibility: { ...CLEAN_ACCOUNT, activeDeploymentDseqs: ["101"] },
+        teamsGoingWithAccount: [teamGoingWithAccount({ activeDeploymentDseqs: ["303"] })]
+      });
+
+      await expect(service.initiate(user, { forfeitAcknowledged: true })).rejects.toMatchObject({
+        status: 409,
+        errorCode: "active_deployments",
+        data: { activeDeploymentCount: 2, dseqs: ["101", "303"] }
+      });
     });
 
     it("refuses an account with credits until the forfeit is acknowledged", async () => {
@@ -332,6 +364,52 @@ describe(AccountDeletionService.name, () => {
       expect(analyticsService.track).not.toHaveBeenCalledWith(user.id, "account_deletion_confirmed", expect.anything());
     });
 
+    it("assesses the account and locks and assesses its teams only once the user row is locked, then deletes the teams going with it last", async () => {
+      const teams = [teamGoingWithAccount(), teamGoingWithAccount()];
+      const { service, user, userRepository, eligibilityService, accountTeamsService, organizationMemberRepository, jobQueueService, txService } = setup({
+        storedToken: {},
+        teamsGoingWithAccount: teams
+      });
+      txService.transaction.mockImplementation(async callback => {
+        expect(eligibilityService.assess).not.toHaveBeenCalled();
+        return await callback();
+      });
+
+      await service.confirm({ token: "link-token" });
+
+      expect(accountTeamsService.lockAndAssess).toHaveBeenCalledWith(await organizationMemberRepository.lockTeamsOwnedOnlyBy.mock.results[0].value);
+      expect(accountTeamsService.eraseWithAccount).toHaveBeenCalledWith(teams, user.id);
+      expect(userRepository.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(accountTeamsService.lockAndAssess.mock.invocationCallOrder[0]);
+      expect(accountTeamsService.lockAndAssess.mock.invocationCallOrder[0]).toBeLessThan(eligibilityService.assess.mock.invocationCallOrder[0]);
+      expect(accountTeamsService.eraseWithAccount.mock.invocationCallOrder[0]).toBeGreaterThan(jobQueueService.enqueue.mock.invocationCallOrder[0]);
+    });
+
+    it("refuses when a team going with the account holds credits beyond what the link acknowledged", async () => {
+      const { service, userRepository, accountTeamsService } = setup({
+        storedToken: { acknowledgedForfeitUsd: 5 },
+        eligibility: { ...CLEAN_ACCOUNT, forfeitableBalanceUsd: 5 },
+        teamsGoingWithAccount: [teamGoingWithAccount({ forfeitableBalanceUsd: 2 })]
+      });
+
+      await expect(service.confirm({ token: "link-token" })).rejects.toMatchObject({
+        status: 409,
+        message: "This account has more credits than were acknowledged when the deletion was requested. Request a new deletion link.",
+        errorCode: "forfeit_acknowledgement_required",
+        data: { balanceUsd: 7 }
+      });
+
+      expect(userRepository.deleteById).not.toHaveBeenCalled();
+      expect(accountTeamsService.eraseWithAccount).not.toHaveBeenCalled();
+    });
+
+    it("refuses while a team going with the account still runs a deployment", async () => {
+      const { service, accountTeamsService } = setup({ storedToken: {}, teamsGoingWithAccount: [teamGoingWithAccount({ activeDeploymentDseqs: ["404"] })] });
+
+      await expect(service.confirm({ token: "link-token" })).rejects.toMatchObject({ status: 409, errorCode: "active_deployments", data: { dseqs: ["404"] } });
+
+      expect(accountTeamsService.eraseWithAccount).not.toHaveBeenCalled();
+    });
+
     it("looks the link up by the hash of its token", async () => {
       const { service, tokenRepository } = setup({ storedToken: {} });
 
@@ -501,11 +579,36 @@ describe(AccountDeletionService.name, () => {
     });
   });
 
+  describe("assess", () => {
+    it("adds the teams going with the account to its own deployments and credits, and names the teams to transfer", async () => {
+      const toTransfer = { id: faker.string.uuid(), name: "Acme" };
+      const team = teamGoingWithAccount({ activeDeploymentDseqs: ["9"], forfeitableBalanceUsd: 1.25 });
+      const { service, user } = setup({
+        eligibility: { activeDeploymentDseqs: ["8"], isTrialing: true, forfeitableBalanceUsd: 2 },
+        teamsOwnedOnlyByUser: [toTransfer],
+        teamsGoingWithAccount: [team]
+      });
+
+      expect(await service.assess(user.id)).toEqual({
+        activeDeploymentDseqs: ["8", "9"],
+        isTrialing: true,
+        forfeitableBalanceUsd: 3.25,
+        teams: { goingWithAccount: [team], toTransfer: [toTransfer] }
+      });
+    });
+  });
+
   it("creates the logger with the service context", () => {
     const { createLogger } = setup();
 
     expect(createLogger).toHaveBeenCalledWith({ context: AccountDeletionService.name });
   });
+
+  function teamGoingWithAccount(overrides: Partial<LockedTeamGoingWithAccount> = {}): LockedTeamGoingWithAccount {
+    const id = faker.string.uuid();
+
+    return { id, name: faker.company.name(), activeDeploymentDseqs: [], forfeitableBalanceUsd: 0, locked: { id, wallet: undefined }, ...overrides };
+  }
 
   function sentNotification(notificationService: MockProxy<NotificationService>): CreateNotificationInput {
     return notificationService.createNotification.mock.calls[0][0];
@@ -528,6 +631,7 @@ describe(AccountDeletionService.name, () => {
       emailFails?: Error;
       hasPersonalOrganization?: boolean;
       teamsOwnedOnlyByUser?: { id: string; name: string }[];
+      teamsGoingWithAccount?: LockedTeamGoingWithAccount[];
     } = {}
   ) {
     const user = createUser(input.user);
@@ -581,6 +685,10 @@ describe(AccountDeletionService.name, () => {
     featureFlagsService.isEnabled.mockReturnValue(input.isFlagEnabled ?? true);
 
     const deploymentConfig = mockConfigService<DeploymentConfigService>({ DEPLOY_WEB_BASE_URL });
+    const accountTeamsService = mock<AccountTeamsService>();
+    const teamsOf = (owned: TeamReference[]) => ({ goingWithAccount: input.teamsGoingWithAccount ?? [], toTransfer: owned });
+    accountTeamsService.assess.mockImplementation(async owned => teamsOf(owned));
+    accountTeamsService.lockAndAssess.mockImplementation(async owned => teamsOf(owned));
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -601,6 +709,7 @@ describe(AccountDeletionService.name, () => {
       analyticsService,
       featureFlagsService,
       deploymentConfig,
+      accountTeamsService,
       createLogger
     );
 
@@ -623,6 +732,7 @@ describe(AccountDeletionService.name, () => {
       txService,
       analyticsService,
       featureFlagsService,
+      accountTeamsService,
       logger,
       createLogger
     };

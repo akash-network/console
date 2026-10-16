@@ -3,7 +3,11 @@ import { singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import type { AuthMethod } from "@src/core/types/app-context";
-import type { ConfirmAccountDeletionRequest, InitiateAccountDeletionRequest } from "@src/user/http-schemas/account-deletion.schema";
+import type {
+  AccountDeletionEligibilityResponse,
+  ConfirmAccountDeletionRequest,
+  InitiateAccountDeletionRequest
+} from "@src/user/http-schemas/account-deletion.schema";
 import { AccountDeletionService } from "@src/user/services/account-deletion/account-deletion.service";
 
 export interface AccountDeletionRequestOrigin {
@@ -26,6 +30,30 @@ export class AccountDeletionController {
     assert(origin.authMethod === "bearer", 403, "Account deletion can only be started from a signed-in Console session.", { errorCode: "session_required" });
 
     await this.accountDeletionService.initiate(user, { forfeitAcknowledged: data.forfeitAcknowledged, ip: origin.ip, userAgent: origin.userAgent });
+  }
+
+  async getEligibility(origin: Pick<AccountDeletionRequestOrigin, "authMethod">): Promise<AccountDeletionEligibilityResponse> {
+    this.accountDeletionService.assertEnabledFor();
+    const user = this.authService.safeCurrentUser;
+    assert(user, 401);
+    assert(origin.authMethod === "bearer", 403, "Account deletion can only be checked from a signed-in Console session.", { errorCode: "session_required" });
+
+    const { activeDeploymentDseqs, forfeitableBalanceUsd, isTrialing, teams } = await this.accountDeletionService.assess(user.id);
+
+    return {
+      data: {
+        activeDeploymentCount: activeDeploymentDseqs.length,
+        forfeitableBalanceUsd,
+        isTrialing,
+        teamsDeletedWithAccount: teams.goingWithAccount.map(team => ({
+          id: team.id,
+          name: team.name,
+          activeDeploymentCount: team.activeDeploymentDseqs.length,
+          forfeitableBalanceUsd: team.forfeitableBalanceUsd
+        })),
+        teamsToTransfer: teams.toTransfer.map(({ id, name }) => ({ id, name }))
+      }
+    };
   }
 
   async confirm({ data }: ConfirmAccountDeletionRequest, origin: AccountDeletionRequestOrigin): Promise<void> {

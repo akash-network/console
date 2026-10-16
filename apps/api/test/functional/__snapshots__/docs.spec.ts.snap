@@ -21225,7 +21225,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Account deletion is not available",
           },
           "409": {
-            "description": "The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team (\`last_owner\`)",
+            "description": "The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team others belong to (\`last_owner\`)",
           },
         },
         "security": [],
@@ -21289,7 +21289,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Account deletion is not available",
           },
           "409": {
-            "description": "The account has active deployments, or is the last owner of a team (\`last_owner\`)",
+            "description": "The account has active deployments, or is the last owner of a team others belong to (\`last_owner\`)",
           },
           "429": {
             "description": "A link was sent less than a minute ago",
