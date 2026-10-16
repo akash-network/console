@@ -21,6 +21,17 @@ export function hasProjectAccess({ access, grants }: ProjectAccessValue): boolea
   return access === "all" || grants.length > 0;
 }
 
+/** Grants count only on specific projects, and in no particular order. */
+export function isSameProjectAccess(value: ProjectAccessValue, other: ProjectAccessValue): boolean {
+  if (value.access !== other.access) return false;
+  if (value.access === "all") return true;
+
+  return (
+    value.grants.length === other.grants.length &&
+    value.grants.every(grant => other.grants.some(otherGrant => otherGrant.projectId === grant.projectId && otherGrant.role === grant.role))
+  );
+}
+
 export function toProjectAccessRequest({ access, grants }: ProjectAccessValue): { projectAccess: ProjectAccess; projectGrants?: ProjectGrant[] } {
   return access === "all" ? { projectAccess: access } : { projectAccess: access, projectGrants: grants };
 }

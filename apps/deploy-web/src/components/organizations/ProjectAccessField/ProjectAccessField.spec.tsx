@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { DEPENDENCIES, ProjectAccessValue } from "./ProjectAccessField";
-import { hasProjectAccess, NO_PROJECT_PICKED_MESSAGE, ProjectAccessField, toProjectAccessRequest } from "./ProjectAccessField";
+import { hasProjectAccess, isSameProjectAccess, NO_PROJECT_PICKED_MESSAGE, ProjectAccessField, toProjectAccessRequest } from "./ProjectAccessField";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -64,6 +64,39 @@ describe(ProjectAccessField.name, () => {
       [{ access: "selected", grants: [] }, false]
     ] satisfies [ProjectAccessValue, boolean][])("tells whether %o reaches any project", (value, expected) => {
       expect(hasProjectAccess(value)).toBe(expected);
+    });
+  });
+
+  describe(isSameProjectAccess.name, () => {
+    const STOREFRONT_VIEWER = { projectId: "storefront", role: "viewer" } as const;
+    const BILLING_API_MEMBER = { projectId: "billing-api", role: "member" } as const;
+
+    it.each([
+      ["every project, whatever grants each kept", { access: "all", grants: [STOREFRONT_VIEWER] }, { access: "all", grants: [] }, true],
+      [
+        "the same grants in another order",
+        { access: "selected", grants: [STOREFRONT_VIEWER, BILLING_API_MEMBER] },
+        { access: "selected", grants: [BILLING_API_MEMBER, STOREFRONT_VIEWER] },
+        true
+      ],
+      ["every project against specific ones", { access: "all", grants: [STOREFRONT_VIEWER] }, { access: "selected", grants: [STOREFRONT_VIEWER] }, false],
+      ["specific projects against every project", { access: "selected", grants: [] }, { access: "all", grants: [] }, false],
+      ["one more grant", { access: "selected", grants: [STOREFRONT_VIEWER] }, { access: "selected", grants: [STOREFRONT_VIEWER, BILLING_API_MEMBER] }, false],
+      [
+        "another project",
+        { access: "selected", grants: [STOREFRONT_VIEWER] },
+        { access: "selected", grants: [{ ...BILLING_API_MEMBER, role: "viewer" }] },
+        false
+      ],
+      [
+        "one grant swapped for another",
+        { access: "selected", grants: [STOREFRONT_VIEWER, BILLING_API_MEMBER] },
+        { access: "selected", grants: [STOREFRONT_VIEWER, { projectId: "docs", role: "member" }] },
+        false
+      ],
+      ["another role", { access: "selected", grants: [STOREFRONT_VIEWER] }, { access: "selected", grants: [{ ...STOREFRONT_VIEWER, role: "admin" }] }, false]
+    ] satisfies [string, ProjectAccessValue, ProjectAccessValue, boolean][])("compares %s", (_, value, other, expected) => {
+      expect(isSameProjectAccess(value, other)).toBe(expected);
     });
   });
 

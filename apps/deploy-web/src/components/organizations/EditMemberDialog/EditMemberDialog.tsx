@@ -22,7 +22,12 @@ import { ORGANIZATION_ROLE_LABELS } from "@src/components/organizations/organiza
 import type { EditableRole } from "@src/components/organizations/organizationRoles";
 import { EDITABLE_ROLE_DESCRIPTIONS, getEditableRolesFor, getMemberDisplayName } from "@src/components/organizations/organizationRoles";
 import type { ProjectAccessValue } from "@src/components/organizations/ProjectAccessField/ProjectAccessField";
-import { hasProjectAccess, ProjectAccessField, toProjectAccessRequest } from "@src/components/organizations/ProjectAccessField/ProjectAccessField";
+import {
+  hasProjectAccess,
+  isSameProjectAccess,
+  ProjectAccessField,
+  toProjectAccessRequest
+} from "@src/components/organizations/ProjectAccessField/ProjectAccessField";
 import { RadioCard } from "@src/components/organizations/RadioCard/RadioCard";
 import { holdsProjectGrants } from "@src/components/projects/projectAccess";
 import { useOrganizationMemberProjectGrantsQuery, useUpdateOrganizationMemberMutation } from "@src/queries/useOrganizationMembersQueries";
@@ -49,13 +54,14 @@ export function EditMemberDialog({ member, organizationName, onClose, dependenci
   const { data: projects = [] } = d.useProjectsQuery();
   const [role, setRole] = useState<EditableRole>(member.role);
   const [editedAccess, setEditedAccess] = useState<ProjectAccessValue>();
-  const projectAccess = editedAccess ?? {
+  const storedAccess: ProjectAccessValue = {
     access: holdsGrantsToday && member.projectAccess === "selected" ? "selected" : "all",
     grants: grantsQuery.data ?? []
   };
+  const projectAccess = editedAccess ?? storedAccess;
   const carriesProjectAccess = holdsProjectGrants(role);
   const isGrantsUnread = holdsGrantsToday && !grantsQuery.data;
-  const isChanged = role !== member.role || !!editedAccess;
+  const isChanged = role !== member.role || !isSameProjectAccess(projectAccess, storedAccess);
   const canSave = isChanged && !isPending && (!carriesProjectAccess || (!isGrantsUnread && hasProjectAccess(projectAccess)));
 
   const save = (event: FormEvent) => {

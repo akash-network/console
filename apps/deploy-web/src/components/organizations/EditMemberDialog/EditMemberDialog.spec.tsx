@@ -89,6 +89,26 @@ describe("EditMemberDialog", () => {
     expect(updateMember).not.toHaveBeenCalled();
   });
 
+  it("has nothing to save once the access is changed back", async () => {
+    const { user } = setup({});
+
+    await user.click(screen.getByRole("button", { name: "open every project" }));
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "keep storefront" }));
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("has nothing to save when a member on every project is given every project again", async () => {
+    const { user } = setup({ member: { projectAccess: "all" }, grants: [] });
+
+    await user.click(screen.getByRole("button", { name: "open every project" }));
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
   it("sends only the role of a member made an admin", async () => {
     const { user, updateMember } = setup({});
 
@@ -217,6 +237,12 @@ describe("EditMemberDialog", () => {
         </button>
         <button type="button" onClick={() => onChange({ access: "selected", grants: [] })}>
           pick no project
+        </button>
+        <button type="button" onClick={() => onChange({ access: "selected", grants: [{ projectId: "storefront", role: "viewer" }] })}>
+          keep storefront
+        </button>
+        <button type="button" onClick={() => onChange({ access: "all", grants: [{ projectId: "storefront", role: "viewer" }] })}>
+          open every project
         </button>
       </>
     ));
