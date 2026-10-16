@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { HttpClient } from "../utils/httpClient";
 import { StripeService } from "./stripe.service";
+import type { SetupIntentResponse } from "./stripe.types";
 
 describe(StripeService.name, () => {
   describe("getCustomerTransactions", () => {
@@ -55,11 +56,31 @@ describe(StripeService.name, () => {
     });
   });
 
-  function setup(input?: { payload?: unknown; pdf?: Blob }) {
+  describe("createSetupIntent", () => {
+    it("asks for the default setup intent when no card-only choice is given", async () => {
+      const { service, httpClient } = setup({ setupIntent: { clientSecret: "seti_secret" } });
+
+      const result = await service.createSetupIntent();
+
+      expect(httpClient.post).toHaveBeenCalledWith("/v1/stripe/payment-methods/setup", {}, { params: undefined });
+      expect(result).toEqual({ clientSecret: "seti_secret" });
+    });
+
+    it("asks for a card-only setup intent when a card only is wanted", async () => {
+      const { service, httpClient } = setup({ setupIntent: { clientSecret: "seti_secret" } });
+
+      const result = await service.createSetupIntent({ cardOnly: true });
+
+      expect(httpClient.post).toHaveBeenCalledWith("/v1/stripe/payment-methods/setup", {}, { params: { cardOnly: "true" } });
+      expect(result).toEqual({ clientSecret: "seti_secret" });
+    });
+  });
+
+  function setup(input?: { payload?: unknown; pdf?: Blob; setupIntent?: SetupIntentResponse }) {
     const payload = input?.payload ?? { transactions: [], totalCount: 0, hasMore: false };
     const httpClient = {
       get: vi.fn().mockResolvedValue({ data: { data: payload } }),
-      post: vi.fn().mockResolvedValue({ data: input?.pdf })
+      post: vi.fn().mockResolvedValue({ data: input?.pdf ?? { data: input?.setupIntent } })
     } as unknown as HttpClient & { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn> };
     const service = new StripeService(httpClient);
     return { service, httpClient };

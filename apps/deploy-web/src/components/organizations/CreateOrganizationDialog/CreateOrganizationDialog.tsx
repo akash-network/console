@@ -151,7 +151,7 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
 
   const confirmCard = async (card: NewCardHandle) => {
     try {
-      const { clientSecret } = await stripe.createSetupIntent();
+      const { clientSecret } = await stripe.createSetupIntent({ cardOnly: true });
       return await card.save(clientSecret);
     } catch (error) {
       reportBillingError(error);

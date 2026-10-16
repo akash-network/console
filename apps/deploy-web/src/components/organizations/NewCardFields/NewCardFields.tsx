@@ -10,8 +10,8 @@ export const DEPENDENCIES = { Elements, PaymentElement, useStripe, useElements, 
 
 export const CARD_SAVE_FAILED_REASON = "Something went wrong while saving it.";
 
-/** Must stay the payment method types of the setup intents the API creates, or Stripe refuses to confirm them. */
-const SETUP_INTENT_PAYMENT_METHOD_TYPES = ["card", "link"];
+/** Must stay the payment method types of the card-only setup intents the API creates, or Stripe refuses to confirm them. */
+const CARD_ONLY_PAYMENT_METHOD_TYPES = ["card"];
 
 /** Collects a card before the SetupIntent that saves it exists. */
 export interface NewCardHandle {
@@ -63,7 +63,7 @@ function buildSetupOptions(isDarkMode: boolean): StripeElementsOptionsMode {
   return {
     mode: "setup",
     currency: "usd",
-    paymentMethodTypes: SETUP_INTENT_PAYMENT_METHOD_TYPES,
+    paymentMethodTypes: CARD_ONLY_PAYMENT_METHOD_TYPES,
     appearance: {
       theme: isDarkMode ? "night" : "stripe",
       variables: { colorPrimary: isDarkMode ? "#e3e3e3" : "#171717", colorSuccess: "#16a34a" }
