@@ -25,20 +25,14 @@ describe(OrganizationSettingsPage.name, () => {
     expect(LeaveOrganizationSetting.mock.lastCall?.[0]).toEqual(expect.objectContaining({ organization: expect.objectContaining({ id: "org-2", role }) }));
   });
 
-  it("offers the owner to delete the team in the danger zone too", () => {
-    const { LeaveOrganizationSetting, DeleteTeamSetting } = setup({ role: "owner" });
+  it.each(["owner", "admin", "member", "viewer", "billing"] as const)("shows a %s the delete row in the danger zone too", role => {
+    const { LeaveOrganizationSetting, DeleteTeamSetting } = setup({ role });
 
     expect(screen.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
     expect(LeaveOrganizationSetting).toHaveBeenCalled();
     expect(DeleteTeamSetting.mock.lastCall?.[0]).toEqual(
-      expect.objectContaining({ organization: expect.objectContaining({ id: "org-2", name: "Acme Corp" }) })
+      expect.objectContaining({ organization: expect.objectContaining({ id: "org-2", name: "Acme Corp", role }) })
     );
-  });
-
-  it.each(["admin", "member", "viewer", "billing"] as const)("does not offer a %s to delete the team", role => {
-    const { DeleteTeamSetting } = setup({ role });
-
-    expect(DeleteTeamSetting).not.toHaveBeenCalled();
   });
 
   it("lets an admin rename the organization but not transfer it", () => {

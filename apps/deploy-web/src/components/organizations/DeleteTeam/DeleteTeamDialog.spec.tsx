@@ -30,17 +30,17 @@ describe(DeleteTeamDialog.name, () => {
   it("checks the team before offering anything", () => {
     setup({ eligibility: { status: "loading" } });
 
-    expect(screen.getByText("Checking the team's deployments and credits…")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Delete team" })).not.toBeInTheDocument();
+    expect(screen.getByText("Checking the organization's deployments and credits…")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete organization" })).not.toBeInTheDocument();
   });
 
   it("sends an owner whose team has active deployments to close them first", () => {
     setup({ eligibility: { status: "blocked", activeDeploymentCount: 2 } });
 
-    expect(screen.getByText("Close the team's deployments first")).toBeInTheDocument();
+    expect(screen.getByText("Close the organization's deployments first")).toBeInTheDocument();
     expect(screen.getByText(/Acme Corp has 2 active deployments\. Close them before/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go to deployments" })).toHaveAttribute("href", "/deployments");
-    expect(screen.queryByRole("button", { name: "Delete team" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete organization" })).not.toBeInTheDocument();
   });
 
   it("speaks of a single active deployment in the singular", () => {
@@ -73,10 +73,10 @@ describe(DeleteTeamDialog.name, () => {
     await user.click(screen.getByRole("button", { name: "Delete and forfeit" }));
     await user.type(screen.getByRole("textbox", { name: "Type Acme Corp to confirm" }), "Acme Corp");
 
-    expect(screen.getByRole("button", { name: "Delete team" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete organization" })).toBeDisabled();
 
-    await user.click(screen.getByRole("checkbox", { name: /I understand the team's remaining \$12\.50 in credits won't be refunded/ }));
-    await user.click(screen.getByRole("button", { name: "Delete team" }));
+    await user.click(screen.getByRole("checkbox", { name: /I understand the organization's remaining \$12\.50 in credits won't be refunded/ }));
+    await user.click(screen.getByRole("button", { name: "Delete organization" }));
 
     expect(deleteOrganization).toHaveBeenCalledWith({ id: TEAM.id, acknowledgedForfeitUsd: 12.5 });
   });
@@ -85,12 +85,12 @@ describe(DeleteTeamDialog.name, () => {
     const { user } = setup({ eligibility: { status: "forfeit", balanceUsd: 12.5 } });
     await user.click(screen.getByRole("button", { name: "Delete and forfeit" }));
     await user.type(screen.getByRole("textbox", { name: "Type Acme Corp to confirm" }), "Acme Corp");
-    const acknowledgement = screen.getByRole("checkbox", { name: /I understand the team's remaining/ });
+    const acknowledgement = screen.getByRole("checkbox", { name: /I understand the organization's remaining/ });
 
     await user.click(acknowledgement);
     await user.click(acknowledgement);
 
-    expect(screen.getByRole("button", { name: "Delete team" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete organization" })).toBeDisabled();
   });
 
   it("keeps the team until the owner types its name", async () => {
@@ -98,7 +98,7 @@ describe(DeleteTeamDialog.name, () => {
 
     await user.type(screen.getByRole("textbox", { name: "Type Acme Corp to confirm" }), "acme corp{Enter}");
 
-    expect(screen.getByRole("button", { name: "Delete team" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete organization" })).toBeDisabled();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     expect(deleteOrganization).not.toHaveBeenCalled();
   });
@@ -107,7 +107,7 @@ describe(DeleteTeamDialog.name, () => {
     const { user, deleteOrganization, switchOrganization, enqueueSnackbar, onClose } = setup({ eligibility: { status: "clean" } });
 
     await user.type(screen.getByRole("textbox", { name: "Type Acme Corp to confirm" }), " Acme Corp ");
-    await user.click(screen.getByRole("button", { name: "Delete team" }));
+    await user.click(screen.getByRole("button", { name: "Delete organization" }));
 
     expect(deleteOrganization).toHaveBeenCalledWith({ id: TEAM.id, acknowledgedForfeitUsd: 0 });
     await vi.waitFor(() => expect(switchOrganization).toHaveBeenCalledWith(PERSONAL.id, { destination: "/deployments" }));
@@ -148,8 +148,8 @@ describe(DeleteTeamDialog.name, () => {
     await confirmWithName(user);
     await user.click(await screen.findByRole("button", { name: "Delete and forfeit" }));
 
-    expect(screen.getByRole("checkbox", { name: /I understand the team's remaining \$7\.00 in credits/ })).toBeInTheDocument();
-    expect(screen.queryByText("We couldn't delete the team. Please try again.")).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /I understand the organization's remaining \$7\.00 in credits/ })).toBeInTheDocument();
+    expect(screen.queryByText("We couldn't delete the organization. Please try again.")).not.toBeInTheDocument();
   });
 
   it("acknowledges the credits the API found once the owner forfeits them", async () => {
@@ -158,7 +158,7 @@ describe(DeleteTeamDialog.name, () => {
 
     await confirmWithName(user);
     await user.click(await screen.findByRole("button", { name: "Delete and forfeit" }));
-    await user.click(screen.getByRole("checkbox", { name: /I understand the team's remaining \$7\.00 in credits/ }));
+    await user.click(screen.getByRole("checkbox", { name: /I understand the organization's remaining \$7\.00 in credits/ }));
     await confirmWithName(user);
 
     expect(deleteOrganization).toHaveBeenLastCalledWith({ id: TEAM.id, acknowledgedForfeitUsd: 7 });
@@ -183,7 +183,7 @@ describe(DeleteTeamDialog.name, () => {
 
     await confirmWithName(user);
 
-    expect(await screen.findByText("We couldn't delete the team. Please try again.")).toBeInTheDocument();
+    expect(await screen.findByText("We couldn't delete the organization. Please try again.")).toBeInTheDocument();
     expect(screen.queryByText("Internal Server Error")).not.toBeInTheDocument();
     expect(switchOrganization).not.toHaveBeenCalled();
   });
@@ -216,7 +216,7 @@ describe(DeleteTeamDialog.name, () => {
 
   async function confirmWithName(user: ReturnType<typeof userEvent.setup>) {
     await user.type(screen.getByRole("textbox", { name: "Type Acme Corp to confirm" }), TEAM.name);
-    await user.click(screen.getByRole("button", { name: "Delete team" }));
+    await user.click(screen.getByRole("button", { name: "Delete organization" }));
   }
 
   function setup(input: { eligibility: WalletDeletionEligibility; response?: Promise<unknown>; organizations?: OrganizationOutput[] }) {
