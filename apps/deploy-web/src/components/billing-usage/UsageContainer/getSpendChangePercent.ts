@@ -1,6 +1,6 @@
 import { isToday, parseISO } from "date-fns";
 
-import type { UsageHistory } from "@src/types";
+import type { DailySpend } from "@src/components/billing-usage/DailySpendChart/DailySpendChart";
 
 /** Today's row only holds spend up to the latest block, so the comparison uses completed days on both sides. */
 export function getSpendChangePercent({
@@ -8,7 +8,7 @@ export function getSpendChangePercent({
   previousTotalSpent,
   previousDays
 }: {
-  history: UsageHistory;
+  history: DailySpend[];
   previousTotalSpent: number | null;
   previousDays: number;
 }) {

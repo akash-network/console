@@ -1,17 +1,22 @@
 import React, { type FC, useState } from "react";
 import { format } from "date-fns";
 
+import type { DailySpend } from "@src/components/billing-usage/DailySpendChart/DailySpendChart";
 import { useCurrentSpendRate } from "@src/components/billing-usage/useCurrentSpendRate";
 import { canViewBillingAndUsage } from "@src/components/organizations/organizationAccess";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUsage, useUsageStats } from "@src/queries";
-import type { UsageHistory, UsageHistoryStats } from "@src/types";
+import { useDeploymentSpendQuery } from "@src/queries/useProjectBudgetQueries";
+import { useProjectsQuery } from "@src/queries/useProjectsQuery";
+import type { UsageHistoryStats } from "@src/types";
+import type { DeploymentSpendReport } from "@src/types/deployment-spend";
 import type { SpendRange } from "@src/types/project-budget";
 import { createDateRange } from "@src/utils/dateUtils";
 import { downloadCsv } from "@src/utils/domUtils";
 import { buildUsageCsv } from "./buildUsageCsv";
 import { getSpendChangePercent } from "./getSpendChangePercent";
+import { hourlyRateOf, type ProjectScope, type ScopedUsage, scopeUsage } from "./teamUsage";
 import {
   countDaysInRange,
   DEFAULT_USAGE_DATE_PRESET,
@@ -26,7 +31,9 @@ export const DEPENDENCIES = {
   useUsage,
   useUsageStats,
   useCurrentSpendRate,
-  useActiveOrganization
+  useActiveOrganization,
+  useDeploymentSpendQuery,
+  useProjectsQuery
 };
 
 const EMPTY_USAGE_STATS: UsageHistoryStats = {
@@ -36,8 +43,14 @@ const EMPTY_USAGE_STATS: UsageHistoryStats = {
   averageDeploymentsPerDay: 0
 };
 
+export type ProjectScopeControl = {
+  projects: Array<{ id: string; name: string }>;
+  selected: ProjectScope;
+  onChange: (scope: ProjectScope) => void;
+};
+
 export type ChildrenProps = {
-  usageHistoryData: UsageHistory;
+  usageHistoryData: DailySpend[];
   usageHistoryStatsData: UsageHistoryStats;
   spendChangePercent: number | null;
   isUsageHistoryLoading: boolean;
@@ -51,9 +64,18 @@ export type ChildrenProps = {
   onDatePresetChange: (preset: UsageDatePreset) => void;
   canExport: boolean;
   onExport: () => void;
-  /** Null unless the caller may see a team's spend by project. */
+  /** Null unless the caller may see a team's spend by project and the page covers every project. */
   projectSpendRange: SpendRange | null;
+  /** Null outside a team, whose usage alone can be narrowed to one project. */
+  projectScope: ProjectScopeControl | null;
 };
+
+type UsageFigures = Pick<
+  ChildrenProps,
+  "usageHistoryData" | "usageHistoryStatsData" | "isUsageHistoryLoading" | "isUsageHistoryError" | "isUsageHistoryStatsLoading" | "isUsageHistoryStatsError"
+> & { previousTotalSpent: number | null };
+
+type ReportQuery = { data?: DeploymentSpendReport; isLoading: boolean; isError: boolean };
 
 export type UsageContainerProps = {
   children: (props: ChildrenProps) => React.ReactNode;
@@ -70,12 +92,29 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
   const usageHistory = d.useUsage({ address, startDate: dateRange.from, endDate: dateRange.to });
   const usageStats = d.useUsageStats({ address, startDate: dateRange.from, endDate: dateRange.to });
   const previousPeriodStats = d.useUsageStats({ address, startDate: previousPeriod.from, endDate: previousPeriod.to });
-  const { perHourUsd, isLoading: isSpendRateLoading, isError: isSpendRateError } = d.useCurrentSpendRate();
+  const { perBlockUsdByDseq, perHourUsd, isLoading: isSpendRateLoading, isError: isSpendRateError } = d.useCurrentSpendRate();
   const { activeOrganization, projectsEnabled } = d.useActiveOrganization();
-  const showsSpendByProject = projectsEnabled && !!activeOrganization && canViewBillingAndUsage(activeOrganization.role);
+  const isTeamUsage = projectsEnabled && !!activeOrganization && canViewBillingAndUsage(activeOrganization.role);
+  const [projectScope, setProjectScope] = useState<ProjectScope>(null);
+  const teamSpend = d.useDeploymentSpendQuery(toSpendRange(dateRange), { enabled: isTeamUsage });
+  const previousTeamSpend = d.useDeploymentSpendQuery(toSpendRange(previousPeriod), { enabled: isTeamUsage });
+  const projects = d.useProjectsQuery({ enabled: isTeamUsage });
+  const scopedUsage = teamSpend.data && scopeUsage(teamSpend.data, projectScope);
+  const isScopedToProject = isTeamUsage && projectScope !== null;
 
   const usageHistoryData = usageHistory.data ?? [];
   const usageHistoryStatsData = usageStats.data ?? EMPTY_USAGE_STATS;
+  const figures: UsageFigures = isTeamUsage
+    ? teamFiguresOf({ current: teamSpend, currentUsage: scopedUsage, previous: previousTeamSpend, scope: projectScope })
+    : {
+        usageHistoryData,
+        usageHistoryStatsData,
+        isUsageHistoryLoading: usageHistory.isLoading,
+        isUsageHistoryError: usageHistory.isError,
+        isUsageHistoryStatsLoading: usageStats.isLoading,
+        isUsageHistoryStatsError: usageStats.isError,
+        previousTotalSpent: previousPeriodStats.data?.totalSpent ?? null
+      };
 
   const changeDateRange = (range: UsageDateRange) => {
     setCustomRange(createDateRange(range));
@@ -97,25 +136,32 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
   return (
     <>
       {children({
-        usageHistoryData,
-        usageHistoryStatsData,
+        usageHistoryData: figures.usageHistoryData,
+        usageHistoryStatsData: figures.usageHistoryStatsData,
         spendChangePercent: getSpendChangePercent({
-          history: usageHistoryData,
-          previousTotalSpent: previousPeriodStats.data?.totalSpent ?? null,
+          history: figures.usageHistoryData,
+          previousTotalSpent: figures.previousTotalSpent,
           previousDays: countDaysInRange(previousPeriod)
         }),
-        isUsageHistoryLoading: usageHistory.isLoading,
-        isUsageHistoryError: usageHistory.isError,
-        isUsageHistoryStatsLoading: usageStats.isLoading,
-        isUsageHistoryStatsError: usageStats.isError,
-        spendRate: { perHourUsd, isLoading: isSpendRateLoading, isError: isSpendRateError },
+        isUsageHistoryLoading: figures.isUsageHistoryLoading,
+        isUsageHistoryError: figures.isUsageHistoryError,
+        isUsageHistoryStatsLoading: figures.isUsageHistoryStatsLoading,
+        isUsageHistoryStatsError: figures.isUsageHistoryStatsError,
+        spendRate: {
+          perHourUsd: isScopedToProject ? hourlyRateOf(perBlockUsdByDseq, scopedUsage?.dseqs ?? []) : perHourUsd,
+          isLoading: isSpendRateLoading || (isScopedToProject && teamSpend.isLoading),
+          isError: isSpendRateError || (isScopedToProject && teamSpend.isError)
+        },
         dateRange,
         onDateRangeChange: changeDateRange,
         datePreset,
         onDatePresetChange: changeDatePreset,
         canExport: !!usageHistory.data && !!usageStats.data && !usageHistory.isError && !usageStats.isError,
         onExport: exportCsv,
-        projectSpendRange: showsSpendByProject ? toSpendRange(dateRange) : null
+        projectSpendRange: isTeamUsage && !isScopedToProject ? toSpendRange(dateRange) : null,
+        projectScope: isTeamUsage
+          ? { projects: (projects.data ?? []).map(({ id, name }) => ({ id, name })), selected: projectScope, onChange: setProjectScope }
+          : null
       })}
     </>
   );
@@ -124,6 +170,28 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
 /** Presets resolve against today on every read so a page left open past midnight moves on to the new day. */
 function resolveDateRange(preset: UsageDatePreset, customRange: UsageDateRange) {
   return preset === "custom" ? customRange : getUsagePresetRange(preset);
+}
+
+function teamFiguresOf({
+  current,
+  currentUsage,
+  previous,
+  scope
+}: {
+  current: ReportQuery;
+  currentUsage: ScopedUsage | undefined;
+  previous: ReportQuery;
+  scope: ProjectScope;
+}): UsageFigures {
+  return {
+    usageHistoryData: currentUsage?.dailySpend ?? [],
+    usageHistoryStatsData: currentUsage?.stats ?? EMPTY_USAGE_STATS,
+    isUsageHistoryLoading: current.isLoading,
+    isUsageHistoryError: current.isError,
+    isUsageHistoryStatsLoading: current.isLoading,
+    isUsageHistoryStatsError: current.isError,
+    previousTotalSpent: previous.data ? scopeUsage(previous.data, scope).stats.totalSpent : null
+  };
 }
 
 function toSpendRange({ from, to }: UsageDateRange): SpendRange {

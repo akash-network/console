@@ -30,7 +30,7 @@ const MIN_REPORTED_CHANGE_PERCENT = 0.5;
 
 const LOAD_ERROR = "Couldn't be loaded. Refresh the page to try again.";
 
-export type UsageViewProps = Omit<ChildrenProps, "onExport" | "canExport"> & {
+export type UsageViewProps = Omit<ChildrenProps, "onExport" | "canExport" | "projectScope"> & {
   dependencies?: typeof DEPENDENCIES;
 };
 
