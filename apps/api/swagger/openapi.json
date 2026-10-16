@@ -26304,7 +26304,8 @@
                               "deployment_closed",
                               "deployment_moved",
                               "member_granted",
-                              "member_revoked"
+                              "member_revoked",
+                              "member_updated"
                             ]
                           },
                           "payload": {
@@ -26407,6 +26408,20 @@
                               "viewer"
                             ]
                           },
+                          "projectAccess": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "all",
+                              "selected"
+                            ],
+                            "description": "`all` for owners and admins, the stored access for members and viewers, null for billing members, who reach no project."
+                          },
+                          "projectCount": {
+                            "type": "integer",
+                            "nullable": true,
+                            "description": "The live projects a member or viewer on `selected` is granted, null for everyone else."
+                          },
                           "createdAt": {
                             "type": "string",
                             "format": "date-time"
@@ -26418,6 +26433,8 @@
                           "username",
                           "email",
                           "role",
+                          "projectAccess",
+                          "projectCount",
                           "createdAt"
                         ]
                       }
@@ -26450,10 +26467,98 @@
         ]
       }
     },
+    "/v1/organization-members/{id}/project-grants": {
+      "get": {
+        "operationId": "listOrganizationMemberProjectGrants",
+        "summary": "List the project grants of a member of the active organization, for an owner or admin editing them",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The member's project grants",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "projectId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "admin",
+                              "member",
+                              "viewer"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "projectId",
+                          "role"
+                        ]
+                      },
+                      "description": "The member's grants on live projects, oldest first."
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The organization header names another organization than the API key's (`organization_mismatch`)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller is neither an owner nor an admin"
+          },
+          "404": {
+            "description": "No such member in the active organization"
+          }
+        }
+      }
+    },
     "/v1/organization-members/{id}": {
       "patch": {
         "operationId": "updateOrganizationMember",
-        "summary": "Change the role and project access of a member of the active organization",
+        "summary": "Change the role, project access and project grants of a member of the active organization, all together or not at all",
         "tags": [
           "Organizations"
         ],
@@ -26509,11 +26614,33 @@
                           "selected"
                         ],
                         "description": "Required when someone becomes a member or viewer from another role, refused with `project_access_required` otherwise. A member or viewer on `selected` needs at least one project grant. Ignored for owners, admins and billing members."
+                      },
+                      "projectGrants": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "projectId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "role": {
+                              "type": "string",
+                              "enum": [
+                                "admin",
+                                "member",
+                                "viewer"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "projectId",
+                            "role"
+                          ]
+                        },
+                        "description": "Replaces every grant of a member or viewer on `selected`, in the body or already stored: grants not listed are removed. Refused for anyone else. Switching to `all` removes the member and viewer grants and keeps the admin ones."
                       }
-                    },
-                    "required": [
-                      "role"
-                    ]
+                    }
                   }
                 },
                 "required": [
@@ -26560,6 +26687,20 @@
                             "viewer"
                           ]
                         },
+                        "projectAccess": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "all",
+                            "selected"
+                          ],
+                          "description": "`all` for owners and admins, the stored access for members and viewers, null for billing members, who reach no project."
+                        },
+                        "projectCount": {
+                          "type": "integer",
+                          "nullable": true,
+                          "description": "The live projects a member or viewer on `selected` is granted, null for everyone else."
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -26571,6 +26712,8 @@
                         "username",
                         "email",
                         "role",
+                        "projectAccess",
+                        "projectCount",
                         "createdAt"
                       ]
                     }
@@ -26583,7 +26726,7 @@
             }
           },
           "400": {
-            "description": "The request is invalid, someone becoming a member or viewer has no project access stated (`project_access_required`), a member or viewer on specific projects would hold no grant, or the organization header names another organization than the API key's (`organization_mismatch`)"
+            "description": "The request is invalid, someone becoming a member or viewer has no project access stated (`project_access_required`), a member or viewer on specific projects would hold no grant, the grants name a project that is not live or someone they do not apply to, or the organization header names another organization than the API key's (`organization_mismatch`)"
           },
           "401": {
             "description": "Unauthorized"
@@ -26721,6 +26864,20 @@
                             "viewer"
                           ]
                         },
+                        "projectAccess": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "all",
+                            "selected"
+                          ],
+                          "description": "`all` for owners and admins, the stored access for members and viewers, null for billing members, who reach no project."
+                        },
+                        "projectCount": {
+                          "type": "integer",
+                          "nullable": true,
+                          "description": "The live projects a member or viewer on `selected` is granted, null for everyone else."
+                        },
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
@@ -26732,6 +26889,8 @@
                         "username",
                         "email",
                         "role",
+                        "projectAccess",
+                        "projectCount",
                         "createdAt"
                       ]
                     }
@@ -27740,10 +27899,53 @@
                         ]
                       },
                       "description": "Explicit grants only, oldest first. Owners and admins reach every project without one."
+                    },
+                    "membersWithAllProjects": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "userId": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "username": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "email": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "admin",
+                              "member",
+                              "viewer"
+                            ],
+                            "description": "`viewer` reads the project; `member` also deploys into it and changes its deployments, templates and alerts; `admin` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role."
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "When they joined the organization."
+                          }
+                        },
+                        "required": [
+                          "userId",
+                          "username",
+                          "email",
+                          "role",
+                          "createdAt"
+                        ]
+                      },
+                      "description": "Members and viewers of the organization who reach every project and hold no grant on this one, oldest first. Their access is changed on the organization's members, not on the project."
                     }
                   },
                   "required": [
-                    "data"
+                    "data",
+                    "membersWithAllProjects"
                   ]
                 }
               }
