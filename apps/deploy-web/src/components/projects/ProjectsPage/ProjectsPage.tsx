@@ -21,7 +21,6 @@ import { UrlService } from "@src/utils/urlUtils";
 import { NewProjectModal } from "../NewProjectModal/NewProjectModal";
 import { ProjectFolder } from "../ProjectFolder/ProjectFolder";
 import { ProjectFolderMenu } from "../ProjectFolderMenu/ProjectFolderMenu";
-import { ProjectSpendReport } from "../ProjectSpendReport/ProjectSpendReport";
 import { isProjectListed } from "../projectSummary";
 import { RecentActivityFeed } from "../RecentActivityFeed/RecentActivityFeed";
 import { SectionLabel } from "../SectionLabel/SectionLabel";
@@ -38,7 +37,6 @@ export const DEPENDENCIES = {
   NotFoundPage,
   ProjectFolder,
   ProjectFolderMenu,
-  ProjectSpendReport,
   RecentActivityFeed,
   NewProjectModal
 };
@@ -152,8 +150,6 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
                     projectsQuery.data && <EmptyProjects organizationName={organizationName} onNewProject={canManage ? openNewProject : undefined} />
                   )}
                 </section>
-
-                {!!projectsQuery.data?.length && <d.ProjectSpendReport />}
               </div>
 
               <aside className="min-w-0">

@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ProjectSpend, ProjectSpendReport as SpendReport, SpendAmounts } from "@src/types/project-budget";
+import type { ProjectSpend, ProjectSpendReport as SpendReport, SpendAmounts, SpendRange } from "@src/types/project-budget";
 import { UrlService } from "@src/utils/urlUtils";
-import { spendRangeFor } from "../projectSpend";
 import type { DEPENDENCIES } from "./ProjectSpendReport";
 import { ProjectSpendReport } from "./ProjectSpendReport";
 
@@ -63,17 +62,10 @@ describe(ProjectSpendReport.name, () => {
     expect(screen.getByText("2026-03-01 to 2026-03-15, UTC")).toBeInTheDocument();
   });
 
-  it("starts on this month and reads another range when one is picked", async () => {
-    const { useProjectSpendQuery } = setup({ report: report({}) });
+  it("reads the spend of the range it is given", () => {
+    const { useProjectSpendQuery } = setup({ report: report({}), range: { startDate: "2026-02-14", endDate: "2026-03-15" } });
 
-    expect(useProjectSpendQuery).toHaveBeenLastCalledWith(spendRangeFor("this-month"));
-    expect(screen.getByRole("button", { name: "This month" })).toHaveAttribute("aria-pressed", "true");
-
-    await userEvent.click(screen.getByRole("button", { name: "Last 90 days" }));
-
-    expect(useProjectSpendQuery).toHaveBeenLastCalledWith(spendRangeFor("last-90-days"));
-    expect(screen.getByRole("button", { name: "Last 90 days" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "This month" })).toHaveAttribute("aria-pressed", "false");
+    expect(useProjectSpendQuery).toHaveBeenLastCalledWith({ startDate: "2026-02-14", endDate: "2026-03-15" });
   });
 
   it("says when the caller has no project to report", () => {
@@ -98,13 +90,13 @@ describe(ProjectSpendReport.name, () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
-  function setup(input: { report: SpendReport | undefined; isError?: boolean }) {
+  function setup(input: { report: SpendReport | undefined; isError?: boolean; range?: SpendRange }) {
     const refetch = vi.fn();
     const useProjectSpendQuery = vi.fn<typeof DEPENDENCIES.useProjectSpendQuery>(() =>
       mock<ReturnType<typeof DEPENDENCIES.useProjectSpendQuery>>({ data: input.report, isError: input.isError ?? false, refetch })
     );
 
-    render(<ProjectSpendReport dependencies={{ useProjectSpendQuery }} />);
+    render(<ProjectSpendReport range={input.range ?? { startDate: "2026-03-01", endDate: "2026-03-15" }} dependencies={{ useProjectSpendQuery }} />);
 
     return { useProjectSpendQuery, refetch };
   }

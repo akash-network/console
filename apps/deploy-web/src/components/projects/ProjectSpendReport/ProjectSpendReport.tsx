@@ -1,35 +1,33 @@
 "use client";
 import type { ReactNode } from "react";
-import { useState } from "react";
 import { Badge, Button } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { RefreshCw } from "lucide-react";
 import Link from "next/link";
 
 import { useProjectSpendQuery } from "@src/queries/useProjectBudgetQueries";
-import type { ProjectSpend, SpendAmounts } from "@src/types/project-budget";
+import type { ProjectSpend, SpendAmounts, SpendRange } from "@src/types/project-budget";
 import { UrlService } from "@src/utils/urlUtils";
-import type { SpendRangePreset } from "../projectSpend";
-import { formatSpendUsd, SPEND_RANGE_LABELS, SPEND_RANGE_PRESETS, spendRangeFor } from "../projectSpend";
+import { formatSpendUsd } from "../projectSpend";
 import { SectionLabel } from "../SectionLabel/SectionLabel";
 
 export const DEPENDENCIES = { useProjectSpendQuery };
 
 interface Props {
+  range: SpendRange;
   dependencies?: typeof DEPENDENCIES;
 }
 
 const ROW_CLASS_NAME = "grid grid-cols-[minmax(0,1fr)_96px_96px] items-center gap-3 px-4 py-2.5 text-[13px]";
 
 /** Spend per project over a range; the organization's total and the unassigned remainder show only to the roles the api gives them to. */
-export function ProjectSpendReport({ dependencies: d = DEPENDENCIES }: Props) {
-  const [preset, setPreset] = useState<SpendRangePreset>("this-month");
-  const spendQuery = d.useProjectSpendQuery(spendRangeFor(preset));
+export function ProjectSpendReport({ range, dependencies: d = DEPENDENCIES }: Props) {
+  const spendQuery = d.useProjectSpendQuery(range);
   const report = spendQuery.data;
 
   return (
-    <section aria-label="Spend by project" className="mt-8">
-      <SectionLabel rightSlot={<RangePicker selected={preset} onSelect={setPreset} />}>Spend by project</SectionLabel>
+    <section aria-label="Spend by project">
+      <SectionLabel>Spend by project</SectionLabel>
 
       <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
         {spendQuery.isError ? (
@@ -89,26 +87,6 @@ export function ProjectSpendReport({ dependencies: d = DEPENDENCIES }: Props) {
         )}
       </div>
     </section>
-  );
-}
-
-function RangePicker({ selected, onSelect }: { selected: SpendRangePreset; onSelect: (preset: SpendRangePreset) => void }) {
-  return (
-    <div role="group" aria-label="Date range" className="flex flex-wrap justify-end gap-1">
-      {SPEND_RANGE_PRESETS.map(preset => (
-        <Button
-          key={preset}
-          type="button"
-          size="sm"
-          variant={preset === selected ? "secondary" : "ghost"}
-          aria-pressed={preset === selected}
-          className="h-7 px-2.5 text-xs"
-          onClick={() => onSelect(preset)}
-        >
-          {SPEND_RANGE_LABELS[preset]}
-        </Button>
-      ))}
-    </div>
   );
 }
 

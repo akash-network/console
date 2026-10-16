@@ -10,7 +10,7 @@ import { useProjectMembersQuery } from "@src/queries/useProjectMembersQuery";
 import type { ProjectBudget, ProjectSpend } from "@src/types/project-budget";
 import { ProjectBudgetDialog } from "../ProjectBudgetDialog/ProjectBudgetDialog";
 import type { BudgetStanding } from "../projectSpend";
-import { budgetAccessFor, budgetStandingOf, budgetUsedPercent, formatSpendUsd, spendRangeFor } from "../projectSpend";
+import { budgetAccessFor, budgetStandingOf, budgetUsedPercent, formatSpendUsd, thisMonthSpendRange } from "../projectSpend";
 import { SectionLabel } from "../SectionLabel/SectionLabel";
 
 export const DEPENDENCIES = { useActiveOrganization, useUser, useProjectMembersQuery, useProjectBudgetQuery, useProjectSpendQuery, ProjectBudgetDialog };
@@ -35,7 +35,7 @@ export function ProjectBudgetPanel({ projectId, projectName, dependencies: d = D
   const projectRole = members.find(member => member.userId === user?.id)?.role;
   const access = budgetAccessFor(organizationRole, projectRole);
   const budgetQuery = d.useProjectBudgetQuery(projectId, { enabled: access.canRead });
-  const spendQuery = d.useProjectSpendQuery(spendRangeFor("this-month"));
+  const spendQuery = d.useProjectSpendQuery(thisMonthSpendRange());
   const [isEditingBudget, setIsEditingBudget] = useState(false);
 
   const spend = spendQuery.data?.projects.find(candidate => candidate.projectId === projectId);

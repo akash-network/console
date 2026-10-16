@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { OrganizationRole } from "@src/types/organization";
 import type { ProjectRole } from "@src/types/project";
 import type { ProjectBudget, ProjectSpend, ProjectSpendReport } from "@src/types/project-budget";
-import { spendRangeFor } from "../projectSpend";
+import { thisMonthSpendRange } from "../projectSpend";
 import { DEPENDENCIES, ProjectBudgetPanel } from "./ProjectBudgetPanel";
 
 import { render, screen } from "@testing-library/react";
@@ -20,7 +20,7 @@ describe(ProjectBudgetPanel.name, () => {
     expect(screen.getByRole("progressbar", { name: "24% of the monthly budget committed" })).toBeInTheDocument();
     expect(screen.getByText("24% used")).toBeInTheDocument();
     expect(screen.getByText("Alert at 80%")).toBeInTheDocument();
-    expect(useProjectSpendQuery).toHaveBeenCalledWith(spendRangeFor("this-month"));
+    expect(useProjectSpendQuery).toHaveBeenCalledWith(thisMonthSpendRange());
   });
 
   it("judges the budget by the figure deposits are checked against", () => {

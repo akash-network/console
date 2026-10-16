@@ -1,36 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import type { ProjectBudget } from "@src/types/project-budget";
-import { budgetAccessFor, budgetStandingOf, budgetUsedPercent, formatSpendUsd, spendRangeFor } from "./projectSpend";
+import { budgetAccessFor, budgetStandingOf, budgetUsedPercent, formatSpendUsd, thisMonthSpendRange } from "./projectSpend";
 
-describe(spendRangeFor.name, () => {
-  const now = new Date("2026-03-15T23:30:00.000Z");
-
+describe(thisMonthSpendRange.name, () => {
   it("runs this month from its first day to today", () => {
-    expect(spendRangeFor("this-month", now)).toEqual({ startDate: "2026-03-01", endDate: "2026-03-15" });
-  });
-
-  it("covers the whole of last month", () => {
-    expect(spendRangeFor("last-month", now)).toEqual({ startDate: "2026-02-01", endDate: "2026-02-28" });
-  });
-
-  it("covers last month across a year boundary", () => {
-    expect(spendRangeFor("last-month", new Date("2026-01-10T00:00:00.000Z"))).toEqual({ startDate: "2025-12-01", endDate: "2025-12-31" });
-  });
-
-  it("counts trailing ranges in whole days, today included", () => {
-    expect(spendRangeFor("last-30-days", now)).toEqual({ startDate: "2026-02-14", endDate: "2026-03-15" });
-    expect(spendRangeFor("last-90-days", now)).toEqual({ startDate: "2025-12-16", endDate: "2026-03-15" });
+    expect(thisMonthSpendRange(new Date("2026-03-15T23:30:00.000Z"))).toEqual({ startDate: "2026-03-01", endDate: "2026-03-15" });
   });
 
   it("reads the calendar in UTC", () => {
-    expect(spendRangeFor("this-month", new Date("2026-04-01T00:30:00.000+02:00"))).toEqual({ startDate: "2026-03-01", endDate: "2026-03-31" });
+    expect(thisMonthSpendRange(new Date("2026-04-01T00:30:00.000+02:00"))).toEqual({ startDate: "2026-03-01", endDate: "2026-03-31" });
   });
 
   it("defaults to the current date", () => {
     const today = new Date().toISOString().slice(0, 10);
 
-    expect(spendRangeFor("this-month").endDate).toBe(today);
+    expect(thisMonthSpendRange()).toEqual({ startDate: `${today.slice(0, 7)}-01`, endDate: today });
   });
 });
 
