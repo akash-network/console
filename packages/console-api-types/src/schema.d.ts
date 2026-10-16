@@ -7170,6 +7170,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/organization-members/{id}/project-grants": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the project grants of a member of the active organization, for an owner or admin editing them */
+    get: operations["listOrganizationMemberProjectGrants"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/organization-members/{id}": {
     parameters: {
       query?: never;
@@ -7184,7 +7201,7 @@ export interface paths {
     delete: operations["deleteOrganizationMember"];
     options?: never;
     head?: never;
-    /** Change the role of a member of the active organization */
+    /** Change the role, project access and project grants of a member of the active organization, all together or not at all */
     patch: operations["updateOrganizationMember"];
     trace?: never;
   };
@@ -14105,7 +14122,8 @@ export interface operations {
                 | "deployment_closed"
                 | "deployment_moved"
                 | "member_granted"
-                | "member_revoked";
+                | "member_revoked"
+                | "member_updated";
               /** @description The names and values the client renders the activity text with, per type. */
               payload: {
                 [key: string]: unknown;
@@ -14164,6 +14182,13 @@ export interface operations {
               email: string | null;
               /** @enum {string} */
               role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /**
+               * @description `all` for owners and admins, the stored access for members and viewers, null for billing members, who reach no project.
+               * @enum {string|null}
+               */
+              projectAccess: "all" | "selected" | null;
+              /** @description The live projects a member or viewer on `selected` is granted, null for everyone else. */
+              projectCount: number | null;
               /** Format: date-time */
               createdAt: string;
             }[];
@@ -14186,6 +14211,69 @@ export interface operations {
       };
       /** @description The caller cannot see the organization's members */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listOrganizationMemberProjectGrants: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The member's project grants */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @description The member's grants on live projects, oldest first. */
+            data: {
+              /** Format: uuid */
+              projectId: string;
+              /** @enum {string} */
+              role: "admin" | "member" | "viewer";
+            }[];
+          };
+        };
+      };
+      /** @description The organization header names another organization than the API key's (`organization_mismatch`) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is neither an owner nor an admin */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No such member in the active organization */
+      404: {
         headers: {
           [name: string]: unknown;
         };
@@ -14272,7 +14360,19 @@ export interface operations {
         "application/json": {
           data: {
             /** @enum {string} */
-            role: "owner" | "admin" | "member" | "billing" | "viewer";
+            role?: "owner" | "admin" | "member" | "billing" | "viewer";
+            /**
+             * @description Required when someone becomes a member or viewer from another role, refused with `project_access_required` otherwise. A member or viewer on `selected` needs at least one project grant. Ignored for owners, admins and billing members.
+             * @enum {string}
+             */
+            projectAccess?: "all" | "selected";
+            /** @description Replaces every grant of a member or viewer on `selected`, in the body or already stored: grants not listed are removed. Refused for anyone else. Switching to `all` removes the member and viewer grants and keeps the admin ones. */
+            projectGrants?: {
+              /** Format: uuid */
+              projectId: string;
+              /** @enum {string} */
+              role: "admin" | "member" | "viewer";
+            }[];
           };
         };
       };
@@ -14294,13 +14394,20 @@ export interface operations {
               email: string | null;
               /** @enum {string} */
               role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /**
+               * @description `all` for owners and admins, the stored access for members and viewers, null for billing members, who reach no project.
+               * @enum {string|null}
+               */
+              projectAccess: "all" | "selected" | null;
+              /** @description The live projects a member or viewer on `selected` is granted, null for everyone else. */
+              projectCount: number | null;
               /** Format: date-time */
               createdAt: string;
             };
           };
         };
       };
-      /** @description The request is invalid, or the organization header names another organization than the API key's (`organization_mismatch`) */
+      /** @description The request is invalid, someone becoming a member or viewer has no project access stated (`project_access_required`), a member or viewer on specific projects would hold no grant, the grants name a project that is not live or someone they do not apply to, or the organization header names another organization than the API key's (`organization_mismatch`) */
       400: {
         headers: {
           [name: string]: unknown;
@@ -14369,6 +14476,13 @@ export interface operations {
               email: string | null;
               /** @enum {string} */
               role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /**
+               * @description `all` for owners and admins, the stored access for members and viewers, null for billing members, who reach no project.
+               * @enum {string|null}
+               */
+              projectAccess: "all" | "selected" | null;
+              /** @description The live projects a member or viewer on `selected` is granted, null for everyone else. */
+              projectCount: number | null;
               /** Format: date-time */
               createdAt: string;
             };
@@ -14544,7 +14658,7 @@ export interface operations {
           };
         };
       };
-      /** @description A project grant names a project outside the active organization */
+      /** @description A project grant names a project outside the active organization, or a member or viewer invitation states neither its project access nor a grant (`project_access_required`), combines grants with access to every project, or has specific access without any grant, or an owner, admin or billing invitation names project grants */
       400: {
         headers: {
           [name: string]: unknown;
@@ -14959,6 +15073,23 @@ export interface operations {
                */
               role: "admin" | "member" | "viewer";
               /** Format: date-time */
+              createdAt: string;
+            }[];
+            /** @description Members and viewers of the organization who reach every project and hold no grant on this one, oldest first. Their access is changed on the organization's members, not on the project. */
+            membersWithAllProjects: {
+              /** Format: uuid */
+              userId: string;
+              username: string | null;
+              email: string | null;
+              /**
+               * @description `viewer` reads the project; `member` also deploys into it and changes its deployments, templates and alerts; `admin` also renames it and manages the other grants on it. An organization viewer only reads, whatever the project role.
+               * @enum {string}
+               */
+              role: "admin" | "member" | "viewer";
+              /**
+               * Format: date-time
+               * @description When they joined the organization.
+               */
               createdAt: string;
             }[];
           };

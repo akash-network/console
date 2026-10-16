@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { OrganizationMemberOutput } from "@src/types/organizationMembership";
-import type { ProjectMember } from "@src/types/project";
+import type { ProjectMember, ProjectMemberWithAllProjects } from "@src/types/project";
 import type { DEPENDENCIES } from "./ProjectAccessDialog";
 import { ProjectAccessDialog } from "./ProjectAccessDialog";
 
@@ -28,6 +28,33 @@ describe(ProjectAccessDialog.name, () => {
     expect(within(rows[0]).getByRole("combobox", { name: "Role for bob" })).toHaveTextContent("Member");
     expect(within(rows[1]).getByRole("combobox", { name: "Role for carol@acme.io" })).toHaveTextContent("Viewer");
     expect(screen.getByText("2 people")).toBeInTheDocument();
+    expect(screen.queryByText("Change access for people on all projects on the Members page.")).not.toBeInTheDocument();
+  });
+
+  it("lists the people on every project after the grants, read-only, and counts them", () => {
+    const { useProjectMembersWithAllProjectsQuery } = setup({ membersWithAllProjects: [FRANK_ON_ALL_PROJECTS, GRACE_ON_ALL_PROJECTS] });
+
+    const rows = within(screen.getByRole("list", { name: "People with access" })).getAllByRole("listitem");
+    expect(rows).toHaveLength(4);
+    expect(within(rows[2]).getByText("frank")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("frank@acme.io")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("All projects")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("Member")).toBeInTheDocument();
+    expect(within(rows[3]).getByText("grace@acme.io")).toBeInTheDocument();
+    expect(within(rows[3]).getByText("Viewer")).toBeInTheDocument();
+    expect(rows.slice(2).flatMap(row => within(row).queryAllByRole("combobox"))).toEqual([]);
+    expect(rows.slice(2).flatMap(row => within(row).queryAllByRole("button"))).toEqual([]);
+    expect(screen.getByText("4 people")).toBeInTheDocument();
+    expect(screen.getByText("Change access for people on all projects on the Members page.")).toBeInTheDocument();
+    expect(useProjectMembersWithAllProjectsQuery).toHaveBeenCalledWith("project-1");
+  });
+
+  it("lists the people on every project of a project no one was given", () => {
+    setup({ grants: [], membersWithAllProjects: [FRANK_ON_ALL_PROJECTS] });
+
+    expect(within(screen.getByRole("list", { name: "People with access" })).getByText("frank")).toBeInTheDocument();
+    expect(screen.getByText("1 person")).toBeInTheDocument();
+    expect(screen.queryByText("No one has been given access to this project yet.")).not.toBeInTheDocument();
   });
 
   it("counts a single person in the singular", () => {
@@ -59,6 +86,14 @@ describe(ProjectAccessDialog.name, () => {
     await user.click(screen.getByRole("combobox", { name: "Give access to" }));
 
     expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["dave"]);
+  });
+
+  it("leaves out the members on every project, who need no grant", async () => {
+    const { user } = setup({ organizationMembers: [OWNER, BOB, { ...DAVE, projectAccess: "all", projectCount: null }, ERIN] });
+
+    await user.click(screen.getByRole("combobox", { name: "Give access to" }));
+
+    expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["erin"]);
   });
 
   it("gives the chosen member access with the chosen role and confirms it", async () => {
@@ -261,6 +296,7 @@ describe(ProjectAccessDialog.name, () => {
 
   function setup(input: {
     grants?: ProjectMember[];
+    membersWithAllProjects?: ProjectMemberWithAllProjects[];
     organizationMembers?: OrganizationMemberOutput[];
     viewerUserId?: string;
     isConfirmed?: boolean;
@@ -273,6 +309,9 @@ describe(ProjectAccessDialog.name, () => {
     const confirm = vi.fn(async () => input.isConfirmed ?? true);
     const enqueueSnackbar = vi.fn();
     const onClose = vi.fn();
+    const useProjectMembersWithAllProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectMembersWithAllProjectsQuery>(() =>
+      mock<ReturnType<typeof DEPENDENCIES.useProjectMembersWithAllProjectsQuery>>({ data: input.membersWithAllProjects ?? [] })
+    );
 
     const dependencies: typeof DEPENDENCIES = {
       usePopup: () => mock<ReturnType<typeof DEPENDENCIES.usePopup>>({ confirm }),
@@ -281,6 +320,7 @@ describe(ProjectAccessDialog.name, () => {
         input.isLoadingGrants
           ? mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: undefined, isLoading: true })
           : mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: input.grants ?? [BOB_GRANT, CAROL_GRANT], isLoading: false }),
+      useProjectMembersWithAllProjectsQuery,
       useOrganizationMembersQuery: () =>
         mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({
           data: input.organizationMembers ?? [OWNER, ADMIN, BILLING, BOB, DAVE, ERIN, CAROL],
@@ -302,7 +342,7 @@ describe(ProjectAccessDialog.name, () => {
       />
     );
 
-    return { user: userEvent.setup(), createGrant, updateGrant, deleteGrant, confirm, enqueueSnackbar, onClose };
+    return { user: userEvent.setup(), createGrant, updateGrant, deleteGrant, confirm, enqueueSnackbar, onClose, useProjectMembersWithAllProjectsQuery };
   }
 });
 
@@ -326,8 +366,33 @@ const CAROL_GRANT: ProjectMember = {
   createdAt: "2026-01-02T00:00:00Z"
 };
 
+const FRANK_ON_ALL_PROJECTS: ProjectMemberWithAllProjects = {
+  userId: "user-frank",
+  username: "frank",
+  email: "frank@acme.io",
+  role: "member",
+  createdAt: "2026-01-03T00:00:00Z"
+};
+
+const GRACE_ON_ALL_PROJECTS: ProjectMemberWithAllProjects = {
+  userId: "user-grace",
+  username: null,
+  email: "grace@acme.io",
+  role: "viewer",
+  createdAt: "2026-01-04T00:00:00Z"
+};
+
 function organizationMember(name: string, role: OrganizationMemberOutput["role"]): OrganizationMemberOutput {
-  return { id: `member-${name}`, userId: `user-${name}`, username: name, email: `${name}@acme.io`, role, createdAt: "2026-01-01T00:00:00Z" };
+  return {
+    id: `member-${name}`,
+    userId: `user-${name}`,
+    username: name,
+    email: `${name}@acme.io`,
+    role,
+    projectAccess: "selected",
+    projectCount: 1,
+    createdAt: "2026-01-01T00:00:00Z"
+  };
 }
 
 const OWNER = organizationMember("owner", "owner");

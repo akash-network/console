@@ -1,5 +1,6 @@
 "use client";
 import type { FC } from "react";
+import { useState } from "react";
 import {
   Avatar,
   AvatarFallback,
@@ -10,39 +11,34 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Skeleton,
   Snackbar
 } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
 import { formatDistanceStrict } from "date-fns";
-import { Crown, MoreHorizontal, TriangleAlert, UserMinus } from "lucide-react";
+import { Crown, MoreHorizontal, Pencil, TriangleAlert, UserMinus } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
+import { EditMemberDialog } from "@src/components/organizations/EditMemberDialog/EditMemberDialog";
 import { getMembershipErrorMessage } from "@src/components/organizations/membershipErrorMessages";
 import { canManageMembers, ORGANIZATION_ROLE_LABELS } from "@src/components/organizations/organizationAccess";
 import { organizationHue } from "@src/components/organizations/OrganizationAvatar/OrganizationAvatar";
-import { ASSIGNABLE_ROLES, describeRoleWithArticle, getMemberDisplayName, getRoleRank } from "@src/components/organizations/organizationRoles";
-import {
-  useDeleteOrganizationMemberMutation,
-  useTransferOrganizationOwnershipMutation,
-  useUpdateOrganizationMemberMutation
-} from "@src/queries/useOrganizationMembersQueries";
+import type { EditableRole } from "@src/components/organizations/organizationRoles";
+import { getMemberDisplayName, getRoleRank } from "@src/components/organizations/organizationRoles";
+import { useDeleteOrganizationMemberMutation, useTransferOrganizationOwnershipMutation } from "@src/queries/useOrganizationMembersQueries";
 import type { OrganizationRole } from "@src/types/organization";
 import type { OrganizationMemberOutput } from "@src/types/organizationMembership";
 
 export const DEPENDENCIES = {
   usePopup,
   useSnackbar,
-  useUpdateOrganizationMemberMutation,
   useDeleteOrganizationMemberMutation,
-  useTransferOrganizationOwnershipMutation
+  useTransferOrganizationOwnershipMutation,
+  EditMemberDialog
 };
+
+type EditableMember = OrganizationMemberOutput & { role: EditableRole };
 
 type Props = {
   members: OrganizationMemberOutput[] | undefined;
@@ -57,9 +53,9 @@ type Props = {
 export const MemberRoster: FC<Props> = ({ members, isLoading, isError, organizationName, viewerRole, viewerUserId, dependencies: d = DEPENDENCIES }) => {
   const { confirm } = d.usePopup();
   const { enqueueSnackbar } = d.useSnackbar();
-  const { mutate: updateMember } = d.useUpdateOrganizationMemberMutation();
   const { mutate: deleteMember } = d.useDeleteOrganizationMemberMutation();
   const { mutate: transferOwnership } = d.useTransferOrganizationOwnershipMutation();
+  const [editedMember, setEditedMember] = useState<EditableMember>();
   const now = new Date();
   const canManage = canManageMembers(viewerRole);
   const roster = [...(members ?? [])].sort(
@@ -71,19 +67,7 @@ export const MemberRoster: FC<Props> = ({ members, isLoading, isError, organizat
   const notifyFailure = (error: unknown, fallback: string) =>
     enqueueSnackbar(<Snackbar title={getMembershipErrorMessage(error, fallback)} iconVariant="error" />, { variant: "error" });
 
-  const isManageable = (member: OrganizationMemberOutput) => canManage && member.userId !== viewerUserId && member.role !== "owner";
-
-  const changeRole = (member: OrganizationMemberOutput, role: OrganizationRole) => {
-    if (role === member.role) return;
-    const name = getMemberDisplayName(member);
-    updateMember(
-      { id: member.id, data: { role } },
-      {
-        onSuccess: () => notifySuccess(`${name} is now ${describeRoleWithArticle(role)}`),
-        onError: error => notifyFailure(error, `Couldn't change ${name}'s role`)
-      }
-    );
-  };
+  const isManageable = (member: OrganizationMemberOutput): member is EditableMember => canManage && member.userId !== viewerUserId && member.role !== "owner";
 
   const removeMember = async (member: OrganizationMemberOutput) => {
     const name = getMemberDisplayName(member);
@@ -149,7 +133,7 @@ export const MemberRoster: FC<Props> = ({ members, isLoading, isError, organizat
                 isViewer={member.userId === viewerUserId}
                 isManageable={isManageable(member)}
                 canTransferOwnership={viewerRole === "owner"}
-                onChangeRole={role => changeRole(member, role)}
+                onEdit={() => isManageable(member) && setEditedMember(member)}
                 onRemove={() => removeMember(member)}
                 onTransferOwnership={() => handOverOwnership(member)}
               />
@@ -157,6 +141,7 @@ export const MemberRoster: FC<Props> = ({ members, isLoading, isError, organizat
           </ul>
         )}
       </Card>
+      {editedMember && <d.EditMemberDialog member={editedMember} organizationName={organizationName} onClose={() => setEditedMember(undefined)} />}
     </SettingsSection>
   );
 };
@@ -167,15 +152,14 @@ type MemberRowProps = {
   isViewer: boolean;
   isManageable: boolean;
   canTransferOwnership: boolean;
-  onChangeRole: (role: OrganizationRole) => void;
+  onEdit: () => void;
   onRemove: () => void;
   onTransferOwnership: () => void;
 };
 
-const MemberRow: FC<MemberRowProps> = ({ member, now, isViewer, isManageable, canTransferOwnership, onChangeRole, onRemove, onTransferOwnership }) => {
+const MemberRow: FC<MemberRowProps> = ({ member, now, isViewer, isManageable, canTransferOwnership, onEdit, onRemove, onTransferOwnership }) => {
   const name = getMemberDisplayName(member);
   const isOwner = member.role === "owner";
-  const roleOptions: OrganizationRole[] = ASSIGNABLE_ROLES.some(role => role === member.role) ? ASSIGNABLE_ROLES : [member.role, ...ASSIGNABLE_ROLES];
 
   return (
     <li className="flex items-center gap-3.5 px-4 py-3">
@@ -191,23 +175,9 @@ const MemberRow: FC<MemberRowProps> = ({ member, now, isViewer, isManageable, ca
       <span className="hidden whitespace-nowrap font-mono text-[11px] text-muted-foreground sm:inline">
         Joined {formatDistanceStrict(new Date(member.createdAt), now, { addSuffix: true })}
       </span>
-      <div className="w-[124px] shrink-0">
-        {isManageable ? (
-          <Select value={member.role} onValueChange={value => onChangeRole(value as OrganizationRole)}>
-            <SelectTrigger aria-label={`Role for ${name}`} className="h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {roleOptions.map(role => (
-                <SelectItem key={role} value={role}>
-                  {ORGANIZATION_ROLE_LABELS[role]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <span className="px-3 text-sm">{ORGANIZATION_ROLE_LABELS[isOwner ? "admin" : member.role]}</span>
-        )}
+      <div className="flex w-[124px] shrink-0 flex-col gap-0.5">
+        <span className="text-sm">{ORGANIZATION_ROLE_LABELS[isOwner ? "admin" : member.role]}</span>
+        <MemberProjectAccess member={member} />
       </div>
       <div className="flex w-7 shrink-0 justify-end">
         {isManageable && (
@@ -218,6 +188,11 @@ const MemberRow: FC<MemberRowProps> = ({ member, now, isViewer, isManageable, ca
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={onEdit}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit member
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               {canTransferOwnership && (
                 <>
                   <DropdownMenuItem onSelect={onTransferOwnership}>
@@ -236,6 +211,19 @@ const MemberRow: FC<MemberRowProps> = ({ member, now, isViewer, isManageable, ca
         )}
       </div>
     </li>
+  );
+};
+
+const MemberProjectAccess: FC<{ member: OrganizationMemberOutput }> = ({ member }) => {
+  if (member.projectAccess === "all") return <span className="text-xs text-muted-foreground">All projects</span>;
+  if (member.projectAccess !== "selected") return null;
+  if (member.projectCount) return <span className="text-xs text-muted-foreground">{pluralize(member.projectCount, "project")}</span>;
+
+  return (
+    <span className="flex items-center gap-1 text-xs text-warning">
+      <TriangleAlert className="h-3 w-3 shrink-0" aria-hidden />
+      No projects
+    </span>
   );
 };
 

@@ -31,8 +31,15 @@ describe("MemberRoster", () => {
     expect(within(ownerRow).getByText("You")).toBeInTheDocument();
     expect(within(ownerRow).getByText("Owner")).toBeInTheDocument();
     expect(within(ownerRow).getByText("Admin")).toBeInTheDocument();
-    expect(within(ownerRow).queryByRole("combobox")).not.toBeInTheDocument();
     expect(within(ownerRow).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("offers no actions on the owner or on the admin reading the roster", () => {
+    setup({ viewerRole: "admin", viewerUserId: "user-dave" });
+
+    expect(within(rowOf("alice")).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(rowOf("dave")).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(rowOf("bob")).getByRole("button", { name: "Actions for bob" })).toBeInTheDocument();
   });
 
   it("shows the email under a username and falls back to the email as the name", () => {
@@ -48,52 +55,33 @@ describe("MemberRoster", () => {
     expect(within(rowOf("bob")).getByText(/^Joined .+ ago$/)).toBeInTheDocument();
   });
 
-  it("changes a member's role and confirms it", async () => {
-    const { user, updateMember, enqueueSnackbar } = setup({ viewerRole: "admin" });
-    updateMember.mockImplementation((input, options) => options?.onSuccess?.({ data: { ...BOB, role: "admin" } }, input, undefined));
+  it("shows each member's project access", () => {
+    setup({ members: [ALICE, { ...BOB, projectCount: 3 }, { ...CAROL, projectCount: 0 }, { ...DAVE, projectAccess: "all" }, ERIN, FRANK] });
 
-    await user.click(screen.getByRole("combobox", { name: "Role for bob" }));
-    await user.click(screen.getByRole("option", { name: "Admin" }));
-
-    expect(updateMember.mock.lastCall?.[0]).toEqual({ id: "member-bob", data: { role: "admin" } });
-    expect(lastSnackbar(enqueueSnackbar)).toEqual({ title: "bob is now an Admin", variant: "success" });
+    expect(within(rowOf("alice")).getByText("All projects")).toBeInTheDocument();
+    expect(within(rowOf("bob")).getByText("3 projects")).toBeInTheDocument();
+    expect(within(rowOf("carol@acme.io")).getByText("No projects")).toBeInTheDocument();
+    expect(within(rowOf("erin")).getByText("All projects")).toBeInTheDocument();
+    expect(within(rowOf("frank")).queryByText(/project/)).not.toBeInTheDocument();
   });
 
-  it("ignores picking the role a member already has", async () => {
-    const { user, updateMember } = setup({ viewerRole: "admin" });
+  it("counts a single granted project in the singular", () => {
+    setup({ members: [ALICE, { ...BOB, projectCount: 1 }] });
 
-    await user.click(screen.getByRole("combobox", { name: "Role for bob" }));
-    await user.click(screen.getByRole("option", { name: "Member" }));
-
-    expect(updateMember).not.toHaveBeenCalled();
+    expect(within(rowOf("bob")).getByText("1 project")).toBeInTheDocument();
   });
 
-  it("offers a member's current role when it is neither Admin nor Member", async () => {
-    const { user } = setup({ members: [ALICE, { ...BOB, role: "viewer" }] });
+  it("edits a member in a dialog and closes it once done", async () => {
+    const { user, EditMemberDialog } = setup({ viewerRole: "admin", viewerUserId: "user-dave" });
 
-    await user.click(screen.getByRole("combobox", { name: "Role for bob" }));
+    await user.click(screen.getByRole("button", { name: "Actions for bob" }));
+    await user.click(screen.getByRole("menuitem", { name: "Edit member" }));
 
-    expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["Viewer", "Member", "Admin"]);
-  });
+    expect(EditMemberDialog.mock.lastCall?.[0]).toMatchObject({ member: BOB, organizationName: "Acme Corp" });
 
-  it("explains a refused role change with the API's reason", async () => {
-    const { user, updateMember, enqueueSnackbar } = setup({ viewerRole: "admin" });
-    updateMember.mockImplementation((input, options) => options?.onError?.(new ApiError(409, { code: "last_owner" }, "PATCH"), input, undefined));
+    await user.click(screen.getByRole("button", { name: "close the edit" }));
 
-    await user.click(screen.getByRole("combobox", { name: "Role for bob" }));
-    await user.click(screen.getByRole("option", { name: "Admin" }));
-
-    expect(lastSnackbar(enqueueSnackbar)).toEqual({ title: "An organization needs at least one owner.", variant: "error" });
-  });
-
-  it("falls back to a generic message when a role change fails for another reason", async () => {
-    const { user, updateMember, enqueueSnackbar } = setup({ viewerRole: "admin" });
-    updateMember.mockImplementation((input, options) => options?.onError?.(new Error("boom"), input, undefined));
-
-    await user.click(screen.getByRole("combobox", { name: "Role for bob" }));
-    await user.click(screen.getByRole("option", { name: "Admin" }));
-
-    expect(lastSnackbar(enqueueSnackbar)).toEqual({ title: "Couldn't change bob's role", variant: "error" });
+    expect(screen.queryByRole("button", { name: "close the edit" })).not.toBeInTheDocument();
   });
 
   it("removes a member once the removal is confirmed", async () => {
@@ -231,19 +219,23 @@ describe("MemberRoster", () => {
     isError?: boolean;
     isConfirmed?: boolean;
   }) {
-    const updateMember = vi.fn<ReturnType<typeof DEPENDENCIES.useUpdateOrganizationMemberMutation>["mutate"]>();
     const deleteMember = vi.fn<ReturnType<typeof DEPENDENCIES.useDeleteOrganizationMemberMutation>["mutate"]>();
     const transferOwnership = vi.fn<ReturnType<typeof DEPENDENCIES.useTransferOrganizationOwnershipMutation>["mutate"]>();
     const confirm = vi.fn(async () => input.isConfirmed ?? true);
     const enqueueSnackbar = vi.fn();
+    const EditMemberDialog = vi.fn<typeof DEPENDENCIES.EditMemberDialog>(({ onClose }) => (
+      <button type="button" onClick={onClose}>
+        close the edit
+      </button>
+    ));
 
     const dependencies: typeof DEPENDENCIES = {
       usePopup: () => mock<ReturnType<typeof DEPENDENCIES.usePopup>>({ confirm }),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
-      useUpdateOrganizationMemberMutation: () => mock<ReturnType<typeof DEPENDENCIES.useUpdateOrganizationMemberMutation>>({ mutate: updateMember }),
       useDeleteOrganizationMemberMutation: () => mock<ReturnType<typeof DEPENDENCIES.useDeleteOrganizationMemberMutation>>({ mutate: deleteMember }),
       useTransferOrganizationOwnershipMutation: () =>
-        mock<ReturnType<typeof DEPENDENCIES.useTransferOrganizationOwnershipMutation>>({ mutate: transferOwnership })
+        mock<ReturnType<typeof DEPENDENCIES.useTransferOrganizationOwnershipMutation>>({ mutate: transferOwnership }),
+      EditMemberDialog
     };
 
     render(
@@ -258,7 +250,7 @@ describe("MemberRoster", () => {
       />
     );
 
-    return { user: userEvent.setup(), updateMember, deleteMember, transferOwnership, confirm, enqueueSnackbar };
+    return { user: userEvent.setup(), deleteMember, transferOwnership, confirm, enqueueSnackbar, EditMemberDialog };
   }
 });
 
@@ -268,6 +260,8 @@ const ALICE: OrganizationMemberOutput = {
   username: "alice",
   email: "alice@acme.io",
   role: "owner",
+  projectAccess: "all",
+  projectCount: null,
   createdAt: "2026-01-01T00:00:00Z"
 };
 
@@ -277,6 +271,8 @@ const BOB: OrganizationMemberOutput = {
   username: "bob",
   email: "bob@acme.io",
   role: "member",
+  projectAccess: "selected",
+  projectCount: 2,
   createdAt: "2026-02-01T00:00:00Z"
 };
 
@@ -286,6 +282,8 @@ const CAROL: OrganizationMemberOutput = {
   username: null,
   email: "carol@acme.io",
   role: "member",
+  projectAccess: "selected",
+  projectCount: 1,
   createdAt: "2026-03-01T00:00:00Z"
 };
 
@@ -295,5 +293,29 @@ const DAVE: OrganizationMemberOutput = {
   username: "dave",
   email: "dave@acme.io",
   role: "admin",
+  projectAccess: "all",
+  projectCount: null,
   createdAt: "2026-04-01T00:00:00Z"
+};
+
+const ERIN: OrganizationMemberOutput = {
+  id: "member-erin",
+  userId: "user-erin",
+  username: "erin",
+  email: "erin@acme.io",
+  role: "viewer",
+  projectAccess: "all",
+  projectCount: null,
+  createdAt: "2026-05-01T00:00:00Z"
+};
+
+const FRANK: OrganizationMemberOutput = {
+  id: "member-frank",
+  userId: "user-frank",
+  username: "frank",
+  email: "frank@acme.io",
+  role: "billing",
+  projectAccess: null,
+  projectCount: null,
+  createdAt: "2026-06-01T00:00:00Z"
 };

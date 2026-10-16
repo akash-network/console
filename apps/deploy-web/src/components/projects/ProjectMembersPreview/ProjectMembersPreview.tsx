@@ -5,16 +5,19 @@ import { UserCog } from "lucide-react";
 
 import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import { useUser } from "@src/hooks/useUser";
-import { useProjectMembersQuery } from "@src/queries/useProjectMembersQuery";
+import { useProjectMembersQuery, useProjectMembersWithAllProjectsQuery } from "@src/queries/useProjectMembersQuery";
+import type { ProjectMember } from "@src/types/project";
 import { initialsOf } from "@src/utils/initials";
 import { pluralize } from "@src/utils/stringUtils";
 import { PROJECT_ROLE_LABELS } from "../projectAccess";
 import { ProjectAccessDialog } from "../ProjectAccessDialog/ProjectAccessDialog";
 import { SectionLabel } from "../SectionLabel/SectionLabel";
 
-export const DEPENDENCIES = { useProjectMembersQuery, useProjectAccess, useUser, ProjectAccessDialog };
+export const DEPENDENCIES = { useProjectMembersQuery, useProjectMembersWithAllProjectsQuery, useProjectAccess, useUser, ProjectAccessDialog };
 
 export const MAX_PREVIEWED_MEMBERS = 5;
+
+type PreviewedMember = Pick<ProjectMember, "userId" | "username" | "email" | "role"> & { isOnAllProjects: boolean };
 
 interface Props {
   project: { id: string; name: string };
@@ -22,12 +25,17 @@ interface Props {
   dependencies?: typeof DEPENDENCIES;
 }
 
-/** Who was granted the project, a few at a time; owners and admins reach it without a grant, so they are named only in the footnote. */
+/** Who was granted the project or is on every project, a few at a time; owners and admins reach it too, so they are named only in the footnote. */
 export function ProjectMembersPreview({ project, organizationName, dependencies: d = DEPENDENCIES }: Props) {
-  const { data: members = [], isLoading, isError } = d.useProjectMembersQuery(project.id);
+  const { data: grants = [], isLoading, isError } = d.useProjectMembersQuery(project.id);
+  const { data: membersWithAllProjects = [] } = d.useProjectMembersWithAllProjectsQuery(project.id);
   const { canManageAccess } = d.useProjectAccess();
   const { user } = d.useUser();
   const [isManagingAccess, setIsManagingAccess] = useState(false);
+  const members: PreviewedMember[] = [
+    ...grants.map(grant => ({ ...grant, isOnAllProjects: false })),
+    ...membersWithAllProjects.map(member => ({ ...member, isOnAllProjects: true }))
+  ];
   const previewedMembers = members.slice(0, MAX_PREVIEWED_MEMBERS);
   const hiddenCount = members.length - previewedMembers.length;
 
@@ -47,11 +55,18 @@ export function ProjectMembersPreview({ project, organizationName, dependencies:
         ) : (
           <ul className="divide-y divide-border">
             {previewedMembers.map(member => (
-              <li key={member.id} className="flex items-center gap-3 px-4 py-2.5">
+              <li key={member.userId} className="flex items-center gap-3 px-4 py-2.5">
                 <Avatar className="h-7 w-7">
                   <AvatarFallback className="text-[11px] font-semibold">{initialsOf(member.username || member.email || "?")}</AvatarFallback>
                 </Avatar>
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{member.username || member.email || "A member"}</span>
+                <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                  <span className="truncate text-[13px] font-medium">{member.username || member.email || "A member"}</span>
+                  {member.isOnAllProjects && (
+                    <span className="shrink-0 rounded-md border border-border bg-muted px-1.5 py-px text-[11px] font-medium text-muted-foreground">
+                      All projects
+                    </span>
+                  )}
+                </span>
                 <span className="text-xs text-muted-foreground">{PROJECT_ROLE_LABELS[member.role]}</span>
               </li>
             ))}

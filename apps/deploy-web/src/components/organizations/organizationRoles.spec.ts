@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { describeRoleWithArticle, getMemberDisplayName, getRoleRank } from "./organizationRoles";
+import { describeRoleWithArticle, getEditableRolesFor, getMemberDisplayName, getRoleRank } from "./organizationRoles";
 
 describe("organizationRoles", () => {
   describe(describeRoleWithArticle.name, () => {
@@ -12,6 +12,17 @@ describe("organizationRoles", () => {
       ["viewer", "a Viewer"]
     ] as const)("describes %s as %s", (role, description) => {
       expect(describeRoleWithArticle(role)).toBe(description);
+    });
+  });
+
+  describe(getEditableRolesFor.name, () => {
+    it.each([
+      ["member", ["member", "admin"]],
+      ["admin", ["member", "admin"]],
+      ["viewer", ["viewer", "member", "admin"]],
+      ["billing", ["billing", "member", "admin"]]
+    ] as const)("offers a %s the roles %o", (role, roles) => {
+      expect(getEditableRolesFor(role)).toEqual(roles);
     });
   });
 
