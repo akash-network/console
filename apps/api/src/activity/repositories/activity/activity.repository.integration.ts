@@ -6,7 +6,7 @@ import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-
 import type { ActivityInitiator, ActivityStatus } from "@src/activity/model-schemas";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
-import { ActivityRepository, isDedupeKeyTaken } from "./activity.repository";
+import { ActivityRepository, isDedupeKeyTaken, type PendingActivitySummary } from "./activity.repository";
 
 describe(ActivityRepository.name, () => {
   const OWNER = "akash1personal";
@@ -265,6 +265,18 @@ describe(ActivityRepository.name, () => {
       expect(await repository.findById(succeeded.id)).toMatchObject({ status: "succeeded", meta: succeeded.meta });
     });
 
+    it("answers with the activity it moved, and with nothing when it moved none", async () => {
+      const { repository, createUser, seed } = setup();
+      const owner = await createUser();
+      const pending = await seed(owner.id, { status: "pending", initiator: "system", createdAt: new Date("2026-10-05T10:00:00.000Z") });
+
+      const settled = await repository.updateByIdIfStatusIn(pending.id, ["pending"], { status: "failed" });
+      const settledAgain = await repository.updateByIdIfStatusIn(pending.id, ["pending"], { status: "succeeded" });
+
+      expect(settled).toMatchObject({ id: pending.id, status: "failed", initiator: "system", createdAt: "2026-10-05T10:00:00.000Z" });
+      expect(settledAgain).toBeUndefined();
+    });
+
     it("updates no activity but the one with the given id", async () => {
       const { repository, createUser, seed } = setup();
       const owner = await createUser();
@@ -317,6 +329,35 @@ describe(ActivityRepository.name, () => {
       expect([secondBatch, thirdBatch]).toEqual([1, 0]);
       expect(await repository.findById(newest.id)).toBeUndefined();
     });
+  });
+
+  describe("summarizePendingByType", () => {
+    it("counts every user's activities still in progress by type and dates the oldest of them", async () => {
+      const { repository, createUser, seed } = setup();
+      const owner = await createUser();
+      const stranger = await createUser();
+      const pendingBefore = countPending(await repository.summarizePendingByType());
+      await seed(owner.id, { status: "pending", createdAt: new Date("2016-03-01T08:00:00.000Z") });
+      await seed(stranger.id, { status: "pending", createdAt: new Date("2015-06-01T12:30:00.123Z") });
+
+      const summaries = await repository.summarizePendingByType();
+
+      expect(summaries).toEqual([{ type: "deployment_close", count: pendingBefore + 2, oldestCreatedAt: new Date("2015-06-01T12:30:00.123Z") }]);
+    });
+
+    it("leaves settled activities out of the backlog, including the closes Console records for the system", async () => {
+      const { repository, createUser, seed } = setup();
+      const owner = await createUser();
+      const before = await repository.summarizePendingByType();
+      await seed(owner.id, { status: "succeeded", initiator: "system", createdAt: new Date("2010-01-01T00:00:00.000Z") });
+      await seed(owner.id, { status: "failed", createdAt: new Date("2010-01-01T00:00:00.000Z") });
+
+      expect(await repository.summarizePendingByType()).toEqual(before);
+    });
+
+    function countPending(summaries: PendingActivitySummary[]): number {
+      return summaries.find(summary => summary.type === "deployment_close")?.count ?? 0;
+    }
   });
 
   function setup() {

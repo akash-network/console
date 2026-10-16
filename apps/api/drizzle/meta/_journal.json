@@ -631,6 +631,13 @@
       "when": 1792182036355,
       "tag": "0089_activities_created_at_index",
       "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1792185670097,
+      "tag": "0090_activities_pending_type_created_at_index",
+      "breakpoints": true
     }
   ]
 }

@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { mock } from "vitest-mock-extended";
 
 import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
+import { ActivityInstrumentationService } from "@src/activity/services/activity-instrumentation/activity-instrumentation.service";
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
@@ -351,6 +352,38 @@ describe("Deployment projects", () => {
       expect(await response.json()).toEqual({ data: { success: true } });
       expect(await activityRepository.find({ userId: caller.id })).toEqual([consolesClose]);
       expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: caller.id, dseq: deployment.dseq }) })).toEqual([]);
+    });
+
+    it("measures a member's background close of a team deployment once, as a close the user opened", async () => {
+      const { request, team, otherProject, caller } = await setupCaller({ role: "member", grants: ["other"] });
+      const deployment = await seedDeploymentSetting({ userId: caller.id, organizationId: team.id, projectId: otherProject.id });
+      mockActiveDeployment(deployment.dseq);
+      const trackOpened = vi.spyOn(container.resolve(ActivityInstrumentationService), "trackOpened");
+
+      const response = await request(`/v1/deployments/${deployment.dseq}?async=true`, { method: "DELETE" });
+      const { data } = (await response.json()) as { data: { activityId: string } };
+
+      expect(response.status).toBe(202);
+      expect(trackOpened).toHaveBeenCalledTimes(1);
+      expect(trackOpened).toHaveBeenCalledWith(
+        expect.objectContaining({ id: data.activityId, userId: caller.id, type: "deployment_close", initiator: "user" })
+      );
+    });
+
+    it("refuses a background close to a member limited to another project, opening, queueing and measuring nothing", async () => {
+      const { request, team, defaultProject, owner, caller, signer } = await setupCaller({ role: "member", grants: ["other"] });
+      const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id });
+      mockActiveDeployment(deployment.dseq);
+      vi.mocked(signer.assertCanBroadcast).mockRestore();
+      const trackOpened = vi.spyOn(container.resolve(ActivityInstrumentationService), "trackOpened");
+
+      const response = await request(`/v1/deployments/${deployment.dseq}?async=true`, { method: "DELETE" });
+
+      expect(response.status).toBe(403);
+      expect((await response.json()) as { code: string }).toMatchObject({ code: "project_forbidden" });
+      expect(await activityRepository.find({ userId: caller.id })).toEqual([]);
+      expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: caller.id, dseq: deployment.dseq }) })).toEqual([]);
+      expect(trackOpened).not.toHaveBeenCalled();
     });
   });
 

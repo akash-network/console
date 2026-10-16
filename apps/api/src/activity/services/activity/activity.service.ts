@@ -3,11 +3,14 @@ import { inject, singleton } from "tsyringe";
 import { decodeActivityCursor, encodeActivityCursor } from "@src/activity/lib/activity-cursor/activity-cursor";
 import type { ActivityStatus, ActivityType, NewActivity } from "@src/activity/model-schemas";
 import { type ActivityOutput, ActivityRepository, type ActivitySelection, isDedupeKeyTaken } from "@src/activity/repositories/activity/activity.repository";
+import { ActivityInstrumentationService } from "@src/activity/services/activity-instrumentation/activity-instrumentation.service";
 import { PurgeExpiredActivities, purgeExpiredActivitiesOptionsFor } from "@src/activity/services/purge-expired-activities/purge-expired-activities.job";
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
 
 export type ActivityPage = { activities: ActivityOutput[]; hasMore: boolean; nextCursor: string | null };
+
+type ActivityOutcome = Pick<NewActivity, "status" | "meta" | "dedupeKey">;
 
 @singleton()
 export class ActivityService {
@@ -17,6 +20,7 @@ export class ActivityService {
     private readonly activityRepository: ActivityRepository,
     private readonly authService: AuthService,
     private readonly jobQueueService: JobQueueService,
+    private readonly activityInstrumentation: ActivityInstrumentationService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: ActivityService.name });
@@ -26,7 +30,8 @@ export class ActivityService {
   async record(activity: NewActivity): Promise<void> {
     try {
       const recorded = await this.activityRepository.createUnlessDuplicate(activity);
-      if (!recorded) this.#logger.info({ event: "ACTIVITY_RECORD_DEDUPED", userId: activity.userId, type: activity.type, dedupeKey: activity.dedupeKey });
+      if (recorded) this.activityInstrumentation.trackRecorded(recorded);
+      else this.#logger.info({ event: "ACTIVITY_RECORD_DEDUPED", userId: activity.userId, type: activity.type, dedupeKey: activity.dedupeKey });
     } catch (error) {
       this.#logger.error({ event: "ACTIVITY_RECORD_FAILED", userId: activity.userId, type: activity.type, status: activity.status, error });
     }
@@ -37,6 +42,7 @@ export class ActivityService {
   /** Not best-effort, unlike `record`: an activity opened for work still to come must fail the transaction that queues that work, including when another row already holds its dedupe key. */
   async open(activity: NewActivity & { id: string }): Promise<void> {
     await this.activityRepository.create(activity);
+    this.activityInstrumentation.trackOpened(activity);
     await this.#keepPurgeQueued();
   }
 
@@ -58,17 +64,18 @@ export class ActivityService {
   }
 
   /** Guarded on `pending` unless told otherwise, so a late or repeated settle never overwrites an outcome already recorded; when another row already holds the dedupe key, the row still settles without it. */
-  async settle(
-    id: string,
-    { status, meta, dedupeKey }: Pick<NewActivity, "status" | "meta" | "dedupeKey">,
-    { from = ["pending"] }: { from?: ActivityStatus[] } = {}
-  ): Promise<void> {
+  async settle(id: string, outcome: ActivityOutcome, { from = ["pending"] }: { from?: ActivityStatus[] } = {}): Promise<void> {
+    const settled = await this.#writeOutcome(id, outcome, from);
+    if (settled) this.activityInstrumentation.trackSettled(settled);
+  }
+
+  async #writeOutcome(id: string, { status, meta, dedupeKey }: ActivityOutcome, from: ActivityStatus[]): Promise<ActivityOutput | undefined> {
     try {
-      await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta, dedupeKey });
+      return await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta, dedupeKey });
     } catch (error) {
       if (!isDedupeKeyTaken(error)) throw error;
       this.#logger.info({ event: "ACTIVITY_SETTLE_DEDUPED", activityId: id, status, dedupeKey });
-      await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta, dedupeKey: null });
+      return await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta, dedupeKey: null });
     }
   }
 

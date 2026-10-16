@@ -19,6 +19,8 @@ export type ActivityOutput = Omit<ActivityDbOutput, "seenAt" | "createdAt" | "up
 
 export type ActivitySelection = { ids: string[] } | { upTo: string };
 
+export type PendingActivitySummary = { type: ActivityType; count: number; oldestCreatedAt: Date };
+
 export function isDedupeKeyTaken(error: unknown): boolean {
   return isUniqueViolation(error) && getPostgresError(error)?.constraint_name === ACTIVITIES_DEDUPE_KEY_INDEX;
 }
@@ -93,11 +95,22 @@ export class ActivityRepository extends BaseRepository<Table, ActivityInput, Act
       .where(this.whereAccessibleBy(and(isNull(this.table.seenAt), selected)));
   }
 
-  async updateByIdIfStatusIn(id: string, statuses: ActivityStatus[], payload: ActivityInput): Promise<void> {
-    await this.cursor
+  async updateByIdIfStatusIn(id: string, statuses: ActivityStatus[], payload: ActivityInput): Promise<ActivityOutput | undefined> {
+    const [updated] = await this.cursor
       .update(this.table)
       .set({ ...payload, updatedAt: sql`now()` })
-      .where(this.whereAccessibleBy(and(eq(this.table.id, id), inArray(this.table.status, statuses))));
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), inArray(this.table.status, statuses))))
+      .returning();
+
+    return updated && this.toOutput(updated);
+  }
+
+  async summarizePendingByType(): Promise<PendingActivitySummary[]> {
+    return await this.cursor
+      .select({ type: this.table.type, count: count(), oldestCreatedAt: sql<Date>`min(${this.table.createdAt})`.mapWith(this.table.createdAt) })
+      .from(this.table)
+      .where(this.whereAccessibleBy(eq(this.table.status, "pending")))
+      .groupBy(this.table.type);
   }
 
   /** Deletes at most `limit` rows a call, oldest first, so a backlog clears in short statements that never hold the table for long. */

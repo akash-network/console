@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import { ACTIVITIES_DEDUPE_KEY_INDEX, type NewActivity } from "@src/activity/model-schemas";
 import type { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
+import type { ActivityInstrumentationService } from "@src/activity/services/activity-instrumentation/activity-instrumentation.service";
 import { PurgeExpiredActivities } from "@src/activity/services/purge-expired-activities/purge-expired-activities.job";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { CreateLogger, JobQueueService } from "@src/core";
@@ -16,24 +17,27 @@ import { createUniqueViolation } from "@test/seeders/unique-violation.seeder";
 
 describe(ActivityService.name, () => {
   describe("record", () => {
-    it("stores the activity unless another row already holds its dedupe key", async () => {
-      const { service, activityRepository, logger } = setup();
+    it("stores the activity unless another row already holds its dedupe key, and measures the row it wrote", async () => {
+      const { service, activityRepository, activityInstrumentation, logger } = setup();
       const activity = createNewActivity();
-      activityRepository.createUnlessDuplicate.mockResolvedValue(createActivity());
+      const recorded = createActivity();
+      activityRepository.createUnlessDuplicate.mockResolvedValue(recorded);
 
       await service.record(activity);
 
       expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledWith(activity);
+      expect(activityInstrumentation.trackRecorded).toHaveBeenCalledWith(recorded);
       expect(logger.info).not.toHaveBeenCalled();
     });
 
-    it("says so when another row already reports the outcome, without failing the action", async () => {
-      const { service, activityRepository, logger } = setup();
+    it("says so when another row already reports the outcome, without failing the action or measuring it twice", async () => {
+      const { service, activityRepository, activityInstrumentation, logger } = setup();
       const activity = createNewActivity({ dedupeKey: "deployment_close.akash1owner.1234" });
       activityRepository.createUnlessDuplicate.mockResolvedValue(undefined);
 
       await expect(service.record(activity)).resolves.toBeUndefined();
 
+      expect(activityInstrumentation.trackRecorded).not.toHaveBeenCalled();
       expect(logger.info).toHaveBeenCalledWith({
         event: "ACTIVITY_RECORD_DEDUPED",
         userId: activity.userId,
@@ -93,8 +97,18 @@ describe(ActivityService.name, () => {
   });
 
   describe("open", () => {
-    it("stores the activity under the id it was given and lets a failed write fail the caller", async () => {
-      const { service, activityRepository, jobQueueService } = setup();
+    it("stores the activity under the id it was given and measures it as opened", async () => {
+      const { service, activityRepository, activityInstrumentation } = setup();
+      const activity = { id: faker.string.uuid(), ...createNewActivity({ status: "pending", initiator: "system" }) };
+
+      await service.open(activity);
+
+      expect(activityRepository.create).toHaveBeenCalledWith(activity);
+      expect(activityInstrumentation.trackOpened).toHaveBeenCalledWith(activity);
+    });
+
+    it("lets a failed write fail the caller without measuring an activity that was never opened or queueing a purge", async () => {
+      const { service, activityRepository, activityInstrumentation, jobQueueService } = setup();
       const error = new Error("connection reset");
       activityRepository.create.mockRejectedValue(error);
       const activity = { id: faker.string.uuid(), ...createNewActivity({ status: "pending" }) };
@@ -102,6 +116,7 @@ describe(ActivityService.name, () => {
       await expect(service.open(activity)).rejects.toBe(error);
 
       expect(activityRepository.create).toHaveBeenCalledWith(activity);
+      expect(activityInstrumentation.trackOpened).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
@@ -175,9 +190,29 @@ describe(ActivityService.name, () => {
       });
     });
 
+    it("measures the activity it settled", async () => {
+      const { service, activityRepository, activityInstrumentation } = setup();
+      const settled = createActivity({ status: "failed" });
+      activityRepository.updateByIdIfStatusIn.mockResolvedValue(settled);
+
+      await service.settle(settled.id, createNewActivity({ status: "failed" }));
+
+      expect(activityInstrumentation.trackSettled).toHaveBeenCalledWith(settled);
+    });
+
+    it("measures nothing when no activity was left in a status it could settle from", async () => {
+      const { service, activityRepository, activityInstrumentation } = setup();
+      activityRepository.updateByIdIfStatusIn.mockResolvedValue(undefined);
+
+      await service.settle("activity-1", createNewActivity());
+
+      expect(activityInstrumentation.trackSettled).not.toHaveBeenCalled();
+    });
+
     it("settles the activity without the dedupe key another row already holds, over the same statuses the caller allows", async () => {
-      const { service, activityRepository, logger } = setup();
-      activityRepository.updateByIdIfStatusIn.mockRejectedValueOnce(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX));
+      const { service, activityRepository, activityInstrumentation, logger } = setup();
+      const settled = createActivity({ id: "activity-1" });
+      activityRepository.updateByIdIfStatusIn.mockRejectedValueOnce(createUniqueViolation(ACTIVITIES_DEDUPE_KEY_INDEX)).mockResolvedValueOnce(settled);
 
       await service.settle("activity-1", createNewActivity({ status: "succeeded", meta: { dseq: "100" }, dedupeKey: "deployment_close.akash1owner.100" }), {
         from: ["pending", "failed"]
@@ -189,6 +224,7 @@ describe(ActivityService.name, () => {
         meta: { dseq: "100" },
         dedupeKey: null
       });
+      expect(activityInstrumentation.trackSettled).toHaveBeenCalledWith(settled);
       expect(logger.info).toHaveBeenCalledWith({
         event: "ACTIVITY_SETTLE_DEDUPED",
         activityId: "activity-1",
@@ -305,9 +341,10 @@ describe(ActivityService.name, () => {
     const jobQueueService = mock<JobQueueService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
+    const activityInstrumentation = mock<ActivityInstrumentationService>();
 
-    const service = new ActivityService(activityRepository, authService, jobQueueService, createLogger);
+    const service = new ActivityService(activityRepository, authService, jobQueueService, activityInstrumentation, createLogger);
 
-    return { service, activityRepository, readRepository, updateRepository, jobQueueService, logger, createLogger, ability };
+    return { service, activityRepository, readRepository, updateRepository, jobQueueService, activityInstrumentation, logger, createLogger, ability };
   }
 });
