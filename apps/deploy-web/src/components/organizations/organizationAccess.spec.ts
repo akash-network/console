@@ -45,7 +45,16 @@ describe("organizationAccess", () => {
   });
 
   it("turns the projects experience on for a team organization only", () => {
-    const team: OrganizationOutput = { id: "org-2", name: "Acme Corp", slug: "acme-corp", type: "team", role: "admin", isActive: true, createdAt: "" };
+    const team: OrganizationOutput = {
+      id: "org-2",
+      name: "Acme Corp",
+      slug: "acme-corp",
+      type: "team",
+      role: "admin",
+      isActive: true,
+      hasPaymentMethod: true,
+      createdAt: ""
+    };
 
     expect(isProjectsUiEnabled(team)).toBe(true);
     expect(isProjectsUiEnabled({ ...team, type: "personal" })).toBe(false);

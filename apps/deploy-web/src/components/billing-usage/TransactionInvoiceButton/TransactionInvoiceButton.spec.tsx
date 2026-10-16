@@ -123,7 +123,7 @@ describe(TransactionInvoiceButton.name, () => {
     isPending?: boolean;
   }) {
     const activeOrganization: OrganizationOutput | undefined = input.role
-      ? { id: "org-1", name: "Acme", slug: "acme", type: "team", role: input.role, isActive: true, createdAt: "2026-01-01T00:00:00Z" }
+      ? { id: "org-1", name: "Acme", slug: "acme", type: "team", role: input.role, isActive: true, hasPaymentMethod: true, createdAt: "2026-01-01T00:00:00Z" }
       : undefined;
     const invoiceResponse = Promise.withResolvers<Awaited<ReturnType<InvoiceMutation["mutateAsync"]>>>();
     const mutateAsync = vi.fn<InvoiceMutation["mutateAsync"]>(() => invoiceResponse.promise);

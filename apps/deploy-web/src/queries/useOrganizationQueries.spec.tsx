@@ -121,6 +121,7 @@ describe("useOrganizationQueries", () => {
       type: "personal",
       role: "owner",
       isActive: true,
+      hasPaymentMethod: true,
       createdAt: "2026-01-01T00:00:00Z"
     };
     const team: OrganizationOutput = {
@@ -130,6 +131,7 @@ describe("useOrganizationQueries", () => {
       type: "team",
       role: "owner",
       isActive: false,
+      hasPaymentMethod: null,
       createdAt: "2026-04-01T00:00:00Z"
     };
 

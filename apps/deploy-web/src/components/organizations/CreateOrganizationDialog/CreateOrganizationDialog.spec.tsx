@@ -449,8 +449,26 @@ describe("CreateOrganizationDialog", () => {
   function setup(input: { email?: string }) {
     document.cookie = "console_org=; Path=/; Max-Age=0";
     const organizations: OrganizationOutput[] = [
-      { id: "org-1", name: "alice", slug: "personal-0123456789ab", type: "personal", role: "owner", isActive: true, createdAt: "2026-01-01T00:00:00Z" },
-      { id: "org-2", name: "Acme Corp", slug: "acme-corp", type: "team", role: "admin", isActive: false, createdAt: "2026-02-01T00:00:00Z" }
+      {
+        id: "org-1",
+        name: "alice",
+        slug: "personal-0123456789ab",
+        type: "personal",
+        role: "owner",
+        isActive: true,
+        hasPaymentMethod: true,
+        createdAt: "2026-01-01T00:00:00Z"
+      },
+      {
+        id: "org-2",
+        name: "Acme Corp",
+        slug: "acme-corp",
+        type: "team",
+        role: "admin",
+        isActive: false,
+        hasPaymentMethod: null,
+        createdAt: "2026-02-01T00:00:00Z"
+      }
     ];
     const created: OrganizationOutput = {
       id: "org-9",
@@ -459,6 +477,7 @@ describe("CreateOrganizationDialog", () => {
       type: "team",
       role: "owner",
       isActive: false,
+      hasPaymentMethod: null,
       createdAt: "2026-10-08T00:00:00Z"
     };
     const createOrganization = vi.fn<ReturnType<typeof DEPENDENCIES.useCreateOrganizationMutation>["mutateAsync"]>().mockResolvedValue({ data: created });

@@ -101,6 +101,7 @@ const PERSONAL: OrganizationOutput = {
   type: "personal",
   role: "owner",
   isActive: true,
+  hasPaymentMethod: true,
   createdAt: "2026-01-01T00:00:00Z"
 };
 
@@ -111,5 +112,6 @@ const JOINED: OrganizationOutput = {
   type: "team",
   role: "member",
   isActive: false,
+  hasPaymentMethod: null,
   createdAt: "2026-02-01T00:00:00Z"
 };

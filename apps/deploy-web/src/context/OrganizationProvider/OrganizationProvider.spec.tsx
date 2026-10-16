@@ -237,6 +237,7 @@ describe(OrganizationProvider.name, () => {
         type: "team",
         role: "owner",
         isActive: false,
+        hasPaymentMethod: null,
         createdAt: "2026-04-01T00:00:00Z"
       };
       queryClient.setQueryData(ORGANIZATIONS_QUERY_KEY, { data: [...buildOrganizations("org-1"), created] });

@@ -129,7 +129,16 @@ describe("BillingDetailsView", () => {
     const activeOrganization: OrganizationOutput | undefined =
       input.role === null
         ? undefined
-        : { id: "org-2", name: "Acme", slug: "acme", type: "team", role: input.role ?? "owner", isActive: true, createdAt: "2026-01-01T00:00:00Z" };
+        : {
+            id: "org-2",
+            name: "Acme",
+            slug: "acme",
+            type: "team",
+            role: input.role ?? "owner",
+            isActive: true,
+            hasPaymentMethod: true,
+            createdAt: "2026-01-01T00:00:00Z"
+          };
     const BillingDetailsDialog = vi.fn<typeof DEPENDENCIES.BillingDetailsDialog>(() => <div>Billing details dialog</div>);
     const useBillingDetailsQuery = vi.fn(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useBillingDetailsQuery>>(), {

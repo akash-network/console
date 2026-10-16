@@ -75,6 +75,7 @@ describe(resolveOrganizationSwitchDestination.name, () => {
       type: "team",
       role: "admin",
       isActive: false,
+      hasPaymentMethod: null,
       createdAt: "2026-02-01T00:00:00Z"
     };
     const personal: OrganizationOutput = { ...team, id: "org-1", name: "alice", slug: "personal-0123456789ab", type: "personal", role: "owner" };
