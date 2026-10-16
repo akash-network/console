@@ -19,6 +19,7 @@ export interface OrganizationActivityPayload {
   reason?: string;
   toProjectName?: string;
   username?: string;
+  projectAccess?: string;
 }
 
 const PAYLOAD_FIELDS = [
@@ -29,7 +30,8 @@ const PAYLOAD_FIELDS = [
   "name",
   "reason",
   "toProjectName",
-  "username"
+  "username",
+  "projectAccess"
 ] as const satisfies readonly (keyof OrganizationActivityPayload)[];
 
 export function readActivityPayload(payload: OrganizationActivity["payload"]): OrganizationActivityPayload {

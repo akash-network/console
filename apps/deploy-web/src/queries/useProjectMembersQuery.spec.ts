@@ -4,11 +4,12 @@ import { QueryClient } from "@tanstack/react-query";
 import type { MockInstance } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ProjectMember, ProjectRole } from "@src/types/project";
+import type { ProjectMember, ProjectMemberWithAllProjects, ProjectRole } from "@src/types/project";
 import {
   useCreateProjectMemberMutation,
   useDeleteProjectMemberMutation,
   useProjectMembersQuery,
+  useProjectMembersWithAllProjectsQuery,
   useUpdateProjectMemberMutation
 } from "./useProjectMembersQuery";
 
@@ -71,6 +72,21 @@ describe(useProjectMembersQuery.name, () => {
     });
   });
 
+  describe(useProjectMembersWithAllProjectsQuery.name, () => {
+    it("lists the members and viewers on every project from the same response as the grants", async () => {
+      const nora: ProjectMemberWithAllProjects = { userId: "u3", username: "nora", email: null, role: "viewer", createdAt: "2026-01-01T00:00:00.000Z" };
+      const { result, listProjectMembers } = setup(
+        () => ({ grants: useProjectMembersQuery("p1"), membersWithAllProjects: useProjectMembersWithAllProjectsQuery("p1") }),
+        { membersWithAllProjects: [nora] }
+      );
+
+      await waitFor(() => expect(result.current.membersWithAllProjects.data).toEqual([nora]));
+
+      expect(result.current.grants.data?.map(member => member.username)).toEqual(["lena"]);
+      expect(listProjectMembers).toHaveBeenCalledTimes(1);
+    });
+  });
+
   function expectAccessQueriesInvalidated(invalidateQueries: MockInstance<QueryClient["invalidateQueries"]>) {
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listProjectMembers"] });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listOrganizationActivities"] });
@@ -80,11 +96,14 @@ describe(useProjectMembersQuery.name, () => {
     return { id: `${projectId}-${userId}`, projectId, userId, username: userId, email: null, role, createdAt: "2026-01-01T00:00:00.000Z" };
   }
 
-  function setup<T>(hook: () => T, input: { grantsByProject?: Record<string, ProjectMember[]>; refuseWrites?: boolean } = {}) {
+  function setup<T>(
+    hook: () => T,
+    input: { grantsByProject?: Record<string, ProjectMember[]>; membersWithAllProjects?: ProjectMemberWithAllProjects[]; refuseWrites?: boolean } = {}
+  ) {
     const grantsByProject = input.grantsByProject ?? { p1: [{ ...grant("p1", "u1", "viewer"), username: "lena" }] };
     const listProjectMembers = vi.fn(async ({ id }: { id: string }) => {
       if (!grantsByProject[id]) throw new ApiError(404, undefined, "GET /v1/projects/{id}/members → 404");
-      return { data: grantsByProject[id] };
+      return { data: grantsByProject[id], membersWithAllProjects: input.membersWithAllProjects ?? [] };
     });
     const write = () => vi.fn(async (_params: unknown) => (input.refuseWrites ? Promise.reject(new Error("refused")) : { data: grant("p1", "u2", "viewer") }));
     const createProjectMember = write();

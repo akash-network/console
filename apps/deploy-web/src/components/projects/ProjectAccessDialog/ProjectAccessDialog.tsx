@@ -32,9 +32,10 @@ import {
   useCreateProjectMemberMutation,
   useDeleteProjectMemberMutation,
   useProjectMembersQuery,
+  useProjectMembersWithAllProjectsQuery,
   useUpdateProjectMemberMutation
 } from "@src/queries/useProjectMembersQuery";
-import type { ProjectMember, ProjectRole } from "@src/types/project";
+import type { ProjectMember, ProjectMemberWithAllProjects, ProjectRole } from "@src/types/project";
 import { initialsOf } from "@src/utils/initials";
 import { getProjectAccessErrorMessage, holdsProjectGrants, PROJECT_ROLE_DESCRIPTIONS, PROJECT_ROLE_LABELS, PROJECT_ROLES } from "../projectAccess";
 import { SectionLabel } from "../SectionLabel/SectionLabel";
@@ -43,6 +44,7 @@ export const DEPENDENCIES = {
   usePopup,
   useSnackbar,
   useProjectMembersQuery,
+  useProjectMembersWithAllProjectsQuery,
   useOrganizationMembersQuery,
   useCreateProjectMemberMutation,
   useUpdateProjectMemberMutation,
@@ -69,6 +71,7 @@ export function ProjectAccessDialog({ project, organizationName, viewerUserId, o
   const { confirm } = d.usePopup();
   const { enqueueSnackbar } = d.useSnackbar();
   const grantsQuery = d.useProjectMembersQuery(project.id);
+  const { data: membersWithAllProjects = [] } = d.useProjectMembersWithAllProjectsQuery(project.id);
   const organizationMembersQuery = d.useOrganizationMembersQuery({ enabled: true });
   const { mutate: createGrant, isPending: isGranting } = d.useCreateProjectMemberMutation();
   const { mutate: updateGrant } = d.useUpdateProjectMemberMutation();
@@ -77,12 +80,13 @@ export function ProjectAccessDialog({ project, organizationName, viewerUserId, o
   const [grantRole, setGrantRole] = useState<ProjectRole>(DEFAULT_GRANT_ROLE);
 
   const grants = grantsQuery.data ?? [];
+  const peopleCount = grants.length + membersWithAllProjects.length;
   const organizationMembers = organizationMembersQuery.data ?? [];
   const isLoadingAccess = grantsQuery.isLoading || organizationMembersQuery.isLoading;
   const organizationViewerIds = new Set(organizationMembers.filter(member => member.role === "viewer").map(member => member.userId));
   const grantedUserIds = new Set(grants.map(grant => grant.userId));
   const grantableMembers = organizationMembers.filter(
-    member => holdsProjectGrants(member.role) && member.userId !== viewerUserId && !grantedUserIds.has(member.userId)
+    member => holdsProjectGrants(member.role) && member.projectAccess !== "all" && member.userId !== viewerUserId && !grantedUserIds.has(member.userId)
   );
   const grantee = grantableMembers.find(member => member.userId === granteeUserId);
   const isGranteeOrganizationViewer = !!grantee && organizationViewerIds.has(grantee.userId);
@@ -196,7 +200,7 @@ export function ProjectAccessDialog({ project, organizationName, viewerUserId, o
               rightSlot={
                 !grantsQuery.isLoading && (
                   <span className="whitespace-nowrap text-xs text-muted-foreground">
-                    {grants.length} {grants.length === 1 ? "person" : "people"}
+                    {peopleCount} {peopleCount === 1 ? "person" : "people"}
                   </span>
                 )
               }
@@ -213,7 +217,7 @@ export function ProjectAccessDialog({ project, organizationName, viewerUserId, o
                   </div>
                 ))}
               </div>
-            ) : grants.length === 0 ? (
+            ) : peopleCount === 0 ? (
               <p className="rounded-[10px] border border-dashed border-border px-4 py-5 text-center text-[12.5px] text-muted-foreground">
                 No one has been given access to this project yet.
               </p>
@@ -229,7 +233,13 @@ export function ProjectAccessDialog({ project, organizationName, viewerUserId, o
                     onRevoke={() => revokeAccess(grant)}
                   />
                 ))}
+                {membersWithAllProjects.map(member => (
+                  <AllProjectsRow key={member.userId} member={member} />
+                ))}
               </ul>
+            )}
+            {membersWithAllProjects.length > 0 && (
+              <p className="mt-2 text-xs text-muted-foreground">Change access for people on all projects on the Members page.</p>
             )}
           </div>
         </DialogV2Body>
@@ -286,6 +296,26 @@ function GrantRow({ grant, isCaller, isOrganizationViewer, onChangeRole, onRevok
           </Button>
         </>
       )}
+    </li>
+  );
+}
+
+function AllProjectsRow({ member }: { member: ProjectMemberWithAllProjects }) {
+  const name = getMemberDisplayName(member);
+
+  return (
+    <li className="flex items-center gap-3 px-3.5 py-2.5">
+      <Avatar aria-hidden="true" className="h-7 w-7 shrink-0">
+        <AvatarFallback className="text-[11px] font-semibold">{initialsOf(name)}</AvatarFallback>
+      </Avatar>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="flex items-center gap-1.5 truncate text-[13px] font-medium">
+          {name}
+          <RowTag>All projects</RowTag>
+        </span>
+        {member.email && member.email !== name && <span className="truncate text-xs text-muted-foreground">{member.email}</span>}
+      </div>
+      <span className="px-3 text-sm">{PROJECT_ROLE_LABELS[member.role]}</span>
     </li>
   );
 }

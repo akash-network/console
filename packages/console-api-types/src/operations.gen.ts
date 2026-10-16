@@ -351,6 +351,14 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    listOrganizationMemberProjectGrants: {
+      path: "/v1/organization-members/{id}/project-grants",
+      method: "get",
+      operationId: "listOrganizationMemberProjectGrants",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
     updateOrganizationMember: {
       path: "/v1/organization-members/{id}",
       method: "patch",

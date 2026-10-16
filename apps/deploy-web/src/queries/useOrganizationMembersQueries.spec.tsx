@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { OrganizationMemberOutput } from "@src/types/organizationMembership";
 import {
   useDeleteOrganizationMemberMutation,
+  useOrganizationMemberProjectGrantsQuery,
   useOrganizationMembersQuery,
   useTransferOrganizationOwnershipMutation,
   useUpdateOrganizationMemberMutation
@@ -17,6 +18,12 @@ import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client"
 type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
 
 const MEMBERS_KEY = ["v1", "listOrganizationMembers"];
+
+const MEMBER_GRANTS_KEY = ["v1", "listOrganizationMemberProjectGrants", { id: "member-1" }];
+
+const PROJECT_MEMBERS_KEY = ["v1", "listProjectMembers", { id: "project-1" }];
+
+const ACTIVITIES_KEY = ["v1", "listOrganizationActivities", { limit: 20 }];
 
 describe("useOrganizationMembersQueries", () => {
   describe(useOrganizationMembersQuery.name, () => {
@@ -35,14 +42,40 @@ describe("useOrganizationMembersQueries", () => {
     });
   });
 
+  describe(useOrganizationMemberProjectGrantsQuery.name, () => {
+    it("unwraps the member's grants from the response envelope", async () => {
+      const { result, listOrganizationMemberProjectGrants } = setup({
+        useHook: () => useOrganizationMemberProjectGrantsQuery("member-1", { enabled: true })
+      });
+
+      await waitFor(() => expect(result.current.data).toEqual([GRANT]));
+      expect(listOrganizationMemberProjectGrants).toHaveBeenCalledWith({ id: "member-1" });
+    });
+
+    it("does not load while disabled", () => {
+      const { result, listOrganizationMemberProjectGrants } = setup({
+        useHook: () => useOrganizationMemberProjectGrantsQuery("member-1", { enabled: false })
+      });
+
+      expect(result.current.fetchStatus).toBe("idle");
+      expect(listOrganizationMemberProjectGrants).not.toHaveBeenCalled();
+    });
+  });
+
   describe(useUpdateOrganizationMemberMutation.name, () => {
-    it("changes the role and refetches the roster", async () => {
+    it("changes the member and refetches the roster, their grants, the project members and the activity feed", async () => {
       const { result, updateOrganizationMember, queryClient } = setup({ useHook: () => useUpdateOrganizationMemberMutation() });
 
       await act(() => result.current.mutateAsync({ id: "member-1", data: { role: "admin" } }));
 
       expect(updateOrganizationMember).toHaveBeenCalledWith({ id: "member-1", data: { role: "admin" } });
-      expect(queryClient.getQueryState(MEMBERS_KEY)?.isInvalidated).toBe(true);
+      expect([MEMBERS_KEY, MEMBER_GRANTS_KEY, PROJECT_MEMBERS_KEY, ACTIVITIES_KEY].map(key => queryClient.getQueryState(key)?.isInvalidated)).toEqual([
+        true,
+        true,
+        true,
+        true
+      ]);
+      expect(queryClient.getQueryState(ORGANIZATIONS_QUERY_KEY)?.isInvalidated).toBe(false);
     });
   });
 
@@ -111,17 +144,27 @@ describe("useOrganizationMembersQueries", () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     queryClient.setQueryData(MEMBERS_KEY, { data: [MEMBER] });
     queryClient.setQueryData(ORGANIZATIONS_QUERY_KEY, { data: [] });
+    [MEMBER_GRANTS_KEY, PROJECT_MEMBERS_KEY, ACTIVITIES_KEY].forEach(key => queryClient.setQueryData<{ data: unknown[] }>(key, { data: [] }));
+    const listOrganizationMemberProjectGrants = vi.fn().mockResolvedValue({ data: [GRANT] });
     const listOrganizationMembers = vi.fn().mockResolvedValue({ data: [MEMBER] });
     const updateOrganizationMember = vi.fn().mockResolvedValue({ data: { ...MEMBER, role: "admin" } });
     const deleteOrganizationMember = vi.fn().mockResolvedValue(undefined);
     const transferOrganizationOwnership = vi.fn().mockResolvedValue({ data: { ...MEMBER, role: "owner" } });
     const api = createProxy({
-      v1: { listOrganizationMembers, updateOrganizationMember, deleteOrganizationMember, transferOrganizationOwnership }
+      v1: { listOrganizationMembers, listOrganizationMemberProjectGrants, updateOrganizationMember, deleteOrganizationMember, transferOrganizationOwnership }
     }) as unknown as ApiService;
 
     const { result } = setupQuery(input.useHook, { services: { api: () => api, queryClient: () => queryClient } });
 
-    return { result, queryClient, listOrganizationMembers, updateOrganizationMember, deleteOrganizationMember, transferOrganizationOwnership };
+    return {
+      result,
+      queryClient,
+      listOrganizationMembers,
+      listOrganizationMemberProjectGrants,
+      updateOrganizationMember,
+      deleteOrganizationMember,
+      transferOrganizationOwnership
+    };
   }
 });
 
@@ -131,5 +174,9 @@ const MEMBER: OrganizationMemberOutput = {
   username: "bob",
   email: "bob@acme.io",
   role: "member",
+  projectAccess: "selected",
+  projectCount: 1,
   createdAt: "2026-01-01T00:00:00Z"
 };
+
+const GRANT = { projectId: "project-1", role: "viewer" as const };

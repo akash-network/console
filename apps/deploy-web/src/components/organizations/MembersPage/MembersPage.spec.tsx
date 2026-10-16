@@ -184,6 +184,8 @@ const BOB: OrganizationMemberOutput = {
   username: "bob",
   email: "bob@acme.io",
   role: "member",
+  projectAccess: "selected",
+  projectCount: 1,
   createdAt: "2026-02-01T00:00:00Z"
 };
 

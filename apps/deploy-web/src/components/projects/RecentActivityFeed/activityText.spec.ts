@@ -17,7 +17,12 @@ describe(describeActivity.name, () => {
     ["member_granted", { userId: "u2", username: "lena", role: "viewer" }, "gave *lena* access as a Viewer"],
     ["member_granted", { userId: "u2", username: null, role: "admin" }, "gave *a member* access as an Admin"],
     ["member_revoked", { userId: "u2", username: "lena" }, "removed access for *lena*"],
-    ["member_revoked", { userId: "u2", username: null }, "removed access for *a member*"]
+    ["member_revoked", { userId: "u2", username: null }, "removed access for *a member*"],
+    ["member_updated", { userId: "u2", username: "lena", role: "member", projectAccess: "all" }, "changed *lena* to Member on all projects"],
+    ["member_updated", { userId: "u2", username: "lena", role: "viewer", projectAccess: "selected" }, "changed *lena* to Viewer on specific projects"],
+    ["member_updated", { userId: "u2", username: null, role: "admin", projectAccess: "all" }, "changed *a member* to Admin"],
+    ["member_updated", { userId: "u2", username: "lena", role: "billing", projectAccess: null }, "changed *lena* to Billing"],
+    ["member_updated", { userId: "u2", username: "lena", role: "member", projectAccess: "something_new" }, "changed *lena* to Member"]
   ])("reads a %s event by a member as %s", (type, payload, expected) => {
     expect(sentence(read({ type, payload }))).toBe(expected);
   });
@@ -33,6 +38,10 @@ describe(describeActivity.name, () => {
 
     expect(sentence(described)).toBe(expected);
     expect(described.systemIcon).toBe(icon);
+  });
+
+  it("marks a change to a member with the activity icon", () => {
+    expect(read({ type: "member_updated", payload: { username: "lena", role: "admin" } }).systemIcon).toBe("activity");
   });
 
   it("falls back to the dseq for an unnamed deployment", () => {

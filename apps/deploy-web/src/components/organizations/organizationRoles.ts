@@ -11,6 +11,19 @@ export const ASSIGNABLE_ROLE_DESCRIPTIONS: Record<AssignableRole, string> = {
   admin: "Creates projects, manages members and sees billing and usage."
 };
 
+export type EditableRole = Exclude<OrganizationRole, "owner">;
+
+export const EDITABLE_ROLE_DESCRIPTIONS: Record<EditableRole, string> = {
+  ...ASSIGNABLE_ROLE_DESCRIPTIONS,
+  viewer: "Looks at the projects they can access, but can't change anything.",
+  billing: "Manages payment methods and billing but can't open projects."
+};
+
+/** The roles a member can be moved to: the assignable ones, plus the role they hold today when it is not one of them. */
+export function getEditableRolesFor(role: EditableRole): EditableRole[] {
+  return ASSIGNABLE_ROLES.some(assignable => assignable === role) ? ASSIGNABLE_ROLES : [role, ...ASSIGNABLE_ROLES];
+}
+
 export function describeRoleWithArticle(role: OrganizationRole): string {
   const label = ORGANIZATION_ROLE_LABELS[role];
   return `${/^[AEIOU]/.test(label) ? "an" : "a"} ${label}`;

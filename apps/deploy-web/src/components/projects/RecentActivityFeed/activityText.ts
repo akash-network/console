@@ -43,6 +43,8 @@ export function describeActivity(activity: OrganizationActivity): ActivityText {
       };
     case "member_revoked":
       return { segments: [text("removed access for"), strong(payload.username ?? "a member")], systemIcon: "activity" };
+    case "member_updated":
+      return { segments: [text("changed"), strong(payload.username ?? "a member"), text(`to ${describeMemberAccess(payload)}`)], systemIcon: "activity" };
     default:
       return { segments: [text("made a change")], systemIcon: "activity" };
   }
@@ -66,6 +68,19 @@ function describeClosedDeployment(activity: OrganizationActivity): ActivityText 
 function deploymentSegment(payload: OrganizationActivityPayload): ActivitySegment {
   const label = payload.name || (payload.dseq ? `#${payload.dseq}` : "a deployment");
   return payload.dseq ? { kind: "deployment", text: label, dseq: payload.dseq } : strong(label);
+}
+
+/** Owners, admins and billing members are recorded with the project access their role implies, so only members and viewers name theirs. */
+const ROLES_NAMING_PROJECT_ACCESS = new Set(["member", "viewer"]);
+
+const PROJECT_ACCESS_TEXTS = new Map([
+  ["all", "on all projects"],
+  ["selected", "on specific projects"]
+]);
+
+function describeMemberAccess({ role, projectAccess }: OrganizationActivityPayload): string {
+  const projectAccessText = role && ROLES_NAMING_PROJECT_ACCESS.has(role) ? PROJECT_ACCESS_TEXTS.get(projectAccess ?? "") : undefined;
+  return projectAccessText ? `${roleLabel(role)} ${projectAccessText}` : roleLabel(role);
 }
 
 function roleLabel(role: string | undefined): string {
