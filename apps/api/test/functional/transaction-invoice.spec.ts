@@ -47,7 +47,7 @@ describe("Card payment invoices", () => {
 
       const response = await requestInvoice(payment.id, headersOf(team.owner));
 
-      await expectPdf(response, "%PDF-issued");
+      await expectPdf(response, { content: "%PDF-issued", filename: `Invoice-${invoiceId}.pdf` });
       expect(await findTransaction(payment.id)).toMatchObject({ stripeInvoiceId: invoiceId });
     });
 
@@ -62,7 +62,7 @@ describe("Card payment invoices", () => {
 
       const response = await requestInvoice(payment.id, headersOf(admin));
 
-      await expectPdf(response, "%PDF-existing");
+      await expectPdf(response, { content: "%PDF-existing", filename: "Invoice-in_existing.pdf" });
     });
 
     it("keeps the invoice of a payment refunded after it was issued downloadable", async () => {
@@ -75,7 +75,7 @@ describe("Card payment invoices", () => {
 
       const response = await requestInvoice(payment.id, headersOf(team.owner));
 
-      await expectPdf(response, "%PDF-refunded");
+      await expectPdf(response, { content: "%PDF-refunded", filename: "Invoice-in_refunded.pdf" });
     });
 
     it("refuses an admin who asks for an invoice the payment does not have yet, without calling Stripe", async () => {
@@ -134,11 +134,11 @@ describe("Card payment invoices", () => {
     });
   });
 
-  async function expectPdf(response: Response, content: string) {
+  async function expectPdf(response: Response, expected: { content: string; filename: string }) {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("application/pdf");
-    expect(response.headers.get("content-disposition")).toBe("attachment");
-    expect(await response.text()).toBe(content);
+    expect(response.headers.get("content-disposition")).toBe(`attachment; filename="${expected.filename}"`);
+    expect(await response.text()).toBe(expected.content);
   }
 
   async function requestInvoice(transactionId: string, headers: Record<string, string>) {

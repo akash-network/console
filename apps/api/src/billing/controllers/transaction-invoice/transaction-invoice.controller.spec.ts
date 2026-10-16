@@ -19,7 +19,7 @@ describe(TransactionInvoiceController.name, () => {
       const { controller, stripeTransactionRepository, cardPaymentInvoiceService, authService, payer } = setup();
       const transaction = generateDatabaseStripeTransaction({ status: "succeeded" });
       const invoice = createTestInvoice({ id: "in_1" });
-      const pdf = new Blob(["%PDF"]).stream();
+      const pdf = { content: new Blob(["%PDF"]).stream(), filename: "Invoice-0001.pdf" };
       stripeTransactionRepository.findOwnedById.mockResolvedValue(transaction);
       cardPaymentInvoiceService.issueInvoice.mockResolvedValue(invoice);
       cardPaymentInvoiceService.fetchPdf.mockResolvedValue(pdf);
@@ -37,7 +37,7 @@ describe(TransactionInvoiceController.name, () => {
       const { controller, stripeTransactionRepository, cardPaymentInvoiceService, authService } = setup({ deniedRule: "create:StripePayment" });
       const transaction = generateDatabaseStripeTransaction({ stripeInvoiceId: "in_existing" });
       const paid = createTestInvoice({ id: "in_existing" });
-      const pdf = new Blob(["%PDF"]).stream();
+      const pdf = { content: new Blob(["%PDF"]).stream(), filename: "Invoice-0001.pdf" };
       stripeTransactionRepository.findOwnedById.mockResolvedValue(transaction);
       cardPaymentInvoiceService.findPaidInvoice.mockResolvedValue(paid);
       cardPaymentInvoiceService.fetchPdf.mockResolvedValue(pdf);

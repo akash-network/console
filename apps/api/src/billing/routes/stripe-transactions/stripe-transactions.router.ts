@@ -183,12 +183,12 @@ const createTransactionInvoiceRoute = createRoute({
 });
 stripeTransactionsRouter.openapi(createTransactionInvoiceRoute, async function createTransactionInvoice(c) {
   const { id } = c.req.valid("param");
-  const pdf = await container.resolve(TransactionInvoiceController).getInvoicePdf(id);
+  const { content, filename } = await container.resolve(TransactionInvoiceController).getInvoicePdf(id);
 
-  return new Response(pdf, {
+  return new Response(content, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": "attachment"
+      "Content-Disposition": `attachment; filename="${filename}"`
     }
   });
 });

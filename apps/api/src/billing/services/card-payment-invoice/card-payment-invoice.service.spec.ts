@@ -222,14 +222,26 @@ describe(CardPaymentInvoiceService.name, () => {
   });
 
   describe("fetchPdf", () => {
-    it("streams the PDF Stripe renders for the invoice", async () => {
+    it("streams the PDF Stripe renders for the invoice, named after the invoice number", async () => {
       const { service } = setup();
       const fetchPdf = spyOnFetch(new Response("%PDF-1.7", { status: 200 }));
 
-      const pdf = await service.fetchPdf(createTestInvoice({ id: "in_1", invoice_pdf: "https://pay.stripe.com/invoice/in_1/pdf" }));
+      const pdf = await service.fetchPdf(createTestInvoice({ id: "in_1", number: "ABCD1234-0001", invoice_pdf: "https://pay.stripe.com/invoice/in_1/pdf" }));
 
       expect(fetchPdf).toHaveBeenCalledWith("https://pay.stripe.com/invoice/in_1/pdf", { signal: expect.any(AbortSignal) });
-      expect(await new Response(pdf).text()).toBe("%PDF-1.7");
+      expect(pdf.filename).toBe("Invoice-ABCD1234-0001.pdf");
+      expect(await new Response(pdf.content).text()).toBe("%PDF-1.7");
+    });
+
+    it("names the PDF after the invoice id when Stripe has not numbered the invoice", async () => {
+      const { service } = setup();
+      spyOnFetch(new Response("%PDF-1.7", { status: 200 }));
+
+      const pdf = await service.fetchPdf(
+        createTestInvoice({ id: "in_unnumbered", number: null, invoice_pdf: "https://pay.stripe.com/invoice/in_unnumbered/pdf" })
+      );
+
+      expect(pdf.filename).toBe("Invoice-in_unnumbered.pdf");
     });
 
     it("fails for an invoice Stripe has no PDF for, without fetching anything", async () => {
@@ -240,13 +252,16 @@ describe(CardPaymentInvoiceService.name, () => {
       expect(fetchPdf).not.toHaveBeenCalled();
     });
 
-    it("fails when Stripe does not return the PDF", async () => {
+    it("fails when Stripe does not return the PDF, releasing the error body", async () => {
       const { service } = setup();
-      spyOnFetch(new Response("unavailable", { status: 503 }));
+      const failure = new Response("unavailable", { status: 503 });
+      const cancel = vi.spyOn(failure.body!, "cancel");
+      spyOnFetch(failure);
 
       await expect(service.fetchPdf(createTestInvoice({ id: "in_1", invoice_pdf: "https://pay.stripe.com/invoice/in_1/pdf" }))).rejects.toThrow(
         "Stripe returned 503 for the PDF of invoice in_1"
       );
+      expect(cancel).toHaveBeenCalled();
     });
 
     it("fails when Stripe answers without a body", async () => {
