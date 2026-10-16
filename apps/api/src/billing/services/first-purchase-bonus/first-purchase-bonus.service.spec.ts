@@ -1,3 +1,4 @@
+import type { LoggerService } from "@akashnetwork/logging";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -202,10 +203,53 @@ describe(FirstPurchaseBonusService.name, () => {
     });
   });
 
-  function setup(input?: { accountHasPaid?: boolean; personHasBonus?: boolean; userLockable?: boolean; organization?: OrganizationOutput }) {
+  describe("recordGrant", () => {
+    it("records the bonus on the settling payment and grants it", async () => {
+      const { service, stripeTransactionRepository } = setup({ bonusRecordable: true });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent" });
+
+      const grantedCents = await service.recordGrant(transaction, 1500);
+
+      expect(grantedCents).toBe(1500);
+      expect(stripeTransactionRepository.recordFirstPurchaseBonus).toHaveBeenCalledWith(transaction.id, 1500);
+    });
+
+    it("grants nothing and writes nothing when no bonus is due", async () => {
+      const { service, stripeTransactionRepository } = setup({ bonusRecordable: true });
+
+      const grantedCents = await service.recordGrant(generateDatabaseStripeTransaction({ type: "payment_intent" }), 0);
+
+      expect(grantedCents).toBe(0);
+      expect(stripeTransactionRepository.recordFirstPurchaseBonus).not.toHaveBeenCalled();
+    });
+
+    it("grants nothing and warns when the person's one-bonus index refuses the bonus", async () => {
+      const { service, logger } = setup({ bonusRecordable: false });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent" });
+
+      const grantedCents = await service.recordGrant(transaction, 1500);
+
+      expect(grantedCents).toBe(0);
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "FIRST_PURCHASE_BONUS_REFUSED",
+        transactionId: transaction.id,
+        userId: transaction.userId,
+        bonusAmountCents: 1500
+      });
+    });
+  });
+
+  function setup(input?: {
+    accountHasPaid?: boolean;
+    personHasBonus?: boolean;
+    userLockable?: boolean;
+    organization?: OrganizationOutput;
+    bonusRecordable?: boolean;
+  }) {
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
     stripeTransactionRepository.hasCompletedPaidTransaction.mockResolvedValue(input?.accountHasPaid ?? false);
     stripeTransactionRepository.hasReceivedFirstPurchaseBonus.mockResolvedValue(input?.personHasBonus ?? false);
+    stripeTransactionRepository.recordFirstPurchaseBonus.mockResolvedValue(input?.bonusRecordable ?? true);
 
     const analyticsService = mock<AnalyticsService>();
 
@@ -215,8 +259,10 @@ describe(FirstPurchaseBonusService.name, () => {
     const organizationRepository = mock<OrganizationRepository>();
     organizationRepository.findOneByAndLock.mockResolvedValue(input?.organization);
 
-    const service = new FirstPurchaseBonusService(stripeTransactionRepository, analyticsService, userRepository, organizationRepository);
+    const logger = mock<LoggerService>();
 
-    return { service, stripeTransactionRepository, analyticsService, userRepository, organizationRepository };
+    const service = new FirstPurchaseBonusService(stripeTransactionRepository, analyticsService, userRepository, organizationRepository, () => logger);
+
+    return { service, stripeTransactionRepository, analyticsService, userRepository, organizationRepository, logger };
   }
 });

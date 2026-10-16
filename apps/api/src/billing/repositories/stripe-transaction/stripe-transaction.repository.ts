@@ -3,7 +3,9 @@ import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
 import { type BillingOwner, ownedBy } from "@src/billing/lib/billing-owner/billing-owner";
+import { ONE_FIRST_PURCHASE_BONUS_PER_USER_INDEX } from "@src/billing/model-schemas";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
+import { getPostgresError } from "@src/core/repositories/base.repository";
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
@@ -246,6 +248,24 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       .limit(1);
 
     return !!item;
+  }
+
+  /** Writes in a savepoint so the person's one-bonus index refusing it leaves the settling transaction usable; answers whether the bonus was recorded. */
+  async recordFirstPurchaseBonus(id: StripeTransactionOutput["id"], bonusAmount: number): Promise<boolean> {
+    try {
+      await this.cursor.transaction(async savepoint => {
+        await savepoint
+          .update(this.table)
+          .set({ bonusAmount })
+          .where(this.whereAccessibleBy(eq(this.table.id, id)));
+      });
+
+      return true;
+    } catch (error) {
+      if (getPostgresError(error)?.constraint_name === ONE_FIRST_PURCHASE_BONUS_PER_USER_INDEX) return false;
+
+      throw error;
+    }
   }
 
   /** Reads every organization and every status, so a bonus counts against the person who received it wherever they paid, refunded or not. */

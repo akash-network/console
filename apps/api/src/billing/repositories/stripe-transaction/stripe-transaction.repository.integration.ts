@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import { type UserOutput, UserRepository } from "@src/user/repositories";
 import { type StripeTransactionInput, StripeTransactionRepository } from "./stripe-transaction.repository";
@@ -531,6 +532,54 @@ describe(StripeTransactionRepository.name, () => {
     });
   });
 
+  describe("recordFirstPurchaseBonus", () => {
+    it("records the bonus of a person who holds none, whoever else holds one", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const [person, otherPerson] = await Promise.all([createTestUser(), createTestUser()]);
+      await stripeTransactionRepository.create({ ...transactionInput(otherPerson.id), bonusAmount: 1000 });
+      const purchase = await stripeTransactionRepository.create({ ...transactionInput(person.id) });
+
+      const isRecorded = await stripeTransactionRepository.recordFirstPurchaseBonus(purchase.id, 1000);
+
+      expect(isRecorded).toBe(true);
+      expect(await stripeTransactionRepository.findById(purchase.id)).toMatchObject({ bonusAmount: 1000 });
+    });
+
+    it("refuses a second bonus to a person whose refunded one was for another team, leaving the settling transaction usable", async () => {
+      const { stripeTransactionRepository, txService, createTestUser } = setup();
+      const [{ organization: team }, { organization: otherTeam }] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
+      const person = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(person.id), organizationId: team.id, status: "refunded", bonusAmount: 1000 });
+      const purchase = await stripeTransactionRepository.create({ ...transactionInput(person.id), organizationId: otherTeam.id, status: "pending" });
+
+      const isRecorded = await txService.transaction(async () => {
+        const recorded = await stripeTransactionRepository.recordFirstPurchaseBonus(purchase.id, 1000);
+        await stripeTransactionRepository.updateById(purchase.id, { status: "succeeded" });
+        return recorded;
+      });
+
+      expect(isRecorded).toBe(false);
+      expect(await stripeTransactionRepository.findById(purchase.id)).toMatchObject({ status: "succeeded", bonusAmount: 0 });
+    });
+
+    it("lets the bonuses of members who deleted their account sit side by side", async () => {
+      const { stripeTransactionRepository } = setup();
+      const { organization: team, user: member } = await seedOrganizationWithOwner();
+      const detachedRecord = { ...transactionInput(member.id), userId: null, organizationId: team.id };
+      await stripeTransactionRepository.create({ ...detachedRecord, bonusAmount: 1000 });
+      const purchase = await stripeTransactionRepository.create(detachedRecord);
+
+      await expect(stripeTransactionRepository.recordFirstPurchaseBonus(purchase.id, 1000)).resolves.toBe(true);
+    });
+
+    it("rethrows a failure other than the person already holding a bonus", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const purchase = await stripeTransactionRepository.create({ ...transactionInput((await createTestUser()).id) });
+
+      await expect(stripeTransactionRepository.recordFirstPurchaseBonus(purchase.id, 2 ** 31)).rejects.toThrow();
+    });
+  });
+
   async function inOrganization<R>(context: Partial<OrganizationContext> & { user: UserOutput }, run: () => Promise<R>): Promise<R> {
     const executionContextService = container.resolve(ExecutionContextService);
     const { user, ...organizationContext } = context;
@@ -603,6 +652,7 @@ describe(StripeTransactionRepository.name, () => {
   function setup() {
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
     const userRepository = container.resolve(UserRepository);
+    const txService = container.resolve(TxService);
     const createdUserIds: string[] = [];
     let testUserId: string | undefined;
 
@@ -645,6 +695,6 @@ describe(StripeTransactionRepository.name, () => {
       return user;
     }
 
-    return { stripeTransactionRepository, userRepository, createTestTransaction, createTestUser, createUserOnDomain };
+    return { stripeTransactionRepository, userRepository, txService, createTestTransaction, createTestUser, createUserOnDomain };
   }
 });

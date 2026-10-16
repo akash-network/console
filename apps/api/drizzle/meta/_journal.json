@@ -610,6 +610,13 @@
       "when": 1792112683161,
       "tag": "0086_member_updated_activity",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1792170229483,
+      "tag": "0087_one_first_purchase_bonus_per_user",
+      "breakpoints": true
     }
   ]
 }

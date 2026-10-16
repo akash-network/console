@@ -16,6 +16,9 @@ export const stripeTransactionStatusEnum = pgEnum("stripe_transaction_status", [
 
 export const stripeTransactionTypeEnum = pgEnum("stripe_transaction_type", ["payment_intent", "coupon_claim", "manual_credit"]);
 
+/** Holds a person to one first-purchase bonus, refunded or not, whichever organization they paid for. */
+export const ONE_FIRST_PURCHASE_BONUS_PER_USER_INDEX = "stripe_transactions_user_id_first_purchase_bonus_unique";
+
 export const StripeTransactions = pgTable(
   "stripe_transactions",
   {
@@ -63,6 +66,9 @@ export const StripeTransactions = pgTable(
     stripeIdempotencyKeyUnique: uniqueIndex("stripe_transactions_stripe_idempotency_key_unique")
       .on(table.stripeIdempotencyKey)
       .where(sql`${table.stripeIdempotencyKey} IS NOT NULL`),
+    oneFirstPurchaseBonusPerUser: uniqueIndex(ONE_FIRST_PURCHASE_BONUS_PER_USER_INDEX)
+      .on(table.userId)
+      .where(sql`${table.bonusAmount} > 0`),
     userIdIdx: index("stripe_transactions_user_id_idx").on(table.userId),
     organizationIdIdx: index("stripe_transactions_organization_id_idx").on(table.organizationId),
     stripePaymentIntentIdIdx: index("stripe_transactions_stripe_payment_intent_id_idx").on(table.stripePaymentIntentId),

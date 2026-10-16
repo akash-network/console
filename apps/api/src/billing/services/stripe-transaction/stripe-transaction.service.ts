@@ -533,7 +533,7 @@ export class StripeTransactionService {
 
     const actingUserId = params.customerUserId ?? transaction.userId;
 
-    const bonusAmount = await this.firstPurchaseBonusService.getEligibleBonusAmount(transaction, params.paymentAmount);
+    const eligibleBonusAmount = await this.firstPurchaseBonusService.getEligibleBonusAmount(transaction, params.paymentAmount);
 
     await this.stripeTransactionRepository.updateById(params.transactionId, {
       status: "succeeded",
@@ -542,9 +542,10 @@ export class StripeTransactionService {
       cardBrand: params.cardBrand,
       cardLast4: params.cardLast4,
       receiptUrl: params.receiptUrl,
-      stripePaymentIntentId: params.stripePaymentIntentId,
-      ...(bonusAmount > 0 ? { bonusAmount } : {})
+      stripePaymentIntentId: params.stripePaymentIntentId
     });
+
+    const bonusAmount = await this.firstPurchaseBonusService.recordGrant(transaction, eligibleBonusAmount);
 
     // Single combined top-up: two calls would double chain fees and race on retrieveDeploymentLimit.
     const toppedUpWallet = await this.refillService.topUpWallet(params.paymentAmount + bonusAmount, payerOf(transaction, actingUserId, params.team), {
