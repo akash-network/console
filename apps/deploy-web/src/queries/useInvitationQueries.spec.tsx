@@ -86,7 +86,6 @@ describe("useInvitationQueries", () => {
 const PREVIEW_KEY = ["v1", "previewInvitation", { data: { token: "cached" } }];
 
 const PREVIEW: InvitationPreviewOutput = {
-  organizationId: "org-2",
   organizationName: "Acme Corp",
   inviterName: "alice",
   role: "member",

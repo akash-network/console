@@ -36,6 +36,14 @@ describe(AcceptInvitationPage.name, () => {
     expect(avatar.style.boxShadow).toBe("inset 0 0 0 1px oklch(0.84 0.07 193)");
   });
 
+  it("draws the team's avatar in the color of its name when the preview carries no id", () => {
+    setup({ isSignedIn: false, preview: { organizationId: undefined, organizationName: "Acme Corp" } });
+
+    const avatar = screen.getByRole("heading", { name: "Join Acme Corp" }).previousElementSibling as HTMLElement;
+    expect(avatar).toHaveTextContent("A");
+    expect(avatar.style.boxShadow).toBe("inset 0 0 0 1px oklch(0.84 0.07 5)");
+  });
+
   it("words an invitation without a known inviter and with an Admin role", () => {
     setup({ isSignedIn: false, preview: { inviterName: null, role: "admin" } });
 
