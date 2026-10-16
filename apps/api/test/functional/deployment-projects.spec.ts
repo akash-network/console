@@ -1,6 +1,8 @@
+import { createMongoAbility, type MongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import { and, eq } from "drizzle-orm";
 import nock from "nock";
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { container } from "tsyringe";
@@ -22,11 +24,14 @@ import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.se
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { ApiPgDatabase } from "@src/core";
-import { CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
+import { CORE_CONFIG, type Job, JOB_NAME, type JobHandler, type JobPayload, POSTGRES_DB, resolveTable } from "@src/core";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import type { DeploymentResponse, PatchDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import type { CreateDeploymentAcceptedResponse, DeploymentResponse, PatchDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
+import { CreateDeploymentHandler } from "@src/deployment/services/create-deployment/create-deployment.handler";
+import { CreateDeployment, createDeploymentKeyFor } from "@src/deployment/services/create-deployment/create-deployment.job";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { MoveDeploymentAlertsJob } from "@src/deployment/services/move-deployment-alerts/move-deployment-alerts.job";
 import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
@@ -34,7 +39,7 @@ import { createInvitationToken, hashInvitationToken } from "@src/organization/li
 import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { app } from "@src/rest-app";
-import { marketVersion } from "@src/utils/constants";
+import { deploymentVersion, marketVersion } from "@src/utils/constants";
 
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -50,7 +55,8 @@ import {
 } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
-import { findJobRows } from "@test/services/job-queue-harness";
+import { createUser } from "@test/seeders/user.seeder";
+import { findJobRows, type JobRow } from "@test/services/job-queue-harness";
 
 registerFakeSdlSecretsKms();
 
@@ -120,6 +126,119 @@ describe("Deployment projects", () => {
       expect(accepted.status).toBe(200);
       expect(response.status).toBe(201);
       expect(await deploymentRow(caller.id, data.dseq)).toMatchObject({ organizationId: team.id, projectId: laterProject.id });
+    });
+
+    it("creates a team's deployment in the background with the team wallet, reporting it in the feed of the member who asked", async () => {
+      const { request, team, otherProject, caller, teamWallet, signedIndexes } = await setupCaller({ role: "member", grants: ["other"] });
+
+      const response = await request("/v1/deployments?async=true", { method: "POST", body: { data: { sdl: SDL, projectId: otherProject.id } } });
+      const { data } = (await response.json()) as CreateDeploymentAcceptedResponse;
+      const [job] = await findJobRows<JobPayload<CreateDeployment>>(CreateDeployment[JOB_NAME], {
+        singletonKey: createDeploymentKeyFor({ walletId: teamWallet.id, dseq: data.dseq })
+      });
+
+      expect(response.status).toBe(202);
+      expect(job.data).toEqual({
+        userId: caller.id,
+        walletId: teamWallet.id,
+        dseq: data.dseq,
+        message: expect.any(String),
+        activityId: data.activityId,
+        version: 1
+      });
+      expect(signedIndexes).toEqual([]);
+
+      await runAsWorker(container.resolve(CreateDeploymentHandler), job);
+
+      expect(signedIndexes).toEqual([teamWallet.id]);
+      expect(await activityRepository.findById(data.activityId)).toMatchObject({
+        userId: caller.id,
+        type: "deployment_create",
+        status: "succeeded",
+        meta: { dseq: data.dseq }
+      });
+      expect(await deploymentRow(caller.id, data.dseq)).toMatchObject({ organizationId: team.id, projectId: otherProject.id });
+      expect(await findDeploymentDepositsOf(team.id)).toEqual([
+        expect.objectContaining({ kind: "deployment_create", owner: teamWallet.address, dseq: data.dseq, projectId: otherProject.id, actorUserId: caller.id })
+      ]);
+      expect(await activitiesOfProject(otherProject.id)).toEqual([
+        expect.objectContaining({ type: "deployment_created", actorUserId: caller.id, payload: expect.objectContaining({ dseq: data.dseq }) })
+      ]);
+    });
+
+    it.each([
+      { attempt: "its first attempt", retryCount: 0 },
+      { attempt: "a retry", retryCount: 1 }
+    ])("settles a background create as failed when its team is deleted before $attempt, signing nothing and ending the job", async ({ retryCount }) => {
+      const { request, team, otherProject, caller, teamWallet, signedIndexes } = await setupCaller({ role: "member", grants: ["other"] });
+      const response = await request("/v1/deployments?async=true", { method: "POST", body: { data: { sdl: SDL, projectId: otherProject.id } } });
+      const { data } = (await response.json()) as CreateDeploymentAcceptedResponse;
+      const [job] = await findJobRows<JobPayload<CreateDeployment>>(CreateDeployment[JOB_NAME], {
+        singletonKey: createDeploymentKeyFor({ walletId: teamWallet.id, dseq: data.dseq })
+      });
+      answerDeploymentAbsent(teamWallet.address, data.dseq);
+      await markDeleted(team.id);
+
+      await runAsWorker(container.resolve(CreateDeploymentHandler), { ...job, retry_count: retryCount });
+
+      expect(signedIndexes).toEqual([]);
+      expect(await activityRepository.findById(data.activityId)).toMatchObject({
+        userId: caller.id,
+        status: "failed",
+        meta: { dseq: data.dseq, error: { code: "access_revoked", message: "You no longer have access to this deployment." } }
+      });
+    });
+
+    describe("asked to create in the background", () => {
+      it("answers 404 to a member naming a project they were not granted, recording, opening and queueing nothing", async () => {
+        const { request, otherProject, caller, teamWallet } = await setupCaller({ role: "member", grants: ["default"] });
+
+        const response = await request("/v1/deployments?async=true", { method: "POST", body: { data: { sdl: SDL, projectId: otherProject.id } } });
+
+        expect(response.status).toBe(404);
+        await expectNothingAcceptedFor(caller.id, teamWallet.id);
+      });
+
+      it("answers 404 to a member naming a project where they hold the viewer project role, recording, opening and queueing nothing", async () => {
+        const { request, team, otherProject, caller, teamWallet } = await setupCaller({ role: "member" });
+        await seedProjectMember({ organizationId: team.id, projectId: otherProject.id, userId: caller.id, role: "viewer" });
+
+        const response = await request("/v1/deployments?async=true", { method: "POST", body: { data: { sdl: SDL, projectId: otherProject.id } } });
+
+        expect(response.status).toBe(404);
+        await expectNothingAcceptedFor(caller.id, teamWallet.id);
+      });
+
+      it("asks a member who reaches no project to choose one, recording, opening and queueing nothing", async () => {
+        const { request, caller, teamWallet } = await setupCaller({ role: "member" });
+
+        const response = await request("/v1/deployments?async=true", { method: "POST", body: { data: { sdl: SDL } } });
+
+        expect(response.status).toBe(400);
+        expect(await response.json()).toMatchObject({ code: "project_required" });
+        await expectNothingAcceptedFor(caller.id, teamWallet.id);
+      });
+
+      it.each<OrganizationRole>(["viewer", "billing"])("refuses a %s, recording, opening and queueing nothing", async role => {
+        const { request, caller, teamWallet } = await setupCaller({ role, grants: ["default"] });
+
+        const response = await request("/v1/deployments?async=true", { method: "POST", body: { data: { sdl: SDL } } });
+
+        expect(response.status).toBe(403);
+        await expectNothingAcceptedFor(caller.id, teamWallet.id);
+      });
+
+      it("refuses a create in a deleted team as a create made during the request does, recording, opening and queueing nothing", async () => {
+        const { request, team, caller, teamWallet } = await setupCaller({ role: "member", grants: ["default"] });
+        await markDeleted(team.id);
+
+        const duringRequest = await request("/v1/deployments", { method: "POST", body: { data: { sdl: SDL } } });
+        const inBackground = await request("/v1/deployments?async=true", { method: "POST", body: { data: { sdl: SDL } } });
+
+        expect(inBackground.status).toBe(403);
+        expect(duringRequest.status).toBe(inBackground.status);
+        await expectNothingAcceptedFor(caller.id, teamWallet.id);
+      });
     });
 
     it("files a deployment naming no project into the default project", async () => {
@@ -696,6 +815,36 @@ describe("Deployment projects", () => {
       headers: { "x-api-key": apiKey, "content-type": "application/json" },
       body: init.body === undefined ? undefined : JSON.stringify(init.body)
     });
+  }
+
+  async function runAsWorker<T extends Job>(handler: JobHandler<T>, job: JobRow<JobPayload<T>>) {
+    const executionContextService = container.resolve(ExecutionContextService);
+
+    await executionContextService.runWithContext(async () => {
+      executionContextService.set("CURRENT_USER", createUser({ userId: "system:bg-job-user" }));
+      executionContextService.set("ABILITY", createMongoAbility<MongoAbility>(handler.requiresPermission(job.data)));
+
+      await handler.handle(job.data, { id: randomUUID(), retryCount: job.retry_count, retryLimit: job.retry_limit });
+    });
+  }
+
+  function answerDeploymentAbsent(owner: string, dseq: string) {
+    nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
+      .persist()
+      .get(`/akash/deployment/${deploymentVersion}/deployments/info`)
+      .query({ "id.owner": owner, "id.dseq": dseq })
+      .reply(404, { code: 5, message: "codespace deployment code 4: Deployment not found", details: [] });
+  }
+
+  async function expectNothingAcceptedFor(callerId: string, walletId: number) {
+    expect(await deploymentRowsOf(callerId)).toEqual([]);
+    expect(await activityRepository.find({ userId: callerId })).toEqual([]);
+    expect(await findJobRows(CreateDeployment[JOB_NAME], { singletonKeyLike: `createDeployment.${walletId}.%` })).toEqual([]);
+  }
+
+  async function markDeleted(organizationId: string) {
+    const organizations = resolveTable("Organizations");
+    await container.resolve<ApiPgDatabase>(POSTGRES_DB).update(organizations).set({ deletedAt: new Date() }).where(eq(organizations.id, organizationId));
   }
 
   async function teamWalletOf(organizationId: string) {

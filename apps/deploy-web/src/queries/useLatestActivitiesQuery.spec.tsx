@@ -123,6 +123,10 @@ describe(useLatestActivitiesQuery.name, () => {
       expect(isKnownActivity(buildActivity({ type: "deployment_close" }))).toBe(true);
     });
 
+    it("knows a deployment create", () => {
+      expect(isKnownActivity(buildActivity({ type: "deployment_create" }))).toBe(true);
+    });
+
     it("doesn't know a type the api added after this bundle was built", () => {
       expect(isKnownActivity(buildActivityOfUnknownType())).toBe(false);
     });

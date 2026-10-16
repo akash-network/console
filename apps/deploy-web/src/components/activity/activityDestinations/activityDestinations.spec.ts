@@ -39,6 +39,18 @@ describe("activityDestinations", () => {
 
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments", label: "View deployments" });
     });
+
+    it.each(["pending", "succeeded", "failed"] as const)("leads a %s create to its deployment", status => {
+      const activity = buildActivity({ type: "deployment_create", status, meta: { dseq: "1234" } });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
+    });
+
+    it("leads a create about no particular deployment to the deployments list", () => {
+      const activity = buildActivity({ type: "deployment_create", status: "failed", meta: {} });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/deployments", label: "View deployments" });
+    });
   });
 
   describe("SUMMARY_DESTINATION", () => {

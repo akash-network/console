@@ -1,7 +1,7 @@
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, type EnqueueOptions, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
-import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentSettingRepository, type DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DeploymentPresenceService } from "@src/deployment/services/deployment-presence/deployment-presence.service";
 
@@ -44,6 +44,11 @@ export function unbackedDeploymentSettingRetryOptions(
   };
 }
 
+/** A create rewrites its row before every send, so no create for it was sent after the row's last write. */
+export function lastCreateAttemptOf({ createdAt, updatedAt }: Pick<DeploymentSettingsOutput, "createdAt" | "updatedAt">): Date {
+  return new Date(updatedAt ?? createdAt);
+}
+
 @singleton()
 export class DeleteUnbackedDeploymentSettingHandler implements JobHandler<DeleteUnbackedDeploymentSetting> {
   public readonly accepts = DeleteUnbackedDeploymentSetting;
@@ -73,8 +78,9 @@ export class DeleteUnbackedDeploymentSettingHandler implements JobHandler<Delete
    * because the queue retrying costs a row's extra lifetime while a wrong delete costs the only stored copy of
    * its SDL and its runtime limit.
    *
-   * The row's own `createdAt` is what the chain answer is judged against, which is why it is read here rather
-   * than taken from the payload: the guard has to be anchored to when the record was actually written.
+   * The row's own last write is what the chain answer is judged against, which is why it is read here rather
+   * than taken from the payload: the guard has to be anchored to the last create sent for the record, which a
+   * background create may send long after the record was written.
    *
    * The repository is used unscoped on purpose. Job execution runs under an empty ability, and `accessibleBy`
    * builds a `DrizzleAbility` that refuses in a field initializer, so a scoped read would throw before any SQL ran.
@@ -98,7 +104,7 @@ export class DeleteUnbackedDeploymentSettingHandler implements JobHandler<Delete
       return;
     }
 
-    if (await this.isOnChain({ deploymentSettingId, owner, dseq, recordedAt: new Date(setting.createdAt) })) {
+    if (await this.isOnChain({ deploymentSettingId, owner, dseq, recordedAt: lastCreateAttemptOf(setting) })) {
       this.logger.info({ event: "UNBACKED_DEPLOYMENT_SETTING_IS_BACKED", deploymentSettingId, owner, dseq });
       return;
     }

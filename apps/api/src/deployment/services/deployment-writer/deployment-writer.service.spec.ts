@@ -27,12 +27,18 @@ import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { CLOSE_DEPLOYMENT_RETRY_OPTIONS, CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
+import { CREATE_DEPLOYMENT_RETRY_OPTIONS, CreateDeployment, createDeploymentKeyFor } from "@src/deployment/services/create-deployment/create-deployment.job";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
+import type { DeploymentPresenceService } from "@src/deployment/services/deployment-presence/deployment-presence.service";
 import type { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
 import {
   ReconcileDeploymentClose,
   reconcileDeploymentCloseOptionsFor
 } from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.job";
+import {
+  ReconcileDeploymentCreate,
+  reconcileDeploymentCreateOptionsFor
+} from "@src/deployment/services/reconcile-deployment-create/reconcile-deployment-create.job";
 import type { GenerateResolvedManifestResult, SdlManifest, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
@@ -42,6 +48,7 @@ import type { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
+import { createdActivityOf, creatingActivityOf, failedCreateActivityOf } from "@src/deployment/utils/create-activity/create-activity";
 import { decodeCreateDeploymentMessage, encodeCreateDeploymentMessage } from "@src/deployment/utils/create-deployment-message/create-deployment-message";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
@@ -74,6 +81,8 @@ const PROJECT_ID = faker.string.uuid();
 const RECORDED_VERSION = Buffer.from(new Uint8Array([4, 5, 6])).toString("base64");
 const ACCEPTED_DSEQ = "1748400000000";
 const ADOPTED_TX = { code: 0, hash: "", transactionHash: "", rawLog: "" };
+const RECORDED_AT = "2026-01-01T00:00:00.000Z";
+const LAST_CREATE_ATTEMPT_AT = "2026-01-01T00:20:00.000Z";
 const SEAL = `${faker.string.alphanumeric(16)}.${faker.string.alphanumeric(16)}`;
 const SEALED_TOKEN = `${faker.string.alphanumeric(16)}.${faker.string.alphanumeric(16)}`;
 
@@ -254,6 +263,90 @@ describe(DeploymentWriterService.name, () => {
   });
 
   describe("create", () => {
+    it("records the create as succeeded in the caller's activity feed once it reaches the chain", async () => {
+      const { service, activityService } = setup();
+      vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS });
+
+      expect(activityService.record).toHaveBeenCalledTimes(1);
+      expect(activityService.record).toHaveBeenCalledWith(createdActivityOf({ userId: "user-1", dseq: ACCEPTED_DSEQ }));
+    });
+
+    it("records nothing in the activity feed for a create refused before it is recorded", async () => {
+      const { service, signerService, activityService } = setup();
+      signerService.assertCanBroadcast.mockRejectedValue(createError(402, "Not enough balance to cover the deployment deposit."));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS })).rejects.toMatchObject({ status: 402 });
+
+      expect(activityService.record).not.toHaveBeenCalled();
+      expect(activityService.open).not.toHaveBeenCalled();
+    });
+
+    it("records a create the chain refuses as failed with the reason the caller was given", async () => {
+      const { service, signerService, activityService } = setup();
+      vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
+      const refusal = createError(402, "Not enough balance to cover the deployment deposit.");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(refusal);
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS })).rejects.toBe(refusal);
+
+      expect(activityService.record).toHaveBeenCalledTimes(1);
+      expect(activityService.record).toHaveBeenCalledWith(failedCreateActivityOf({ userId: "user-1", dseq: ACCEPTED_DSEQ }, refusal));
+      expect(activityService.open).not.toHaveBeenCalled();
+    });
+
+    it("records a create whose outcome is undecided as pending under its hash, with a check queued to settle it in the same transaction", async () => {
+      const { service, signerService, activityService, jobQueueService, txService } = setup();
+      vi.useFakeTimers({ now: new Date(Number(ACCEPTED_DSEQ)), toFake: ["Date"] });
+      const undecided = new TxOutcomeUnknownError("ABCDEF");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(undecided);
+
+      const { accepted, created } = await createSpyingOnAccepted(service, () => service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS }));
+      await expect(created).rejects.toBe(undecided);
+
+      const [[opened]] = activityService.open.mock.calls;
+      expect(opened).toEqual({ id: expect.any(String), ...failedCreateActivityOf(accepted, undecided) });
+      expect(opened.meta).toEqual({ dseq: ACCEPTED_DSEQ, txHash: "ABCDEF" });
+      expect(jobQueueService.enqueue).toHaveBeenLastCalledWith(
+        new ReconcileDeploymentCreate({ ...accepted, activityId: opened.id }),
+        reconcileDeploymentCreateOptionsFor(opened.id, new Date(Number(ACCEPTED_DSEQ)))
+      );
+      expect(txService.transaction).toHaveBeenCalledTimes(2);
+      expect(activityService.record).not.toHaveBeenCalled();
+    });
+
+    it("leaves a create that failed after it may have been broadcast pending, with a check queued to settle it from the chain", async () => {
+      const { service, signerService, activityService, jobQueueService } = setup();
+      vi.useFakeTimers({ now: new Date(Number(ACCEPTED_DSEQ)), toFake: ["Date"] });
+      const followUpFailure = new Error("connection terminated");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(followUpFailure);
+
+      const { accepted, created } = await createSpyingOnAccepted(service, () => service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS }));
+      await expect(created).rejects.toBe(followUpFailure);
+
+      const [[opened]] = activityService.open.mock.calls;
+      expect(opened).toEqual({ id: expect.any(String), ...creatingActivityOf(accepted) });
+      expect(jobQueueService.enqueue).toHaveBeenLastCalledWith(
+        new ReconcileDeploymentCreate({ ...accepted, activityId: opened.id }),
+        reconcileDeploymentCreateOptionsFor(opened.id, new Date(Number(ACCEPTED_DSEQ)))
+      );
+      expect(activityService.record).not.toHaveBeenCalled();
+    });
+
+    it("still answers with the undecided outcome of a create it cannot record", async () => {
+      const { service, signerService, activityService, logger } = setup();
+      vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
+      const undecided = new TxOutcomeUnknownError("ABCDEF");
+      const recordFailure = new Error("connection reset");
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(undecided);
+      activityService.open.mockRejectedValue(recordFailure);
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS })).rejects.toBe(undecided);
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "UNDECIDED_CREATE_RECORD_FAILED", userId: "user-1", dseq: ACCEPTED_DSEQ, error: recordFailure });
+    });
+
     it("creates a deployment with a millisecond-timestamp dseq", async () => {
       const { service, signerService, rpcMessageService } = setup();
       const dseq = 1748400000000;
@@ -1384,6 +1477,47 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
+    it("stamps the record before sending, so the compensation proves an absence only from this send on", async () => {
+      const { service, signerService, deploymentSettingRepository, accepted } = setup();
+
+      await service.createOnChain(accepted);
+
+      expect(deploymentSettingRepository.recordCreateAttempt).toHaveBeenCalledWith(DEPLOYMENT_SETTING_ID);
+      expect(deploymentSettingRepository.recordCreateAttempt.mock.invocationCallOrder[0]).toBeLessThan(
+        signerService.executeDecodedTxByUserWallet.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("stamps nothing when it sends nothing", async () => {
+      const { service, deploymentSettingRepository, accepted } = setup({ compensationWaiting: false });
+
+      await expect(service.createOnChain(accepted)).rejects.toMatchObject({ status: 409 });
+
+      expect(deploymentSettingRepository.recordCreateAttempt).not.toHaveBeenCalled();
+    });
+
+    it("checks the member may still sign right before it stamps and sends", async () => {
+      const { service, signerService, deploymentSettingRepository, accepted } = setup();
+      const assertMayStillSign = vi.fn().mockResolvedValue(undefined);
+
+      await service.createOnChain(accepted, { assertMayStillSign });
+
+      expect(assertMayStillSign).toHaveBeenCalledTimes(1);
+      expect(assertMayStillSign.mock.invocationCallOrder[0]).toBeLessThan(deploymentSettingRepository.recordCreateAttempt.mock.invocationCallOrder[0]);
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledTimes(1);
+    });
+
+    it("signs and stamps nothing once the member may no longer sign", async () => {
+      const { service, signerService, deploymentSettingRepository, jobQueueService, accepted } = setup();
+      const revoked = createError(403, "You no longer have access to this deployment.", { errorCode: "access_revoked" });
+
+      await expect(service.createOnChain(accepted, { assertMayStillSign: vi.fn().mockRejectedValue(revoked) })).rejects.toBe(revoked);
+
+      expect(deploymentSettingRepository.recordCreateAttempt).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
+    });
+
     it("sends a first attempt to the chain without reading it first", async () => {
       const { service, signerService, deploymentHttpService, accepted } = setup({ onChainVersion: RECORDED_VERSION });
 
@@ -1580,6 +1714,18 @@ describe(DeploymentWriterService.name, () => {
         expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CREATE_ADOPTED", userId: "user-1", walletId: wallet.id, dseq: ACCEPTED_DSEQ });
       });
 
+      it("adopts a deployment an earlier attempt created without asking whether the member may still sign, since it signs nothing", async () => {
+        const { service, signerService, accepted } = setup({ onChainVersion: RECORDED_VERSION });
+        const assertMayStillSign = vi
+          .fn()
+          .mockRejectedValue(createError(403, "You no longer have access to this deployment.", { errorCode: "access_revoked" }));
+
+        await expect(service.createOnChain(accepted, { retry: true, assertMayStillSign })).resolves.toEqual(ADOPTED_TX);
+
+        expect(assertMayStillSign).not.toHaveBeenCalled();
+        expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      });
+
       it("adopts even once the compensation stopped waiting, since it sends nothing", async () => {
         const { service, signerService, accepted } = setup({ onChainVersion: RECORDED_VERSION, compensationWaiting: false });
 
@@ -1635,6 +1781,203 @@ describe(DeploymentWriterService.name, () => {
 
         expect(jobQueueService.cancelCreatedBy).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe("createInBackground", () => {
+    it("answers with the new deployment, the manifest a create made during the request answers with and the activity to follow, sending nothing to the chain", async () => {
+      const { service, signerService, activityService } = setup();
+      vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
+
+      const queued = await service.createInBackground({ userId: "user-1", sdl: SDL_WITH_SECRETS });
+
+      expect(queued).toEqual({ dseq: ACCEPTED_DSEQ, manifest: expect.stringContaining("test-group"), activityId: expect.any(String) });
+      expect(queued.manifest).not.toContain("resolved-group");
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(activityService.record).not.toHaveBeenCalled();
+    });
+
+    it("queues the accepted create under one key per wallet and deployment with its retries, its pending activity and a later check in one transaction", async () => {
+      const { service, txService, jobQueueService, activityService } = setup();
+      vi.useFakeTimers({ now: new Date(Number(ACCEPTED_DSEQ)), toFake: ["Date"] });
+      let isInTransaction = false;
+      const writtenInTransaction: boolean[] = [];
+      txService.transaction.mockImplementation(async cb => {
+        isInTransaction = true;
+        try {
+          return await cb();
+        } finally {
+          isInTransaction = false;
+        }
+      });
+      jobQueueService.enqueue.mockImplementation(async job => {
+        writtenInTransaction.push(isInTransaction);
+        return job instanceof CreateDeployment ? "create-job-1" : COMPENSATION_JOB_ID;
+      });
+      activityService.open.mockImplementation(async () => {
+        writtenInTransaction.push(isInTransaction);
+      });
+
+      const { accepted, created } = await createSpyingOnAccepted(service, () => service.createInBackground({ userId: "user-1", sdl: SDL_WITH_SECRETS }));
+      const { activityId } = await created;
+
+      expect(accepted.walletId).toBe(wallet.id);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new CreateDeployment({ ...accepted, activityId }), {
+        singletonKey: createDeploymentKeyFor({ walletId: wallet.id, dseq: ACCEPTED_DSEQ }),
+        ...CREATE_DEPLOYMENT_RETRY_OPTIONS
+      });
+      expect(activityService.open).toHaveBeenCalledWith({
+        id: activityId,
+        userId: "user-1",
+        type: "deployment_create",
+        status: "pending",
+        initiator: "user",
+        meta: { dseq: ACCEPTED_DSEQ },
+        dedupeKey: null
+      });
+      expect(jobQueueService.enqueue).toHaveBeenLastCalledWith(
+        new ReconcileDeploymentCreate({ ...accepted, activityId, createJobId: "create-job-1" }),
+        reconcileDeploymentCreateOptionsFor(activityId, new Date(Number(ACCEPTED_DSEQ)))
+      );
+      expect(writtenInTransaction).toEqual([true, true, true, true]);
+      expect(txService.transaction).toHaveBeenCalledTimes(2);
+    });
+
+    it("queues a team wallet's create for that wallet, reporting it in the feed of the member who asked", async () => {
+      const teamWallet = createOrganizationWallet({ id: 7, address: wallet.address });
+      const { service, jobQueueService, activityService } = setup({ wallet: teamWallet });
+      vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
+
+      const { activityId } = await service.createInBackground({ userId: "member-1", sdl: SDL_WITH_SECRETS });
+
+      const createJob = jobQueueService.enqueue.mock.calls.map(([job]) => job).find(job => job instanceof CreateDeployment);
+      expect(createJob?.data).toEqual({ userId: "member-1", walletId: 7, dseq: ACCEPTED_DSEQ, message: expect.any(String), activityId });
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(createJob, expect.objectContaining({ singletonKey: `createDeployment.7.${ACCEPTED_DSEQ}` }));
+      expect(activityService.open).toHaveBeenCalledWith(expect.objectContaining({ id: activityId, userId: "member-1", type: "deployment_create" }));
+    });
+
+    it("refuses as a create made during the request would, queueing and recording nothing", async () => {
+      const { service, signerService, jobQueueService, activityService } = setup();
+      const refusal = createError(402, "Not enough balance to cover the deployment deposit.");
+      signerService.assertCanBroadcast.mockRejectedValue(refusal);
+
+      await expect(service.createInBackground({ userId: "user-1", sdl: SDL_WITH_SECRETS })).rejects.toBe(refusal);
+
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(activityService.open).not.toHaveBeenCalled();
+    });
+
+    it("answers 409 and opens no activity when a create of the same deployment is already queued", async () => {
+      const { service, jobQueueService, activityService } = setup();
+      jobQueueService.enqueue.mockImplementation(async job => (job instanceof CreateDeployment ? null : COMPENSATION_JOB_ID));
+
+      await expect(service.createInBackground({ userId: "user-1", sdl: SDL_WITH_SECRETS })).rejects.toMatchObject({
+        status: 409,
+        message: "This deployment is already being created"
+      });
+
+      expect(activityService.open).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalledWith(expect.any(ReconcileDeploymentCreate), expect.anything());
+    });
+  });
+
+  describe("reconcileCreate", () => {
+    it("adopts a deployment found at the version the create recorded and answers it created", async () => {
+      const { service, signerService, jobQueueService, deploymentPresenceService, accepted } = setup({ onChainVersion: RECORDED_VERSION });
+
+      await expect(service.reconcileCreate(accepted)).resolves.toBe(true);
+
+      expect(signerService.followUpLandedTx).toHaveBeenCalledWith(wallet, [decodeCreateDeploymentMessage(accepted.message)], { actingUserId: "user-1" });
+      expect(jobQueueService.cancelCreatedBy).toHaveBeenCalledTimes(1);
+      expect(deploymentPresenceService.isOnChain).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+
+    it("adopts a team wallet's deployment with the wallet the request resolved, for the member who asked and into the project it was filed in", async () => {
+      const teamWallet = createOrganizationWallet({ id: 7, address: wallet.address });
+      const { service, signerService, walletReaderService, deploymentSettingRepository, deploymentOrganizationActivityService, accepted } = setup({
+        wallet: teamWallet,
+        filingProjectId: PROJECT_ID,
+        onChainVersion: RECORDED_VERSION
+      });
+
+      await expect(service.reconcileCreate(accepted)).resolves.toBe(true);
+
+      expect(walletReaderService.getWalletById).toHaveBeenCalledWith(7);
+      expect(walletReaderService.getWalletByUserId).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.findOneOfWallet).toHaveBeenCalledWith(teamWallet, ACCEPTED_DSEQ);
+      expect(signerService.followUpLandedTx).toHaveBeenCalledWith(teamWallet, [decodeCreateDeploymentMessage(accepted.message)], {
+        actingUserId: "user-1",
+        filingProjectId: PROJECT_ID
+      });
+      expect(deploymentOrganizationActivityService.recordCreated).toHaveBeenCalledWith({ wallet: teamWallet, dseq: ACCEPTED_DSEQ }, "user-1");
+    });
+
+    it("answers not created for a record another member filed under the dseq, reading nothing", async () => {
+      const { service, deploymentHttpService, deploymentPresenceService, accepted } = setup({
+        definitionFiledBy: "member-2",
+        onChainVersion: RECORDED_VERSION
+      });
+
+      await expect(service.reconcileCreate(accepted)).resolves.toBe(false);
+
+      expect(deploymentHttpService.findByOwnerAndDseq).not.toHaveBeenCalled();
+      expect(deploymentPresenceService.isOnChain).not.toHaveBeenCalled();
+    });
+
+    it("refuses a message that creates under another owner than the wallet, reading nothing", async () => {
+      const { service, deploymentSettingRepository, deploymentHttpService, accepted } = setup({
+        acceptedOwner: "akash1someoneelse",
+        onChainVersion: RECORDED_VERSION
+      });
+
+      await expect(service.reconcileCreate(accepted)).rejects.toMatchObject({ status: 403, errorCode: "message_signer_mismatch" });
+
+      expect(deploymentSettingRepository.findOneOfWallet).not.toHaveBeenCalled();
+      expect(deploymentHttpService.findByOwnerAndDseq).not.toHaveBeenCalled();
+    });
+
+    it("answers not created once the compensation has deleted the record, reading nothing", async () => {
+      const { service, deploymentHttpService, deploymentPresenceService, accepted } = setup({ definitionDeleted: true });
+
+      await expect(service.reconcileCreate(accepted)).resolves.toBe(false);
+
+      expect(deploymentHttpService.findByOwnerAndDseq).not.toHaveBeenCalled();
+      expect(deploymentPresenceService.isOnChain).not.toHaveBeenCalled();
+    });
+
+    it("answers not created once the chain proves the deployment absent past the last create sent, adopting nothing", async () => {
+      const { service, signerService, deploymentSettingRepository, deploymentPresenceService, accepted } = setup();
+
+      await expect(service.reconcileCreate(accepted)).resolves.toBe(false);
+
+      expect(deploymentSettingRepository.findOneOfWallet).toHaveBeenCalledWith(wallet, ACCEPTED_DSEQ);
+      expect(deploymentPresenceService.isOnChain).toHaveBeenCalledWith({
+        owner: wallet.address,
+        dseq: ACCEPTED_DSEQ,
+        recordedAt: new Date(LAST_CREATE_ATTEMPT_AT)
+      });
+      expect(signerService.followUpLandedTx).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+
+    it("throws for a later check when the chain holds the deployment but it could not be read at the recorded version", async () => {
+      const { service, signerService, deploymentPresenceService, accepted } = setup();
+      deploymentPresenceService.isOnChain.mockResolvedValue(true);
+
+      await expect(service.reconcileCreate(accepted)).rejects.toThrow(
+        `Deployment ${ACCEPTED_DSEQ} is on chain but could not be read at the version its create recorded`
+      );
+
+      expect(signerService.followUpLandedTx).not.toHaveBeenCalled();
+    });
+
+    it("throws for a later check when the chain cannot prove the deployment absent yet", async () => {
+      const { service, deploymentPresenceService, accepted } = setup();
+      const undecidable = new Error("Chain has only reached an earlier block");
+      deploymentPresenceService.isOnChain.mockRejectedValue(undecidable);
+
+      await expect(service.reconcileCreate(accepted)).rejects.toBe(undecidable);
     });
   });
 
@@ -2614,6 +2957,15 @@ describe(DeploymentWriterService.name, () => {
       });
     });
   });
+
+  async function createSpyingOnAccepted<T>(service: DeploymentWriterService, create: () => Promise<T>) {
+    const acceptCreate = vi.spyOn(service, "acceptCreate");
+    const created = create();
+    await created.catch(() => undefined);
+    const { accepted } = await acceptCreate.mock.results[0].value;
+
+    return { accepted: accepted as AcceptedDeploymentCreate, created };
+  }
 
   function recordedSdlOf(deploymentSettingRepository: MockProxy<DeploymentSettingRepository>): string {
     const { sdl } = deploymentSettingRepository.upsertDefinition.mock.calls[0][0];
@@ -3632,7 +3984,8 @@ describe(DeploymentWriterService.name, () => {
         mock<DeploymentOrganizationActivityService>(),
         mock<DeploymentDepositLedgerService>(),
         mock<DeploymentHttpService>(),
-        mock<ChainErrorService>()
+        mock<ChainErrorService>(),
+        mock<DeploymentPresenceService>()
       );
 
       function sealedFor() {
@@ -4210,9 +4563,12 @@ describe(DeploymentWriterService.name, () => {
       input?.definitionDeleted
         ? undefined
         : mock<DeploymentSettingsOutput>({
+            id: DEPLOYMENT_SETTING_ID,
             userId: input?.definitionFiledBy ?? "user-1",
             projectId: input?.filingProjectId ?? null,
-            manifestVersion: input?.recordedVersion === undefined ? RECORDED_VERSION : input.recordedVersion
+            manifestVersion: input?.recordedVersion === undefined ? RECORDED_VERSION : input.recordedVersion,
+            createdAt: RECORDED_AT,
+            updatedAt: LAST_CREATE_ATTEMPT_AT
           })
     );
     const scopedSettingRepository = mock<DeploymentSettingRepository>();
@@ -4240,6 +4596,8 @@ describe(DeploymentWriterService.name, () => {
         : createDeploymentInfoErrorSeed({ code: 5, message: "deployment not found" })
     );
     const chainErrorService = new ChainErrorService(mock<BalanceHttpService>(), billingConfig, mock<TxManagerService>());
+    const deploymentPresenceService = mock<DeploymentPresenceService>();
+    deploymentPresenceService.isOnChain.mockResolvedValue(!!input?.onChainVersion);
     const accepted: AcceptedDeploymentCreate = {
       userId: "user-1",
       walletId: activeWallet.id,
@@ -4335,7 +4693,8 @@ describe(DeploymentWriterService.name, () => {
       deploymentOrganizationActivityService,
       depositLedger,
       deploymentHttpService,
-      chainErrorService
+      chainErrorService,
+      deploymentPresenceService
     );
 
     function storedSecrets() {
@@ -4368,6 +4727,7 @@ describe(DeploymentWriterService.name, () => {
       deploymentOrganizationActivityService,
       depositLedger,
       deploymentHttpService,
+      deploymentPresenceService,
       accepted,
       ability: mock<AnyAbility>(),
       storedSecrets

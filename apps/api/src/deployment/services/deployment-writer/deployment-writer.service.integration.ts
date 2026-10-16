@@ -18,10 +18,7 @@ import {
   DeleteUnbackedDeploymentSettingHandler
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
-import {
-  RecordDeploymentSetting,
-  RecordDeploymentSettingHandler
-} from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
+import { RecordDeploymentSetting, RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -113,15 +110,13 @@ describe(DeploymentWriterService.name, () => {
   });
 
   it("writes the setting and its compensation in one transaction", async () => {
-    const { user, createDeployment, findCompensations, findCompensationTransactionId, findSettingTransactionId, broadcast } = await setup();
-    broadcast.mockRejectedValue(new Error("tx failed"));
+    const { user, acceptDeployment, findCompensationTransactionId, findSettingTransactionId } = await setup();
 
-    await expect(createDeployment()).rejects.toThrow("tx failed");
+    const { accepted } = await acceptDeployment();
 
-    const [{ data }] = await findCompensations(user.id);
     const [compensationTransactionId, settingTransactionId] = await Promise.all([
-      findCompensationTransactionId(user.id, data.dseq),
-      findSettingTransactionId(data.dseq)
+      findCompensationTransactionId(user.id, accepted.dseq),
+      findSettingTransactionId(accepted.dseq)
     ]);
     expect(compensationTransactionId).toBe(settingTransactionId);
   });
@@ -413,13 +408,28 @@ describe(DeploymentWriterService.name, () => {
       const { user, acceptDeployment, createOnChain, answerDeploymentInfoWith, broadcast, findCompensation, findSetting } = await setup();
       const { accepted } = await acceptDeployment();
       const { manifestVersion } = await findSetting(accepted.dseq);
-      answerDeploymentInfoWith(accepted, 200, { deployment: { id: { dseq: accepted.dseq }, state: "active", hash: manifestVersion }, groups: [], escrow_account: null });
+      answerDeploymentInfoWith(accepted, 200, {
+        deployment: { id: { dseq: accepted.dseq }, state: "active", hash: manifestVersion },
+        groups: [],
+        escrow_account: null
+      });
 
       await expect(createOnChain(accepted, { retry: true })).resolves.toEqual({ code: 0, hash: "", transactionHash: "", rawLog: "" });
 
       expect(broadcast).not.toHaveBeenCalled();
       expect((await findCompensation(user.id, accepted.dseq)).state).toBe("cancelled");
       expect(await findJobRows(RecordDeploymentSetting[JOB_NAME], { singletonKey: `recordDeploymentSetting.${user.id}.${accepted.dseq}` })).toHaveLength(1);
+    });
+
+    it("stamps the record as it sends, so the compensation proves an absence only from the last create sent", async () => {
+      const { acceptDeployment, createOnChain, backdateSetting, findSetting } = await setup();
+      const { accepted } = await acceptDeployment();
+      await backdateSetting(accepted.dseq, 30);
+
+      await createOnChain(accepted);
+
+      const { createdAt, updatedAt } = await findSetting(accepted.dseq);
+      expect(updatedAt!.getTime() - createdAt!.getTime()).toBeGreaterThan(minutesToMilliseconds(29));
     });
 
     it("sends nothing once the compensation is due to judge the record, leaving the record for it", async () => {
@@ -505,6 +515,12 @@ describe(DeploymentWriterService.name, () => {
       return setting;
     }
 
+    async function backdateSetting(dseq: string, minutes: number) {
+      await db.execute(
+        sql`update deployment_settings set created_at = now() - make_interval(mins => ${minutes}), updated_at = now() - make_interval(mins => ${minutes}) where dseq = ${dseq}`
+      );
+    }
+
     async function countSettings() {
       const rows = await db.select().from(deploymentSettingsTable).where(eq(deploymentSettingsTable.userId, user.id));
 
@@ -568,6 +584,7 @@ describe(DeploymentWriterService.name, () => {
       broadcast,
       findCompensation,
       findSetting,
+      backdateSetting,
       findSettingTransactionId,
       findCompensationTransactionId,
       makeCompensationDue,

@@ -1,6 +1,7 @@
 import { manifestToSortedJSON, type SDLInput, yaml } from "@akashnetwork/chain-sdk";
 import { Deployment } from "@akashnetwork/database/dbSchemas/akash";
 import type { Bid, DeploymentInfo } from "@akashnetwork/http-sdk";
+import { createMongoAbility, type MongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import createError, { NotFound } from "http-errors";
 import nock from "nock";
@@ -23,15 +24,18 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services";
 import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
-import { CORE_CONFIG, JOB_NAME } from "@src/core";
+import { CORE_CONFIG, JOB_NAME, type JobPayload } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import { deploymentListMaxLimit } from "@src/deployment/http-schemas/deployment.schema";
+import { type CreateDeploymentAcceptedResponse, deploymentListMaxLimit } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
+import { CreateDeploymentHandler } from "@src/deployment/services/create-deployment/create-deployment.handler";
+import { CreateDeployment, createDeploymentKeyFor } from "@src/deployment/services/create-deployment/create-deployment.job";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { DeploymentReaderService, MAX_SEARCHABLE_DEPLOYMENTS } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { ReconcileDeploymentClose } from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.job";
+import { ReconcileDeploymentCreate } from "@src/deployment/services/reconcile-deployment-create/reconcile-deployment-create.job";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
@@ -66,7 +70,7 @@ import { createLeaseStatus } from "@test/seeders/lease-status.seeder";
 import { createProvider } from "@test/seeders/provider.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
-import { findJobRows } from "@test/services/job-queue-harness";
+import { findJobRows, type JobRow } from "@test/services/job-queue-harness";
 
 const OVERSIZED_FILLER = "z".repeat(4096);
 const HELLO_WORLD_SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
@@ -144,6 +148,7 @@ describe("Deployments API", () => {
     } as unknown as UserWalletRepository;
 
     vi.spyOn(userWalletRepository, "accessibleBy").mockReturnValue(fakeWalletRepository);
+    vi.spyOn(userWalletRepository, "unscoped").mockReturnValue(fakeWalletRepository);
 
     vi.spyOn(signerService, "executeDerivedDecodedTxByUserId").mockResolvedValue({
       code: 200,
@@ -211,6 +216,25 @@ describe("Deployments API", () => {
     allWallets.push(...wallets);
 
     return { user, userApiKeySecret, wallets };
+  }
+
+  async function runAsWorker(handler: CreateDeploymentHandler, job: JobRow<JobPayload<CreateDeployment>>) {
+    const executionContextService = container.resolve(ExecutionContextService);
+
+    await executionContextService.runWithContext(async () => {
+      executionContextService.set("CURRENT_USER", createUser({ userId: "system:bg-job-user" }));
+      executionContextService.set("ABILITY", createMongoAbility<MongoAbility>(handler.requiresPermission(job.data)));
+
+      await handler.handle(job.data, { id: randomUUID(), retryCount: job.retry_count, retryLimit: job.retry_limit });
+    });
+  }
+
+  async function createInBackground(userApiKeySecret: string) {
+    return await app.request("/v1/deployments?async=true", {
+      method: "POST",
+      body: JSON.stringify({ data: { sdl: HELLO_WORLD_SDL } }),
+      headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+    });
   }
 
   async function closeInBackground(dseq: string, userApiKeySecret: string, { batchId }: { batchId?: string } = {}) {
@@ -1319,6 +1343,117 @@ describe("Deployments API", () => {
       expect(response.status).toBe(402);
       expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+
+    it("records the create in the caller's activity feed", async () => {
+      const { user, userApiKeySecret } = await mockPersistedUser();
+
+      const response = await postDeployment(userApiKeySecret, {});
+      const { data } = (await response.json()) as { data: { dseq: string } };
+
+      expect(response.status).toBe(201);
+      expect(await activityRepository.find({ userId: user.id })).toEqual([
+        expect.objectContaining({ type: "deployment_create", status: "succeeded", meta: { dseq: data.dseq }, seenAt: null })
+      ]);
+    });
+
+    it("records a create whose outcome is undecided as pending under its hash, with a check queued to settle it", async () => {
+      const { user, userApiKeySecret } = await mockPersistedUser();
+      vi.mocked(signerService.executeDecodedTxByUserWallet).mockRejectedValueOnce(new TxOutcomeUnknownError("ABCDEF"));
+
+      const response = await postDeployment(userApiKeySecret, {});
+
+      expect(response.status).toBe(504);
+      const [activity] = await activityRepository.find({ userId: user.id });
+      expect(activity).toMatchObject({ type: "deployment_create", status: "pending", meta: { txHash: "ABCDEF" } });
+      expect(await findJobRows(ReconcileDeploymentCreate[JOB_NAME], { data: { activityId: activity.id } })).toEqual([
+        expect.objectContaining({ state: "created", data: expect.objectContaining({ userId: user.id, dseq: activity.meta.dseq, activityId: activity.id }) })
+      ]);
+    });
+
+    it("queues the create and answers 202 with the new deployment and the activity to follow when asked to create in the background", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+
+      const response = await createInBackground(userApiKeySecret);
+      const { data } = (await response.json()) as CreateDeploymentAcceptedResponse;
+
+      expect(response.status).toBe(202);
+      expect(data).toEqual({ dseq: expect.any(String), manifest: expect.any(String), activityId: expect.any(String) });
+      expect(await activityRepository.findById(data.activityId)).toMatchObject({
+        userId: user.id,
+        type: "deployment_create",
+        status: "pending",
+        meta: { dseq: data.dseq }
+      });
+      expect(await findJobRows(CreateDeployment[JOB_NAME], { singletonKey: createDeploymentKeyFor({ walletId: wallets[0].id, dseq: data.dseq }) })).toEqual([
+        expect.objectContaining({
+          state: "created",
+          data: expect.objectContaining({ userId: user.id, walletId: wallets[0].id, dseq: data.dseq, activityId: data.activityId })
+        })
+      ]);
+      expect(await findJobRows(ReconcileDeploymentCreate[JOB_NAME], { data: { activityId: data.activityId } })).toEqual([
+        expect.objectContaining({ state: "created", data: expect.objectContaining({ createJobId: expect.any(String) }) })
+      ]);
+      expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq: data.dseq })).toBeDefined();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+
+    it("records the background create as succeeded once its job has run", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const { data } = (await (await createInBackground(userApiKeySecret)).json()) as CreateDeploymentAcceptedResponse;
+      const [job] = await findJobRows<JobPayload<CreateDeployment>>(CreateDeployment[JOB_NAME], {
+        singletonKey: createDeploymentKeyFor({ walletId: wallets[0].id, dseq: data.dseq })
+      });
+
+      await runAsWorker(container.resolve(CreateDeploymentHandler), job);
+
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(
+        expect.objectContaining({ id: wallets[0].id }),
+        [expect.objectContaining({ typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment" })],
+        expect.objectContaining({ actingUserId: user.id })
+      );
+      expect(await activityRepository.findById(data.activityId)).toMatchObject({ status: "succeeded", meta: { dseq: data.dseq } });
+    });
+
+    it("refuses a background create on the request itself, recording and queueing nothing", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      vi.mocked(signerService.assertCanBroadcast).mockRejectedValue(createError(402, "Not enough balance to cover the deployment deposit."));
+
+      const response = await createInBackground(userApiKeySecret);
+
+      expect(response.status).toBe(402);
+      expect(await activityRepository.find({ userId: user.id })).toEqual([]);
+      expect(await findJobRows(CreateDeployment[JOB_NAME], { singletonKeyLike: `createDeployment.${wallets[0].id}.%` })).toEqual([]);
+      expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
+    });
+
+    it("creates the deployment during the request, answering as before, when background creates are switched off", async () => {
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
+      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockReturnValue(false);
+
+      const response = await createInBackground(userApiKeySecret);
+
+      expect(response.status).toBe(201);
+      expect(await response.json()).toEqual({
+        data: {
+          dseq: expect.any(String),
+          manifest: expect.any(String),
+          signTx: { code: 200, transactionHash: "fake-transaction-hash", hash: "fake-transaction-hash", rawLog: "fake-raw-log" }
+        }
+      });
+      expect(await findJobRows(CreateDeployment[JOB_NAME], { singletonKeyLike: `createDeployment.${wallets[0].id}.%` })).toEqual([]);
+    });
+
+    it("returns 400 for an async value other than true or false", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await app.request("/v1/deployments?async=yes", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl: HELLO_WORLD_SDL } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
     });
 
     it("returns 401 for an unauthenticated request", async () => {

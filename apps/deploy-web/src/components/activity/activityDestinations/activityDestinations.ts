@@ -15,7 +15,8 @@ const DESTINATIONS: Record<Activity["type"], (activity: Activity) => ActivityDes
     if (status === "failed") return { href: UrlService.deploymentDetails(dseq, "SETTINGS"), label: "Open settings" };
 
     return { href: UrlService.deploymentDetails(dseq), label: "View deployment" };
-  }
+  },
+  deployment_create: ({ meta: { dseq } }) => (dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST)
 };
 
 /** A summary of several deployments, such as a bulk close, leads to the list they all show in. */
