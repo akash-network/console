@@ -32,6 +32,12 @@ export const OwnershipTransferSetting: FC<Props> = ({ organization, dependencies
   const newOwner = candidates.find(member => member.id === newOwnerId);
   const hasNoCandidates = !!members.data && candidates.length === 0;
 
+  const describeTransfer = () => {
+    if (members.isError) return "Couldn't load the members. Refresh the page to try again.";
+    if (hasNoCandidates) return `You're the only member of ${organization.name}. Invite someone before you hand it over.`;
+    return `Make another member the owner of ${organization.name}. You stay on as an Admin.`;
+  };
+
   const handOverOwnership = async () => {
     if (!newOwner) return;
 
@@ -55,14 +61,7 @@ export const OwnershipTransferSetting: FC<Props> = ({ organization, dependencies
   };
 
   return (
-    <SettingsRow
-      label="Transfer ownership"
-      description={
-        hasNoCandidates
-          ? `You're the only member of ${organization.name}. Invite someone before you hand it over.`
-          : `Make another member the owner of ${organization.name}. You stay on as an Admin.`
-      }
-    >
+    <SettingsRow label="Transfer ownership" description={describeTransfer()}>
       <Select value={newOwnerId} onValueChange={setNewOwnerId} disabled={candidates.length === 0}>
         <SelectTrigger aria-label="New owner" className="h-9 w-[200px]">
           <SelectValue placeholder="Choose a member" />

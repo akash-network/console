@@ -93,18 +93,27 @@ describe("OwnershipTransferSetting", () => {
     expect(screen.getByRole("combobox", { name: "New owner" })).toBeDisabled();
   });
 
+  it("tells the owner to refresh when the members fail to load", () => {
+    setup({ members: undefined, isError: true });
+
+    expect(screen.getByText("Couldn't load the members. Refresh the page to try again.")).toBeInTheDocument();
+    expect(screen.queryByText("Make another member the owner of Acme Corp. You stay on as an Admin.")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "New owner" })).toBeDisabled();
+  });
+
   async function chooseNewOwner(user: ReturnType<typeof userEvent.setup>, name: string) {
     await user.click(screen.getByRole("combobox", { name: "New owner" }));
     await user.click(screen.getByRole("option", { name }));
   }
 
-  function setup(input: { members?: OrganizationMemberOutput[]; isConfirmed?: boolean }) {
+  function setup(input: { members?: OrganizationMemberOutput[]; isError?: boolean; isConfirmed?: boolean }) {
     const transferOwnership = vi.fn<ReturnType<typeof DEPENDENCIES.useTransferOrganizationOwnershipMutation>["mutate"]>();
     const confirm = vi.fn(async () => input.isConfirmed ?? true);
     const enqueueSnackbar = vi.fn();
     const useOrganizationMembersQuery = vi.fn(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>(), {
-        data: "members" in input ? input.members : [DAVE, ALICE, CAROL, BOB]
+        data: "members" in input ? input.members : [DAVE, ALICE, CAROL, BOB],
+        isError: input.isError ?? false
       })
     );
     const dependencies: typeof DEPENDENCIES = {
