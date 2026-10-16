@@ -4,8 +4,8 @@ import { extractApiErrorCode } from "@akashnetwork/openapi-sdk";
 import {
   Button,
   DialogV2,
-  DialogV2Body,
   DialogV2Content,
+  DialogV2Description,
   DialogV2Footer,
   DialogV2Header,
   DialogV2Title,
@@ -59,14 +59,11 @@ export const LeaveOrganizationDialog: FC<Props> = ({ organization, onClose, depe
       <DialogV2Content className="max-w-[440px]" hideCloseButton={isPending}>
         <DialogV2Header>
           <DialogV2Title>Leave {organization.name}?</DialogV2Title>
-        </DialogV2Header>
-
-        <DialogV2Body>
-          <p className="text-sm text-muted-foreground">
+          <DialogV2Description>
             You lose access to <strong className="text-foreground">{organization.name}</strong> and its projects right away. Deployments keep running, and an
             admin can invite you back.
-          </p>
-        </DialogV2Body>
+          </DialogV2Description>
+        </DialogV2Header>
 
         <DialogV2Footer className="flex items-center justify-end gap-2">
           <Button type="button" variant="ghost" disabled={isPending} onClick={onClose}>

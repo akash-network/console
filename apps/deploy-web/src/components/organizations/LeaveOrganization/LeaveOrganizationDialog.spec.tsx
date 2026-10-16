@@ -13,7 +13,7 @@ describe("LeaveOrganizationDialog", () => {
   it("explains what leaving does", () => {
     setup({});
 
-    expect(screen.getByRole("dialog", { name: "Leave Acme Corp?" })).toHaveTextContent(
+    expect(screen.getByRole("dialog", { name: "Leave Acme Corp?" })).toHaveAccessibleDescription(
       "You lose access to Acme Corp and its projects right away. Deployments keep running, and an admin can invite you back."
     );
   });
