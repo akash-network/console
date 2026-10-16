@@ -23,23 +23,26 @@ import Link from "next/link";
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 import { useServices } from "@src/context/ServicesProvider";
 import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
-import { type AccountDeletionEligibility, useAccountDeletionEligibility } from "./useAccountDeletionEligibility";
+import { type AccountDeletionEligibility, type TeamReference, useAccountDeletionEligibility } from "./useAccountDeletionEligibility";
 
 export const DEPENDENCIES = { useAccountDeletionEligibility };
 
 type Step =
   | { name: "assess" }
-  | { name: "blocked"; activeDeploymentCount: number }
+  | { name: "blocked"; activeDeploymentCount: number; teamsWithDeployments: TeamReference[] }
+  | { name: "transfer"; teamsToTransfer: TeamReference[] }
   | { name: "forfeitChoice"; balanceUsd: number }
   | { name: "confirm"; forfeitedBalanceUsd: number }
   | { name: "emailSent" };
 
-type DeletionRefusalBody = { data?: { activeDeploymentCount?: number; balanceUsd?: number } };
+type DeletionRefusalBody = { data?: { activeDeploymentCount?: number; balanceUsd?: number; organizations?: TeamReference[] } };
 
 function stepFor(eligibility: AccountDeletionEligibility): Step | undefined {
   switch (eligibility.status) {
     case "blocked":
-      return { name: "blocked", activeDeploymentCount: eligibility.activeDeploymentCount };
+      return { name: "blocked", activeDeploymentCount: eligibility.activeDeploymentCount, teamsWithDeployments: eligibility.teamsWithDeployments };
+    case "transfer":
+      return { name: "transfer", teamsToTransfer: eligibility.teamsToTransfer };
     case "forfeit":
       return { name: "forfeitChoice", balanceUsd: eligibility.balanceUsd };
     case "clean":
@@ -52,10 +55,16 @@ function stepForRefusal(error: unknown): Step | undefined {
 
   switch (extractApiErrorCode(error)) {
     case "active_deployments":
-      return { name: "blocked", activeDeploymentCount: data?.activeDeploymentCount ?? 1 };
+      return { name: "blocked", activeDeploymentCount: data?.activeDeploymentCount ?? 1, teamsWithDeployments: [] };
+    case "last_owner":
+      return { name: "transfer", teamsToTransfer: data?.organizations ?? [] };
     case "forfeit_acknowledgement_required":
       return { name: "forfeitChoice", balanceUsd: data?.balanceUsd ?? 0 };
   }
+}
+
+function teamsDeletedWith(eligibility: AccountDeletionEligibility): TeamReference[] {
+  return eligibility.status === "forfeit" || eligibility.status === "clean" ? eligibility.teamsDeletedWithAccount : [];
 }
 
 type Props = {
@@ -70,6 +79,7 @@ export const DeleteAccountDialog: FC<Props> = ({ email, onClose, dependencies: d
   const [chosenStep, setChosenStep] = useState<Step>({ name: "assess" });
   const requestDeletion = api.v1.createAccountDeletionRequest.useMutation({ meta: SKIP_REPORTING_REFUSED_INPUT });
   const step = chosenStep.name === "assess" ? stepFor(eligibility) : chosenStep;
+  const teamsDeletedWithAccount = teamsDeletedWith(eligibility);
 
   const sendConfirmationEmail = (forfeitAcknowledged: boolean) => {
     requestDeletion.mutate(
@@ -88,14 +98,22 @@ export const DeleteAccountDialog: FC<Props> = ({ email, onClose, dependencies: d
     <DialogV2 open onOpenChange={isOpen => (!isOpen && !requestDeletion.isPending ? onClose() : undefined)}>
       <DialogV2Content className="max-w-lg" hideCloseButton={requestDeletion.isPending}>
         {!step && <LoadingStep />}
-        {step?.name === "blocked" && <BlockedStep activeDeploymentCount={step.activeDeploymentCount} onClose={onClose} />}
+        {step?.name === "blocked" && (
+          <BlockedStep activeDeploymentCount={step.activeDeploymentCount} teamsWithDeployments={step.teamsWithDeployments} onClose={onClose} />
+        )}
+        {step?.name === "transfer" && <TransferStep teamsToTransfer={step.teamsToTransfer} onClose={onClose} />}
         {step?.name === "forfeitChoice" && (
-          <ForfeitChoiceStep balanceUsd={step.balanceUsd} onForfeit={() => setChosenStep({ name: "confirm", forfeitedBalanceUsd: step.balanceUsd })} />
+          <ForfeitChoiceStep
+            balanceUsd={step.balanceUsd}
+            includesTeams={teamsDeletedWithAccount.length > 0}
+            onForfeit={() => setChosenStep({ name: "confirm", forfeitedBalanceUsd: step.balanceUsd })}
+          />
         )}
         {step?.name === "confirm" && (
           <ConfirmStep
             email={email}
             forfeitedBalanceUsd={step.forfeitedBalanceUsd}
+            teamsDeletedWithAccount={teamsDeletedWithAccount}
             isSending={requestDeletion.isPending}
             error={requestDeletion.error && !stepForRefusal(requestDeletion.error) ? requestDeletion.error : null}
             onSend={sendConfirmationEmail}
@@ -120,7 +138,19 @@ const LoadingStep: FC = () => (
   </>
 );
 
-const BlockedStep: FC<{ activeDeploymentCount: number; onClose: () => void }> = ({ activeDeploymentCount, onClose }) => {
+const TeamList: FC<{ teams: TeamReference[] }> = ({ teams }) => (
+  <ul className="list-disc space-y-1 pl-5 text-sm">
+    {teams.map(team => (
+      <li key={team.id}>{team.name}</li>
+    ))}
+  </ul>
+);
+
+const BlockedStep: FC<{ activeDeploymentCount: number; teamsWithDeployments: TeamReference[]; onClose: () => void }> = ({
+  activeDeploymentCount,
+  teamsWithDeployments,
+  onClose
+}) => {
   const { urlService } = useServices();
 
   return (
@@ -132,6 +162,12 @@ const BlockedStep: FC<{ activeDeploymentCount: number; onClose: () => void }> = 
           {activeDeploymentCount === 1 ? "it" : "them"} before you delete your account.
         </DialogV2Description>
       </DialogV2Header>
+      {teamsWithDeployments.length > 0 && (
+        <DialogV2Body className="flex flex-col gap-2">
+          <p className="text-sm">Some run in teams that are deleted with your account:</p>
+          <TeamList teams={teamsWithDeployments} />
+        </DialogV2Body>
+      )}
       <DialogV2Footer className="flex items-center justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onClose}>
           Cancel
@@ -144,7 +180,28 @@ const BlockedStep: FC<{ activeDeploymentCount: number; onClose: () => void }> = 
   );
 };
 
-const ForfeitChoiceStep: FC<{ balanceUsd: number; onForfeit: () => void }> = ({ balanceUsd, onForfeit }) => {
+const TransferStep: FC<{ teamsToTransfer: TeamReference[]; onClose: () => void }> = ({ teamsToTransfer, onClose }) => (
+  <>
+    <DialogV2Header>
+      <DialogV2Title>Hand over your teams first</DialogV2Title>
+      <DialogV2Description>
+        You&apos;re the last owner of teams other people belong to. Make another member an owner of each one before you delete your account.
+      </DialogV2Description>
+    </DialogV2Header>
+    {teamsToTransfer.length > 0 && (
+      <DialogV2Body>
+        <TeamList teams={teamsToTransfer} />
+      </DialogV2Body>
+    )}
+    <DialogV2Footer className="flex items-center justify-end">
+      <Button type="button" onClick={onClose}>
+        Got it
+      </Button>
+    </DialogV2Footer>
+  </>
+);
+
+const ForfeitChoiceStep: FC<{ balanceUsd: number; includesTeams: boolean; onForfeit: () => void }> = ({ balanceUsd, includesTeams, onForfeit }) => {
   const { analyticsService, publicConfig } = useServices();
 
   const trackSupportChosen = () => analyticsService.track("account_deletion_support_clicked", { category: "user", label: "Contact support about credits" });
@@ -160,6 +217,7 @@ const ForfeitChoiceStep: FC<{ balanceUsd: number; onForfeit: () => void }> = ({ 
           You still have <UsdValue value={balanceUsd} /> in credits
         </DialogV2Title>
         <DialogV2Description>
+          {includesTeams && "This includes the credits of the teams deleted with your account. "}
           If you delete your account, you lose these credits and we can&apos;t refund them later. If you want a refund, contact support first.
         </DialogV2Description>
       </DialogV2Header>
@@ -184,18 +242,20 @@ const ForfeitChoiceStep: FC<{ balanceUsd: number; onForfeit: () => void }> = ({ 
 type ConfirmStepProps = {
   email: string;
   forfeitedBalanceUsd: number;
+  teamsDeletedWithAccount: TeamReference[];
   isSending: boolean;
   error: Error | null;
   onSend: (forfeitAcknowledged: boolean) => void;
   onCancel: () => void;
 };
 
-const ConfirmStep: FC<ConfirmStepProps> = ({ email, forfeitedBalanceUsd, isSending, error, onSend, onCancel }) => {
+const ConfirmStep: FC<ConfirmStepProps> = ({ email, forfeitedBalanceUsd, teamsDeletedWithAccount, isSending, error, onSend, onCancel }) => {
   const formId = useId();
   const forfeitCheckboxId = useId();
   const [typedEmail, setTypedEmail] = useState("");
   const [isForfeitAcknowledged, setIsForfeitAcknowledged] = useState(false);
   const isForfeiting = forfeitedBalanceUsd > 0;
+  const hasTeamsDeletedWithAccount = teamsDeletedWithAccount.length > 0;
   const canSend = typedEmail.toLowerCase() === email.toLowerCase() && (!isForfeiting || isForfeitAcknowledged);
   const rateLimitMessage = isApiError(error) && error.status === 429 ? extractApiErrorMessage(error) : null;
   const errorMessage = rateLimitMessage ?? "We couldn't send the email. Please try again.";
@@ -218,6 +278,12 @@ const ConfirmStep: FC<ConfirmStepProps> = ({ email, forfeitedBalanceUsd, isSendi
             if (canSend) onSend(isForfeiting);
           }}
         >
+          {hasTeamsDeletedWithAccount && (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm">You&apos;re the only member of these teams, so they&apos;re deleted with your account:</p>
+              <TeamList teams={teamsDeletedWithAccount} />
+            </div>
+          )}
           {isForfeiting && (
             <div className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
               <Checkbox
@@ -227,7 +293,15 @@ const ConfirmStep: FC<ConfirmStepProps> = ({ email, forfeitedBalanceUsd, isSendi
                 className="mt-0.5"
               />
               <label htmlFor={forfeitCheckboxId} className="cursor-pointer text-sm">
-                I understand my remaining <UsdValue value={forfeitedBalanceUsd} /> in credits won&apos;t be refunded.
+                {hasTeamsDeletedWithAccount ? (
+                  <>
+                    I understand the remaining <UsdValue value={forfeitedBalanceUsd} /> in credits of my account and these teams won&apos;t be refunded.
+                  </>
+                ) : (
+                  <>
+                    I understand my remaining <UsdValue value={forfeitedBalanceUsd} /> in credits won&apos;t be refunded.
+                  </>
+                )}
               </label>
             </div>
           )}

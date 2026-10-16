@@ -59,6 +59,7 @@ describe(ConfirmAccountDeletion.name, () => {
     { outcome: "the link expired", error: refusal(400, "expired_deletion_token"), title: "This link has expired", link: "/user/settings" },
     { outcome: "the link is not valid", error: refusal(400, "invalid_deletion_token"), title: "This link isn't valid", link: "/user/settings" },
     { outcome: "deployments are still active", error: refusal(409, "active_deployments"), title: "Close your deployments first", link: "/deployments" },
+    { outcome: "a team would lose its last owner", error: refusal(409, "last_owner"), title: "Hand over your teams first", link: "/user/settings" },
     { outcome: "credits were added", error: refusal(409, "forfeit_acknowledgement_required"), title: "Your account has new credits", link: "/user/settings" }
   ])("explains what to do when $outcome", async ({ error, title, link }) => {
     const { user, authService } = setup({ token: "link-token", response: Promise.reject(error) });
@@ -68,6 +69,40 @@ describe(ConfirmAccountDeletion.name, () => {
     expect(await screen.findByText(title)).toBeInTheDocument();
     expect(screen.getByRole("link")).toHaveAttribute("href", link);
     expect(authService.logout).not.toHaveBeenCalled();
+  });
+
+  it("names the teams to hand over when the API refuses a last owner, pointing to the deletion dialog in settings", async () => {
+    const error = new ApiError(
+      409,
+      {
+        code: "last_owner",
+        data: {
+          organizations: [
+            { id: "org-9", name: "Globex" },
+            { id: "org-7", name: "Initech" }
+          ]
+        }
+      },
+      "409"
+    );
+    const { user } = setup({ token: "link-token", response: Promise.reject(error) });
+
+    await user.click(screen.getByRole("button", { name: "Delete my account" }));
+
+    expect(
+      await screen.findByText(
+        "You're still the last owner of Globex, Initech. Make another member an owner, then open this link again. The account deletion dialog in your account settings lists the teams to hand over."
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+  });
+
+  it("speaks of the teams in general when the last owner refusal does not name them", async () => {
+    const { user } = setup({ token: "link-token", response: Promise.reject(new ApiError(409, { code: "last_owner", data: { organizations: [] } }, "409")) });
+
+    await user.click(screen.getByRole("button", { name: "Delete my account" }));
+
+    expect(await screen.findByText(/You're still the last owner of teams other people belong to\./)).toBeInTheDocument();
   });
 
   it("lets the user retry after an unexpected failure", async () => {
