@@ -84,9 +84,9 @@ describe(StripeController.name, () => {
       customerService.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
       stripe.createSetupIntent.mockResolvedValue(mock<Stripe.Response<Stripe.SetupIntent>>({ client_secret: clientSecret }));
 
-      const result = await controller.createSetupIntent();
+      const result = await controller.createSetupIntent({ cardOnly: false });
 
-      expect(stripe.createSetupIntent).toHaveBeenCalledWith(user.stripeCustomerId, { isFreeTrial: true });
+      expect(stripe.createSetupIntent).toHaveBeenCalledWith(user.stripeCustomerId, { isFreeTrial: true, isCardOnly: false });
       expect(result).toEqual({ data: { clientSecret } });
     });
 
@@ -98,9 +98,9 @@ describe(StripeController.name, () => {
       customerService.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
       stripe.createSetupIntent.mockResolvedValue(mock<Stripe.Response<Stripe.SetupIntent>>({ client_secret: clientSecret }));
 
-      const result = await controller.createSetupIntent();
+      const result = await controller.createSetupIntent({ cardOnly: false });
 
-      expect(stripe.createSetupIntent).toHaveBeenCalledWith(user.stripeCustomerId, { isFreeTrial: false });
+      expect(stripe.createSetupIntent).toHaveBeenCalledWith(user.stripeCustomerId, { isFreeTrial: false, isCardOnly: false });
       expect(result).toEqual({ data: { clientSecret } });
     });
 
@@ -112,10 +112,21 @@ describe(StripeController.name, () => {
       customerService.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
       stripe.createSetupIntent.mockResolvedValue(mock<Stripe.Response<Stripe.SetupIntent>>({ client_secret: clientSecret }));
 
-      const result = await controller.createSetupIntent();
+      const result = await controller.createSetupIntent({ cardOnly: false });
 
-      expect(stripe.createSetupIntent).toHaveBeenCalledWith(user.stripeCustomerId, { isFreeTrial: true });
+      expect(stripe.createSetupIntent).toHaveBeenCalledWith(user.stripeCustomerId, { isFreeTrial: true, isCardOnly: false });
       expect(result).toEqual({ data: { clientSecret } });
+    });
+
+    it("asks for a card-only setup intent when the caller wants a card only", async () => {
+      const { controller, stripe, customerService, userWalletRepository, user } = setup();
+      userWalletRepository.findOneUsedBy.mockResolvedValue(mock<UserWalletOutput>({ isTrialing: false }));
+      customerService.getStripeCustomerId.mockResolvedValue(user.stripeCustomerId!);
+      stripe.createSetupIntent.mockResolvedValue(mock<Stripe.Response<Stripe.SetupIntent>>({ client_secret: "secret" }));
+
+      await controller.createSetupIntent({ cardOnly: true });
+
+      expect(stripe.createSetupIntent).toHaveBeenCalledWith(user.stripeCustomerId, { isFreeTrial: false, isCardOnly: true });
     });
   });
 
@@ -368,10 +379,10 @@ describe(StripeController.name, () => {
       customerService.getStripeCustomerId.mockResolvedValue(team.stripeCustomerId);
       stripe.createSetupIntent.mockResolvedValue(mock<Stripe.Response<Stripe.SetupIntent>>({ client_secret: "secret" }));
 
-      await controller.createSetupIntent();
+      await controller.createSetupIntent({ cardOnly: false });
 
       expect(customerService.getStripeCustomerId).toHaveBeenCalledWith(team);
-      expect(stripe.createSetupIntent).toHaveBeenCalledWith(team.stripeCustomerId, { isFreeTrial: false });
+      expect(stripe.createSetupIntent).toHaveBeenCalledWith(team.stripeCustomerId, { isFreeTrial: false, isCardOnly: false });
     });
 
     it("never marks a team's setup intent as a free trial, even before the team has a wallet", async () => {
@@ -381,9 +392,9 @@ describe(StripeController.name, () => {
       customerService.getStripeCustomerId.mockResolvedValue(team.stripeCustomerId);
       stripe.createSetupIntent.mockResolvedValue(mock<Stripe.Response<Stripe.SetupIntent>>({ client_secret: "secret" }));
 
-      await controller.createSetupIntent();
+      await controller.createSetupIntent({ cardOnly: false });
 
-      expect(stripe.createSetupIntent).toHaveBeenCalledWith(team.stripeCustomerId, { isFreeTrial: false });
+      expect(stripe.createSetupIntent).toHaveBeenCalledWith(team.stripeCustomerId, { isFreeTrial: false, isCardOnly: false });
     });
 
     it("redeems a coupon for the team without waiting on a trial activation", async () => {

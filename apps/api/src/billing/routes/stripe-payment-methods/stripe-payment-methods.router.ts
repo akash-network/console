@@ -6,6 +6,7 @@ import {
   PaymentMethodResponseSchema,
   PaymentMethodsResponseSchema,
   RemovePaymentMethodParamsSchema,
+  SetupIntentQuerySchema,
   SetupIntentResponseSchema,
   ValidatePaymentMethodRequestSchema,
   ValidatePaymentMethodResponseSchema
@@ -26,7 +27,9 @@ const setupIntentRoute = createRoute({
   tags: ["Payment"],
   security: SECURITY_BEARER_OR_API_KEY,
   hiddenInOpenApiDocs: true,
-  request: {},
+  request: {
+    query: SetupIntentQuerySchema
+  },
   responses: {
     200: {
       description: "SetupIntent created successfully with client secret",
@@ -41,7 +44,7 @@ const setupIntentRoute = createRoute({
 });
 
 stripePaymentMethodsRouter.openapi(setupIntentRoute, async function createSetupIntent(c) {
-  const response = await container.resolve(StripeController).createSetupIntent();
+  const response = await container.resolve(StripeController).createSetupIntent(c.req.valid("query"));
   return c.json(response, 200);
 });
 

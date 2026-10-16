@@ -16,7 +16,7 @@ describe(StripeService.name, () => {
       const stripeData = StripeSeederCreate();
       vi.spyOn(stripe.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
 
-      const result = await service.createSetupIntent(TEST_CONSTANTS.CUSTOMER_ID, { isFreeTrial: false });
+      const result = await service.createSetupIntent(TEST_CONSTANTS.CUSTOMER_ID, { isFreeTrial: false, isCardOnly: false });
       expect(stripe.setupIntents.create).toHaveBeenCalledWith({
         customer: TEST_CONSTANTS.CUSTOMER_ID,
         usage: "off_session",
@@ -30,12 +30,26 @@ describe(StripeService.name, () => {
       const stripeData = StripeSeederCreate();
       vi.spyOn(stripe.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
 
-      const result = await service.createSetupIntent(TEST_CONSTANTS.CUSTOMER_ID, { isFreeTrial: true });
+      const result = await service.createSetupIntent(TEST_CONSTANTS.CUSTOMER_ID, { isFreeTrial: true, isCardOnly: false });
       expect(stripe.setupIntents.create).toHaveBeenCalledWith({
         customer: TEST_CONSTANTS.CUSTOMER_ID,
         usage: "off_session",
         payment_method_types: ["card", "link"],
         metadata: { is_free_trial: "true" }
+      });
+      expect(result).toEqual(stripeData.setupIntent);
+    });
+
+    it("allows only a card on the setup intent when asked for a card only", async () => {
+      const { service, stripe } = setup();
+      const stripeData = StripeSeederCreate();
+      vi.spyOn(stripe.setupIntents, "create").mockResolvedValue(stripeData.setupIntent);
+
+      const result = await service.createSetupIntent(TEST_CONSTANTS.CUSTOMER_ID, { isFreeTrial: false, isCardOnly: true });
+      expect(stripe.setupIntents.create).toHaveBeenCalledWith({
+        customer: TEST_CONSTANTS.CUSTOMER_ID,
+        usage: "off_session",
+        payment_method_types: ["card"]
       });
       expect(result).toEqual(stripeData.setupIntent);
     });

@@ -1,6 +1,19 @@
 import { z } from "@hono/zod-openapi";
 import { differenceInDays } from "date-fns";
 
+export const SetupIntentQuerySchema = z.object({
+  cardOnly: z
+    .enum(["true", "false"])
+    .optional()
+    .transform(value => value === "true")
+    .openapi({
+      type: "string",
+      enum: ["true", "false"],
+      description: "Set to `true` to allow only a card on the SetupIntent. By default it also allows Link.",
+      example: "true"
+    })
+});
+
 export const SetupIntentResponseSchema = z.object({
   data: z.object({
     clientSecret: z.string().nullable()
@@ -260,6 +273,7 @@ export const RemovePaymentMethodParamsSchema = z.object({
   })
 });
 
+export type SetupIntentQuery = z.output<typeof SetupIntentQuerySchema>;
 export type SetupIntentResponse = z.infer<typeof SetupIntentResponseSchema>;
 export type PaymentMethodMarkAsDefaultInput = z.infer<typeof PaymentMethodMarkAsDefaultInputSchema>;
 export type PaymentMethod = z.infer<typeof PaymentMethodSchema>;

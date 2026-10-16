@@ -87,6 +87,54 @@ describe("Organization billing", () => {
       expect(await findUser(owner.id)).toMatchObject({ stripeCustomerId: userCustomerId });
       expect(await findOrganization(team.id)).toMatchObject({ stripeCustomerId: null });
     });
+
+    it("allows a card and Link on the setup intent when no payment methods are asked for", async () => {
+      const { owner, team, headersOf } = await setup();
+      const teamCustomerId = await setTeamCustomer(team.id);
+      const setupIntent = nock(STRIPE_API)
+        .post(
+          "/v1/setup_intents",
+          body => body.customer === teamCustomerId && body["payment_method_types[0]"] === "card" && body["payment_method_types[1]"] === "link"
+        )
+        .reply(200, { id: "seti_1", object: "setup_intent", client_secret: "seti_secret" });
+
+      const response = await app.request("/v1/stripe/payment-methods/setup", { method: "POST", headers: headersOf(owner) });
+
+      expect(response.status).toBe(200);
+      expect(setupIntent.isDone()).toBe(true);
+    });
+
+    it("allows only a card on the setup intent when asked for a card only", async () => {
+      const { owner, team, headersOf } = await setup();
+      const teamCustomerId = await setTeamCustomer(team.id);
+      const setupIntent = nock(STRIPE_API)
+        .post(
+          "/v1/setup_intents",
+          body => body.customer === teamCustomerId && body["payment_method_types[0]"] === "card" && !("payment_method_types[1]" in body)
+        )
+        .reply(200, { id: "seti_1", object: "setup_intent", client_secret: "seti_secret" });
+
+      const response = await app.request("/v1/stripe/payment-methods/setup?cardOnly=true", {
+        method: "POST",
+        body: JSON.stringify({}),
+        headers: { "Content-Type": "application/json", ...headersOf(owner) }
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ data: { clientSecret: "seti_secret" } });
+      expect(setupIntent.isDone()).toBe(true);
+    });
+
+    it("refuses a card-only choice that is neither true nor false", async () => {
+      const { owner, team, headersOf } = await setup();
+      await setTeamCustomer(team.id);
+      const setupIntent = nock(STRIPE_API).post("/v1/setup_intents").reply(200, { id: "seti_1", object: "setup_intent", client_secret: "seti_secret" });
+
+      const response = await app.request("/v1/stripe/payment-methods/setup?cardOnly=yes", { method: "POST", headers: headersOf(owner) });
+
+      expect(response.status).toBe(400);
+      expect(setupIntent.isDone()).toBe(false);
+    });
   });
 
   describe("POST /v1/stripe/payment-methods/setup by a billing member", () => {
