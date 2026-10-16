@@ -251,6 +251,7 @@ describe(useCommandMenuItems.name, () => {
   function listSource(active: ListedDeploymentDto[], closed: ListedDeploymentDto[]): DeploymentsListSource {
     const slice = (deployments: ListedDeploymentDto[]) => ({
       deployments,
+      total: deployments.length,
       hasNextPage: false,
       isResolved: true,
       isFetching: false,
@@ -258,7 +259,7 @@ describe(useCommandMenuItems.name, () => {
       isSearchTooBroad: false
     });
 
-    return { appliedSearch: "", active: slice(active), archive: { ...slice(closed), total: closed.length }, refetch: vi.fn() };
+    return { appliedSearch: "", active: slice(active), archive: slice(closed), refetch: vi.fn() };
   }
 
   function closedLease() {

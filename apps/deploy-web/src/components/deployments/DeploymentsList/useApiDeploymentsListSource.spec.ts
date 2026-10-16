@@ -38,6 +38,7 @@ describe(useApiDeploymentsListSource.name, () => {
     });
 
     expect(result.current.active.deployments.map(deployment => deployment.dseq)).toEqual(["100"]);
+    expect(result.current.active.total).toBe(4);
     expect(result.current.active.hasNextPage).toBe(true);
     expect(result.current.archive.total).toBe(9);
     expect(result.current.archive.hasNextPage).toBe(false);

@@ -21,6 +21,8 @@ export interface DeploymentsListSourceInput {
 
 export interface DeploymentsListSlice {
   deployments: ListedDeploymentDto[];
+  /** Deployments matching the current search, or all of them when there is none; null when the api could not count them. */
+  total: number | null;
   hasNextPage: boolean;
   /** Stays tied to the paged query, so opening a search does not retract what the placeholders wait on. */
   isResolved: boolean;
@@ -30,16 +32,11 @@ export interface DeploymentsListSlice {
   isSearchTooBroad: boolean;
 }
 
-export interface DeploymentsListArchiveSlice extends DeploymentsListSlice {
-  /** Closed deployments matching the current search, or all of them when there is none; null leaves the Archive header without a count. */
-  total: number | null;
-}
-
 export interface DeploymentsListSource {
   /** The search the slices reflect, which a source that paces its requests only catches up to once the pacing commits. */
   appliedSearch: string;
   active: DeploymentsListSlice;
-  archive: DeploymentsListArchiveSlice;
+  archive: DeploymentsListSlice;
   refetch: () => void;
 }
 
@@ -100,6 +97,7 @@ export function useApiDeploymentsListSource(
     appliedSearch: pacedSearch,
     active: {
       deployments: activeDeployments,
+      total: activePage.total,
       hasNextPage: activePage.hasNextPage,
       isResolved: active.data !== undefined,
       isFetching: active.isFetching,

@@ -171,6 +171,8 @@ export function useDeploymentsListModel({ projectId }: { projectId?: string } = 
     isSearching,
     changeSearch,
     pageDeployments,
+    /** Waits for the list to show rows or settle empty, so a count never contradicts a loading or failed list. */
+    activeTotal: hasPageResults || hasSettledWithoutActiveDeployments ? active.total : null,
     archiveTotal,
     hasAnyArchived,
     archivePageDeployments,

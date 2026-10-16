@@ -8,7 +8,7 @@ import type { DeploymentsListProject } from "./DeploymentsList";
 import { DEPENDENCIES, DeploymentsList, MAX_SEARCH_LENGTH } from "./DeploymentsList";
 import type { useDeploymentsListModel } from "./useDeploymentsListModel";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
@@ -32,6 +32,32 @@ describe("DeploymentsList", () => {
 
       expect(screen.getByText("project activity")).toBeInTheDocument();
       expect(screen.getByText("collection")).toBeInTheDocument();
+    });
+
+    it("labels the deployments column with how many are active", () => {
+      setup({ hasPageResults: true, activeTotal: 3 }, { project });
+
+      const column = screen.getByRole("region", { name: "Deployments" });
+      expect(within(column).getByText("Deployments")).toBeInTheDocument();
+      expect(within(column).getByText("3 active")).toBeInTheDocument();
+      expect(within(column).getByText("collection")).toBeInTheDocument();
+      expect(within(column).queryByText("project activity")).not.toBeInTheDocument();
+    });
+
+    it("labels the deployments column above the empty state", () => {
+      setup({ hasSettledWithoutActiveDeployments: true, activeTotal: 0 }, { project });
+
+      const column = screen.getByRole("region", { name: "Deployments" });
+      expect(within(column).getByText("0 active")).toBeInTheDocument();
+      expect(within(column).getByText("empty state")).toBeInTheDocument();
+    });
+
+    it("labels the deployments column without a count while the count is unknown", () => {
+      setup({ activeTotal: null }, { project });
+
+      const column = screen.getByRole("region", { name: "Deployments" });
+      expect(within(column).getByText("Deployments")).toBeInTheDocument();
+      expect(within(column).queryByText(/active$/)).not.toBeInTheDocument();
     });
 
     it("starts new deployments in the project", () => {
@@ -139,6 +165,13 @@ describe("DeploymentsList", () => {
     expect(useDeploymentsListModel).toHaveBeenCalledWith({ projectId: undefined });
     expect(NextSeo.mock.lastCall?.[0]).toEqual({ title: "Deployments" });
     expect(newDeploymentUrl).toHaveBeenCalledWith({ projectId: undefined });
+  });
+
+  it("leaves the column label to the project page, since the page title already names the list", () => {
+    setup({ hasPageResults: true, activeTotal: 3 });
+
+    expect(screen.queryByRole("region", { name: "Deployments" })).not.toBeInTheDocument();
+    expect(screen.queryByText("3 active")).not.toBeInTheDocument();
   });
 
   it("hides the whole header until a wallet exists", () => {
@@ -499,6 +532,7 @@ describe("DeploymentsList", () => {
       isSearching: false,
       changeSearch,
       pageDeployments: [],
+      activeTotal: null,
       archiveTotal: 0,
       hasAnyArchived: false,
       archivePageDeployments: [],

@@ -187,6 +187,32 @@ describe(useDeploymentsListModel.name, () => {
     });
   });
 
+  describe("active count", () => {
+    it("counts every active deployment, not only the page on screen", () => {
+      const { result } = setup({ active: [deployment("100")], activeTotal: 14 });
+
+      expect(result.current.activeTotal).toBe(14);
+    });
+
+    it("counts none once the list settles without active deployments", () => {
+      const { result } = setup({ active: [], activeTotal: 0 });
+
+      expect(result.current.activeTotal).toBe(0);
+    });
+
+    it("leaves the count unknown while the list is loading", () => {
+      const { result } = setup({ active: [], activeTotal: 0, isUnresolved: true });
+
+      expect(result.current.activeTotal).toBeNull();
+    });
+
+    it("leaves the count unknown when the list failed to load", () => {
+      const { result } = setup({ active: [], activeTotal: 0, isError: true });
+
+      expect(result.current.activeTotal).toBeNull();
+    });
+  });
+
   describe("archive paging", () => {
     it("pages the archive at the size the active list is using", () => {
       const { result } = setup({ archived: closedDeployments(DEFAULT_PAGE_SIZE + 3) });
@@ -834,6 +860,7 @@ describe(useDeploymentsListModel.name, () => {
     projectId?: string;
     active?: ListedDeploymentDto[];
     activeByPage?: Record<number, ListedDeploymentDto[]>;
+    activeTotal?: number | null;
     archived?: ListedDeploymentDto[];
     isUnresolved?: boolean;
     isArchiveUnresolved?: boolean;
@@ -871,6 +898,7 @@ describe(useDeploymentsListModel.name, () => {
         appliedSearch: current.appliedSearch ?? search.trim(),
         active: {
           deployments: current.activeByPage ? current.activeByPage[pageIndex] ?? [] : current.active ?? [],
+          total: current.activeTotal ?? null,
           hasNextPage: current.hasNextPage ?? false,
           isResolved: !current.isUnresolved,
           isFetching: current.isFetching ?? false,
