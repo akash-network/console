@@ -1,6 +1,7 @@
 "use client";
 import type { FC } from "react";
 import { Card, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 
 import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
@@ -19,10 +20,13 @@ const LOADING_PLACEHOLDERS = ["first", "second", "third"];
  * shorter endpoint text. Under a fixed layout only the header row's widths count, so the columns are declared
  * there and the body cells carry none.
  */
-const TABLE_LAYOUT = "min-w-[68rem] table-fixed";
+const TABLE_LAYOUT = "table-fixed";
+
+/** The project page's deployments column narrows to 55.5rem beside its aside on a 1280px screen, so this must stay under that. */
+const MIN_TABLE_WIDTH = "min-w-[52rem]";
 
 /** Wide enough for the hardware summary's own fixed columns, and for the checkbox the archive's rows leave out. */
-const HARDWARE_COLUMN = "w-[24.5rem]";
+const HARDWARE_COLUMN = "w-[14rem]";
 const CONTROLS_COLUMN = "w-[6.25rem]";
 
 export interface DeploymentsCollectionProps {
@@ -78,7 +82,7 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
 
   return (
     <div className="overflow-x-auto rounded-md border bg-card">
-      <Table className={TABLE_LAYOUT}>
+      <Table className={cn(MIN_TABLE_WIDTH, TABLE_LAYOUT)}>
         <TableHeader>
           <TableRow>
             <TableHead className="w-52">Status</TableHead>
