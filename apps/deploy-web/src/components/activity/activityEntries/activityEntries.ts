@@ -1,5 +1,5 @@
 import { activityDestinationOf, SUMMARY_DESTINATION } from "@src/components/activity/activityDestinations/activityDestinations";
-import { listOf } from "@src/components/activity/activityLabels/activityLabels";
+import { listOf, systemCloseOf } from "@src/components/activity/activityLabels/activityLabels";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 
 /** `partial` is a bulk close that closed some of its deployments and not others. */
@@ -40,10 +40,11 @@ export function activityEntriesOf(activities: Activity[], labelDeployment: Label
 }
 
 export function activityEntryOf(activity: Activity, labelDeployment: LabelDeployment): ActivityEntry {
-  const { id, status, meta, createdAt } = activity;
+  const { id, status, initiator, meta, createdAt } = activity;
   const deployment = labelDeployment(meta.dseq);
   const { href } = activityDestinationOf(activity);
 
+  if (initiator === "system") return { id, status, ...systemCloseOf(deployment, meta.reason), href, createdAt };
   if (status === "pending") return { id, status, title: `Closing ${deployment}`, href, createdAt };
   if (status === "succeeded") return { id, status, title: `Closed ${deployment}`, href, createdAt };
 
