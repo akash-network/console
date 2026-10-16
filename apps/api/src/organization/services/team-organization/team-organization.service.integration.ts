@@ -247,6 +247,63 @@ describe(TeamOrganizationService.name, () => {
         .where(eq(resolveTable("Organizations").id, team.id));
       expect(renamed).toMatchObject({ name: "Acme Labs", slug: team.slug });
     });
+
+    it("records the rename in the team's activity, by the caller, with the names before and after", async () => {
+      const { service, user, runAs, activitiesOf } = await setup();
+      const { organization: team } = await seedOrganizationWithOwner({ name: "Acme Corp" });
+      await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: "admin" });
+
+      await runAs(
+        user,
+        () => service.rename(team.id, "Acme Labs"),
+        createOrganizationContext({ organizationId: team.id, organizationType: "team", role: "admin" })
+      );
+
+      expect(await activitiesOf({ organizationId: team.id })).toEqual([
+        expect.objectContaining({
+          type: "organization_renamed",
+          actorUserId: user.id,
+          projectId: null,
+          payload: { fromName: "Acme Corp", toName: "Acme Labs" }
+        })
+      ]);
+    });
+
+    it("keeps the old name and records nothing when the rename fails after recording it", async () => {
+      const { service, user, runAs, activitiesOf, readTeam } = await setup();
+      const { organization: team } = await seedOrganizationWithOwner({ name: "Acme Corp" });
+      await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: "owner" });
+      const organizationActivityService = container.resolve(OrganizationActivityService);
+      const record = organizationActivityService.record.bind(organizationActivityService);
+      vi.spyOn(organizationActivityService, "record").mockImplementation(async activity => {
+        await record(activity);
+        throw new Error("failed after recording");
+      });
+
+      await expect(
+        runAs(user, () => service.rename(team.id, "Acme Labs"), createOrganizationContext({ organizationId: team.id, organizationType: "team" }))
+      ).rejects.toThrow("failed after recording");
+
+      expect((await readTeam(team.id)).organization).toMatchObject({ name: "Acme Corp" });
+      expect(await activitiesOf({ organizationId: team.id })).toEqual([]);
+    });
+
+    it("records each of two concurrent renames from the name the other left, so the renames chain to the stored name", async () => {
+      const { service, user, runAs, activitiesOf, readTeam } = await setup();
+      const { organization: team } = await seedOrganizationWithOwner({ name: "Acme Corp" });
+      await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: "owner" });
+      const context = createOrganizationContext({ organizationId: team.id, organizationType: "team" });
+
+      await Promise.all([runAs(user, () => service.rename(team.id, "Acme Labs"), context), runAs(user, () => service.rename(team.id, "Acme Works"), context)]);
+
+      const renames = (await activitiesOf({ organizationId: team.id })).map(activity => activity.payload);
+      const first = renames.find(payload => payload.fromName === "Acme Corp");
+      const second = renames.find(payload => payload !== first);
+      expect(renames).toHaveLength(2);
+      expect([first?.toName, second?.toName].sort()).toEqual(["Acme Labs", "Acme Works"]);
+      expect(second?.fromName).toBe(first?.toName);
+      expect((await readTeam(team.id)).organization.name).toBe(second?.toName);
+    });
   });
 
   function uniqueName() {

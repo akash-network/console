@@ -26305,7 +26305,8 @@
                               "deployment_moved",
                               "member_granted",
                               "member_revoked",
-                              "member_updated"
+                              "member_updated",
+                              "organization_renamed"
                             ]
                           },
                           "payload": {
@@ -27602,6 +27603,11 @@
                     "data": {
                       "type": "object",
                       "properties": {
+                        "organizationId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "The organization the invitation joins, the same id it has once the invitee is a member."
+                        },
                         "organizationName": {
                           "type": "string"
                         },
@@ -27638,6 +27644,7 @@
                         }
                       },
                       "required": [
+                        "organizationId",
                         "organizationName",
                         "inviterName",
                         "role",

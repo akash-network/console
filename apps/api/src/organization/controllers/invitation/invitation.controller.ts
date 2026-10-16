@@ -21,9 +21,9 @@ export class InvitationController {
   ) {}
 
   async preview({ token }: PreviewInvitationRequest["data"]): Promise<InvitationPreviewResponse> {
-    const { organizationName, inviterName, role, email, status, expiresAt } = await this.invitationAcceptanceService.getPreview(token);
+    const { organizationId, organizationName, inviterName, role, email, status, expiresAt } = await this.invitationAcceptanceService.getPreview(token);
 
-    return { data: { organizationName, inviterName, role, email, status, expiresAt: expiresAt.toISOString() } };
+    return { data: { organizationId, organizationName, inviterName, role, email, status, expiresAt: expiresAt.toISOString() } };
   }
 
   @Protected()

@@ -18,6 +18,7 @@ export const PreviewInvitationRequestSchema = z.object({
 
 export const InvitationPreviewResponseSchema = z.object({
   data: z.object({
+    organizationId: z.string().uuid().openapi({ description: "The organization the invitation joins, the same id it has once the invitee is a member." }),
     organizationName: z.string(),
     inviterName: z.string().nullable(),
     role: z.enum(organizationRoleEnum.enumValues),

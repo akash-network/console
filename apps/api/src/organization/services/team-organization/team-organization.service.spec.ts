@@ -224,9 +224,10 @@ describe(TeamOrganizationService.name, () => {
       expect(organizationRepository.updateBy).toHaveBeenCalledWith({ id: context.organizationId, deletedAt: null }, { name: "Acme Labs" }, { returning: true });
     });
 
-    it("locks the organization, then the caller, then checks the name in the transaction that renames", async () => {
+    it("locks the organization, then the caller, then checks the name and records the rename in the transaction that renames", async () => {
       const context = createOrganizationContext({ organizationType: "team" });
-      const { service, user, organizationRepository, organizationMemberRepository, calls } = setup({ context });
+      const renamed = createOrganization({ id: context.organizationId, name: "Acme Labs" });
+      const { service, user, organizationRepository, organizationMemberRepository, calls } = setup({ context, renamed });
 
       await service.rename(context.organizationId, "Acme Labs");
 
@@ -239,8 +240,34 @@ describe(TeamOrganizationService.name, () => {
         "lockUserForOrganizationChanges",
         "isMemberOfOrganizationNamed",
         "updateBy",
+        "record",
         "transaction:end"
       ]);
+    });
+
+    it("records the rename in the team's activity, by the caller, from the old name to the new one", async () => {
+      const context = createOrganizationContext({ organizationType: "team" });
+      const renamed = createOrganization({ id: context.organizationId, name: "Acme Labs" });
+      const { service, user, organization, organizationActivityService } = setup({ context, renamed });
+
+      await service.rename(context.organizationId, "Acme Labs");
+
+      expect(organizationActivityService.record).toHaveBeenCalledTimes(1);
+      expect(organizationActivityService.record).toHaveBeenCalledWith({
+        organizationId: context.organizationId,
+        type: "organization_renamed",
+        actorUserId: user.id,
+        payload: { fromName: organization.name, toName: "Acme Labs" }
+      });
+    });
+
+    it("records nothing when the name stays the same", async () => {
+      const context = createOrganizationContext({ organizationType: "team" });
+      const { service, organization, organizationActivityService } = setup({ context });
+
+      await service.rename(context.organizationId, organization.name);
+
+      expect(organizationActivityService.record).not.toHaveBeenCalled();
     });
 
     it("answers not found without locking the caller when the organization cannot be locked for update", async () => {
@@ -254,10 +281,11 @@ describe(TeamOrganizationService.name, () => {
 
     it("refuses a name the caller already uses for another organization", async () => {
       const context = createOrganizationContext({ organizationType: "team" });
-      const { service, organizationRepository } = setup({ context, nameTaken: true });
+      const { service, organizationRepository, organizationActivityService } = setup({ context, nameTaken: true });
 
       await expect(service.rename(context.organizationId, "Acme Labs")).rejects.toMatchObject({ status: 409, errorCode: ORGANIZATION_NAME_TAKEN_ERROR_CODE });
       expect(organizationRepository.updateBy).not.toHaveBeenCalled();
+      expect(organizationActivityService.record).not.toHaveBeenCalled();
     });
 
     it("answers not found for an organization other than the active one", async () => {
@@ -303,11 +331,12 @@ describe(TeamOrganizationService.name, () => {
       await expect(service.rename(context.organizationId, "Acme Labs")).resolves.toMatchObject({ organization });
     });
 
-    it("answers not found when the organization was deleted meanwhile", async () => {
+    it("answers not found when the organization was deleted meanwhile, without recording a rename", async () => {
       const context = createOrganizationContext({ organizationType: "team" });
-      const { service } = setup({ context, renamed: null });
+      const { service, organizationActivityService } = setup({ context, renamed: null });
 
       await expect(service.rename(context.organizationId, "Acme Labs")).rejects.toMatchObject({ status: 404, message: "Organization not found" });
+      expect(organizationActivityService.record).not.toHaveBeenCalled();
     });
   });
 
@@ -384,6 +413,9 @@ describe(TeamOrganizationService.name, () => {
     const organizationActivityService = mock<OrganizationActivityService>();
     organizationActivityService.recordTeamCreated.mockImplementation(async () => {
       calls.push("recordTeamCreated");
+    });
+    organizationActivityService.record.mockImplementation(async () => {
+      calls.push("record");
     });
     const executionContextService = mock<ExecutionContextService>();
     executionContextService.get.calledWith("ORGANIZATION_CONTEXT").mockReturnValue(context);

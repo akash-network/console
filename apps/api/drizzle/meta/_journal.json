@@ -617,6 +617,13 @@
       "when": 1792170229483,
       "tag": "0087_one_first_purchase_bonus_per_user",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1792171926888,
+      "tag": "0088_organization_renamed_activity",
+      "breakpoints": true
     }
   ]
 }

@@ -348,6 +348,7 @@ describe(InvitationAcceptanceService.name, () => {
 
   function createPreview(overrides: Partial<OrganizationInvitationPreview> = {}): OrganizationInvitationPreview {
     return {
+      organizationId: faker.string.uuid(),
       organizationName: faker.company.name(),
       inviterName: faker.internet.userName(),
       role: "member",
