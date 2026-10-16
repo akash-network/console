@@ -17,6 +17,7 @@ import { app } from "@src/rest-app";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import {
+  seedOrganization,
   seedOrganizationInvitation,
   seedOrganizationMember,
   seedOrganizationWithOwner,
@@ -76,6 +77,8 @@ const providerTokenFor = (dseq: string, scope: string[] = ["logs", "shell"]) => 
 
 const READ_ONLY_SCOPE = ["status", "events", "logs"];
 
+const MAX_ACKNOWLEDGED_FORFEIT_USD = 1_000_000;
+
 const CALLERS: Caller[] = ["owner", "admin", "member", "billing", "viewer", "projectKey"];
 
 const access = (owner: number, admin: number, member: number, billing: number, viewer: number, projectKey: number): Record<Caller, number> => ({
@@ -92,6 +95,16 @@ const ROUTE_ACCESS: RouteAccess[] = [
     route: "PATCH /v1/organizations/{id}",
     request: team => patch(`/v1/organizations/${team.organizationId}`, { name: "Renamed" }),
     statusFor: access(200, 200, 403, 403, 403, 403)
+  },
+  {
+    route: "DELETE /v1/organizations/{id}",
+    request: team => remove(`/v1/organizations/${team.organizationId}?acknowledgedForfeitUsd=${MAX_ACKNOWLEDGED_FORFEIT_USD}`),
+    statusFor: access(204, 403, 403, 403, 403, 403)
+  },
+  {
+    route: "GET /v1/user/me/deletion-eligibility",
+    request: () => get("/v1/user/me/deletion-eligibility"),
+    statusFor: access(200, 200, 200, 200, 200, 403)
   },
   { route: "GET /v1/organization-members", request: () => get("/v1/organization-members"), statusFor: access(200, 200, 200, 200, 200, 403) },
   {
@@ -320,6 +333,17 @@ describe("Team role access", () => {
     expect(data.total !== null).toBe(seesTotal);
   });
 
+  it("refuses its owner the deletion of a personal organization on its own", async () => {
+    const { team, send, credentialsOf } = await setup();
+    const personal = await seedOrganization({ type: "personal", createdByUserId: team.ownerUserId });
+    await seedOrganizationMember({ organizationId: personal.id, userId: team.ownerUserId, role: "owner" });
+
+    const response = await send(remove(`/v1/organizations/${personal.id}`), { ...credentialsOf("owner"), "x-organization-id": personal.id });
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: "personal_organization" });
+  });
+
   async function seedTeam(sessions: Map<string, string>) {
     const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
     const { user: owner, organization, project: defaultProject } = await seedOrganizationWithOwner({ stripeCustomerId, user: { userId: faker.string.uuid() } });
@@ -467,7 +491,11 @@ describe("Team role access", () => {
           : [404, createDeploymentInfoErrorSeed()];
       })
       .get(uri => uri.includes("/leases/list"))
-      .reply(200, { leases: [], pagination: { next_key: null, total: "0" } });
+      .reply(200, { leases: [], pagination: { next_key: null, total: "0" } })
+      .get(uri => uri.includes("/deployments/list"))
+      .reply(200, { deployments: [], pagination: { next_key: null, total: "0" } })
+      .get(uri => uri.includes("/cosmos/authz/v1beta1/grants"))
+      .reply(200, { grants: [], pagination: { next_key: null, total: "0" } });
   }
 
   function answerNotifications() {
