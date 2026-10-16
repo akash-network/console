@@ -9,7 +9,7 @@ import type { OrganizationOutput, OrganizationRole } from "@src/types/organizati
 import type { Project } from "@src/types/project";
 import type { ProjectSpendReport } from "@src/types/project-budget";
 import { perBlockToHourly } from "@src/utils/priceUtils";
-import { buildUsageCsv } from "./buildUsageCsv";
+import { buildProjectUsageCsv, buildUsageCsv } from "./buildUsageCsv";
 import { deploymentRowsOf, projectSpendRowsOf, scopeUsage } from "./teamUsage";
 import type { ChildrenProps, DEPENDENCIES } from "./UsageContainer";
 import { UsageContainer } from "./UsageContainer";
@@ -395,17 +395,85 @@ describe(UsageContainer.name, () => {
 
   it("downloads the usage on screen as a CSV", async () => {
     const { child, usageHistory, usageStats } = await setup();
-    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:usage");
-    const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-    onTestFinished(() => [createObjectURL, revokeObjectURL, click].forEach(spy => spy.mockRestore()));
+    const downloads = spyOnDownloads();
 
     child.onExport();
 
-    const blob = createObjectURL.mock.calls[0][0] as Blob;
-    expect(blob.type).toBe("text/csv;charset=utf-8;");
-    expect(await blob.text()).toBe(buildUsageCsv(usageHistory!, usageStats!));
-    expect(click.mock.contexts[0]).toHaveAttribute("download", "akash_billing_usage.csv");
+    expect(await downloads.last()).toEqual({
+      type: "text/csv;charset=utf-8;",
+      content: buildUsageCsv(usageHistory!, usageStats!),
+      filename: "akash_billing_usage.csv"
+    });
+  });
+
+  it("downloads nothing while the export is held back", async () => {
+    const { child } = await setup({ usageHistory: undefined });
+    const downloads = spyOnDownloads();
+
+    child.onExport();
+
+    expect(downloads.count()).toBe(0);
+  });
+
+  it("keeps downloading the wallet's usage for a team shown across every project", async () => {
+    const { child, usageHistory, usageStats } = await setup({ ...TEAM_OWNER, deploymentSpend: buildDeploymentSpend(0) });
+    const downloads = spyOnDownloads();
+
+    child.onExport();
+
+    expect(await downloads.last()).toEqual(
+      expect.objectContaining({ content: buildUsageCsv(usageHistory!, usageStats!), filename: "akash_billing_usage.csv" })
+    );
+  });
+
+  it("downloads the picked project's daily spend over the range on screen in a file named after it", async () => {
+    const report = buildDeploymentSpend(0);
+    const { child, childCapturer } = await setup({
+      ...TEAM_OWNER,
+      deploymentSpend: report,
+      projects: [mock<Project>({ id: "storefront", name: "Checkout API", slug: "storefront" })]
+    });
+    const downloads = spyOnDownloads();
+
+    act(() => child.projectScope!.onChange("storefront"));
+    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "storefront");
+    narrowed.onExport();
+
+    const { dailySpend, stats } = scopeUsage(report, "storefront");
+    expect(narrowed.canExport).toBe(true);
+    expect(await downloads.last()).toEqual({
+      type: "text/csv;charset=utf-8;",
+      content: buildProjectUsageCsv(dailySpend, stats),
+      filename: "akash_billing_usage_checkout-api.csv"
+    });
+  });
+
+  it("names the file after the project's slug when its name has no latin letter or digit", async () => {
+    const { child, childCapturer } = await setup({
+      ...TEAM_OWNER,
+      deploymentSpend: buildDeploymentSpend(0),
+      projects: [mock<Project>({ id: "storefront", name: "店舗", slug: "project-1a2b3c4d" })]
+    });
+    const downloads = spyOnDownloads();
+
+    act(() => child.projectScope!.onChange("storefront"));
+    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "storefront");
+    narrowed.onExport();
+
+    expect(await downloads.last()).toEqual(expect.objectContaining({ filename: "akash_billing_usage_project-1a2b3c4d.csv" }));
+  });
+
+  it.each([
+    { case: "its deployment spend loads", input: { isDeploymentSpendLoading: true } },
+    { case: "its deployment spend fails to load", input: { deploymentSpend: buildDeploymentSpend(0), isDeploymentSpendError: true } },
+    { case: "the team's projects load", input: { deploymentSpend: buildDeploymentSpend(0), projects: undefined } }
+  ])("holds the picked project's export back while $case", async ({ input }) => {
+    const { child, childCapturer } = await setup({ ...TEAM_OWNER, projects: [mock<Project>({ id: "storefront", name: "Storefront" })], ...input });
+
+    act(() => child.projectScope!.onChange("storefront"));
+    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "storefront");
+
+    expect(narrowed.canExport).toBe(false);
   });
 
   async function setup(
@@ -533,6 +601,21 @@ function buildDeploymentSpend(periodsAgo: number, scale = 1): DeploymentSpendRep
       { dseq: "1", name: "web", projectId: "storefront", consumedUsd: 4 * scale, hours: 24 },
       { dseq: "2", name: null, projectId: "marketing", consumedUsd: 6 * scale, hours: 24 }
     ]
+  };
+}
+
+function spyOnDownloads() {
+  const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:usage");
+  const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+  const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  onTestFinished(() => [createObjectURL, revokeObjectURL, click].forEach(spy => spy.mockRestore()));
+
+  return {
+    count: () => createObjectURL.mock.calls.length,
+    last: async () => {
+      const blob = createObjectURL.mock.calls.at(-1)![0] as Blob;
+      return { type: blob.type, content: await blob.text(), filename: (click.mock.contexts.at(-1) as HTMLAnchorElement).getAttribute("download") };
+    }
   };
 }
 

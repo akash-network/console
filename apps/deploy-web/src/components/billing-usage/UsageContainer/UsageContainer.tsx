@@ -11,12 +11,14 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useUsage, useUsageStats } from "@src/queries";
 import { useDeploymentSpendQuery, useProjectSpendQuery } from "@src/queries/useProjectBudgetQueries";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
-import type { UsageHistoryStats } from "@src/types";
+import type { UsageHistory, UsageHistoryStats } from "@src/types";
 import type { DeploymentSpendReport } from "@src/types/deployment-spend";
+import { MAX_PROJECT_SLUG_LENGTH, type Project } from "@src/types/project";
 import type { SpendRange } from "@src/types/project-budget";
 import { createDateRange } from "@src/utils/dateUtils";
 import { downloadCsv } from "@src/utils/domUtils";
-import { buildUsageCsv } from "./buildUsageCsv";
+import { slugify } from "@src/utils/slugify";
+import { buildProjectUsageCsv, buildUsageCsv } from "./buildUsageCsv";
 import { getSpendChangePercent } from "./getSpendChangePercent";
 import { deploymentRowsOf, hourlyRateOf, type ProjectScope, projectSeriesOf, projectSpendRowsOf, type ScopedUsage, scopeUsage } from "./teamUsage";
 import {
@@ -45,6 +47,8 @@ const EMPTY_USAGE_STATS: UsageHistoryStats = {
   totalDeployments: 0,
   averageDeploymentsPerDay: 0
 };
+
+const USAGE_EXPORT_FILENAME = "akash_billing_usage";
 
 export type ProjectScopeControl = {
   projects: Array<{ id: string; name: string }>;
@@ -86,6 +90,8 @@ type UsageFigures = Pick<
 
 type ReportQuery = { data?: DeploymentSpendReport; isLoading: boolean; isError: boolean };
 
+type UsageExport = { filename: string; buildCsv: () => string };
+
 export type UsageContainerProps = {
   children: (props: ChildrenProps) => React.ReactNode;
   dependencies?: typeof DEPENDENCIES;
@@ -112,7 +118,8 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
   const scopedUsage = teamSpend.data && scopeUsage(teamSpend.data, projectScope);
   const scopeProjects = (projects.data ?? []).map(({ id, name }) => ({ id, name }));
   const isScopedToProject = isTeamUsage && projectScope !== null;
-  const scopedProjectName = projectScope === null ? null : scopeProjects.find(({ id }) => id === projectScope)?.name ?? "this project";
+  const scopedProject = projects.data?.find(({ id }) => id === projectScope);
+  const scopedProjectName = projectScope === null ? null : scopedProject?.name ?? "this project";
 
   const usageHistoryData = usageHistory.data ?? [];
   const usageHistoryStatsData = usageStats.data ?? EMPTY_USAGE_STATS;
@@ -140,9 +147,14 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
     setDatePreset(preset);
   };
 
+  const usageExport = isScopedToProject
+    ? projectUsageExportOf({ usage: scopedUsage, project: scopedProject, isError: teamSpend.isError })
+    : walletUsageExportOf({ history: usageHistory, stats: usageStats });
+
   const exportCsv = () => {
-    const csv = new Blob([buildUsageCsv(usageHistoryData, usageHistoryStatsData)], { type: "text/csv;charset=utf-8;" });
-    downloadCsv(csv, "akash_billing_usage");
+    if (usageExport) {
+      downloadCsv(new Blob([usageExport.buildCsv()], { type: "text/csv;charset=utf-8;" }), usageExport.filename);
+    }
   };
 
   return (
@@ -168,7 +180,7 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
         onDateRangeChange: changeDateRange,
         datePreset,
         onDatePresetChange: changeDatePreset,
-        canExport: !!usageHistory.data && !!usageStats.data && !usageHistory.isError && !usageStats.isError,
+        canExport: usageExport !== null,
         onExport: exportCsv,
         projectSpend:
           isTeamUsage && !isScopedToProject
@@ -237,6 +249,42 @@ function dailySpendBreakdownOf({
   }
 
   return { caption: "Each bar is one day's total, split by project", series: report ? projectSeriesOf(report, onSelect) : [] };
+}
+
+function walletUsageExportOf({
+  history,
+  stats
+}: {
+  history: { data?: UsageHistory; isError: boolean };
+  stats: { data?: UsageHistoryStats; isError: boolean };
+}): UsageExport | null {
+  const { data: historyData } = history;
+  const { data: statsData } = stats;
+  if (!historyData || !statsData || history.isError || stats.isError) {
+    return null;
+  }
+
+  return { filename: USAGE_EXPORT_FILENAME, buildCsv: () => buildUsageCsv(historyData, statsData) };
+}
+
+/** A name with no latin letter or digit slugifies to nothing, and the api gave such a project a generated slug instead. */
+function projectUsageExportOf({
+  usage,
+  project,
+  isError
+}: {
+  usage: ScopedUsage | undefined;
+  project: Project | undefined;
+  isError: boolean;
+}): UsageExport | null {
+  if (!usage || !project || isError) {
+    return null;
+  }
+
+  return {
+    filename: `${USAGE_EXPORT_FILENAME}_${slugify(project.name, MAX_PROJECT_SLUG_LENGTH) || project.slug}`,
+    buildCsv: () => buildProjectUsageCsv(usage.dailySpend, usage.stats)
+  };
 }
 
 function toSpendRange({ from, to }: UsageDateRange): SpendRange {
