@@ -7377,6 +7377,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/deployment-spend": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Report what the active organization's deployments consumed over a date range, per deployment and per project and day */
+    get: operations["listDeploymentSpend"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/project-budgets": {
     parameters: {
       query?: never;
@@ -15250,6 +15267,90 @@ export interface operations {
                 /** @description Part of `consumedUsd` accrued since the deployment was last settled, an estimate until it is */
                 estimatedConsumedUsd: number;
               } | null;
+            };
+          };
+        };
+      };
+      /** @description Dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listDeploymentSpend: {
+    parameters: {
+      query?: {
+        startDate?: string;
+        endDate?: string;
+      };
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Spend of the deployments in the projects the caller can see, with the deployments filed in no project when the caller can see the whole organization */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              startDate: string;
+              endDate: string;
+              /** @description The projects the caller can see, and deleted ones that have spend in the range */
+              projects: {
+                /** Format: uuid */
+                projectId: string;
+                name: string;
+                isDefault: boolean;
+                isDeleted: boolean;
+              }[];
+              /** @description Each project's spend per day, leaving out days it spent nothing */
+              days: {
+                /**
+                 * @description The UTC day (YYYY-MM-DD)
+                 * @example 2026-10-01
+                 */
+                date: string;
+                /**
+                 * Format: uuid
+                 * @description Null for the deployments filed in no project
+                 */
+                projectId: string | null;
+                /** @description What the project's leases cost that day, including costs not settled yet */
+                consumedUsd: number;
+              }[];
+              /** @description The deployments that held a lease in the range, most spent first */
+              deployments: {
+                dseq: string;
+                name: string | null;
+                /**
+                 * Format: uuid
+                 * @description Null for a deployment filed in no project
+                 */
+                projectId: string | null;
+                /** @description What the deployment's leases cost over the range, including costs not settled yet */
+                consumedUsd: number;
+                /** @description How long the deployment held a lease over the range */
+                hours: number;
+              }[];
             };
           };
         };
