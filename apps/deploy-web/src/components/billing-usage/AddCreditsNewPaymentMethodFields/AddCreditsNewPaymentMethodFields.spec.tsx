@@ -135,6 +135,18 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     expect(onPaymentTypeChange).toHaveBeenCalledWith("us_bank_account");
   });
 
+  it("ignores a payment method change when nobody listens for it", () => {
+    const PaymentElement = ((props: { onChange?: (event: { value: { type: string } }) => void }) => (
+      <button type="button" onClick={() => props.onChange?.({ value: { type: "card" } })}>
+        choose card
+      </button>
+    )) as unknown as typeof DEPENDENCIES.PaymentElement;
+
+    setup({ isLoading: false, clientSecret: "seti_secret", dependencies: { PaymentElement } });
+
+    expect(() => fireEvent.click(screen.getByRole("button", { name: /choose card/i }))).not.toThrow();
+  });
+
   it("keeps the Stripe fields mounted while disabling and re-enabling interaction", () => {
     const { rerender } = setup({ isLoading: false, clientSecret: "seti_secret" });
     const elements = screen.getByTestId("stripe-elements");
