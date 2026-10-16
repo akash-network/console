@@ -278,6 +278,47 @@ describe(ActivityRepository.name, () => {
     });
   });
 
+  describe("deleteSettledCreatedBefore", () => {
+    it("deletes succeeded and failed activities created before the cutoff and keeps pending and newer ones", async () => {
+      const { repository, createUser, seed } = setup();
+      const owner = await createUser();
+      const stranger = await createUser();
+      const oldSucceeded = await seed(owner.id, { status: "succeeded", createdAt: new Date("2019-12-01T00:00:00.000Z") });
+      const oldFailed = await seed(stranger.id, { status: "failed", createdAt: new Date("2019-12-02T00:00:00.000Z") });
+      const oldPending = await seed(owner.id, { status: "pending", createdAt: new Date("2019-11-01T00:00:00.000Z") });
+      const atCutoff = await seed(owner.id, { status: "succeeded", createdAt: new Date("2020-01-01T00:00:00.000Z") });
+      const newer = await seed(owner.id, { status: "failed", createdAt: new Date("2020-01-02T00:00:00.000Z") });
+
+      const deleted = await repository.deleteSettledCreatedBefore(new Date("2020-01-01T00:00:00.000Z"), 100);
+
+      expect(deleted).toBe(2);
+      expect(await repository.findById(oldSucceeded.id)).toBeUndefined();
+      expect(await repository.findById(oldFailed.id)).toBeUndefined();
+      expect(await repository.findById(oldPending.id)).toEqual(oldPending);
+      expect(await repository.findById(atCutoff.id)).toEqual(atCutoff);
+      expect(await repository.findById(newer.id)).toEqual(newer);
+    });
+
+    it("deletes at most the given number of activities a call, oldest first", async () => {
+      const { repository, createUser, seed } = setup();
+      const owner = await createUser();
+      const newest = await seed(owner.id, { createdAt: new Date("2017-03-01T00:00:00.000Z") });
+      const oldest = await seed(owner.id, { createdAt: new Date("2017-01-01T00:00:00.000Z") });
+      const middle = await seed(owner.id, { createdAt: new Date("2017-02-01T00:00:00.000Z") });
+      const cutoff = new Date("2018-01-01T00:00:00.000Z");
+
+      const firstBatch = await repository.deleteSettledCreatedBefore(cutoff, 2);
+      const remaining = await Promise.all([oldest, middle, newest].map(activity => repository.findById(activity.id)));
+      const secondBatch = await repository.deleteSettledCreatedBefore(cutoff, 2);
+      const thirdBatch = await repository.deleteSettledCreatedBefore(cutoff, 2);
+
+      expect(firstBatch).toBe(2);
+      expect(remaining).toEqual([undefined, undefined, newest]);
+      expect([secondBatch, thirdBatch]).toEqual([1, 0]);
+      expect(await repository.findById(newest.id)).toBeUndefined();
+    });
+  });
+
   function setup() {
     const repository = container.resolve(ActivityRepository);
     const userRepository = container.resolve(UserRepository);
