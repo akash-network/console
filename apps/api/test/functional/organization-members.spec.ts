@@ -146,6 +146,46 @@ describe("Organization members", () => {
       expect(await grants.json()).toEqual({ data: [{ projectId: administered.id, role: "admin" }] });
     });
 
+    it("reads and edits the whole grant set of a member when the request is narrowed to one project", async () => {
+      const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: "member" });
+      const [narrowedTo, other, administered] = await Promise.all([
+        seedProject({ organizationId: organization.id }),
+        seedProject({ organizationId: organization.id }),
+        seedProject({ organizationId: organization.id })
+      ]);
+      await seedProjectMember({ organizationId: organization.id, projectId: other.id, userId: target.id, role: "member" });
+      await seedProjectMember({ organizationId: organization.id, projectId: administered.id, userId: target.id, role: "admin" });
+      const narrowed = { asUser: owner, organizationId: organization.id, projectId: narrowedTo.id };
+      const memberPath = `/v1/organization-members/${membershipOf(target).id}`;
+      const grantsHeld = async (options: { projectId?: string } = {}) => {
+        const response = await request("GET", `${memberPath}/project-grants`, { asUser: owner, organizationId: organization.id, ...options });
+        const { data } = (await response.json()) as { data: { projectId: string; role: string }[] };
+        return data.map(grant => `${grant.projectId}:${grant.role}`).sort();
+      };
+
+      const listedGrants = await grantsHeld({ projectId: narrowedTo.id });
+      const replaced = await request("PATCH", memberPath, {
+        ...narrowed,
+        body: {
+          data: {
+            projectGrants: [
+              { projectId: narrowedTo.id, role: "viewer" },
+              { projectId: administered.id, role: "admin" }
+            ]
+          }
+        }
+      });
+      const afterReplacement = await grantsHeld();
+      const switched = await request("PATCH", memberPath, { ...narrowed, body: { data: { projectAccess: "all" } } });
+      const afterSwitch = await grantsHeld();
+
+      expect(listedGrants).toEqual([`${other.id}:member`, `${administered.id}:admin`].sort());
+      expect(replaced.status).toBe(200);
+      expect(afterReplacement).toEqual([`${narrowedTo.id}:viewer`, `${administered.id}:admin`].sort());
+      expect(switched.status).toBe(200);
+      expect(afterSwitch).toEqual([`${administered.id}:admin`]);
+    });
+
     it("changes neither the role nor the grants when a grant names a deleted project", async () => {
       const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: "member" });
       const [kept, deleted] = await Promise.all([

@@ -60,7 +60,7 @@ export class OrganizationMemberService {
     const { organizationId } = this.#activeOrganization();
     const member = await this.#findMember(id);
 
-    return await this.projectMemberRepository.accessibleBy(this.authService.ability, "read").findLiveGrantsOf(organizationId, member.userId);
+    return await this.#memberGrants().findLiveGrantsOf(organizationId, member.userId);
   }
 
   /** Changes the role, the project access and the grants together, so a failure leaves all three as they were. */
@@ -197,13 +197,18 @@ export class OrganizationMemberService {
   async #applyProjectGrants({ organizationId, userId }: OrganizationMemberOutput, { role, projectAccess, projectGrants }: MemberAccess): Promise<void> {
     if (!holdsProjectGrants(role)) return;
 
-    const grantRepository = this.projectMemberRepository.accessibleBy(this.authService.ability, "update");
+    const grantRepository = this.#memberGrants();
 
     if (projectAccess === "all") {
       await grantRepository.deleteGrantsBelowAdminOf({ organizationId, userId });
     } else if (projectGrants) {
       await grantRepository.replaceGrantsOf({ organizationId, userId }, projectGrants);
     }
+  }
+
+  /** A member's grants are read and replaced across the organization, since a request narrowed to one project would leave the others behind. */
+  #memberGrants(): ProjectMemberRepository {
+    return this.projectMemberRepository.unscoped("member-project-grants");
   }
 
   #assertOwnerRoleUntouchedByNonOwner(owners: OrganizationMemberOutput[], roles: OrganizationRole[]) {

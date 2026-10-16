@@ -11,6 +11,7 @@ export const UNSCOPED_REASONS = [
   "invitation-email-limits",
   "invitation-email-retention",
   "member-access-validation",
+  "member-project-grants",
   "organization-creation",
   "organization-deletion",
   "own-memberships",

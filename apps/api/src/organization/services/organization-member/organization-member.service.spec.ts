@@ -57,14 +57,14 @@ describe(OrganizationMemberService.name, () => {
   });
 
   describe("listProjectGrantsOf", () => {
-    it("lists the live project grants of a member of the active organization through the caller's grant rules", async () => {
+    it("lists the live project grants a member of the active organization holds across it", async () => {
       const member = createOrganizationMember({ role: "member" });
       const grants: ProjectGrantOfMember[] = [{ projectId: faker.string.uuid(), role: "admin" }];
-      const { service, context, ability, repositories, projectMemberRepository, projectMemberReads } = setup({ member, grants });
+      const { service, context, repositories, projectMemberRepository, projectMemberReads } = setup({ member, grants });
 
       await expect(service.listProjectGrantsOf(member.id)).resolves.toEqual(grants);
       expect(repositories.read.findById).toHaveBeenCalledWith(member.id);
-      expect(projectMemberRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
+      expect(projectMemberRepository.unscoped).toHaveBeenCalledWith("member-project-grants");
       expect(projectMemberReads.findLiveGrantsOf).toHaveBeenCalledWith(context.organizationId, member.userId);
     });
 
@@ -237,12 +237,12 @@ describe(OrganizationMemberService.name, () => {
 
     it("removes the grants below project admin of a member switched to every project, keeping their role", async () => {
       const member = createOrganizationMember({ role: "member", projectAccess: "selected" });
-      const { service, repositories, projectMemberRepository, projectMemberReads, ability } = setup({ member, callerIsOwner: true });
+      const { service, repositories, projectMemberRepository, projectMemberReads } = setup({ member, callerIsOwner: true });
 
       await service.update(member.id, { projectAccess: "all" });
 
       expect(repositories.update.updateById).toHaveBeenCalledWith(member.id, { role: "member", projectAccess: "all" });
-      expect(projectMemberRepository.accessibleBy).toHaveBeenCalledWith(ability, "update");
+      expect(projectMemberRepository.unscoped).toHaveBeenCalledWith("member-project-grants");
       expect(projectMemberReads.deleteGrantsBelowAdminOf).toHaveBeenCalledWith({ organizationId: member.organizationId, userId: member.userId });
       expect(projectMemberReads.replaceGrantsOf).not.toHaveBeenCalled();
     });
