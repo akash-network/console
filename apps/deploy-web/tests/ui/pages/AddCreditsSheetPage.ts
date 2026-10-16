@@ -11,13 +11,12 @@ export class AddCreditsSheetPage {
     await this.getDialog().waitFor({ state: "visible", timeout: 15_000 });
   }
 
-  /** Exact, so it skips the host's "Payment Successful!" celebration overlay that follows Done. */
   getPurchaseConfirmation(): Locator {
     return this.page.getByRole("dialog", { name: "Payment successful", exact: true });
   }
 
-  async dismissPurchaseConfirmation() {
-    await this.getPurchaseConfirmation().getByRole("button", { name: "Done", exact: true }).click();
+  async dismissPurchaseConfirmation(buttonName: "Done" | "Continue to deploy" = "Done") {
+    await this.getPurchaseConfirmation().getByRole("button", { name: buttonName, exact: true }).click();
   }
 
   async pickPredefinedAmount(amount: "100" | "500" | "1000") {

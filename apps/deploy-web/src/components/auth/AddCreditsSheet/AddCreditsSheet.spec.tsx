@@ -58,6 +58,18 @@ describe(AddCreditsSheet.name, () => {
     expect(onDone).toHaveBeenCalledWith(100, 5);
   });
 
+  it("labels the success button with the host's next step and forwards the purchase when clicked", () => {
+    const onDone = vi.fn();
+    const { dependencies } = setup({ open: true, onDone, nextStepLabel: "Continue to deploy" });
+    const tabsProps = dependencies.AddCreditsTabs.mock.calls.at(-1)![0] as Parameters<typeof DEPENDENCIES.AddCreditsTabs>[0];
+
+    act(() => tabsProps.onDone(100, 5));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to deploy" }));
+
+    expect(screen.queryByRole("button", { name: "Done" })).not.toBeInTheDocument();
+    expect(onDone).toHaveBeenCalledExactlyOnceWith(100, 5);
+  });
+
   it("forwards a redemption to onRedeemed", () => {
     const onRedeemed = vi.fn();
     const { dependencies } = setup({ open: true, onRedeemed });
@@ -226,6 +238,7 @@ describe(AddCreditsSheet.name, () => {
     initialTab?: "purchase" | "coupon";
     description?: React.ReactNode;
     context?: string;
+    nextStepLabel?: string;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const analyticsService = mock<AnalyticsService>();
@@ -246,6 +259,7 @@ describe(AddCreditsSheet.name, () => {
         initialTab={input.initialTab}
         description={input.description}
         context={input.context}
+        nextStepLabel={input.nextStepLabel}
         dependencies={dependencies}
       />
     );
