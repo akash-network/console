@@ -75,6 +75,8 @@ const ALICE: OrganizationMemberOutput = {
   username: "alice",
   email: "alice@acme.io",
   role: "owner",
+  projectAccess: "all",
+  projectCount: null,
   createdAt: "2026-01-01T00:00:00Z"
 };
 
