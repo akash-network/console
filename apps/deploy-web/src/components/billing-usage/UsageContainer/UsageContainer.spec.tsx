@@ -243,10 +243,57 @@ describe(UsageContainer.name, () => {
     expect(child.projectScope?.projects).toEqual([]);
   });
 
+  it("splits a team's daily spend by project across every project", async () => {
+    const report = { ...buildDeploymentSpend(0), projects: [buildReportProject("storefront", "Storefront"), buildReportProject("marketing", "Marketing")] };
+    const { child } = await setup({ ...TEAM_OWNER, deploymentSpend: report });
+
+    expect(child.dailySpendBreakdown?.caption).toBe("Each bar is one day's total, split by project");
+    expect(child.dailySpendBreakdown?.series.map(({ label }) => label)).toEqual(["Marketing", "Storefront"]);
+  });
+
+  it("narrows the page to the project picked from the daily spend", async () => {
+    const report = { ...buildDeploymentSpend(0), projects: [buildReportProject("marketing", "Marketing")] };
+    const { child, childCapturer } = await setup({ ...TEAM_OWNER, deploymentSpend: report });
+
+    act(() => child.dailySpendBreakdown!.series[0].onSelect!());
+    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "marketing");
+
+    expect(narrowed.usageHistoryData).toEqual(scopeUsage(report, "marketing").dailySpend);
+  });
+
+  it("splits nothing while a team's deployment spend loads", async () => {
+    const { child } = await setup({ ...TEAM_OWNER, isDeploymentSpendLoading: true });
+
+    expect(child.dailySpendBreakdown?.series).toEqual([]);
+  });
+
+  it("charts the picked project alone and names it", async () => {
+    const { child, childCapturer } = await setup({
+      ...TEAM_OWNER,
+      deploymentSpend: buildDeploymentSpend(0),
+      projects: [mock<Project>({ id: "marketing", name: "Marketing" }), mock<Project>({ id: "storefront", name: "Storefront" })]
+    });
+
+    act(() => child.projectScope!.onChange("storefront"));
+    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "storefront");
+
+    expect(narrowed.dailySpendBreakdown).toEqual({ caption: "Each bar is one day's total for Storefront", series: [] });
+  });
+
+  it("names no project in the daily spend until the team's projects load", async () => {
+    const { child, childCapturer } = await setup({ ...TEAM_OWNER, deploymentSpend: buildDeploymentSpend(0), projects: undefined });
+
+    act(() => child.projectScope!.onChange("storefront"));
+    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "storefront");
+
+    expect(narrowed.dailySpendBreakdown?.caption).toBe("Each bar is one day's total for this project");
+  });
+
   it("reads no deployment spend nor projects and offers no project filter outside a team", async () => {
     const { child, useDeploymentSpendQuery, useProjectsQuery } = await setup({ organization: { type: "personal", role: "owner" }, projectsEnabled: false });
 
     expect(child.projectScope).toBeNull();
+    expect(child.dailySpendBreakdown).toBeNull();
     expect(useDeploymentSpendQuery).toHaveBeenCalledWith(expect.anything(), { enabled: false });
     expect(useProjectsQuery).toHaveBeenCalledWith({ enabled: false });
   });
@@ -372,6 +419,10 @@ function buildDeploymentSpend(periodsAgo: number, scale = 1): DeploymentSpendRep
       { dseq: "2", name: null, projectId: "marketing", consumedUsd: 6 * scale, hours: 24 }
     ]
   };
+}
+
+function buildReportProject(projectId: string, name: string): DeploymentSpendReport["projects"][number] {
+  return { projectId, name, isDefault: false, isDeleted: false };
 }
 
 function buildDay(daysAgo: number, dailyUsdSpent: number) {

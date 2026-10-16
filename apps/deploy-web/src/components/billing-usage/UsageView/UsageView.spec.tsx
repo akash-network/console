@@ -3,7 +3,7 @@ import { IntlProvider } from "react-intl";
 import { getDaysInMonth } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ChildrenProps } from "@src/components/billing-usage/UsageContainer/UsageContainer";
+import type { ChildrenProps, DailySpendBreakdown } from "@src/components/billing-usage/UsageContainer/UsageContainer";
 import { getUsagePresetRange, type UsageDatePreset, type UsageDateRange } from "@src/components/billing-usage/UsageContainer/usageDatePresets";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
 import type { SpendRange } from "@src/types/project-budget";
@@ -195,6 +195,22 @@ describe(UsageView.name, () => {
     expect(ProjectSpendReport).toHaveBeenCalledWith({ range: { startDate: "2026-06-01", endDate: "2026-06-30" } }, expect.anything());
   });
 
+  it("splits the daily spend the way it is told to", () => {
+    const series = [{ key: "storefront", label: "Storefront" }];
+    const { DailySpendChart } = setup({ dailySpendBreakdown: { caption: "Each bar is one day's total, split by project", series } });
+
+    expect(DailySpendChart).toHaveBeenCalledWith(
+      expect.objectContaining({ caption: "Each bar is one day's total, split by project", series }),
+      expect.anything()
+    );
+  });
+
+  it("leaves the daily spend unsplit without a breakdown", () => {
+    const { DailySpendChart } = setup({ dailySpendBreakdown: null });
+
+    expect(DailySpendChart).toHaveBeenCalledWith(expect.objectContaining({ caption: undefined, series: undefined }), expect.anything());
+  });
+
   it("leaves spend by project out without a range for it", () => {
     const { ProjectSpendReport } = setup({ projectSpendRange: null });
 
@@ -214,6 +230,7 @@ describe(UsageView.name, () => {
       datePreset?: UsageDatePreset;
       dateRange?: UsageDateRange;
       projectSpendRange?: SpendRange | null;
+      dailySpendBreakdown?: DailySpendBreakdown | null;
     } = {}
   ) {
     const onDatePresetChange = vi.fn();
@@ -238,6 +255,7 @@ describe(UsageView.name, () => {
           dateRange={input.dateRange ?? getUsagePresetRange(input.datePreset && input.datePreset !== "custom" ? input.datePreset : "last30Days")}
           onDateRangeChange={onDateRangeChange}
           projectSpendRange={input.projectSpendRange ?? null}
+          dailySpendBreakdown={input.dailySpendBreakdown ?? null}
           dependencies={dependencies}
         />
       </IntlProvider>

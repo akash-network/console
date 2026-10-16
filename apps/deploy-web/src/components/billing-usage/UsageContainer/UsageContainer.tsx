@@ -1,7 +1,7 @@
 import React, { type FC, useState } from "react";
 import { format } from "date-fns";
 
-import type { DailySpend } from "@src/components/billing-usage/DailySpendChart/DailySpendChart";
+import type { DailySpend, SpendSeries } from "@src/components/billing-usage/DailySpendChart/DailySpendChart";
 import { useCurrentSpendRate } from "@src/components/billing-usage/useCurrentSpendRate";
 import { canViewBillingAndUsage } from "@src/components/organizations/organizationAccess";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
@@ -16,7 +16,7 @@ import { createDateRange } from "@src/utils/dateUtils";
 import { downloadCsv } from "@src/utils/domUtils";
 import { buildUsageCsv } from "./buildUsageCsv";
 import { getSpendChangePercent } from "./getSpendChangePercent";
-import { hourlyRateOf, type ProjectScope, type ScopedUsage, scopeUsage } from "./teamUsage";
+import { hourlyRateOf, type ProjectScope, projectSeriesOf, type ScopedUsage, scopeUsage } from "./teamUsage";
 import {
   countDaysInRange,
   DEFAULT_USAGE_DATE_PRESET,
@@ -49,6 +49,8 @@ export type ProjectScopeControl = {
   onChange: (scope: ProjectScope) => void;
 };
 
+export type DailySpendBreakdown = { caption: string; series: SpendSeries[] };
+
 export type ChildrenProps = {
   usageHistoryData: DailySpend[];
   usageHistoryStatsData: UsageHistoryStats;
@@ -68,6 +70,8 @@ export type ChildrenProps = {
   projectSpendRange: SpendRange | null;
   /** Null outside a team, whose usage alone can be narrowed to one project. */
   projectScope: ProjectScopeControl | null;
+  /** Null outside a team, whose daily spend alone is split by project. */
+  dailySpendBreakdown: DailySpendBreakdown | null;
 };
 
 type UsageFigures = Pick<
@@ -100,6 +104,7 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
   const previousTeamSpend = d.useDeploymentSpendQuery(toSpendRange(previousPeriod), { enabled: isTeamUsage });
   const projects = d.useProjectsQuery({ enabled: isTeamUsage });
   const scopedUsage = teamSpend.data && scopeUsage(teamSpend.data, projectScope);
+  const scopeProjects = (projects.data ?? []).map(({ id, name }) => ({ id, name }));
   const isScopedToProject = isTeamUsage && projectScope !== null;
 
   const usageHistoryData = usageHistory.data ?? [];
@@ -159,8 +164,9 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
         canExport: !!usageHistory.data && !!usageStats.data && !usageHistory.isError && !usageStats.isError,
         onExport: exportCsv,
         projectSpendRange: isTeamUsage && !isScopedToProject ? toSpendRange(dateRange) : null,
-        projectScope: isTeamUsage
-          ? { projects: (projects.data ?? []).map(({ id, name }) => ({ id, name })), selected: projectScope, onChange: setProjectScope }
+        projectScope: isTeamUsage ? { projects: scopeProjects, selected: projectScope, onChange: setProjectScope } : null,
+        dailySpendBreakdown: isTeamUsage
+          ? dailySpendBreakdownOf({ report: teamSpend.data, scope: projectScope, projects: scopeProjects, onSelect: setProjectScope })
           : null
       })}
     </>
@@ -192,6 +198,25 @@ function teamFiguresOf({
     isUsageHistoryStatsError: current.isError,
     previousTotalSpent: previous.data ? scopeUsage(previous.data, scope).stats.totalSpent : null
   };
+}
+
+function dailySpendBreakdownOf({
+  report,
+  scope,
+  projects,
+  onSelect
+}: {
+  report: DeploymentSpendReport | undefined;
+  scope: ProjectScope;
+  projects: ProjectScopeControl["projects"];
+  onSelect: (projectId: string) => void;
+}): DailySpendBreakdown {
+  if (scope !== null) {
+    const projectName = projects.find(({ id }) => id === scope)?.name ?? "this project";
+    return { caption: `Each bar is one day's total for ${projectName}`, series: [] };
+  }
+
+  return { caption: "Each bar is one day's total, split by project", series: report ? projectSeriesOf(report, onSelect) : [] };
 }
 
 function toSpendRange({ from, to }: UsageDateRange): SpendRange {
