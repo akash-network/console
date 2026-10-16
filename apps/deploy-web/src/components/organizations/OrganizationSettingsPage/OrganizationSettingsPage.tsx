@@ -11,7 +11,6 @@ import { SettingsSection } from "@src/components/layout/SettingsSection/Settings
 import { DeleteTeamSetting } from "@src/components/organizations/DeleteTeam/DeleteTeamSetting";
 import { LeaveOrganizationSetting } from "@src/components/organizations/LeaveOrganization/LeaveOrganizationSetting";
 import {
-  canDeleteOrganization,
   canRenameOrganization,
   canTransferOwnership,
   hasGeneralSettingsPage,
@@ -97,7 +96,7 @@ export function OrganizationSettingsPage({ dependencies: d = DEPENDENCIES }: Pro
           <SettingsSection title="Danger zone">
             <SettingsCard destructive>
               <d.LeaveOrganizationSetting organization={organization} />
-              {canDeleteOrganization(organization.role) && <d.DeleteTeamSetting organization={organization} />}
+              <d.DeleteTeamSetting organization={organization} />
             </SettingsCard>
           </SettingsSection>
         </div>

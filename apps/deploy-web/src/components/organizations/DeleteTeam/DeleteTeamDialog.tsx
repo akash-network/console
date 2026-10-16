@@ -125,7 +125,7 @@ const LoadingStep: FC<{ teamName: string }> = ({ teamName }) => (
   <>
     <DialogV2Header>
       <DialogV2Title>Delete {teamName}</DialogV2Title>
-      <DialogV2Description>Checking the team&apos;s deployments and credits…</DialogV2Description>
+      <DialogV2Description>Checking the organization&apos;s deployments and credits…</DialogV2Description>
     </DialogV2Header>
     <DialogV2Body className="flex justify-center py-6">
       <Spinner size="medium" />
@@ -139,10 +139,10 @@ const BlockedStep: FC<{ teamName: string; activeDeploymentCount: number; onClose
   return (
     <>
       <DialogV2Header>
-        <DialogV2Title>Close the team&apos;s deployments first</DialogV2Title>
+        <DialogV2Title>Close the organization&apos;s deployments first</DialogV2Title>
         <DialogV2Description>
           {teamName} has {activeDeploymentCount} active {activeDeploymentCount === 1 ? "deployment" : "deployments"}. Close{" "}
-          {activeDeploymentCount === 1 ? "it" : "them"} before you delete the team.
+          {activeDeploymentCount === 1 ? "it" : "them"} before you delete the organization.
         </DialogV2Description>
       </DialogV2Header>
       <DialogV2Footer className="flex items-center justify-end gap-2">
@@ -167,7 +167,7 @@ const ForfeitChoiceStep: FC<{ teamName: string; balanceUsd: number; onForfeit: (
           {teamName} still has <UsdValue value={balanceUsd} /> in credits
         </DialogV2Title>
         <DialogV2Description>
-          If you delete the team, it loses these credits and we can&apos;t refund them later. If you want a refund, contact support first.
+          If you delete the organization, it loses these credits and we can&apos;t refund them later. If you want a refund, contact support first.
         </DialogV2Description>
       </DialogV2Header>
       <DialogV2Footer className="flex items-center justify-end gap-2">
@@ -204,8 +204,8 @@ const ConfirmStep: FC<ConfirmStepProps> = ({ teamName, forfeitedBalanceUsd, isDe
       <DialogV2Header>
         <DialogV2Title>Delete {teamName}?</DialogV2Title>
         <DialogV2Description>
-          Everyone in the team loses access to its projects, deployments, API keys and billing right away. Its saved cards are removed and auto reload is turned
-          off. Its payment and deployment history is kept. This can&apos;t be undone.
+          Everyone in the organization loses access to its projects, deployments, API keys and billing right away. Its saved cards are removed and auto reload
+          is turned off. Its payment and deployment history is kept. This can&apos;t be undone.
         </DialogV2Description>
       </DialogV2Header>
       <DialogV2Body>
@@ -226,7 +226,7 @@ const ConfirmStep: FC<ConfirmStepProps> = ({ teamName, forfeitedBalanceUsd, isDe
                 className="mt-0.5"
               />
               <label htmlFor={forfeitCheckboxId} className="cursor-pointer text-sm">
-                I understand the team&apos;s remaining <UsdValue value={forfeitedBalanceUsd} /> in credits won&apos;t be refunded.
+                I understand the organization&apos;s remaining <UsdValue value={forfeitedBalanceUsd} /> in credits won&apos;t be refunded.
               </label>
             </div>
           )}
@@ -241,7 +241,7 @@ const ConfirmStep: FC<ConfirmStepProps> = ({ teamName, forfeitedBalanceUsd, isDe
             onChange={event => setTypedName(event.target.value)}
             disabled={isDeleting}
           />
-          {hasFailed && <Alert variant="destructive">We couldn&apos;t delete the team. Please try again.</Alert>}
+          {hasFailed && <Alert variant="destructive">We couldn&apos;t delete the organization. Please try again.</Alert>}
         </form>
       </DialogV2Body>
       <DialogV2Footer className="flex items-center justify-end gap-2">
@@ -249,7 +249,7 @@ const ConfirmStep: FC<ConfirmStepProps> = ({ teamName, forfeitedBalanceUsd, isDe
           Cancel
         </Button>
         <LoadingButton type="submit" form={formId} variant="destructive" loading={isDeleting} disabled={!canDelete}>
-          Delete team
+          Delete organization
         </LoadingButton>
       </DialogV2Footer>
     </>
