@@ -211,6 +211,16 @@ describe(UsageContainer.name, () => {
     expect(narrowed.spendRate.isLoading).toBe(true);
   });
 
+  it("fails a project's spend rate when its deployments can't be read", async () => {
+    const { child, childCapturer } = await setup({ ...TEAM_OWNER, isDeploymentSpendError: true });
+
+    act(() => child.projectScope!.onChange("storefront"));
+    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "storefront");
+
+    expect(child.spendRate.isError).toBe(false);
+    expect(narrowed.spendRate.isError).toBe(true);
+  });
+
   it("passes a team's loading and error flags through", async () => {
     const { child } = await setup({ ...TEAM_OWNER, isDeploymentSpendLoading: true, isDeploymentSpendError: true });
 

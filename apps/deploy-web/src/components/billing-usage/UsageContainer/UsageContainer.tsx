@@ -150,7 +150,7 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
         spendRate: {
           perHourUsd: isScopedToProject ? hourlyRateOf(perBlockUsdByDseq, scopedUsage?.dseqs ?? []) : perHourUsd,
           isLoading: isSpendRateLoading || (isScopedToProject && teamSpend.isLoading),
-          isError: isSpendRateError
+          isError: isSpendRateError || (isScopedToProject && teamSpend.isError)
         },
         dateRange,
         onDateRangeChange: changeDateRange,
