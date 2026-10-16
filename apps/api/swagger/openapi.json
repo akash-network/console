@@ -28259,6 +28259,188 @@
         }
       }
     },
+    "/v1/deployment-spend": {
+      "get": {
+        "operationId": "listDeploymentSpend",
+        "summary": "Report what the active organization's deployments consumed over a date range, per deployment and per project and day",
+        "tags": [
+          "Projects"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "First day of the range (YYYY-MM-DD, UTC), inclusive. Defaults to the first day of endDate's month",
+              "example": "2026-10-01"
+            },
+            "required": false,
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Last day of the range (YYYY-MM-DD, UTC), inclusive. Defaults to today",
+              "example": "2026-10-31"
+            },
+            "required": false,
+            "name": "endDate",
+            "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Spend of the deployments in the projects the caller can see, with the deployments filed in no project when the caller can see the whole organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "startDate": {
+                          "type": "string"
+                        },
+                        "endDate": {
+                          "type": "string"
+                        },
+                        "projects": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "projectId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "isDefault": {
+                                "type": "boolean"
+                              },
+                              "isDeleted": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "projectId",
+                              "name",
+                              "isDefault",
+                              "isDeleted"
+                            ]
+                          },
+                          "description": "The projects the caller can see, and deleted ones that have spend in the range"
+                        },
+                        "days": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string",
+                                "description": "The UTC day (YYYY-MM-DD)",
+                                "example": "2026-10-01"
+                              },
+                              "projectId": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "uuid",
+                                "description": "Null for the deployments filed in no project"
+                              },
+                              "consumedUsd": {
+                                "type": "number",
+                                "description": "What the project's leases cost that day, including costs not settled yet"
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "projectId",
+                              "consumedUsd"
+                            ]
+                          },
+                          "description": "Each project's spend per day, leaving out days it spent nothing"
+                        },
+                        "deployments": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "dseq": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "projectId": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "uuid",
+                                "description": "Null for a deployment filed in no project"
+                              },
+                              "consumedUsd": {
+                                "type": "number",
+                                "description": "What the deployment's leases cost over the range, including costs not settled yet"
+                              },
+                              "hours": {
+                                "type": "number",
+                                "description": "How long the deployment held a lease over the range"
+                              }
+                            },
+                            "required": [
+                              "dseq",
+                              "name",
+                              "projectId",
+                              "consumedUsd",
+                              "hours"
+                            ]
+                          },
+                          "description": "The deployments that held a lease in the range, most spent first"
+                        }
+                      },
+                      "required": [
+                        "startDate",
+                        "endDate",
+                        "projects",
+                        "days",
+                        "deployments"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dates must be YYYY-MM-DD, startDate must not be after endDate and the range cannot exceed 366 days"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
     "/v1/project-budgets": {
       "get": {
         "operationId": "listProjectBudgets",
