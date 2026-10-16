@@ -1,12 +1,13 @@
 import { createMongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { ACTIVITIES_DEDUPE_KEY_INDEX, type NewActivity } from "@src/activity/model-schemas";
 import type { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
+import { PurgeExpiredActivities } from "@src/activity/services/purge-expired-activities/purge-expired-activities.job";
 import type { AuthService } from "@src/auth/services/auth.service";
-import type { CreateLogger } from "@src/core";
+import type { CreateLogger, JobQueueService } from "@src/core";
 import { encodeActivityCursor } from "../../lib/activity-cursor/activity-cursor";
 import { ActivityService } from "./activity.service";
 
@@ -58,11 +59,42 @@ describe(ActivityService.name, () => {
         error
       });
     });
+
+    it("queues the next purge of old activities a day ahead under the one key every write shares", async () => {
+      vi.useFakeTimers({ now: new Date("2026-10-12T09:30:00.000Z"), toFake: ["Date"] });
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+      const { service, activityRepository, jobQueueService } = setup();
+      activityRepository.createUnlessDuplicate.mockResolvedValue(createActivity());
+
+      await service.record(createNewActivity());
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new PurgeExpiredActivities(), {
+        singletonKey: "purgeExpiredActivities",
+        startAfter: "2026-10-13T09:30:00.000Z",
+        retryLimit: 5,
+        retryBackoff: true,
+        retryDelay: 60,
+        retryDelayMax: 3600
+      });
+    });
+
+    it("logs a purge it could not queue without failing the action", async () => {
+      const { service, activityRepository, jobQueueService, logger } = setup();
+      const error = new Error("Queue PurgeExpiredActivities does not exist");
+      activityRepository.createUnlessDuplicate.mockResolvedValue(createActivity());
+      jobQueueService.enqueue.mockRejectedValue(error);
+
+      await expect(service.record(createNewActivity())).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "ACTIVITY_PURGE_QUEUE_FAILED", error });
+    });
   });
 
   describe("open", () => {
     it("stores the activity under the id it was given and lets a failed write fail the caller", async () => {
-      const { service, activityRepository } = setup();
+      const { service, activityRepository, jobQueueService } = setup();
       const error = new Error("connection reset");
       activityRepository.create.mockRejectedValue(error);
       const activity = { id: faker.string.uuid(), ...createNewActivity({ status: "pending" }) };
@@ -70,6 +102,26 @@ describe(ActivityService.name, () => {
       await expect(service.open(activity)).rejects.toBe(error);
 
       expect(activityRepository.create).toHaveBeenCalledWith(activity);
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("queues the next purge of old activities once the activity is stored", async () => {
+      const { service, activityRepository, jobQueueService } = setup();
+
+      await service.open({ id: faker.string.uuid(), ...createNewActivity({ status: "pending" }) });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new PurgeExpiredActivities(), expect.objectContaining({ singletonKey: "purgeExpiredActivities" }));
+      expect(activityRepository.create.mock.invocationCallOrder[0]).toBeLessThan(jobQueueService.enqueue.mock.invocationCallOrder[0]);
+    });
+
+    it("logs a purge it could not queue without failing the transaction the activity is opened in", async () => {
+      const { service, jobQueueService, logger } = setup();
+      const error = new Error("Queue PurgeExpiredActivities does not exist");
+      jobQueueService.enqueue.mockRejectedValue(error);
+
+      await expect(service.open({ id: faker.string.uuid(), ...createNewActivity({ status: "pending" }) })).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "ACTIVITY_PURGE_QUEUE_FAILED", error });
     });
   });
 
@@ -250,11 +302,12 @@ describe(ActivityService.name, () => {
     const ability = createMongoAbility();
     const authService = mock<AuthService>();
     authService.ability = ability;
+    const jobQueueService = mock<JobQueueService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new ActivityService(activityRepository, authService, createLogger);
+    const service = new ActivityService(activityRepository, authService, jobQueueService, createLogger);
 
-    return { service, activityRepository, readRepository, updateRepository, logger, createLogger, ability };
+    return { service, activityRepository, readRepository, updateRepository, jobQueueService, logger, createLogger, ability };
   }
 });

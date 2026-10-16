@@ -57,6 +57,7 @@ export const Activities = pgTable(
   },
   table => ({
     userIdCreatedAtIdIdx: index("activities_user_id_created_at_id_idx").on(table.userId, table.createdAt, table.id),
+    createdAtIdx: index("activities_created_at_idx").on(table.createdAt),
     userIdUnseenIdx: index("activities_user_id_unseen_idx")
       .on(table.userId)
       .where(sql`${table.seenAt} IS NULL`),

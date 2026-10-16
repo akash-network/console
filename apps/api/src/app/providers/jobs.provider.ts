@@ -1,5 +1,6 @@
 import { container } from "tsyringe";
 
+import { PurgeExpiredActivitiesHandler } from "@src/activity/services/purge-expired-activities/purge-expired-activities.handler";
 import { ActivateTrialHandler } from "@src/billing/services/activate-trial/activate-trial.handler";
 import { CardPaymentInvoiceHandler } from "@src/billing/services/card-payment-invoice/card-payment-invoice.handler";
 import { ReconcileDeploymentDepositHandler } from "@src/billing/services/reconcile-deployment-deposit/reconcile-deployment-deposit.handler";
@@ -88,7 +89,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(PurgeOrganizationInvitationEmailsHandler),
     container.resolve(TeamOrganizationDeletedHandler),
     container.resolve(MoveDeploymentAlertsHandler),
-    container.resolve(StopTeamAlertsToDepartedMemberHandler)
+    container.resolve(StopTeamAlertsToDepartedMemberHandler),
+    container.resolve(PurgeExpiredActivitiesHandler)
   ]);
 }
 

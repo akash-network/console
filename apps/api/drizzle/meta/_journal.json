@@ -624,6 +624,13 @@
       "when": 1792171926888,
       "tag": "0088_organization_renamed_activity",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1792182036355,
+      "tag": "0089_activities_created_at_index",
+      "breakpoints": true
     }
   ]
 }

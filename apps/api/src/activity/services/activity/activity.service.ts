@@ -3,8 +3,9 @@ import { inject, singleton } from "tsyringe";
 import { decodeActivityCursor, encodeActivityCursor } from "@src/activity/lib/activity-cursor/activity-cursor";
 import type { ActivityStatus, ActivityType, NewActivity } from "@src/activity/model-schemas";
 import { type ActivityOutput, ActivityRepository, type ActivitySelection, isDedupeKeyTaken } from "@src/activity/repositories/activity/activity.repository";
+import { PurgeExpiredActivities, purgeExpiredActivitiesOptionsFor } from "@src/activity/services/purge-expired-activities/purge-expired-activities.job";
 import { AuthService } from "@src/auth/services/auth.service";
-import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
 
 export type ActivityPage = { activities: ActivityOutput[]; hasMore: boolean; nextCursor: string | null };
 
@@ -15,6 +16,7 @@ export class ActivityService {
   constructor(
     private readonly activityRepository: ActivityRepository,
     private readonly authService: AuthService,
+    private readonly jobQueueService: JobQueueService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: ActivityService.name });
@@ -28,11 +30,23 @@ export class ActivityService {
     } catch (error) {
       this.#logger.error({ event: "ACTIVITY_RECORD_FAILED", userId: activity.userId, type: activity.type, status: activity.status, error });
     }
+
+    await this.#keepPurgeQueued();
   }
 
   /** Not best-effort, unlike `record`: an activity opened for work still to come must fail the transaction that queues that work, including when another row already holds its dedupe key. */
   async open(activity: NewActivity & { id: string }): Promise<void> {
     await this.activityRepository.create(activity);
+    await this.#keepPurgeQueued();
+  }
+
+  /** Every write to the feed queues the next purge, which queues nothing while one is already waiting; failing to queue it must never fail the write. */
+  async #keepPurgeQueued(): Promise<void> {
+    try {
+      await this.jobQueueService.enqueue(new PurgeExpiredActivities(), purgeExpiredActivitiesOptionsFor(new Date()));
+    } catch (error) {
+      this.#logger.error({ event: "ACTIVITY_PURGE_QUEUE_FAILED", error });
+    }
   }
 
   async isPending(id: string): Promise<boolean> {

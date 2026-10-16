@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import type { ActivityPosition } from "@src/activity/lib/activity-cursor/activity-cursor";
@@ -98,6 +98,19 @@ export class ActivityRepository extends BaseRepository<Table, ActivityInput, Act
       .update(this.table)
       .set({ ...payload, updatedAt: sql`now()` })
       .where(this.whereAccessibleBy(and(eq(this.table.id, id), inArray(this.table.status, statuses))));
+  }
+
+  /** Deletes at most `limit` rows a call, oldest first, so a backlog clears in short statements that never hold the table for long. */
+  async deleteSettledCreatedBefore(createdBefore: Date, limit: number): Promise<number> {
+    const expired = this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(lt(this.table.createdAt, createdBefore), ne(this.table.status, "pending"))))
+      .orderBy(asc(this.table.createdAt))
+      .limit(limit);
+    const deleted = await this.cursor.delete(this.table).where(inArray(this.table.id, expired)).returning({ id: this.table.id });
+
+    return deleted.length;
   }
 
   #isOlderThan({ createdAt, id }: ActivityPosition) {
