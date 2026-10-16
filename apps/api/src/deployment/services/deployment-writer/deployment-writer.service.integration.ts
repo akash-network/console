@@ -7,17 +7,26 @@ import { randomUUID } from "node:crypto";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { AuthService } from "@src/auth/services/auth.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { ApiPgDatabase, JobPermissions } from "@src/core";
-import { JOB_NAME, POSTGRES_DB, resolveTable, TxService } from "@src/core";
+import { JOB_NAME, JobQueueService, POSTGRES_DB, resolveTable, TxService } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { ApplyDeploymentUpdateHandler } from "@src/deployment/services/apply-deployment-update/apply-deployment-update.handler";
+import {
+  APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS,
+  ApplyDeploymentUpdate,
+  applyDeploymentUpdateKeyFor
+} from "@src/deployment/services/apply-deployment-update/apply-deployment-update.job";
 import {
   DeleteUnbackedDeploymentSetting,
   DeleteUnbackedDeploymentSettingHandler
 } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
+import { ReconcileDeploymentUpdateHandler } from "@src/deployment/services/reconcile-deployment-update/reconcile-deployment-update.handler";
+import { ReconcileDeploymentUpdate } from "@src/deployment/services/reconcile-deployment-update/reconcile-deployment-update.job";
 import { RecordDeploymentSetting, RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
@@ -27,7 +36,7 @@ import { type AcceptedDeploymentCreate, DeploymentWriterService, type SavedPatch
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 import { expectJobCompleted, findJobRows, type JobRow, makeJobDue, runAsUser, useJobWorkers } from "@test/services/job-queue-harness";
@@ -78,7 +87,12 @@ const DEPLOYMENT_INFO_PATH = "/akash/deployment/v1beta4/deployments/info";
 const LATEST_BLOCK_PATH = "/cosmos/base/tendermint/v1beta1/blocks/latest";
 const ABSENT_FROM_CHAIN = { code: 5, message: "codespace deployment code 4: Deployment not found", details: [] };
 
-const jobWorkers = useJobWorkers(() => [container.resolve(DeleteUnbackedDeploymentSettingHandler), container.resolve(RecordDeploymentSettingHandler)]);
+const jobWorkers = useJobWorkers(() => [
+  container.resolve(DeleteUnbackedDeploymentSettingHandler),
+  container.resolve(RecordDeploymentSettingHandler),
+  container.resolve(ApplyDeploymentUpdateHandler),
+  container.resolve(ReconcileDeploymentUpdateHandler)
+]);
 
 type CompensationPayload = { deploymentSettingId: string; owner: string; dseq: string; version: number };
 
@@ -363,34 +377,153 @@ describe(DeploymentWriterService.name, () => {
 
       return { filer, member, wallet, filedIn: { organizationId: organization.id, projectId: project.id }, walletOfPatch: { walletId: wallet.id } };
     }
+  });
 
-    async function savedVersionOf(sdl: string, secrets: Record<string, string>) {
-      const resolved = await container.resolve(SdlService).generateResolvedManifest({ sdl, secrets });
-      if (!resolved.ok) throw new Error(`The saved sdl does not resolve: ${resolved.value.map(error => error.message).join(", ")}`);
+  describe("patchInBackgroundByUserIdAndDseq", () => {
+    it("commits the saved definition in the same transaction as its pending activity", async () => {
+      const { dseq, patchInBackground, findActivities, findTransactionIdOf, findSetting } = await setup();
 
-      return Buffer.from(resolved.value.manifestVersion).toString("base64");
-    }
+      const accepted = await patchInBackground();
 
-    function chainHoldingAnOlderVersion(owner: string, dseq: string): DeploymentResponse {
-      return {
-        deployment: { id: { owner, dseq }, state: "active", hash: Buffer.from("an older version").toString("base64"), created_at: "1" },
-        leases: [
-          {
-            id: { owner, dseq, gseq: 1, oseq: 1, provider: LEASE_PROVIDER, bseq: 1 },
-            state: "active",
-            price: { denom: "uakt", amount: "1000" },
-            created_at: "1",
-            closed_on: "",
-            status: null
-          }
-        ],
-        escrow_account: {
-          id: { scope: "deployment", xid: dseq },
-          state: { owner, state: "open", transferred: [], settled_at: "0", funds: [], deposits: [] }
-        }
-      };
+      const [activity] = await findActivities();
+      expect(activity).toMatchObject({
+        id: accepted.activityId,
+        status: "pending",
+        initiator: "user",
+        meta: { dseq, manifestVersion: accepted.manifestVersion }
+      });
+      expect((await findSetting()).manifestVersion).toBe(accepted.manifestVersion);
+      expect(await findTransactionIdOf("activities", activity.id)).toBe(await findTransactionIdOf("deployment_settings", (await findSetting()).id));
+    });
+
+    it("queues the apply of the saved version with the wallet it resolved, on that wallet's key, and a check naming it", async () => {
+      const { user, wallet, dseq, patchInBackground } = await setup();
+
+      const accepted = await patchInBackground();
+
+      const [apply] = await findJobRows(ApplyDeploymentUpdate[JOB_NAME], { data: { activityId: accepted.activityId } });
+      const [check] = await findJobRows(ReconcileDeploymentUpdate[JOB_NAME], { data: { activityId: accepted.activityId } });
+      expect(apply).toMatchObject({
+        singleton_key: applyDeploymentUpdateKeyFor({ walletId: wallet.id, dseq }),
+        data: { userId: user.id, dseq, manifestVersion: accepted.manifestVersion, walletId: wallet.id, activityId: accepted.activityId, version: 1 },
+        retry_limit: APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS.retryLimit,
+        retry_backoff: true,
+        retry_delay: APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS.retryDelay,
+        retry_delay_max: APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS.retryDelayMax
+      });
+      expect(apply.data).not.toHaveProperty("organizationId");
+      expect(check.data).toMatchObject({ owner: wallet.address, dseq, manifestVersion: accepted.manifestVersion, updateJobId: expect.any(String) });
+    });
+
+    it("names the organization the deployment is filed in on its apply", async () => {
+      const { patchInBackground, organizationId } = await setup({ filedInOrganization: true });
+
+      const accepted = await patchInBackground();
+
+      const [apply] = await findJobRows(ApplyDeploymentUpdate[JOB_NAME], { data: { activityId: accepted.activityId } });
+      expect(apply.data).toMatchObject({ organizationId });
+    });
+
+    it("commits neither the definition, the activity nor the apply when the check on it cannot be queued", async () => {
+      const { wallet, dseq, patchInBackground, findActivities, findSetting, storedVersion } = await setup();
+      const jobQueueService = container.resolve(JobQueueService);
+      const enqueue = jobQueueService.enqueue.bind(jobQueueService);
+      vi.spyOn(jobQueueService, "enqueue").mockImplementation(async (job, options) => {
+        if (job instanceof ReconcileDeploymentUpdate) throw new Error("queue unavailable");
+
+        return await enqueue(job, options);
+      });
+
+      await expect(patchInBackground()).rejects.toThrow("queue unavailable");
+
+      expect((await findSetting()).manifestVersion).toBe(storedVersion);
+      expect(await findActivities()).toEqual([]);
+      expect(await findJobRows(ApplyDeploymentUpdate[JOB_NAME], { singletonKey: applyDeploymentUpdateKeyFor({ walletId: wallet.id, dseq }) })).toEqual([]);
+    });
+
+    async function setup(input: { filedInOrganization?: boolean } = {}) {
+      await jobWorkers();
+      const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
+      const activitiesTable = resolveTable("Activities");
+      const deploymentSettingsTable = resolveTable("DeploymentSettings");
+      const writer = container.resolve(DeploymentWriterService);
+
+      const { user, wallet, address } = await seedUserWithWallet();
+      const dseq = createDseq();
+      const storedVersion = await savedVersionOf(SDL, {});
+      const organizationId = input.filedInOrganization ? (await seedOrganization({ type: "personal", createdByUserId: user.id })).id : undefined;
+      await seedDeploymentSetting({
+        userId: user.id,
+        organizationId,
+        dseq,
+        sdl: SDL,
+        manifestVersion: storedVersion,
+        sealedSecrets: null,
+        autoTopUpEnabled: false
+      });
+
+      vi.spyOn(container.resolve(DeploymentReaderService), "findWithGroupSpecsByWalletAndDseq").mockResolvedValue({
+        deployment: chainHoldingAnOlderVersion(address, dseq),
+        groupSpecs: null
+      });
+      vi.spyOn(writer, "applySavedPatch").mockRejectedValue(new Error("applied by no worker in this test"));
+
+      async function patchInBackground() {
+        const accepted = await runAsUser(user, () =>
+          writer.patchInBackgroundByUserIdAndDseq(user.id, dseq, { services: { web: { image: "nginx:1.27" } } }, container.resolve(AuthService).ability)
+        );
+
+        return accepted as { activityId: string; manifestVersion: string };
+      }
+
+      async function findActivities() {
+        return await db.select().from(activitiesTable).where(eq(activitiesTable.userId, user.id));
+      }
+
+      async function findSetting() {
+        const [setting] = await db.select().from(deploymentSettingsTable).where(eq(deploymentSettingsTable.dseq, dseq));
+
+        return setting;
+      }
+
+      async function findTransactionIdOf(table: "activities" | "deployment_settings", id: string) {
+        const [row] = (await db.execute(sql`select xmin::text as transaction_id from ${sql.identifier(table)} where id = ${id}`)) as unknown as {
+          transaction_id: string;
+        }[];
+
+        return row.transaction_id;
+      }
+
+      return { user, wallet, dseq, organizationId, storedVersion, patchInBackground, findActivities, findSetting, findTransactionIdOf };
     }
   });
+
+  async function savedVersionOf(sdl: string, secrets: Record<string, string>) {
+    const resolved = await container.resolve(SdlService).generateResolvedManifest({ sdl, secrets });
+    if (!resolved.ok) throw new Error(`The saved sdl does not resolve: ${resolved.value.map(error => error.message).join(", ")}`);
+
+    return Buffer.from(resolved.value.manifestVersion).toString("base64");
+  }
+
+  function chainHoldingAnOlderVersion(owner: string, dseq: string): DeploymentResponse {
+    return {
+      deployment: { id: { owner, dseq }, state: "active", hash: Buffer.from("an older version").toString("base64"), created_at: "1" },
+      leases: [
+        {
+          id: { owner, dseq, gseq: 1, oseq: 1, provider: LEASE_PROVIDER, bseq: 1 },
+          state: "active",
+          price: { denom: "uakt", amount: "1000" },
+          created_at: "1",
+          closed_on: "",
+          status: null
+        }
+      ],
+      escrow_account: {
+        id: { scope: "deployment", xid: dseq },
+        state: { owner, state: "open", transferred: [], settled_at: "0", funds: [], deposits: [] }
+      }
+    };
+  }
 
   describe("creating an accepted deployment on chain", () => {
     it("sends a retry the chain holds no deployment for, and retires the compensation it still waits on", async () => {

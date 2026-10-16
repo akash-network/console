@@ -6610,6 +6610,19 @@
             "in": "path"
           },
           {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "With `true`, the patch is saved during the request and applied in the background: once it is saved, the request answers 202 with an `activityId` to follow at `GET /v1/activities/{id}` and the `manifestVersion` it saved. Every refusal and conflict still answers on the request and saves nothing. It answers 200 as without it for a rename alone, which has nothing to apply, and when background updates are unavailable."
+            },
+            "required": false,
+            "name": "async",
+            "in": "query"
+          },
+          {
             "$ref": "#/components/parameters/OrganizationIdHeader"
           },
           {
@@ -7328,6 +7341,39 @@
                         "leases",
                         "escrow_account",
                         "name"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The patch passed every check and was saved, and will be applied in the background",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "activityId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "The activity that reports how applying the patch ends."
+                        },
+                        "manifestVersion": {
+                          "type": "string",
+                          "description": "Base64 manifest version this patch saved. Pass it as `ifManifestVersion` to patch again while this one is still being applied. The patches of one deployment are applied one at a time, so the newest one saved lands last."
+                        }
+                      },
+                      "required": [
+                        "activityId",
+                        "manifestVersion"
                       ]
                     }
                   },
@@ -24128,7 +24174,8 @@
               "type": "string",
               "enum": [
                 "deployment_close",
-                "deployment_create"
+                "deployment_create",
+                "deployment_update"
               ],
               "description": "What the action was."
             },
@@ -24167,7 +24214,8 @@
                                 "type": "string",
                                 "enum": [
                                   "deployment_close",
-                                  "deployment_create"
+                                  "deployment_create",
+                                  "deployment_update"
                                 ],
                                 "description": "What the action was."
                               },
@@ -24198,6 +24246,10 @@
                                   "batchId": {
                                     "type": "string",
                                     "description": "The bulk close the action was part of, as its request named it."
+                                  },
+                                  "manifestVersion": {
+                                    "type": "string",
+                                    "description": "The base64 manifest version an update saved."
                                   },
                                   "txHash": {
                                     "type": "string",
@@ -24361,7 +24413,8 @@
                           "type": "string",
                           "enum": [
                             "deployment_close",
-                            "deployment_create"
+                            "deployment_create",
+                            "deployment_update"
                           ],
                           "description": "What the action was."
                         },
@@ -24392,6 +24445,10 @@
                             "batchId": {
                               "type": "string",
                               "description": "The bulk close the action was part of, as its request named it."
+                            },
+                            "manifestVersion": {
+                              "type": "string",
+                              "description": "The base64 manifest version an update saved."
                             },
                             "txHash": {
                               "type": "string",

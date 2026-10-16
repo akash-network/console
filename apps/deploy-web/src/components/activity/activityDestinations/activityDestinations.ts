@@ -16,7 +16,13 @@ const DESTINATIONS: Record<Activity["type"], (activity: Activity) => ActivityDes
 
     return { href: UrlService.deploymentDetails(dseq), label: "View deployment" };
   },
-  deployment_create: ({ meta: { dseq } }) => (dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST)
+  deployment_create: ({ meta: { dseq } }) => (dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST),
+  deployment_update: ({ status, meta: { dseq } }) => {
+    if (!dseq) return DEPLOYMENT_LIST;
+    if (status === "failed") return { href: UrlService.deploymentDetails(dseq, "UPDATE"), label: "Open update" };
+
+    return { href: UrlService.deploymentDetails(dseq), label: "View deployment" };
+  }
 };
 
 /** A summary of several deployments, such as a bulk close, leads to the list they all show in. */

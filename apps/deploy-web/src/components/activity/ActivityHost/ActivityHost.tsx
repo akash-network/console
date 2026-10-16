@@ -50,6 +50,13 @@ const ANNOUNCEMENTS: Record<Activity["type"], (activity: FinishedActivity, label
     return status === "succeeded"
       ? { title: `${upperFirst(deployment)} created`, subTitle: "Choose a provider to start it.", variant: "success" }
       : { title: `Couldn't create ${deployment}`, subTitle: meta.error?.message ?? "Try creating it again.", variant: "error" };
+  },
+  deployment_update: ({ status, meta }, labelDeployment) => {
+    const deployment = labelDeployment(meta.dseq);
+
+    return status === "succeeded"
+      ? { title: `${upperFirst(deployment)} updated`, subTitle: "The new configuration is being applied to it.", variant: "success" }
+      : { title: `Couldn't update ${deployment}`, subTitle: meta.error?.message ?? "Try updating it again.", variant: "error" };
   }
 };
 

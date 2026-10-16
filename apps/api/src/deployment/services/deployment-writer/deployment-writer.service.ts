@@ -32,11 +32,17 @@ import {
   CreateDeploymentRequest,
   CreateDeploymentResponse,
   DeploymentResponse,
+  PatchDeploymentAcceptedResponse,
   PatchDeploymentRequest,
   PatchDeploymentResponse,
   UpdateDeploymentRequest
 } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository, type DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import {
+  APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS,
+  ApplyDeploymentUpdate,
+  applyDeploymentUpdateKeyFor
+} from "@src/deployment/services/apply-deployment-update/apply-deployment-update.job";
 import { CLOSE_DEPLOYMENT_RETRY_OPTIONS, CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
 import { CREATE_DEPLOYMENT_RETRY_OPTIONS, CreateDeployment, createDeploymentKeyFor } from "@src/deployment/services/create-deployment/create-deployment.job";
 import {
@@ -60,6 +66,10 @@ import {
   ReconcileDeploymentCreate,
   reconcileDeploymentCreateOptionsFor
 } from "@src/deployment/services/reconcile-deployment-create/reconcile-deployment-create.job";
+import {
+  ReconcileDeploymentUpdate,
+  reconcileDeploymentUpdateOptionsFor
+} from "@src/deployment/services/reconcile-deployment-update/reconcile-deployment-update.job";
 import { type ResolvedSdl, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { MAX_ECHOED_REFERENCE_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
@@ -78,6 +88,7 @@ import {
 import { deriveDeploymentName } from "@src/deployment/utils/deployment-name/deployment-name";
 import type { StorableSdl, StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
+import { failedUpdateActivityOf, pendingUpdateActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { denomToUdenom } from "@src/utils/math";
@@ -176,6 +187,9 @@ function prunedOverlayOf(sets: { carried: SdlSecrets; supplied: SdlSecrets; deri
 /** Carries no secret and no resolved manifest, so a job payload can hold it, and names the wallet when it belongs to an organization rather than a user. */
 export type SavedPatch = { userId: string; dseq: string; manifestVersion: string; walletId?: number };
 
+/** `assertMayStillSign` runs only once the chain shows another version, so an update an earlier attempt landed needs no signature to settle. */
+export type SavedPatchApply = { assertMayStillSign?: () => Promise<void> };
+
 /** Built by the request that saved the patch, so applying it there opens the stored token once rather than twice. */
 type PreparedPatch = {
   actingUserId: string;
@@ -183,7 +197,22 @@ type PreparedPatch = {
   dseq: string;
   resolved: ResolvedSdl;
   deployment: DeploymentResponse;
+  assertMayStillSign?: () => Promise<void>;
 };
+
+type PatchWrite = {
+  definition: Parameters<DeploymentSettingRepository["replaceDefinitionIfVersionMatches"]>[0];
+  counts: { patchedServiceCount: number; secretCount: number; guarded: boolean };
+  saved: SavedPatch;
+  filedUserId: string;
+  /** Absent for a deployment filed before organizations, whose row only its user reaches. */
+  organizationId?: string;
+  prepared: PreparedPatch;
+};
+
+function isRenameOnly(input: PatchDeploymentRequest["data"]): input is PatchDeploymentRequest["data"] & { name: string } {
+  return input.name !== undefined && !assignsAnyServiceField(input.services) && !input.sealedSecrets;
+}
 
 @singleton()
 export class DeploymentWriterService {
@@ -839,23 +868,92 @@ export class DeploymentWriterService {
     input: PatchDeploymentRequest["data"],
     ability: AnyAbility
   ): Promise<PatchDeploymentResponse["data"]> {
-    if (input.name !== undefined && !assignsAnyServiceField(input.services) && !input.sealedSecrets) {
+    if (isRenameOnly(input)) {
       return await this.#renameByUserIdAndDseq(userId, dseq, input.name, ability);
     }
 
-    const { saved, filedUserId, name, prepared } = await this.#savePatch(userId, dseq, input, ability);
+    const write = await this.#preparePatch(userId, dseq, input, ability);
+    const { name } = await this.#savePatch(write, ability);
 
-    if (await this.#findDefinitionSavedAs(saved, filedUserId, ability)) {
-      await this.#applyPrepared(prepared);
+    await this.#applyRecordingOutcome(write, ability);
+
+    const updatedDeployment = await this.deploymentReaderService.findByWalletAndDseq(write.prepared.wallet, dseq);
+
+    return { ...updatedDeployment, name, manifestVersion: write.saved.manifestVersion };
+  }
+
+  /** Refusals and conflicts still answer on the request; the save commits with its pending activity, the job that applies it and a later check on it, so no saved patch is left without an apply or an activity without an outcome. */
+  public async patchInBackgroundByUserIdAndDseq(
+    userId: string,
+    dseq: string,
+    input: PatchDeploymentRequest["data"],
+    ability: AnyAbility
+  ): Promise<PatchDeploymentResponse["data"] | PatchDeploymentAcceptedResponse["data"]> {
+    if (isRenameOnly(input)) {
+      return await this.#renameByUserIdAndDseq(userId, dseq, input.name, ability);
     }
 
-    const updatedDeployment = await this.deploymentReaderService.findByWalletAndDseq(prepared.wallet, dseq);
+    const write = await this.#preparePatch(userId, dseq, input, ability);
 
-    return { ...updatedDeployment, name, manifestVersion: saved.manifestVersion };
+    return await this.txService.transaction(async () => {
+      await this.#savePatch(write, ability);
+      const { saved, organizationId, prepared } = write;
+      const activityId = randomUUID();
+      await this.activityService.open({ id: activityId, ...pendingUpdateActivityOf(saved) });
+      const update = { userId, dseq, manifestVersion: saved.manifestVersion, walletId: prepared.wallet.id, organizationId, activityId };
+      const updateJobId = await this.jobQueueService.enqueue(new ApplyDeploymentUpdate(update), {
+        singletonKey: applyDeploymentUpdateKeyFor(update),
+        ...APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS
+      });
+
+      if (!updateJobId) {
+        throw new Error(`Refusing to save a patch of deployment ${dseq} without the job that applies it: the queue accepted no job`);
+      }
+
+      await this.jobQueueService.enqueue(
+        new ReconcileDeploymentUpdate({ userId, owner: prepared.wallet.address, dseq, manifestVersion: saved.manifestVersion, activityId, updateJobId }),
+        reconcileDeploymentUpdateOptionsFor(activityId, new Date())
+      );
+
+      return { activityId, manifestVersion: saved.manifestVersion };
+    });
+  }
+
+  /** A saved patch records one activity whatever its apply ends in, so the feed covers updates from every client; as with `record`, failing to write it is only logged. */
+  async #applyRecordingOutcome({ saved, filedUserId, prepared }: PatchWrite, ability: AnyAbility): Promise<void> {
+    try {
+      if (await this.#findDefinitionSavedAs(saved, filedUserId, ability)) {
+        await this.#applyPrepared(prepared);
+      }
+    } catch (error) {
+      await this.#recordFailedUpdate({ userId: saved.userId, owner: prepared.wallet.address, dseq: saved.dseq, manifestVersion: saved.manifestVersion }, error);
+      throw error;
+    }
+
+    await this.activityService.record(updatedActivityOf(saved));
+  }
+
+  /** An undecided update opens its pending activity with a later check in one transaction, so it settles once its outcome is known; as with `record`, failing to write either is only logged. */
+  async #recordFailedUpdate(update: { userId: string; owner: string; dseq: string; manifestVersion: string }, error: unknown): Promise<void> {
+    const activity = failedUpdateActivityOf(update, error);
+    if (activity.status !== "pending") return await this.activityService.record(activity);
+
+    try {
+      await this.txService.transaction(async () => {
+        const activityId = randomUUID();
+        await this.activityService.open({ id: activityId, ...activity });
+        await this.jobQueueService.enqueue(
+          new ReconcileDeploymentUpdate({ ...update, activityId }),
+          reconcileDeploymentUpdateOptionsFor(activityId, new Date())
+        );
+      });
+    } catch (recordError) {
+      this.logger.error({ event: "UNDECIDED_UPDATE_RECORD_FAILED", userId: update.userId, dseq: update.dseq, error: recordError });
+    }
   }
 
   /** Depends on no request state, because a background job runs it as the background user under the ability its handler declares. */
-  public async applySavedPatch(saved: SavedPatch, ability: AnyAbility): Promise<void> {
+  public async applySavedPatch(saved: SavedPatch, ability: AnyAbility, { assertMayStillSign }: SavedPatchApply = {}): Promise<void> {
     const wallet =
       saved.walletId === undefined
         ? await this.walletReaderService.getWalletByUserId(saved.userId)
@@ -864,15 +962,12 @@ export class DeploymentWriterService {
     const definition = await this.#findDefinitionSavedAs(saved, filedUserId, ability);
     if (!definition) return;
 
-    await this.#applyPrepared(await this.#prepareSavedDefinition({ saved, wallet, filedUserId }, definition));
+    const prepared = await this.#prepareSavedDefinition({ saved, wallet, filedUserId }, definition);
+    await this.#applyPrepared({ ...prepared, assertMayStillSign });
   }
 
-  async #savePatch(
-    userId: string,
-    dseq: string,
-    input: PatchDeploymentRequest["data"],
-    ability: AnyAbility
-  ): Promise<{ saved: SavedPatch; filedUserId: string; name: string | null; prepared: PreparedPatch }> {
+  /** Every check that can refuse the patch, and the key-service calls, run here so a background patch can commit its single write with the job that applies it. */
+  async #preparePatch(userId: string, dseq: string, input: PatchDeploymentRequest["data"], ability: AnyAbility): Promise<PatchWrite> {
     const wallet = await this.walletReaderService.getWalletByUserId(userId);
     const filedUserId = await this.signerService.filedUserIdOf(wallet, userId, dseq);
     const stored = await this.#findStoredDefinition({ userId: filedUserId, dseq }, ability, NOT_PATCHABLE_MESSAGE);
@@ -897,35 +992,38 @@ export class DeploymentWriterService {
     const recordedVersion = Buffer.from(manifestVersion).toString("base64");
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: filedUserId, dseq, secrets: merged });
 
-    const recorded = await this.deploymentSettingRepository.accessibleBy(ability, "update").replaceDefinitionIfVersionMatches({
-      userId: filedUserId,
-      dseq,
-      sdl: patchedSdl,
-      manifestVersion: recordedVersion,
-      sealedSecrets,
-      name: input.name,
-      expectedManifestVersion: input.ifManifestVersion ?? stored.manifestVersion
-    });
+    return {
+      definition: {
+        userId: filedUserId,
+        dseq,
+        sdl: patchedSdl,
+        manifestVersion: recordedVersion,
+        sealedSecrets,
+        name: input.name,
+        expectedManifestVersion: input.ifManifestVersion ?? stored.manifestVersion
+      },
+      counts: {
+        patchedServiceCount: Object.keys(input.services ?? {}).length,
+        secretCount: Object.keys(merged).length,
+        guarded: input.ifManifestVersion !== undefined
+      },
+      saved: { userId, dseq, manifestVersion: recordedVersion, ...organizationWalletOf(wallet) },
+      filedUserId,
+      organizationId: stored.organizationId,
+      prepared: { actingUserId: userId, wallet, dseq, resolved: { manifestVersion, manifest }, deployment }
+    };
+  }
+
+  async #savePatch({ definition, counts, saved }: PatchWrite, ability: AnyAbility): Promise<{ name: string | null }> {
+    const recorded = await this.deploymentSettingRepository.accessibleBy(ability, "update").replaceDefinitionIfVersionMatches(definition);
 
     if (!recorded) {
       throw createError(409, "Deployment definition changed concurrently, please retry", { errorCode: DEFINITION_CHANGED_ERROR_CODE });
     }
 
-    this.logger.info({
-      event: "DEPLOYMENT_PATCH_APPLIED",
-      userId,
-      dseq,
-      patchedServiceCount: Object.keys(input.services ?? {}).length,
-      secretCount: Object.keys(merged).length,
-      guarded: input.ifManifestVersion !== undefined
-    });
+    this.logger.info({ event: "DEPLOYMENT_PATCH_APPLIED", userId: saved.userId, dseq: saved.dseq, ...counts });
 
-    return {
-      saved: { userId, dseq, manifestVersion: recordedVersion, ...organizationWalletOf(wallet) },
-      filedUserId,
-      name: recorded.name,
-      prepared: { actingUserId: userId, wallet, dseq, resolved: { manifestVersion, manifest }, deployment }
-    };
+    return { name: recorded.name };
   }
 
   /** Read from the row even right after the save, so a patch a newer one replaced is never applied on chain, however late it runs. */
@@ -957,8 +1055,8 @@ export class DeploymentWriterService {
     return { actingUserId: saved.userId, wallet, dseq: saved.dseq, resolved, deployment };
   }
 
-  async #applyPrepared({ actingUserId, wallet, dseq, resolved, deployment }: PreparedPatch): Promise<void> {
-    await this.ensureDeploymentIsUpToDate({ userId: actingUserId, wallet }, dseq, resolved.manifestVersion, deployment);
+  async #applyPrepared({ actingUserId, wallet, dseq, resolved, deployment, assertMayStillSign }: PreparedPatch): Promise<void> {
+    await this.ensureDeploymentIsUpToDate({ userId: actingUserId, wallet, assertMayStillSign }, dseq, resolved.manifestVersion, deployment);
     await this.sendManifestToProviders({
       auth: { walletId: wallet.id },
       dseq,
@@ -1079,7 +1177,7 @@ export class DeploymentWriterService {
     key: { userId: string; dseq: string },
     ability: AnyAbility,
     notFoundMessage: string
-  ): Promise<{ sdl: string; sealedSecrets: string | null; manifestVersion?: string; runtimeLimitHours?: number }> {
+  ): Promise<{ sdl: string; sealedSecrets: string | null; manifestVersion?: string; runtimeLimitHours?: number; organizationId?: string }> {
     const setting = await this.deploymentSettingRepository.accessibleBy(ability, "read").findOneBy(key);
 
     if (!setting?.sdl) {
@@ -1090,7 +1188,8 @@ export class DeploymentWriterService {
       sdl: setting.sdl,
       sealedSecrets: setting.sealedSecrets,
       manifestVersion: setting.manifestVersion ?? undefined,
-      runtimeLimitHours: setting.runtimeLimitHours ?? undefined
+      runtimeLimitHours: setting.runtimeLimitHours ?? undefined,
+      organizationId: setting.organizationId ?? undefined
     };
   }
 
@@ -1203,12 +1302,13 @@ export class DeploymentWriterService {
   }
 
   private async ensureDeploymentIsUpToDate(
-    { userId, wallet }: { userId: string; wallet: UserWalletOutput },
+    { userId, wallet, assertMayStillSign }: { userId: string; wallet: UserWalletOutput; assertMayStillSign?: () => Promise<void> },
     dseq: string,
     manifestVersion: Uint8Array,
     deployment: DeploymentResponse
   ): Promise<void> {
     if (Buffer.from(manifestVersion).toString("base64") !== deployment.deployment.hash) {
+      await assertMayStillSign?.();
       const message = this.rpcMessageService.getUpdateDeploymentMsg({
         owner: wallet.address!,
         dseq,

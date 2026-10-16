@@ -26,6 +26,7 @@ import { JOB_NAME } from "@src/core";
 import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS, ApplyDeploymentUpdate } from "@src/deployment/services/apply-deployment-update/apply-deployment-update.job";
 import { CLOSE_DEPLOYMENT_RETRY_OPTIONS, CloseDeployment, closeDeploymentKeyFor } from "@src/deployment/services/close-deployment/close-deployment.job";
 import { CREATE_DEPLOYMENT_RETRY_OPTIONS, CreateDeployment, createDeploymentKeyFor } from "@src/deployment/services/create-deployment/create-deployment.job";
 import { DeleteUnbackedDeploymentSetting } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
@@ -39,6 +40,10 @@ import {
   ReconcileDeploymentCreate,
   reconcileDeploymentCreateOptionsFor
 } from "@src/deployment/services/reconcile-deployment-create/reconcile-deployment-create.job";
+import {
+  ReconcileDeploymentUpdate,
+  reconcileDeploymentUpdateOptionsFor
+} from "@src/deployment/services/reconcile-deployment-update/reconcile-deployment-update.job";
 import type { GenerateResolvedManifestResult, SdlManifest, SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlPatchService } from "@src/deployment/services/sdl-patch/sdl-patch.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
@@ -50,6 +55,7 @@ import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resou
 import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { createdActivityOf, creatingActivityOf, failedCreateActivityOf } from "@src/deployment/utils/create-activity/create-activity";
 import { decodeCreateDeploymentMessage, encodeCreateDeploymentMessage } from "@src/deployment/utils/create-deployment-message/create-deployment-message";
+import { failedUpdateActivityOf, pendingUpdateActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -3875,6 +3881,314 @@ describe(DeploymentWriterService.name, () => {
       });
     });
 
+    describe("the activity a patch records", () => {
+      const SAVED = { userId: "user-1", dseq: "1234", manifestVersion: Buffer.from(new Uint8Array([1, 2, 3])).toString("base64") };
+
+      it("records the update as succeeded once the manifest is pushed", async () => {
+        const { service, ability, activityService, providerService } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(activityService.record).toHaveBeenCalledTimes(1);
+        expect(activityService.record).toHaveBeenCalledWith(updatedActivityOf(SAVED));
+        expect(providerService.sendManifest.mock.invocationCallOrder[0]).toBeLessThan(activityService.record.mock.invocationCallOrder[0]);
+      });
+
+      it("records a patch a newer one replaced as succeeded, the newer version carrying its edits", async () => {
+        const { service, ability, activityService } = setup({ replacedBy: "TkVXRVI=" });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(activityService.record).toHaveBeenCalledWith(updatedActivityOf(SAVED));
+      });
+
+      it("records nothing when a refusal stops the patch before its write", async () => {
+        const { service, ability, activityService } = setup();
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { api: { image: "x" } } }, ability)).rejects.toMatchObject({ status: 400 });
+
+        expect(activityService.record).not.toHaveBeenCalled();
+        expect(activityService.open).not.toHaveBeenCalled();
+      });
+
+      it("records nothing when the definition changed concurrently", async () => {
+        const { service, ability, activityService } = setup({ written: undefined });
+
+        await expect(
+          service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, ifManifestVersion: "STALE" }, ability)
+        ).rejects.toMatchObject({
+          status: 409
+        });
+
+        expect(activityService.record).not.toHaveBeenCalled();
+      });
+
+      it("records nothing for a rename alone, which applies nothing", async () => {
+        const { service, ability, activityService } = setup();
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(activityService.record).not.toHaveBeenCalled();
+      });
+
+      it("records an apply that failed with its reason and still answers with the failure", async () => {
+        const { service, ability, signerService, activityService } = setup({ chainHash: "SOMETHING_ELSE" });
+        const failure = createError(400, "Deployment closed");
+        signerService.executeDecodedTxByUserWallet.mockRejectedValue(failure);
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toBe(failure);
+
+        expect(activityService.record).toHaveBeenCalledTimes(1);
+        expect(activityService.record).toHaveBeenCalledWith(failedUpdateActivityOf(SAVED, failure));
+      });
+
+      it("opens an update left undecided as pending with a check on it in one transaction, and still answers with the failure", async () => {
+        const { service, ability, signerService, activityService, jobQueueService, transactionLog } = setup({ chainHash: "SOMETHING_ELSE" });
+        vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00.000Z"), toFake: ["Date"] });
+        const undecided = new TxOutcomeUnknownError("ABCDEF");
+        signerService.executeDecodedTxByUserWallet.mockRejectedValue(undecided);
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toBe(undecided);
+
+        const [[opened]] = activityService.open.mock.calls;
+        expect(opened).toEqual({ id: expect.any(String), ...failedUpdateActivityOf(SAVED, undecided) });
+        expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+          new ReconcileDeploymentUpdate({ ...SAVED, owner: "akash1owner", activityId: opened.id }),
+          reconcileDeploymentUpdateOptionsFor(opened.id, new Date("2026-01-01T00:00:00.000Z"))
+        );
+        expect(transactionLog).toEqual(["write", "begin", "activity", ReconcileDeploymentUpdate[JOB_NAME], "commit"]);
+        expect(activityService.record).not.toHaveBeenCalled();
+      });
+
+      it("still answers with the failure of an update left undecided when it cannot be recorded", async () => {
+        const { service, ability, signerService, activityService, logger } = setup({ chainHash: "SOMETHING_ELSE" });
+        const undecided = new TxOutcomeUnknownError("ABCDEF");
+        const recordFailure = new Error("connection reset");
+        signerService.executeDecodedTxByUserWallet.mockRejectedValue(undecided);
+        activityService.open.mockRejectedValue(recordFailure);
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toBe(undecided);
+
+        expect(logger.error).toHaveBeenCalledWith({ event: "UNDECIDED_UPDATE_RECORD_FAILED", userId: "user-1", dseq: "1234", error: recordFailure });
+      });
+    });
+
+    describe("patchInBackgroundByUserIdAndDseq", () => {
+      const SAVED_VERSION = Buffer.from(new Uint8Array([1, 2, 3])).toString("base64");
+
+      it("saves the patch together with its pending activity, its apply and a check on it", async () => {
+        const { service, ability, transactionLog } = setup();
+
+        await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(transactionLog).toEqual(["begin", "write", "activity", ApplyDeploymentUpdate[JOB_NAME], ReconcileDeploymentUpdate[JOB_NAME], "commit"]);
+      });
+
+      it("opens the activity as a pending update of the version it saved", async () => {
+        const { service, ability, activityService } = setup();
+
+        const accepted = await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(activityService.open).toHaveBeenCalledWith({
+          id: (accepted as { activityId: string }).activityId,
+          userId: "user-1",
+          type: "deployment_update",
+          status: "pending",
+          initiator: "user",
+          meta: { dseq: "1234", manifestVersion: SAVED_VERSION },
+          dedupeKey: null
+        });
+      });
+
+      it("queues the apply of the version it saved with the wallet and organization it resolved, on the key of the wallet's deployment, with retries", async () => {
+        const { service, ability, jobQueueService } = setup();
+
+        const accepted = await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+          new ApplyDeploymentUpdate({
+            userId: "user-1",
+            dseq: "1234",
+            manifestVersion: SAVED_VERSION,
+            walletId: 7,
+            organizationId: "personal-organization-1",
+            activityId: (accepted as { activityId: string }).activityId
+          }),
+          { singletonKey: "applyDeploymentUpdate.7.1234", ...APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS }
+        );
+      });
+
+      it("names no organization in the apply of a deployment filed before organizations", async () => {
+        const { service, ability, jobQueueService } = setup({ organizationId: null });
+
+        await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        const [applyJob] = jobQueueService.enqueue.mock.calls[0];
+        expect(applyJob.data).not.toHaveProperty("organizationId", expect.anything());
+        expect(applyJob.data).toMatchObject({ walletId: 7 });
+      });
+
+      describe("a deployment of an organization's wallet", () => {
+        const organizationWallet: WalletInitialized = { ...wallet, id: 42, address: "akash1team", userId: null, organizationId: "organization-1" };
+
+        it("saves it under the member who filed it and reports it in the feed of the member who saved it", async () => {
+          const { service, ability, walletReaderService, signerService, deploymentSettingRepository, activityService } = setup({
+            organizationId: "organization-1"
+          });
+          walletReaderService.getWalletByUserId.mockResolvedValue(organizationWallet);
+          signerService.filedUserIdOf.mockResolvedValue("filer-1");
+
+          const accepted = await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+          expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).toHaveBeenCalledWith(
+            expect.objectContaining({ userId: "filer-1", dseq: "1234" })
+          );
+          expect(activityService.open).toHaveBeenCalledWith({
+            id: (accepted as { activityId: string }).activityId,
+            ...pendingUpdateActivityOf({ userId: "user-1", dseq: "1234", manifestVersion: SAVED_VERSION })
+          });
+        });
+
+        it("queues its apply with the organization's wallet and organization, on that wallet's key", async () => {
+          const { service, ability, walletReaderService, signerService, jobQueueService } = setup({ organizationId: "organization-1" });
+          walletReaderService.getWalletByUserId.mockResolvedValue(organizationWallet);
+          signerService.filedUserIdOf.mockResolvedValue("filer-1");
+
+          const accepted = await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+          expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+            new ApplyDeploymentUpdate({
+              userId: "user-1",
+              dseq: "1234",
+              manifestVersion: SAVED_VERSION,
+              walletId: 42,
+              organizationId: "organization-1",
+              activityId: (accepted as { activityId: string }).activityId
+            }),
+            { singletonKey: "applyDeploymentUpdate.42.1234", ...APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS }
+          );
+        });
+
+        it("queues its check on the address of the organization's wallet", async () => {
+          const { service, ability, walletReaderService, signerService, jobQueueService } = setup({ organizationId: "organization-1" });
+          walletReaderService.getWalletByUserId.mockResolvedValue(organizationWallet);
+          signerService.filedUserIdOf.mockResolvedValue("filer-1");
+
+          await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+          const [reconcileJob] = jobQueueService.enqueue.mock.calls[1];
+          expect(reconcileJob).toBeInstanceOf(ReconcileDeploymentUpdate);
+          expect(reconcileJob.data).toMatchObject({ userId: "user-1", owner: "akash1team", dseq: "1234" });
+        });
+
+        it("saves and queues nothing when the deployment is outside the caller's projects", async () => {
+          const { service, ability, walletReaderService, signerService, deploymentSettingRepository, txService, jobQueueService } = setup({
+            organizationId: "organization-1"
+          });
+          walletReaderService.getWalletByUserId.mockResolvedValue(organizationWallet);
+          signerService.filedUserIdOf.mockRejectedValue(createError(403, "outside"));
+
+          await expect(service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toMatchObject({
+            status: 403
+          });
+
+          expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+          expect(txService.transaction).not.toHaveBeenCalled();
+          expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+        });
+      });
+
+      it("queues a check on the update for the deployment's owner, naming the job that applies it", async () => {
+        const { service, ability, jobQueueService } = setup();
+        vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00.000Z"), toFake: ["Date"] });
+
+        const accepted = await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        const { activityId } = accepted as { activityId: string };
+        expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+          new ReconcileDeploymentUpdate({
+            userId: "user-1",
+            owner: "akash1owner",
+            dseq: "1234",
+            manifestVersion: SAVED_VERSION,
+            activityId,
+            updateJobId: "apply-job-1"
+          }),
+          reconcileDeploymentUpdateOptionsFor(activityId, new Date("2026-01-01T00:00:00.000Z"))
+        );
+      });
+
+      it("answers with the activity to follow and the version to guard the next patch on", async () => {
+        const { service, ability, activityService } = setup();
+
+        const accepted = await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(accepted).toEqual({ activityId: activityService.open.mock.calls[0][0].id, manifestVersion: SAVED_VERSION });
+      });
+
+      it("applies nothing and records no outcome during the request", async () => {
+        const { service, ability, signerService, providerService, activityService, deploymentReaderService, probeJobService } = setup({
+          chainHash: "SOMETHING_ELSE",
+          isTrialing: true
+        });
+
+        await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+        expect(providerService.sendManifest).not.toHaveBeenCalled();
+        expect(probeJobService.restartForUpdatedDeployment).not.toHaveBeenCalled();
+        expect(deploymentReaderService.findByWalletAndDseq).not.toHaveBeenCalled();
+        expect(activityService.record).not.toHaveBeenCalled();
+      });
+
+      it("answers 409 and commits nothing when the definition changed concurrently", async () => {
+        const { service, ability, activityService, jobQueueService, transactionLog } = setup({ written: undefined });
+
+        await expect(
+          service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, ifManifestVersion: "STALE" }, ability)
+        ).rejects.toMatchObject({ status: 409, errorCode: "deployment_definition_changed" });
+
+        expect(transactionLog).toEqual(["begin", "write"]);
+        expect(activityService.open).not.toHaveBeenCalled();
+        expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      });
+
+      it("opens no transaction when a refusal stops the patch before its write", async () => {
+        const { service, ability, txService, deploymentSettingRepository } = setup();
+
+        await expect(service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { api: { image: "x" } } }, ability)).rejects.toMatchObject({
+          status: 400
+        });
+
+        expect(txService.transaction).not.toHaveBeenCalled();
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+
+      it("renames during the request and queues nothing for a name alone", async () => {
+        const { service, ability, deploymentSettingRepository, txService, jobQueueService } = setup();
+
+        const renamed = await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(renamed).toMatchObject({ name: "renamed" });
+        expect(renamed).not.toHaveProperty("activityId");
+        expect(deploymentSettingRepository.upsertName).toHaveBeenCalledWith({ userId: "user-1", dseq: "1234", name: "renamed" });
+        expect(txService.transaction).not.toHaveBeenCalled();
+        expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      });
+
+      it("refuses to commit a patch the queue accepted no apply for, queueing no check either", async () => {
+        const { service, ability, jobQueueService, transactionLog } = setup();
+        jobQueueService.enqueue.mockResolvedValueOnce(null);
+
+        await expect(service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toThrow(
+          "Refusing to save a patch of deployment 1234 without the job that applies it: the queue accepted no job"
+        );
+
+        expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+        expect(transactionLog).not.toContain("commit");
+      });
+    });
+
     function setup(input?: {
       sdl?: string;
       setting?: DeploymentSettingsOutput | undefined;
@@ -3892,6 +4206,7 @@ describe(DeploymentWriterService.name, () => {
       isTrialing?: boolean;
       onChainGroupSpecs?: OnChainGroupSpec[];
       replacedBy?: string;
+      organizationId?: string | null;
     }) {
       const manifestVersion = new Uint8Array([1, 2, 3]);
       const storedToken = input?.storedToken === undefined ? STORED_TOKEN : input.storedToken;
@@ -3905,14 +4220,21 @@ describe(DeploymentWriterService.name, () => {
       const deploymentSettingRepository = mock<DeploymentSettingRepository>();
       const scoped = mock<DeploymentSettingRepository>();
       const storedVersion = input?.storedVersion === undefined ? STORED_VERSION : input.storedVersion;
+      const organizationId = input?.organizationId === undefined ? "personal-organization-1" : input.organizationId;
       scoped.findOneBy.mockResolvedValue(
-        hasSetting ? mock<DeploymentSettingsOutput>({ sdl: input?.sdl ?? STORED_SDL, sealedSecrets: storedToken, manifestVersion: storedVersion }) : undefined
+        hasSetting
+          ? mock<DeploymentSettingsOutput>({ sdl: input?.sdl ?? STORED_SDL, sealedSecrets: storedToken, manifestVersion: storedVersion, organizationId })
+          : undefined
       );
+      const transactionLog: string[] = [];
       scoped.replaceDefinitionIfVersionMatches.mockImplementation(async ({ name, sdl, sealedSecrets, manifestVersion }) => {
+        transactionLog.push("write");
         const id = "written" in (input ?? {}) ? input!.written : randomUUID();
         if (id === undefined) return undefined;
 
-        scoped.findOneBy.mockResolvedValue(mock<DeploymentSettingsOutput>({ sdl, sealedSecrets, manifestVersion: input?.replacedBy ?? manifestVersion }));
+        scoped.findOneBy.mockResolvedValue(
+          mock<DeploymentSettingsOutput>({ sdl, sealedSecrets, manifestVersion: input?.replacedBy ?? manifestVersion, organizationId })
+        );
         return { id, name: name ?? input?.recordedName ?? null };
       });
       scoped.upsertName.mockImplementation(async ({ name }) => name);
@@ -3958,6 +4280,22 @@ describe(DeploymentWriterService.name, () => {
       const probeJobService = mock<TrialWorkloadProbeJobService>();
       const leaseGpuDetectionJobService = mock<LeaseGpuDetectionJobService>();
       const ability = mock<AnyAbility>();
+      const txService = mock<TxService>();
+      txService.transaction.mockImplementation(async cb => {
+        transactionLog.push("begin");
+        const result = await cb();
+        transactionLog.push("commit");
+        return result;
+      });
+      const jobQueueService = mock<JobQueueService>();
+      jobQueueService.enqueue.mockImplementation(async job => {
+        transactionLog.push(job.name);
+        return job instanceof ApplyDeploymentUpdate ? "apply-job-1" : "reconcile-job-1";
+      });
+      const activityService = mock<ActivityService>();
+      activityService.open.mockImplementation(async () => {
+        transactionLog.push("activity");
+      });
       const service = new DeploymentWriterService(
         signerService,
         mock<RpcMessageService>(),
@@ -3970,8 +4308,8 @@ describe(DeploymentWriterService.name, () => {
         createLogger,
         mockConfigService<DeploymentConfigService>({}),
         deploymentSettingRepository,
-        mock<TxService>(),
-        mock<JobQueueService>(),
+        txService,
+        jobQueueService,
         sdlSecretsService,
         new SdlSecretsDerivationService(new SdlReferenceService()),
         new SdlPatchService(),
@@ -3979,7 +4317,7 @@ describe(DeploymentWriterService.name, () => {
         mock<SdlSecretsInheritanceService>(),
         probeJobService,
         leaseGpuDetectionJobService,
-        mock<ActivityService>(),
+        activityService,
         mock<DeploymentProjectService>(),
         mock<DeploymentOrganizationActivityService>(),
         mock<DeploymentDepositLedgerService>(),
@@ -4007,6 +4345,10 @@ describe(DeploymentWriterService.name, () => {
         sdlReferenceService,
         probeJobService,
         leaseGpuDetectionJobService,
+        txService,
+        jobQueueService,
+        activityService,
+        transactionLog,
         sealedFor
       };
     }
@@ -4119,6 +4461,36 @@ describe(DeploymentWriterService.name, () => {
       await service.applySavedPatch(savedPatch, ability);
 
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).toHaveBeenCalledTimes(1);
+    });
+
+    it("checks that the member may still sign right before it signs the update of the chain", async () => {
+      const { service, ability, signerService } = setup({ onChainHash: "c3RhbGU=" });
+      const assertMayStillSign = vi.fn().mockResolvedValue(undefined);
+
+      await service.applySavedPatch(savedPatch, ability, { assertMayStillSign });
+
+      expect(assertMayStillSign).toHaveBeenCalledTimes(1);
+      expect(assertMayStillSign.mock.invocationCallOrder[0]).toBeLessThan(signerService.executeDecodedTxByUserWallet.mock.invocationCallOrder[0]);
+    });
+
+    it("signs nothing and pushes nothing when the member may no longer sign", async () => {
+      const { service, ability, signerService, providerService } = setup({ onChainHash: "c3RhbGU=" });
+      const refusal = new Error("access revoked");
+
+      await expect(service.applySavedPatch(savedPatch, ability, { assertMayStillSign: vi.fn().mockRejectedValue(refusal) })).rejects.toBe(refusal);
+
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("pushes the manifest of an update an earlier attempt landed without checking whether the member may still sign", async () => {
+      const { service, ability, providerService } = setup({ onChainHash: savedVersion });
+      const assertMayStillSign = vi.fn().mockRejectedValue(new Error("access revoked"));
+
+      await service.applySavedPatch(savedPatch, ability, { assertMayStillSign });
+
+      expect(assertMayStillSign).not.toHaveBeenCalled();
       expect(providerService.sendManifest).toHaveBeenCalledTimes(1);
     });
 

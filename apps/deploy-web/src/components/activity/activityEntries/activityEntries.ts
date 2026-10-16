@@ -18,7 +18,8 @@ type LabelDeployment = (dseq: string | undefined) => string;
 
 const ENTRY_WORDING = {
   deployment_close: { pending: "Closing", succeeded: "Closed", failed: "Couldn't close", retry: "Try closing it again." },
-  deployment_create: { pending: "Creating", succeeded: "Created", failed: "Couldn't create", retry: "Try creating it again." }
+  deployment_create: { pending: "Creating", succeeded: "Created", failed: "Couldn't create", retry: "Try creating it again." },
+  deployment_update: { pending: "Updating", succeeded: "Updated", failed: "Couldn't update", retry: "Try updating it again." }
 } satisfies Record<Activity["type"], { pending: string; succeeded: string; failed: string; retry: string }>;
 
 /** A bulk close reads as one entry, placed where its newest close is, so it never crowds out everything else. */

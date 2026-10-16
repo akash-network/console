@@ -3,7 +3,7 @@ import { index, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } fro
 
 import { Users } from "@src/user/model-schemas";
 
-export const activityTypeEnum = pgEnum("activity_type", ["deployment_close", "deployment_create"]);
+export const activityTypeEnum = pgEnum("activity_type", ["deployment_close", "deployment_create", "deployment_update"]);
 export const activityStatusEnum = pgEnum("activity_status", ["pending", "succeeded", "failed"]);
 export const activityInitiatorEnum = pgEnum("activity_initiator", ["user", "system"]);
 
@@ -18,6 +18,7 @@ export type SystemCloseReason = (typeof SYSTEM_CLOSE_REASONS)[number];
 export type ActivityMeta = {
   dseq?: string;
   batchId?: string;
+  manifestVersion?: string;
   txHash?: string;
   error?: { code: string; message: string };
   reason?: SystemCloseReason;
