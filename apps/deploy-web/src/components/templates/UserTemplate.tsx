@@ -21,22 +21,32 @@ import { domainName, UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
 import { CustomNextSeo } from "../shared/CustomNextSeo";
 
+export const DEPENDENCIES = {
+  Layout,
+  CustomNextSeo,
+  UserFavoriteButton,
+  useCustomUser,
+  useDeleteTemplate,
+  useRouter
+};
+
 type Props = {
   id: string;
   template: ITemplate;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) => {
+export const UserTemplate: React.FunctionComponent<Props> = ({ id, template, dependencies: d = DEPENDENCIES }) => {
   const { analyticsService } = useServices();
   const [description, setDescription] = useState("");
   const [isShowingDelete, setIsShowingDelete] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const { user } = useCustomUser();
-  const { mutate: deleteTemplate, isPending: isDeleting } = useDeleteTemplate(id);
+  const { user } = d.useCustomUser();
+  const { mutate: deleteTemplate, isPending: isDeleting } = d.useDeleteTemplate(id);
   const isCurrentUserTemplate = user?.sub === template.userId;
   const _ram = bytesToShrink(template.ram);
   const _storage = bytesToShrink(template.storage);
-  const router = useRouter();
+  const router = d.useRouter();
 
   useEffect(() => {
     const desc = template.description || "";
@@ -69,8 +79,12 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
   };
 
   return (
-    <Layout>
-      <CustomNextSeo title={`${template.title}`} url={`${domainName}${UrlService.template(id)}`} description={getShortText(template.description || "", 140)} />
+    <d.Layout>
+      <d.CustomNextSeo
+        title={`${template.title}`}
+        url={`${domainName}${UrlService.template(id)}`}
+        description={getShortText(template.description || "", 140)}
+      />
 
       <Popup
         fullWidth
@@ -104,16 +118,20 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
       <div className="mb-6 flex items-baseline">
         <Title className="m-0">{template.title}</Title>
         &nbsp;&nbsp;by&nbsp;
-        <span
-          onClick={() => {
-            analyticsService.track("click_sdl_profile", {
-              category: "sdl_builder",
-              label: "Click on SDL user profile in template detail"
-            });
-          }}
-        >
-          <Link href={UrlService.userProfile(template.username)}>{template.username}</Link>
-        </span>
+        {template.userId === null ? (
+          <span className="text-muted-foreground">Deleted account</span>
+        ) : (
+          <span
+            onClick={() => {
+              analyticsService.track("click_sdl_profile", {
+                category: "sdl_builder",
+                label: "Click on SDL user profile in template detail"
+              });
+            }}
+          >
+            <Link href={UrlService.userProfile(template.username)}>{template.username}</Link>
+          </span>
+        )}
       </div>
 
       <div className="flex items-center space-x-6">
@@ -146,7 +164,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
           Edit
         </Link>
 
-        <UserFavoriteButton
+        <d.UserFavoriteButton
           isFavorite={template.isFavorite}
           id={id}
           onAddFavorite={() => {
@@ -193,6 +211,6 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template }) =
           </CardContent>
         </Card>
       )}
-    </Layout>
+    </d.Layout>
   );
 };

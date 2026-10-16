@@ -45,7 +45,7 @@ export type ApiTemplateCategory = {
 
 export type ITemplate = {
   id: string;
-  userId: string;
+  userId: string | null;
   username: string;
   title: string;
   description: string;
