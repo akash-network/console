@@ -12,8 +12,10 @@ import type {
   OrganizationMemberRepository,
   OrganizationMemberWithUser
 } from "@src/organization/repositories/organization-member/organization-member.repository";
+import type { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { ProjectGrantOfMember, ProjectMemberRepository } from "@src/organization/repositories/project-member/project-member.repository";
 import type { DepartedMemberAlertsService } from "@src/organization/services/departed-member-alerts/departed-member-alerts.service";
+import type { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import {
   LAST_OWNER_ERROR_CODE,
@@ -54,7 +56,33 @@ describe(OrganizationMemberService.name, () => {
     });
   });
 
-  describe("updateRole", () => {
+  describe("listProjectGrantsOf", () => {
+    it("lists the live project grants a member of the active organization holds across it", async () => {
+      const member = createOrganizationMember({ role: "member" });
+      const grants: ProjectGrantOfMember[] = [{ projectId: faker.string.uuid(), role: "admin" }];
+      const { service, context, repositories, projectMemberRepository, projectMemberReads } = setup({ member, grants });
+
+      await expect(service.listProjectGrantsOf(member.id)).resolves.toEqual(grants);
+      expect(repositories.read.findById).toHaveBeenCalledWith(member.id);
+      expect(projectMemberRepository.unscoped).toHaveBeenCalledWith("member-project-grants");
+      expect(projectMemberReads.findLiveGrantsOf).toHaveBeenCalledWith(context.organizationId, member.userId);
+    });
+
+    it("answers not found for a member outside the active organization", async () => {
+      const { service, projectMemberReads } = setup({ member: undefined });
+
+      await expect(service.listProjectGrantsOf(faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Organization member not found" });
+      expect(projectMemberReads.findLiveGrantsOf).not.toHaveBeenCalled();
+    });
+
+    it("refuses a request without an active organization", async () => {
+      const { service } = setup({ member: createOrganizationMember(), context: null });
+
+      await expect(service.listProjectGrantsOf(faker.string.uuid())).rejects.toMatchObject({ status: 403, message: "No active organization" });
+    });
+  });
+
+  describe("update", () => {
     it("changes the role of a member and returns the member with their user", async () => {
       const member = createOrganizationMember({ role: "member" });
       const { service, context, repositories, organizationMemberRepository, updatedMember, ability } = setup({
@@ -62,7 +90,7 @@ describe(OrganizationMemberService.name, () => {
         callerIsOwner: true
       });
 
-      await expect(service.updateRole(member.id, { role: "admin" })).resolves.toEqual(updatedMember);
+      await expect(service.update(member.id, { role: "admin" })).resolves.toEqual(updatedMember);
       expect(organizationMemberRepository.lockOwners).toHaveBeenCalledTimes(1);
       expect(organizationMemberRepository.lockOwners).toHaveBeenCalledWith(context.organizationId);
       expect(organizationMemberRepository.accessibleBy).toHaveBeenCalledWith(ability, "update");
@@ -76,7 +104,7 @@ describe(OrganizationMemberService.name, () => {
       const { service, txService, organizationMemberRepository, repositories } = setup({ member, callerIsOwner: true });
       txService.transaction.mockImplementation(async () => undefined);
 
-      await service.updateRole(member.id, { role: "admin" });
+      await service.update(member.id, { role: "admin" });
 
       expect(txService.transaction).toHaveBeenCalledTimes(1);
       expect(organizationMemberRepository.lockOwners).not.toHaveBeenCalled();
@@ -91,7 +119,7 @@ describe(OrganizationMemberService.name, () => {
         context: createOrganizationContext({ organizationType: "personal" })
       });
 
-      await expect(service.updateRole(member.id, { role: "admin" })).rejects.toMatchObject({
+      await expect(service.update(member.id, { role: "admin" })).rejects.toMatchObject({
         status: 403,
         errorCode: PERSONAL_ORGANIZATION_ERROR_CODE,
         message: "Members of a personal organization cannot be changed"
@@ -102,7 +130,7 @@ describe(OrganizationMemberService.name, () => {
     it("answers not found for a member outside the active organization", async () => {
       const { service, repositories } = setup({ member: undefined, callerIsOwner: true });
 
-      await expect(service.updateRole(faker.string.uuid(), { role: "admin" })).rejects.toMatchObject({ status: 404, message: "Organization member not found" });
+      await expect(service.update(faker.string.uuid(), { role: "admin" })).rejects.toMatchObject({ status: 404, message: "Organization member not found" });
       expect(repositories.update.updateById).not.toHaveBeenCalled();
     });
 
@@ -111,14 +139,14 @@ describe(OrganizationMemberService.name, () => {
       const { service, repositories } = setup({ member, callerIsOwner: true });
       repositories.read.findWithUserById.mockResolvedValue(undefined);
 
-      await expect(service.updateRole(member.id, { role: "admin" })).rejects.toMatchObject({ status: 404, message: "Organization member not found" });
+      await expect(service.update(member.id, { role: "admin" })).rejects.toMatchObject({ status: 404, message: "Organization member not found" });
     });
 
     it("refuses to let a caller who is not an owner promote anyone to owner", async () => {
       const member = createOrganizationMember({ role: "member" });
       const { service, repositories } = setup({ member, otherOwners: [createOrganizationMember({ role: "owner" })] });
 
-      await expect(service.updateRole(member.id, { role: "owner" })).rejects.toMatchObject({
+      await expect(service.update(member.id, { role: "owner" })).rejects.toMatchObject({
         status: 403,
         errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE,
         message: "Only an owner can grant, change or remove the owner role"
@@ -130,7 +158,7 @@ describe(OrganizationMemberService.name, () => {
       const owner = createOrganizationMember({ role: "owner" });
       const { service, repositories } = setup({ member: owner, otherOwners: [owner] });
 
-      await expect(service.updateRole(owner.id, { role: "member" })).rejects.toMatchObject({ status: 403, errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE });
+      await expect(service.update(owner.id, { role: "member" })).rejects.toMatchObject({ status: 403, errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE });
       expect(repositories.update.updateById).not.toHaveBeenCalled();
     });
 
@@ -138,7 +166,7 @@ describe(OrganizationMemberService.name, () => {
       const member = createOrganizationMember({ role: "member" });
       const { service, repositories } = setup({ member, otherOwners: [createOrganizationMember({ role: "owner" })] });
 
-      await service.updateRole(member.id, { role: "billing" });
+      await service.update(member.id, { role: "billing" });
 
       expect(repositories.update.updateById).toHaveBeenCalledWith(member.id, { role: "billing", projectAccess: member.projectAccess });
     });
@@ -147,7 +175,7 @@ describe(OrganizationMemberService.name, () => {
       const member = createOrganizationMember({ role: "member" });
       const { service, repositories, organizationMemberRepository } = setup({ member, callerIsOwner: true });
 
-      await service.updateRole(member.id, { role: "owner" });
+      await service.update(member.id, { role: "owner" });
 
       expect(repositories.update.updateById).toHaveBeenCalledWith(member.id, { role: "owner", projectAccess: member.projectAccess });
       expect(organizationMemberRepository.lockOwners).toHaveBeenCalledTimes(1);
@@ -157,7 +185,7 @@ describe(OrganizationMemberService.name, () => {
       const coOwner = createOrganizationMember({ role: "owner" });
       const { service, organizationMemberRepository } = setup({ member: coOwner, callerIsOwner: true, otherOwners: [coOwner] });
 
-      await service.updateRole(coOwner.id, { role: "owner" });
+      await service.update(coOwner.id, { role: "owner" });
 
       expect(organizationMemberRepository.lockOwners).toHaveBeenCalledTimes(1);
     });
@@ -166,7 +194,7 @@ describe(OrganizationMemberService.name, () => {
       const coOwner = createOrganizationMember({ role: "owner" });
       const { service, repositories, organizationMemberRepository } = setup({ member: coOwner, callerIsOwner: true, otherOwners: [coOwner] });
 
-      await service.updateRole(coOwner.id, { role: "admin" });
+      await service.update(coOwner.id, { role: "admin" });
 
       expect(organizationMemberRepository.lockOwners).toHaveBeenCalledTimes(2);
       expect(repositories.update.updateById).toHaveBeenCalledWith(coOwner.id, { role: "admin", projectAccess: coOwner.projectAccess });
@@ -176,7 +204,7 @@ describe(OrganizationMemberService.name, () => {
       const { service, repositories, owners } = setup({ callerIsOwner: true });
       repositories.read.findById.mockResolvedValue(owners[0]);
 
-      await expect(service.updateRole(owners[0].id, { role: "admin" })).rejects.toMatchObject({ status: 409, errorCode: LAST_OWNER_ERROR_CODE });
+      await expect(service.update(owners[0].id, { role: "admin" })).rejects.toMatchObject({ status: 409, errorCode: LAST_OWNER_ERROR_CODE });
       expect(repositories.update.updateById).not.toHaveBeenCalled();
     });
 
@@ -189,7 +217,7 @@ describe(OrganizationMemberService.name, () => {
       const member = createOrganizationMember({ role: from, projectAccess: "all" });
       const { service, repositories } = setup({ member, callerIsOwner: true, otherOwners: [member] });
 
-      await expect(service.updateRole(member.id, { role: to })).rejects.toMatchObject({
+      await expect(service.update(member.id, { role: to })).rejects.toMatchObject({
         status: 400,
         errorCode: PROJECT_ACCESS_REQUIRED_ERROR_CODE,
         message: "Choose the project access of someone who becomes a member or viewer"
@@ -201,10 +229,139 @@ describe(OrganizationMemberService.name, () => {
       const member = createOrganizationMember({ role: "admin", projectAccess: "selected" });
       const { service, repositories, projectMemberReads } = setup({ member, callerIsOwner: true });
 
-      await service.updateRole(member.id, { role: "member", projectAccess: "all" });
+      await service.update(member.id, { role: "member", projectAccess: "all" });
 
       expect(repositories.update.updateById).toHaveBeenCalledWith(member.id, { role: "member", projectAccess: "all" });
       expect(projectMemberReads.findLiveGrantsOf).not.toHaveBeenCalled();
+    });
+
+    it("removes the grants below project admin of a member switched to every project, keeping their role", async () => {
+      const member = createOrganizationMember({ role: "member", projectAccess: "selected" });
+      const { service, repositories, projectMemberRepository, projectMemberReads } = setup({ member, callerIsOwner: true });
+
+      await service.update(member.id, { projectAccess: "all" });
+
+      expect(repositories.update.updateById).toHaveBeenCalledWith(member.id, { role: "member", projectAccess: "all" });
+      expect(projectMemberRepository.unscoped).toHaveBeenCalledWith("member-project-grants");
+      expect(projectMemberReads.deleteGrantsBelowAdminOf).toHaveBeenCalledWith({ organizationId: member.organizationId, userId: member.userId });
+      expect(projectMemberReads.replaceGrantsOf).not.toHaveBeenCalled();
+    });
+
+    it("replaces the grants of a member on specific projects with the live projects given", async () => {
+      const member = createOrganizationMember({ role: "viewer", projectAccess: "all" });
+      const projectGrants = [
+        { projectId: faker.string.uuid(), role: "viewer" as const },
+        { projectId: faker.string.uuid(), role: "admin" as const }
+      ];
+      const { service, repositories, projectRepository, projectReads, projectMemberReads, ability } = setup({ member, callerIsOwner: true });
+
+      await service.update(member.id, { projectAccess: "selected", projectGrants });
+
+      expect(projectRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
+      expect(projectReads.findActiveIdsAmong).toHaveBeenCalledWith(
+        member.organizationId,
+        projectGrants.map(grant => grant.projectId)
+      );
+      expect(repositories.update.updateById).toHaveBeenCalledWith(member.id, { role: "viewer", projectAccess: "selected" });
+      expect(projectMemberReads.replaceGrantsOf).toHaveBeenCalledWith({ organizationId: member.organizationId, userId: member.userId }, projectGrants);
+      expect(projectMemberReads.findLiveGrantsOf).not.toHaveBeenCalled();
+      expect(projectMemberReads.deleteGrantsBelowAdminOf).not.toHaveBeenCalled();
+    });
+
+    it("leaves the grants alone when a member on specific projects only becomes a viewer", async () => {
+      const member = createOrganizationMember({ role: "member", projectAccess: "selected" });
+      const { service, projectMemberReads } = setup({ member, callerIsOwner: true, grants: [{ projectId: faker.string.uuid(), role: "member" }] });
+
+      await service.update(member.id, { role: "viewer" });
+
+      expect(projectMemberReads.replaceGrantsOf).not.toHaveBeenCalled();
+      expect(projectMemberReads.deleteGrantsBelowAdminOf).not.toHaveBeenCalled();
+    });
+
+    it("leaves the grants alone when someone becomes an admin", async () => {
+      const member = createOrganizationMember({ role: "member", projectAccess: "all" });
+      const { service, projectMemberReads } = setup({ member, callerIsOwner: true });
+
+      await service.update(member.id, { role: "admin" });
+
+      expect(projectMemberReads.replaceGrantsOf).not.toHaveBeenCalled();
+      expect(projectMemberReads.deleteGrantsBelowAdminOf).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["a member on every project", { role: "member", projectAccess: "all" }, {}],
+      ["someone switched to every project", { role: "member", projectAccess: "selected" }, { projectAccess: "all" }],
+      ["an admin", { role: "admin", projectAccess: "selected" }, {}],
+      ["a billing member", { role: "billing", projectAccess: "selected" }, {}]
+    ] as const)("refuses project grants for %s", async (_, stored, change) => {
+      const member = createOrganizationMember(stored);
+      const { service, repositories, projectMemberReads } = setup({ member, callerIsOwner: true });
+
+      await expect(service.update(member.id, { ...change, projectGrants: [{ projectId: faker.string.uuid(), role: "member" }] })).rejects.toMatchObject({
+        status: 400,
+        message: "Project grants only apply to a member or viewer with access to specific projects"
+      });
+      expect(repositories.update.updateById).not.toHaveBeenCalled();
+      expect(projectMemberReads.replaceGrantsOf).not.toHaveBeenCalled();
+    });
+
+    it("refuses an empty set of grants for a member on specific projects", async () => {
+      const member = createOrganizationMember({ role: "member", projectAccess: "selected" });
+      const { service, repositories } = setup({ member, callerIsOwner: true });
+
+      await expect(service.update(member.id, { projectGrants: [] })).rejects.toMatchObject({
+        status: 400,
+        message: "A member or viewer with access to specific projects needs at least one project grant"
+      });
+      expect(repositories.update.updateById).not.toHaveBeenCalled();
+    });
+
+    it("refuses grants naming a project that is not live in the organization", async () => {
+      const member = createOrganizationMember({ role: "member", projectAccess: "selected" });
+      const liveProjectId = faker.string.uuid();
+      const { service, repositories, projectMemberReads } = setup({ member, callerIsOwner: true, liveProjectIds: [liveProjectId] });
+
+      await expect(
+        service.update(member.id, {
+          projectGrants: [
+            { projectId: liveProjectId, role: "member" },
+            { projectId: faker.string.uuid(), role: "member" }
+          ]
+        })
+      ).rejects.toMatchObject({ status: 400, message: "Every project grant must name a live project of the organization" });
+      expect(repositories.update.updateById).not.toHaveBeenCalled();
+      expect(projectMemberReads.replaceGrantsOf).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["member", "all", "all"],
+      ["viewer", "selected", "selected"],
+      ["admin", "selected", "all"],
+      ["billing", "all", null]
+    ] as const)("records the change of someone who ends up %s on %s project access as %s", async (role, storedAccess, recordedAccess) => {
+      const member = createOrganizationMember({ role, projectAccess: storedAccess });
+      const { service, caller, context, updatedMember, organizationActivityService } = setup({
+        member,
+        callerIsOwner: true,
+        grants: [{ projectId: faker.string.uuid(), role: "viewer" }]
+      });
+
+      await service.update(member.id, { role });
+
+      expect(organizationActivityService.record).toHaveBeenCalledWith({
+        organizationId: context.organizationId,
+        type: "member_updated",
+        actorUserId: caller.id,
+        payload: { userId: updatedMember.userId, username: updatedMember.username, role, projectAccess: recordedAccess }
+      });
+    });
+
+    it("records nothing when the change is refused", async () => {
+      const member = createOrganizationMember({ role: "admin" });
+      const { service, organizationActivityService } = setup({ member, callerIsOwner: true });
+
+      await expect(service.update(member.id, { role: "member" })).rejects.toMatchObject({ status: 400 });
+      expect(organizationActivityService.record).not.toHaveBeenCalled();
     });
 
     it("makes a billing member a viewer of specific projects while they hold a project grant", async () => {
@@ -215,7 +372,7 @@ describe(OrganizationMemberService.name, () => {
         grants: [{ projectId: faker.string.uuid(), role: "viewer" }]
       });
 
-      await service.updateRole(member.id, { role: "viewer", projectAccess: "selected" });
+      await service.update(member.id, { role: "viewer", projectAccess: "selected" });
 
       expect(projectMemberRepository.unscoped).toHaveBeenCalledWith("member-access-validation");
       expect(projectMemberReads.findLiveGrantsOf).toHaveBeenCalledWith(member.organizationId, member.userId);
@@ -229,7 +386,7 @@ describe(OrganizationMemberService.name, () => {
       const member = createOrganizationMember({ role: from, projectAccess: "selected" });
       const { service, repositories } = setup({ member, callerIsOwner: true, grants: [] });
 
-      await expect(service.updateRole(member.id, { role: to, projectAccess: "selected" })).rejects.toMatchObject({
+      await expect(service.update(member.id, { role: to, projectAccess: "selected" })).rejects.toMatchObject({
         status: 400,
         message: "A member or viewer with access to specific projects needs at least one project grant"
       });
@@ -240,7 +397,7 @@ describe(OrganizationMemberService.name, () => {
       const member = createOrganizationMember({ role: "member", projectAccess: "all" });
       const { service, repositories } = setup({ member, callerIsOwner: true });
 
-      await service.updateRole(member.id, { role: "viewer" });
+      await service.update(member.id, { role: "viewer" });
 
       expect(repositories.update.updateById).toHaveBeenCalledWith(member.id, { role: "viewer", projectAccess: "all" });
     });
@@ -249,7 +406,7 @@ describe(OrganizationMemberService.name, () => {
       const member = createOrganizationMember({ role: "member", projectAccess: "selected" });
       const { service, repositories, projectMemberReads } = setup({ member, callerIsOwner: true });
 
-      await service.updateRole(member.id, { role: "admin", projectAccess: "all" });
+      await service.update(member.id, { role: "admin", projectAccess: "all" });
 
       expect(repositories.update.updateById).toHaveBeenCalledWith(member.id, { role: "admin", projectAccess: "selected" });
       expect(projectMemberReads.findLiveGrantsOf).not.toHaveBeenCalled();
@@ -534,6 +691,7 @@ describe(OrganizationMemberService.name, () => {
     callerRole?: OrganizationRole;
     context?: OrganizationContext | null;
     grants?: ProjectGrantOfMember[];
+    liveProjectIds?: string[];
   }) {
     const caller = createUser();
     const context = input.context === undefined ? createOrganizationContext() : input.context;
@@ -566,9 +724,18 @@ describe(OrganizationMemberService.name, () => {
     const projectMemberReads = mock<ProjectMemberRepository>({ findLiveGrantsOf: vi.fn().mockResolvedValue(input.grants ?? []) });
     const projectMemberRepository = mock<ProjectMemberRepository>();
     projectMemberRepository.unscoped.mockReturnValue(projectMemberReads);
+    projectMemberRepository.accessibleBy.mockReturnValue(projectMemberReads);
+    const projectReads = mock<ProjectRepository>({
+      findActiveIdsAmong: vi.fn((_organizationId: string, ids: string[]) => Promise.resolve(input.liveProjectIds ?? ids))
+    });
+    const projectRepository = mock<ProjectRepository>();
+    projectRepository.accessibleBy.mockReturnValue(projectReads);
+    const organizationActivityService = mock<OrganizationActivityService>();
     const service = new OrganizationMemberService(
       organizationMemberRepository,
       projectMemberRepository,
+      projectRepository,
+      organizationActivityService,
       authService,
       executionContextService,
       txService,
@@ -586,6 +753,9 @@ describe(OrganizationMemberService.name, () => {
       organizationMemberRepository,
       projectMemberRepository,
       projectMemberReads,
+      projectRepository,
+      projectReads,
+      organizationActivityService,
       txService,
       departedMemberAlertsService,
       context: context ?? createOrganizationContext()

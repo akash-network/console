@@ -30,6 +30,8 @@ import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/s
 
 type Caller = OrganizationRole | "projectKey";
 
+type AllProjectsCaller = "memberOnAllProjects" | "viewerOnAllProjects";
+
 interface Team {
   organizationId: string;
   ownerUserId: string;
@@ -110,6 +112,11 @@ const ROUTE_ACCESS: RouteAccess[] = [
   {
     route: "PATCH /v1/organization-members/{id}",
     request: team => patch(`/v1/organization-members/${team.memberMembershipId}`, { role: "viewer" }),
+    statusFor: access(200, 200, 403, 403, 403, 403)
+  },
+  {
+    route: "GET /v1/organization-members/{id}/project-grants",
+    request: team => get(`/v1/organization-members/${team.memberMembershipId}/project-grants`),
     statusFor: access(200, 200, 403, 403, 403, 403)
   },
   {
@@ -255,15 +262,41 @@ const ROUTE_ACCESS: RouteAccess[] = [
   }
 ];
 
+const ALL_PROJECTS_CALLERS: AllProjectsCaller[] = ["memberOnAllProjects", "viewerOnAllProjects"];
+
+const allProjectsAccess = (memberOnAllProjects: number, viewerOnAllProjects: number): Record<AllProjectsCaller, number> => ({
+  memberOnAllProjects,
+  viewerOnAllProjects
+});
+
+const ALL_PROJECTS_ROUTE_ACCESS: Array<{ route: string; statusFor: Record<AllProjectsCaller, number> }> = [
+  { route: "PATCH /v1/organization-members/{id}", statusFor: allProjectsAccess(403, 403) },
+  { route: "GET /v1/organization-members/{id}/project-grants", statusFor: allProjectsAccess(403, 403) },
+  { route: "POST /v1/projects", statusFor: allProjectsAccess(403, 403) },
+  { route: "GET /v1/projects/{id} of an ungranted project", statusFor: allProjectsAccess(200, 200) },
+  { route: "PATCH /v1/projects/{id}", statusFor: allProjectsAccess(403, 403) },
+  { route: "DELETE /v1/projects/{id}", statusFor: allProjectsAccess(403, 403) },
+  { route: "GET /v1/projects/{id}/members", statusFor: allProjectsAccess(200, 200) },
+  { route: "POST /v1/project-members", statusFor: allProjectsAccess(403, 403) },
+  { route: "GET /v2/deployment-settings/{dseq} of an ungranted project", statusFor: allProjectsAccess(200, 200) },
+  { route: "PATCH /v2/deployment-settings/{dseq} of an ungranted project", statusFor: allProjectsAccess(200, 403) },
+  { route: "GET /v1/deployments/{dseq} of an ungranted project", statusFor: allProjectsAccess(200, 200) },
+  { route: "GET /v1/deployment-alerts/{dseq} of an ungranted project", statusFor: allProjectsAccess(200, 200) },
+  { route: "POST /v1/create-jwt-token for a deployment of an ungranted project", statusFor: allProjectsAccess(201, 403) },
+  { route: "POST /v1/create-jwt-token reading a deployment of an ungranted project", statusFor: allProjectsAccess(201, 201) }
+];
+
 const EVERY_PROJECT: Array<keyof Team> = ["defaultProjectId", "grantedProjectId", "otherProjectId", "emptyProjectId"];
 
-const VISIBLE_PROJECTS: Array<{ caller: Caller; projects: Array<keyof Team> }> = [
+const VISIBLE_PROJECTS: Array<{ caller: Caller | AllProjectsCaller; projects: Array<keyof Team> }> = [
   { caller: "owner", projects: EVERY_PROJECT },
   { caller: "admin", projects: EVERY_PROJECT },
   { caller: "member", projects: ["grantedProjectId"] },
   { caller: "billing", projects: EVERY_PROJECT },
   { caller: "viewer", projects: ["grantedProjectId"] },
-  { caller: "projectKey", projects: ["grantedProjectId"] }
+  { caller: "projectKey", projects: ["grantedProjectId"] },
+  { caller: "memberOnAllProjects", projects: EVERY_PROJECT },
+  { caller: "viewerOnAllProjects", projects: EVERY_PROJECT }
 ];
 
 const VISIBLE_BUDGETS: Array<{ caller: Caller; budgets: Array<keyof Team> }> = [
@@ -299,6 +332,17 @@ describe("Team role access", () => {
   describe.each(CALLERS)("as the %s", caller => {
     it.each(ROUTE_ACCESS)("answers $statusFor." + caller + " to $route", async ({ request, statusFor }) => {
       const { team, send, credentialsOf } = await setup();
+
+      const response = await send(request(team), credentialsOf(caller));
+
+      expect(response.status).toBe(statusFor[caller]);
+    });
+  });
+
+  describe.each(ALL_PROJECTS_CALLERS)("as the %s", caller => {
+    it.each(ALL_PROJECTS_ROUTE_ACCESS)("answers $statusFor." + caller + " to $route", async ({ route, statusFor }) => {
+      const { team, send, credentialsOf } = await setup();
+      const { request } = ROUTE_ACCESS.find(routeAccess => routeAccess.route === route)!;
 
       const response = await send(request(team), credentialsOf(caller));
 
@@ -363,6 +407,11 @@ describe("Team role access", () => {
       seedProjectMember({ organizationId: organization.id, projectId: grantedProject.id, userId: member.id, role: "member" }),
       seedProjectMember({ organizationId: organization.id, projectId: grantedProject.id, userId: viewer.id, role: "viewer" })
     ]);
+    const [memberOnAllProjects, viewerOnAllProjects] = await Promise.all([seedSignedUpUser(), seedSignedUpUser()]);
+    await Promise.all([
+      seedOrganizationMember({ organizationId: organization.id, userId: memberOnAllProjects.id, role: "member", projectAccess: "all" }),
+      seedOrganizationMember({ organizationId: organization.id, userId: viewerOnAllProjects.id, role: "viewer", projectAccess: "all" })
+    ]);
     const invitation = await seedOrganizationInvitation({ organizationId: organization.id, invitedByUserId: owner.id });
     const [grantedBudget, otherBudget] = await db
       .insert(resolveTable("ProjectBudgets"))
@@ -409,13 +458,15 @@ describe("Team role access", () => {
       transactionId: transaction.id
     };
     const sessionOf = (user: { userId: string | null }) => ({ ...signIn(user.userId!, sessions), "x-organization-id": organization.id });
-    const credentials: Record<Caller, Record<string, string>> = {
+    const credentials: Record<Caller | AllProjectsCaller, Record<string, string>> = {
       owner: sessionOf(owner),
       admin: sessionOf(admin),
       member: sessionOf(member),
       billing: sessionOf(billing),
       viewer: sessionOf(viewer),
-      projectKey: { "x-api-key": projectKey }
+      projectKey: { "x-api-key": projectKey },
+      memberOnAllProjects: sessionOf(memberOnAllProjects),
+      viewerOnAllProjects: sessionOf(viewerOnAllProjects)
     };
 
     return { team, credentials };
@@ -524,6 +575,6 @@ describe("Team role access", () => {
         body: body === undefined ? undefined : JSON.stringify(body)
       });
 
-    return { team, send, credentialsOf: (caller: Caller) => credentials[caller] };
+    return { team, send, credentialsOf: (caller: Caller | AllProjectsCaller) => credentials[caller] };
   }
 });

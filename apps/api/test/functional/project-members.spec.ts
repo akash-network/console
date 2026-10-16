@@ -10,7 +10,7 @@ import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
 import { app } from "@src/rest-app";
 import type { UserOutput } from "@src/user/repositories";
@@ -49,8 +49,44 @@ describe("Project members", () => {
             role: "viewer",
             createdAt: grant.createdAt.toISOString()
           }
+        ],
+        membersWithAllProjects: []
+      });
+    });
+
+    it("lists the members and viewers who reach every project apart from the grants, each person once", async () => {
+      const { team, project, owner, actAs, addMember } = await setup();
+      const everyProjectMember = await addMember("member", "all");
+      const everyProjectViewer = await addMember("viewer", "all");
+      const everyProjectAdministrator = await addMember("member", "all");
+      await addMember("member", "selected");
+      const grant = await seedProjectMember({ organizationId: team.id, projectId: project.id, userId: everyProjectAdministrator.id, role: "admin" });
+
+      const response = await actAs(owner)(`/v1/projects/${project.id}/members`);
+
+      expect(await response.json()).toEqual({
+        data: [expect.objectContaining({ id: grant.id, userId: everyProjectAdministrator.id, role: "admin" })],
+        membersWithAllProjects: [
+          {
+            userId: everyProjectMember.id,
+            username: everyProjectMember.username,
+            email: everyProjectMember.email,
+            role: "member",
+            createdAt: expect.any(String)
+          },
+          expect.objectContaining({ userId: everyProjectViewer.id, role: "viewer" })
         ]
       });
+    });
+
+    it("lets a member who reaches every project list the project's members without a grant", async () => {
+      const { project, actAs, addMember } = await setup();
+      const member = await addMember("member", "all");
+
+      const response = await actAs(member)(`/v1/projects/${project.id}/members`);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: [], membersWithAllProjects: [expect.objectContaining({ userId: member.id })] });
     });
 
     it.each<OrganizationRole>(["member", "viewer"])("lets a %s list who else was granted a project it reaches", async role => {
@@ -543,7 +579,7 @@ describe("Project members", () => {
       const memberView = await actAs(member)("/v1/projects");
 
       expect(await grantsOf(member.id)).toEqual([]);
-      expect(await ownerView.json()).toEqual({ data: [] });
+      expect(await ownerView.json()).toEqual({ data: [], membersWithAllProjects: [] });
       expect(memberView.status).toBe(403);
       expect(await memberView.json()).toMatchObject({ code: "organization_forbidden" });
     });
@@ -731,9 +767,9 @@ describe("Project members", () => {
         });
     };
 
-    const addMember = async (role: OrganizationRole) => {
+    const addMember = async (role: OrganizationRole, projectAccess?: ProjectAccess) => {
       const user = await seedUser(createSignedUpUserInput());
-      await seedOrganizationMember({ organizationId: team.id, userId: user.id, role });
+      await seedOrganizationMember({ organizationId: team.id, userId: user.id, role, projectAccess });
 
       return user;
     };

@@ -2,10 +2,12 @@ import { singleton } from "tsyringe";
 
 import { Protected } from "@src/auth/services/auth.service";
 import type {
+  ListOrganizationMemberProjectGrantsResponse,
   ListOrganizationMembersResponse,
   OrganizationMemberResponse,
   UpdateOrganizationMemberRequest
 } from "@src/organization/http-schemas/organization-member.schema";
+import { effectiveProjectAccessOf } from "@src/organization/lib/project-access/project-access";
 import type { OrganizationMemberWithUser } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { OrganizationMemberService } from "@src/organization/services/organization-member/organization-member.service";
 
@@ -21,8 +23,13 @@ export class OrganizationMemberController {
   }
 
   @Protected([{ action: "update", subject: "OrganizationMember" }])
+  async listProjectGrants(id: string): Promise<ListOrganizationMemberProjectGrantsResponse> {
+    return { data: await this.organizationMemberService.listProjectGrantsOf(id) };
+  }
+
+  @Protected([{ action: "update", subject: "OrganizationMember" }])
   async update(id: string, change: UpdateOrganizationMemberRequest["data"]): Promise<OrganizationMemberResponse> {
-    return { data: toOrganizationMember(await this.organizationMemberService.updateRole(id, change)) };
+    return { data: toOrganizationMember(await this.organizationMemberService.update(id, change)) };
   }
 
   @Protected([{ action: "delete", subject: "OrganizationMember" }])
@@ -36,6 +43,18 @@ export class OrganizationMemberController {
   }
 }
 
-function toOrganizationMember({ id, userId, username, email, role, createdAt }: OrganizationMemberWithUser): OrganizationMemberResponse["data"] {
-  return { id, userId, username, email, role, createdAt: createdAt.toISOString() };
+function toOrganizationMember(member: OrganizationMemberWithUser): OrganizationMemberResponse["data"] {
+  const { id, userId, username, email, role, projectCount, createdAt } = member;
+  const projectAccess = effectiveProjectAccessOf(role, member.projectAccess);
+
+  return {
+    id,
+    userId,
+    username,
+    email,
+    role,
+    projectAccess,
+    projectCount: projectAccess === "selected" ? projectCount : null,
+    createdAt: createdAt.toISOString()
+  };
 }

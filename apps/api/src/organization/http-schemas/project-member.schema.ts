@@ -38,11 +38,24 @@ export const UpdateProjectMemberRequestSchema = z.object({
 
 export const ProjectMemberResponseSchema = z.object({ data: ProjectMemberSchema });
 
+export const ProjectMemberWithAllProjectsSchema = z.object({
+  userId: z.string().uuid(),
+  username: z.string().nullable(),
+  email: z.string().nullable(),
+  role: ProjectRoleSchema,
+  createdAt: z.string().datetime().openapi({ description: "When they joined the organization." })
+});
+
 export const ListProjectMembersResponseSchema = z.object({
-  data: z.array(ProjectMemberSchema).openapi({ description: "Explicit grants only, oldest first. Owners and admins reach every project without one." })
+  data: z.array(ProjectMemberSchema).openapi({ description: "Explicit grants only, oldest first. Owners and admins reach every project without one." }),
+  membersWithAllProjects: z.array(ProjectMemberWithAllProjectsSchema).openapi({
+    description:
+      "Members and viewers of the organization who reach every project and hold no grant on this one, oldest first. Their access is changed on the organization's members, not on the project."
+  })
 });
 
 export type ProjectMemberResponseItem = z.infer<typeof ProjectMemberSchema>;
+export type ProjectMemberWithAllProjectsResponseItem = z.infer<typeof ProjectMemberWithAllProjectsSchema>;
 export type ProjectMemberResponse = z.infer<typeof ProjectMemberResponseSchema>;
 export type ListProjectMembersResponse = z.infer<typeof ListProjectMembersResponseSchema>;
 export type CreateProjectMemberRequest = z.infer<typeof CreateProjectMemberRequestSchema>;

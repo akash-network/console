@@ -6,8 +6,10 @@ import type {
   ListProjectMembersResponse,
   ProjectMemberResponse,
   ProjectMemberResponseItem,
+  ProjectMemberWithAllProjectsResponseItem,
   UpdateProjectMemberRequest
 } from "@src/organization/http-schemas/project-member.schema";
+import type { OrganizationMemberWithUser } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectMemberWithUser } from "@src/organization/repositories/project-member/project-member.repository";
 import { ProjectMemberService } from "@src/organization/services/project-member/project-member.service";
 
@@ -17,9 +19,9 @@ export class ProjectMemberController {
 
   @Protected([{ action: "read", subject: "ProjectMember" }])
   async list(projectId: string): Promise<ListProjectMembersResponse> {
-    const grants = await this.projectMemberService.list(projectId);
+    const { grants, membersWithAllProjects } = await this.projectMemberService.list(projectId);
 
-    return { data: grants.map(toProjectMemberResponse) };
+    return { data: grants.map(toProjectMemberResponse), membersWithAllProjects: membersWithAllProjects.map(toProjectMemberWithAllProjectsResponse) };
   }
 
   @Protected([{ action: "create", subject: "ProjectMember" }])
@@ -40,4 +42,14 @@ export class ProjectMemberController {
 
 function toProjectMemberResponse({ id, projectId, userId, username, email, role, createdAt }: ProjectMemberWithUser): ProjectMemberResponseItem {
   return { id, projectId, userId, username, email, role, createdAt: createdAt.toISOString() };
+}
+
+function toProjectMemberWithAllProjectsResponse({
+  userId,
+  username,
+  email,
+  role,
+  createdAt
+}: OrganizationMemberWithUser): ProjectMemberWithAllProjectsResponseItem {
+  return { userId, username, email, role: role === "viewer" ? "viewer" : "member", createdAt: createdAt.toISOString() };
 }

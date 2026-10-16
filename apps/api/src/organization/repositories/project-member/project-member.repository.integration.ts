@@ -66,6 +66,69 @@ describe(ProjectMemberRepository.name, () => {
     });
   });
 
+  describe("replaceGrantsOf", () => {
+    it("removes the grants not given, changes the role of the given ones and creates the missing ones", async () => {
+      const { repository, organization, project, member } = await setup();
+      const dropped = await seedProject({ organizationId: organization.id });
+      const added = await seedProject({ organizationId: organization.id });
+      const kept = await seedProjectMember({ organizationId: organization.id, projectId: project.id, userId: member.id, role: "viewer" });
+      await seedProjectMember({ organizationId: organization.id, projectId: dropped.id, userId: member.id, role: "member" });
+
+      await repository.replaceGrantsOf({ organizationId: organization.id, userId: member.id }, [
+        { projectId: project.id, role: "admin" },
+        { projectId: added.id, role: "member" }
+      ]);
+
+      const grants = await grantRowsOf(member.id);
+      expect(grants).toHaveLength(2);
+      expect(grants).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: kept.id, projectId: project.id, role: "admin" }),
+          expect.objectContaining({ organizationId: organization.id, projectId: added.id, role: "member" })
+        ])
+      );
+    });
+
+    it("leaves the grants of other people and of other organizations alone", async () => {
+      const { repository, organization, project, member } = await setup();
+      const colleague = await seedUser({ userId: faker.string.uuid(), email: faker.internet.email() });
+      await seedOrganizationMember({ organizationId: organization.id, userId: colleague.id, role: "member" });
+      const colleagueGrant = await seedProjectMember({ organizationId: organization.id, projectId: project.id, userId: colleague.id, role: "viewer" });
+      const { organization: elsewhere, project: elsewhereProject } = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: elsewhere.id, userId: member.id, role: "member" });
+      const elsewhereGrant = await seedProjectMember({ organizationId: elsewhere.id, projectId: elsewhereProject.id, userId: member.id, role: "viewer" });
+
+      await repository.replaceGrantsOf({ organizationId: organization.id, userId: member.id }, [{ projectId: project.id, role: "member" }]);
+
+      const grants = await grantRowsOf(member.id);
+      expect(await grantRowsOf(colleague.id)).toEqual([colleagueGrant]);
+      expect(grants).toHaveLength(2);
+      expect(grants).toEqual(
+        expect.arrayContaining([elsewhereGrant, expect.objectContaining({ organizationId: organization.id, projectId: project.id, role: "member" })])
+      );
+    });
+  });
+
+  describe("deleteGrantsBelowAdminOf", () => {
+    it("removes the member and viewer grants of the user in the organization and keeps the admin ones and the ones elsewhere", async () => {
+      const { repository, organization, project, member } = await setup();
+      const administered = await seedProject({ organizationId: organization.id });
+      const viewed = await seedProject({ organizationId: organization.id });
+      await seedProjectMember({ organizationId: organization.id, projectId: project.id, userId: member.id, role: "member" });
+      await seedProjectMember({ organizationId: organization.id, projectId: viewed.id, userId: member.id, role: "viewer" });
+      const adminGrant = await seedProjectMember({ organizationId: organization.id, projectId: administered.id, userId: member.id, role: "admin" });
+      const { organization: elsewhere, project: elsewhereProject } = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: elsewhere.id, userId: member.id, role: "viewer" });
+      const elsewhereGrant = await seedProjectMember({ organizationId: elsewhere.id, projectId: elsewhereProject.id, userId: member.id, role: "member" });
+
+      await repository.deleteGrantsBelowAdminOf({ organizationId: organization.id, userId: member.id });
+
+      const grants = await grantRowsOf(member.id);
+      expect(grants).toHaveLength(2);
+      expect(grants).toEqual(expect.arrayContaining([adminGrant, elsewhereGrant]));
+    });
+  });
+
   describe("findLiveGrantsOf", () => {
     it("lists the user's grants on live projects of the organization, oldest first, whatever their organization role", async () => {
       const { repository, organization, project, member } = await setup();

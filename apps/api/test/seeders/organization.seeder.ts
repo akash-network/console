@@ -45,11 +45,13 @@ export function createOrganizationMemberWithUser({
   id = faker.string.uuid(),
   userId = faker.string.uuid(),
   role = "member",
+  projectAccess = "selected",
   createdAt = faker.date.recent(),
   username = faker.internet.userName(),
-  email = faker.internet.email()
+  email = faker.internet.email(),
+  projectCount = 0
 }: Partial<OrganizationMemberWithUser> = {}): OrganizationMemberWithUser {
-  return { id, userId, role, createdAt, username, email };
+  return { id, userId, role, projectAccess, createdAt, username, email, projectCount };
 }
 
 export function createProject({

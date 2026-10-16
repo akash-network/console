@@ -5,7 +5,11 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
-import { type OrganizationMemberOutput, OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import {
+  type OrganizationMemberOutput,
+  OrganizationMemberRepository,
+  type OrganizationMemberWithUser
+} from "@src/organization/repositories/organization-member/organization-member.repository";
 import { type ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { ProjectMemberRepository, type ProjectMemberWithUser } from "@src/organization/repositories/project-member/project-member.repository";
 import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
@@ -20,6 +24,12 @@ export interface ProjectAccessGrant {
   role: ProjectRole;
 }
 
+/** The members and viewers who reach every project and hold a grant on this one are listed with their grant only. */
+export interface ProjectMembersOfProject {
+  grants: ProjectMemberWithUser[];
+  membersWithAllProjects: OrganizationMemberWithUser[];
+}
+
 @singleton()
 export class ProjectMemberService {
   constructor(
@@ -31,11 +41,16 @@ export class ProjectMemberService {
     private readonly txService: TxService
   ) {}
 
-  async list(projectId: string): Promise<ProjectMemberWithUser[]> {
-    const project = await this.projectRepository.accessibleBy(this.authService.ability, "read").findOneBy({ id: projectId, deletedAt: null });
+  async list(projectId: string): Promise<ProjectMembersOfProject> {
+    const ability = this.authService.ability;
+    const project = await this.projectRepository.accessibleBy(ability, "read").findOneBy({ id: projectId, deletedAt: null });
     this.#assertGrantsReachable(project, "read");
 
-    return await this.projectMemberRepository.accessibleBy(this.authService.ability, "read").findOfLiveProjects({ projectId });
+    const grants = await this.projectMemberRepository.accessibleBy(ability, "read").findOfLiveProjects({ projectId });
+    const grantedUserIds = new Set(grants.map(grant => grant.userId));
+    const membersWithAllProjects = await this.organizationMemberRepository.accessibleBy(ability, "read").findWithAccessToEveryProject(project.organizationId);
+
+    return { grants, membersWithAllProjects: membersWithAllProjects.filter(member => !grantedUserIds.has(member.userId)) };
   }
 
   async create({ projectId, userId, role }: ProjectAccessGrant): Promise<ProjectMemberWithUser> {
