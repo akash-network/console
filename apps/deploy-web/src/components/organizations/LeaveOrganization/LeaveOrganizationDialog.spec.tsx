@@ -130,7 +130,17 @@ const ACME: OrganizationOutput = {
   type: "team",
   role: "member",
   isActive: true,
+  hasPaymentMethod: true,
   createdAt: "2026-02-01T00:00:00Z"
 };
 
-const PERSONAL: OrganizationOutput = { ...ACME, id: "org-1", name: "alice", slug: "personal-0123456789ab", type: "personal", role: "owner", isActive: false };
+const PERSONAL: OrganizationOutput = {
+  ...ACME,
+  id: "org-1",
+  name: "alice",
+  slug: "personal-0123456789ab",
+  type: "personal",
+  role: "owner",
+  isActive: false,
+  hasPaymentMethod: null
+};
