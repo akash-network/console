@@ -22,7 +22,10 @@ describe(describeActivity.name, () => {
     ["member_updated", { userId: "u2", username: "lena", role: "viewer", projectAccess: "selected" }, "changed *lena* to Viewer on specific projects"],
     ["member_updated", { userId: "u2", username: null, role: "admin", projectAccess: "all" }, "changed *a member* to Admin"],
     ["member_updated", { userId: "u2", username: "lena", role: "billing", projectAccess: null }, "changed *lena* to Billing"],
-    ["member_updated", { userId: "u2", username: "lena", role: "member", projectAccess: "something_new" }, "changed *lena* to Member"]
+    ["member_updated", { userId: "u2", username: "lena", role: "member", projectAccess: "something_new" }, "changed *lena* to Member"],
+    ["organization_renamed", { fromName: "Acme Corp", toName: "Acme Labs" }, "renamed the organization from *Acme Corp* to *Acme Labs*"],
+    ["organization_renamed", { fromName: "Acme Corp" }, "renamed the organization"],
+    ["organization_renamed", { toName: "Acme Labs" }, "renamed the organization"]
   ])("reads a %s event by a member as %s", (type, payload, expected) => {
     expect(sentence(read({ type, payload }))).toBe(expected);
   });
@@ -42,6 +45,10 @@ describe(describeActivity.name, () => {
 
   it("marks a change to a member with the activity icon", () => {
     expect(read({ type: "member_updated", payload: { username: "lena", role: "admin" } }).systemIcon).toBe("activity");
+  });
+
+  it("marks a rename with the activity icon", () => {
+    expect(read({ type: "organization_renamed", payload: { fromName: "Acme Corp", toName: "Acme Labs" } }).systemIcon).toBe("activity");
   });
 
   it("falls back to the dseq for an unnamed deployment", () => {
