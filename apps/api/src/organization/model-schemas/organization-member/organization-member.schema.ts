@@ -8,6 +8,11 @@ export const organizationRoleEnum = pgEnum("organization_role", ["owner", "admin
 
 export type OrganizationRole = (typeof organizationRoleEnum.enumValues)[number];
 
+export const projectAccessEnum = pgEnum("project_access", ["all", "selected"]);
+
+/** `all` reaches every live project of the team, `selected` only the granted ones; owners, admins and billing members ignore it. */
+export type ProjectAccess = (typeof projectAccessEnum.enumValues)[number];
+
 export const OrganizationMembers = pgTable(
   "organization_members",
   {
@@ -22,6 +27,7 @@ export const OrganizationMembers = pgTable(
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
     role: organizationRoleEnum("role").notNull(),
+    projectAccess: projectAccessEnum("project_access").notNull().default("selected"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
   },

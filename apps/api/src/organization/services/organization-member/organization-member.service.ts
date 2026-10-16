@@ -5,12 +5,14 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { GRANT_HOLDING_ORGANIZATION_ROLES } from "@src/organization/model-schemas/project-member/project-member.schema";
 import {
   type OrganizationMemberOutput,
   OrganizationMemberRepository,
   type OrganizationMemberWithUser
 } from "@src/organization/repositories/organization-member/organization-member.repository";
+import { ProjectMemberRepository } from "@src/organization/repositories/project-member/project-member.repository";
 import { DepartedMemberAlertsService } from "@src/organization/services/departed-member-alerts/departed-member-alerts.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 
@@ -18,13 +20,20 @@ export const LAST_OWNER_ERROR_CODE = "last_owner";
 export const OWNER_ROLE_RESTRICTED_ERROR_CODE = "owner_role_restricted";
 export const PERSONAL_ORGANIZATION_ERROR_CODE = "personal_organization";
 export const OWNER_CANNOT_LEAVE_ERROR_CODE = "owner_cannot_leave";
+export const PROJECT_ACCESS_REQUIRED_ERROR_CODE = "project_access_required";
 
 type MemberAction = "read" | "update" | "delete";
+
+export interface MemberRoleChange {
+  role: OrganizationRole;
+  projectAccess?: ProjectAccess;
+}
 
 @singleton()
 export class OrganizationMemberService {
   constructor(
     private readonly organizationMemberRepository: OrganizationMemberRepository,
+    private readonly projectMemberRepository: ProjectMemberRepository,
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
     private readonly txService: TxService,
@@ -37,7 +46,7 @@ export class OrganizationMemberService {
     return await this.#repositoryFor("read").findAllWithUsers(organizationId);
   }
 
-  async updateRole(id: OrganizationMemberOutput["id"], role: OrganizationRole): Promise<OrganizationMemberWithUser> {
+  async updateRole(id: OrganizationMemberOutput["id"], { role, projectAccess: requestedAccess }: MemberRoleChange): Promise<OrganizationMemberWithUser> {
     const { organizationId } = this.#activeTeamOrganization();
 
     await this.txService.transaction(async () => {
@@ -49,7 +58,13 @@ export class OrganizationMemberService {
         await this.assertAnotherOwnerRemains(organizationId, member.userId);
       }
 
-      await this.#repositoryFor("update").updateById(member.id, { role });
+      const projectAccess = projectAccessAfterRoleChange(member, role, requestedAccess);
+
+      if (holdsProjectGrants(role) && projectAccess === "selected") {
+        await this.#assertHoldsAProjectGrant(member);
+      }
+
+      await this.#repositoryFor("update").updateById(member.id, { role, projectAccess });
     });
 
     return await this.#findMemberWithUser(id);
@@ -131,6 +146,11 @@ export class OrganizationMemberService {
     await this.departedMemberAlertsService.stopTeamAlertsTo(member.userId, organizationId);
   }
 
+  async #assertHoldsAProjectGrant({ organizationId, userId }: OrganizationMemberOutput): Promise<void> {
+    const grants = await this.projectMemberRepository.accessibleBy(this.authService.ability, "read").findLiveGrantsOf(organizationId, userId);
+    assert(grants.length > 0, 400, "A member or viewer with access to specific projects needs at least one project grant");
+  }
+
   #assertOwnerRoleUntouchedByNonOwner(owners: OrganizationMemberOutput[], roles: OrganizationRole[]) {
     const callerIsOwner = owners.some(owner => owner.userId === this.authService.currentUser.id);
 
@@ -173,6 +193,23 @@ export class OrganizationMemberService {
 
     return context;
   }
+}
+
+export function projectAccessRequired(message: string) {
+  return createError(400, message, { errorCode: PROJECT_ACCESS_REQUIRED_ERROR_CODE });
+}
+
+/** Moving someone into member or viewer from a role that ignores project access must say how far they reach, so access is never silently widened or emptied. */
+function projectAccessAfterRoleChange(member: OrganizationMemberOutput, role: OrganizationRole, requested: ProjectAccess | undefined): ProjectAccess {
+  if (!holdsProjectGrants(role)) return member.projectAccess;
+  if (requested) return requested;
+  if (holdsProjectGrants(member.role)) return member.projectAccess;
+
+  throw projectAccessRequired("Choose the project access of someone who becomes a member or viewer");
+}
+
+function holdsProjectGrants(role: OrganizationRole): boolean {
+  return GRANT_HOLDING_ORGANIZATION_ROLES.includes(role);
 }
 
 function ownerRoleRestricted() {

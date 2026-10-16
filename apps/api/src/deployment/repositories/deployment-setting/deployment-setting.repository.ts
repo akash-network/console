@@ -430,7 +430,10 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
             within?.projectIds && inArray(this.table.projectId, [...within.projectIds]),
             or(
               inArray(OrganizationMembers.role, ROLES_REACHING_EVERY_PROJECT),
-              and(inArray(OrganizationMembers.role, ROLES_REACHING_GRANTED_PROJECTS), isNotNull(ProjectMembers.id))
+              and(
+                inArray(OrganizationMembers.role, ROLES_REACHING_GRANTED_PROJECTS),
+                or(isNotNull(ProjectMembers.id), and(eq(OrganizationMembers.projectAccess, "all"), isNotNull(this.table.projectId)))
+              )
             )
           )
         )

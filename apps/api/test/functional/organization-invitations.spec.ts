@@ -118,6 +118,7 @@ describe("Organization invitations", () => {
           id: expect.any(String),
           email,
           role: "admin",
+          projectAccess: "all",
           projectGrants,
           invitedBy: { id: caller.id, username: caller.username },
           createdAt: expect.any(String),
@@ -147,7 +148,7 @@ describe("Organization invitations", () => {
       const response = await request("POST", "/v1/organization-invitations", {
         asUser: caller,
         organizationId: organization.id,
-        body: { data: { emails: [email], role: "member" } }
+        body: { data: { emails: [email], role: "member", projectAccess: "all" } }
       });
 
       expect(response.status).toBe(403);
@@ -187,7 +188,7 @@ describe("Organization invitations", () => {
         request("POST", "/v1/organization-invitations", {
           asUser: owner,
           organizationId: organization.id,
-          body: { data: { emails: [email], role: "member" } }
+          body: { data: { emails: [email], role: "member", projectAccess: "all" } }
         });
       const before = new Date();
 
@@ -253,7 +254,7 @@ describe("Organization invitations", () => {
       const response = await request("POST", "/v1/organization-invitations", {
         asUser: owner,
         organizationId: organization.id,
-        body: { data: { emails: [target.email!.toUpperCase(), "joe@example.com"], role: "member" } }
+        body: { data: { emails: [target.email!.toUpperCase(), "joe@example.com"], role: "member", projectAccess: "all" } }
       });
 
       expect(response.status).toBe(409);
@@ -267,7 +268,7 @@ describe("Organization invitations", () => {
       const response = await request("POST", "/v1/organization-invitations", {
         asUser: owner,
         organizationId: personal.id,
-        body: { data: { emails: ["jane@example.com"], role: "member" } }
+        body: { data: { emails: ["jane@example.com"], role: "member", projectAccess: "all" } }
       });
 
       expect(response.status).toBe(403);
@@ -289,11 +290,57 @@ describe("Organization invitations", () => {
       expect(await invitationRepository.count({ organizationId: organization.id })).toBe(0);
     });
 
+    it("invites a member to every project when asked to, and a viewer to the granted projects when no access is stated", async () => {
+      const { organization, owner, request } = await setup({ callerRole: "owner" });
+      const project = await seedProject({ organizationId: organization.id });
+      const projectGrants = [{ projectId: project.id, role: "member" }];
+
+      const toEveryProject = await request("POST", "/v1/organization-invitations", {
+        asUser: owner,
+        organizationId: organization.id,
+        body: { data: { emails: ["jane@example.com"], role: "member", projectAccess: "all" } }
+      });
+      const toGrantedProjects = await request("POST", "/v1/organization-invitations", {
+        asUser: owner,
+        organizationId: organization.id,
+        body: { data: { emails: ["joe@example.com"], role: "viewer", projectGrants } }
+      });
+
+      expect(toEveryProject.status).toBe(201);
+      expect(await toEveryProject.json()).toMatchObject({ data: [{ email: "jane@example.com", projectAccess: "all", projectGrants: [] }] });
+      expect(toGrantedProjects.status).toBe(201);
+      expect(await toGrantedProjects.json()).toMatchObject({ data: [{ email: "joe@example.com", projectAccess: "selected", projectGrants }] });
+    });
+
     it.each([
-      { case: "no address", data: { emails: [], role: "member" } },
-      { case: "an invalid address", data: { emails: ["not-an-email"], role: "member" } },
+      { case: "neither a project access nor a project grant", projectAccess: undefined, projectGrants: false, code: "project_access_required" },
+      { case: "project grants with access to every project", projectAccess: "all", projectGrants: true, code: "bad_request" },
+      { case: "access to specific projects without a project grant", projectAccess: "selected", projectGrants: false, code: "bad_request" }
+    ])("refuses a member invitation with $case", async ({ projectAccess, projectGrants, code }) => {
+      const { organization, owner, request } = await setup({ callerRole: "owner" });
+      const project = await seedProject({ organizationId: organization.id });
+
+      const response = await request("POST", "/v1/organization-invitations", {
+        asUser: owner,
+        organizationId: organization.id,
+        body: {
+          data: { emails: ["jane@example.com"], role: "member", projectAccess, projectGrants: projectGrants ? [{ projectId: project.id, role: "member" }] : [] }
+        }
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code });
+      expect(await invitationRepository.count({ organizationId: organization.id })).toBe(0);
+    });
+
+    it.each([
+      { case: "no address", data: { emails: [], role: "member", projectAccess: "all" } },
+      { case: "an invalid address", data: { emails: ["not-an-email"], role: "member", projectAccess: "all" } },
       { case: "an unknown role", data: { emails: ["jane@example.com"], role: "superuser" } },
-      { case: "too many addresses", data: { emails: Array.from({ length: 21 }, (_, index) => `user${index}@example.com`), role: "member" } }
+      {
+        case: "too many addresses",
+        data: { emails: Array.from({ length: 21 }, (_, index) => `user${index}@example.com`), role: "member", projectAccess: "all" }
+      }
     ])("rejects a request with $case", async ({ data }) => {
       const { organization, owner, request } = await setup({ callerRole: "owner" });
 
@@ -311,7 +358,7 @@ describe("Organization invitations", () => {
       const response = await request("POST", "/v1/organization-invitations", {
         asUser: owner,
         organizationId: organization.id,
-        body: { data: { emails: ["jane@example.com"], role: "member" } }
+        body: { data: { emails: ["jane@example.com"], role: "member", projectAccess: "all" } }
       });
 
       expect(response.status).toBe(403);
@@ -331,7 +378,7 @@ describe("Organization invitations", () => {
       const response = await request("POST", "/v1/organization-invitations", {
         asUser: owner,
         organizationId: organization.id,
-        body: { data: { emails: ["jane@example.com"], role: "member" } }
+        body: { data: { emails: ["jane@example.com"], role: "member", projectAccess: "all" } }
       });
 
       expect(response.status).toBe(429);
@@ -346,7 +393,7 @@ describe("Organization invitations", () => {
         request("POST", "/v1/organization-invitations", {
           asUser: owner,
           organizationId: organization.id,
-          body: { data: { emails: ["jane@example.com"], role: "member" } }
+          body: { data: { emails: ["jane@example.com"], role: "member", projectAccess: "all" } }
         });
 
       for (let round = 0; round < INVITATION_EMAIL_LIMITS.perAddress; round++) {
@@ -368,7 +415,7 @@ describe("Organization invitations", () => {
       const response = await request("POST", "/v1/organization-invitations", {
         asUser: owner,
         organizationId: organization.id,
-        body: { data: { emails: ["jane@example.com"], role: "member" } }
+        body: { data: { emails: ["jane@example.com"], role: "member", projectAccess: "all" } }
       });
 
       expect(response.status).toBe(404);
@@ -558,6 +605,7 @@ describe("Organization invitations", () => {
       id: invitation.id,
       email: invitation.email,
       role: invitation.role,
+      projectAccess: invitation.projectAccess,
       projectGrants: invitation.projectGrants,
       createdAt: invitation.createdAt.toISOString(),
       expiresAt: invitation.expiresAt.toISOString()

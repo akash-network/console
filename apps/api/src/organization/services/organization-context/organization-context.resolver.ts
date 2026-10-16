@@ -12,7 +12,10 @@ import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
-import { type Membership, OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import {
+  type MembershipWithProjectAccess,
+  OrganizationMemberRepository
+} from "@src/organization/repositories/organization-member/organization-member.repository";
 import { type ProjectGrantOfUser, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import type { AuthorizationMode, OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
@@ -47,11 +50,11 @@ export interface OrganizationContextRequest {
   projectHeader?: string;
 }
 
-const PROJECT_SCOPE_BY_ROLE: Record<OrganizationRole, "all" | "grants" | "readOnlyGrants" | "none"> = {
+const PROJECT_SCOPE_BY_ROLE: Record<OrganizationRole, "all" | "accessible" | "readOnlyAccessible" | "none"> = {
   owner: "all",
   admin: "all",
-  member: "grants",
-  viewer: "readOnlyGrants",
+  member: "accessible",
+  viewer: "readOnlyAccessible",
   billing: "none"
 };
 
@@ -68,7 +71,7 @@ export class OrganizationContextResolver {
     ...nominalEntrySizing(MAX_TRACKED_USERS, LAST_USED_ORGANIZATION_ENTRY_BYTES)
   });
   /** A personal membership never changes: its single owner cannot leave it and it cannot be deleted. */
-  readonly #personalMemberships = new LRUCache<string, Membership>({
+  readonly #personalMemberships = new LRUCache<string, MembershipWithProjectAccess>({
     max: MAX_TRACKED_USERS,
     ...nominalEntrySizing(MAX_TRACKED_USERS, PERSONAL_MEMBERSHIP_ENTRY_BYTES)
   });
@@ -95,8 +98,9 @@ export class OrganizationContextResolver {
       return await this.#resolvePersonalContext(request, mode);
     }
 
-    const { role, organization } = await this.#resolveMembership(request.user, request.apiKey, normalizeHeader(request.organizationHeader));
-    const roleScope = await this.#projectScopeOf(role, organization.id, request.user.id);
+    const membership = await this.#resolveMembership(request.user, request.apiKey, normalizeHeader(request.organizationHeader));
+    const { role, organization } = membership;
+    const roleScope = await this.#projectScopeOf(membership, request.user.id);
     const keyScope = request.apiKey?.projectId ? await this.#narrowToKeyProject(roleScope, organization.id, request.apiKey.projectId) : roleScope;
     const projectHeader = normalizeHeader(request.projectHeader);
     const projectScope = projectHeader ? await this.#narrowToRequestedProject(keyScope, organization.id, projectHeader) : keyScope;
@@ -128,7 +132,7 @@ export class OrganizationContextResolver {
     user: OrganizationContextRequest["user"],
     mode: AuthorizationMode,
     apiKey: OrganizationContextRequest["apiKey"]
-  ): Promise<Membership | undefined> {
+  ): Promise<MembershipWithProjectAccess | undefined> {
     try {
       return await this.#personalMembership(user);
     } catch (error) {
@@ -143,7 +147,7 @@ export class OrganizationContextResolver {
     user: OrganizationContextRequest["user"],
     apiKey: OrganizationContextRequest["apiKey"],
     organizationHeader: string | undefined
-  ): Promise<Membership> {
+  ): Promise<MembershipWithProjectAccess> {
     if (apiKey) {
       const membership = apiKey.organizationId
         ? await this.organizationMemberRepository.findActiveMembership(user.id, { id: apiKey.organizationId })
@@ -177,13 +181,14 @@ export class OrganizationContextResolver {
     return await this.#personalMembership(user);
   }
 
-  async #personalMembership(user: OrganizationContextRequest["user"]): Promise<Membership> {
+  async #personalMembership(user: OrganizationContextRequest["user"]): Promise<MembershipWithProjectAccess> {
     const cached = this.#personalMemberships.get(user.id);
 
     if (cached) return cached;
 
-    const membership = (await this.organizationMemberRepository.findActiveMembership(user.id, { type: "personal" })) ?? {
+    const membership: MembershipWithProjectAccess = (await this.organizationMemberRepository.findActiveMembership(user.id, { type: "personal" })) ?? {
       role: "owner",
+      projectAccess: "all",
       organization: await this.personalOrganizationService.ensureForUser(user)
     };
     this.#personalMemberships.set(user.id, membership);
@@ -191,13 +196,24 @@ export class OrganizationContextResolver {
     return membership;
   }
 
-  async #projectScopeOf(role: OrganizationRole, organizationId: string, userId: string): Promise<ProjectScope> {
+  async #projectScopeOf({ role, projectAccess, organization }: MembershipWithProjectAccess, userId: string): Promise<ProjectScope> {
     const scope = PROJECT_SCOPE_BY_ROLE[role];
 
     if (scope === "all") return { kind: "all" };
     if (scope === "none") return NO_PROJECTS;
 
-    return scopeOfGrants(await this.projectRepository.findActiveGrantsOf(organizationId, userId), { readOnly: scope === "readOnlyGrants" });
+    const readOnly = scope === "readOnlyAccessible";
+
+    if (projectAccess === "selected") {
+      return scopeOfGrants(await this.projectRepository.findActiveGrantsOf(organization.id, userId), { readOnly });
+    }
+
+    const [projectIds, grants] = await Promise.all([
+      this.projectRepository.findActiveIdsOf(organization.id),
+      this.projectRepository.findActiveGrantsOf(organization.id, userId)
+    ]);
+
+    return scopeOfEveryProject(projectIds, grants, { readOnly });
   }
 
   async #narrowToKeyProject(scope: ProjectScope, organizationId: string, projectId: string): Promise<ProjectScope> {
@@ -239,7 +255,7 @@ export class OrganizationContextResolver {
   }
 }
 
-function assertMember(membership: Membership | undefined): asserts membership is Membership {
+function assertMember(membership: MembershipWithProjectAccess | undefined): asserts membership is MembershipWithProjectAccess {
   if (!membership) {
     throw createError(403, "Not a member of this organization", { errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
   }
@@ -253,6 +269,15 @@ function scopeOfGrants(grants: ProjectGrantOfUser[], { readOnly }: { readOnly: b
     projectIds: grants.map(({ projectId }) => projectId),
     writableProjectIds: writable.map(({ projectId }) => projectId),
     adminProjectIds: writable.filter(({ role }) => role === "admin").map(({ projectId }) => projectId)
+  };
+}
+
+function scopeOfEveryProject(projectIds: string[], grants: ProjectGrantOfUser[], { readOnly }: { readOnly: boolean }): ProjectScope {
+  return {
+    kind: "projects",
+    projectIds,
+    writableProjectIds: readOnly ? [] : projectIds,
+    adminProjectIds: readOnly ? [] : grants.filter(({ role }) => role === "admin").map(({ projectId }) => projectId)
   };
 }
 

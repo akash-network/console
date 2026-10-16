@@ -48,10 +48,11 @@ function toOrganizationInvitation({
   id,
   email,
   role,
+  projectAccess,
   projectGrants,
   invitedBy,
   createdAt,
   expiresAt
 }: OrganizationInvitationWithInviter): OrganizationInvitationResponse["data"] {
-  return { id, email, role, projectGrants, invitedBy, createdAt: createdAt.toISOString(), expiresAt: expiresAt.toISOString() };
+  return { id, email, role, projectAccess, projectGrants, invitedBy, createdAt: createdAt.toISOString(), expiresAt: expiresAt.toISOString() };
 }

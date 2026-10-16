@@ -10,7 +10,7 @@ import { type OrganizationMemberOutput, OrganizationMemberRepository } from "@sr
 import { app } from "@src/rest-app";
 import type { UserOutput } from "@src/user/repositories";
 
-import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("Organization members", () => {
@@ -160,6 +160,52 @@ describe("Organization members", () => {
 
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ code: "personal_organization" });
+    });
+
+    it.each<OrganizationRole>(["admin", "billing"])("refuses to move someone from %s to member without stating their project access", async role => {
+      const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: role });
+
+      const response = await request("PATCH", `/v1/organization-members/${membershipOf(target).id}`, {
+        asUser: owner,
+        organizationId: organization.id,
+        body: { data: { role: "member" } }
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "project_access_required" });
+      expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role });
+    });
+
+    it("makes an admin a member of every project when the request says so", async () => {
+      const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: "admin" });
+
+      const response = await request("PATCH", `/v1/organization-members/${membershipOf(target).id}`, {
+        asUser: owner,
+        organizationId: organization.id,
+        body: { data: { role: "member", projectAccess: "all" } }
+      });
+
+      expect(response.status).toBe(200);
+      expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role: "member", projectAccess: "all" });
+    });
+
+    it("makes a billing member a viewer of the specific projects they hold a grant in, and refuses it without a grant", async () => {
+      const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: "billing" });
+      const update = () =>
+        request("PATCH", `/v1/organization-members/${membershipOf(target).id}`, {
+          asUser: owner,
+          organizationId: organization.id,
+          body: { data: { role: "viewer", projectAccess: "selected" } }
+        });
+
+      const withoutGrant = await update();
+      const project = await seedProject({ organizationId: organization.id });
+      await seedProjectMember({ organizationId: organization.id, projectId: project.id, userId: target.id, role: "viewer" });
+      const withGrant = await update();
+
+      expect(withoutGrant.status).toBe(400);
+      expect(withGrant.status).toBe(200);
+      expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role: "viewer", projectAccess: "selected" });
     });
 
     it("answers not found for a member of another organization", async () => {

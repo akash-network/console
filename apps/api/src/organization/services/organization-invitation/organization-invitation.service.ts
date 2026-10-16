@@ -9,7 +9,8 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { createInvitationToken, hashInvitationToken, invitationUrl } from "@src/organization/lib/invitation-token/invitation-token";
 import type { ProjectGrant } from "@src/organization/model-schemas/organization-invitation/organization-invitation.schema";
-import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { GRANT_HOLDING_ORGANIZATION_ROLES } from "@src/organization/model-schemas/project-member/project-member.schema";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import {
   type OrganizationInvitationOutput,
@@ -21,7 +22,11 @@ import { ProjectRepository } from "@src/organization/repositories/project/projec
 import { InvitationEmailLimiter } from "@src/organization/services/invitation-email-limiter/invitation-email-limiter.service";
 import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import { OrganizationInvitationEmailJob } from "@src/organization/services/organization-invitation-email/organization-invitation-email.handler";
-import { OWNER_ROLE_RESTRICTED_ERROR_CODE, PERSONAL_ORGANIZATION_ERROR_CODE } from "@src/organization/services/organization-member/organization-member.service";
+import {
+  OWNER_ROLE_RESTRICTED_ERROR_CODE,
+  PERSONAL_ORGANIZATION_ERROR_CODE,
+  projectAccessRequired
+} from "@src/organization/services/organization-member/organization-member.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 
 export const ALREADY_MEMBER_ERROR_CODE = "already_member";
@@ -35,6 +40,7 @@ type InvitationAction = "read" | "create" | "update" | "delete";
 export interface CreateInvitationsInput {
   emails: string[];
   role: OrganizationRole;
+  projectAccess?: ProjectAccess;
   projectGrants?: ProjectGrant[];
 }
 
@@ -61,11 +67,17 @@ export class OrganizationInvitationService {
   }
 
   /** An address with a live pending invitation gets it back unchanged; an expired one is renewed and emailed again. */
-  async createInvitations({ emails: rawEmails, role, projectGrants = [] }: CreateInvitationsInput): Promise<OrganizationInvitationWithInviter[]> {
+  async createInvitations({
+    emails: rawEmails,
+    role,
+    projectAccess: requestedAccess,
+    projectGrants = []
+  }: CreateInvitationsInput): Promise<OrganizationInvitationWithInviter[]> {
     const context = this.#activeTeamOrganization();
     const { organizationId } = context;
     const senderId = this.authService.currentUser.id;
     this.#assertCanInviteAs(context, role);
+    const projectAccess = projectAccessOfInvitation(role, requestedAccess, projectGrants);
     const emails = [...new Set(rawEmails.map(email => email.trim().toLowerCase()))];
     await this.#assertProjectsInOrganization(organizationId, projectGrants);
 
@@ -85,6 +97,7 @@ export class OrganizationInvitationService {
           organizationId,
           email,
           role,
+          projectAccess,
           projectGrants,
           tokenHash: unissuedTokenHash(),
           expiresAt: newExpiry(),
@@ -229,6 +242,20 @@ export class OrganizationInvitationService {
 
     return context;
   }
+}
+
+function projectAccessOfInvitation(role: OrganizationRole, requested: ProjectAccess | undefined, projectGrants: ProjectGrant[]): ProjectAccess {
+  if (!GRANT_HOLDING_ORGANIZATION_ROLES.includes(role)) return "all";
+
+  if (!requested && projectGrants.length === 0) {
+    throw projectAccessRequired("Choose whether a member or viewer invitation reaches every project or specific ones");
+  }
+
+  const projectAccess = requested ?? "selected";
+  assert(projectAccess === "selected" || projectGrants.length === 0, 400, "Project grants cannot be combined with access to every project");
+  assert(projectAccess === "all" || projectGrants.length > 0, 400, "Specific project access needs at least one project grant");
+
+  return projectAccess;
 }
 
 function newExpiry(): Date {

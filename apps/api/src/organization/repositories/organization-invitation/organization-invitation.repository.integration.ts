@@ -46,6 +46,14 @@ describe(OrganizationInvitationRepository.name, () => {
       expect(await repository.count({ organizationId: organization.id, email: "jane@example.com" })).toBe(1);
     });
 
+    it("limits an invitation created without a project access to its project grants", async () => {
+      const { repository, newInvitation } = await setup();
+
+      const [created] = await repository.createUnlessPending([newInvitation({ email: "jane@example.com" })]);
+
+      expect(created).toMatchObject({ role: "member", projectAccess: "selected" });
+    });
+
     it("creates nothing without an address", async () => {
       const { repository } = await setup();
 
@@ -86,6 +94,7 @@ describe(OrganizationInvitationRepository.name, () => {
           organizationId: organization.id,
           email: first.email,
           role: first.role,
+          projectAccess: first.projectAccess,
           projectGrants: [],
           createdAt: first.createdAt,
           expiresAt: first.expiresAt,
@@ -96,6 +105,7 @@ describe(OrganizationInvitationRepository.name, () => {
           organizationId: organization.id,
           email: second.email,
           role: second.role,
+          projectAccess: second.projectAccess,
           projectGrants: second.projectGrants,
           createdAt: second.createdAt,
           expiresAt: second.expiresAt,

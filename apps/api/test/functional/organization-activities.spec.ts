@@ -185,7 +185,7 @@ describe("Organization activities", () => {
       const { data: team } = (await created.json()) as { data: { id: string } };
       await seedOrganizationMember({ organizationId: team.id, userId: admin.id, role: "admin" });
       const asAdmin = { authorization: adminBearer, "x-organization-id": team.id };
-      const invited = await post("/v1/organization-invitations", asAdmin, { emails: [invitee.email!], role: "member" });
+      const invited = await post("/v1/organization-invitations", asAdmin, { emails: [invitee.email!], role: "member", projectAccess: "all" });
       const [invitation] = ((await invited.json()) as { data: { id: string }[] }).data;
       const linked = await app.request(`/v1/organization-invitations/${invitation.id}/link`, { method: "POST", headers: asAdmin });
       const { url } = ((await linked.json()) as { data: { url: string } }).data;

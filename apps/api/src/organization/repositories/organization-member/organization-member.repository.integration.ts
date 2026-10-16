@@ -22,6 +22,14 @@ describe(OrganizationMemberRepository.name, () => {
       expect(repeated).toBeUndefined();
       expect(await repository.find({ organizationId: organization.id, userId: user.id })).toEqual([created]);
     });
+
+    it("limits a member added without a project access to their project grants", async () => {
+      const { repository, organization, user } = await setup();
+
+      const created = await repository.createUnlessExists({ organizationId: organization.id, userId: user.id, role: "member" });
+
+      expect(created).toMatchObject({ role: "member", projectAccess: "selected" });
+    });
   });
 
   describe("lockOwners", () => {
@@ -104,15 +112,23 @@ describe(OrganizationMemberRepository.name, () => {
   });
 
   describe("findActiveMembership", () => {
-    it("finds the user's membership by organization id, by slug and as their personal organization", async () => {
+    it("finds the user's membership with its project access by organization id, by slug and as their personal organization", async () => {
       const { repository, user, organization } = await setup();
-      const member = await seedOrganizationMember({ organizationId: organization.id, userId: user.id, role: "viewer" });
+      const member = await seedOrganizationMember({ organizationId: organization.id, userId: user.id, role: "viewer", projectAccess: "all" });
       const personal = await seedOrganization({ type: "personal", createdByUserId: user.id });
       await seedOrganizationMember({ organizationId: personal.id, userId: user.id, role: "owner" });
 
-      expect(await repository.findActiveMembership(user.id, { id: organization.id })).toEqual({ role: member.role, organization });
-      expect(await repository.findActiveMembership(user.id, { slug: organization.slug })).toEqual({ role: member.role, organization });
-      expect(await repository.findActiveMembership(user.id, { type: "personal" })).toEqual({ role: "owner", organization: personal });
+      expect(await repository.findActiveMembership(user.id, { id: organization.id })).toEqual({ role: member.role, projectAccess: "all", organization });
+      expect(await repository.findActiveMembership(user.id, { slug: organization.slug })).toEqual({
+        role: member.role,
+        projectAccess: "all",
+        organization
+      });
+      expect(await repository.findActiveMembership(user.id, { type: "personal" })).toEqual({
+        role: "owner",
+        projectAccess: "selected",
+        organization: personal
+      });
     });
 
     it("finds the user's membership by a value that is either the organization id or its slug", async () => {
@@ -121,8 +137,8 @@ describe(OrganizationMemberRepository.name, () => {
       const uuidSlugged = await seedOrganization({ slug: faker.string.uuid() });
       await seedOrganizationMember({ organizationId: uuidSlugged.id, userId: user.id, role: "viewer" });
 
-      expect(await repository.findActiveMembership(user.id, { idOrSlug: organization.id })).toEqual({ role: "admin", organization });
-      expect(await repository.findActiveMembership(user.id, { idOrSlug: uuidSlugged.slug })).toEqual({ role: "viewer", organization: uuidSlugged });
+      expect(await repository.findActiveMembership(user.id, { idOrSlug: organization.id })).toMatchObject({ role: "admin", organization });
+      expect(await repository.findActiveMembership(user.id, { idOrSlug: uuidSlugged.slug })).toMatchObject({ role: "viewer", organization: uuidSlugged });
     });
 
     it("finds nothing in an organization the user does not belong to", async () => {
@@ -163,9 +179,9 @@ describe(OrganizationMemberRepository.name, () => {
       await seedOrganizationWithOwner();
 
       expect(await repository.findActiveMemberships(user.id)).toEqual([
-        { role: "owner", organization: personal },
-        { role: "admin", organization },
-        { role: "billing", organization: newer }
+        expect.objectContaining({ role: "owner", organization: personal }),
+        expect.objectContaining({ role: "admin", organization }),
+        expect.objectContaining({ role: "billing", organization: newer })
       ]);
     });
   });

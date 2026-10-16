@@ -80,11 +80,11 @@ describe(OrganizationMemberService.name, () => {
       const { service, repository, txService, organization, owners, runAs } = await setup();
 
       const first = txService.transaction(async () => {
-        await runAs(owners[0].user, "owner", () => service.updateRole(owners[0].membership.id, "admin"));
+        await runAs(owners[0].user, "owner", () => service.updateRole(owners[0].membership.id, { role: "admin" }));
         await delay(200);
       });
       await delay(50);
-      const second = runAs(owners[1].user, "owner", () => service.updateRole(owners[1].membership.id, "admin"));
+      const second = runAs(owners[1].user, "owner", () => service.updateRole(owners[1].membership.id, { role: "admin" }));
 
       await expect(first).resolves.toBeUndefined();
       await expect(second).rejects.toMatchObject({ status: 409, errorCode: LAST_OWNER_ERROR_CODE });
@@ -96,11 +96,11 @@ describe(OrganizationMemberService.name, () => {
       const { service, repository, txService, organization, owners, runAs } = await setup();
 
       const first = txService.transaction(async () => {
-        await runAs(owners[0].user, "owner", () => service.updateRole(owners[1].membership.id, "admin"));
+        await runAs(owners[0].user, "owner", () => service.updateRole(owners[1].membership.id, { role: "admin" }));
         await delay(200);
       });
       await delay(50);
-      const second = runAs(owners[1].user, "owner", () => service.updateRole(owners[0].membership.id, "admin"));
+      const second = runAs(owners[1].user, "owner", () => service.updateRole(owners[0].membership.id, { role: "admin" }));
 
       await expect(first).resolves.toBeUndefined();
       await expect(second).rejects.toMatchObject({ status: 403, errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE });
@@ -114,7 +114,7 @@ describe(OrganizationMemberService.name, () => {
       await seedOrganizationMember({ organizationId: organization.id, userId: admin.id, role: "admin" });
       const membership = await seedOrganizationMember({ organizationId: organization.id, userId: member.id, role: "member" });
 
-      await expect(runAs(admin, "admin", () => service.updateRole(membership.id, "owner"))).rejects.toMatchObject({
+      await expect(runAs(admin, "admin", () => service.updateRole(membership.id, { role: "owner" }))).rejects.toMatchObject({
         status: 403,
         errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE
       });

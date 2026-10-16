@@ -34,10 +34,11 @@ export function createOrganizationMember({
   organizationId = faker.string.uuid(),
   userId = faker.string.uuid(),
   role = "member",
+  projectAccess = "selected",
   createdAt = faker.date.recent(),
   updatedAt = faker.date.recent()
 }: Partial<OrganizationMemberOutput> = {}): OrganizationMemberOutput {
-  return { id, organizationId, userId, role, createdAt, updatedAt };
+  return { id, organizationId, userId, role, projectAccess, createdAt, updatedAt };
 }
 
 export function createOrganizationMemberWithUser({
@@ -111,6 +112,7 @@ export function createOrganizationInvitation({
   organizationId = faker.string.uuid(),
   email = faker.internet.email().toLowerCase(),
   role = "member",
+  projectAccess = "selected",
   projectGrants = [],
   tokenHash = faker.string.hexadecimal({ length: 64, casing: "lower", prefix: "" }),
   status = "pending",
@@ -127,6 +129,7 @@ export function createOrganizationInvitation({
     organizationId,
     email,
     role,
+    projectAccess,
     projectGrants,
     tokenHash,
     status,
@@ -145,10 +148,11 @@ export function createOrganizationInvitationWithInviter({
   organizationId = faker.string.uuid(),
   email = faker.internet.email().toLowerCase(),
   role = "member",
+  projectAccess = "selected",
   projectGrants = [],
   createdAt = faker.date.recent(),
   expiresAt = faker.date.soon({ days: 7 }),
   invitedBy = { id: faker.string.uuid(), username: faker.internet.userName() }
 }: Partial<OrganizationInvitationWithInviter> = {}): OrganizationInvitationWithInviter {
-  return { id, organizationId, email, role, projectGrants, createdAt, expiresAt, invitedBy };
+  return { id, organizationId, email, role, projectAccess, projectGrants, createdAt, expiresAt, invitedBy };
 }

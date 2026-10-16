@@ -2459,6 +2459,24 @@ describe(DeploymentSettingRepository.name, () => {
       expect(await deploymentSettingRepository.findLocation({ userId: caller.id, dseq: setting.dseq })).toBeUndefined();
     });
 
+    it.each(["member", "viewer"] as const)("locates a deployment of any project for a %s with access to every project", async role => {
+      const { deploymentSettingRepository, active, otherProject } = await setupOrganizations();
+      const caller = await container.resolve(UserRepository).create({ userId: faker.string.uuid() });
+      await seedOrganizationMember({ organizationId: active.organization.id, userId: caller.id, role, projectAccess: "all" });
+      const setting = await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: otherProject.id });
+
+      expect(await deploymentSettingRepository.findLocation({ userId: caller.id, dseq: setting.dseq })).toMatchObject({ projectId: otherProject.id });
+    });
+
+    it("locates nothing filed outside any project for a member with access to every project", async () => {
+      const { deploymentSettingRepository, active } = await setupOrganizations();
+      const caller = await container.resolve(UserRepository).create({ userId: faker.string.uuid() });
+      await seedOrganizationMember({ organizationId: active.organization.id, userId: caller.id, role: "member", projectAccess: "all" });
+      const setting = await seedDeploymentSetting({ userId: active.user.id, organizationId: active.organization.id, projectId: null });
+
+      expect(await deploymentSettingRepository.findLocation({ userId: caller.id, dseq: setting.dseq })).toBeUndefined();
+    });
+
     it("locates nothing for a billing member", async () => {
       const { deploymentSettingRepository, active } = await setupOrganizations();
       const caller = await container.resolve(UserRepository).create({ userId: faker.string.uuid() });

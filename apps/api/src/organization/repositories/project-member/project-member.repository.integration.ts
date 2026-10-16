@@ -66,6 +66,30 @@ describe(ProjectMemberRepository.name, () => {
     });
   });
 
+  describe("findLiveGrantsOf", () => {
+    it("lists the user's grants on live projects of the organization, oldest first, whatever their organization role", async () => {
+      const { repository, organization, project, member } = await setup();
+      const deleted = await seedProject({ organizationId: organization.id, deletedAt: new Date() });
+      const later = await seedProject({ organizationId: organization.id });
+      const { organization: other, project: otherProject } = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: other.id, userId: member.id, role: "member" });
+      await container
+        .resolve<ApiPgDatabase>(POSTGRES_DB)
+        .update(resolveTable("OrganizationMembers"))
+        .set({ role: "admin" })
+        .where(eq(resolveTable("OrganizationMembers").userId, member.id));
+      await seedProjectMember({ organizationId: organization.id, projectId: project.id, userId: member.id, role: "admin", createdAt: new Date("2026-01-01") });
+      await seedProjectMember({ organizationId: organization.id, projectId: later.id, userId: member.id, role: "viewer", createdAt: new Date("2026-02-01") });
+      await seedProjectMember({ organizationId: organization.id, projectId: deleted.id, userId: member.id });
+      await seedProjectMember({ organizationId: other.id, projectId: otherProject.id, userId: member.id });
+
+      expect(await repository.findLiveGrantsOf(organization.id, member.id)).toEqual([
+        { projectId: project.id, role: "admin" },
+        { projectId: later.id, role: "viewer" }
+      ]);
+    });
+  });
+
   describe("findOfLiveProjects", () => {
     it("returns the grants of a project with the grantee's username and email, oldest first", async () => {
       const { repository, organization, project, member } = await setup();

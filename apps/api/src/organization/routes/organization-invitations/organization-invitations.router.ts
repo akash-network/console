@@ -61,7 +61,10 @@ const createOrganizationInvitationsRoute = createRoute({
       description: "One pending invitation per address, an address that was already invited keeping its existing one",
       content: { "application/json": { schema: ListOrganizationInvitationsResponseSchema } }
     },
-    400: { description: "A project grant names a project outside the active organization" },
+    400: {
+      description:
+        "A project grant names a project outside the active organization, or a member or viewer invitation states neither its project access nor a grant (`project_access_required`), combines grants with access to every project, or has specific access without any grant"
+    },
     401: { description: "Unauthorized" },
     403: {
       description:

@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { jsonb, pgEnum, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
-import { organizationRoleEnum } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { organizationRoleEnum, projectAccessEnum } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { ProjectRole } from "@src/organization/model-schemas/project-member/project-member.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
@@ -24,6 +24,7 @@ export const OrganizationInvitations = pgTable(
       .notNull(),
     email: varchar("email", { length: 255 }).notNull(),
     role: organizationRoleEnum("role").notNull(),
+    projectAccess: projectAccessEnum("project_access").notNull().default("selected"),
     projectGrants: jsonb("project_grants").$type<ProjectGrant[]>().notNull().default([]),
     /** sha256 hex of the invitation token; the token itself is only ever sent to the invitee. */
     tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),

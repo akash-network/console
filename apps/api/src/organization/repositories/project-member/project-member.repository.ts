@@ -16,6 +16,8 @@ export type ProjectMemberOutput = Table["$inferSelect"];
 
 export type ProjectMemberWithUser = ProjectMemberOutput & { username: string | null; email: string | null };
 
+export type ProjectGrantOfMember = Pick<ProjectMemberOutput, "projectId" | "role">;
+
 @singleton()
 export class ProjectMemberRepository extends OrgScopedRepository<Table, ProjectMemberInput, ProjectMemberOutput> {
   constructor(
@@ -57,6 +59,16 @@ export class ProjectMemberRepository extends OrgScopedRepository<Table, ProjectM
       .returning();
 
     return created && this.toOutput(created);
+  }
+
+  /** Every grant the user holds on a live project of the organization, whatever their organization role. */
+  async findLiveGrantsOf(organizationId: ProjectMemberOutput["organizationId"], userId: ProjectMemberOutput["userId"]): Promise<ProjectGrantOfMember[]> {
+    return await this.cursor
+      .select({ projectId: this.table.projectId, role: this.table.role })
+      .from(this.table)
+      .innerJoin(Projects, and(eq(Projects.organizationId, this.table.organizationId), eq(Projects.id, this.table.projectId)))
+      .where(this.whereAccessibleBy(and(eq(this.table.organizationId, organizationId), eq(this.table.userId, userId), isNull(Projects.deletedAt))))
+      .orderBy(asc(this.table.createdAt), asc(this.table.id));
   }
 
   async findOfLiveProjects(query: { id: ProjectMemberOutput["id"] } | { projectId: ProjectMemberOutput["projectId"] }): Promise<ProjectMemberWithUser[]> {
