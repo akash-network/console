@@ -1,6 +1,5 @@
 "use client";
-import { useId } from "react";
-import { Button, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
+import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@akashnetwork/ui/components";
 import { X } from "lucide-react";
 
 import { PROJECT_ROLE_LABELS, PROJECT_ROLES } from "@src/components/projects/projectAccess";
@@ -19,9 +18,8 @@ interface Props {
   onChange: (grants: ProjectGrant[]) => void;
 }
 
-/** Picks the projects an invitee may open once they join, each project at most once and with its own role. */
+/** Picks the projects a member may open, each project at most once and with its own role. */
 export function ProjectGrantsField({ projects, grants, onChange }: Props) {
-  const fieldId = useId();
   const grantedProjectIds = new Set(grants.map(grant => grant.projectId));
   const remainingProjects = projects.filter(project => !grantedProjectIds.has(project.id));
   const projectNames = new Map(projects.map(project => [project.id, project.name]));
@@ -32,12 +30,8 @@ export function ProjectGrantsField({ projects, grants, onChange }: Props) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label id={fieldId}>
-        Project access <span className="font-normal text-muted-foreground">(optional)</span>
-      </Label>
-
       {grants.length > 0 && (
-        <ul aria-labelledby={fieldId} className="divide-y divide-border rounded-[10px] border border-border">
+        <ul aria-label="Picked projects" className="divide-y divide-border rounded-[10px] border border-border">
           {grants.map(grant => {
             const name = projectNames.get(grant.projectId) ?? grant.projectId;
             return (
@@ -85,8 +79,6 @@ export function ProjectGrantsField({ projects, grants, onChange }: Props) {
           </SelectContent>
         </Select>
       )}
-
-      <p className="text-xs text-muted-foreground">Owners and admins open every project. Members and viewers open only the projects they are given.</p>
     </div>
   );
 }

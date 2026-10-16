@@ -18,8 +18,8 @@ describe("InviteMembersDialog", () => {
     expect(screen.getByText("Invitations expire after 7 days.")).toBeInTheDocument();
     expect(screen.getByText("Separate multiple addresses with commas or spaces.")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Member/ })).toBeChecked();
-    expect(screen.getByText("Creates projects and manages deployments.")).toBeInTheDocument();
-    expect(screen.getByText("Also manages billing, usage and members.")).toBeInTheDocument();
+    expect(screen.getByText("Deploys in the projects they can access, but can't create projects.")).toBeInTheDocument();
+    expect(screen.getByText("Creates projects, manages members and sees billing and usage.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send invite" })).toBeDisabled();
   });
 
@@ -43,31 +43,46 @@ describe("InviteMembersDialog", () => {
     await user.type(screen.getByLabelText("Email addresses"), "carol@acme.io{Enter}");
     await user.click(screen.getByRole("button", { name: "Send invite" }));
 
-    expect(createInvitations.mock.lastCall?.[0]).toEqual({ data: { emails: ["carol@acme.io"], role: "member" } });
+    expect(createInvitations.mock.lastCall?.[0]).toEqual({ data: { emails: ["carol@acme.io"], role: "member", projectAccess: "all" } });
     expect(lastSnackbar(enqueueSnackbar)).toEqual({ title: "Invite sent to carol@acme.io", variant: "success" });
   });
 
-  it("offers project access to a member and sends the projects chosen", async () => {
-    const { user, createInvitations, ProjectGrantsField } = setup({});
+  it("offers a member every project of the organization by default", () => {
+    const { ProjectAccessField } = setup({});
 
-    expect(ProjectGrantsField.mock.lastCall?.[0].projects.map(project => project.id)).toEqual(["storefront"]);
-    expect(ProjectGrantsField.mock.lastCall?.[0].grants).toEqual([]);
+    expect(ProjectAccessField.mock.lastCall?.[0]).toMatchObject({ organizationName: "Acme Corp", value: { access: "all", grants: [] } });
+    expect(ProjectAccessField.mock.lastCall?.[0].projects.map(project => project.id)).toEqual(["storefront"]);
+  });
+
+  it("sends the specific projects chosen for a member", async () => {
+    const { user, createInvitations } = setup({});
 
     await user.type(screen.getByLabelText("Email addresses"), "carol@acme.io{Enter}");
     await user.click(screen.getByRole("button", { name: "grant storefront" }));
     await user.click(screen.getByRole("button", { name: "Send invite" }));
 
-    expect(ProjectGrantsField.mock.lastCall?.[0]).toMatchObject({ grants: [{ projectId: "storefront", role: "viewer" }] });
     expect(createInvitations.mock.lastCall?.[0]).toEqual({
-      data: { emails: ["carol@acme.io"], role: "member", projectGrants: [{ projectId: "storefront", role: "viewer" }] }
+      data: { emails: ["carol@acme.io"], role: "member", projectAccess: "selected", projectGrants: [{ projectId: "storefront", role: "viewer" }] }
     });
+  });
+
+  it("holds the invite back while a member has specific projects and none is picked", async () => {
+    const { user, createInvitations } = setup({});
+
+    await user.type(screen.getByLabelText("Email addresses"), "carol@acme.io{Enter}");
+    await user.click(screen.getByRole("button", { name: "pick no project" }));
+
+    await user.click(screen.getByRole("button", { name: "Send invite" }));
+
+    expect(screen.getByRole("button", { name: "Send invite" })).toBeDisabled();
+    expect(createInvitations).not.toHaveBeenCalled();
   });
 
   it("offers no project access to an admin, who opens every project, and sends none picked before", async () => {
     const { user, createInvitations } = setup({});
 
     await user.type(screen.getByLabelText("Email addresses"), "carol@acme.io{Enter}");
-    await user.click(screen.getByRole("button", { name: "grant storefront" }));
+    await user.click(screen.getByRole("button", { name: "pick no project" }));
     await user.click(screen.getByRole("radio", { name: /Admin/ }));
 
     expect(screen.queryByRole("button", { name: "grant storefront" })).not.toBeInTheDocument();
@@ -75,12 +90,6 @@ describe("InviteMembersDialog", () => {
     await user.click(screen.getByRole("button", { name: "Send invite" }));
 
     expect(createInvitations.mock.lastCall?.[0]).toEqual({ data: { emails: ["carol@acme.io"], role: "admin" } });
-  });
-
-  it("offers no project access while the organization has no projects to give", () => {
-    const { ProjectGrantsField } = setup({ projects: [] });
-
-    expect(ProjectGrantsField).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -149,10 +158,15 @@ describe("InviteMembersDialog", () => {
     const enqueueSnackbar = vi.fn();
     const onClose = vi.fn();
     const projects = input.projects ?? [mock<Project>({ id: "storefront", name: "storefront" })];
-    const ProjectGrantsField = vi.fn<typeof DEPENDENCIES.ProjectGrantsField>(({ onChange }) => (
-      <button type="button" onClick={() => onChange([{ projectId: "storefront", role: "viewer" }])}>
-        grant storefront
-      </button>
+    const ProjectAccessField = vi.fn<typeof DEPENDENCIES.ProjectAccessField>(({ onChange }) => (
+      <>
+        <button type="button" onClick={() => onChange({ access: "selected", grants: [{ projectId: "storefront", role: "viewer" }] })}>
+          grant storefront
+        </button>
+        <button type="button" onClick={() => onChange({ access: "selected", grants: [] })}>
+          pick no project
+        </button>
+      </>
     ));
 
     const dependencies: typeof DEPENDENCIES = {
@@ -160,7 +174,7 @@ describe("InviteMembersDialog", () => {
         mock<ReturnType<typeof DEPENDENCIES.useCreateOrganizationInvitationsMutation>>({ mutate: createInvitations, isPending: input.isPending ?? false }),
       useProjectsQuery: () => mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: projects }),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
-      ProjectGrantsField
+      ProjectAccessField
     };
 
     render(
@@ -173,6 +187,6 @@ describe("InviteMembersDialog", () => {
       />
     );
 
-    return { user: userEvent.setup(), createInvitations, enqueueSnackbar, onClose, ProjectGrantsField };
+    return { user: userEvent.setup(), createInvitations, enqueueSnackbar, onClose, ProjectAccessField };
   }
 });

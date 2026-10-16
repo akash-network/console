@@ -14432,6 +14432,11 @@ export interface operations {
               email: string;
               /** @enum {string} */
               role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /**
+               * @description `all` reaches every project of the organization, including ones created later. `selected` reaches only the granted ones.
+               * @enum {string}
+               */
+              projectAccess: "all" | "selected";
               projectGrants: {
                 /** Format: uuid */
                 projectId: string;
@@ -14486,6 +14491,11 @@ export interface operations {
             emails: string[];
             /** @enum {string} */
             role: "owner" | "admin" | "member" | "billing" | "viewer";
+            /**
+             * @description Required for a member or viewer invited without project grants, refused with `project_access_required` otherwise, and `selected` when grants are given. Ignored for owners, admins and billing members, who are stored as `all`.
+             * @enum {string}
+             */
+            projectAccess?: "all" | "selected";
             projectGrants?: {
               /** Format: uuid */
               projectId: string;
@@ -14510,6 +14520,11 @@ export interface operations {
               email: string;
               /** @enum {string} */
               role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /**
+               * @description `all` reaches every project of the organization, including ones created later. `selected` reaches only the granted ones.
+               * @enum {string}
+               */
+              projectAccess: "all" | "selected";
               projectGrants: {
                 /** Format: uuid */
                 projectId: string;
@@ -14595,6 +14610,11 @@ export interface operations {
               email: string;
               /** @enum {string} */
               role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /**
+               * @description `all` reaches every project of the organization, including ones created later. `selected` reaches only the granted ones.
+               * @enum {string}
+               */
+              projectAccess: "all" | "selected";
               projectGrants: {
                 /** Format: uuid */
                 projectId: string;

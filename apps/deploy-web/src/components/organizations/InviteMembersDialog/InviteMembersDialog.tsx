@@ -13,7 +13,6 @@ import {
   Label,
   LoadingButton,
   RadioGroup,
-  RadioGroupItem,
   Snackbar
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
@@ -25,13 +24,14 @@ import { getMembershipErrorMessage } from "@src/components/organizations/members
 import { ORGANIZATION_ROLE_LABELS } from "@src/components/organizations/organizationAccess";
 import type { AssignableRole } from "@src/components/organizations/organizationRoles";
 import { ASSIGNABLE_ROLE_DESCRIPTIONS, ASSIGNABLE_ROLES } from "@src/components/organizations/organizationRoles";
-import type { ProjectGrant } from "@src/components/organizations/ProjectGrantsField/ProjectGrantsField";
-import { ProjectGrantsField } from "@src/components/organizations/ProjectGrantsField/ProjectGrantsField";
+import type { ProjectAccessValue } from "@src/components/organizations/ProjectAccessField/ProjectAccessField";
+import { hasProjectAccess, ProjectAccessField, toProjectAccessRequest } from "@src/components/organizations/ProjectAccessField/ProjectAccessField";
+import { RadioCard } from "@src/components/organizations/RadioCard/RadioCard";
 import { holdsProjectGrants } from "@src/components/projects/projectAccess";
 import { useCreateOrganizationInvitationsMutation } from "@src/queries/useOrganizationQueries";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 
-export const DEPENDENCIES = { useCreateOrganizationInvitationsMutation, useProjectsQuery, useSnackbar, ProjectGrantsField };
+export const DEPENDENCIES = { useCreateOrganizationInvitationsMutation, useProjectsQuery, useSnackbar, ProjectAccessField };
 
 export const ALREADY_MEMBER_MESSAGE = "Already a member";
 
@@ -52,9 +52,9 @@ export const InviteMembersDialog: FC<Props> = ({ organizationName, memberEmails,
   const { mutate: createInvitations, isPending } = d.useCreateOrganizationInvitationsMutation();
   const [emails, setEmails] = useState<string[]>([]);
   const [role, setRole] = useState<AssignableRole>("member");
-  const [projectGrants, setProjectGrants] = useState<ProjectGrant[]>([]);
+  const [projectAccess, setProjectAccess] = useState<ProjectAccessValue>({ access: "all", grants: [] });
   const { data: projects = [] } = d.useProjectsQuery();
-  const carriesProjectGrants = holdsProjectGrants(role);
+  const carriesProjectAccess = holdsProjectGrants(role);
   const formId = useId();
   const emailsId = `${formId}-emails`;
   const hintId = `${formId}-hint`;
@@ -68,14 +68,14 @@ export const InviteMembersDialog: FC<Props> = ({ organizationName, memberEmails,
     return null;
   };
   const firstBadEmail = emails.find(email => getEmailError(email));
-  const canSubmit = emails.length > 0 && !firstBadEmail && !isPending;
+  const canSubmit = emails.length > 0 && !firstBadEmail && !isPending && (!carriesProjectAccess || hasProjectAccess(projectAccess));
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!canSubmit) return;
 
     createInvitations(
-      { data: { emails, role, ...(carriesProjectGrants && projectGrants.length > 0 ? { projectGrants } : {}) } },
+      { data: { emails, role, ...(carriesProjectAccess && toProjectAccessRequest(projectAccess)) } },
       {
         onSuccess: () => {
           const title = emails.length === 1 ? `Invite sent to ${emails[0]}` : `${emails.length} invites sent`;
@@ -117,22 +117,20 @@ export const InviteMembersDialog: FC<Props> = ({ organizationName, memberEmails,
                 className="grid grid-cols-1 gap-2 sm:grid-cols-2"
               >
                 {ASSIGNABLE_ROLES.map(option => (
-                  <Label
+                  <RadioCard
                     key={option}
-                    htmlFor={`${formId}-role-${option}`}
-                    className="flex cursor-pointer items-start gap-2.5 rounded-[10px] border border-border p-3 font-normal has-[[data-state=checked]]:border-foreground has-[[data-state=checked]]:bg-muted/40"
-                  >
-                    <RadioGroupItem id={`${formId}-role-${option}`} value={option} className="mt-0.5 shrink-0" />
-                    <span className="flex flex-col gap-0.5">
-                      <span className="text-sm font-semibold">{ORGANIZATION_ROLE_LABELS[option]}</span>
-                      <span className="text-xs leading-[17px] text-muted-foreground">{ASSIGNABLE_ROLE_DESCRIPTIONS[option]}</span>
-                    </span>
-                  </Label>
+                    id={`${formId}-role-${option}`}
+                    value={option}
+                    label={ORGANIZATION_ROLE_LABELS[option]}
+                    description={ASSIGNABLE_ROLE_DESCRIPTIONS[option]}
+                  />
                 ))}
               </RadioGroup>
             </div>
 
-            {carriesProjectGrants && projects.length > 0 && <d.ProjectGrantsField projects={projects} grants={projectGrants} onChange={setProjectGrants} />}
+            {carriesProjectAccess && (
+              <d.ProjectAccessField organizationName={organizationName} projects={projects} value={projectAccess} onChange={setProjectAccess} />
+            )}
           </form>
         </DialogV2Body>
 

@@ -7,8 +7,8 @@ export type AssignableRole = Extract<OrganizationRole, "admin" | "member">;
 export const ASSIGNABLE_ROLES: AssignableRole[] = ["member", "admin"];
 
 export const ASSIGNABLE_ROLE_DESCRIPTIONS: Record<AssignableRole, string> = {
-  member: "Creates projects and manages deployments.",
-  admin: "Also manages billing, usage and members."
+  member: "Deploys in the projects they can access, but can't create projects.",
+  admin: "Creates projects, manages members and sees billing and usage."
 };
 
 export function describeRoleWithArticle(role: OrganizationRole): string {
