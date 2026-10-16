@@ -14,7 +14,7 @@ import type { ProjectOutput } from "@src/types/project";
 import type { DEPENDENCIES } from "./CreateApiKeyDialog";
 import { CreateApiKeyDialog, PROJECT_NOT_FOUND_MESSAGE } from "./CreateApiKeyDialog";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 import userEvent from "@testing-library/user-event";
 import { buildApiKey, buildProject } from "@tests/seeders";
@@ -116,7 +116,7 @@ describe("CreateApiKeyDialog", () => {
     expect(screen.getByRole("button", { name: /October 10th, 2026/ })).toBeEnabled();
 
     for (let month = 0; month < 12; month++) {
-      await user.click(screen.getByRole("button", { name: "Go to the Next Month" }));
+      fireEvent.click(screen.getByRole("button", { name: "Go to the Next Month" }));
     }
 
     expect(screen.getByRole("button", { name: /October 9th, 2027/ })).toBeEnabled();
