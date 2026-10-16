@@ -66,13 +66,15 @@ const post = (path: string, data?: unknown): TeamRequest => ({ method: "POST", p
 const patch = (path: string, data: unknown): TeamRequest => ({ method: "PATCH", path, body: { data } });
 const remove = (path: string): TeamRequest => ({ method: "DELETE", path });
 
-const providerTokenFor = (dseq: string) => ({
+const providerTokenFor = (dseq: string, scope: string[] = ["logs", "shell"]) => ({
   ttl: 60,
   leases: {
     access: "granular",
-    permissions: [{ provider: createAkashAddress(), access: "granular", deployments: [{ dseq: Number(dseq), scope: ["logs", "shell"], services: ["web"] }] }]
+    permissions: [{ provider: createAkashAddress(), access: "granular", deployments: [{ dseq: Number(dseq), scope, services: ["web"] }] }]
   }
 });
+
+const READ_ONLY_SCOPE = ["status", "events", "logs"];
 
 const CALLERS: Caller[] = ["owner", "admin", "member", "billing", "viewer", "projectKey"];
 
@@ -226,6 +228,16 @@ const ROUTE_ACCESS: RouteAccess[] = [
   {
     route: "POST /v1/create-jwt-token for a deployment of an ungranted project",
     request: team => post("/v1/create-jwt-token", providerTokenFor(team.otherDseq)),
+    statusFor: access(201, 201, 403, 403, 403, 403)
+  },
+  {
+    route: "POST /v1/create-jwt-token reading a deployment of the granted project",
+    request: team => post("/v1/create-jwt-token", providerTokenFor(team.grantedDseq, READ_ONLY_SCOPE)),
+    statusFor: access(201, 201, 201, 403, 201, 201)
+  },
+  {
+    route: "POST /v1/create-jwt-token reading a deployment of an ungranted project",
+    request: team => post("/v1/create-jwt-token", providerTokenFor(team.otherDseq, READ_ONLY_SCOPE)),
     statusFor: access(201, 201, 403, 403, 403, 403)
   }
 ];
