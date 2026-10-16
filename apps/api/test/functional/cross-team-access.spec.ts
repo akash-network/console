@@ -299,6 +299,12 @@ const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
   { route: "GET /v1/user/template/{id}", status: 404, ownerStatus: 200, request: team => get(`/v1/user/template/${team.templateId}`) },
   { route: "POST /v1/user/saveTemplate", status: 200, ownerStatus: 200, request: team => postUnwrapped("/v1/user/saveTemplate", templateOf(team)) },
   {
+    route: "POST /v1/user/saveTemplate filing into a project of the team",
+    status: 404,
+    ownerStatus: 200,
+    request: team => postUnwrapped("/v1/user/saveTemplate", { ...templateOf(team), id: undefined, projectId: team.otherProjectId })
+  },
+  {
     route: "POST /v1/user/saveTemplateDesc",
     status: 204,
     ownerStatus: 204,
