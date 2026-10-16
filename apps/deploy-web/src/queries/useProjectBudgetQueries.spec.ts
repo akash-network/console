@@ -2,11 +2,13 @@ import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
+import type { DeploymentSpendReport } from "@src/types/deployment-spend";
 import type { ProjectBudget, ProjectSpendReport } from "@src/types/project-budget";
 import {
   PROJECT_BUDGETS_QUERY_KEY,
   useCreateProjectBudgetMutation,
   useDeleteProjectBudgetMutation,
+  useDeploymentSpendQuery,
   useProjectBudgetQuery,
   useProjectSpendQuery,
   useUpdateProjectBudgetMutation
@@ -95,6 +97,42 @@ describe(useProjectSpendQuery.name, () => {
     );
 
     return { ...hook, listProjectSpend };
+  }
+});
+
+describe(useDeploymentSpendQuery.name, () => {
+  it("reads the spend of each deployment over the range", async () => {
+    const { result, listDeploymentSpend } = setup({});
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(listDeploymentSpend).toHaveBeenCalledWith({ startDate: "2026-03-01", endDate: "2026-03-15" });
+    expect(result.current.data?.deployments.map(deployment => deployment.dseq)).toEqual(["1234"]);
+  });
+
+  it("asks for nothing while it is disabled", () => {
+    const { result, listDeploymentSpend } = setup({ enabled: false });
+
+    expect(result.current.fetchStatus).toBe("idle");
+    expect(listDeploymentSpend).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { enabled?: boolean }) {
+    const report: DeploymentSpendReport = {
+      startDate: "2026-03-01",
+      endDate: "2026-03-15",
+      projects: [],
+      days: [{ date: "2026-03-01", projectId: null, consumedUsd: 5 }],
+      deployments: [{ dseq: "1234", name: null, projectId: null, consumedUsd: 5, hours: 24 }]
+    };
+    const listDeploymentSpend = vi.fn(async (_params: unknown) => ({ data: report }));
+    const api = createProxy({ v1: { listDeploymentSpend } }) as unknown as ApiService;
+    const hook = setupQuery(
+      () => useDeploymentSpendQuery({ startDate: "2026-03-01", endDate: "2026-03-15" }, input.enabled === undefined ? undefined : { enabled: input.enabled }),
+      { services: { api: () => api } }
+    );
+
+    return { ...hook, listDeploymentSpend };
   }
 });
 

@@ -450,6 +450,14 @@ export const operations = {
       queryParams: ["startDate", "endDate"],
       hasBody: false
     },
+    listDeploymentSpend: {
+      path: "/v1/deployment-spend",
+      method: "get",
+      operationId: "listDeploymentSpend",
+      pathParams: [],
+      queryParams: ["startDate", "endDate"],
+      hasBody: false
+    },
     listProjectBudgets: {
       path: "/v1/project-budgets",
       method: "get",

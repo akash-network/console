@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
+import type { DeploymentSpendReport } from "@src/types/deployment-spend";
 import type { ProjectBudget, ProjectSpendReport, SpendRange } from "@src/types/project-budget";
 
 /** Equals `api.v1.listProjectBudgets.getKey()`, the prefix every budget read sits under. */
@@ -25,6 +26,13 @@ export function useProjectSpendQuery(range: SpendRange, { enabled = true }: Quer
   const { api } = useServices();
 
   return api.v1.listProjectSpend.useQuery(range, { enabled, select: (response): ProjectSpendReport => response.data });
+}
+
+/** What each deployment the caller can see consumed over the range, with each project's spend per day. */
+export function useDeploymentSpendQuery(range: SpendRange, { enabled = true }: QueryOptions = {}) {
+  const { api } = useServices();
+
+  return api.v1.listDeploymentSpend.useQuery(range, { enabled, select: (response): DeploymentSpendReport => response.data });
 }
 
 export function useCreateProjectBudgetMutation() {
