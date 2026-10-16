@@ -32,8 +32,16 @@ describe(DeploymentLeaseShell.name, () => {
 
     expect(ProviderAuthFallback.mock.lastCall?.[0]).toMatchObject({
       tokenMode: "view-only",
+      scope: ["shell"],
       viewOnlyMessage: "The shell isn't available for view-only access."
     });
+  });
+
+  it("opens no shell for access that only reads leases", async () => {
+    const { connectToShell } = await setup({ tokenMode: "read-only" });
+
+    expect(connectToShell).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /copy output/i })).not.toBeInTheDocument();
   });
 
   it("hides the lease selector when there is a single lease", async () => {
@@ -208,7 +216,7 @@ describe(DeploymentLeaseShell.name, () => {
     const copyTextToClipboard = vi.fn<typeof DEPENDENCIES.copyTextToClipboard>().mockResolvedValue(input?.canCopy ?? true);
     const useProvidersByAddresses = vi.fn(() => providers);
     const LeaseSelect = vi.fn(() => null);
-    const ProviderAuthFallback = vi.fn((_: { tokenMode: string; viewOnlyMessage: string }) => null);
+    const ProviderAuthFallback = vi.fn((_: { tokenMode: string; scope: readonly string[]; viewOnlyMessage: string }) => null);
 
     const dependencies = {
       useServices: () => services,

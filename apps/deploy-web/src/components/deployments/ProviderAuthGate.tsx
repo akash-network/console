@@ -1,7 +1,9 @@
+import type { JwtTokenAccessScope } from "@akashnetwork/chain-sdk/web";
 import { Alert, AlertDescription, AlertTitle, Skeleton } from "@akashnetwork/ui/components";
 import { CircleAlert, Info } from "lucide-react";
 
 import type { ProviderTokenMode } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+import { canRequestScope } from "@src/hooks/useProviderCredentials/useProviderCredentials";
 
 export const ORGANIZATION_UNAVAILABLE_MESSAGE = "Couldn't load your organization. Reload to retry.";
 
@@ -9,14 +11,16 @@ export function ProviderAuthFallback({
   hasAccess,
   error,
   tokenMode,
+  scope,
   viewOnlyMessage
 }: {
   hasAccess: boolean;
   error: Error | null;
   tokenMode: ProviderTokenMode;
+  scope: readonly JwtTokenAccessScope[];
   viewOnlyMessage: string;
 }) {
-  if (tokenMode === "view-only") return <ProviderAccessUnavailableAlert message={viewOnlyMessage} />;
+  if (!canRequestScope(tokenMode, scope)) return <ProviderAccessUnavailableAlert message={viewOnlyMessage} />;
   if (tokenMode === "organization-unavailable") return <ProviderAccessUnavailableAlert message={ORGANIZATION_UNAVAILABLE_MESSAGE} />;
   if (error) return <ProviderAuthErrorAlert />;
   if (!hasAccess) return <ProviderAuthSkeleton />;

@@ -169,6 +169,7 @@ export const DeploymentLogs: React.FunctionComponent<Props> = ({ leases, selecte
         hasAccess={hasLogsAccess}
         error={providerCredentials.details.error}
         tokenMode={providerCredentials.tokenMode}
+        scope={LEASE_LOGS_SCOPE}
         viewOnlyMessage="Logs aren't available for view-only access yet."
       />
 
