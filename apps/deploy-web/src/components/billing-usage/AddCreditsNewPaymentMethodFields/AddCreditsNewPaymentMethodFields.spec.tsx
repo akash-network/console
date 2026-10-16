@@ -149,12 +149,12 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     expect(fields).toHaveProperty("inert", false);
   });
 
-  it("offers Link before card entry in the tabbed payment element", () => {
+  it("opens the tabbed payment element on card entry, with Link after it", () => {
     const PaymentElement = vi.fn<typeof DEPENDENCIES.PaymentElement>(() => null);
     setup({ isLoading: false, clientSecret: "seti_secret", dependencies: { PaymentElement } });
 
     expect(PaymentElement).toHaveBeenCalledWith(
-      expect.objectContaining({ options: { layout: "tabs", paymentMethodOrder: ["link", "card"] } }),
+      expect.objectContaining({ options: { layout: "tabs", paymentMethodOrder: ["card", "link"] } }),
       expect.anything()
     );
   });

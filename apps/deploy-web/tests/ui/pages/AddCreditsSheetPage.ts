@@ -1,5 +1,7 @@
 import type { FrameLocator, Locator, Page } from "@playwright/test";
 
+const MAX_CARD_TAB_PICKS = 3;
+
 export class AddCreditsSheetPage {
   constructor(readonly page: Page) {}
 
@@ -52,16 +54,11 @@ export class AddCreditsSheetPage {
     await addressFrame.getByLabel("State").selectOption(input.state);
   }
 
-  /** Stripe may open the payment element on another method's tab, such as a pay-by-bank promotion, which shows no card fields until Card is picked. */
   async fillStripeCard(input: { number: string; expiry: string; cvc: string }) {
     const cardFrame = this.getCardFrame();
 
     const cardNumber = cardFrame.getByLabel(/card number/i);
-    const cardTab = cardFrame.getByRole("tab", { name: "Card", exact: true });
-    await cardNumber.or(cardTab).first().waitFor({ timeout: 30_000 });
-    if (await cardTab.isVisible()) {
-      await cardTab.click();
-    }
+    await this.showCardFields(cardFrame, cardNumber);
 
     await cardNumber.click();
     await cardNumber.pressSequentially(input.number);
@@ -97,5 +94,18 @@ export class AddCreditsSheetPage {
       .locator("iframe")
       .first()
       .contentFrame();
+  }
+
+  /** Stripe can re-render the payment element once the billing address is complete and fall back to another method's tab, such as a pay-by-bank promotion, so Card is picked again until its fields show. */
+  private async showCardFields(cardFrame: FrameLocator, cardNumber: Locator) {
+    const cardTab = cardFrame.getByRole("tab", { name: "Card", exact: true });
+
+    for (let attempt = 1; attempt <= MAX_CARD_TAB_PICKS; attempt++) {
+      await cardNumber.or(cardTab).first().waitFor({ timeout: 30_000 });
+      if (await cardNumber.isVisible()) return;
+
+      await cardTab.click();
+      await cardNumber.waitFor({ timeout: 5_000 }).catch(() => undefined);
+    }
   }
 }

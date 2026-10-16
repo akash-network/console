@@ -147,7 +147,7 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
 
       <div className="space-y-2">
         <h3 className="text-left text-sm font-medium text-muted-foreground">CHOOSE A PAYMENT METHOD</h3>
-        <d.PaymentElement options={{ layout: "tabs", paymentMethodOrder: ["link", "card"] }} onChange={event => onPaymentTypeChange?.(event.value.type)} />
+        <d.PaymentElement options={{ layout: "tabs", paymentMethodOrder: ["card", "link"] }} onChange={event => onPaymentTypeChange?.(event.value.type)} />
       </div>
 
       <Alert variant="default" className="bg-muted p-3">
