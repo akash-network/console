@@ -44,6 +44,7 @@ export class ActivityFeedClient {
       method: "POST",
       headers: { "content-type": "application/json", [INTERNAL_TOKEN_HEADER]: this.#endpoint.token },
       body: JSON.stringify({ ...activity, status: "info" }),
+      redirect: "manual",
       signal: AbortSignal.timeout(this.configService.getOrThrow("notifications.CONSOLE_API_TIMEOUT_MS"))
     });
 

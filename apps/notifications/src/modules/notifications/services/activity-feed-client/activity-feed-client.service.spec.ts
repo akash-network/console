@@ -51,6 +51,18 @@ describe(ActivityFeedClient.name, () => {
     await expect(client.addAlert(createAlertActivity())).rejects.toThrow('console-api answered 404: {"message":"User not found"}');
   });
 
+  it("fails on a redirect instead of following it", async () => {
+    const { client, received } = await setup({
+      respond: (response, request) => {
+        response.writeHead(307, { location: `${request.url}/elsewhere` });
+        response.end();
+      }
+    });
+
+    await expect(client.addAlert(createAlertActivity())).rejects.toThrow("console-api answered 307");
+    expect(received.map(request => request.url)).toEqual(["/internal/activities"]);
+  });
+
   it("gives up once console-api takes longer than the timeout to answer", async () => {
     const { client } = await setup({ timeoutMs: 50, respond: () => {} });
 

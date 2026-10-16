@@ -7,12 +7,12 @@ import { ALERT_ACTIVITY_TYPES } from "../services/activity-feed-client/activity-
 const AlertFeedEntrySchema = z
   .object({
     type: z.enum(ALERT_ACTIVITY_TYPES),
-    alertId: z.string(),
-    userId: z.string(),
-    organizationId: z.string().nullable(),
-    projectId: z.string().nullable(),
-    dedupeKey: z.string(),
-    dseq: z.string().optional()
+    alertId: z.string().uuid(),
+    userId: z.string().uuid(),
+    organizationId: z.string().uuid().nullable(),
+    projectId: z.string().uuid().nullable(),
+    dedupeKey: z.string().min(1),
+    dseq: z.string().min(1).optional()
   })
   .optional()
   .catch(undefined);
