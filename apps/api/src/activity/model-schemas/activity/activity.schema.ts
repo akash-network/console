@@ -63,6 +63,9 @@ export const Activities = pgTable(
       .where(sql`${table.seenAt} IS NULL`),
     userIdDedupeKeyIdx: uniqueIndex(ACTIVITIES_DEDUPE_KEY_INDEX)
       .on(table.userId, table.dedupeKey)
-      .where(sql`${table.dedupeKey} IS NOT NULL`)
+      .where(sql`${table.dedupeKey} IS NOT NULL`),
+    pendingTypeCreatedAtIdx: index("activities_pending_type_created_at_idx")
+      .on(table.type, table.createdAt)
+      .where(sql`${table.status} = 'pending'`)
   })
 );
