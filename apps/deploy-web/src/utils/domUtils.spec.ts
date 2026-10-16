@@ -1,7 +1,7 @@
 import { describe, expect, it, type Mock, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { addScriptToHead, downloadCsv } from "@src/utils/domUtils";
+import { addScriptToHead, downloadCsv, downloadFile } from "@src/utils/domUtils";
 
 describe("domUtils", () => {
   describe("addScriptToHead", () => {
@@ -82,6 +82,18 @@ describe("domUtils", () => {
       expect(appendChildMock).toHaveBeenCalled();
       expect(removeChildMock).toHaveBeenCalled();
       expect(global.URL.revokeObjectURL).toHaveBeenCalledWith(fakeUrl);
+    });
+
+    it("saves any file under the exact name it is given", () => {
+      const { createObjectURLMock, setAttributeMock } = setup();
+      const pdf = new Blob(["%PDF"], { type: "application/pdf" });
+      createObjectURLMock.mockReturnValue("blob:http://example.com/invoice");
+
+      downloadFile(pdf, "akash-invoice-2026-10-14.pdf");
+
+      expect(createObjectURLMock).toHaveBeenCalledWith(pdf);
+      expect(setAttributeMock).toHaveBeenCalledWith("download", "akash-invoice-2026-10-14.pdf");
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:http://example.com/invoice");
     });
   });
 });

@@ -9,7 +9,7 @@ import { useActiveOrganization } from "@src/context/OrganizationProvider/Organiz
 import { useFlag } from "@src/hooks/useFlag";
 import type { BillingTransaction } from "@src/queries";
 import { useTransactionInvoiceMutation } from "@src/queries/useTransactionInvoiceQueries";
-import { openPendingTab } from "@src/utils/openPendingTab";
+import { downloadFile } from "@src/utils/domUtils";
 
 export const DEPENDENCIES = { useTransactionInvoiceMutation, useFlag, useActiveOrganization, useSnackbar };
 
@@ -32,24 +32,20 @@ export const TransactionInvoiceButton: FC<Props> = ({ transaction, dependencies:
     return null;
   }
 
-  return <InvoiceButton transactionId={transaction.id} label={hasInvoice ? "Download invoice" : "Get invoice"} dependencies={d} />;
+  return <InvoiceButton transaction={transaction} label={hasInvoice ? "Download invoice" : "Get invoice"} dependencies={d} />;
 };
 
-const InvoiceButton: FC<{ transactionId: string; label: string; dependencies: typeof DEPENDENCIES }> = ({ transactionId, label, dependencies: d }) => {
+const InvoiceButton: FC<{ transaction: BillingTransaction; label: string; dependencies: typeof DEPENDENCIES }> = ({ transaction, label, dependencies: d }) => {
   const { mutateAsync, isPending } = d.useTransactionInvoiceMutation();
   const { enqueueSnackbar } = d.useSnackbar();
+  const currentLabel = isPending ? "Preparing invoice…" : label;
 
-  const openInvoice = async () => {
-    const tab = openPendingTab();
-    const invoicePdfUrl = await mutateAsync({ id: transactionId }).then(
-      ({ data }) => data.invoicePdfUrl,
-      () => null
-    );
+  const downloadInvoice = async () => {
+    const pdf = await mutateAsync(transaction.id).catch(() => null);
 
-    if (invoicePdfUrl) {
-      tab.navigate(invoicePdfUrl);
+    if (pdf) {
+      downloadFile(pdf, invoiceFilenameOf(transaction));
     } else {
-      tab.close();
       enqueueSnackbar(<Snackbar title="Couldn't get the invoice" subTitle="Try again in a moment." iconVariant="error" />, { variant: "error" });
     }
   };
@@ -57,13 +53,15 @@ const InvoiceButton: FC<{ transactionId: string; label: string; dependencies: ty
   return (
     <button
       type="button"
-      aria-label={label}
-      title={label}
+      aria-label={currentLabel}
+      title={currentLabel}
       disabled={isPending}
-      onClick={openInvoice}
+      onClick={downloadInvoice}
       className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-lg text-foreground transition-colors hover:bg-muted disabled:pointer-events-none"
     >
       {isPending ? <Spinner size="small" /> : <FileDown className="h-[17px] w-[17px]" />}
     </button>
   );
 };
+
+const invoiceFilenameOf = (transaction: BillingTransaction) => `akash-invoice-${new Date(transaction.created * 1000).toLocaleDateString("en-CA")}.pdf`;

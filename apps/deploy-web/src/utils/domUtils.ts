@@ -51,10 +51,14 @@ export function addScriptToBody(options: ScriptOptions): HTMLScriptElement | nul
 }
 
 export function downloadCsv(blob: Blob, filename = "export") {
+  downloadFile(blob, `${filename}.csv`);
+}
+
+export function downloadFile(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.setAttribute("href", url);
-  link.setAttribute("download", `${filename}.csv`);
+  link.setAttribute("download", filename);
   link.style.visibility = "hidden";
   document.body.appendChild(link);
   link.click();
