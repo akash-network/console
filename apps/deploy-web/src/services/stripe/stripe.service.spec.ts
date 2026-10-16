@@ -7,7 +7,7 @@ import { StripeService } from "./stripe.service";
 
 describe("StripeService", () => {
   describe("getStripe", () => {
-    it("should load Stripe instance when publishable key is configured", async () => {
+    it("loads Stripe with its sandbox assistant turned off when publishable key is configured", async () => {
       const { stripeService, mockLoadStripe, mockStripeInstance } = setup({
         publishableKey: "pk_test_mock_key"
       });
@@ -16,7 +16,7 @@ describe("StripeService", () => {
 
       const result = await stripeService.getStripe();
 
-      expect(mockLoadStripe).toHaveBeenCalledWith("pk_test_mock_key");
+      expect(mockLoadStripe).toHaveBeenCalledWith("pk_test_mock_key", { developerTools: { assistant: { enabled: false } } });
       expect(result).toBe(mockStripeInstance);
     });
 

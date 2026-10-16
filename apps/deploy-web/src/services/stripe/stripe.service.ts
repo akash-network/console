@@ -1,4 +1,7 @@
-import { loadStripe, type Stripe } from "@stripe/stripe-js";
+import { loadStripe, type Stripe, type StripeConstructorOptions } from "@stripe/stripe-js";
+
+/** Stripe's sandbox assistant floats over the bottom right of test-mode pages, where it takes clicks meant for the Add Credits sheet. */
+const STRIPE_OPTIONS: StripeConstructorOptions = { developerTools: { assistant: { enabled: false } } };
 
 export interface StripeServiceDependencies {
   loadStripe?: typeof loadStripe;
@@ -30,7 +33,7 @@ export class StripeService {
     }
 
     try {
-      this.stripeInstance = await this.dependencies.loadStripe(publishableKey);
+      this.stripeInstance = await this.dependencies.loadStripe(publishableKey, STRIPE_OPTIONS);
       return this.stripeInstance;
     } catch (error) {
       console.error("Failed to load Stripe:", error);
