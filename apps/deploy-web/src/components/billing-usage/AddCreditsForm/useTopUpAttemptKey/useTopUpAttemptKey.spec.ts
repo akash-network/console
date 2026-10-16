@@ -151,7 +151,9 @@ describe(useTopUpAttemptKey.name, () => {
 
     expect(second.result.current.getWalletAttempt(INPUT)).toEqual({ paymentMethodId: "pm_1", type: "apple_pay" });
     expect(second.result.current.resolve(INPUT)).toBe(key);
+    window.sessionStorage.clear();
     expect(second.result.current.getWalletAttempt(INPUT)).toEqual({ paymentMethodId: "pm_1", type: "apple_pay" });
+    expect(second.result.current.resolve(INPUT)).toBe(key);
   });
 
   it("releases a pending wallet only once its attempt concludes", () => {
@@ -178,9 +180,25 @@ describe(useTopUpAttemptKey.name, () => {
       throw new Error("storage blocked");
     });
     const { result } = setup();
-    result.current.resolve({ ...INPUT, walletType: "apple_pay" });
+    const key = result.current.resolve({ ...INPUT, walletType: "apple_pay" });
+    window.sessionStorage.clear();
 
     expect(result.current.getWalletAttempt(INPUT)).toEqual({ paymentMethodId: "pm_1", type: "apple_pay" });
+    expect(result.current.resolve(INPUT)).toBe(key);
+  });
+
+  it("expires the in-memory wallet at the end of the replay window", () => {
+    const now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    const { result } = setup();
+    result.current.resolve({ ...INPUT, walletType: "apple_pay" });
+    window.sessionStorage.clear();
+
+    clock.mockReturnValue(now + 24 * 60 * 60 * 1000 - 1);
+    expect(result.current.getWalletAttempt(INPUT)).toEqual({ paymentMethodId: "pm_1", type: "apple_pay" });
+
+    clock.mockReturnValue(now + 24 * 60 * 60 * 1000);
+    expect(result.current.getWalletAttempt(INPUT)).toBeNull();
   });
 
   function seedStoredAttempt(input: { key: string; ageMs: number }) {

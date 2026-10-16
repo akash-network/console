@@ -49,7 +49,10 @@ describe(AddCreditsSheet.name, () => {
     act(() => tabsProps.onDone(100, 5));
 
     expect(onDone).not.toHaveBeenCalled();
-    expect(screen.getByRole("status")).toHaveTextContent(/credits added/i);
+    expect(screen.getByText(/Payment successful/)).toBeInTheDocument();
+    expect(screen.getByText(/Your credits are ready to use/)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("$100.00 credits added");
+    expect(screen.getByRole("status")).toHaveTextContent("Plus $5.00 in bonus credits");
     expect(screen.getByRole("status")).toHaveTextContent("$125.00");
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(onDone).toHaveBeenCalledWith(100, 5);
@@ -63,6 +66,54 @@ describe(AddCreditsSheet.name, () => {
     act(() => tabsProps.onRedeemed!());
 
     expect(onRedeemed).toHaveBeenCalled();
+  });
+
+  it("omits the bonus when none was granted", () => {
+    const { dependencies } = setup({ open: true });
+
+    act(() => dependencies.AddCreditsTabs.mock.calls.at(-1)![0].onDone(100, 0));
+
+    expect(screen.getByRole("status")).toHaveTextContent("$100.00 credits added");
+    expect(screen.queryByText(/in bonus credits/)).not.toBeInTheDocument();
+  });
+
+  it("waits for a fresh balance instead of displaying the cached balance while loading", () => {
+    const useWalletBalance = vi.fn<typeof DEPENDENCIES.useWalletBalance>().mockReturnValue(
+      mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({
+        isLoading: true,
+        balance: mock<NonNullable<ReturnType<typeof DEPENDENCIES.useWalletBalance>["balance"]>>({ totalUsd: 25 })
+      })
+    );
+    const { dependencies, rerender } = setup({ open: true, dependencies: { useWalletBalance } });
+
+    act(() => dependencies.AddCreditsTabs.mock.calls.at(-1)![0].onDone(100));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Updating balance…");
+    expect(screen.getByRole("status")).not.toHaveTextContent("$25.00");
+
+    useWalletBalance.mockReturnValue(
+      mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({
+        isLoading: false,
+        balance: mock<NonNullable<ReturnType<typeof DEPENDENCIES.useWalletBalance>["balance"]>>({ totalUsd: 125 })
+      })
+    );
+    rerender(true);
+
+    expect(screen.getByRole("status")).toHaveTextContent("$125.00");
+    expect(screen.queryByText("Updating balance…")).not.toBeInTheDocument();
+  });
+
+  it("clears the processing guard after the host closes and reopens the sheet", () => {
+    const onOpenChange = vi.fn();
+    const { dependencies, rerender } = setup({ open: true, onOpenChange });
+    act(() => dependencies.AddCreditsTabs.mock.calls.at(-1)![0].onProcessingChange?.(true));
+
+    rerender(false);
+    rerender(true);
+    act(() => dependencies.Sheet.mock.calls.at(-1)![0].onOpenChange?.(false));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(dependencies.SheetContent.mock.calls.at(-1)![0].hideCloseButton).toBe(false);
   });
 
   it("tracks opening the sheet with the provided context", () => {

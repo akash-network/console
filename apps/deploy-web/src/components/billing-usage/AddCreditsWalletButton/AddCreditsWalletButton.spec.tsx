@@ -9,12 +9,23 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 
 describe(AddCreditsWalletButton.name, () => {
   it("shows an available wallet before collecting card details and uses the current amount", async () => {
-    const { paymentRequest, onOpenChange } = setup({ amount: 100 });
+    const { paymentRequest, onOpenChange, stripe, PaymentRequestButtonElement } = setup({ amount: 100 });
 
     fireEvent.click(await screen.findByRole("button", { name: "Pay with wallet" }));
 
     expect(paymentRequest.update).toHaveBeenCalledWith({ total: { label: "Akash credits", amount: 10000 } });
     expect(onOpenChange).toHaveBeenCalledWith(true);
+    expect(stripe.paymentRequest).toHaveBeenCalledWith({
+      country: "US",
+      currency: "usd",
+      total: { label: "Akash credits", amount: 0 },
+      requestPayerName: true,
+      requestPayerEmail: true
+    });
+    expect(PaymentRequestButtonElement).toHaveBeenCalledWith(
+      expect.objectContaining({ options: { paymentRequest, style: { paymentRequestButton: { type: "buy", height: "44px" } } } }),
+      expect.anything()
+    );
   });
 
   it("leaves card checkout available when no wallet is supported", async () => {
@@ -51,6 +62,7 @@ describe(AddCreditsWalletButton.name, () => {
     expect(stripe.confirmCardSetup).toHaveBeenCalledWith("seti_wallet", { payment_method: "pm_wallet" }, { handleActions: false });
     expect(result()).toEqual({ paymentMethodId: "pm_wallet" });
     expect(event.complete).toHaveBeenCalledExactlyOnceWith("success");
+    expect(stripe.confirmCardSetup).toHaveBeenCalledOnce();
   });
 
   it("closes the native wallet before showing setup authentication", async () => {
@@ -70,7 +82,8 @@ describe(AddCreditsWalletButton.name, () => {
   it.each([
     ["applePay", "apple_pay"],
     ["googlePay", "google_pay"],
-    ["link", "link"]
+    ["link", "link"],
+    ["browserCard", "card"]
   ])("reports %s when Stripe omits card wallet metadata", async (walletName, type) => {
     const { authorize, onSubmit } = setup({
       walletName,
@@ -112,6 +125,125 @@ describe(AddCreditsWalletButton.name, () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it.each([{ applePay: false, googlePay: false, link: false }, {}])(
+    "hides the wallet button when capability flags are all unavailable: %j",
+    async available => {
+      const { paymentRequest } = setup({ canMakePayment: vi.fn().mockResolvedValue(available) });
+
+      await act(async () => {
+        await paymentRequest.canMakePayment();
+      });
+
+      expect(screen.queryByRole("button", { name: "Pay with wallet" })).not.toBeInTheDocument();
+    }
+  );
+
+  it("shows the button when only one supported wallet is available", async () => {
+    setup({ canMakePayment: vi.fn().mockResolvedValue({ applePay: false, googlePay: true, link: false }) });
+
+    expect(await screen.findByRole("button", { name: "Pay with wallet" })).toBeInTheDocument();
+  });
+
+  it("reports the browser wallet type when a card has no wallet metadata", async () => {
+    const { authorize, onSubmit } = setup({
+      walletName: "googlePay",
+      paymentMethod: mock<PaymentRequestPaymentMethodEvent["paymentMethod"]>({ id: "pm_wallet", card: {} })
+    });
+
+    await authorize();
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ type: "google_pay" }));
+  });
+
+  it("rejects a missing setup secret before confirming the wallet", async () => {
+    const { authorize, stripe, event, result } = setup({ createSetupIntent: vi.fn().mockResolvedValue({ clientSecret: null }) });
+
+    await authorize();
+
+    expect(result()).toBeNull();
+    expect(stripe.confirmCardSetup).not.toHaveBeenCalled();
+    expect(event.complete).toHaveBeenCalledExactlyOnceWith("fail");
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save your wallet. Please check your connection and try again.");
+  });
+
+  it("provides an inline fallback for a Stripe setup error without a message", async () => {
+    const { authorize, result } = setup({ confirmCardSetup: vi.fn().mockResolvedValue({ error: {} }) });
+
+    await authorize();
+
+    expect(result()).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save your wallet. Please try again.");
+  });
+
+  it.each([
+    { status: "requires_payment_method", payment_method: "pm_wallet" },
+    { status: "succeeded", payment_method: null },
+    { status: "succeeded", payment_method: { id: "pm_wallet" } }
+  ])("does not submit an unusable wallet setup result: %j", async setupIntent => {
+    const { authorize, result, event } = setup({ confirmCardSetup: vi.fn().mockResolvedValue({ setupIntent }) });
+
+    await authorize();
+
+    expect(result()).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent("Wallet authentication did not complete. Please try again.");
+    expect(event.complete).toHaveBeenCalledOnce();
+  });
+
+  it("shows authentication errors after closing the native wallet", async () => {
+    const confirmCardSetup = vi
+      .fn()
+      .mockResolvedValueOnce({ setupIntent: { status: "requires_action" } })
+      .mockResolvedValueOnce({ error: { message: "Authentication was cancelled." } });
+    const { authorize, result, event, onOpenChange } = setup({ confirmCardSetup });
+
+    await authorize();
+
+    expect(result()).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent("Authentication was cancelled.");
+    expect(event.complete).toHaveBeenCalledExactlyOnceWith("success");
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("clears a prior wallet error on the next authorization", async () => {
+    const confirmCardSetup = vi
+      .fn()
+      .mockResolvedValueOnce({ error: { message: "Your card was declined." } })
+      .mockResolvedValue({ setupIntent: { status: "succeeded", payment_method: "pm_wallet" } });
+    const { authorize, result } = setup({ confirmCardSetup });
+    await authorize();
+    expect(screen.getByRole("alert")).toHaveTextContent("Your card was declined.");
+
+    await authorize();
+
+    expect(result()).toEqual({ paymentMethodId: "pm_wallet" });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("detaches wallet listeners when checkout unmounts", async () => {
+    const { paymentRequest, unmount, listeners } = setup();
+    await screen.findByRole("button", { name: "Pay with wallet" });
+
+    unmount();
+
+    expect(paymentRequest.off).toHaveBeenCalledWith("paymentmethod", listeners.get("paymentmethod"));
+    expect(paymentRequest.off).toHaveBeenCalledWith("cancel", listeners.get("cancel"));
+  });
+
+  it("does not initialize a wallet if checkout unmounts before Stripe loads", async () => {
+    let loadStripe!: (stripe: Stripe) => void;
+    const stripePromise = new Promise<Stripe>(resolve => {
+      loadStripe = resolve;
+    });
+    const { stripe, unmount } = setup({ stripePromise });
+
+    unmount();
+    await act(async () => {
+      loadStripe(stripe);
+    });
+
+    expect(stripe.paymentRequest).not.toHaveBeenCalled();
+  });
+
   function setup(
     input: {
       amount?: number;
@@ -122,6 +254,7 @@ describe(AddCreditsWalletButton.name, () => {
       createSetupIntent?: ReturnType<typeof DEPENDENCIES.useServices>["stripe"]["createSetupIntent"];
       walletName?: string;
       paymentMethod?: PaymentRequestPaymentMethodEvent["paymentMethod"];
+      stripePromise?: Promise<Stripe>;
     } = {}
   ) {
     const listeners = new Map<string, (...args: never[]) => unknown>();
@@ -136,7 +269,7 @@ describe(AddCreditsWalletButton.name, () => {
       paymentRequest: vi.fn().mockReturnValue(paymentRequest),
       confirmCardSetup: input.confirmCardSetup ?? vi.fn().mockResolvedValue({ setupIntent: { status: "succeeded", payment_method: "pm_wallet" } })
     });
-    const stripePromise = Promise.resolve(stripe);
+    const stripePromise = input.stripePromise ?? Promise.resolve(stripe);
     const services = mock<ReturnType<typeof DEPENDENCIES.useServices>>({
       stripeService: mock<ReturnType<typeof DEPENDENCIES.useServices>["stripeService"]>({ getStripe: () => stripePromise }),
       stripe: mock<ReturnType<typeof DEPENDENCIES.useServices>["stripe"]>({
@@ -154,7 +287,12 @@ describe(AddCreditsWalletButton.name, () => {
       paymentMethod:
         input.paymentMethod ?? mock<PaymentRequestPaymentMethodEvent["paymentMethod"]>({ id: "pm_wallet", card: { wallet: { type: "apple_pay" } } })
     });
-    render(
+    const PaymentRequestButtonElement = vi.fn<typeof DEPENDENCIES.PaymentRequestButtonElement>(({ onClick }) => (
+      <button type="button" onClick={() => onClick?.({ preventDefault })}>
+        Pay with wallet
+      </button>
+    ));
+    const view = render(
       <AddCreditsWalletButton
         amount={input.amount ?? 100}
         disabled={input.disabled ?? false}
@@ -163,17 +301,16 @@ describe(AddCreditsWalletButton.name, () => {
         dependencies={{
           useServices: () => services,
           Elements: ({ children }) => <>{children}</>,
-          PaymentRequestButtonElement: ({ onClick }) => (
-            <button type="button" onClick={() => onClick?.({ preventDefault })}>
-              Pay with wallet
-            </button>
-          )
+          PaymentRequestButtonElement
         }}
       />
     );
 
     return {
       paymentRequest,
+      listeners,
+      PaymentRequestButtonElement,
+      unmount: view.unmount,
       stripe,
       event,
       onSubmit,
