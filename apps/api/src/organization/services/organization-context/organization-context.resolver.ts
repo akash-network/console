@@ -108,6 +108,11 @@ export class OrganizationContextResolver {
     return { organizationId: organization.id, organizationType: organization.type, role, projectScope, mode };
   }
 
+  /** Work bound to one organization, such as a job queued for a member, resolves as a key bound to it does: a member who left is refused, and nothing is remembered as last used. */
+  async resolveBoundTo(user: OrganizationContextRequest["user"], organizationId: string): Promise<OrganizationContext | undefined> {
+    return await this.resolve({ user, apiKey: { organizationId, projectId: null } });
+  }
+
   async #resolvePersonalContext({ user, apiKey }: OrganizationContextRequest, mode: AuthorizationMode): Promise<OrganizationContext | undefined> {
     const membership = await this.#personalMembershipUnlessUnavailable(user, mode, apiKey);
 

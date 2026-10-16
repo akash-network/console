@@ -308,6 +308,44 @@ describe(OrganizationContextResolver.name, () => {
     });
   });
 
+  describe("resolveBoundTo", () => {
+    it("resolves the organization the work is bound to with what the member's role and grants reach now", async () => {
+      const grantedProjectIds = [faker.string.uuid()];
+      const { resolver, team, user } = setup({ teamRole: "member", grantedProjectIds });
+
+      const context = await resolver.resolveBoundTo(user, team.organization.id);
+
+      expect(context).toEqual({
+        organizationId: team.organization.id,
+        organizationType: "team",
+        role: "member",
+        projectScope: { kind: "projects", projectIds: grantedProjectIds, writableProjectIds: grantedProjectIds, adminProjectIds: [] },
+        mode: "organization"
+      });
+    });
+
+    it("rejects a member who no longer belongs to the organization", async () => {
+      const { resolver, user } = setup({});
+
+      await expect(resolver.resolveBoundTo(user, faker.string.uuid())).rejects.toMatchObject({ status: 403, errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
+    });
+
+    it("rejects a team while organizations are off for the member", async () => {
+      const { resolver, team, user } = setup({ organizationsOn: false });
+
+      await expect(resolver.resolveBoundTo(user, team.organization.id)).rejects.toMatchObject({ status: 403, errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE });
+    });
+
+    it("leaves the last used organization alone", async () => {
+      const { resolver, team, user, userRepository } = setup({});
+
+      await resolver.resolveBoundTo(user, team.organization.id);
+
+      expect(userRepository.updateById).not.toHaveBeenCalled();
+      expect(userRepository.updateBy).not.toHaveBeenCalled();
+    });
+  });
+
   describe("with an organization header", () => {
     it("resolves an organization the caller belongs to, named by id", async () => {
       const { resolver, team, user, organizationMemberRepository } = setup({ teamRole: "billing" });

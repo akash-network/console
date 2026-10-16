@@ -7,6 +7,10 @@ import type { WalletInitialized } from "@src/billing/repositories";
 import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import {
+  ACCESS_REVOKED_ERROR_CODE,
+  type MemberDeploymentAccessService
+} from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { CloseDeploymentHandler } from "./close-deployment.handler";
 
@@ -155,6 +159,63 @@ describe(CloseDeploymentHandler.name, () => {
     );
   });
 
+  it("checks that the member may still act with the organization's wallet before it closes", async () => {
+    const { handler, memberDeploymentAccessService, deploymentWriterService } = setup();
+
+    await handler.handle({ ...PAYLOAD, walletId: 7 }, { id: "job-1", retryCount: 0, retryLimit: 8 });
+
+    expect(memberDeploymentAccessService.assertMayStillAct).toHaveBeenCalledWith({ userId: "user-1", walletId: 7, dseq: "100" });
+    expect(memberDeploymentAccessService.assertMayStillAct.mock.invocationCallOrder[0]).toBeLessThan(deploymentWriterService.close.mock.invocationCallOrder[0]);
+  });
+
+  it("checks a close with the member's own wallet without naming a wallet", async () => {
+    const { handler, memberDeploymentAccessService } = setup();
+
+    await handler.handle(PAYLOAD, { id: "job-1", retryCount: 0, retryLimit: 8 });
+
+    expect(memberDeploymentAccessService.assertMayStillAct).toHaveBeenCalledWith({ userId: "user-1", walletId: undefined, dseq: "100" });
+  });
+
+  it("records the close as failed and ends the job without closing once the member lost access, whatever attempts remain", async () => {
+    const { handler, memberDeploymentAccessService, deploymentWriterService, activityService } = setup();
+    const revoked = createError(403, "You no longer have access to this deployment.", { errorCode: ACCESS_REVOKED_ERROR_CODE });
+    memberDeploymentAccessService.assertMayStillAct.mockRejectedValue(revoked);
+
+    await handler.handle({ ...PAYLOAD, walletId: 7, batchId: "batch-1" }, { id: "job-1", retryCount: 0, retryLimit: 8 });
+
+    expect(deploymentWriterService.close).not.toHaveBeenCalled();
+    expect(activityService.settle).toHaveBeenCalledTimes(1);
+    expect(activityService.settle).toHaveBeenCalledWith(
+      "activity-1",
+      expect.objectContaining({
+        status: "failed",
+        meta: { dseq: "100", batchId: "batch-1", error: { code: ACCESS_REVOKED_ERROR_CODE, message: "You no longer have access to this deployment." } },
+        dedupeKey: null
+      })
+    );
+  });
+
+  it("retries a check of the member's access that failed while attempts remain", async () => {
+    const { handler, memberDeploymentAccessService, deploymentWriterService, activityService } = setup();
+    const outage = new Error("connection terminated");
+    memberDeploymentAccessService.assertMayStillAct.mockRejectedValue(outage);
+
+    await expect(handler.handle({ ...PAYLOAD, walletId: 7 }, { id: "job-1", retryCount: 7, retryLimit: 8 })).rejects.toBe(outage);
+
+    expect(deploymentWriterService.close).not.toHaveBeenCalled();
+    expect(activityService.settle).not.toHaveBeenCalled();
+  });
+
+  it("records the close as failed when checking the member's access fails on the last attempt", async () => {
+    const { handler, memberDeploymentAccessService, activityService } = setup();
+    const outage = new Error("connection terminated");
+    memberDeploymentAccessService.assertMayStillAct.mockRejectedValue(outage);
+
+    await expect(handler.handle(PAYLOAD, { id: "job-1", retryCount: 8, retryLimit: 8 })).rejects.toBe(outage);
+
+    expect(activityService.settle).toHaveBeenCalledWith("activity-1", failedCloseActivityOf(KEY, outage));
+  });
+
   function setup(input?: { pending?: boolean }) {
     const wallet = mock<WalletInitialized>({ userId: "user-1", address: "akash1owner" });
     const walletReaderService = mock<WalletReaderService>();
@@ -165,8 +226,11 @@ describe(CloseDeploymentHandler.name, () => {
     const activityService = mock<ActivityService>();
     activityService.isPending.mockResolvedValue(input?.pending ?? true);
 
-    const handler = new CloseDeploymentHandler(walletReaderService, deploymentWriterService, activityService);
+    const memberDeploymentAccessService = mock<MemberDeploymentAccessService>();
+    memberDeploymentAccessService.assertMayStillAct.mockResolvedValue(undefined);
 
-    return { handler, walletReaderService, deploymentWriterService, activityService, wallet };
+    const handler = new CloseDeploymentHandler(walletReaderService, deploymentWriterService, activityService, memberDeploymentAccessService);
+
+    return { handler, walletReaderService, deploymentWriterService, activityService, memberDeploymentAccessService, wallet };
   }
 });
