@@ -55,7 +55,10 @@ FROM development AS builder
 ENV NODE_ENV production
 
 ENV GIT_COMMIT_HASH=$GIT_COMMIT_HASH
-RUN --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN npm run build -w $WORKSPACE
+# next build with browser source maps and the sentry upload outgrew V8's default 4 GB heap
+ARG NEXT_BUILD_MAX_OLD_SPACE_MB=8192
+RUN --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN \
+    NODE_OPTIONS="$NODE_OPTIONS --max-old-space-size=$NEXT_BUILD_MAX_OLD_SPACE_MB" npm run build -w $WORKSPACE
 
 FROM base AS production
 
