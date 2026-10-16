@@ -3,6 +3,7 @@ import { IntlProvider } from "react-intl";
 import { getDaysInMonth } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 
+import type { DeploymentSpendSection } from "@src/components/billing-usage/DeploymentSpendList/DeploymentSpendList";
 import type { ChildrenProps, DailySpendBreakdown } from "@src/components/billing-usage/UsageContainer/UsageContainer";
 import { getUsagePresetRange, type UsageDatePreset, type UsageDateRange } from "@src/components/billing-usage/UsageContainer/usageDatePresets";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
@@ -211,6 +212,19 @@ describe(UsageView.name, () => {
     expect(DailySpendChart).toHaveBeenCalledWith(expect.objectContaining({ caption: undefined, series: undefined }), expect.anything());
   });
 
+  it("breaks spend down by deployment over the range on screen", () => {
+    const deploymentSpend: DeploymentSpendSection = { title: "Spend by deployment", rows: [], showsProject: true, isLoading: false, isError: false };
+    const { DeploymentSpendList } = setup({ datePreset: "last7Days", deploymentSpend });
+
+    expect(DeploymentSpendList).toHaveBeenCalledWith({ ...deploymentSpend, rangeLabel: "Last 7 days" }, expect.anything());
+  });
+
+  it("leaves spend by deployment out without a breakdown for it", () => {
+    const { DeploymentSpendList } = setup({ deploymentSpend: null });
+
+    expect(DeploymentSpendList).not.toHaveBeenCalled();
+  });
+
   it("leaves spend by project out without a range for it", () => {
     const { ProjectSpendReport } = setup({ projectSpendRange: null });
 
@@ -231,6 +245,7 @@ describe(UsageView.name, () => {
       dateRange?: UsageDateRange;
       projectSpendRange?: SpendRange | null;
       dailySpendBreakdown?: DailySpendBreakdown | null;
+      deploymentSpend?: DeploymentSpendSection | null;
     } = {}
   ) {
     const onDatePresetChange = vi.fn();
@@ -256,6 +271,7 @@ describe(UsageView.name, () => {
           onDateRangeChange={onDateRangeChange}
           projectSpendRange={input.projectSpendRange ?? null}
           dailySpendBreakdown={input.dailySpendBreakdown ?? null}
+          deploymentSpend={input.deploymentSpend ?? null}
           dependencies={dependencies}
         />
       </IntlProvider>

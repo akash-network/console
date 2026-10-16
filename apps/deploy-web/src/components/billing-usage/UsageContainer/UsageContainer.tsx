@@ -2,6 +2,7 @@ import React, { type FC, useState } from "react";
 import { format } from "date-fns";
 
 import type { DailySpend, SpendSeries } from "@src/components/billing-usage/DailySpendChart/DailySpendChart";
+import type { DeploymentSpendSection } from "@src/components/billing-usage/DeploymentSpendList/DeploymentSpendList";
 import { useCurrentSpendRate } from "@src/components/billing-usage/useCurrentSpendRate";
 import { canViewBillingAndUsage } from "@src/components/organizations/organizationAccess";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
@@ -16,7 +17,7 @@ import { createDateRange } from "@src/utils/dateUtils";
 import { downloadCsv } from "@src/utils/domUtils";
 import { buildUsageCsv } from "./buildUsageCsv";
 import { getSpendChangePercent } from "./getSpendChangePercent";
-import { hourlyRateOf, type ProjectScope, projectSeriesOf, type ScopedUsage, scopeUsage } from "./teamUsage";
+import { deploymentRowsOf, hourlyRateOf, type ProjectScope, projectSeriesOf, type ScopedUsage, scopeUsage } from "./teamUsage";
 import {
   countDaysInRange,
   DEFAULT_USAGE_DATE_PRESET,
@@ -72,6 +73,8 @@ export type ChildrenProps = {
   projectScope: ProjectScopeControl | null;
   /** Null outside a team, whose daily spend alone is split by project. */
   dailySpendBreakdown: DailySpendBreakdown | null;
+  /** Null outside a team, whose spend alone is broken down by deployment. */
+  deploymentSpend: DeploymentSpendSection | null;
 };
 
 type UsageFigures = Pick<
@@ -106,6 +109,7 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
   const scopedUsage = teamSpend.data && scopeUsage(teamSpend.data, projectScope);
   const scopeProjects = (projects.data ?? []).map(({ id, name }) => ({ id, name }));
   const isScopedToProject = isTeamUsage && projectScope !== null;
+  const scopedProjectName = projectScope === null ? null : scopeProjects.find(({ id }) => id === projectScope)?.name ?? "this project";
 
   const usageHistoryData = usageHistory.data ?? [];
   const usageHistoryStatsData = usageStats.data ?? EMPTY_USAGE_STATS;
@@ -165,8 +169,15 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
         onExport: exportCsv,
         projectSpendRange: isTeamUsage && !isScopedToProject ? toSpendRange(dateRange) : null,
         projectScope: isTeamUsage ? { projects: scopeProjects, selected: projectScope, onChange: setProjectScope } : null,
-        dailySpendBreakdown: isTeamUsage
-          ? dailySpendBreakdownOf({ report: teamSpend.data, scope: projectScope, projects: scopeProjects, onSelect: setProjectScope })
+        dailySpendBreakdown: isTeamUsage ? dailySpendBreakdownOf({ report: teamSpend.data, scopedProjectName, onSelect: setProjectScope }) : null,
+        deploymentSpend: isTeamUsage
+          ? {
+              title: scopedProjectName === null ? "Spend by deployment" : `Spend by deployment · ${scopedProjectName}`,
+              rows: teamSpend.data ? deploymentRowsOf(teamSpend.data, projectScope) : [],
+              showsProject: projectScope === null,
+              isLoading: teamSpend.isLoading,
+              isError: teamSpend.isError
+            }
           : null
       })}
     </>
@@ -202,18 +213,15 @@ function teamFiguresOf({
 
 function dailySpendBreakdownOf({
   report,
-  scope,
-  projects,
+  scopedProjectName,
   onSelect
 }: {
   report: DeploymentSpendReport | undefined;
-  scope: ProjectScope;
-  projects: ProjectScopeControl["projects"];
+  scopedProjectName: string | null;
   onSelect: (projectId: string) => void;
 }): DailySpendBreakdown {
-  if (scope !== null) {
-    const projectName = projects.find(({ id }) => id === scope)?.name ?? "this project";
-    return { caption: `Each bar is one day's total for ${projectName}`, series: [] };
+  if (scopedProjectName !== null) {
+    return { caption: `Each bar is one day's total for ${scopedProjectName}`, series: [] };
   }
 
   return { caption: "Each bar is one day's total, split by project", series: report ? projectSeriesOf(report, onSelect) : [] };

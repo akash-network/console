@@ -4,6 +4,7 @@ import { Card, type ChartConfig, ChartContainer, ChartTooltip, Skeleton } from "
 import { format, isToday, parseISO } from "date-fns";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
+import { spendShade } from "@src/components/billing-usage/spendShade";
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 
 export type DailySpend = { date: string; dailyUsdSpent: number; spendBySeries?: Record<string, number> };
@@ -20,9 +21,6 @@ const CHART_CONFIG = { dailyUsdSpent: { label: "Spend" } } satisfies ChartConfig
 
 /** Above this many bars the gap between them shrinks to a hairline so a year still fits. */
 const MAX_DAYS_WITH_WIDE_GAPS = 31;
-
-/** The last series keeps this much of the foreground, so even the lightest stack stands out from the empty track. */
-const MIN_SERIES_SHADE_PERCENT = 25;
 
 const DEFAULT_CAPTION = "Each bar is one day's total across all deployments";
 
@@ -96,7 +94,7 @@ export const DailySpendChart: FC<DailySpendChartProps> = ({
                   key={key}
                   dataKey={(day: DailySpend) => day.spendBySeries?.[key] ?? 0}
                   stackId="daily-spend"
-                  fill={seriesShade(index, series.length)}
+                  fill={spendShade(index, series.length)}
                   isAnimationActive={false}
                 />
               ))
@@ -143,7 +141,7 @@ export const DailySpendTooltip: FC<{ active?: boolean; payload?: Array<{ payload
 const SeriesLegend: FC<{ series: SpendSeries[] }> = ({ series }) => (
   <ul aria-label="Legend" className="mb-3 flex flex-wrap gap-x-3.5 gap-y-1.5 font-mono text-[11.5px] text-muted-foreground">
     {series.map(({ key, label, onSelect }, index) => {
-      const swatch = <span aria-hidden className="h-2 w-2 shrink-0 rounded-sm" style={{ background: seriesShade(index, series.length) }} />;
+      const swatch = <span aria-hidden className="h-2 w-2 shrink-0 rounded-sm" style={{ background: spendShade(index, series.length) }} />;
 
       return (
         <li key={key}>
@@ -163,12 +161,6 @@ const SeriesLegend: FC<{ series: SpendSeries[] }> = ({ series }) => (
     })}
   </ul>
 );
-
-function seriesShade(index: number, count: number) {
-  const fade = count > 1 ? (index / (count - 1)) * (100 - MIN_SERIES_SHADE_PERCENT) : 0;
-
-  return `color-mix(in oklab, hsl(var(--foreground)) ${Math.round(100 - fade)}%, hsl(var(--muted)))`;
-}
 
 function getTickLabels(days: DailySpend[]) {
   const lastIndex = days.length - 1;
