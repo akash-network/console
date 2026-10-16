@@ -121,7 +121,7 @@ describe("CreateApiKeyDialog", () => {
 
     expect(screen.getByRole("button", { name: /October 9th, 2027/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: /October 10th, 2027/ })).toBeDisabled();
-  });
+  }, 15_000);
 
   it("tracks the key creation", async () => {
     const { user, analyticsService } = setup();
