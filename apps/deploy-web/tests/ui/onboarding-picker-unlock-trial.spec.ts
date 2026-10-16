@@ -46,12 +46,14 @@ test.describe("Onboarding picker — unlocking the gated LLM template via Add Cr
       await expect(page.getByText("Welcome to Akash!")).toBeVisible({ timeout: 30_000 });
     });
 
-    await test.step("the Add Credits sheet closes once the trial flips", async () => {
-      await expect(addCreditsSheet.getDialog()).toBeHidden({ timeout: 30_000 });
+    await test.step("the sheet confirms the purchase once the trial flips and closes on Done", async () => {
+      await expect(addCreditsSheet.getPurchaseConfirmation()).toBeVisible({ timeout: 30_000 });
+      await addCreditsSheet.dismissPurchaseConfirmation();
+      await expect(addCreditsSheet.getPurchaseConfirmation()).toBeHidden();
     });
 
     await test.step("the LLM template starts deploying", async () => {
-      await expect(page.getByRole("heading", { name: /Deploying/i })).toBeVisible();
+      await expect(page.getByRole("heading", { name: /Deploying/i })).toBeVisible({ timeout: 30_000 });
     });
   });
 });

@@ -1,4 +1,5 @@
 import { expect, test } from "./fixture/base-test";
+import { AddCreditsSheetPage } from "./pages/AddCreditsSheetPage";
 import { AppNav } from "./pages/AppNav";
 import { BillingPage } from "./pages/BillingPage";
 
@@ -11,6 +12,7 @@ test.describe("Managed wallet credits", () => {
     test.setTimeout(2 * 60 * 1000);
 
     const billingPage = new BillingPage(page);
+    const addCreditsSheet = new AddCreditsSheetPage(page);
 
     await test.step("navigate to billing and open Add to Balance", async () => {
       await new AppNav(page).openBilling();
@@ -29,7 +31,9 @@ test.describe("Managed wallet credits", () => {
     });
 
     await test.step("verify payment success", async () => {
-      await expect(billingPage.getPaymentSuccessMessage()).toBeVisible({ timeout: 60_000 });
+      await expect(addCreditsSheet.getPurchaseConfirmation()).toBeVisible({ timeout: 60_000 });
+      await addCreditsSheet.dismissPurchaseConfirmation();
+      await expect(addCreditsSheet.getPurchaseConfirmation()).toBeHidden();
     });
 
     await test.step("verify balance increased", async () => {
