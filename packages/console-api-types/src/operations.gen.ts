@@ -21,7 +21,7 @@ export const operations = {
       method: "post",
       operationId: "createSetupIntent",
       pathParams: [],
-      queryParams: [],
+      queryParams: ["cardOnly"],
       hasBody: false
     },
     setDefaultPaymentMethod: {
