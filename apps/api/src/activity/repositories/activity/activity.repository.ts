@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import type { ActivityPosition } from "@src/activity/lib/activity-cursor/activity-cursor";
@@ -124,6 +124,26 @@ export class ActivityRepository extends BaseRepository<Table, ActivityInput, Act
     const deleted = await this.cursor.delete(this.table).where(inArray(this.table.id, expired)).returning({ id: this.table.id });
 
     return deleted.length;
+  }
+
+  async hasSucceededSince({ userId, type, dseq, since }: { userId: string; type: ActivityType; dseq: string; since: string }): Promise<boolean> {
+    const [succeeded] = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.userId, userId),
+            eq(this.table.type, type),
+            eq(this.table.status, "succeeded"),
+            sql`${this.table.meta}->>'dseq' = ${dseq}`,
+            gt(this.table.createdAt, new Date(since))
+          )
+        )
+      )
+      .limit(1);
+
+    return !!succeeded;
   }
 
   #isOlderThan({ createdAt, id }: ActivityPosition) {

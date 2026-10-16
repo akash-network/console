@@ -154,6 +154,43 @@ describe(ActivityService.name, () => {
     });
   });
 
+  describe("isOvertakenBySuccess", () => {
+    it("asks whether the same user's same action on the deployment succeeded after this one was opened", async () => {
+      const { service, activityRepository } = setup();
+      const pending = createActivity({ type: "lease_create", status: "pending", meta: { dseq: "100" }, createdAt: "2026-10-05T10:00:00.000Z" });
+      activityRepository.findById.mockResolvedValue(pending);
+      activityRepository.hasSucceededSince.mockResolvedValue(true);
+
+      expect(await service.isOvertakenBySuccess(pending.id)).toBe(true);
+      expect(activityRepository.findById).toHaveBeenCalledWith(pending.id);
+      expect(activityRepository.hasSucceededSince).toHaveBeenCalledWith({
+        userId: pending.userId,
+        type: "lease_create",
+        dseq: "100",
+        since: "2026-10-05T10:00:00.000Z"
+      });
+    });
+
+    it("answers no when nothing succeeded after it", async () => {
+      const { service, activityRepository } = setup();
+      activityRepository.findById.mockResolvedValue(createActivity({ meta: { dseq: "100" } }));
+      activityRepository.hasSucceededSince.mockResolvedValue(false);
+
+      expect(await service.isOvertakenBySuccess("activity-1")).toBe(false);
+    });
+
+    it.each([
+      ["an activity that no longer exists", undefined],
+      ["an activity about no particular deployment", createActivity({ meta: {} })]
+    ])("answers no for %s, reading nothing further", async (_, found) => {
+      const { service, activityRepository } = setup();
+      activityRepository.findById.mockResolvedValue(found);
+
+      expect(await service.isOvertakenBySuccess("activity-1")).toBe(false);
+      expect(activityRepository.hasSucceededSince).not.toHaveBeenCalled();
+    });
+  });
+
   describe("findByDedupeKey", () => {
     it("reads the user's row holding the dedupe key", async () => {
       const { service, activityRepository } = setup();

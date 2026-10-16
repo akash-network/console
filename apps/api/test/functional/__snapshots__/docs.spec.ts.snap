@@ -1592,6 +1592,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "deployment_close",
                 "deployment_create",
                 "deployment_update",
+                "lease_create",
               ],
               "type": "string",
             },
@@ -1661,6 +1662,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "description": "The base64 manifest version an update saved.",
                                     "type": "string",
                                   },
+                                  "providers": {
+                                    "description": "The providers a lease was created with, each named once.",
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
                                   "reason": {
                                     "description": "Why Console closed the deployment, on a close it made on the user's behalf: \`runtime_limit_reached\` (the runtime limit set for it ran out), \`trial_ended\` (the trial it ran on ended), \`provider_unreachable\` (its provider stopped responding) or \`no_lease\` (it had no lease, and closing it returned its deposit).",
                                     "enum": [
@@ -1699,6 +1707,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "deployment_close",
                                   "deployment_create",
                                   "deployment_update",
+                                  "lease_create",
                                 ],
                                 "type": "string",
                               },
@@ -1971,6 +1980,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "description": "The base64 manifest version an update saved.",
                               "type": "string",
                             },
+                            "providers": {
+                              "description": "The providers a lease was created with, each named once.",
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
                             "reason": {
                               "description": "Why Console closed the deployment, on a close it made on the user's behalf: \`runtime_limit_reached\` (the runtime limit set for it ran out), \`trial_ended\` (the trial it ran on ended), \`provider_unreachable\` (its provider stopped responding) or \`no_lease\` (it had no lease, and closing it returned its deposit).",
                               "enum": [
@@ -2009,6 +2025,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "deployment_close",
                             "deployment_create",
                             "deployment_update",
+                            "lease_create",
                           ],
                           "type": "string",
                         },
@@ -13758,6 +13775,19 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "operationId": "createLease",
         "parameters": [
           {
+            "in": "query",
+            "name": "async",
+            "required": false,
+            "schema": {
+              "description": "With \`true\`, the leases are created and the manifest sent in the background: the request answers 202 with an \`activityId\` to follow at \`GET /v1/activities/{id}\` once every check that could refuse it has passed. A second request by the same user for the same leases while they are still being created answers with the same activity, and any other request for that deployment meanwhile answers 409. It answers 200 as without it when background leases are unavailable, when the leases span more than one deployment, or when the manifest can only come from the request.",
+              "enum": [
+                "true",
+                "false",
+              ],
+              "type": "string",
+            },
+          },
+          {
             "$ref": "#/components/parameters/OrganizationIdHeader",
           },
           {
@@ -13794,6 +13824,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       ],
                       "type": "object",
                     },
+                    "minItems": 1,
                     "type": "array",
                   },
                   "manifest": {
@@ -14338,6 +14369,34 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "Leases created and manifest sent",
           },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "activityId": {
+                          "description": "The activity that reports how creating the leases ends.",
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "activityId",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The leases passed every check and will be created, and the manifest sent, in the background",
+          },
           "403": {
             "content": {
               "application/json": {
@@ -14408,7 +14467,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With \`code\` \`stored_secrets_unavailable\`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values",
+            "description": "With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With \`code\` \`stored_secrets_unavailable\`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values. With \`async=true\`, also when a lease is already being created for the deployment by another request.",
           },
           "502": {
             "content": {

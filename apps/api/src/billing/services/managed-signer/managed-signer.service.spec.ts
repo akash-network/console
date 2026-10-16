@@ -1419,6 +1419,27 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  describe("assertCanBroadcastByUserWallet", () => {
+    it("refuses a create the given wallet's allowance cannot cover, without looking a wallet up or broadcasting", async () => {
+      const { service, txManagerService, userWalletRepository } = setupForCreate({ deploymentLimit: 400000 });
+      const teamWallet = createOrganizationWallet({ activatedAt: new Date(), feeAllowance: 100, deploymentAllowance: 400000 });
+
+      await expect(service.assertCanBroadcastByUserWallet(teamWallet, [createDeploymentMessage(500000)])).rejects.toMatchObject({ status: 402 });
+
+      expect(userWalletRepository.findOneUsedBy).not.toHaveBeenCalled();
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
+    it("lets a create the given wallet's allowance covers through and broadcasts nothing", async () => {
+      const { service, txManagerService } = setupForCreate({ deploymentLimit: 500000 });
+      const teamWallet = createOrganizationWallet({ activatedAt: new Date(), feeAllowance: 100, deploymentAllowance: 500000 });
+
+      await service.assertCanBroadcastByUserWallet(teamWallet, [createDeploymentMessage(500000)]);
+
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+  });
+
   describe("executeDerivedEncodedTxByUserId", () => {
     it("executes transaction and calls scheduleImmediate when transaction contains MsgCreateDeployment", async () => {
       const wallet = createUserWallet({

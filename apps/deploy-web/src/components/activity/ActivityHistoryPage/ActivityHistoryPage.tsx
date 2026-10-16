@@ -35,7 +35,8 @@ const STATUS_LABELS = { pending: "In progress", succeeded: "Succeeded", failed: 
 const ACTION_LABELS = {
   deployment_close: "Deployment closes",
   deployment_create: "New deployments",
-  deployment_update: "Deployment updates"
+  deployment_update: "Deployment updates",
+  lease_create: "Deploys"
 } satisfies Record<Activity["type"], string>;
 
 const FILTER_TRIGGER_CLASS_NAME = "h-9 min-w-0 flex-1 gap-2 text-[13px] font-medium sm:w-auto sm:min-w-[9.5rem] sm:flex-none";

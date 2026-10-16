@@ -164,6 +164,7 @@ describe("Deployments API", () => {
     });
 
     vi.spyOn(signerService, "assertCanBroadcast").mockResolvedValue(undefined);
+    vi.spyOn(signerService, "assertCanBroadcastByUserWallet").mockResolvedValue(undefined);
 
     vi.spyOn(providerService, "sendManifest").mockResolvedValue(true);
     vi.spyOn(providerService, "getLeaseStatus").mockResolvedValue(createLeaseStatus());

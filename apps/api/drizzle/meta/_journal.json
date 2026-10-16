@@ -652,6 +652,13 @@
       "when": 1792190629453,
       "tag": "0092_activity_type_deployment_update",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1792192336432,
+      "tag": "0093_activity_type_lease_create",
+      "breakpoints": true
     }
   ]
 }

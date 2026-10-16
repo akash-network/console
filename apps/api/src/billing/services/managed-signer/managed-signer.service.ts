@@ -173,6 +173,11 @@ export class ManagedSignerService {
     await this.#assertBroadcastable(await this.#findSigningWallet(userId), messages);
   }
 
+  @Trace()
+  async assertCanBroadcastByUserWallet(userWallet: UserWalletOutput, messages: EncodeObject[]): Promise<void> {
+    await this.#assertBroadcastable(userWallet, messages);
+  }
+
   async #findSigningWallet(userId: string): Promise<UserWalletOutput> {
     assert(userId, 404, "User Not Found");
 

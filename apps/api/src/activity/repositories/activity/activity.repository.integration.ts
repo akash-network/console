@@ -3,7 +3,7 @@ import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-key";
-import type { ActivityInitiator, ActivityStatus } from "@src/activity/model-schemas";
+import type { ActivityInitiator, ActivityStatus, ActivityType } from "@src/activity/model-schemas";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { ActivityRepository, isDedupeKeyTaken, type PendingActivitySummary } from "./activity.repository";
@@ -342,7 +342,11 @@ describe(ActivityRepository.name, () => {
 
       const summaries = await repository.summarizePendingByType();
 
-      expect(summaries).toEqual([{ type: "deployment_close", count: pendingBefore + 2, oldestCreatedAt: new Date("2015-06-01T12:30:00.123Z") }]);
+      expect(summaries.find(summary => summary.type === "deployment_close")).toEqual({
+        type: "deployment_close",
+        count: pendingBefore + 2,
+        oldestCreatedAt: new Date("2015-06-01T12:30:00.123Z")
+      });
     });
 
     it("leaves settled activities out of the backlog, including the closes Console records for the system", async () => {
@@ -360,6 +364,42 @@ describe(ActivityRepository.name, () => {
     }
   });
 
+  describe("hasSucceededSince", () => {
+    const SINCE = "2026-10-05T10:00:00.000Z";
+    const LATER = new Date("2026-10-05T10:05:00.000Z");
+
+    it("finds the user's action on the deployment that succeeded later", async () => {
+      const { repository, createUser, seed } = setup();
+      const owner = await createUser();
+      await seed(owner.id, { type: "lease_create", status: "succeeded", meta: { dseq: "1001" }, createdAt: LATER });
+
+      expect(await repository.hasSucceededSince({ userId: owner.id, type: "lease_create", dseq: "1001", since: SINCE })).toBe(true);
+    });
+
+    it.each([
+      { differs: "only succeeded before it", overrides: { createdAt: new Date(SINCE) } },
+      { differs: "is still pending", overrides: { status: "pending" as const } },
+      { differs: "failed", overrides: { status: "failed" as const } },
+      { differs: "is another kind of action", overrides: { type: "deployment_close" as const } },
+      { differs: "is on another deployment", overrides: { meta: { dseq: "2002" } } }
+    ])("finds nothing when the user's action $differs", async ({ overrides }) => {
+      const { repository, createUser, seed } = setup();
+      const owner = await createUser();
+      await seed(owner.id, { type: "lease_create", status: "succeeded", meta: { dseq: "1001" }, createdAt: LATER, ...overrides });
+
+      expect(await repository.hasSucceededSince({ userId: owner.id, type: "lease_create", dseq: "1001", since: SINCE })).toBe(false);
+    });
+
+    it("finds nothing in another user's activities", async () => {
+      const { repository, createUser, seed } = setup();
+      const owner = await createUser();
+      const stranger = await createUser();
+      await seed(stranger.id, { type: "lease_create", status: "succeeded", meta: { dseq: "1001" }, createdAt: LATER });
+
+      expect(await repository.hasSucceededSince({ userId: owner.id, type: "lease_create", dseq: "1001", since: SINCE })).toBe(false);
+    });
+  });
+
   function setup() {
     const repository = container.resolve(ActivityRepository);
     const userRepository = container.resolve(UserRepository);
@@ -373,6 +413,7 @@ describe(ActivityRepository.name, () => {
     async function seed(
       userId: string,
       overrides: {
+        type?: ActivityType;
         status?: ActivityStatus;
         initiator?: ActivityInitiator;
         createdAt?: Date;
