@@ -59,6 +59,19 @@ export class ActivityService {
     return (await this.activityRepository.findById(id))?.status === "pending";
   }
 
+  /** A later attempt at the same action on the same deployment that succeeded answers what this pending one left open. */
+  async isOvertakenBySuccess(id: string): Promise<boolean> {
+    const activity = await this.activityRepository.findById(id);
+    if (!activity?.meta.dseq) return false;
+
+    return await this.activityRepository.hasSucceededSince({
+      userId: activity.userId,
+      type: activity.type,
+      dseq: activity.meta.dseq,
+      since: activity.createdAt
+    });
+  }
+
   async findByDedupeKey(userId: string, dedupeKey: string): Promise<ActivityOutput | undefined> {
     return await this.activityRepository.findOneBy({ userId, dedupeKey });
   }

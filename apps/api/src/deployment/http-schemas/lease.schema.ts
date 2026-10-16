@@ -7,14 +7,33 @@ export const CreateLeaseRequestSchema = z.object({
     description: "The manifest to send to the provider, in YAML format (deprecated)",
     deprecated: true
   }),
-  leases: z.array(
-    z.object({
-      dseq: DseqSchema,
-      gseq: z.number(),
-      oseq: z.number(),
-      provider: AkashAddressSchema
+  leases: z
+    .array(
+      z.object({
+        dseq: DseqSchema,
+        gseq: z.number(),
+        oseq: z.number(),
+        provider: AkashAddressSchema
+      })
+    )
+    .min(1)
+});
+
+export const CreateLeaseQuerySchema = z.object({
+  async: z
+    .enum(["true", "false"])
+    .optional()
+    .transform(value => value === "true")
+    .openapi({
+      description:
+        "With `true`, the leases are created and the manifest sent in the background: the request answers 202 with an `activityId` to follow at `GET /v1/activities/{id}` once every check that could refuse it has passed. A second request by the same user for the same leases while they are still being created answers with the same activity, and any other request for that deployment meanwhile answers 409. It answers 200 as without it when background leases are unavailable, when the leases span more than one deployment, or when the manifest can only come from the request."
     })
-  )
+});
+
+export const CreateLeaseAcceptedResponseSchema = z.object({
+  data: z.object({
+    activityId: z.string().uuid().openapi({ description: "The activity that reports how creating the leases ends." })
+  })
 });
 
 export const LeaseServiceStatusSchema = z.object({
@@ -50,4 +69,6 @@ export const LeaseStatusResponseSchema = z.object({
 });
 
 export type CreateLeaseRequest = z.infer<typeof CreateLeaseRequestSchema>;
+export type CreateLeaseQuery = z.infer<typeof CreateLeaseQuerySchema>;
+export type CreateLeaseAcceptedResponse = z.infer<typeof CreateLeaseAcceptedResponseSchema>;
 export type LeaseStatusResponse = z.infer<typeof LeaseStatusResponseSchema>;

@@ -11666,7 +11666,9 @@ export interface operations {
   };
   createLease: {
     parameters: {
-      query?: never;
+      query?: {
+        async?: "true" | "false";
+      };
       header?: {
         /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
         "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
@@ -11841,6 +11843,23 @@ export interface operations {
           };
         };
       };
+      /** @description The leases passed every check and will be created, and the manifest sent, in the background */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /**
+               * Format: uuid
+               * @description The activity that reports how creating the leases ends.
+               */
+              activityId: string;
+            };
+          };
+        };
+      };
       /** @description With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change */
       403: {
         headers: {
@@ -11858,7 +11877,7 @@ export interface operations {
           };
         };
       };
-      /** @description With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values */
+      /** @description With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values. With `async=true`, also when a lease is already being created for the deployment by another request. */
       409: {
         headers: {
           [name: string]: unknown;
@@ -12823,7 +12842,7 @@ export interface operations {
         limit?: number;
         cursor?: string;
         status?: "pending" | "succeeded" | "failed";
-        type?: "deployment_close" | "deployment_create" | "deployment_update";
+        type?: "deployment_close" | "deployment_create" | "deployment_update" | "lease_create";
       };
       header?: {
         /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
@@ -12852,7 +12871,7 @@ export interface operations {
                  * @description What the action was.
                  * @enum {string}
                  */
-                type: "deployment_close" | "deployment_create" | "deployment_update";
+                type: "deployment_close" | "deployment_create" | "deployment_update" | "lease_create";
                 /**
                  * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
                  * @enum {string}
@@ -12866,6 +12885,8 @@ export interface operations {
                 meta: {
                   /** @description The deployment the action was about. */
                   dseq?: string;
+                  /** @description The providers a lease was created with, each named once. */
+                  providers?: string[];
                   /** @description The bulk close the action was part of, as its request named it. */
                   batchId?: string;
                   /** @description The base64 manifest version an update saved. */
@@ -12952,7 +12973,7 @@ export interface operations {
                * @description What the action was.
                * @enum {string}
                */
-              type: "deployment_close" | "deployment_create" | "deployment_update";
+              type: "deployment_close" | "deployment_create" | "deployment_update" | "lease_create";
               /**
                * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
                * @enum {string}
@@ -12966,6 +12987,8 @@ export interface operations {
               meta: {
                 /** @description The deployment the action was about. */
                 dseq?: string;
+                /** @description The providers a lease was created with, each named once. */
+                providers?: string[];
                 /** @description The bulk close the action was part of, as its request named it. */
                 batchId?: string;
                 /** @description The base64 manifest version an update saved. */

@@ -8,7 +8,7 @@ export type Activity = ListActivitiesResponse["data"]["activities"][number];
 
 export type ActivityOfAnyType = Omit<Activity, "type"> & { type: string };
 
-const KNOWN_ACTIVITY_TYPES: Record<Activity["type"], true> = { deployment_close: true, deployment_create: true, deployment_update: true };
+const KNOWN_ACTIVITY_TYPES: Record<Activity["type"], true> = { deployment_close: true, deployment_create: true, deployment_update: true, lease_create: true };
 
 export const PENDING_ACTIVITY_POLL_MS = 5_000;
 

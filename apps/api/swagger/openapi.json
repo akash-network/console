@@ -12525,6 +12525,27 @@
             "ApiKeyAuth": []
           }
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "With `true`, the leases are created and the manifest sent in the background: the request answers 202 with an `activityId` to follow at `GET /v1/activities/{id}` once every check that could refuse it has passed. A second request by the same user for the same leases while they are still being created answers with the same activity, and any other request for that deployment meanwhile answers 409. It answers 200 as without it when background leases are unavailable, when the leases span more than one deployment, or when the manifest can only come from the request."
+            },
+            "required": false,
+            "name": "async",
+            "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -12561,7 +12582,8 @@
                         "oseq",
                         "provider"
                       ]
-                    }
+                    },
+                    "minItems": 1
                   }
                 },
                 "required": [
@@ -13099,6 +13121,34 @@
               }
             }
           },
+          "202": {
+            "description": "The leases passed every check and will be created, and the manifest sent, in the background",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "activityId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "The activity that reports how creating the leases ends."
+                        }
+                      },
+                      "required": [
+                        "activityId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
           "403": {
             "description": "With `code` `project_forbidden`, the deployment is filed in a project the caller cannot change",
             "content": {
@@ -13136,7 +13186,7 @@
             }
           },
           "409": {
-            "description": "With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values",
+            "description": "With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values. With `async=true`, also when a lease is already being created for the deployment by another request.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13207,15 +13257,7 @@
               }
             }
           }
-        },
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationIdHeader"
-          },
-          {
-            "$ref": "#/components/parameters/ProjectIdHeader"
-          }
-        ]
+        }
       }
     },
     "/akash/market/{version}/leases/list": {
@@ -24175,7 +24217,8 @@
               "enum": [
                 "deployment_close",
                 "deployment_create",
-                "deployment_update"
+                "deployment_update",
+                "lease_create"
               ],
               "description": "What the action was."
             },
@@ -24215,7 +24258,8 @@
                                 "enum": [
                                   "deployment_close",
                                   "deployment_create",
-                                  "deployment_update"
+                                  "deployment_update",
+                                  "lease_create"
                                 ],
                                 "description": "What the action was."
                               },
@@ -24242,6 +24286,13 @@
                                   "dseq": {
                                     "type": "string",
                                     "description": "The deployment the action was about."
+                                  },
+                                  "providers": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "description": "The providers a lease was created with, each named once."
                                   },
                                   "batchId": {
                                     "type": "string",
@@ -24414,7 +24465,8 @@
                           "enum": [
                             "deployment_close",
                             "deployment_create",
-                            "deployment_update"
+                            "deployment_update",
+                            "lease_create"
                           ],
                           "description": "What the action was."
                         },
@@ -24441,6 +24493,13 @@
                             "dseq": {
                               "type": "string",
                               "description": "The deployment the action was about."
+                            },
+                            "providers": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "The providers a lease was created with, each named once."
                             },
                             "batchId": {
                               "type": "string",
