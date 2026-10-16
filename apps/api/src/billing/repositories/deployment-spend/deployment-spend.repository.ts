@@ -85,7 +85,7 @@ export class DeploymentSpendRepository {
     );
   }
 
-  /** Lease cost per deployment per day, settled or not, and the hours it held a lease that day; parallel leases count their hours once. */
+  /** Lease cost per deployment per day, settled or not, and the hours it held at least one lease that day. */
   async findDailyConsumption({ owners, startDate, endDate }: { owners: string[]; startDate: string; endDate: string }): Promise<DailyDeploymentConsumption[]> {
     if (!owners.length) return [];
 
@@ -121,16 +121,23 @@ export class DeploymentSpendRepository {
           l.denom,
           l.price,
           d.akt_price,
-          LEAST(d.last_height, l.end_height) - GREATEST(d.first_height, l.created_height) AS blocks
+          GREATEST(d.first_height, l.created_height) AS from_height,
+          LEAST(d.last_height, l.end_height) AS to_height
         FROM leases l
         INNER JOIN days d ON l.created_height < d.last_height AND l.end_height > d.first_height
+      ),
+      swept AS (
+        SELECT
+          spans.*,
+          MAX(to_height) OVER (PARTITION BY dseq, date ORDER BY from_height, to_height ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS covered_until
+        FROM spans
       )
       SELECT
         dseq,
         to_char(date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
-        SUM(price * blocks * ${MICRO_USD_PER_UNIT})::text AS "consumedMicroUsd",
-        (MAX(blocks) * seconds_per_block / 3600)::float8 AS hours
-      FROM spans
+        SUM(price * (to_height - from_height) * ${MICRO_USD_PER_UNIT})::text AS "consumedMicroUsd",
+        (SUM(GREATEST(0, to_height - GREATEST(from_height, covered_until))) * seconds_per_block / 3600)::float8 AS hours
+      FROM swept
       GROUP BY dseq, date, seconds_per_block
       ORDER BY date, dseq`,
       { type: QueryTypes.SELECT, replacements: { owners, startDate, endDate, averageBlockSeconds: averageBlockTime } }
