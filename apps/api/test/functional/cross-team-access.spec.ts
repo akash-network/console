@@ -117,6 +117,12 @@ const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
     request: team => patch(`/v1/organization-members/${team.memberMembershipId}`, { role: "owner" })
   },
   {
+    route: "GET /v1/organization-members/{id}/project-grants",
+    status: 404,
+    ownerStatus: 200,
+    request: team => get(`/v1/organization-members/${team.memberMembershipId}/project-grants`)
+  },
+  {
     route: "DELETE /v1/organization-members/{id}",
     status: 404,
     ownerStatus: 204,
