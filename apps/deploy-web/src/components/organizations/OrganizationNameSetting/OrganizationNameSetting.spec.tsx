@@ -165,9 +165,19 @@ const ACME: OrganizationOutput = {
   type: "team",
   role: "admin",
   isActive: true,
+  hasPaymentMethod: true,
   createdAt: "2026-02-01T00:00:00Z"
 };
 
-const GLOBEX: OrganizationOutput = { ...ACME, id: "org-3", name: "Globex", slug: "globex", isActive: false };
+const GLOBEX: OrganizationOutput = { ...ACME, id: "org-3", name: "Globex", slug: "globex", isActive: false, hasPaymentMethod: null };
 
-const PERSONAL: OrganizationOutput = { ...ACME, id: "org-1", name: "alice", slug: "personal-0123456789ab", type: "personal", role: "owner", isActive: false };
+const PERSONAL: OrganizationOutput = {
+  ...ACME,
+  id: "org-1",
+  name: "alice",
+  slug: "personal-0123456789ab",
+  type: "personal",
+  role: "owner",
+  isActive: false,
+  hasPaymentMethod: null
+};
