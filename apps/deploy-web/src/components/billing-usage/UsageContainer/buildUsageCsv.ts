@@ -39,7 +39,7 @@ function statsRowsOf(stats: UsageHistoryStats) {
   return [
     "Usage Stats",
     "Total Spent,Average Spent Per Day,Total Deployments,Average Deployments Per Day",
-    toCsvRow([stats.totalSpent, stats.averageSpentPerDay, stats.totalDeployments, stats.averageDeploymentsPerDay])
+    toCsvRow([stats.totalSpent, roundDecimal(stats.averageSpentPerDay), stats.totalDeployments, roundDecimal(stats.averageDeploymentsPerDay)])
   ];
 }
 

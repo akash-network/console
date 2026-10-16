@@ -53,21 +53,21 @@ describe(buildUsageCsv.name, () => {
 });
 
 describe(buildProjectUsageCsv.name, () => {
-  it("lists the stats and then each day's USD spend with its running total to the cent", () => {
+  it("lists the stats and then each day's USD spend with its running total, all to the cent", () => {
     const csv = buildProjectUsageCsv(
       [
         { date: "2026-10-01", dailyUsdSpent: 0.1 },
         { date: "2026-10-02", dailyUsdSpent: 0.2 },
         { date: "2026-10-03", dailyUsdSpent: 0 }
       ],
-      buildUsageHistoryStats({ totalSpent: 0.3, averageSpentPerDay: 0.1, totalDeployments: 2, averageDeploymentsPerDay: 0.5 })
+      buildUsageHistoryStats({ totalSpent: 0.3, averageSpentPerDay: 0.3 / 3, totalDeployments: 2, averageDeploymentsPerDay: 2 / 3 })
     );
 
     expect(csv).toBe(
       [
         "Usage Stats",
         "Total Spent,Average Spent Per Day,Total Deployments,Average Deployments Per Day",
-        "0.3,0.1,2,0.5",
+        "0.3,0.1,2,0.67",
         "Usage History",
         "Date,Daily USD Spent,Total USD Spent",
         "2026-10-01,0.1,0.1",
