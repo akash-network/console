@@ -2,7 +2,16 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { OrganizationOutput } from "@src/types/organization";
-import { canChangeDeployments, canManageBilling, canManageProjects, isLimitedToProjects, isProjectsUiEnabled } from "./organizationAccess";
+import {
+  canChangeDeployments,
+  canManageBilling,
+  canManageProjects,
+  canRenameOrganization,
+  canTransferOwnership,
+  hasGeneralSettingsPage,
+  isLimitedToProjects,
+  isProjectsUiEnabled
+} from "./organizationAccess";
 
 describe("organizationAccess", () => {
   it.each([
@@ -52,5 +61,30 @@ describe("organizationAccess", () => {
     { type: "personal", role: "viewer", expected: false }
   ] as const)("limits a $role of a $type organization to its projects: $expected", ({ type, role, expected }) => {
     expect(isLimitedToProjects(mock<OrganizationOutput>({ type, role }))).toBe(expected);
+  });
+
+  it("gives only a team organization a general settings page", () => {
+    expect(hasGeneralSettingsPage("team")).toBe(true);
+    expect(hasGeneralSettingsPage("personal")).toBe(false);
+  });
+
+  it.each([
+    ["owner", true],
+    ["admin", true],
+    ["member", false],
+    ["billing", false],
+    ["viewer", false]
+  ] as const)("lets an %s rename the organization: %s", (role, expected) => {
+    expect(canRenameOrganization(role)).toBe(expected);
+  });
+
+  it.each([
+    ["owner", true],
+    ["admin", false],
+    ["member", false],
+    ["billing", false],
+    ["viewer", false]
+  ] as const)("lets an %s transfer ownership: %s", (role, expected) => {
+    expect(canTransferOwnership(role)).toBe(expected);
   });
 });

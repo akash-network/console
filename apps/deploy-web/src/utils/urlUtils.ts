@@ -82,6 +82,7 @@ export const UrlService = {
   alerts: () => "/alerts",
 
   // Organizations
+  organizationSettings: () => "/organization",
   members: () => "/members",
   invitations: () => "/invitations",
   projects: () => "/projects",

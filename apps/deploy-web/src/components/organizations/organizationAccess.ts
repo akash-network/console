@@ -29,3 +29,9 @@ export const canManageProjects = (role: OrganizationRole): boolean => role === "
 
 /** Viewers and billing members read deployments but cannot start, close or change them. */
 export const canChangeDeployments = (role: OrganizationRole): boolean => role !== "viewer" && role !== "billing";
+
+export const hasGeneralSettingsPage = (type: OrganizationType): boolean => type === "team";
+
+export const canRenameOrganization = (role: OrganizationRole): boolean => role === "owner" || role === "admin";
+
+export const canTransferOwnership = (role: OrganizationRole): boolean => role === "owner";

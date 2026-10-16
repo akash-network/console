@@ -11,6 +11,7 @@ import { BillingPage } from "./pages/BillingPage";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
 import { InvitationPage } from "./pages/InvitationPage";
 import { MembersPage } from "./pages/MembersPage";
+import { OrganizationSettingsPage } from "./pages/OrganizationSettingsPage";
 import { OrganizationSwitcher } from "./pages/OrganizationSwitcher";
 import { ProjectPage } from "./pages/ProjectPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
@@ -149,6 +150,24 @@ test.describe("Team organizations", () => {
     } finally {
       await api?.dispose();
     }
+  });
+
+  test("an owner renames the team from its general settings", async ({ page }) => {
+    const { team } = createNames();
+    const renamedTeam = `${team}-renamed`;
+    const settings = new OrganizationSettingsPage(page);
+
+    await test.step("the owner creates a team and opens its general settings", async () => {
+      await createTeam(page, team);
+      await settings.goto();
+      await expect(settings.heading()).toBeVisible();
+    });
+
+    await test.step("the owner renames the team, which the switcher shows right away", async () => {
+      await settings.rename(renamedTeam);
+      await expect(page.getByText(`${team} is now ${renamedTeam}.`)).toBeVisible();
+      await expect(new OrganizationSwitcher(page).trigger(renamedTeam)).toBeVisible();
+    });
   });
 
   test("an owner funds the team, deploys into a project, then finds the deployment in it and in the team's activity", async ({ page }) => {
