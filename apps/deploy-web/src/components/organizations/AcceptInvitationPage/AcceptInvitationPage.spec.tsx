@@ -28,6 +28,14 @@ describe(AcceptInvitationPage.name, () => {
     expect(forgetToken).not.toHaveBeenCalled();
   });
 
+  it("draws the team's avatar in the color of its id, whatever the team is called now", () => {
+    setup({ isSignedIn: false, preview: { organizationId: "0b9f3c2e-5d4a-4e1b-9c7f-2a6d8e1f4b3c", organizationName: "Northwind Labs" } });
+
+    const avatar = screen.getByRole("heading", { name: "Join Northwind Labs" }).previousElementSibling as HTMLElement;
+    expect(avatar).toHaveTextContent("N");
+    expect(avatar.style.boxShadow).toBe("inset 0 0 0 1px oklch(0.84 0.07 193)");
+  });
+
   it("words an invitation without a known inviter and with an Admin role", () => {
     setup({ isSignedIn: false, preview: { inviterName: null, role: "admin" } });
 
@@ -267,6 +275,7 @@ describe(AcceptInvitationPage.name, () => {
       input.preview === null
         ? undefined
         : {
+            organizationId: "org-2",
             organizationName: "Acme Corp",
             inviterName: "alice",
             role: "member",

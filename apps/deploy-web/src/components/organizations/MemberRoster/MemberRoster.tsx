@@ -23,7 +23,7 @@ import { SettingsSection } from "@src/components/layout/SettingsSection/Settings
 import { EditMemberDialog } from "@src/components/organizations/EditMemberDialog/EditMemberDialog";
 import { getMembershipErrorMessage } from "@src/components/organizations/membershipErrorMessages";
 import { canManageMembers, ORGANIZATION_ROLE_LABELS } from "@src/components/organizations/organizationAccess";
-import { organizationHue } from "@src/components/organizations/OrganizationAvatar/OrganizationAvatar";
+import { hueOf } from "@src/components/organizations/OrganizationAvatar/OrganizationAvatar";
 import type { EditableRole } from "@src/components/organizations/organizationRoles";
 import { getMemberDisplayName, getRoleRank } from "@src/components/organizations/organizationRoles";
 import { useDeleteOrganizationMemberMutation, useTransferOrganizationOwnershipMutation } from "@src/queries/useOrganizationMembersQueries";
@@ -232,7 +232,7 @@ const MemberTag: FC<{ children: string }> = ({ children }) => (
 );
 
 const MemberAvatar: FC<{ name: string }> = ({ name }) => {
-  const hue = organizationHue(name);
+  const hue = hueOf(name);
   const initials = name
     .split(/[\s@._-]+/)
     .filter(Boolean)
