@@ -294,7 +294,8 @@ async function buyMinimumCredits(page: Page) {
   await addCredits.fillStripeAddress({ name: "E2E Test User", line1: "123 Test Street", city: "San Francisco", state: "CA", zip: "94105" });
   await addCredits.fillStripeCard({ number: "4242424242424242", expiry: "12/30", cvc: "123" });
   await addCredits.submit();
-  await expect(billing.getPaymentSuccessMessage()).toBeVisible({ timeout: 90_000 });
+  await expect(addCredits.getPurchaseConfirmation()).toBeVisible({ timeout: 90_000 });
+  await addCredits.dismissPurchaseConfirmation();
 }
 
 /** Closed straight through the api, so a deployment the run created is closed even when the page is in no state to drive the UI. */
