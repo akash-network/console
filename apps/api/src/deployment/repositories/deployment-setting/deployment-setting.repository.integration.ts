@@ -215,6 +215,41 @@ describe(DeploymentSettingRepository.name, () => {
     });
   });
 
+  describe("findNamedFilingsInOrganizationByDseqs", () => {
+    it("reads the project and name of the organization's dseqs, the older row deciding a shared dseq", async () => {
+      const [tenant, foreign] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
+      const colleague = await seedUser();
+      const unnamed = await seedDeploymentSetting({ userId: tenant.user.id, organizationId: tenant.organization.id, projectId: null });
+      const shared = await seedDeploymentSetting({
+        userId: tenant.user.id,
+        organizationId: tenant.organization.id,
+        projectId: tenant.project.id,
+        name: "api",
+        createdAt: new Date("2026-01-01T00:00:00.000Z")
+      });
+      await seedDeploymentSetting({
+        userId: colleague.id,
+        organizationId: tenant.organization.id,
+        projectId: null,
+        dseq: shared.dseq,
+        name: "renamed",
+        createdAt: new Date("2026-02-01T00:00:00.000Z")
+      });
+      const foreignSetting = await seedDeploymentSetting({ userId: foreign.user.id, organizationId: foreign.organization.id, name: "theirs" });
+
+      const filings = await container
+        .resolve(DeploymentSettingRepository)
+        .findNamedFilingsInOrganizationByDseqs(tenant.organization.id, [unnamed.dseq, shared.dseq, foreignSetting.dseq]);
+
+      expect(filings).toEqual(
+        new Map([
+          [unnamed.dseq, { projectId: null, name: null }],
+          [shared.dseq, { projectId: tenant.project.id, name: "api" }]
+        ])
+      );
+    });
+  });
+
   describe("findFilingInOrganization", () => {
     it("reads the project and the team wallet of a team's deployment, the older row deciding a shared dseq", async () => {
       const { user, organization, project } = await seedOrganizationWithOwner();

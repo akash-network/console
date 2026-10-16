@@ -226,6 +226,153 @@ describe(ProjectSpendService.name, () => {
     });
   });
 
+  describe("breakdown", () => {
+    it("gives an owner each deployment's spend and hours, and each project's spend per day with the unassigned share", async () => {
+      const { service, projects, wallet, organizationId, deploymentSpendRepository, deploymentSettingRepository } = setup({ role: "owner" });
+      const [defaultProject, staging] = projects;
+      deploymentSpendRepository.findDailyConsumption.mockResolvedValue([
+        { dseq: "1", date: "2026-10-01", consumedMicroUsd: "1000000", hours: 24 },
+        { dseq: "2", date: "2026-10-01", consumedMicroUsd: "2004999", hours: 24 },
+        { dseq: "1", date: "2026-10-02", consumedMicroUsd: "500000", hours: 12 },
+        { dseq: "3", date: "2026-10-02", consumedMicroUsd: "40000", hours: 2.5 }
+      ]);
+      deploymentSettingRepository.findNamedFilingsInOrganizationByDseqs.mockResolvedValue(
+        new Map([
+          ["1", { projectId: defaultProject.id, name: "web" }],
+          ["2", { projectId: staging.id, name: null }]
+        ])
+      );
+
+      const breakdown = await service.breakdown(RANGE);
+
+      expect(breakdown).toEqual({
+        ...RANGE,
+        projects: [defaultProject, staging],
+        days: [
+          { date: "2026-10-01", projectId: defaultProject.id, consumedCents: 100 },
+          { date: "2026-10-01", projectId: staging.id, consumedCents: 200 },
+          { date: "2026-10-02", projectId: defaultProject.id, consumedCents: 50 },
+          { date: "2026-10-02", projectId: null, consumedCents: 4 }
+        ],
+        deployments: [
+          { dseq: "2", name: null, projectId: staging.id, consumedCents: 200, hours: 24 },
+          { dseq: "1", name: "web", projectId: defaultProject.id, consumedCents: 150, hours: 36 },
+          { dseq: "3", name: null, projectId: null, consumedCents: 4, hours: 2.5 }
+        ]
+      });
+      expect(deploymentSpendRepository.findDailyConsumption).toHaveBeenCalledWith({ owners: [wallet.address], ...RANGE });
+      expect(deploymentSettingRepository.findNamedFilingsInOrganizationByDseqs).toHaveBeenCalledWith(organizationId, ["1", "2", "1", "3"]);
+    });
+
+    it("sums a project's deployments before rounding each day to cents", async () => {
+      const { service, projects, deploymentSpendRepository, deploymentSettingRepository } = setup({ role: "owner" });
+      deploymentSpendRepository.findDailyConsumption.mockResolvedValue([
+        { dseq: "1", date: "2026-10-01", consumedMicroUsd: "6000", hours: 1 },
+        { dseq: "2", date: "2026-10-01", consumedMicroUsd: "6000", hours: 1 }
+      ]);
+      deploymentSettingRepository.findNamedFilingsInOrganizationByDseqs.mockResolvedValue(
+        new Map([
+          ["1", { projectId: projects[0].id, name: null }],
+          ["2", { projectId: projects[0].id, name: null }]
+        ])
+      );
+
+      const breakdown = await service.breakdown(RANGE);
+
+      expect(breakdown.days).toEqual([{ date: "2026-10-01", projectId: projects[0].id, consumedCents: 1 }]);
+      expect(breakdown.deployments.map(({ dseq, consumedCents }) => [dseq, consumedCents])).toEqual([
+        ["1", 1],
+        ["2", 1]
+      ]);
+    });
+
+    it("leaves out a day that rounds to no spend but keeps the deployment that ran", async () => {
+      const { service, deploymentSpendRepository } = setup({ role: "owner" });
+      deploymentSpendRepository.findDailyConsumption.mockResolvedValue([{ dseq: "1", date: "2026-10-01", consumedMicroUsd: "4999", hours: 3.14159 }]);
+
+      const breakdown = await service.breakdown(RANGE);
+
+      expect(breakdown.days).toEqual([]);
+      expect(breakdown.deployments).toEqual([{ dseq: "1", name: null, projectId: null, consumedCents: 0, hours: 3.14 }]);
+    });
+
+    it("orders deployments that spent the same by dseq", async () => {
+      const { service, deploymentSpendRepository } = setup({ role: "owner" });
+      deploymentSpendRepository.findDailyConsumption.mockResolvedValue([
+        { dseq: "20", date: "2026-10-01", consumedMicroUsd: "10000", hours: 1 },
+        { dseq: "10", date: "2026-10-01", consumedMicroUsd: "10000", hours: 1 }
+      ]);
+
+      const breakdown = await service.breakdown(RANGE);
+
+      expect(breakdown.deployments.map(({ dseq }) => dseq)).toEqual(["10", "20"]);
+    });
+
+    it.each<OrganizationRole>(["member", "viewer"])("gives a %s only the deployments of the projects it was granted", async role => {
+      const { service, projects, deploymentSpendRepository, deploymentSettingRepository } = setup({ role, grantedProjectIndexes: [1] });
+      deploymentSpendRepository.findDailyConsumption.mockResolvedValue([
+        { dseq: "1", date: "2026-10-01", consumedMicroUsd: "1000000", hours: 24 },
+        { dseq: "2", date: "2026-10-01", consumedMicroUsd: "2000000", hours: 24 },
+        { dseq: "3", date: "2026-10-01", consumedMicroUsd: "3000000", hours: 24 }
+      ]);
+      deploymentSettingRepository.findNamedFilingsInOrganizationByDseqs.mockResolvedValue(
+        new Map([
+          ["1", { projectId: projects[0].id, name: null }],
+          ["2", { projectId: projects[1].id, name: null }]
+        ])
+      );
+
+      const breakdown = await service.breakdown(RANGE);
+
+      expect(breakdown.projects).toEqual([projects[1]]);
+      expect(breakdown.days).toEqual([{ date: "2026-10-01", projectId: projects[1].id, consumedCents: 200 }]);
+      expect(breakdown.deployments.map(({ dseq }) => dseq)).toEqual(["2"]);
+    });
+
+    it("gives the billing role every deployment, unassigned ones included", async () => {
+      const { service, deploymentSpendRepository } = setup({ role: "billing" });
+      deploymentSpendRepository.findDailyConsumption.mockResolvedValue([{ dseq: "3", date: "2026-10-01", consumedMicroUsd: "3000000", hours: 24 }]);
+
+      const breakdown = await service.breakdown(RANGE);
+
+      expect(breakdown.deployments.map(({ dseq }) => dseq)).toEqual(["3"]);
+    });
+
+    it("lists a deleted project only while one of its deployments has spend in the range", async () => {
+      const organizationId = faker.string.uuid();
+      const live = createProject({ organizationId, isDefault: true });
+      const deletedWithSpend = createProject({ organizationId, deletedAt: new Date() });
+      const deletedWithout = createProject({ organizationId, deletedAt: new Date() });
+      const { service, deploymentSpendRepository, deploymentSettingRepository } = setup({
+        role: "owner",
+        organizationId,
+        projects: [deletedWithout, deletedWithSpend, live]
+      });
+      deploymentSpendRepository.findDailyConsumption.mockResolvedValue([{ dseq: "1", date: "2026-10-01", consumedMicroUsd: "1000000", hours: 24 }]);
+      deploymentSettingRepository.findNamedFilingsInOrganizationByDseqs.mockResolvedValue(new Map([["1", { projectId: deletedWithSpend.id, name: null }]]));
+
+      const breakdown = await service.breakdown(RANGE);
+
+      expect(breakdown.projects.map(({ id }) => id)).toEqual([live.id, deletedWithSpend.id]);
+    });
+
+    it("reads no spend for a caller who can see no project and not the organization", async () => {
+      const { service, deploymentSpendRepository, userWalletRepository } = setup({ role: "member", grantedProjectIndexes: [] });
+
+      const breakdown = await service.breakdown(RANGE);
+
+      expect(breakdown).toEqual({ ...RANGE, projects: [], days: [], deployments: [] });
+      expect(userWalletRepository.findOneBy).not.toHaveBeenCalled();
+      expect(deploymentSpendRepository.findDailyConsumption).not.toHaveBeenCalled();
+    });
+
+    it("refuses a request that runs in no organization", async () => {
+      const { service } = setup({ role: "owner", withoutContext: true });
+
+      await expect(service.breakdown(RANGE)).rejects.toMatchObject({ status: 403 });
+    });
+  });
+
   function setup(input: {
     role: OrganizationRole;
     organizationId?: string;
@@ -262,10 +409,14 @@ describe(ProjectSpendService.name, () => {
       findFirstRecordedAt: vi.fn().mockResolvedValue(undefined),
       sumCommittedByProject: vi.fn().mockResolvedValue([])
     });
-    const deploymentSettingRepository = mock<DeploymentSettingRepository>({ findProjectIdsInOrganizationByDseqs: vi.fn().mockResolvedValue(new Map()) });
+    const deploymentSettingRepository = mock<DeploymentSettingRepository>({
+      findProjectIdsInOrganizationByDseqs: vi.fn().mockResolvedValue(new Map()),
+      findNamedFilingsInOrganizationByDseqs: vi.fn().mockResolvedValue(new Map())
+    });
     const deploymentSpendRepository = mock<DeploymentSpendRepository>({
       findDepositedByDeployment: vi.fn().mockResolvedValue([]),
-      findConsumedByDeployment: vi.fn().mockResolvedValue([])
+      findConsumedByDeployment: vi.fn().mockResolvedValue([]),
+      findDailyConsumption: vi.fn().mockResolvedValue([])
     });
     const txManagerService = mock<TxManagerService>();
     const authService = mock<AuthService>();
