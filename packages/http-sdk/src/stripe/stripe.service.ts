@@ -22,8 +22,9 @@ export class StripeService {
     this.#httpClient = httpClient;
   }
 
-  async createSetupIntent(config?: AxiosRequestConfig): Promise<SetupIntentResponse> {
-    return extractData(await this.#httpClient.post("/v1/stripe/payment-methods/setup", {}, config)).data;
+  async createSetupIntent(input?: { cardOnly?: boolean }): Promise<SetupIntentResponse> {
+    const params = input?.cardOnly ? { cardOnly: "true" } : undefined;
+    return extractData(await this.#httpClient.post("/v1/stripe/payment-methods/setup", {}, { params })).data;
   }
 
   async getPaymentMethods(): Promise<PaymentMethod[]> {

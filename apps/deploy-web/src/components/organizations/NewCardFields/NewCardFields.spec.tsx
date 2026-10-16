@@ -12,7 +12,7 @@ import userEvent from "@testing-library/user-event";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(NewCardFields.name, () => {
-  it("prepares Stripe to collect a card or Link before any setup intent exists", () => {
+  it("prepares Stripe to collect only a card before any setup intent exists", () => {
     const { Elements, stripePromise } = setup({});
 
     expect(Elements).toHaveBeenCalledWith(
@@ -21,7 +21,7 @@ describe(NewCardFields.name, () => {
         options: {
           mode: "setup",
           currency: "usd",
-          paymentMethodTypes: ["card", "link"],
+          paymentMethodTypes: ["card"],
           appearance: { theme: "stripe", variables: { colorPrimary: "#171717", colorSuccess: "#16a34a" } }
         }
       }),

@@ -157,6 +157,7 @@ describe("CreateOrganizationDialog", () => {
 
     await waitFor(() => expect(switchOrganization).toHaveBeenCalledExactlyOnceWith("org-9", { destination: "/members" }));
     expect(cookieWhileSettingUp).toContain("console_org=org-9");
+    expect(stripe.createSetupIntent).toHaveBeenCalledExactlyOnceWith({ cardOnly: true });
     expect(card.save).toHaveBeenCalledExactlyOnceWith("seti_secret");
     expect(stripe.getPaymentMethods).toHaveBeenCalledOnce();
     const callOrder = [

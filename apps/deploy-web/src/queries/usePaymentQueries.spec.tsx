@@ -148,7 +148,7 @@ describe("usePaymentQueries", () => {
     expect(query.meta).toEqual(SKIP_REPORTING_REFUSED_INPUT);
   });
 
-  it("creates setup intent", async () => {
+  it("creates a setup intent that keeps every payment method Billing offers", async () => {
     const mockSetupIntent = createMockSetupIntent();
     const stripeService = mock<StripeService>({
       createSetupIntent: vi.fn().mockResolvedValue(mockSetupIntent)
@@ -158,7 +158,7 @@ describe("usePaymentQueries", () => {
     });
     await act(async () => result.current.mutateAsync());
     await vi.waitFor(() => {
-      expect(stripeService.createSetupIntent).toHaveBeenCalled();
+      expect(stripeService.createSetupIntent).toHaveBeenCalledExactlyOnceWith();
     });
   });
 
