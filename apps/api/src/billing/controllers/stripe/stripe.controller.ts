@@ -6,7 +6,13 @@ import type { infer as ZodInfer } from "zod";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { StripePricesOutputResponse } from "@src/billing";
-import type { PaymentMethodMarkAsDefaultInput, PaymentMethodResponse, PaymentMethodsResponse } from "@src/billing/http-schemas/stripe.schema";
+import type {
+  PaymentMethodMarkAsDefaultInput,
+  PaymentMethodResponse,
+  PaymentMethodsResponse,
+  SetupIntentQuery,
+  SetupIntentResponse
+} from "@src/billing/http-schemas/stripe.schema";
 import {
   ApplyCouponRequest,
   ConfirmPaymentRequest,
@@ -61,13 +67,13 @@ export class StripeController {
   }
 
   @Protected([{ action: "create", subject: "StripePayment" }])
-  async createSetupIntent(): Promise<{ data: { clientSecret: string | null } }> {
+  async createSetupIntent({ cardOnly }: SetupIntentQuery): Promise<SetupIntentResponse> {
     const payer = await this.payerService.getCurrentPayer();
 
     const stripeCustomerId = await this.customerService.getStripeCustomerId(payer);
     const isFreeTrial = !payer.team && ((await this.userWalletRepository.findOneUsedBy(payer.user.id))?.isTrialing ?? true);
 
-    const setupIntent = await this.stripe.createSetupIntent(stripeCustomerId, { isFreeTrial });
+    const setupIntent = await this.stripe.createSetupIntent(stripeCustomerId, { isFreeTrial, isCardOnly: cardOnly });
     return { data: { clientSecret: setupIntent.client_secret } };
   }
 

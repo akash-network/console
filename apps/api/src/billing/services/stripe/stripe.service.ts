@@ -27,11 +27,11 @@ export class StripeService {
     @inject(STRIPE_CLIENT) private readonly stripe: Stripe
   ) {}
 
-  async createSetupIntent(customerId: string, { isFreeTrial }: { isFreeTrial: boolean }) {
+  async createSetupIntent(customerId: string, { isFreeTrial, isCardOnly }: { isFreeTrial: boolean; isCardOnly: boolean }) {
     return await this.stripe.setupIntents.create({
       customer: customerId,
       usage: "off_session",
-      payment_method_types: ["card", "link"],
+      payment_method_types: isCardOnly ? ["card"] : ["card", "link"],
       ...(isFreeTrial && { metadata: { is_free_trial: "true" } })
     });
   }

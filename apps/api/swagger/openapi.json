@@ -876,6 +876,28 @@
             "ApiKeyAuth": []
           }
         ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Set to `true` to allow only a card on the SetupIntent. By default it also allows Link.",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "example": "true"
+            },
+            "required": false,
+            "name": "cardOnly",
+            "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
         "responses": {
           "200": {
             "description": "SetupIntent created successfully with client secret",
@@ -907,15 +929,7 @@
           "409": {
             "description": "Another request is still setting up the team's payments (`organization_payments_setup_in_progress`). Worth retrying"
           }
-        },
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationIdHeader"
-          },
-          {
-            "$ref": "#/components/parameters/ProjectIdHeader"
-          }
-        ]
+        }
       }
     },
     "/v1/stripe/payment-methods/default": {

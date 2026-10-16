@@ -8648,7 +8648,9 @@ export interface operations {
   };
   createSetupIntent: {
     parameters: {
-      query?: never;
+      query?: {
+        cardOnly?: "true" | "false";
+      };
       header?: {
         /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
         "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
