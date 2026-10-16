@@ -2,6 +2,7 @@ import { singleton } from "tsyringe";
 
 import { Protected } from "@src/auth/services/auth.service";
 import { centsToUsd } from "@src/billing/lib/currency/currency";
+import type { ListDeploymentSpendQuery, ListDeploymentSpendResponse } from "@src/organization/http-schemas/deployment-spend.schema";
 import type { ListProjectSpendQuery, ListProjectSpendResponse, SpendAmountsResponse } from "@src/organization/http-schemas/project-spend.schema";
 import { ProjectSpendService, type SpendAmounts } from "@src/organization/services/project-spend/project-spend.service";
 
@@ -28,6 +29,21 @@ export class ProjectSpendController {
         })),
         unassigned: unassigned && toUsd(unassigned),
         total: total && toUsd(total)
+      }
+    };
+  }
+
+  @Protected()
+  async listDeployments(query: ListDeploymentSpendQuery): Promise<ListDeploymentSpendResponse> {
+    const { startDate, endDate, projects, days, deployments } = await this.projectSpendService.breakdown(query);
+
+    return {
+      data: {
+        startDate,
+        endDate,
+        projects: projects.map(project => ({ projectId: project.id, name: project.name, isDefault: project.isDefault, isDeleted: !!project.deletedAt })),
+        days: days.map(({ consumedCents, ...day }) => ({ ...day, consumedUsd: centsToUsd(consumedCents) })),
+        deployments: deployments.map(({ consumedCents, ...deployment }) => ({ ...deployment, consumedUsd: centsToUsd(consumedCents) }))
       }
     };
   }
