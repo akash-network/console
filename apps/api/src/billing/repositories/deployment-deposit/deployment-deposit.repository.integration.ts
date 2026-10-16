@@ -126,6 +126,21 @@ describe(DeploymentDepositRepository.name, () => {
     });
   });
 
+  describe("findPendingDseqsOf", () => {
+    it("returns each deployment the organization still has a pending deposit into, once", async () => {
+      const { repository, organization } = await setup();
+      const { organization: other } = await seedOrganizationWithOwner();
+      await seedDeploymentDeposit({ organizationId: organization.id, dseq: "12", status: "pending", kind: "deployment_create" });
+      await seedDeploymentDeposit({ organizationId: organization.id, dseq: "12", status: "pending" });
+      await seedDeploymentDeposit({ organizationId: organization.id, dseq: "11", status: "pending" });
+      await seedDeploymentDeposit({ organizationId: organization.id, dseq: "13", status: "confirmed" });
+      await seedDeploymentDeposit({ organizationId: organization.id, dseq: "14", status: "void" });
+      await seedDeploymentDeposit({ organizationId: other.id, dseq: "15", status: "pending" });
+
+      expect(await repository.findPendingDseqsOf(organization.id)).toEqual(["11", "12"]);
+    });
+  });
+
   describe("findFirstRecordedAt", () => {
     it("returns when the organization's first deposit was recorded", async () => {
       const { repository, organization } = await setup();

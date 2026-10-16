@@ -7,7 +7,7 @@ import type { BalancesService } from "@src/billing/services/balances/balances.se
 import { AccountDeletionEligibilityService } from "./account-deletion-eligibility.service";
 
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
-import { createUserWallet } from "@test/seeders/user-wallet.seeder";
+import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(AccountDeletionEligibilityService.name, () => {
   it("names the dseqs of the active deployments the wallet owns", async () => {
@@ -66,6 +66,19 @@ describe(AccountDeletionEligibilityService.name, () => {
 
     expect(userWalletRepository.unscoped).toHaveBeenCalledWith("account-deletion");
     expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith("user-123");
+  });
+
+  describe("assessWallet", () => {
+    it("assesses the wallet it is given without looking up a user's", async () => {
+      const wallet = createOrganizationWallet();
+      const { service, userWalletRepository, deploymentHttpService } = setup({ wallet: undefined, activeDseqs: ["303"], balanceUsd: 40 });
+
+      const eligibility = await service.assessWallet(wallet);
+
+      expect(eligibility).toEqual({ activeDeploymentDseqs: ["303"], isTrialing: false, forfeitableBalanceUsd: 40 });
+      expect(deploymentHttpService.findAll).toHaveBeenCalledWith({ owner: wallet.address, state: "active" });
+      expect(userWalletRepository.findOneByUserId).not.toHaveBeenCalled();
+    });
   });
 
   function setup(input: { wallet: UserWalletOutput | undefined; activeDseqs?: string[]; balanceUsd?: number }) {

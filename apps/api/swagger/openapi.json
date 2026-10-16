@@ -25350,6 +25350,65 @@
             "description": "The caller already belongs to another organization with this name (`organization_name_taken`)"
           }
         }
+      },
+      "delete": {
+        "operationId": "deleteOrganization",
+        "summary": "Delete the active team organization, forfeiting its remaining credits, once none of its deployments is running",
+        "tags": [
+          "Organizations"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "description": "The credits, in USD, the owner was shown and agreed to forfeit; deleting is refused while the organization holds more.",
+              "example": 12.5
+            },
+            "required": false,
+            "name": "acknowledgedForfeitUsd",
+            "in": "query"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The organization was deleted"
+          },
+          "400": {
+            "description": "The organization holds more credits than the owner acknowledged forfeiting (`forfeit_acknowledgement_required`)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller is not an owner, the organization is a personal one (`personal_organization`), or the request was not made from a signed-in session (`session_required`)"
+          },
+          "404": {
+            "description": "The organization is not the active one"
+          },
+          "409": {
+            "description": "Deployments of the organization are still running or being created (`active_deployments`)"
+          }
+        }
       }
     },
     "/v1/projects": {

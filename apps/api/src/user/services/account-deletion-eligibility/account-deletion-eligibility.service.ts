@@ -1,7 +1,7 @@
 import { DeploymentHttpService } from "@akashnetwork/http-sdk";
 import { singleton } from "tsyringe";
 
-import { UserWalletRepository } from "@src/billing/repositories";
+import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 
 export interface AccountDeletionEligibility {
@@ -19,7 +19,10 @@ export class AccountDeletionEligibilityService {
   ) {}
 
   async assess(userId: string): Promise<AccountDeletionEligibility> {
-    const wallet = await this.userWalletRepository.unscoped("account-deletion").findOneByUserId(userId);
+    return await this.assessWallet(await this.userWalletRepository.unscoped("account-deletion").findOneByUserId(userId));
+  }
+
+  async assessWallet(wallet: Pick<UserWalletOutput, "address" | "isTrialing"> | undefined): Promise<AccountDeletionEligibility> {
     const isTrialing = wallet?.isTrialing ?? true;
 
     if (!wallet?.address) {

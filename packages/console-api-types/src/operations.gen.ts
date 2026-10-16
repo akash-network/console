@@ -306,6 +306,14 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    deleteOrganization: {
+      path: "/v1/organizations/{id}",
+      method: "delete",
+      operationId: "deleteOrganization",
+      pathParams: ["id"],
+      queryParams: ["acknowledgedForfeitUsd"],
+      hasBody: false
+    },
     listProjects: { path: "/v1/projects", method: "get", operationId: "listProjects", pathParams: [], queryParams: [], hasBody: false },
     createProject: { path: "/v1/projects", method: "post", operationId: "createProject", pathParams: [], queryParams: [], hasBody: true },
     getProject: { path: "/v1/projects/{id}", method: "get", operationId: "getProject", pathParams: ["id"], queryParams: [], hasBody: false },

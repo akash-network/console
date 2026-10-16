@@ -7057,7 +7057,8 @@ export interface paths {
     get?: never;
     put?: never;
     post?: never;
-    delete?: never;
+    /** Delete the active team organization, forfeiting its remaining credits, once none of its deployments is running */
+    delete: operations["deleteOrganization"];
     options?: never;
     head?: never;
     /** Rename the active organization */
@@ -13363,6 +13364,68 @@ export interface operations {
         content?: never;
       };
       /** @description The caller already belongs to an organization with this name (`organization_name_taken`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteOrganization: {
+    parameters: {
+      query?: {
+        acknowledgedForfeitUsd?: number;
+      };
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The organization was deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The organization holds more credits than the owner acknowledged forfeiting (`forfeit_acknowledgement_required`) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not an owner, the organization is a personal one (`personal_organization`), or the request was not made from a signed-in session (`session_required`) */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The organization is not the active one */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Deployments of the organization are still running or being created (`active_deployments`) */
       409: {
         headers: {
           [name: string]: unknown;
