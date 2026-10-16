@@ -13,7 +13,8 @@ import { DeploymentSettingRepository } from "@src/deployment/repositories/deploy
 import type { NotificationsConfig } from "@src/notifications/config/env.config";
 import { NOTIFICATIONS_IDENTITY_HEADERS, organizationIdentityHeaders, stripIdentityHeaders } from "@src/notifications/lib/identity-headers/identity-headers";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
-import type { OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
+import { isProjectInScope, readableProjectIdsOf, writableProjectIdsOf } from "@src/organization/lib/project-scope/project-scope";
+import type { OrganizationContext } from "@src/organization/types/organization-context";
 
 const notificationsApiProxy = new Hono();
 
@@ -127,27 +128,15 @@ async function projectOfReachableDeployment(
   const projectIds = await deploymentSettingRepository.findProjectIdsInOrganizationByDseqs(context.organizationId, [dseq]);
   const projectId = projectIds.get(dseq) ?? null;
 
-  assert(
-    isAmong(projectId, projectScope, scope => scope.projectIds),
-    404,
-    "Deployment not found"
-  );
+  assert(isProjectInScope(projectId, projectScope, readableProjectIdsOf), 404, "Deployment not found");
 
   if (!isWrite) {
     return null;
   }
 
-  assert(
-    isAmong(projectId, projectScope, scope => scope.writableProjectIds),
-    403,
-    "Deployment is read-only for this member"
-  );
+  assert(isProjectInScope(projectId, projectScope, writableProjectIdsOf), 403, "Deployment is read-only for this member");
 
   return projectId;
-}
-
-function isAmong(projectId: string | null, scope: ProjectScope, listed: (scope: Extract<ProjectScope, { kind: "projects" }>) => readonly string[]): boolean {
-  return scope.kind === "all" || (projectId !== null && listed(scope).includes(projectId));
 }
 
 const proxyRoute = createProxy({

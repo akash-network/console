@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 
 import type {
   ActivityResponse,
+  CreateAlertActivityRequest,
   GetActivityResponse,
   ListActivitiesQuery,
   ListActivitiesResponse,
@@ -41,6 +42,11 @@ export class ActivityController {
   @Protected([{ action: "update", subject: "Activity" }])
   async markSeen(selection: MarkActivitiesSeenRequest["data"]): Promise<MarkActivitiesSeenResponse> {
     return { data: { unseenCount: await this.activityService.markSeen(selection) } };
+  }
+
+  /** Guarded by the internal token instead of a user's ability, because the notifications service writes alerts for any user. */
+  async createAlert(alert: CreateAlertActivityRequest): Promise<void> {
+    await this.activityService.addAlert(alert);
   }
 }
 

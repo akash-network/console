@@ -1,16 +1,37 @@
+import createError, { isHttpError } from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { decodeActivityCursor, encodeActivityCursor } from "@src/activity/lib/activity-cursor/activity-cursor";
-import type { ActivityStatus, ActivityType, NewActivity } from "@src/activity/model-schemas";
-import { type ActivityOutput, ActivityRepository, type ActivitySelection, isDedupeKeyTaken } from "@src/activity/repositories/activity/activity.repository";
+import type { ActivityStatus, ActivityType, AlertActivityType, NewActivity } from "@src/activity/model-schemas";
+import {
+  type ActivityOutput,
+  ActivityRepository,
+  type ActivitySelection,
+  isDedupeKeyTaken,
+  isUnknownUser
+} from "@src/activity/repositories/activity/activity.repository";
 import { ActivityInstrumentationService } from "@src/activity/services/activity-instrumentation/activity-instrumentation.service";
 import { PurgeExpiredActivities, purgeExpiredActivitiesOptionsFor } from "@src/activity/services/purge-expired-activities/purge-expired-activities.job";
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
+import { isProjectInScope, readableProjectIdsOf } from "@src/organization/lib/project-scope/project-scope";
+import { OrganizationContextResolver } from "@src/organization/services/organization-context/organization-context.resolver";
+import type { OrganizationContext } from "@src/organization/types/organization-context";
+import type { UserOutput } from "@src/user/repositories";
+import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 export type ActivityPage = { activities: ActivityOutput[]; hasMore: boolean; nextCursor: string | null };
 
 type ActivityOutcome = Pick<NewActivity, "status" | "meta" | "dedupeKey">;
+
+export type NewAlertActivity = Pick<NewActivity, "userId" | "meta"> & {
+  organizationId: string | null;
+  projectId: string | null;
+  type: AlertActivityType;
+  status: "info";
+  dedupeKey: string;
+};
 
 @singleton()
 export class ActivityService {
@@ -21,6 +42,8 @@ export class ActivityService {
     private readonly authService: AuthService,
     private readonly jobQueueService: JobQueueService,
     private readonly activityInstrumentation: ActivityInstrumentationService,
+    private readonly organizationContextResolver: OrganizationContextResolver,
+    private readonly userRepository: UserRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: ActivityService.name });
@@ -37,6 +60,50 @@ export class ActivityService {
     }
 
     await this.#keepPurgeQueued();
+  }
+
+  /** Never displaces a row already holding the dedupe key, so a repeated alert stays one entry and a close row keeps the key its deployment-closed alert reports. */
+  async addAlert({ organizationId, projectId, ...alert }: NewAlertActivity): Promise<void> {
+    if (organizationId && !(await this.#canStillSee(alert.userId, organizationId, projectId))) {
+      this.#logger.info({
+        event: "ACTIVITY_ALERT_OUT_OF_REACH",
+        userId: alert.userId,
+        organizationId,
+        projectId,
+        type: alert.type,
+        alertId: alert.meta.alertId
+      });
+      return;
+    }
+
+    try {
+      const added = await this.activityRepository.createUnlessDuplicate({ ...alert, initiator: "system" });
+      if (added) this.activityInstrumentation.trackRecorded(added);
+      else this.#logger.info({ event: "ACTIVITY_ALERT_DEDUPED", userId: alert.userId, type: alert.type, dedupeKey: alert.dedupeKey });
+    } catch (error) {
+      if (isUnknownUser(error)) throw createError(404, "User not found");
+      throw error;
+    }
+
+    await this.#keepPurgeQueued();
+  }
+
+  async #canStillSee(userId: string, organizationId: string, projectId: string | null): Promise<boolean> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw createError(404, "User not found");
+
+    const context = await this.#contextIn(user, organizationId);
+
+    return !!context && isProjectInScope(projectId, context.projectScope, readableProjectIdsOf);
+  }
+
+  async #contextIn(user: UserOutput, organizationId: string): Promise<OrganizationContext | undefined> {
+    try {
+      return await this.organizationContextResolver.resolveBoundTo(user, organizationId);
+    } catch (error) {
+      if (isHttpError(error) && error.errorCode === ORGANIZATION_FORBIDDEN_ERROR_CODE) return undefined;
+      throw error;
+    }
   }
 
   /** Not best-effort, unlike `record`: an activity opened for work still to come must fail the transaction that queues that work, including when another row already holds its dedupe key. */

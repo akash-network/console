@@ -16,12 +16,14 @@ export interface ActivityEntry {
 
 type LabelDeployment = (dseq: string | undefined) => string;
 
+type ActionType = Exclude<Activity["type"], `${string}_alert`>;
+
 const ENTRY_WORDING = {
   deployment_close: { pending: "Closing", succeeded: "Closed", failed: "Couldn't close", retry: "Try closing it again." },
   deployment_create: { pending: "Creating", succeeded: "Created", failed: "Couldn't create", retry: "Try creating it again." },
   deployment_update: { pending: "Updating", succeeded: "Updated", failed: "Couldn't update", retry: "Try updating it again." },
   lease_create: { pending: "Deploying", succeeded: "Deployed", failed: "Couldn't deploy", retry: "Choose a provider again." }
-} satisfies Record<Activity["type"], { pending: string; succeeded: string; failed: string; retry: string }>;
+} satisfies Record<ActionType, { pending: string; succeeded: string; failed: string; retry: string }>;
 
 /** A bulk close reads as one entry, placed where its newest close is, so it never crowds out everything else. */
 export function activityEntriesOf(activities: Activity[], labelDeployment: LabelDeployment, limit: number): ActivityEntry[] {
@@ -48,9 +50,12 @@ export function activityEntriesOf(activities: Activity[], labelDeployment: Label
 
 export function activityEntryOf(activity: Activity, labelDeployment: LabelDeployment): ActivityEntry {
   const { id, type, status, meta, createdAt } = activity;
+  const { href } = activityDestinationOf(activity);
+
+  if (!isActionType(type)) return { id, status, title: meta.summary ?? "One of your alerts fired", href, createdAt };
+
   const wording = ENTRY_WORDING[type];
   const deployment = labelDeployment(meta.dseq);
-  const { href } = activityDestinationOf(activity);
 
   if (status === "pending") return { id, status, title: `${wording.pending} ${deployment}`, href, createdAt };
   if (status === "succeeded") return { id, status, title: `${wording.succeeded} ${deployment}`, href, createdAt };
@@ -74,4 +79,8 @@ function batchEntryOf(batchId: string, batch: Activity[], labelDeployment: Label
     title: `Closed ${batch.length - notClosed.length} of ${batch.length} deployments`,
     detail: `Couldn't close ${listOf(notClosed)}.`
   };
+}
+
+function isActionType(type: Activity["type"]): type is ActionType {
+  return Object.hasOwn(ENTRY_WORDING, type);
 }

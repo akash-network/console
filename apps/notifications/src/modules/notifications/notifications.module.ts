@@ -12,13 +12,23 @@ import { DbHealthzService } from "@src/infrastructure/db/services/db-healthz/db-
 import moduleConfig from "@src/modules/notifications/config";
 import { NovuProvider } from "./providers/novu.provider";
 import { NotificationChannelRepository } from "./repositories/notification-channel/notification-channel.repository";
+import { ActivityFeedService } from "./services/activity-feed/activity-feed.service";
+import { ActivityFeedClient } from "./services/activity-feed-client/activity-feed-client.service";
 import { EmailSenderService } from "./services/email-sender/email-sender.service";
 import { NotificationRouterService } from "./services/notification-router/notification-router.service";
 import * as schema from "./model-schemas";
 
 @Module({
   imports: [CommonModule, ConfigModule.forFeature(moduleConfig), ...register(schema)],
-  providers: [NovuProvider, EmailSenderService, NotificationRouterService, NotificationChannelRepository, DbHealthzService],
+  providers: [
+    NovuProvider,
+    EmailSenderService,
+    ActivityFeedClient,
+    ActivityFeedService,
+    NotificationRouterService,
+    NotificationChannelRepository,
+    DbHealthzService
+  ],
   exports: [NotificationChannelRepository, NotificationRouterService, EmailSenderService, DbHealthzService]
 })
 export class NotificationsModule implements OnApplicationShutdown {

@@ -1,6 +1,6 @@
 import { Spinner } from "@akashnetwork/ui/components";
 import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
-import { CircleCheck, CircleX, TriangleAlert } from "lucide-react";
+import { BellRing, CircleCheck, CircleX, TriangleAlert } from "lucide-react";
 
 import type { ActivityEntry } from "@src/components/activity/activityEntries/activityEntries";
 
@@ -24,6 +24,7 @@ function ActivityStatusIcon({ status }: { status: ActivityEntry["status"] }) {
   if (status === "pending") return <Spinner size="small" />;
   if (status === "succeeded") return <CircleCheck className="h-4 w-4 text-green-600" />;
   if (status === "partial") return <TriangleAlert className="h-4 w-4 text-warning" />;
+  if (status === "info") return <BellRing className="h-4 w-4 text-muted-foreground" />;
 
   return <CircleX className="h-4 w-4 text-destructive" />;
 }

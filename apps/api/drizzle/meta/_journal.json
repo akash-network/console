@@ -659,6 +659,13 @@
       "when": 1792192336432,
       "tag": "0093_activity_type_lease_create",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1792194149433,
+      "tag": "0094_activities_alerts",
+      "breakpoints": true
     }
   ]
 }

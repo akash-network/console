@@ -1,26 +1,28 @@
 import { z } from "@hono/zod-openapi";
 
-import { activityInitiatorEnum, activityStatusEnum, activityTypeEnum, SYSTEM_CLOSE_REASONS } from "@src/activity/model-schemas";
+import { activityInitiatorEnum, activityStatusEnum, activityTypeEnum, ALERT_ACTIVITY_TYPES, SYSTEM_CLOSE_REASONS } from "@src/activity/model-schemas";
 
 export const MAX_ACTIVITY_PAGE_LIMIT = 100;
 export const DEFAULT_ACTIVITY_PAGE_LIMIT = 20;
 export const MAX_ACTIVITY_IDS_PER_REQUEST = 100;
 
 const ActivityStatusSchema = z.enum(activityStatusEnum.enumValues).openapi({
-  description: "`pending` while the action is still being confirmed, then `succeeded` or `failed`."
+  description: "`pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome."
 });
 
-const ActivityTypeSchema = z.enum(activityTypeEnum.enumValues).openapi({ description: "What the action was." });
+const ActivityTypeSchema = z.enum(activityTypeEnum.enumValues).openapi({
+  description: "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
+});
 
 export const ActivitySchema = z.object({
   id: z.string().uuid(),
   type: ActivityTypeSchema,
   status: ActivityStatusSchema,
   initiator: z.enum(activityInitiatorEnum.enumValues).openapi({
-    description: "Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf."
+    description: "Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf or an alert that fired."
   }),
   meta: z.object({
-    dseq: z.string().optional().openapi({ description: "The deployment the action was about." }),
+    dseq: z.string().optional().openapi({ description: "The deployment the action or the alert was about." }),
     providers: z.array(z.string()).optional().openapi({ description: "The providers a lease was created with, each named once." }),
     batchId: z.string().optional().openapi({ description: "The bulk close the action was part of, as its request named it." }),
     manifestVersion: z.string().optional().openapi({ description: "The base64 manifest version an update saved." }),
@@ -29,7 +31,9 @@ export const ActivitySchema = z.object({
     reason: z.enum(SYSTEM_CLOSE_REASONS).optional().openapi({
       description:
         "Why Console closed the deployment, on a close it made on the user's behalf: `runtime_limit_reached` (the runtime limit set for it ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit)."
-    })
+    }),
+    alertId: z.string().uuid().optional().openapi({ description: "The alert that fired, on an alert." }),
+    summary: z.string().optional().openapi({ description: "The alert's summary as the user wrote it, filled in for this firing, on an alert." })
   }),
   seenAt: z.string().datetime().nullable().openapi({ description: "When the user first marked the activity seen." }),
   createdAt: z.string().datetime(),
@@ -86,7 +90,33 @@ export const MarkActivitiesSeenRequestSchema = z.object({
   ])
 });
 
+export const CreateAlertActivityRequestSchema = z.object({
+  userId: z.string().uuid().openapi({ description: "The console user who set the alert, whose own feed gets the entry." }),
+  organizationId: z
+    .string()
+    .uuid()
+    .nullable()
+    .openapi({ description: "The organization the alert is filed in, null for one set before organizations. Nothing is written once the user left it." }),
+  projectId: z
+    .string()
+    .uuid()
+    .nullable()
+    .openapi({ description: "The project the alert is filed in, if any. Nothing is written once the user can no longer see it." }),
+  type: z.enum(ALERT_ACTIVITY_TYPES),
+  status: z.literal("info"),
+  dedupeKey: z
+    .string()
+    .min(1)
+    .openapi({ description: "Unique per user. When one of the user's entries already holds it, alert or deployment close, nothing is written." }),
+  meta: z.object({
+    alertId: z.string().uuid(),
+    summary: z.string().min(1),
+    dseq: z.string().min(1).optional()
+  })
+});
+
 export type ActivityResponse = z.infer<typeof ActivitySchema>;
+export type CreateAlertActivityRequest = z.infer<typeof CreateAlertActivityRequestSchema>;
 export type ListActivitiesQuery = z.infer<typeof ListActivitiesQuerySchema>;
 export type ListActivitiesResponse = z.infer<typeof ListActivitiesResponseSchema>;
 export type MarkActivitiesSeenResponse = z.infer<typeof MarkActivitiesSeenResponseSchema>;
