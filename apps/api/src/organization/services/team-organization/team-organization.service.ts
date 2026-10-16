@@ -76,20 +76,31 @@ export class TeamOrganizationService {
 
     const organization = await this.txService.transaction(async () => {
       const repository = this.organizationRepository.accessibleBy(this.authService.ability, "update");
+      const current = await repository.findOneByAndLock({ id, deletedAt: null }, { strength: "no key update" });
 
-      if (!(await repository.findOneByAndLock({ id, deletedAt: null }, { strength: "no key update" }))) {
+      if (!current) {
         throw organizationNotFound();
       }
 
       await this.organizationRepository.lockUserForOrganizationChanges(userId);
       await this.#assertNameFree(userId, name, id);
+      const renamed = await repository.updateBy({ id, deletedAt: null }, { name }, { returning: true });
 
-      return await repository.updateBy({ id, deletedAt: null }, { name }, { returning: true });
+      if (!renamed) {
+        throw organizationNotFound();
+      }
+
+      if (renamed.name !== current.name) {
+        await this.organizationActivityService.record({
+          organizationId: id,
+          type: "organization_renamed",
+          actorUserId: userId,
+          payload: { fromName: current.name, toName: renamed.name }
+        });
+      }
+
+      return renamed;
     });
-
-    if (!organization) {
-      throw organizationNotFound();
-    }
 
     return { role: context.role, organization, isActive: true };
   }

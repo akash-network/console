@@ -236,6 +236,16 @@ describe("Organization creation and renaming", () => {
       expect(await response.json()).toMatchObject({ data: { name: "Acme Labs", role: "admin" } });
     });
 
+    it("records the rename in the team's activity, by the caller, with the old and new names", async () => {
+      const { user, team, bearer } = await setupCaller({ teamRole: "admin" });
+
+      await renameOrganization(team.id, { authorization: bearer, "x-organization-id": team.id }, { name: "Acme Labs" });
+
+      expect(await readActivities(team.id)).toEqual([
+        expect.objectContaining({ type: "organization_renamed", actorUserId: user.id, projectId: null, payload: { fromName: team.name, toName: "Acme Labs" } })
+      ]);
+    });
+
     it("refuses an owner's API key limited to a project", async () => {
       const { user, team } = await setupCaller({ teamRole: "owner" });
       const project = await seedProject({ organizationId: team.id });
@@ -257,13 +267,14 @@ describe("Organization creation and renaming", () => {
       expect(await readOrganizationName(team.id)).toBe("Acme Labs");
     });
 
-    it("refuses a member", async () => {
+    it("refuses a member, without recording a rename", async () => {
       const { team, bearer } = await setupCaller({ teamRole: "member" });
 
       const response = await renameOrganization(team.id, { authorization: bearer, "x-organization-id": team.id }, { name: "Acme Labs" });
 
       expect(response.status).toBe(403);
       expect(await readOrganizationName(team.id)).toBe(team.name);
+      expect(await readActivities(team.id)).toEqual([]);
     });
 
     it("answers not found for an organization of the caller other than the active one", async () => {
@@ -347,6 +358,13 @@ describe("Organization creation and renaming", () => {
       .where(eq(resolveTable("Organizations").id, id));
 
     return organization.name;
+  }
+
+  async function readActivities(organizationId: string) {
+    return await db
+      .select()
+      .from(resolveTable("OrganizationActivities"))
+      .where(eq(resolveTable("OrganizationActivities").organizationId, organizationId));
   }
 
   async function readOrganizationRows(organizationId: string) {
