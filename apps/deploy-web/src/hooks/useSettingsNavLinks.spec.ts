@@ -51,23 +51,30 @@ describe(useSettingsNavLinks.name, () => {
       expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
     });
 
-    it("adds Members first for a team organization", () => {
+    it("adds General first and Members after it for a team organization", () => {
       const links = setup({ isOrganizationsEnabled: true, organization: { type: "team", role: "owner" }, pathname: "/members" });
 
-      expect(links.map(link => link.title)).toEqual(["Members", "Billing", "API Keys", "Usage", "Alerts"]);
-      expect(links[0]).toMatchObject({ url: "/members", isActive: true });
+      expect(links.map(link => link.title)).toEqual(["General", "Members", "Billing", "API Keys", "Usage", "Alerts"]);
+      expect(links[0]).toMatchObject({ url: "/organization", isActive: false });
+      expect(links[1]).toMatchObject({ url: "/members", isActive: true });
+    });
+
+    it("marks General active on the organization settings route", () => {
+      const links = setup({ isOrganizationsEnabled: true, organization: { type: "team", role: "member" }, pathname: "/organization" });
+
+      expect(links.filter(link => link.isActive).map(link => link.title)).toEqual(["General"]);
     });
 
     it.each(["member", "viewer"] as const)("hides Billing and Usage from a %s", role => {
       const links = setup({ isOrganizationsEnabled: true, organization: { type: "team", role } });
 
-      expect(links.map(link => link.title)).toEqual(["Members", "API Keys", "Alerts"]);
+      expect(links.map(link => link.title)).toEqual(["General", "Members", "API Keys", "Alerts"]);
     });
 
     it.each(["admin", "billing"] as const)("keeps Billing and Usage for an %s", role => {
       const links = setup({ isOrganizationsEnabled: true, organization: { type: "team", role } });
 
-      expect(links.map(link => link.title)).toEqual(["Members", "Billing", "API Keys", "Usage", "Alerts"]);
+      expect(links.map(link => link.title)).toEqual(["General", "Members", "Billing", "API Keys", "Usage", "Alerts"]);
     });
 
     it("keeps every item until the active organization is known", () => {

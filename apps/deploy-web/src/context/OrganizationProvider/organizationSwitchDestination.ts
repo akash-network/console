@@ -1,4 +1,4 @@
-import { canViewBillingAndUsage, hasMembersPage, isProjectsUiEnabled } from "@src/components/organizations/organizationAccess";
+import { canViewBillingAndUsage, hasGeneralSettingsPage, hasMembersPage, isProjectsUiEnabled } from "@src/components/organizations/organizationAccess";
 import type { OrganizationOutput } from "@src/types/organization";
 import { isRouteActive } from "@src/utils/isRouteActive";
 import { UrlService } from "@src/utils/urlUtils";
@@ -19,6 +19,7 @@ export function resolveOrganizationSwitchDestination(currentUrl: string, target:
 function stayPutPrefixesFor(target: OrganizationOutput): string[] {
   return [
     ...ORGANIZATION_NEUTRAL_PREFIXES,
+    ...(hasGeneralSettingsPage(target.type) ? ["/organization"] : []),
     ...(hasMembersPage(target.type) ? ["/members"] : []),
     ...(canViewBillingAndUsage(target.role) ? ["/billing", "/usage"] : [])
   ];

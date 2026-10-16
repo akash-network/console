@@ -1,9 +1,9 @@
 "use client";
 import type { ComponentType } from "react";
-import { ChartColumnIncreasing, CreditCard, KeyRound, MessageSquareWarning, Users } from "lucide-react";
+import { ChartColumnIncreasing, CreditCard, KeyRound, MessageSquareWarning, Settings, Users } from "lucide-react";
 import { usePathname } from "next/navigation";
 
-import { canViewBillingAndUsage, hasMembersPage } from "@src/components/organizations/organizationAccess";
+import { canViewBillingAndUsage, hasGeneralSettingsPage, hasMembersPage } from "@src/components/organizations/organizationAccess";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { isRouteActive } from "@src/utils/isRouteActive";
@@ -27,10 +27,12 @@ export function useSettingsNavLinks({ dependencies: d = DEPENDENCIES }: { depend
   const isOrganizationsEnabled = d.useFlag("organizations");
   const { activeOrganization } = d.useActiveOrganization();
   const organization = isOrganizationsEnabled ? activeOrganization : undefined;
+  const showsGeneral = !!organization && hasGeneralSettingsPage(organization.type);
   const showsMembers = !!organization && hasMembersPage(organization.type);
   const showsBillingAndUsage = !organization || canViewBillingAndUsage(organization.role);
 
   return [
+    ...(showsGeneral ? [{ title: "General", url: UrlService.organizationSettings(), isActive: isRouteActive(pathname, "/organization"), icon: Settings }] : []),
     ...(showsMembers ? [{ title: "Members", url: UrlService.members(), isActive: isRouteActive(pathname, "/members"), icon: Users }] : []),
     ...(showsBillingAndUsage ? [{ title: "Billing", url: UrlService.billing(), isActive: isRouteActive(pathname, "/billing"), icon: CreditCard }] : []),
     { title: "API Keys", url: UrlService.userApiKeys(), isActive: isRouteActive(pathname, "/user/api-keys"), icon: KeyRound },

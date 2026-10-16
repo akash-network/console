@@ -7,9 +7,11 @@ import {
   addCachedOrganization,
   ORGANIZATIONS_QUERY_KEY,
   readCachedOrganizations,
+  replaceCachedOrganization,
   useCreateOrganizationInvitationsMutation,
   useCreateOrganizationMutation,
-  useOrganizationsQuery
+  useOrganizationsQuery,
+  useRenameOrganizationMutation
 } from "./useOrganizationQueries";
 
 import { act, waitFor } from "@testing-library/react";
@@ -61,6 +63,31 @@ describe("useOrganizationQueries", () => {
     });
   });
 
+  describe(useRenameOrganizationMutation.name, () => {
+    it("renames the organization and swaps the renamed one into the cached memberships", async () => {
+      const { personal, team } = buildOrganizations();
+      const renamed = { ...team, name: "Globex Labs" };
+      const { result, updateOrganization, queryClient } = setup({ useHook: () => useRenameOrganizationMutation(), renamed });
+      queryClient.setQueryData(ORGANIZATIONS_QUERY_KEY, { data: [personal, team] });
+
+      await act(() => result.current.mutateAsync({ id: team.id, data: { name: renamed.name } }));
+
+      expect(updateOrganization).toHaveBeenCalledWith({ id: team.id, data: { name: renamed.name } });
+      expect(readCachedOrganizations(queryClient)).toEqual([personal, renamed]);
+    });
+  });
+
+  describe(replaceCachedOrganization.name, () => {
+    it("leaves the memberships uncached when none were loaded", () => {
+      const queryClient = new QueryClient();
+      const { team } = buildOrganizations();
+
+      replaceCachedOrganization(queryClient, team);
+
+      expect(readCachedOrganizations(queryClient)).toBeUndefined();
+    });
+  });
+
   describe(addCachedOrganization.name, () => {
     it("appends the created organization to the cached memberships", () => {
       const queryClient = new QueryClient();
@@ -109,18 +136,19 @@ describe("useOrganizationQueries", () => {
     return { personal, team };
   }
 
-  function setup<T>(input: { useHook: () => T; organizations?: OrganizationOutput[]; created?: OrganizationOutput }) {
+  function setup<T>(input: { useHook: () => T; organizations?: OrganizationOutput[]; created?: OrganizationOutput; renamed?: OrganizationOutput }) {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const listOrganizations = vi.fn().mockResolvedValue({ data: input.organizations ?? [] });
     const createOrganization = vi.fn().mockResolvedValue({ data: input.created });
+    const updateOrganization = vi.fn().mockResolvedValue({ data: input.renamed });
     const createOrganizationInvitations = vi.fn().mockResolvedValue({ data: [] });
     const listOrganizationInvitations = vi.fn().mockResolvedValue({ data: [] });
     const api = createProxy({
-      v1: { listOrganizations, createOrganization, createOrganizationInvitations, listOrganizationInvitations }
+      v1: { listOrganizations, createOrganization, updateOrganization, createOrganizationInvitations, listOrganizationInvitations }
     }) as unknown as ApiService;
 
     const { result } = setupQuery(input.useHook, { services: { api: () => api, queryClient: () => queryClient } });
 
-    return { result, queryClient, listOrganizations, createOrganization, createOrganizationInvitations };
+    return { result, queryClient, listOrganizations, createOrganization, updateOrganization, createOrganizationInvitations };
   }
 });

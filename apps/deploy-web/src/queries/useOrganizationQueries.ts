@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import type { ListOrganizationsResponse, OrganizationOutput } from "@src/types/organization";
 
 /** Equals `api.v1.listOrganizations.getKey()`, for readers that hold a query client but not the SDK. */
@@ -38,4 +39,21 @@ export function readCachedOrganizations(queryClient: QueryClient): OrganizationO
 
 export function addCachedOrganization(queryClient: QueryClient, created: OrganizationOutput): void {
   queryClient.setQueryData<ListOrganizationsResponse>(ORGANIZATIONS_QUERY_KEY, response => ({ data: [...(response?.data ?? []), created] }));
+}
+
+export function useRenameOrganizationMutation() {
+  const { api } = useServices();
+  const queryClient = useQueryClient();
+
+  return api.v1.updateOrganization.useMutation({
+    meta: SKIP_REPORTING_REFUSED_INPUT,
+    onSuccess: response => replaceCachedOrganization(queryClient, response.data)
+  });
+}
+
+export function replaceCachedOrganization(queryClient: QueryClient, updated: OrganizationOutput): void {
+  queryClient.setQueryData<ListOrganizationsResponse>(
+    ORGANIZATIONS_QUERY_KEY,
+    response => response && { data: response.data.map(organization => (organization.id === updated.id ? updated : organization)) }
+  );
 }

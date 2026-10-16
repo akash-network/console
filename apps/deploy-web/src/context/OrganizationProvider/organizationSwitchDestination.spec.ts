@@ -48,11 +48,11 @@ describe(resolveOrganizationSwitchDestination.name, () => {
     expect(resolveOrganizationSwitchDestination("/deployments/123", personal)).toBe("/deployments");
   });
 
-  it("keeps Members only for a team organization", () => {
+  it.each(["/members", "/organization"])("keeps %s only for a team organization", pathname => {
     const { team, personal } = setup();
 
-    expect(resolveOrganizationSwitchDestination("/members", team)).toBe("/members");
-    expect(resolveOrganizationSwitchDestination("/members", personal)).toBe("/deployments");
+    expect(resolveOrganizationSwitchDestination(pathname, team)).toBe(pathname);
+    expect(resolveOrganizationSwitchDestination(pathname, personal)).toBe("/deployments");
   });
 
   it.each(["/billing", "/usage"])("keeps %s only for a role that can see it", pathname => {
