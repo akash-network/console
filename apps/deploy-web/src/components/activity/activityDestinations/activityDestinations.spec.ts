@@ -46,8 +46,30 @@ describe("activityDestinations", () => {
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
     });
 
+    it.each(["pending" as const, "succeeded" as const])("leads a %s update to its deployment", status => {
+      const activity = buildActivity({ type: "deployment_update", status, meta: { dseq: "1234" } });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
+    });
+
     it("leads a create about no particular deployment to the deployments list", () => {
       const activity = buildActivity({ type: "deployment_create", status: "failed", meta: {} });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/deployments", label: "View deployments" });
+    });
+
+    it("leads a failed update to the tab where the user can update the deployment again", () => {
+      const activity = buildActivity({
+        type: "deployment_update",
+        status: "failed",
+        meta: { dseq: "1234", error: { code: "update_failed", message: "Deployment closed" } }
+      });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234?tab=UPDATE", label: "Open update" });
+    });
+
+    it("leads an update about no particular deployment to the deployments list", () => {
+      const activity = buildActivity({ type: "deployment_update", status: "failed", meta: {} });
 
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments", label: "View deployments" });
     });

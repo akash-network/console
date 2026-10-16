@@ -113,6 +113,14 @@ describe(ActivityHistoryPage.name, () => {
     expect(useActivityHistoryQuery).toHaveBeenLastCalledWith({ status: undefined, type: "deployment_create", cursor: undefined });
   });
 
+  it("filters to deployment updates", async () => {
+    const { useActivityHistoryQuery } = setup({});
+
+    await choose("Action", "Deployment updates");
+
+    expect(useActivityHistoryQuery).toHaveBeenLastCalledWith({ status: undefined, type: "deployment_update", cursor: undefined });
+  });
+
   it("goes back to every entry once a filter is cleared", async () => {
     const { useActivityHistoryQuery } = setup({});
     await choose("Status", "Succeeded");

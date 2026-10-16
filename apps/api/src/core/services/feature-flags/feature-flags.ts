@@ -10,7 +10,8 @@ export const FeatureFlags = {
   ORGANIZATIONS: "organizations",
   ORGANIZATIONS_ENFORCE: "organizations_enforce",
   INVOICES: "invoices",
-  BACKGROUND_DEPLOYMENT_CREATE: "background_deployment_create"
+  BACKGROUND_DEPLOYMENT_CREATE: "background_deployment_create",
+  BACKGROUND_DEPLOYMENT_UPDATE: "background_deployment_update"
 } as const;
 
 export type FeatureFlagValue = (typeof FeatureFlags)[keyof typeof FeatureFlags];

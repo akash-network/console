@@ -10,6 +10,7 @@ import { WalletCreditsLowCheckHandler } from "@src/billing/services/wallet-credi
 import type { AppInitializer } from "@src/core/providers/app-initializer";
 import { APP_INITIALIZER, ON_APP_START } from "@src/core/providers/app-initializer";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
+import { ApplyDeploymentUpdateHandler } from "@src/deployment/services/apply-deployment-update/apply-deployment-update.handler";
 import { CloseDeploymentHandler } from "@src/deployment/services/close-deployment/close-deployment.handler";
 import { CreateDeploymentHandler } from "@src/deployment/services/create-deployment/create-deployment.handler";
 import { DeleteUnbackedDeploymentSettingHandler } from "@src/deployment/services/delete-unbacked-deployment-setting/delete-unbacked-deployment-setting.handler";
@@ -18,6 +19,7 @@ import { ExpireConfigureDraftHandler } from "@src/deployment/services/expire-con
 import { MoveDeploymentAlertsHandler } from "@src/deployment/services/move-deployment-alerts/move-deployment-alerts.handler";
 import { ReconcileDeploymentCloseHandler } from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.handler";
 import { ReconcileDeploymentCreateHandler } from "@src/deployment/services/reconcile-deployment-create/reconcile-deployment-create.handler";
+import { ReconcileDeploymentUpdateHandler } from "@src/deployment/services/reconcile-deployment-update/reconcile-deployment-update.handler";
 import { ReconcileManagedTxHandler } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx.handler";
 import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { RecordLeaseGpuOffersHandler } from "@src/deployment/services/record-lease-gpu-offers/record-lease-gpu-offers.handler";
@@ -74,6 +76,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ReconcileDeploymentCloseHandler),
     container.resolve(CreateDeploymentHandler),
     container.resolve(ReconcileDeploymentCreateHandler),
+    container.resolve(ApplyDeploymentUpdateHandler),
+    container.resolve(ReconcileDeploymentUpdateHandler),
     container.resolve(RecordDeploymentSettingHandler),
     container.resolve(ReconcileManagedTxHandler),
     container.resolve(ReconcileDeploymentDepositHandler),

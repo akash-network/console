@@ -10265,7 +10265,9 @@ export interface operations {
   };
   patchDeployment: {
     parameters: {
-      query?: never;
+      query?: {
+        async?: "true" | "false";
+      };
       header?: {
         /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
         "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
@@ -10485,6 +10487,25 @@ export interface operations {
               name: string | null;
               /** @description Base64 manifest version this patch recorded, which the deployment is now on. Absent for a rename, which records none. */
               manifestVersion?: string;
+            };
+          };
+        };
+      };
+      /** @description The patch passed every check and was saved, and will be applied in the background */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /**
+               * Format: uuid
+               * @description The activity that reports how applying the patch ends.
+               */
+              activityId: string;
+              /** @description Base64 manifest version this patch saved. Pass it as `ifManifestVersion` to patch again while this one is still being applied. The patches of one deployment are applied one at a time, so the newest one saved lands last. */
+              manifestVersion: string;
             };
           };
         };
@@ -12802,7 +12823,7 @@ export interface operations {
         limit?: number;
         cursor?: string;
         status?: "pending" | "succeeded" | "failed";
-        type?: "deployment_close" | "deployment_create";
+        type?: "deployment_close" | "deployment_create" | "deployment_update";
       };
       header?: {
         /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
@@ -12831,7 +12852,7 @@ export interface operations {
                  * @description What the action was.
                  * @enum {string}
                  */
-                type: "deployment_close" | "deployment_create";
+                type: "deployment_close" | "deployment_create" | "deployment_update";
                 /**
                  * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
                  * @enum {string}
@@ -12847,6 +12868,8 @@ export interface operations {
                   dseq?: string;
                   /** @description The bulk close the action was part of, as its request named it. */
                   batchId?: string;
+                  /** @description The base64 manifest version an update saved. */
+                  manifestVersion?: string;
                   /** @description Reference of a pending action whose outcome is still being confirmed. */
                   txHash?: string;
                   /** @description Why a failed action did not go through. */
@@ -12929,7 +12952,7 @@ export interface operations {
                * @description What the action was.
                * @enum {string}
                */
-              type: "deployment_close" | "deployment_create";
+              type: "deployment_close" | "deployment_create" | "deployment_update";
               /**
                * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
                * @enum {string}
@@ -12945,6 +12968,8 @@ export interface operations {
                 dseq?: string;
                 /** @description The bulk close the action was part of, as its request named it. */
                 batchId?: string;
+                /** @description The base64 manifest version an update saved. */
+                manifestVersion?: string;
                 /** @description Reference of a pending action whose outcome is still being confirmed. */
                 txHash?: string;
                 /** @description Why a failed action did not go through. */

@@ -11,7 +11,9 @@ import type {
   CloseDeploymentQuery,
   CreateDeploymentAcceptedResponse,
   CreateDeploymentQuery,
-  ListDeploymentsQuery
+  ListDeploymentsQuery,
+  PatchDeploymentAcceptedResponse,
+  PatchDeploymentQuery
 } from "@src/deployment/http-schemas/deployment.schema";
 import {
   CloseDeploymentResponse,
@@ -110,10 +112,20 @@ export class DeploymentController {
     return { data: result };
   }
 
+  /** The flag is read here rather than in the worker, because inside a job every user evaluates as the background-job user. */
   @Protected([{ action: "sign", subject: "UserWallet" }])
-  async patch(dseq: string, input: PatchDeploymentRequest["data"]): Promise<PatchDeploymentResponse> {
-    const result = await this.deploymentWriterService.patchByUserIdAndDseq(this.authService.currentUser.id, dseq, input, this.authService.ability);
-    return { data: result };
+  async patch(
+    dseq: string,
+    input: PatchDeploymentRequest["data"],
+    query: PatchDeploymentQuery = { async: false }
+  ): Promise<{ data: PatchDeploymentResponse["data"] | PatchDeploymentAcceptedResponse["data"] }> {
+    const userId = this.authService.currentUser.id;
+
+    if (query.async && this.featureFlagsService.isEnabled(FeatureFlags.BACKGROUND_DEPLOYMENT_UPDATE, { userId })) {
+      return { data: await this.deploymentWriterService.patchInBackgroundByUserIdAndDseq(userId, dseq, input, this.authService.ability) };
+    }
+
+    return { data: await this.deploymentWriterService.patchByUserIdAndDseq(userId, dseq, input, this.authService.ability) };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])

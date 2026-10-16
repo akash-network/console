@@ -148,6 +148,45 @@ describe(ActivityHost.name, () => {
     );
   });
 
+  it("announces an update that finishes", () => {
+    const pending = buildActivity({ type: "deployment_update", status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [pending], names: { "1234": "storefront" } });
+
+    receive([{ ...pending, status: "succeeded" }]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: expect.objectContaining({ title: "“storefront” updated", subTitle: "The new configuration is being applied to it.", iconVariant: "success" })
+      }),
+      { variant: "success" }
+    );
+  });
+
+  it.each([
+    { meta: { dseq: "1234", error: { code: "update_failed", message: "Deployment closed" } }, subTitle: "Deployment closed" },
+    { meta: { dseq: "1234" }, subTitle: "Try updating it again." }
+  ])("announces an update that fails, saying $subTitle", ({ meta, subTitle }) => {
+    const pending = buildActivity({ type: "deployment_update", status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "failed", meta }]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't update deployment 1234", subTitle, iconVariant: "error" }) }),
+      { variant: "error" }
+    );
+  });
+
+  it("opens the update tab where a failed update can be tried again from its toast", async () => {
+    const pending = buildActivity({ type: "deployment_update", status: "pending", meta: { dseq: "1234" } });
+    const { receive, followToastAction, push } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "failed" }]);
+    await followToastAction("Open update");
+
+    expect(push).toHaveBeenCalledWith("/deployments/1234?tab=UPDATE");
+  });
+
   it("names the deployment a close finished for", () => {
     const pending = buildActivity({ status: "pending", meta: { dseq: "1234" } });
     const { enqueueSnackbar, receive } = setup({ activities: [pending], names: { "1234": "storefront" } });
