@@ -4,6 +4,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
+import type { OrganizationOutput, OrganizationRole } from "@src/types/organization";
 import { buildUsageCsv } from "./buildUsageCsv";
 import type { ChildrenProps, DEPENDENCIES } from "./UsageContainer";
 import { UsageContainer } from "./UsageContainer";
@@ -119,6 +120,36 @@ describe(UsageContainer.name, () => {
     expect(useUsage).toHaveBeenLastCalledWith({ address: "akash1abc", startDate: updated.dateRange.from, endDate: updated.dateRange.to });
   });
 
+  it.each(["owner", "admin", "billing"] satisfies OrganizationRole[])("shows a team's %s the spend by project over the range on screen", async role => {
+    const { child, childCapturer } = await setup({ organization: { type: "team", role }, projectsEnabled: true });
+    const last30Days = getUsagePresetRange("last30Days");
+
+    expect(child.projectSpendRange).toEqual({ startDate: format(last30Days.from, "yyyy-MM-dd"), endDate: format(last30Days.to, "yyyy-MM-dd") });
+
+    act(() => child.onDateRangeChange({ from: new Date(2026, 5, 1), to: new Date(2026, 5, 20) }));
+    const updated = await childCapturer.awaitChild(next => next.datePreset === "custom");
+
+    expect(updated.projectSpendRange).toEqual({ startDate: "2026-06-01", endDate: "2026-06-20" });
+  });
+
+  it.each(["member", "viewer"] satisfies OrganizationRole[])("keeps the spend by project from a team's %s", async role => {
+    const { child } = await setup({ organization: { type: "team", role }, projectsEnabled: true });
+
+    expect(child.projectSpendRange).toBeNull();
+  });
+
+  it("shows no spend by project in a personal account", async () => {
+    const { child } = await setup({ organization: { type: "personal", role: "owner" }, projectsEnabled: false });
+
+    expect(child.projectSpendRange).toBeNull();
+  });
+
+  it("shows no spend by project while organizations are off", async () => {
+    const { child } = await setup({ organization: undefined, projectsEnabled: false });
+
+    expect(child.projectSpendRange).toBeNull();
+  });
+
   it("downloads the usage on screen as a CSV", async () => {
     const { child, usageHistory, usageStats } = await setup();
     const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:usage");
@@ -143,6 +174,8 @@ describe(UsageContainer.name, () => {
       isHistoryError?: boolean;
       isStatsError?: boolean;
       spendRate?: { perHourUsd: number; isLoading: boolean; isError: boolean };
+      organization?: Pick<OrganizationOutput, "type" | "role">;
+      projectsEnabled?: boolean;
     } = {}
   ) {
     const usageHistory = "usageHistory" in input ? input.usageHistory : buildUsageHistory();
@@ -174,10 +207,16 @@ describe(UsageContainer.name, () => {
     );
     const useCurrentSpendRate: typeof DEPENDENCIES.useCurrentSpendRate = () => spendRate;
 
+    const activeOrganization = input.organization && mock<OrganizationOutput>(input.organization);
+    const useActiveOrganization: typeof DEPENDENCIES.useActiveOrganization = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ activeOrganization, projectsEnabled: input.projectsEnabled ?? false });
+
     const childCapturer = createContainerTestingChildCapturer<ChildrenProps>();
 
     render(
-      <UsageContainer dependencies={{ useWallet, useUsage, useUsageStats, useCurrentSpendRate }}>{props => childCapturer.renderChild(props)}</UsageContainer>
+      <UsageContainer dependencies={{ useWallet, useUsage, useUsageStats, useCurrentSpendRate, useActiveOrganization }}>
+        {props => childCapturer.renderChild(props)}
+      </UsageContainer>
     );
 
     const child = await childCapturer.awaitChild();

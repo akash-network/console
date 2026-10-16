@@ -8,10 +8,12 @@ import { DailySpendChart } from "@src/components/billing-usage/DailySpendChart/D
 import type { ChildrenProps } from "@src/components/billing-usage/UsageContainer/UsageContainer";
 import { countDaysInRange, USAGE_DATE_PRESETS, type UsageDatePreset, type UsageDateRange } from "@src/components/billing-usage/UsageContainer/usageDatePresets";
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
+import { ProjectSpendReport } from "@src/components/projects/ProjectSpendReport/ProjectSpendReport";
 
 export const DEPENDENCIES = {
   DailySpendChart,
-  DateRangePicker
+  DateRangePicker,
+  ProjectSpendReport
 };
 
 const CHART_RANGE_OPTIONS = [
@@ -45,6 +47,7 @@ export const UsageView: FC<UsageViewProps> = ({
   onDateRangeChange,
   datePreset,
   onDatePresetChange,
+  projectSpendRange,
   dependencies: d = DEPENDENCIES
 }) => {
   const statsError = isUsageHistoryStatsError ? LOAD_ERROR : undefined;
@@ -115,6 +118,8 @@ export const UsageView: FC<UsageViewProps> = ({
         isError={isUsageHistoryError}
         rangeToggle={<ChartRangeToggle datePreset={datePreset} onDatePresetChange={onDatePresetChange} />}
       />
+
+      {projectSpendRange && <d.ProjectSpendReport range={projectSpendRange} />}
     </div>
   );
 };

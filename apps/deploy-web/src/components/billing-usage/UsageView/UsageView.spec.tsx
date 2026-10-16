@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ChildrenProps } from "@src/components/billing-usage/UsageContainer/UsageContainer";
 import { getUsagePresetRange, type UsageDatePreset, type UsageDateRange } from "@src/components/billing-usage/UsageContainer/usageDatePresets";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
+import type { SpendRange } from "@src/types/project-budget";
 import { DEPENDENCIES, UsageView } from "./UsageView";
 
 import { render, screen, within } from "@testing-library/react";
@@ -188,6 +189,18 @@ describe(UsageView.name, () => {
     expect(onDateRangeChange).toHaveBeenCalledWith({ from: new Date(2026, 5, 1), to: new Date(2026, 5, 30) });
   });
 
+  it("reports spend by project over the range it is given", () => {
+    const { ProjectSpendReport } = setup({ projectSpendRange: { startDate: "2026-06-01", endDate: "2026-06-30" } });
+
+    expect(ProjectSpendReport).toHaveBeenCalledWith({ range: { startDate: "2026-06-01", endDate: "2026-06-30" } }, expect.anything());
+  });
+
+  it("leaves spend by project out without a range for it", () => {
+    const { ProjectSpendReport } = setup({ projectSpendRange: null });
+
+    expect(ProjectSpendReport).not.toHaveBeenCalled();
+  });
+
   function setup(
     input: {
       history?: UsageHistory;
@@ -200,6 +213,7 @@ describe(UsageView.name, () => {
       spendRate?: ChildrenProps["spendRate"];
       datePreset?: UsageDatePreset;
       dateRange?: UsageDateRange;
+      projectSpendRange?: SpendRange | null;
     } = {}
   ) {
     const onDatePresetChange = vi.fn();
@@ -223,6 +237,7 @@ describe(UsageView.name, () => {
           onDatePresetChange={onDatePresetChange}
           dateRange={input.dateRange ?? getUsagePresetRange(input.datePreset && input.datePreset !== "custom" ? input.datePreset : "last30Days")}
           onDateRangeChange={onDateRangeChange}
+          projectSpendRange={input.projectSpendRange ?? null}
           dependencies={dependencies}
         />
       </IntlProvider>
