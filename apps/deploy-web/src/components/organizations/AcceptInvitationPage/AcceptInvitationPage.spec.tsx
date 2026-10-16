@@ -318,5 +318,6 @@ const JOINED: OrganizationOutput = {
   type: "team",
   role: "member",
   isActive: false,
+  hasPaymentMethod: null,
   createdAt: "2026-02-01T00:00:00Z"
 };

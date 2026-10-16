@@ -4,6 +4,7 @@ import { Banner } from "@akashnetwork/ui/components";
 
 import { useChainMaintenanceDetails, useGenericBannerDetails, useTopBanner } from "@src/hooks/useTopBanner";
 import { FundingBanner } from "./FundingBanner/FundingBanner";
+import { TeamPaymentMethodBanner } from "./TeamPaymentMethodBanner/TeamPaymentMethodBanner";
 
 export const NETWORK_DOWN_BANNER_DEPENDENCIES = { useChainMaintenanceDetails };
 
@@ -87,28 +88,41 @@ export function GenericBanner({ onClose, dependencies = DEPENDENCIES }: { onClos
   );
 }
 
+export const TOP_BANNER_DEPENDENCIES = { useTopBanner, NetworkDownBanner, MaintenanceBanner, GenericBanner, TeamPaymentMethodBanner, FundingBanner };
+
 /**
  * The single top banner, rendered inside the (fixed) app header above the nav row — so the nav can never
  * cover it and it can wrap to multiple lines on small screens. Returns null when no banner applies.
  */
-export function TopBanner() {
-  const { isMaintenanceBannerOpen, setIsMaintenanceBannerOpen, isGenericBannerOpen, setIsGenericBannerOpen, isBlockchainDown, hasFundingBanner } =
-    useTopBanner();
+export function TopBanner({ dependencies: d = TOP_BANNER_DEPENDENCIES }: { dependencies?: typeof TOP_BANNER_DEPENDENCIES } = {}) {
+  const {
+    isMaintenanceBannerOpen,
+    setIsMaintenanceBannerOpen,
+    isGenericBannerOpen,
+    setIsGenericBannerOpen,
+    isBlockchainDown,
+    hasTeamPaymentMethodBanner,
+    hasFundingBanner
+  } = d.useTopBanner();
 
   if (isBlockchainDown) {
-    return <NetworkDownBanner />;
+    return <d.NetworkDownBanner />;
   }
 
   if (isMaintenanceBannerOpen) {
-    return <MaintenanceBanner onClose={() => setIsMaintenanceBannerOpen(false)} />;
+    return <d.MaintenanceBanner onClose={() => setIsMaintenanceBannerOpen(false)} />;
   }
 
   if (isGenericBannerOpen) {
-    return <GenericBanner onClose={() => setIsGenericBannerOpen(false)} />;
+    return <d.GenericBanner onClose={() => setIsGenericBannerOpen(false)} />;
+  }
+
+  if (hasTeamPaymentMethodBanner) {
+    return <d.TeamPaymentMethodBanner />;
   }
 
   if (hasFundingBanner) {
-    return <FundingBanner />;
+    return <d.FundingBanner />;
   }
 
   return null;

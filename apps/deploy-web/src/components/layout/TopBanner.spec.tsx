@@ -8,10 +8,13 @@ import {
   type MAINTENANCE_BANNER_DEPENDENCIES,
   MaintenanceBanner,
   type NETWORK_DOWN_BANNER_DEPENDENCIES,
-  NetworkDownBanner
+  NetworkDownBanner,
+  TOP_BANNER_DEPENDENCIES,
+  TopBanner
 } from "./TopBanner";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { MockComponents } from "@tests/unit/mocks";
 
 describe(GenericBanner.name, () => {
   it("renders the message and each provided link with safe external attributes", () => {
@@ -126,5 +129,66 @@ describe(MaintenanceBanner.name, () => {
       </IntlProvider>
     );
     return { onClose };
+  }
+});
+
+describe(TopBanner.name, () => {
+  it("shows the team payment method banner when no other banner applies", () => {
+    setup({ hasTeamPaymentMethodBanner: true });
+
+    expect(screen.getByText("TeamPaymentMethodBanner")).toBeInTheDocument();
+  });
+
+  it("keeps an open generic banner above the team payment method banner", () => {
+    setup({ hasTeamPaymentMethodBanner: true, isGenericBannerOpen: true });
+
+    expect(screen.getByRole("button", { name: "Close generic banner" })).toBeInTheDocument();
+    expect(screen.queryByText("TeamPaymentMethodBanner")).not.toBeInTheDocument();
+  });
+
+  it("shows the team payment method banner above the funding banner", () => {
+    setup({ hasTeamPaymentMethodBanner: true, hasFundingBanner: true });
+
+    expect(screen.getByText("TeamPaymentMethodBanner")).toBeInTheDocument();
+    expect(screen.queryByText("FundingBanner")).not.toBeInTheDocument();
+  });
+
+  it("closes the generic banner it shows", () => {
+    const { setIsGenericBannerOpen } = setup({ isGenericBannerOpen: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Close generic banner" }));
+
+    expect(setIsGenericBannerOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("renders nothing when no banner applies", () => {
+    const { container } = setup({});
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  function setup(input: { isGenericBannerOpen?: boolean; hasTeamPaymentMethodBanner?: boolean; hasFundingBanner?: boolean }) {
+    const setIsGenericBannerOpen = vi.fn();
+    const useTopBanner: typeof TOP_BANNER_DEPENDENCIES.useTopBanner = () =>
+      mock<ReturnType<typeof TOP_BANNER_DEPENDENCIES.useTopBanner>>({
+        isBlockchainDown: false,
+        isMaintenanceBannerOpen: false,
+        isGenericBannerOpen: input.isGenericBannerOpen ?? false,
+        setIsGenericBannerOpen,
+        hasTeamPaymentMethodBanner: input.hasTeamPaymentMethodBanner ?? false,
+        hasFundingBanner: input.hasFundingBanner ?? false
+      });
+    const dependencies = MockComponents(TOP_BANNER_DEPENDENCIES, {
+      useTopBanner,
+      GenericBanner: ({ onClose }) => (
+        <button type="button" onClick={onClose}>
+          Close generic banner
+        </button>
+      ),
+      TeamPaymentMethodBanner: () => <>TeamPaymentMethodBanner</>,
+      FundingBanner: () => <>FundingBanner</>
+    });
+
+    return { ...render(<TopBanner dependencies={dependencies} />), setIsGenericBannerOpen };
   }
 });
