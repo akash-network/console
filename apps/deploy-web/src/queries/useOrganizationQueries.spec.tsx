@@ -10,6 +10,7 @@ import {
   replaceCachedOrganization,
   useCreateOrganizationInvitationsMutation,
   useCreateOrganizationMutation,
+  useLeaveOrganizationMutation,
   useOrganizationsQuery,
   useRenameOrganizationMutation
 } from "./useOrganizationQueries";
@@ -74,6 +75,19 @@ describe("useOrganizationQueries", () => {
 
       expect(updateOrganization).toHaveBeenCalledWith({ id: team.id, data: { name: renamed.name } });
       expect(readCachedOrganizations(queryClient)).toEqual([personal, renamed]);
+    });
+  });
+
+  describe(useLeaveOrganizationMutation.name, () => {
+    it("ends the caller's membership of the organization without touching the cached memberships", async () => {
+      const { personal, team } = buildOrganizations();
+      const { result, deleteOrganizationMembership, queryClient } = setup({ useHook: () => useLeaveOrganizationMutation() });
+      queryClient.setQueryData(ORGANIZATIONS_QUERY_KEY, { data: [personal, team] });
+
+      await act(() => result.current.mutateAsync({ id: team.id }));
+
+      expect(deleteOrganizationMembership).toHaveBeenCalledWith({ id: team.id });
+      expect(readCachedOrganizations(queryClient)).toEqual([personal, team]);
     });
   });
 
@@ -143,14 +157,22 @@ describe("useOrganizationQueries", () => {
     const listOrganizations = vi.fn().mockResolvedValue({ data: input.organizations ?? [] });
     const createOrganization = vi.fn().mockResolvedValue({ data: input.created });
     const updateOrganization = vi.fn().mockResolvedValue({ data: input.renamed });
+    const deleteOrganizationMembership = vi.fn().mockResolvedValue(undefined);
     const createOrganizationInvitations = vi.fn().mockResolvedValue({ data: [] });
     const listOrganizationInvitations = vi.fn().mockResolvedValue({ data: [] });
     const api = createProxy({
-      v1: { listOrganizations, createOrganization, updateOrganization, createOrganizationInvitations, listOrganizationInvitations }
+      v1: {
+        listOrganizations,
+        createOrganization,
+        updateOrganization,
+        deleteOrganizationMembership,
+        createOrganizationInvitations,
+        listOrganizationInvitations
+      }
     }) as unknown as ApiService;
 
     const { result } = setupQuery(input.useHook, { services: { api: () => api, queryClient: () => queryClient } });
 
-    return { result, queryClient, listOrganizations, createOrganization, updateOrganization, createOrganizationInvitations };
+    return { result, queryClient, listOrganizations, createOrganization, updateOrganization, deleteOrganizationMembership, createOrganizationInvitations };
   }
 });

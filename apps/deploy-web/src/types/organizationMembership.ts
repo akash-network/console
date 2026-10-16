@@ -27,3 +27,5 @@ export const INVITATION_REVOKED_ERROR_CODE = "invitation_revoked";
 export const INVITATION_ALREADY_ACCEPTED_ERROR_CODE = "invitation_already_accepted";
 
 export const SESSION_REQUIRED_ERROR_CODE = "session_required";
+
+export const OWNER_CANNOT_LEAVE_ERROR_CODE = "owner_cannot_leave";

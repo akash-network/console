@@ -102,6 +102,56 @@ test.describe("Team organizations", () => {
     }
   });
 
+  test("an invited teammate leaves the team from its general settings", async ({ page, browser, auth0 }) => {
+    const { team, sharedProject } = createNames();
+    const inbox = createInboxClient();
+    const teammateEmail = inbox.generateEmail();
+    const teammatePage = await openSignedOutPage(browser);
+    const members = new MembersPage(page);
+    const teammateSwitcher = new OrganizationSwitcher(teammatePage);
+    const teammateSettings = new OrganizationSettingsPage(teammatePage);
+    const invitation = new InvitationPage(teammatePage);
+
+    try {
+      await test.step("the owner creates a team with a project and invites the teammate to it", async () => {
+        await createTeam(page, team);
+        await createProjects(page, [sharedProject]);
+        await members.goto();
+        await members.inviteMember({ organizationName: team, email: teammateEmail, projectName: sharedProject });
+        await expect(page.getByText(`Invite sent to ${teammateEmail}`)).toBeVisible();
+      });
+
+      await test.step("the teammate signs up from the invite link and joins the team", async () => {
+        const link = await members.copyInviteLink(teammateEmail);
+        await invitation.goto(link);
+        await invitation.signUpToAccept();
+        await signInPasswordless(teammatePage, teammateEmail);
+        await invitation.accept();
+        await expect(teammateSwitcher.trigger(team)).toBeVisible();
+      });
+
+      await test.step("the teammate leaves and lands in their personal account, without the team in the switcher", async () => {
+        await teammateSettings.goto();
+        await acceptFairUsePolicyIfPrompted(teammatePage, { settledBy: teammateSettings.heading() });
+        await teammateSettings.leave(team);
+        await expect(teammatePage.getByText(`You left ${team}`)).toBeVisible();
+        await expect(teammateSwitcher.trigger(team)).toBeHidden();
+
+        const memberships = await teammatePage.request.get(`${testEnvConfig.BASE_URL}/api/proxy/v1/organizations`);
+        expect(((await memberships.json()) as OrganizationList).data.map(organization => organization.name)).not.toContain(team);
+      });
+
+      await test.step("the owner no longer sees the teammate on the Members page", async () => {
+        await members.goto();
+        await expect(members.memberRow(teammateEmail)).toBeHidden();
+      });
+    } finally {
+      await teammatePage.context().close();
+      const teammate = await auth0.getUserByEmail(teammateEmail).catch(() => undefined);
+      if (teammate) await auth0.deleteUser(teammate.user_id).catch(() => undefined);
+    }
+  });
+
   test("an API key bound to one project reaches only that project", async ({ page, playwright }) => {
     const { team, sharedProject, hiddenProject } = createNames();
     const keyName = `e2e-project-key-${Date.now()}`;

@@ -13,6 +13,14 @@ export class OrganizationSettingsPage {
     return this.page.getByRole("heading", { level: 1, name: "General" });
   }
 
+  async leave(organizationName: string) {
+    await this.page.getByRole("button", { name: "Leave organization" }).click();
+    await this.page
+      .getByRole("dialog", { name: `Leave ${organizationName}?` })
+      .getByRole("button", { name: "Leave organization" })
+      .click();
+  }
+
   async rename(name: string) {
     const nameInput = this.page.getByRole("textbox", { name: "Name" });
     await nameInput.fill(name);

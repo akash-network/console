@@ -8,6 +8,7 @@ import Layout from "@src/components/layout/Layout";
 import { SettingsCard, SettingsRow } from "@src/components/layout/SettingsCard/SettingsCard";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
+import { LeaveOrganizationSetting } from "@src/components/organizations/LeaveOrganization/LeaveOrganizationSetting";
 import {
   canRenameOrganization,
   canTransferOwnership,
@@ -26,6 +27,7 @@ export const DEPENDENCIES = {
   NextSeo,
   OrganizationNameSetting,
   OwnershipTransferSetting,
+  LeaveOrganizationSetting,
   useFlag,
   useActiveOrganization,
   useRouter
@@ -88,6 +90,12 @@ export function OrganizationSettingsPage({ dependencies: d = DEPENDENCIES }: Pro
               </SettingsCard>
             </SettingsSection>
           )}
+
+          <SettingsSection title="Danger zone">
+            <SettingsCard destructive>
+              <d.LeaveOrganizationSetting organization={organization} />
+            </SettingsCard>
+          </SettingsSection>
         </div>
       </d.SettingsLayout>
     </d.Layout>
