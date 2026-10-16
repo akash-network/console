@@ -12,7 +12,7 @@ import { formatGpuLabel, getDeploymentGpuModels, type GpuSummary } from "../Depl
 /** Column widths fit the widest value each spec can hold at this font size, so every row's specs land on the same x-positions. */
 const LAYOUT_CLASSES = {
   inline: { container: "flex flex-wrap items-center gap-x-4 gap-y-1.5", spec: "whitespace-nowrap" },
-  columns: { container: "grid grid-cols-[3.5rem_5.5rem_5.5rem_5.75rem] items-center gap-x-3", spec: "min-w-0" }
+  columns: { container: "grid grid-cols-[5.5rem_5.75rem] items-center gap-x-3 gap-y-1.5", spec: "min-w-0" }
 } as const;
 
 export type DeploymentSpecLayout = keyof typeof LAYOUT_CLASSES;
