@@ -2120,6 +2120,40 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
     });
 
+    it("checks that the member may still sign right before it signs the close of an open deployment", async () => {
+      const { service, signerService } = setup();
+      const assertMayStillSign = vi.fn().mockResolvedValue(undefined);
+
+      await expect(service.close(wallet, "100", { actingUserId: "user-1", assertMayStillSign })).resolves.toBe(true);
+
+      expect(assertMayStillSign).toHaveBeenCalledTimes(1);
+      expect(assertMayStillSign.mock.invocationCallOrder[0]).toBeLessThan(signerService.executeDecodedTxByUserWallet.mock.invocationCallOrder[0]);
+      expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, expect.any(Array), { actingUserId: "user-1" });
+    });
+
+    it("signs nothing when the member may no longer sign", async () => {
+      const { service, signerService, deploymentReaderService } = setup();
+      const refusal = new Error("access revoked");
+
+      await expect(service.close(wallet, "100", { actingUserId: "user-1", assertMayStillSign: vi.fn().mockRejectedValue(refusal) })).rejects.toBe(refusal);
+
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(deploymentReaderService.findByWalletAndDseqWithoutProviderStatus).toHaveBeenCalledTimes(1);
+    });
+
+    it("reports a deployment already closed without checking whether the member may still sign", async () => {
+      const { service, deploymentReaderService } = setup();
+      deploymentReaderService.findByWalletAndDseqWithoutProviderStatus.mockResolvedValue({
+        ...deploymentData,
+        deployment: { ...deploymentData.deployment, state: "closed" }
+      });
+      const assertMayStillSign = vi.fn().mockRejectedValue(new Error("access revoked"));
+
+      await expect(service.close(wallet, "100", { actingUserId: "user-1", assertMayStillSign })).resolves.toBe(false);
+
+      expect(assertMayStillSign).not.toHaveBeenCalled();
+    });
+
     it("reports a close it did not make when a re-read shows the deployment already closed", async () => {
       const { service, signerService, deploymentReaderService } = setup();
       signerService.executeDecodedTxByUserWallet.mockRejectedValue(new Error("deployment already closed"));

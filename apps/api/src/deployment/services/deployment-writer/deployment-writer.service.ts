@@ -120,7 +120,10 @@ function filingOf(accepted: AcceptedDeploymentCreate, definition: DeploymentSett
 
 /** What becomes of the values a submitted document carries in the clear. There is no longer a way to say "dropped": every writer can seal, so a value is never lost to be safe. */
 /** Who a close is made for: the console on its own, with its reason, or the member acting through the wallet. */
-export type CloseRequest = ConsoleClose | { actingUserId: string };
+export type CloseRequest = ConsoleClose | MemberClose;
+
+/** `assertMayStillSign` runs only once the chain shows the deployment still open, so a close an earlier attempt landed needs no signature to settle. */
+type MemberClose = { actingUserId: string; assertMayStillSign?: () => Promise<void> };
 
 type StoredSdlValues =
   /** Every one of them is sealed and referenced, because nothing in the request said which are secret. */
@@ -648,6 +651,7 @@ export class DeploymentWriterService {
   public async close(wallet: WalletInitialized, dseq: string, request: CloseRequest): Promise<boolean> {
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, dseq);
     if (deployment.deployment.state === "closed") return false;
+    if ("actingUserId" in request) await request.assertMayStillSign?.();
     return await this.#closeOpen(wallet, deployment, request);
   }
 
