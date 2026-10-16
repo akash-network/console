@@ -38,6 +38,8 @@ export type DeploymentLocation = { organizationId: string; organizationSlug: str
 
 export type DeploymentFiling = Pick<DeploymentSettingsDbOutput, "projectId"> & { ownerAddress: string | null };
 
+export type NamedDeploymentFiling = Pick<DeploymentSettingsDbOutput, "projectId" | "name">;
+
 /** One organization and, when the request is narrowed, the projects of it a location lookup may answer for. */
 export type DeploymentReach = { organizationId: string; projectIds?: readonly string[] };
 
@@ -713,21 +715,28 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
 
   /** Two rows of one organization rarely share a dseq; when they do, the older row decides, so every reader attributes the deployment alike. */
   async findProjectIdsInOrganizationByDseqs(organizationId: string, dseqs: readonly string[]): Promise<Map<string, string | null>> {
-    const projectIds = new Map<string, string | null>();
+    const filings = await this.findNamedFilingsInOrganizationByDseqs(organizationId, dseqs);
+
+    return new Map([...filings].map(([dseq, { projectId }]) => [dseq, projectId]));
+  }
+
+  /** The project and name of each dseq, the older row deciding a shared dseq like {@link findProjectIdsInOrganizationByDseqs}. */
+  async findNamedFilingsInOrganizationByDseqs(organizationId: string, dseqs: readonly string[]): Promise<Map<string, NamedDeploymentFiling>> {
+    const filings = new Map<string, NamedDeploymentFiling>();
 
     for (const batch of chunk([...new Set(dseqs)], DSEQ_LOOKUP_BATCH_SIZE)) {
       const rows = await this.cursor
-        .select({ dseq: this.table.dseq, projectId: this.table.projectId })
+        .select({ dseq: this.table.dseq, projectId: this.table.projectId, name: this.table.name })
         .from(this.table)
         .where(this.whereInOrganization(and(eq(this.table.organizationId, organizationId), inArray(this.table.dseq, batch))))
         .orderBy(asc(this.table.createdAt), asc(this.table.id));
 
-      for (const { dseq, projectId } of rows) {
-        if (!projectIds.has(dseq)) projectIds.set(dseq, projectId);
+      for (const { dseq, projectId, name } of rows) {
+        if (!filings.has(dseq)) filings.set(dseq, { projectId, name });
       }
     }
 
-    return projectIds;
+    return filings;
   }
 
   /** Read from the older row of a shared dseq like {@link findProjectIdsInOrganizationByDseqs}, with the address of the wallet that owns the deployment on chain. */

@@ -2,11 +2,14 @@ import { QueryTypes, type Sequelize } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
 import { CHAIN_DB } from "@src/chain/providers/sequelize.provider";
+import { averageBlockTime } from "@src/utils/constants";
 
 /** Micro-USD amounts as numeric text, so nothing is rounded before a caller sums whole cents. */
 export type DeploymentConsumption = { owner: string; dseq: string; settledMicroUsd: string; accruedMicroUsd: string };
 
 export type DeploymentDeposited = { owner: string; dseq: string; depositedMicroUsd: string };
+
+export type DailyDeploymentConsumption = { dseq: string; date: string; consumedMicroUsd: string; hours: number };
 
 export type LandingWindow = { since: Date; until: Date };
 
@@ -79,6 +82,58 @@ export class DeploymentSpendRepository {
       FROM spans
       GROUP BY owner, dseq`,
       { type: QueryTypes.SELECT, replacements: { owners, startDate, endDate } }
+    );
+  }
+
+  /** Lease cost per deployment per day, settled or not, and the hours it held a lease that day; parallel leases count their hours once. */
+  async findDailyConsumption({ owners, startDate, endDate }: { owners: string[]; startDate: string; endDate: string }): Promise<DailyDeploymentConsumption[]> {
+    if (!owners.length) return [];
+
+    return await this.#chainDb.query<DailyDeploymentConsumption>(
+      `/* deployment-spend:daily */
+      WITH days AS (
+        SELECT
+          d.date,
+          d."firstBlockHeight" AS first_height,
+          d."lastBlockHeightYet" AS last_height,
+          d."aktPrice" AS akt_price,
+          COALESCE(
+            EXTRACT(EPOCH FROM last_block.datetime - first_block.datetime) / NULLIF(d."lastBlockHeightYet" - d."firstBlockHeight", 0),
+            :averageBlockSeconds
+          ) AS seconds_per_block
+        FROM day d
+        LEFT JOIN block first_block ON first_block.height = d."firstBlockHeight"
+        LEFT JOIN block last_block ON last_block.height = d."lastBlockHeightYet"
+        WHERE d.date >= :startDate::date AND d.date <= :endDate::date
+      ),
+      leases AS (
+        SELECT l.dseq, l.denom, l.price, l."createdHeight" AS created_height, COALESCE(l."closedHeight", l."predictedClosedHeight") AS end_height
+        FROM lease l
+        WHERE l.owner IN (:owners)
+          AND l."createdHeight" < (SELECT MAX(last_height) FROM days)
+          AND COALESCE(l."closedHeight", l."predictedClosedHeight") > (SELECT MIN(first_height) FROM days)
+      ),
+      spans AS (
+        SELECT
+          l.dseq,
+          d.date,
+          d.seconds_per_block,
+          l.denom,
+          l.price,
+          d.akt_price,
+          LEAST(d.last_height, l.end_height) - GREATEST(d.first_height, l.created_height) AS blocks
+        FROM leases l
+        INNER JOIN days d ON l.created_height < d.last_height AND l.end_height > d.first_height
+      )
+      SELECT
+        dseq,
+        to_char(date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
+        SUM(price * blocks * ${MICRO_USD_PER_UNIT})::text AS "consumedMicroUsd",
+        (MAX(blocks) * seconds_per_block / 3600)::float8 AS hours
+      FROM spans
+      GROUP BY dseq, date, seconds_per_block
+      ORDER BY date, dseq`,
+      { type: QueryTypes.SELECT, replacements: { owners, startDate, endDate, averageBlockSeconds: averageBlockTime } }
     );
   }
 

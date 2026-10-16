@@ -5,13 +5,13 @@ import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
-import { DeploymentSpendRepository } from "@src/billing/repositories/deployment-spend/deployment-spend.repository";
+import { type DailyDeploymentConsumption, DeploymentSpendRepository } from "@src/billing/repositories/deployment-spend/deployment-spend.repository";
 import { WALLET_MIGRATION_DATE } from "@src/billing/repositories/usage/usage.repository";
 import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
-import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentSettingRepository, type NamedDeploymentFiling } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { type ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 
 export type SpendRange = { startDate: string; endDate: string };
@@ -27,7 +27,20 @@ export type ProjectSpendReport = SpendRange & {
   total: SpendAmounts | null;
 };
 
+export type DailyProjectSpend = { date: string; projectId: string | null; consumedCents: number };
+
+export type DeploymentSpend = { dseq: string; name: string | null; projectId: string | null; consumedCents: number; hours: number };
+
+/** Deployments filed in no project show only to a caller who may see the whole organization's spend. */
+export type DeploymentSpendReport = SpendRange & {
+  projects: ProjectOutput[];
+  days: DailyProjectSpend[];
+  deployments: DeploymentSpend[];
+};
+
 type SpendByProject = Map<string | null, SpendAmounts>;
+
+type VisibleProjects = { seesOrganization: boolean; projects: ProjectOutput[] };
 
 const MICRO_USD_PER_CENT = 10_000;
 
@@ -53,11 +66,7 @@ export class ProjectSpendService {
 
   async report(range: SpendRange): Promise<ProjectSpendReport> {
     const organizationId = this.#activeOrganizationId();
-    const ability = this.authService.ability;
-    const seesOrganization = ability.can("read", subject("OrganizationSpend", { organizationId }));
-    const projects = (await this.projectRepository.find({ organizationId })).filter(({ id }) =>
-      ability.can("read", subject("ProjectSpend", { organizationId, projectId: id }))
-    );
+    const { seesOrganization, projects } = await this.#visibleProjects(organizationId);
 
     if (!seesOrganization && !projects.length) {
       return { ...range, projects: [], unassigned: null, total: null };
@@ -67,13 +76,51 @@ export class ProjectSpendService {
 
     return {
       ...range,
-      projects: projects
-        .filter(({ id, deletedAt }) => !deletedAt || spend.has(id))
-        .sort(byListingOrder)
-        .map(project => ({ project, ...(spend.get(project.id) ?? NO_SPEND) })),
+      projects: listedProjects(projects, spend).map(project => ({ project, ...(spend.get(project.id) ?? NO_SPEND) })),
       unassigned: seesOrganization ? spend.get(null) ?? NO_SPEND : null,
       total: seesOrganization ? [...spend.values()].reduce(addSpend, NO_SPEND) : null
     };
+  }
+
+  /** What each deployment the caller can see consumed over the range, with each project's share of every day. */
+  async breakdown(range: SpendRange): Promise<DeploymentSpendReport> {
+    const organizationId = this.#activeOrganizationId();
+    const { seesOrganization, projects } = await this.#visibleProjects(organizationId);
+
+    if (!seesOrganization && !projects.length) {
+      return { ...range, projects: [], days: [], deployments: [] };
+    }
+
+    const consumption = await this.deploymentSpendRepository.findDailyConsumption({ owners: await this.#ownersOf(organizationId), ...range });
+    const filings = await this.deploymentSettingRepository.findNamedFilingsInOrganizationByDseqs(
+      organizationId,
+      consumption.map(({ dseq }) => dseq)
+    );
+    const visibleProjectIds = new Set(projects.map(({ id }) => id));
+    const projectIdOf = (dseq: string) => filings.get(dseq)?.projectId ?? null;
+    const visible = consumption.filter(({ dseq }) => {
+      const projectId = projectIdOf(dseq);
+
+      return projectId ? visibleProjectIds.has(projectId) : seesOrganization;
+    });
+    const deployments = deploymentSpendOf(visible, filings);
+
+    return {
+      ...range,
+      projects: listedProjects(projects, new Set(deployments.map(({ projectId }) => projectId))),
+      days: dailyProjectSpendOf(visible, projectIdOf),
+      deployments
+    };
+  }
+
+  async #visibleProjects(organizationId: string): Promise<VisibleProjects> {
+    const ability = this.authService.ability;
+    const seesOrganization = ability.can("read", subject("OrganizationSpend", { organizationId }));
+    const projects = (await this.projectRepository.find({ organizationId })).filter(({ id }) =>
+      ability.can("read", subject("ProjectSpend", { organizationId, projectId: id }))
+    );
+
+    return { seesOrganization, projects };
   }
 
   /** Every figure is rounded to whole cents per deployment before it is summed, so the projects and the remainder add up to the total exactly. */
@@ -132,8 +179,48 @@ export class ProjectSpendService {
   }
 }
 
-function toCents(microUsd: string): number {
+function toCents(microUsd: string | number): number {
   return Math.round(Number(microUsd) / MICRO_USD_PER_CENT);
+}
+
+function deploymentSpendOf(consumption: DailyDeploymentConsumption[], filings: Map<string, NamedDeploymentFiling>): DeploymentSpend[] {
+  const totals = new Map<string, { microUsd: number; hours: number }>();
+
+  consumption.forEach(({ dseq, consumedMicroUsd, hours }) => {
+    const total = totals.get(dseq) ?? { microUsd: 0, hours: 0 };
+    totals.set(dseq, { microUsd: total.microUsd + Number(consumedMicroUsd), hours: total.hours + hours });
+  });
+
+  return [...totals]
+    .map(([dseq, { microUsd, hours }]) => ({
+      dseq,
+      name: filings.get(dseq)?.name ?? null,
+      projectId: filings.get(dseq)?.projectId ?? null,
+      consumedCents: toCents(microUsd),
+      hours: Math.round(hours * 100) / 100
+    }))
+    .sort((left, right) => right.consumedCents - left.consumedCents || left.dseq.localeCompare(right.dseq));
+}
+
+/** A project's deployments are summed before the day is rounded, so many small ones still add up to the cents they cost together. */
+function dailyProjectSpendOf(consumption: DailyDeploymentConsumption[], projectIdOf: (dseq: string) => string | null): DailyProjectSpend[] {
+  const days = new Map<string, { date: string; projectId: string | null; microUsd: number }>();
+
+  consumption.forEach(({ dseq, date, consumedMicroUsd }) => {
+    const projectId = projectIdOf(dseq);
+    const key = `${date}/${projectId}`;
+    const day = days.get(key) ?? { date, projectId, microUsd: 0 };
+    days.set(key, { ...day, microUsd: day.microUsd + Number(consumedMicroUsd) });
+  });
+
+  return [...days.values()]
+    .map(({ date, projectId, microUsd }) => ({ date, projectId, consumedCents: toCents(microUsd) }))
+    .filter(({ consumedCents }) => consumedCents > 0);
+}
+
+/** A deleted project shows only while it has spend to account for. */
+function listedProjects(projects: ProjectOutput[], projectIdsWithSpend: { has: (projectId: string) => boolean }): ProjectOutput[] {
+  return projects.filter(({ id, deletedAt }) => !deletedAt || projectIdsWithSpend.has(id)).sort(byListingOrder);
 }
 
 function addSpend(spend: SpendAmounts, amounts: Partial<SpendAmounts>): SpendAmounts {
