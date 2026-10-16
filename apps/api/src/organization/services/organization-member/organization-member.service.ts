@@ -5,6 +5,7 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { effectiveProjectAccessOf } from "@src/organization/lib/project-access/project-access";
 import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { GRANT_HOLDING_ORGANIZATION_ROLES } from "@src/organization/model-schemas/project-member/project-member.schema";
 import {
@@ -12,8 +13,10 @@ import {
   OrganizationMemberRepository,
   type OrganizationMemberWithUser
 } from "@src/organization/repositories/organization-member/organization-member.repository";
-import { ProjectMemberRepository } from "@src/organization/repositories/project-member/project-member.repository";
+import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
+import { type ProjectGrantOfMember, ProjectMemberRepository } from "@src/organization/repositories/project-member/project-member.repository";
 import { DepartedMemberAlertsService } from "@src/organization/services/departed-member-alerts/departed-member-alerts.service";
+import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 
 export const LAST_OWNER_ERROR_CODE = "last_owner";
@@ -22,11 +25,16 @@ export const PERSONAL_ORGANIZATION_ERROR_CODE = "personal_organization";
 export const OWNER_CANNOT_LEAVE_ERROR_CODE = "owner_cannot_leave";
 export const PROJECT_ACCESS_REQUIRED_ERROR_CODE = "project_access_required";
 
+const NO_PROJECT_GRANT_MESSAGE = "A member or viewer with access to specific projects needs at least one project grant";
+
 type MemberAction = "read" | "update" | "delete";
 
-export interface MemberRoleChange {
-  role: OrganizationRole;
+type MemberAccess = { role: OrganizationRole; projectAccess: ProjectAccess; projectGrants?: ProjectGrantOfMember[] };
+
+export interface MemberChange {
+  role?: OrganizationRole;
   projectAccess?: ProjectAccess;
+  projectGrants?: ProjectGrantOfMember[];
 }
 
 @singleton()
@@ -34,6 +42,8 @@ export class OrganizationMemberService {
   constructor(
     private readonly organizationMemberRepository: OrganizationMemberRepository,
     private readonly projectMemberRepository: ProjectMemberRepository,
+    private readonly projectRepository: ProjectRepository,
+    private readonly organizationActivityService: OrganizationActivityService,
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
     private readonly txService: TxService,
@@ -46,28 +56,42 @@ export class OrganizationMemberService {
     return await this.#repositoryFor("read").findAllWithUsers(organizationId);
   }
 
-  async updateRole(id: OrganizationMemberOutput["id"], { role, projectAccess: requestedAccess }: MemberRoleChange): Promise<OrganizationMemberWithUser> {
+  async listProjectGrantsOf(id: OrganizationMemberOutput["id"]): Promise<ProjectGrantOfMember[]> {
+    const { organizationId } = this.#activeOrganization();
+    const member = await this.#findMember(id);
+
+    return await this.projectMemberRepository.accessibleBy(this.authService.ability, "read").findLiveGrantsOf(organizationId, member.userId);
+  }
+
+  /** Changes the role, the project access and the grants together, so a failure leaves all three as they were. */
+  async update(id: OrganizationMemberOutput["id"], change: MemberChange): Promise<OrganizationMemberWithUser> {
     const { organizationId } = this.#activeTeamOrganization();
 
-    await this.txService.transaction(async () => {
+    return await this.txService.transaction(async () => {
       const owners = await this.organizationMemberRepository.lockOwners(organizationId);
       const member = await this.#findMember(id);
+      const role = change.role ?? member.role;
       this.#assertOwnerRoleUntouchedByNonOwner(owners, [member.role, role]);
 
       if (member.role === "owner" && role !== "owner") {
         await this.assertAnotherOwnerRemains(organizationId, member.userId);
       }
 
-      const projectAccess = projectAccessAfterRoleChange(member, role, requestedAccess);
+      const access = { role, projectAccess: projectAccessAfterChange(member, role, change.projectAccess), projectGrants: change.projectGrants };
+      await this.#assertProjectAccessValid(member, access);
 
-      if (holdsProjectGrants(role) && projectAccess === "selected") {
-        await this.#assertHoldsAProjectGrant(member);
-      }
+      await this.#repositoryFor("update").updateById(member.id, { role, projectAccess: access.projectAccess });
+      await this.#applyProjectGrants(member, access);
+      const updated = await this.#findMemberWithUser(id);
+      await this.organizationActivityService.record({
+        organizationId,
+        type: "member_updated",
+        actorUserId: this.authService.currentUser.id,
+        payload: { userId: updated.userId, username: updated.username, role, projectAccess: effectiveProjectAccessOf(role, access.projectAccess) }
+      });
 
-      await this.#repositoryFor("update").updateById(member.id, { role, projectAccess });
+      return updated;
     });
-
-    return await this.#findMemberWithUser(id);
   }
 
   async removeMember(id: OrganizationMemberOutput["id"]): Promise<void> {
@@ -146,10 +170,40 @@ export class OrganizationMemberService {
     await this.departedMemberAlertsService.stopTeamAlertsTo(member.userId, organizationId);
   }
 
+  async #assertProjectAccessValid(member: OrganizationMemberOutput, { role, projectAccess, projectGrants }: MemberAccess): Promise<void> {
+    const reachesSpecificProjects = holdsProjectGrants(role) && projectAccess === "selected";
+
+    if (projectGrants) {
+      assert(reachesSpecificProjects, 400, "Project grants only apply to a member or viewer with access to specific projects");
+      assert(projectGrants.length > 0, 400, NO_PROJECT_GRANT_MESSAGE);
+      await this.#assertLiveProjects(member.organizationId, projectGrants);
+    } else if (reachesSpecificProjects) {
+      await this.#assertHoldsAProjectGrant(member);
+    }
+  }
+
+  async #assertLiveProjects(organizationId: string, projectGrants: ProjectGrantOfMember[]): Promise<void> {
+    const projectIds = projectGrants.map(grant => grant.projectId);
+    const liveProjectIds = await this.projectRepository.accessibleBy(this.authService.ability, "read").findActiveIdsAmong(organizationId, projectIds);
+    assert(liveProjectIds.length === projectIds.length, 400, "Every project grant must name a live project of the organization");
+  }
+
   /** Reads the grants across the organization, since a request narrowed to one project would hide the ones held in others. */
   async #assertHoldsAProjectGrant({ organizationId, userId }: OrganizationMemberOutput): Promise<void> {
     const grants = await this.projectMemberRepository.unscoped("member-access-validation").findLiveGrantsOf(organizationId, userId);
-    assert(grants.length > 0, 400, "A member or viewer with access to specific projects needs at least one project grant");
+    assert(grants.length > 0, 400, NO_PROJECT_GRANT_MESSAGE);
+  }
+
+  async #applyProjectGrants({ organizationId, userId }: OrganizationMemberOutput, { role, projectAccess, projectGrants }: MemberAccess): Promise<void> {
+    if (!holdsProjectGrants(role)) return;
+
+    const grantRepository = this.projectMemberRepository.accessibleBy(this.authService.ability, "update");
+
+    if (projectAccess === "all") {
+      await grantRepository.deleteGrantsBelowAdminOf({ organizationId, userId });
+    } else if (projectGrants) {
+      await grantRepository.replaceGrantsOf({ organizationId, userId }, projectGrants);
+    }
   }
 
   #assertOwnerRoleUntouchedByNonOwner(owners: OrganizationMemberOutput[], roles: OrganizationRole[]) {
@@ -201,7 +255,7 @@ export function projectAccessRequired(message: string) {
 }
 
 /** Moving someone into member or viewer from a role that ignores project access must say how far they reach, so access is never silently widened or emptied. */
-function projectAccessAfterRoleChange(member: OrganizationMemberOutput, role: OrganizationRole, requested: ProjectAccess | undefined): ProjectAccess {
+function projectAccessAfterChange(member: OrganizationMemberOutput, role: OrganizationRole, requested: ProjectAccess | undefined): ProjectAccess {
   if (!holdsProjectGrants(role)) return member.projectAccess;
   if (requested) return requested;
   if (holdsProjectGrants(member.role)) return member.projectAccess;

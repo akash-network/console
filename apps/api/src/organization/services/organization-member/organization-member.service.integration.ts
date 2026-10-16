@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { container } from "tsyringe";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { type ApiPgDatabase, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
@@ -15,6 +15,7 @@ import {
   StopTeamAlertsToDepartedMember,
   StopTeamAlertsToDepartedMemberHandler
 } from "@src/organization/services/departed-member-alerts/stop-team-alerts-to-departed-member.handler";
+import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import type { UserOutput } from "@src/user/repositories";
 import {
   LAST_OWNER_ERROR_CODE,
@@ -24,7 +25,7 @@ import {
 } from "./organization-member.service";
 
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganizationMember, seedOrganizationWithOwner, seedProjectMember } from "@test/seeders/db/organization.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
@@ -75,16 +76,16 @@ describe(OrganizationMemberService.name, () => {
     });
   });
 
-  describe("updateRole", () => {
+  describe("update", () => {
     it("keeps the last owner when the last two owners step down at the same time", async () => {
       const { service, repository, txService, organization, owners, runAs } = await setup();
 
       const first = txService.transaction(async () => {
-        await runAs(owners[0].user, "owner", () => service.updateRole(owners[0].membership.id, { role: "admin" }));
+        await runAs(owners[0].user, "owner", () => service.update(owners[0].membership.id, { role: "admin" }));
         await delay(200);
       });
       await delay(50);
-      const second = runAs(owners[1].user, "owner", () => service.updateRole(owners[1].membership.id, { role: "admin" }));
+      const second = runAs(owners[1].user, "owner", () => service.update(owners[1].membership.id, { role: "admin" }));
 
       await expect(first).resolves.toBeUndefined();
       await expect(second).rejects.toMatchObject({ status: 409, errorCode: LAST_OWNER_ERROR_CODE });
@@ -96,16 +97,50 @@ describe(OrganizationMemberService.name, () => {
       const { service, repository, txService, organization, owners, runAs } = await setup();
 
       const first = txService.transaction(async () => {
-        await runAs(owners[0].user, "owner", () => service.updateRole(owners[1].membership.id, { role: "admin" }));
+        await runAs(owners[0].user, "owner", () => service.update(owners[1].membership.id, { role: "admin" }));
         await delay(200);
       });
       await delay(50);
-      const second = runAs(owners[1].user, "owner", () => service.updateRole(owners[0].membership.id, { role: "admin" }));
+      const second = runAs(owners[1].user, "owner", () => service.update(owners[0].membership.id, { role: "admin" }));
 
       await expect(first).resolves.toBeUndefined();
       await expect(second).rejects.toMatchObject({ status: 403, errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE });
       expect(await repository.findById(owners[0].membership.id)).toMatchObject({ role: "owner" });
       expect(await repository.count({ organizationId: organization.id, role: "owner" })).toBe(1);
+    });
+
+    it("changes the role, the project access and the grants together and records the change", async () => {
+      const { service, repository, organization, project, owners, runAs } = await setup();
+      const { member, membership, otherProject } = await seedMemberOnSpecificProjects({ organizationId: organization.id, projectId: project.id });
+
+      await runAs(owners[0].user, "owner", () =>
+        service.update(membership.id, { role: "viewer", projectAccess: "selected", projectGrants: [{ projectId: otherProject.id, role: "admin" }] })
+      );
+
+      expect(await repository.findById(membership.id)).toMatchObject({ role: "viewer", projectAccess: "selected" });
+      expect(await grantsOf(organization.id, member.id)).toEqual([{ projectId: otherProject.id, role: "admin" }]);
+      expect(await activitiesOf(organization.id)).toEqual([
+        expect.objectContaining({
+          actorUserId: owners[0].user.id,
+          payload: { userId: member.id, username: member.username, role: "viewer", projectAccess: "selected" }
+        })
+      ]);
+    });
+
+    it("leaves the role, the project access and the grants as they were when recording the change fails", async () => {
+      const { service, repository, organization, project, owners, runAs } = await setup();
+      const { member, membership, otherProject } = await seedMemberOnSpecificProjects({ organizationId: organization.id, projectId: project.id });
+      vi.spyOn(container.resolve(OrganizationActivityService), "record").mockRejectedValueOnce(new Error("activity store unavailable"));
+
+      await expect(
+        runAs(owners[0].user, "owner", () =>
+          service.update(membership.id, { role: "viewer", projectAccess: "selected", projectGrants: [{ projectId: otherProject.id, role: "admin" }] })
+        )
+      ).rejects.toThrow("activity store unavailable");
+
+      expect(await repository.findById(membership.id)).toMatchObject({ role: "member", projectAccess: "selected" });
+      expect(await grantsOf(organization.id, member.id)).toEqual([{ projectId: project.id, role: "member" }]);
+      expect(await activitiesOf(organization.id)).toEqual([]);
     });
 
     it("refuses to let an admin promote a member to owner", async () => {
@@ -114,7 +149,7 @@ describe(OrganizationMemberService.name, () => {
       await seedOrganizationMember({ organizationId: organization.id, userId: admin.id, role: "admin" });
       const membership = await seedOrganizationMember({ organizationId: organization.id, userId: member.id, role: "member" });
 
-      await expect(runAs(admin, "admin", () => service.updateRole(membership.id, { role: "owner" }))).rejects.toMatchObject({
+      await expect(runAs(admin, "admin", () => service.update(membership.id, { role: "owner" }))).rejects.toMatchObject({
         status: 403,
         errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE
       });
@@ -227,6 +262,35 @@ describe(OrganizationMemberService.name, () => {
       expect(await repository.count({ organizationId: organization.id, role: "owner" })).toBe(1);
     });
   });
+
+  async function seedMemberOnSpecificProjects({ organizationId, projectId }: { organizationId: string; projectId: string }) {
+    const member = await seedUser({ username: faker.internet.userName() });
+    const membership = await seedOrganizationMember({ organizationId, userId: member.id, role: "member", projectAccess: "selected" });
+    const otherProject = await seedProject({ organizationId });
+    await seedProjectMember({ organizationId, projectId, userId: member.id, role: "member" });
+
+    return { member, membership, otherProject };
+  }
+
+  async function grantsOf(organizationId: string, userId: string) {
+    const ProjectMembers = resolveTable("ProjectMembers");
+
+    return await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .select({ projectId: ProjectMembers.projectId, role: ProjectMembers.role })
+      .from(ProjectMembers)
+      .where(and(eq(ProjectMembers.organizationId, organizationId), eq(ProjectMembers.userId, userId)));
+  }
+
+  async function activitiesOf(organizationId: string) {
+    const OrganizationActivities = resolveTable("OrganizationActivities");
+
+    return await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .select()
+      .from(OrganizationActivities)
+      .where(and(eq(OrganizationActivities.organizationId, organizationId), eq(OrganizationActivities.type, "member_updated")));
+  }
 
   async function setup() {
     await jobWorkers();

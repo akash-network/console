@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, notInArray, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -59,6 +59,38 @@ export class ProjectMemberRepository extends OrgScopedRepository<Table, ProjectM
       .returning();
 
     return created && this.toOutput(created);
+  }
+
+  /** Leaves the user exactly the given grants in the organization: the others are removed, and the given ones created or changed to the given role. */
+  async replaceGrantsOf({ organizationId, userId }: Pick<ProjectMemberInput, "organizationId" | "userId">, grants: ProjectGrantOfMember[]): Promise<void> {
+    const projectIds = grants.map(grant => grant.projectId);
+    await this.cursor
+      .delete(this.table)
+      .where(
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.organizationId, organizationId),
+            eq(this.table.userId, userId),
+            projectIds.length > 0 ? notInArray(this.table.projectId, projectIds) : undefined
+          )
+        )
+      );
+
+    if (grants.length === 0) return;
+
+    const values = await Promise.all(grants.map(({ projectId, role }) => this.attributeToOrganization({ organizationId, userId, projectId, role })));
+    values.forEach(value => this.ability?.throwUnlessCanExecute(value));
+    await this.cursor
+      .insert(this.table)
+      .values(values)
+      .onConflictDoUpdate({ target: [this.table.projectId, this.table.userId], set: { role: sql`excluded.role`, updatedAt: sql`now()` } });
+  }
+
+  /** Keeps the project-admin grants, which add rights on top of reaching every project. */
+  async deleteGrantsBelowAdminOf({ organizationId, userId }: Pick<ProjectMemberInput, "organizationId" | "userId">): Promise<void> {
+    await this.cursor
+      .delete(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.organizationId, organizationId), eq(this.table.userId, userId), ne(this.table.role, "admin"))));
   }
 
   /** Every grant the user holds on a live project of the organization, whatever their organization role. */

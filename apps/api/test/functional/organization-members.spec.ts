@@ -5,13 +5,21 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
-import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { type OrganizationMemberOutput, OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { app } from "@src/rest-app";
 import type { UserOutput } from "@src/user/repositories";
 
 import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
+
+const SHOWN_PROJECT_ACCESS: Record<OrganizationRole, { projectAccess: ProjectAccess | null; projectCount: number | null }> = {
+  owner: { projectAccess: "all", projectCount: null },
+  admin: { projectAccess: "all", projectCount: null },
+  member: { projectAccess: "selected", projectCount: 0 },
+  billing: { projectAccess: null, projectCount: null },
+  viewer: { projectAccess: "selected", projectCount: 0 }
+};
 
 describe("Organization members", () => {
   const memberRepository = container.resolve(OrganizationMemberRepository);
@@ -41,11 +49,26 @@ describe("Organization members", () => {
             username: user.username,
             email: user.email,
             role: membershipOf(user).role,
+            ...SHOWN_PROJECT_ACCESS[membershipOf(user).role],
             createdAt: membershipOf(user).createdAt.toISOString()
           }))
         });
       }
     );
+
+    it("counts the live projects a member on specific projects is granted", async () => {
+      const { organization, owner, target, request } = await setup({ callerRole: "owner", targetRole: "member" });
+      const [live, deleted] = await Promise.all([
+        seedProject({ organizationId: organization.id }),
+        seedProject({ organizationId: organization.id, deletedAt: new Date() })
+      ]);
+      await seedProjectMember({ organizationId: organization.id, projectId: live.id, userId: target.id });
+      await seedProjectMember({ organizationId: organization.id, projectId: deleted.id, userId: target.id });
+
+      const response = await request("GET", "/v1/organization-members", { asUser: owner, organizationId: organization.id });
+
+      expect(await response.json()).toMatchObject({ data: expect.arrayContaining([expect.objectContaining({ userId: target.id, projectCount: 1 })]) });
+    });
 
     it("answers like an unknown path while organizations are off for the caller", async () => {
       const { organization, owner, request } = await setup({ callerRole: "owner", organizationsOn: false });
@@ -74,10 +97,88 @@ describe("Organization members", () => {
           username: target.username,
           email: target.email,
           role: "admin",
+          projectAccess: "all",
+          projectCount: null,
           createdAt: membershipOf(target).createdAt.toISOString()
         }
       });
       expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role: "admin" });
+    });
+
+    it("replaces the project grants of a member on specific projects", async () => {
+      const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: "member" });
+      const [dropped, granted] = await Promise.all([seedProject({ organizationId: organization.id }), seedProject({ organizationId: organization.id })]);
+      await seedProjectMember({ organizationId: organization.id, projectId: dropped.id, userId: target.id, role: "member" });
+
+      const response = await request("PATCH", `/v1/organization-members/${membershipOf(target).id}`, {
+        asUser: owner,
+        organizationId: organization.id,
+        body: { data: { projectGrants: [{ projectId: granted.id, role: "viewer" }] } }
+      });
+      const grants = await request("GET", `/v1/organization-members/${membershipOf(target).id}/project-grants`, {
+        asUser: owner,
+        organizationId: organization.id
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: { role: "member", projectAccess: "selected", projectCount: 1 } });
+      expect(await grants.json()).toEqual({ data: [{ projectId: granted.id, role: "viewer" }] });
+    });
+
+    it("switches a member to every project, dropping their member grants and keeping their admin ones", async () => {
+      const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: "member" });
+      const [used, administered] = await Promise.all([seedProject({ organizationId: organization.id }), seedProject({ organizationId: organization.id })]);
+      await seedProjectMember({ organizationId: organization.id, projectId: used.id, userId: target.id, role: "member" });
+      await seedProjectMember({ organizationId: organization.id, projectId: administered.id, userId: target.id, role: "admin" });
+
+      const response = await request("PATCH", `/v1/organization-members/${membershipOf(target).id}`, {
+        asUser: owner,
+        organizationId: organization.id,
+        body: { data: { projectAccess: "all" } }
+      });
+      const grants = await request("GET", `/v1/organization-members/${membershipOf(target).id}/project-grants`, {
+        asUser: owner,
+        organizationId: organization.id
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: { role: "member", projectAccess: "all", projectCount: null } });
+      expect(await grants.json()).toEqual({ data: [{ projectId: administered.id, role: "admin" }] });
+    });
+
+    it("changes neither the role nor the grants when a grant names a deleted project", async () => {
+      const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: "member" });
+      const [kept, deleted] = await Promise.all([
+        seedProject({ organizationId: organization.id }),
+        seedProject({ organizationId: organization.id, deletedAt: new Date() })
+      ]);
+      await seedProjectMember({ organizationId: organization.id, projectId: kept.id, userId: target.id, role: "member" });
+
+      const response = await request("PATCH", `/v1/organization-members/${membershipOf(target).id}`, {
+        asUser: owner,
+        organizationId: organization.id,
+        body: { data: { role: "viewer", projectGrants: [{ projectId: deleted.id, role: "viewer" }] } }
+      });
+      const grants = await request("GET", `/v1/organization-members/${membershipOf(target).id}/project-grants`, {
+        asUser: owner,
+        organizationId: organization.id
+      });
+
+      expect(response.status).toBe(400);
+      expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role: "member" });
+      expect(await grants.json()).toEqual({ data: [{ projectId: kept.id, role: "member" }] });
+    });
+
+    it("rejects a request that changes nothing", async () => {
+      const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: "member" });
+
+      const response = await request("PATCH", `/v1/organization-members/${membershipOf(target).id}`, {
+        asUser: owner,
+        organizationId: organization.id,
+        body: { data: {} }
+      });
+
+      expect(response.status).toBe(400);
     });
 
     it.each<OrganizationRole>(["member", "billing", "viewer"])("refuses a caller with role %s", async role => {
@@ -258,6 +359,64 @@ describe("Organization members", () => {
 
       expect(response.status).toBe(400);
       expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role: "member" });
+    });
+  });
+
+  describe("GET /v1/organization-members/{id}/project-grants", () => {
+    it.each<OrganizationRole>(["owner", "admin"])("lists a member's grants on live projects, oldest first, to a caller with role %s", async role => {
+      const { organization, caller, target, membershipOf, request } = await setup({ callerRole: role, targetRole: "viewer" });
+      const [first, second, deleted] = await Promise.all([
+        seedProject({ organizationId: organization.id }),
+        seedProject({ organizationId: organization.id }),
+        seedProject({ organizationId: organization.id, deletedAt: new Date() })
+      ]);
+      await seedProjectMember({ organizationId: organization.id, projectId: first.id, userId: target.id, role: "admin" });
+      await seedProjectMember({ organizationId: organization.id, projectId: deleted.id, userId: target.id, role: "viewer" });
+      await seedProjectMember({ organizationId: organization.id, projectId: second.id, userId: target.id, role: "viewer" });
+
+      const response = await request("GET", `/v1/organization-members/${membershipOf(target).id}/project-grants`, {
+        asUser: caller,
+        organizationId: organization.id
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        data: [
+          { projectId: first.id, role: "admin" },
+          { projectId: second.id, role: "viewer" }
+        ]
+      });
+    });
+
+    it.each<OrganizationRole>(["member", "billing", "viewer"])("refuses a caller with role %s", async role => {
+      const { organization, caller, target, membershipOf, request } = await setup({ callerRole: role, targetRole: "member" });
+
+      const response = await request("GET", `/v1/organization-members/${membershipOf(target).id}/project-grants`, {
+        asUser: caller,
+        organizationId: organization.id
+      });
+
+      expect(response.status).toBe(403);
+    });
+
+    it("answers not found for a member of another organization", async () => {
+      const { organization, owner, request } = await setup({ callerRole: "owner" });
+      const { membership: foreign } = await seedOrganizationWithOwner();
+
+      const response = await request("GET", `/v1/organization-members/${foreign.id}/project-grants`, { asUser: owner, organizationId: organization.id });
+
+      expect(response.status).toBe(404);
+    });
+
+    it("answers like an unknown path while organizations are off for the caller", async () => {
+      const { organization, owner, target, membershipOf, request } = await setup({ callerRole: "owner", targetRole: "member", organizationsOn: false });
+
+      const response = await request("GET", `/v1/organization-members/${membershipOf(target).id}/project-grants`, {
+        asUser: owner,
+        organizationId: organization.id
+      });
+
+      expect(response.status).toBe(404);
     });
   });
 

@@ -1,17 +1,11 @@
 import { z } from "@hono/zod-openapi";
 
-import { ProjectAccessSchema } from "@src/organization/http-schemas/organization-member.schema";
+import { ProjectAccessSchema, ProjectGrantSchema, ProjectGrantsSchema } from "@src/organization/http-schemas/organization-member.schema";
 import { organizationRoleEnum } from "@src/organization/model-schemas/organization-member/organization-member.schema";
-import { projectRoleEnum } from "@src/organization/model-schemas/project-member/project-member.schema";
 
 export const MAX_INVITATION_EMAILS_PER_REQUEST = 20;
 
 const OrganizationRoleSchema = z.enum(organizationRoleEnum.enumValues);
-
-const ProjectGrantSchema = z.object({
-  projectId: z.string().uuid(),
-  role: z.enum(projectRoleEnum.enumValues)
-});
 
 export const OrganizationInvitationSchema = z.object({
   id: z.string().uuid(),
@@ -40,10 +34,7 @@ export const CreateOrganizationInvitationsRequestSchema = z.object({
       description:
         "Required for a member or viewer invited without project grants, refused with `project_access_required` otherwise, and `selected` when grants are given. Ignored for owners, admins and billing members, who are stored as `all`."
     }),
-    projectGrants: z
-      .array(ProjectGrantSchema)
-      .refine(grants => new Set(grants.map(grant => grant.projectId)).size === grants.length, { message: "Each project can be granted only once" })
-      .optional()
+    projectGrants: ProjectGrantsSchema.optional()
   })
 });
 

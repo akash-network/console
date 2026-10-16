@@ -7,6 +7,8 @@ import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { Projects } from "@src/organization/model-schemas/project/project.schema";
+import { GRANT_HOLDING_ORGANIZATION_ROLES, ProjectMembers } from "@src/organization/model-schemas/project-member/project-member.schema";
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 import type { UserOutput } from "@src/user/repositories";
@@ -17,9 +19,11 @@ const BILLING_CONTACT_ROLES: OrganizationRole[] = ["owner", "billing"];
 export type OrganizationMemberInput = Table["$inferInsert"];
 export type OrganizationMemberOutput = Table["$inferSelect"];
 
-export type OrganizationMemberWithUser = Pick<OrganizationMemberOutput, "id" | "userId" | "role" | "createdAt"> & {
+/** `projectCount` counts the member's grants on live projects, whatever their role and project access. */
+export type OrganizationMemberWithUser = Pick<OrganizationMemberOutput, "id" | "userId" | "role" | "projectAccess" | "createdAt"> & {
   username: string | null;
   email: string | null;
+  projectCount: number;
 };
 
 export type OrganizationLookup = { id: string } | { slug: string } | { idOrSlug: string } | { type: "personal" };
@@ -89,15 +93,30 @@ export class OrganizationMemberRepository extends OrgScopedRepository<Table, Org
     return member;
   }
 
-  #selectWithUsers(where: SQL) {
+  /** The members and viewers who reach every project of the organization without a grant. */
+  async findWithAccessToEveryProject(organizationId: OrganizationMemberOutput["organizationId"]): Promise<OrganizationMemberWithUser[]> {
+    return await this.#selectWithUsers(
+      and(eq(this.table.organizationId, organizationId), eq(this.table.projectAccess, "all"), inArray(this.table.role, GRANT_HOLDING_ORGANIZATION_ROLES))
+    ).orderBy(asc(this.table.createdAt), asc(this.table.id));
+  }
+
+  #selectWithUsers(where: SQL | undefined) {
+    const projectCount = sql<number>`(
+      select count(*) from ${ProjectMembers}
+      inner join ${Projects} on ${Projects.organizationId} = ${ProjectMembers.organizationId} and ${Projects.id} = ${ProjectMembers.projectId}
+      where ${ProjectMembers.organizationId} = ${this.table.organizationId} and ${ProjectMembers.userId} = ${this.table.userId} and ${Projects.deletedAt} is null
+    )`.mapWith(Number);
+
     return this.cursor
       .select({
         id: this.table.id,
         userId: this.table.userId,
         role: this.table.role,
+        projectAccess: this.table.projectAccess,
         createdAt: this.table.createdAt,
         username: Users.username,
-        email: Users.email
+        email: Users.email,
+        projectCount
       })
       .from(this.table)
       .innerJoin(Users, eq(Users.id, this.table.userId))

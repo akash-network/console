@@ -6,6 +6,7 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { OrganizationMemberController } from "@src/organization/controllers/organization-member/organization-member.controller";
 import {
+  ListOrganizationMemberProjectGrantsResponseSchema,
   ListOrganizationMembersResponseSchema,
   OrganizationMemberParamsSchema,
   OrganizationMemberResponseSchema,
@@ -49,11 +50,37 @@ organizationMembersRouter.openapi(listOrganizationMembersRoute, async function r
   return c.json(await container.resolve(OrganizationMemberController).list(), 200);
 });
 
+const listOrganizationMemberProjectGrantsRoute = createRoute({
+  method: "get",
+  path: "/v1/organization-members/{id}/project-grants",
+  operationId: "listOrganizationMemberProjectGrants",
+  summary: "List the project grants of a member of the active organization, for an owner or admin editing them",
+  tags: ["Organizations"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  featureFlag: FeatureFlags.ORGANIZATIONS,
+  request: {
+    params: OrganizationMemberParamsSchema
+  },
+  responses: {
+    200: { description: "The member's project grants", content: { "application/json": { schema: ListOrganizationMemberProjectGrantsResponseSchema } } },
+    400: { description: "The organization header names another organization than the API key's (`organization_mismatch`)" },
+    401: { description: "Unauthorized" },
+    403: { description: "The caller is neither an owner nor an admin" },
+    404: { description: "No such member in the active organization" }
+  }
+});
+
+organizationMembersRouter.openapi(listOrganizationMemberProjectGrantsRoute, async function routeListOrganizationMemberProjectGrants(c) {
+  const { id } = c.req.valid("param");
+
+  return c.json(await container.resolve(OrganizationMemberController).listProjectGrants(id), 200);
+});
+
 const updateOrganizationMemberRoute = createRoute({
   method: "patch",
   path: "/v1/organization-members/{id}",
   operationId: "updateOrganizationMember",
-  summary: "Change the role and project access of a member of the active organization",
+  summary: "Change the role, project access and project grants of a member of the active organization, all together or not at all",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.ORGANIZATIONS,
@@ -66,7 +93,7 @@ const updateOrganizationMemberRoute = createRoute({
     ...memberWriteErrorResponses,
     400: {
       description:
-        "The request is invalid, someone becoming a member or viewer has no project access stated (`project_access_required`), a member or viewer on specific projects would hold no grant, or the organization header names another organization than the API key's (`organization_mismatch`)"
+        "The request is invalid, someone becoming a member or viewer has no project access stated (`project_access_required`), a member or viewer on specific projects would hold no grant, the grants name a project that is not live or someone they do not apply to, or the organization header names another organization than the API key's (`organization_mismatch`)"
     }
   }
 });

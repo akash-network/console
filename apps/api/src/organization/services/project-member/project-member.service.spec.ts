@@ -6,7 +6,10 @@ import { mock } from "vitest-mock-extended";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
-import type { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import type {
+  OrganizationMemberRepository,
+  OrganizationMemberWithUser
+} from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { ProjectMemberRepository } from "@src/organization/repositories/project-member/project-member.repository";
 import type { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
@@ -17,7 +20,7 @@ import {
   ProjectMemberService
 } from "./project-member.service";
 
-import { createOrganizationMember, createProject, createProjectMemberWithUser } from "@test/seeders/organization.seeder";
+import { createOrganizationMember, createOrganizationMemberWithUser, createProject, createProjectMemberWithUser } from "@test/seeders/organization.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
 describe(ProjectMemberService.name, () => {
@@ -25,13 +28,31 @@ describe(ProjectMemberService.name, () => {
     it("lists the grants of a live project the caller may read, through the caller's grant rules", async () => {
       const { service, projectRepository, projectMemberRepository, ability, project, grant } = setup();
 
-      const grants = await service.list(project.id);
+      const members = await service.list(project.id);
 
-      expect(grants).toEqual([grant]);
+      expect(members).toEqual({ grants: [grant], membersWithAllProjects: [] });
       expect(projectRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
       expect(projectRepository.findOneBy).toHaveBeenCalledWith({ id: project.id, deletedAt: null });
       expect(projectMemberRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
       expect(projectMemberRepository.findOfLiveProjects).toHaveBeenCalledWith({ projectId: project.id });
+    });
+
+    it("lists the members and viewers who reach every project, through the caller's member rules", async () => {
+      const everyProjectViewer = createOrganizationMemberWithUser({ role: "viewer", projectAccess: "all" });
+      const { service, organizationMemberRepository, ability, project, grant } = setup({ membersWithAllProjects: [everyProjectViewer] });
+
+      expect(await service.list(project.id)).toEqual({ grants: [grant], membersWithAllProjects: [everyProjectViewer] });
+      expect(organizationMemberRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
+      expect(organizationMemberRepository.findWithAccessToEveryProject).toHaveBeenCalledWith(project.organizationId);
+    });
+
+    it("lists someone who reaches every project and holds a grant on the project by their grant only", async () => {
+      const { service, organizationMemberRepository, project, grant } = setup();
+      organizationMemberRepository.findWithAccessToEveryProject.mockResolvedValue([
+        createOrganizationMemberWithUser({ userId: grant.userId, role: "member", projectAccess: "all" })
+      ]);
+
+      expect(await service.list(project.id)).toEqual({ grants: [grant], membersWithAllProjects: [] });
     });
 
     it("answers not found without listing when the caller may read no such project", async () => {
@@ -56,7 +77,7 @@ describe(ProjectMemberService.name, () => {
         grantRules: ({ organizationId, id }) => [{ action: "read", subject: "ProjectMember", conditions: { organizationId, projectId: id } }]
       });
 
-      expect(await service.list(project.id)).toEqual([grant]);
+      expect(await service.list(project.id)).toEqual({ grants: [grant], membersWithAllProjects: [] });
     });
   });
 
@@ -266,7 +287,13 @@ describe(ProjectMemberService.name, () => {
     });
   });
 
-  function setup(input: { targetRole?: OrganizationRole; grantRules?: (project: ProjectOutput) => RawRuleOf<MongoAbility>[] } = {}) {
+  function setup(
+    input: {
+      targetRole?: OrganizationRole;
+      grantRules?: (project: ProjectOutput) => RawRuleOf<MongoAbility>[];
+      membersWithAllProjects?: OrganizationMemberWithUser[];
+    } = {}
+  ) {
     const user = createUser();
     const project = createProject();
     const grantRules = input.grantRules ?? (({ organizationId }) => [{ action: "manage", subject: "ProjectMember", conditions: { organizationId } }]);
@@ -287,8 +314,10 @@ describe(ProjectMemberService.name, () => {
     const organizationMemberRepository = mock<OrganizationMemberRepository>({
       findOneByAndLock: vi
         .fn()
-        .mockResolvedValue(createOrganizationMember({ organizationId: project.organizationId, userId: grant.userId, role: input.targetRole ?? "member" }))
+        .mockResolvedValue(createOrganizationMember({ organizationId: project.organizationId, userId: grant.userId, role: input.targetRole ?? "member" })),
+      findWithAccessToEveryProject: vi.fn().mockResolvedValue(input.membersWithAllProjects ?? [])
     });
+    organizationMemberRepository.accessibleBy.mockReturnValue(organizationMemberRepository);
     const organizationActivityService = mock<OrganizationActivityService>();
     const authService = mock<AuthService>({ currentUser: user });
     authService.ability = ability;

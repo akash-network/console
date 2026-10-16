@@ -6,7 +6,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { TxService } from "@src/core/services/tx/tx.service";
 import { OrganizationMemberRepository } from "./organization-member.repository";
 
-import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
@@ -29,6 +29,51 @@ describe(OrganizationMemberRepository.name, () => {
       const created = await repository.createUnlessExists({ organizationId: organization.id, userId: user.id, role: "member" });
 
       expect(created).toMatchObject({ role: "member", projectAccess: "selected" });
+    });
+  });
+
+  describe("findAllWithUsers", () => {
+    it("lists each member with their stored project access and the number of live projects they are granted", async () => {
+      const { repository, organization, user } = await setup();
+      await seedOrganizationMember({ organizationId: organization.id, userId: user.id, role: "owner", projectAccess: "all" });
+      const member = await seedUser({ userId: faker.string.uuid() });
+      await seedOrganizationMember({ organizationId: organization.id, userId: member.id, role: "member" });
+      const live = await seedProject({ organizationId: organization.id });
+      const deleted = await seedProject({ organizationId: organization.id, deletedAt: new Date() });
+      const { organization: elsewhere, project: elsewhereProject } = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: elsewhere.id, userId: member.id, role: "member" });
+      await seedProjectMember({ organizationId: organization.id, projectId: live.id, userId: member.id });
+      await seedProjectMember({ organizationId: organization.id, projectId: deleted.id, userId: member.id });
+      await seedProjectMember({ organizationId: elsewhere.id, projectId: elsewhereProject.id, userId: member.id });
+
+      const members = await repository.findAllWithUsers(organization.id);
+
+      expect(members).toEqual([
+        expect.objectContaining({ userId: user.id, role: "owner", projectAccess: "all", projectCount: 0 }),
+        expect.objectContaining({ userId: member.id, role: "member", projectAccess: "selected", projectCount: 1 })
+      ]);
+    });
+  });
+
+  describe("findWithAccessToEveryProject", () => {
+    it("lists the members and viewers of the organization who reach every project, oldest first", async () => {
+      const { repository, organization } = await setup();
+      const [member, viewer, selectedMember, admin, outsider] = await Promise.all(
+        Array.from({ length: 5 }, () => seedUser({ userId: faker.string.uuid(), email: faker.internet.email() }))
+      );
+      await seedOrganizationMember({ organizationId: organization.id, userId: member.id, role: "member", projectAccess: "all" });
+      await seedOrganizationMember({ organizationId: organization.id, userId: viewer.id, role: "viewer", projectAccess: "all" });
+      await seedOrganizationMember({ organizationId: organization.id, userId: selectedMember.id, role: "member", projectAccess: "selected" });
+      await seedOrganizationMember({ organizationId: organization.id, userId: admin.id, role: "admin", projectAccess: "all" });
+      const { organization: elsewhere } = await seedOrganizationWithOwner();
+      await seedOrganizationMember({ organizationId: elsewhere.id, userId: outsider.id, role: "member", projectAccess: "all" });
+
+      const members = await repository.findWithAccessToEveryProject(organization.id);
+
+      expect(members).toEqual([
+        expect.objectContaining({ userId: member.id, role: "member", username: member.username, email: member.email }),
+        expect.objectContaining({ userId: viewer.id, role: "viewer" })
+      ]);
     });
   });
 
