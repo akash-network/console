@@ -27,7 +27,7 @@ export interface DeployTarget {
   notice?: string;
   /** The deployment already exists and stays in the project it was filed in. */
   isFiled?: boolean;
-  /** The projects or the caller's grants in them could not be read, so the picker offers `retry` instead of claiming there are none. */
+  /** The projects could not be read, so the picker offers `retry` instead of claiming there are none. */
   isUnreadable?: boolean;
   retry?: () => void;
 }

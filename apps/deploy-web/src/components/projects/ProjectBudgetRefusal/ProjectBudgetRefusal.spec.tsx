@@ -9,6 +9,7 @@ import { ProjectBudgetRefusal } from "./ProjectBudgetRefusal";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildProject } from "@tests/seeders/project";
 
 describe(ProjectBudgetRefusal.name, () => {
   it("names the project at its budget and takes an owner to it", async () => {
@@ -61,9 +62,7 @@ describe(ProjectBudgetRefusal.name, () => {
 
   function setup(input: { projectId: string | undefined; role: OrganizationRole; projectsEnabled?: boolean }) {
     const onNavigate = vi.fn();
-    const projects: Project[] = [
-      { id: "storefront", name: "storefront", slug: "storefront", description: null, isDefault: false, createdAt: "2026-01-01T00:00:00.000Z", createdBy: null }
-    ];
+    const projects: Project[] = [buildProject({ id: "storefront", name: "storefront" })];
     const useProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectsQuery>(() => mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: projects }));
 
     render(

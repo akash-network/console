@@ -1,26 +1,19 @@
 import type { operationDefs } from "@akashnetwork/console-api-types";
 
-export const PROJECT_DEPLOYMENT_STATUSES = ["running", "spinning", "degraded", "reclaiming", "closed"] as const;
-
-export type ProjectDeploymentStatus = (typeof PROJECT_DEPLOYMENT_STATUSES)[number];
-
-export interface ProjectDeploymentPreview {
-  dseq: string;
-  name: string;
-  status: ProjectDeploymentStatus;
-}
-
-/** What a project folder shows of its open deployments: how many there are and the newest few. */
-export interface ProjectDeploymentSummary {
-  /** Undefined when the api could not count them and more remain than were read. */
-  activeCount: number | undefined;
-  preview: ProjectDeploymentPreview[];
-}
-
 export type ProjectOutput = operationDefs["listProjects"]["responses"][200]["content"]["application/json"]["data"][number];
 
-/** A project of the active organization, with the summary of its open deployments once it has been read. */
-export type Project = ProjectOutput & { deploymentSummary?: ProjectDeploymentSummary };
+/** A project of the active organization as the list returns it, with its deployments, last activity and what the caller may do in it. */
+export type Project = ProjectOutput;
+
+/** A project as creating or reading one returns it, without what only the list carries. */
+export type ProjectRecord = operationDefs["getProject"]["responses"][200]["content"]["application/json"]["data"];
+
+/** What a project folder shows of its open deployments: how many there are and the newest few. */
+export type ProjectDeploymentSummary = NonNullable<Project["deployments"]>;
+
+export type ProjectDeploymentPreview = ProjectDeploymentSummary["preview"][number];
+
+export type ProjectDeploymentStatus = ProjectDeploymentPreview["status"];
 
 export type CreateProjectInput = operationDefs["createProject"]["requestBody"]["content"]["application/json"];
 

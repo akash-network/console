@@ -9,6 +9,7 @@ import { DEPENDENCIES, ProjectPage } from "./ProjectPage";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildProject } from "@tests/seeders/project";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(ProjectPage.name, () => {
@@ -224,6 +225,6 @@ describe(ProjectPage.name, () => {
   }
 
   function project(name: string): Project {
-    return { id: name, name, slug: name, description: null, isDefault: false, createdAt: "2026-01-01T12:00:00.000Z", createdBy: null };
+    return buildProject({ id: name, name, createdAt: "2026-01-01T12:00:00.000Z", createdBy: null });
   }
 });

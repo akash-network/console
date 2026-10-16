@@ -9,6 +9,7 @@ import { DeployTargetChip } from "./DeployTargetChip";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildProject } from "@tests/seeders/project";
 
 describe(DeployTargetChip.name, () => {
   it("shows the organization and project the deployment goes to", () => {
@@ -127,12 +128,4 @@ describe(DeployTargetChip.name, () => {
   }
 });
 
-const storefront: Project = {
-  id: "storefront",
-  name: "storefront",
-  slug: "storefront",
-  description: null,
-  isDefault: false,
-  createdAt: "2026-01-01T12:00:00.000Z",
-  createdBy: null
-};
+const storefront: Project = buildProject({ id: "storefront", name: "storefront", createdBy: null });

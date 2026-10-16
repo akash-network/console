@@ -5,6 +5,7 @@ import { NEW_PROJECT_CHOICE, ProjectPicker } from "./ProjectPicker";
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildProject } from "@tests/seeders/project";
 
 describe(ProjectPicker.name, () => {
   it("lists each project with how many deployments it runs when that is known", () => {
@@ -13,7 +14,7 @@ describe(ProjectPicker.name, () => {
     const storefront = screen.getByRole("radio", { name: "storefront" }).closest("label") as HTMLElement;
     expect(within(storefront).getByText("3 active")).toBeInTheDocument();
     const marketing = screen.getByRole("radio", { name: "marketing" }).closest("label") as HTMLElement;
-    expect(within(marketing).queryByText(/active$/)).not.toBeInTheDocument();
+    expect(within(marketing).getByText("0 active")).toBeInTheDocument();
     const checkout = screen.getByRole("radio", { name: "checkout" }).closest("label") as HTMLElement;
     expect(within(checkout).queryByText(/active$/)).not.toBeInTheDocument();
   });
@@ -65,7 +66,7 @@ describe(ProjectPicker.name, () => {
   function setup(input: { value: string | null; withNewProject?: boolean; unavailableProjectId?: string }) {
     const onChange = vi.fn();
     const onNameChange = vi.fn();
-    const projects = [project("storefront", 3), project("marketing"), { ...project("checkout"), deploymentSummary: { activeCount: undefined, preview: [] } }];
+    const projects = [project("storefront", 3), project("marketing", 0), project("checkout")];
 
     render(
       <ProjectPicker
@@ -81,15 +82,6 @@ describe(ProjectPicker.name, () => {
   }
 
   function project(name: string, activeCount?: number): Project {
-    return {
-      id: name,
-      name,
-      slug: name,
-      description: null,
-      isDefault: false,
-      createdAt: "2026-01-01T12:00:00.000Z",
-      createdBy: null,
-      deploymentSummary: activeCount === undefined ? undefined : { activeCount, preview: [] }
-    };
+    return buildProject({ id: name, name, deployments: activeCount === undefined ? null : { activeCount, preview: [] } });
   }
 });

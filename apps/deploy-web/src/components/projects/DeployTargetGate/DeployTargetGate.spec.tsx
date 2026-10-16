@@ -11,6 +11,7 @@ import { DeployTargetGate, useConfigureDeployTarget } from "./DeployTargetGate";
 
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildProject } from "@tests/seeders/project";
 
 describe(DeployTargetGate.name, () => {
   it("lets the flow through with the project the page before handed over, and takes it over", () => {
@@ -334,6 +335,6 @@ describe(DeployTargetGate.name, () => {
   }
 
   function project(name: string): Project {
-    return { id: name, name, slug: name, description: null, isDefault: false, createdAt: "2026-01-01T00:00:00.000Z", createdBy: null };
+    return buildProject({ id: name, name, createdAt: "2026-01-01T00:00:00.000Z", createdBy: null });
   }
 });

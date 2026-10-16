@@ -19,7 +19,6 @@ import { useSnackbar } from "notistack";
 import { useUpdateDeploymentProjectMutation } from "@src/queries/useDeploymentProjectQueries";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import { ProjectPicker } from "../ProjectPicker/ProjectPicker";
-import { sortProjectsNewestFirst } from "../projectSummary";
 
 export const DEPENDENCIES = { useProjectsQuery, useUpdateDeploymentProjectMutation, useSnackbar };
 
@@ -68,7 +67,7 @@ export function MoveDeploymentDialog({ deployment, onClose, dependencies: d = DE
 
         <DialogV2Body>
           <form id={formId} onSubmit={submit}>
-            <ProjectPicker projects={sortProjectsNewestFirst(projects)} value={projectId} onChange={setProjectId} unavailableProjectId={deployment.projectId} />
+            <ProjectPicker projects={projects} value={projectId} onChange={setProjectId} unavailableProjectId={deployment.projectId} />
           </form>
         </DialogV2Body>
 

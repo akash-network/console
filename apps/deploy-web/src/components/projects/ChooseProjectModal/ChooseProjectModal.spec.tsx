@@ -8,6 +8,7 @@ import { ChooseProjectModal } from "./ChooseProjectModal";
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildProject } from "@tests/seeders/project";
 
 describe(ChooseProjectModal.name, () => {
   it("asks which project of the organization the deployment belongs to", () => {
@@ -238,16 +239,6 @@ describe(ChooseProjectModal.name, () => {
   }
 
   function project(name: string, overrides: Partial<Project> = {}): Project {
-    return {
-      id: name,
-      name,
-      slug: name,
-      description: null,
-      isDefault: false,
-      createdAt: "2026-01-01T12:00:00.000Z",
-      createdBy: null,
-      deploymentSummary: { activeCount: 0, preview: [] },
-      ...overrides
-    };
+    return buildProject({ id: name, name, createdBy: null, ...overrides });
   }
 });

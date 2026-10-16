@@ -18,7 +18,7 @@ import {
 import { useSnackbar } from "notistack";
 
 import { isProjectNameTakenError, useCreateProjectMutation } from "@src/queries/useProjectsQuery";
-import type { Project } from "@src/types/project";
+import type { ProjectRecord } from "@src/types/project";
 import { MAX_PROJECT_DESCRIPTION_LENGTH } from "@src/types/project";
 import { describeProjectCreationFailure } from "../projectCreationFailure";
 import { ProjectNameField, toProjectSlug } from "../ProjectNameField/ProjectNameField";
@@ -30,7 +30,7 @@ interface Props {
   /** Slugs of the projects the organization already has, refused before asking the api. */
   existingSlugs: string[];
   onClose: () => void;
-  onCreated: (project: Project) => void;
+  onCreated: (project: ProjectRecord) => void;
   dependencies?: typeof DEPENDENCIES;
 }
 

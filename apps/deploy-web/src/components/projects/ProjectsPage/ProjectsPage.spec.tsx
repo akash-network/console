@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { OrganizationRole } from "@src/types/organization";
 import type { OrganizationActivity } from "@src/types/organization-activity";
-import type { Project, ProjectDeploymentPreview, ProjectDeploymentSummary } from "@src/types/project";
+import type { Project, ProjectDeploymentPreview } from "@src/types/project";
 import type { DEPENDENCIES as NEW_PROJECT_MODAL_DEPENDENCIES } from "../NewProjectModal/NewProjectModal";
 import { NewProjectModal } from "../NewProjectModal/NewProjectModal";
 import { ProjectFolder } from "../ProjectFolder/ProjectFolder";
@@ -12,6 +12,7 @@ import { DEPENDENCIES, ProjectsPage } from "./ProjectsPage";
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildProject } from "@tests/seeders/project";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(ProjectsPage.name, () => {
@@ -35,6 +36,13 @@ describe(ProjectsPage.name, () => {
     expect(screen.queryByText("not found")).not.toBeInTheDocument();
   });
 
+  it("waits for the projects before drawing them", () => {
+    const { Layout } = setup({ projects: [], isLoading: true });
+
+    expect(Layout.mock.lastCall?.[0]).toMatchObject({ isLoading: true });
+    expect(screen.queryByRole("heading", { name: "Create your first project" })).not.toBeInTheDocument();
+  });
+
   it("lets owners and admins manage each project from its folder", () => {
     setup({ role: "admin", projects: [project({ name: "storefront" })] });
 
@@ -49,18 +57,11 @@ describe(ProjectsPage.name, () => {
     expect(screen.queryByRole("button", { name: "menu of storefront" })).not.toBeInTheDocument();
   });
 
-  it("lets a member start a deployment in a project", () => {
+  it("lets a member start a deployment in a project it may deploy into", () => {
     setup({ role: "member", projects: [project({ name: "storefront" })] });
 
     expect(screen.getByRole("link", { name: /New deployment/ })).toBeInTheDocument();
     expect(within(screen.getByRole("link", { name: /^Open storefront/ })).getByText("New deployment")).toBeInTheDocument();
-  });
-
-  it.each(["viewer", "billing"] as const)("offers a %s no way to start a deployment", role => {
-    setup({ role, projects: [project({ name: "storefront" })] });
-
-    expect(screen.queryByRole("link", { name: /New deployment/ })).not.toBeInTheDocument();
-    expect(screen.queryByText("New deployment")).not.toBeInTheDocument();
   });
 
   it("lists the default project for a member granted only it, even with nothing running in it", () => {
@@ -103,26 +104,26 @@ describe(ProjectsPage.name, () => {
     expect(screen.getByRole("heading", { name: "Create your first project" })).toBeInTheDocument();
   });
 
-  it("shows the default project to a manager when its deployments cannot be read", () => {
-    setup({ projects: [project({ name: "default", isDefault: true, deployments: [running("2718")] })], isSummaryUnread: true });
+  it("shows the default project to a manager when its deployments could not be counted", () => {
+    setup({ projects: [project({ name: "default", isDefault: true, deployments: null })] });
 
     expect(screen.getByRole("link", { name: "Open default" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Create your first project" })).not.toBeInTheDocument();
   });
 
-  it("files the projects as folders, newest first, each with its open deployments, and counts them", () => {
+  it("files the projects as folders in the order the list gives them, each with its open deployments, and counts them", () => {
     setup({
       projects: [
-        project({ name: "storefront", createdAt: "2025-10-28T12:00:00.000Z", deployments: [running("3140")] }),
-        project({ name: "marketing", createdAt: "2026-01-10T12:00:00.000Z" }),
-        project({ name: "default", isDefault: true, createdAt: "2025-01-01T12:00:00.000Z", deployments: [running("2718"), running("1618")] })
+        project({ name: "storefront", deployments: [running("3140")] }),
+        project({ name: "marketing" }),
+        project({ name: "default", isDefault: true, deployments: [running("2718"), running("1618")] })
       ]
     });
 
     const folders = screen.getAllByRole("link", { name: /^Open / });
     expect(folders.map(folder => folder.getAttribute("aria-label"))).toEqual([
-      "Open marketing, 0 active deployments",
       "Open storefront, 1 active deployment",
+      "Open marketing, 0 active deployments",
       "Open default, 2 active deployments"
     ]);
     expect(screen.getByText("3 projects")).toBeInTheDocument();
@@ -147,48 +148,19 @@ describe(ProjectsPage.name, () => {
     expect(push.mock.calls).toEqual([["/projects/storefront"], ["/deployments/3140"], ["/new-deployment?projectId=marketing"]]);
   });
 
-  it("offers no new deployment from the folder of a project the caller only views", () => {
-    setup({ projects: [project({ name: "storefront" }), project({ name: "marketing" })], viewedProjectIds: ["marketing"] });
+  it("offers no new deployment from the folder of a project the caller may not deploy into", () => {
+    setup({ role: "member", projects: [project({ name: "storefront" }), project({ name: "marketing", canDeploy: false })] });
 
     expect(within(screen.getByRole("link", { name: /^Open storefront/ })).getByText("New deployment")).toBeInTheDocument();
     expect(within(screen.getByRole("link", { name: /^Open marketing/ })).queryByText("New deployment")).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /New deployment/ })).toHaveLength(1);
   });
 
-  it("offers no new deployment at all to a caller who only views every project", () => {
-    setup({ projects: [project({ name: "storefront" })], viewedProjectIds: ["storefront"] });
+  it.each(["viewer", "billing"] as const)("offers a %s who may deploy nowhere no way to start a deployment", role => {
+    setup({ role, projects: [project({ name: "storefront", canDeploy: false })] });
 
     expect(screen.queryByRole("link", { name: /New deployment/ })).not.toBeInTheDocument();
     expect(screen.queryByText("New deployment")).not.toBeInTheDocument();
-  });
-
-  it("reads a folder's deployments only once it scrolls into view", () => {
-    const { useProjectDeploymentSummaryQuery } = setup({
-      projects: [project({ name: "storefront", deployments: [running("3140")] })],
-      isScrolledIntoView: false
-    });
-
-    expect(useProjectDeploymentSummaryQuery).toHaveBeenCalledWith("storefront", { enabled: false });
-    expect(screen.getByRole("link", { name: "Open storefront" })).toBeInTheDocument();
-  });
-
-  it("reads the default project's deployments up front, since they decide whether it is shown", () => {
-    const { useProjectDeploymentSummaryQuery } = setup({ projects: [project({ name: "default", isDefault: true })], isScrolledIntoView: false });
-
-    expect(useProjectDeploymentSummaryQuery).toHaveBeenCalledWith("default", { enabled: true });
-  });
-
-  it("asks for no deployments before it knows the organization's projects", () => {
-    const { useProjectDeploymentSummaryQuery } = setup({ projects: [], isError: true });
-
-    expect(useProjectDeploymentSummaryQuery).toHaveBeenCalledWith("", { enabled: false });
-  });
-
-  it("waits for the default project's deployments before calling the organization empty", () => {
-    const { Layout } = setup({ projects: [project({ name: "default", isDefault: true })], isReadingDefaultProject: true });
-
-    expect(Layout.mock.lastCall?.[0]).toMatchObject({ isLoading: true });
-    expect(screen.queryByRole("heading", { name: "Create your first project" })).not.toBeInTheDocument();
   });
 
   it("opens the new project modal knowing every name in use, and closes it once a project is created", async () => {
@@ -261,34 +233,35 @@ describe(ProjectsPage.name, () => {
     expect(screen.queryByRole("heading", { name: "Create your first project" })).not.toBeInTheDocument();
   });
 
+  function project(input: { name: string; isDefault?: boolean; deployments?: ProjectDeploymentPreview[] | null; canDeploy?: boolean }): Project {
+    return buildProject({
+      id: input.name,
+      name: input.name,
+      isDefault: input.isDefault ?? false,
+      deployments: input.deployments === null ? null : { activeCount: input.deployments?.length ?? 0, preview: input.deployments ?? [] },
+      access: { canDeploy: input.canDeploy ?? true, canManage: false }
+    });
+  }
+
+  function running(dseq: string, name = `deployment-${dseq}`): ProjectDeploymentPreview {
+    return { dseq, name, status: "running" };
+  }
+
   function setup(input: {
     isOrganizationsEnabled?: boolean;
-    projects: SummarizedProject[];
+    projects: Project[];
     activities?: OrganizationActivity[];
+    isLoading?: boolean;
     isError?: boolean;
-    isScrolledIntoView?: boolean;
-    isReadingDefaultProject?: boolean;
-    isSummaryUnread?: boolean;
     role?: OrganizationRole;
     projectsEnabled?: boolean;
     isOrganizationLoading?: boolean;
     isActivityError?: boolean;
-    viewedProjectIds?: string[];
   }) {
     const retryActivity = vi.fn();
     const push = vi.fn();
     const refetch = vi.fn();
-    const createProject = vi.fn(async ({ data }: { data: { name: string } }) => ({ data: project({ name: data.name }).project }));
-    const summaries = new Map(input.projects.map(({ project: { id }, summary }) => [id, summary]));
-    const useProjectDeploymentSummaryQuery = vi.fn<typeof DEPENDENCIES.useProjectDeploymentSummaryQuery>((projectId, options) =>
-      input.isReadingDefaultProject
-        ? mock<ReturnType<typeof DEPENDENCIES.useProjectDeploymentSummaryQuery>>({ data: undefined, isLoading: true, isError: false })
-        : mock<ReturnType<typeof DEPENDENCIES.useProjectDeploymentSummaryQuery>>({
-            data: options?.enabled && !input.isSummaryUnread ? summaries.get(projectId) : undefined,
-            isLoading: false,
-            isError: input.isSummaryUnread ?? false
-          })
-    );
+    const createProject = vi.fn(async ({ data }: { data: { name: string } }) => ({ data: project({ name: data.name }) }));
     const Layout = vi.fn<typeof DEPENDENCIES.Layout>(({ children }) => <>{children}</>);
 
     const dependencies = MockComponents(DEPENDENCIES, {
@@ -301,12 +274,14 @@ describe(ProjectsPage.name, () => {
           activeOrganization: { id: "org-1", name: "Acme Corp", slug: "acme-corp", type: "team", role: input.role ?? "owner", isActive: true, createdAt: "" }
         }),
       useProjectsQuery: () =>
-        mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({
-          data: input.isError ? undefined : input.projects.map(({ project }) => project),
-          isLoading: false,
-          isError: input.isError ?? false,
-          refetch
-        }),
+        input.isLoading
+          ? mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: undefined, isLoading: true, isError: false, refetch })
+          : mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({
+              data: input.isError ? undefined : input.projects,
+              isLoading: false,
+              isError: input.isError ?? false,
+              refetch
+            }),
       useOrganizationActivitiesQuery: () => ({
         activities: input.activities ?? [],
         isLoading: false,
@@ -316,15 +291,6 @@ describe(ProjectsPage.name, () => {
         retry: retryActivity
       }),
       useNewDeploymentUrl: () => () => "/new-deployment",
-      useProjectAccess: () => {
-        const canManageDeployments = (projectId: string | null | undefined) => !input.viewedProjectIds?.includes(projectId ?? "");
-        return mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({
-          canManageDeployments,
-          canDeployAnywhere: input.projects.some(({ project }) => canManageDeployments(project.id))
-        });
-      },
-      useProjectDeploymentSummaryQuery,
-      useHasBeenVisible: () => [vi.fn(), input.isScrolledIntoView ?? true],
       Layout,
       NotFoundPage: () => <div>not found</div>,
       ProjectFolder,
@@ -345,27 +311,6 @@ describe(ProjectsPage.name, () => {
 
     render(<ProjectsPage dependencies={dependencies} />);
 
-    return { push, refetch, createProject, useProjectDeploymentSummaryQuery, Layout, retryActivity };
+    return { push, refetch, createProject, Layout, retryActivity };
   }
 });
-
-type SummarizedProject = { project: Project; summary: ProjectDeploymentSummary };
-
-function project(input: { name: string; createdAt?: string; isDefault?: boolean; deployments?: ProjectDeploymentPreview[] }): SummarizedProject {
-  return {
-    project: {
-      id: input.name,
-      name: input.name,
-      slug: input.name.toLowerCase(),
-      description: null,
-      isDefault: input.isDefault ?? false,
-      createdAt: input.createdAt ?? "2026-01-01T12:00:00.000Z",
-      createdBy: null
-    },
-    summary: { activeCount: input.deployments?.length ?? 0, preview: input.deployments ?? [] }
-  };
-}
-
-function running(dseq: string, name = `deployment-${dseq}`): ProjectDeploymentPreview {
-  return { dseq, name, status: "running" };
-}

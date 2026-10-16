@@ -4,7 +4,7 @@ import { Button } from "@akashnetwork/ui/components";
 import { useRouter } from "next/navigation";
 
 import type { DeployTarget } from "@src/hooks/useDeployTarget/useDeployTarget";
-import type { Project } from "@src/types/project";
+import type { ProjectRecord } from "@src/types/project";
 import { UrlService } from "@src/utils/urlUtils";
 import { ChooseProjectModal } from "../ChooseProjectModal/ChooseProjectModal";
 import { ProjectGlyph } from "../ProjectGlyph/ProjectGlyph";
@@ -24,7 +24,7 @@ export function DeployTargetChip({ target, onChoose, dependencies: d = DEPENDENC
 
   if (!target.isRequired || target.isLoading) return null;
 
-  const choose = (project: Project) => {
+  const choose = (project: ProjectRecord) => {
     setIsChanging(false);
     onChoose(project.id);
   };
