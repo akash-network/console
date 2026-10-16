@@ -36,13 +36,14 @@ export const DEPENDENCIES = {
 interface AddCreditsNewPaymentMethodFieldsProps {
   clientSecret?: string;
   isLoading: boolean;
+  disabled?: boolean;
   /** Reports the payment-method type (card, bank, …) the user selects in the Stripe payment element, for analytics. */
   onPaymentTypeChange?: (type: string) => void;
   dependencies?: typeof DEPENDENCIES;
 }
 
 export const AddCreditsNewPaymentMethodFields = forwardRef<PaymentMethodSourceHandle, AddCreditsNewPaymentMethodFieldsProps>(
-  function AddCreditsNewPaymentMethodFields({ clientSecret, isLoading, onPaymentTypeChange, dependencies: d = DEPENDENCIES }, ref) {
+  function AddCreditsNewPaymentMethodFields({ clientSecret, isLoading, disabled, onPaymentTypeChange, dependencies: d = DEPENDENCIES }, ref) {
     const { stripeService } = d.useServices();
     const { resolvedTheme } = d.useTheme();
 
@@ -66,7 +67,13 @@ export const AddCreditsNewPaymentMethodFields = forwardRef<PaymentMethodSourceHa
       <ErrorBoundary fallback={<div>Failed to load payment form</div>}>
         {stripePromise ? (
           <d.Elements key={clientSecret} stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance }}>
-            <StripePaymentMethodFields ref={ref} dependencies={d} onPaymentTypeChange={onPaymentTypeChange} />
+            <div
+              ref={element => {
+                if (element) element.inert = !!disabled;
+              }}
+            >
+              <StripePaymentMethodFields ref={ref} dependencies={d} onPaymentTypeChange={onPaymentTypeChange} />
+            </div>
           </d.Elements>
         ) : (
           <div className="p-4 text-center text-muted-foreground">
@@ -101,11 +108,18 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
        */
       async addPaymentMethod() {
         if (!stripe || !elements) {
+          setError("The payment form is still loading. Please try again in a moment.");
           return null;
         }
 
         setError(null);
-        const setupResult = await stripe.confirmSetup({ elements, redirect: "if_required" });
+        let setupResult;
+        try {
+          setupResult = await stripe.confirmSetup({ elements, redirect: "if_required" });
+        } catch {
+          setError("Couldn't save your payment method. Please check your connection and try again.");
+          return null;
+        }
 
         if (setupResult.error) {
           setError(setupResult.error.message || "Couldn't save your card. Please try again.");
@@ -133,18 +147,18 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
 
       <div className="space-y-2">
         <h3 className="text-left text-sm font-medium text-muted-foreground">CHOOSE A PAYMENT METHOD</h3>
-        <d.PaymentElement options={{ layout: "tabs" }} onChange={event => onPaymentTypeChange?.(event.value.type)} />
+        <d.PaymentElement options={{ layout: "tabs", paymentMethodOrder: ["link", "card"] }} onChange={event => onPaymentTypeChange?.(event.value.type)} />
       </div>
 
       <Alert variant="default" className="bg-muted p-3">
         <ShieldCheck className="h-4 w-4 text-muted-foreground" />
         <AlertDescription className="text-muted-foreground">
-          Akash (operated by Overclock Labs) only charges your card if you choose to purchase credits after your trial.
+          Your payment is securely processed by Stripe. You will be charged when you purchase credits.
         </AlertDescription>
       </Alert>
 
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" aria-label="Payment error">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}

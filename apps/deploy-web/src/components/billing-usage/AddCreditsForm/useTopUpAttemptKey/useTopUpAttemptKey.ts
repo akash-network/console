@@ -6,12 +6,14 @@ interface StoredAttempt {
   paymentMethodId: string;
   userId: string;
   createdAt: number;
+  walletType?: string;
 }
 
 export interface ResolveAttemptInput {
   userId: string;
   amount: number;
   paymentMethodId: string;
+  walletType?: string;
 }
 
 export interface TopUpAttemptKey {
@@ -24,6 +26,7 @@ export interface TopUpAttemptKey {
   clear(): void;
   /** Forgets the attempt only when the error proves it is dead, so a retry after an unknown-outcome failure replays the same key. */
   clearIfConcluded(error: unknown): void;
+  getWalletAttempt(input: { userId: string; amount: number }): { paymentMethodId: string; type: string } | null;
 }
 
 /** Attempt keys persist per tab so closing and reopening the errored sheet (which unmounts the form) retries the same attempt instead of minting a fresh charge. */
@@ -39,9 +42,9 @@ const ATTEMPT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
  * params change, so a retried slow charge replays the original attempt instead of charging again.
  */
 export function useTopUpAttemptKey(): TopUpAttemptKey {
-  const attemptRef = useRef<{ key: string; userId: string; amount: number; paymentMethodId: string } | null>(null);
+  const attemptRef = useRef<(ResolveAttemptInput & { key: string; createdAt: number }) | null>(null);
 
-  const resolve = useCallback(({ userId, amount, paymentMethodId }: ResolveAttemptInput): string => {
+  const resolve = useCallback(({ userId, amount, paymentMethodId, walletType }: ResolveAttemptInput): string => {
     const amountCents = Math.round(amount * 100);
     const current = attemptRef.current;
 
@@ -49,18 +52,28 @@ export function useTopUpAttemptKey(): TopUpAttemptKey {
       return current.key;
     }
 
-    const rehydratedKey = readStoredAttemptKey({ userId, amountCents, paymentMethodId });
+    const stored = readStoredAttempt({ userId, amountCents, paymentMethodId });
 
-    if (rehydratedKey) {
-      attemptRef.current = { key: rehydratedKey, userId, amount, paymentMethodId };
-      return rehydratedKey;
+    if (stored) {
+      attemptRef.current = { key: stored.key, userId, amount, paymentMethodId, walletType: stored.walletType, createdAt: stored.createdAt };
+      return stored.key;
     }
 
     const key = crypto.randomUUID();
-    attemptRef.current = { key, userId, amount, paymentMethodId };
-    writeStoredAttempt({ key, amountCents, paymentMethodId, userId, createdAt: Date.now() });
+    const createdAt = Date.now();
+    attemptRef.current = { key, userId, amount, paymentMethodId, walletType, createdAt };
+    writeStoredAttempt({ key, amountCents, paymentMethodId, userId, walletType, createdAt });
 
     return key;
+  }, []);
+
+  const getWalletAttempt = useCallback(({ userId, amount }: { userId: string; amount: number }) => {
+    const current = attemptRef.current;
+    if (current && current.userId === userId && current.amount === amount && current.walletType && Date.now() - current.createdAt < ATTEMPT_MAX_AGE_MS) {
+      return { paymentMethodId: current.paymentMethodId, type: current.walletType };
+    }
+    const stored = readStoredAttempt({ userId, amountCents: Math.round(amount * 100) });
+    return stored?.walletType ? { paymentMethodId: stored.paymentMethodId, type: stored.walletType } : null;
   }, []);
 
   const clear = useCallback(() => {
@@ -77,7 +90,7 @@ export function useTopUpAttemptKey(): TopUpAttemptKey {
     [clear]
   );
 
-  return useMemo(() => ({ resolve, clear, clearIfConcluded }), [resolve, clear, clearIfConcluded]);
+  return useMemo(() => ({ resolve, clear, clearIfConcluded, getWalletAttempt }), [resolve, clear, clearIfConcluded, getWalletAttempt]);
 }
 
 /** sessionStorage access throws in some privacy modes; attempt-key persistence is best-effort and must never break the purchase flow. */
@@ -89,7 +102,7 @@ function safeSessionStorage<T>(operation: () => T): T | undefined {
   }
 }
 
-function readStoredAttemptKey(input: { userId: string; amountCents: number; paymentMethodId: string }): string | null {
+function readStoredAttempt(input: { userId: string; amountCents: number; paymentMethodId?: string }): StoredAttempt | null {
   const raw = safeSessionStorage(() => window.sessionStorage.getItem(ATTEMPT_STORAGE_KEY));
   if (!raw) return null;
 
@@ -99,10 +112,10 @@ function readStoredAttemptKey(input: { userId: string; amountCents: number; paym
   const isCurrentAttempt =
     stored.userId === input.userId &&
     stored.amountCents === input.amountCents &&
-    stored.paymentMethodId === input.paymentMethodId &&
+    (input.paymentMethodId === undefined || stored.paymentMethodId === input.paymentMethodId) &&
     Date.now() - stored.createdAt < ATTEMPT_MAX_AGE_MS;
 
-  return isCurrentAttempt ? stored.key : null;
+  return isCurrentAttempt ? stored : null;
 }
 
 function writeStoredAttempt(attempt: StoredAttempt): void {

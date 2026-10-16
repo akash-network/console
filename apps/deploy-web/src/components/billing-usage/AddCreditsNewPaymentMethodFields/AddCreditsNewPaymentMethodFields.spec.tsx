@@ -101,6 +101,25 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     expect(await screen.findByText(/couldn't save your card/i)).toBeInTheDocument();
   });
 
+  it("keeps the fields mounted and releases a rejected Stripe confirmation for retry", async () => {
+    const confirmSetup = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("network failure"))
+      .mockResolvedValue({ setupIntent: { payment_method: "pm_retry" } });
+    const { ref } = setup({
+      isLoading: false,
+      clientSecret: "seti_secret",
+      dependencies: { useStripe: () => mock<NonNullable<ReturnType<typeof DEPENDENCIES.useStripe>>>({ confirmSetup }) }
+    });
+    const fields = screen.getByTestId("payment-element");
+
+    expect(await act(async () => ref.current!.addPaymentMethod())).toBeNull();
+    expect(screen.getByRole("alert", { name: /payment error/i })).toHaveTextContent(/couldn't save your payment method/i);
+    expect(screen.getByTestId("payment-element")).toBe(fields);
+    expect(await act(async () => ref.current!.addPaymentMethod())).toEqual({ paymentMethodId: "pm_retry" });
+    expect(screen.queryByRole("alert", { name: /payment error/i })).not.toBeInTheDocument();
+  });
+
   it("reports the selected payment method type from the payment element", () => {
     const onPaymentTypeChange = vi.fn();
     const PaymentElement = ((props: { onChange?: (event: { value: { type: string } }) => void }) => (
@@ -114,6 +133,39 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     fireEvent.click(screen.getByRole("button", { name: /choose bank/i }));
 
     expect(onPaymentTypeChange).toHaveBeenCalledWith("us_bank_account");
+  });
+
+  it("keeps the Stripe fields mounted while disabling and re-enabling interaction", () => {
+    const { rerender } = setup({ isLoading: false, clientSecret: "seti_secret" });
+    const elements = screen.getByTestId("stripe-elements");
+    const fields = elements.firstElementChild;
+
+    expect(fields).toHaveProperty("inert", false);
+    rerender(true);
+    expect(elements.firstElementChild).toBe(fields);
+    expect(fields).toHaveProperty("inert", true);
+    rerender(false);
+    expect(elements.firstElementChild).toBe(fields);
+    expect(fields).toHaveProperty("inert", false);
+  });
+
+  it("offers Link before card entry in the tabbed payment element", () => {
+    const PaymentElement = vi.fn<typeof DEPENDENCIES.PaymentElement>(() => null);
+    setup({ isLoading: false, clientSecret: "seti_secret", dependencies: { PaymentElement } });
+
+    expect(PaymentElement).toHaveBeenCalledWith(
+      expect.objectContaining({ options: { layout: "tabs", paymentMethodOrder: ["link", "card"] } }),
+      expect.anything()
+    );
+  });
+
+  it("shows a retryable inline error while Stripe is still loading", async () => {
+    const { ref } = setup({ isLoading: false, clientSecret: "seti_secret", dependencies: { useStripe: () => null } });
+
+    expect(await act(async () => ref.current!.addPaymentMethod())).toBeNull();
+
+    expect(screen.getByRole("alert", { name: /payment error/i })).toHaveTextContent("The payment form is still loading. Please try again in a moment.");
+    expect(screen.getByTestId("payment-element")).toBeInTheDocument();
   });
 
   function setup(input: {
@@ -140,11 +192,12 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
 
     const ref = React.createRef<PaymentMethodSourceHandle>();
 
-    const renderFields = () => (
+    const renderFields = (disabled = false) => (
       <AddCreditsNewPaymentMethodFields
         ref={ref}
         clientSecret={input.clientSecret}
         isLoading={input.isLoading}
+        disabled={disabled}
         onPaymentTypeChange={input.onPaymentTypeChange}
         dependencies={{
           Elements,
@@ -160,6 +213,6 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     );
     const view = render(renderFields());
 
-    return { ref, rerender: () => view.rerender(renderFields()) };
+    return { ref, rerender: (disabled = false) => view.rerender(renderFields(disabled)) };
   }
 });

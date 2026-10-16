@@ -143,6 +143,64 @@ describe(useTopUpAttemptKey.name, () => {
     expect(result.current.resolve(INPUT)).toMatch(UUID_PATTERN);
   });
 
+  it("restores an unresolved wallet after a remount without minting another attempt", () => {
+    const first = setup();
+    const key = first.result.current.resolve({ ...INPUT, walletType: "apple_pay" });
+    first.unmount();
+    const second = setup();
+
+    expect(second.result.current.getWalletAttempt(INPUT)).toEqual({ paymentMethodId: "pm_1", type: "apple_pay" });
+    expect(second.result.current.resolve(INPUT)).toBe(key);
+    window.sessionStorage.clear();
+    expect(second.result.current.getWalletAttempt(INPUT)).toEqual({ paymentMethodId: "pm_1", type: "apple_pay" });
+    expect(second.result.current.resolve(INPUT)).toBe(key);
+  });
+
+  it("releases a pending wallet only once its attempt concludes", () => {
+    const { result } = setup();
+    result.current.resolve({ ...INPUT, walletType: "google_pay" });
+    result.current.clearIfConcluded(new Error("network"));
+    expect(result.current.getWalletAttempt(INPUT)).toEqual({ paymentMethodId: "pm_1", type: "google_pay" });
+
+    result.current.clearIfConcluded({ response: { status: 402 } });
+
+    expect(result.current.getWalletAttempt(INPUT)).toBeNull();
+  });
+
+  it("does not restore a wallet for a different user or amount", () => {
+    const { result } = setup();
+    result.current.resolve({ ...INPUT, walletType: "apple_pay" });
+
+    expect(result.current.getWalletAttempt({ userId: "other", amount: 100 })).toBeNull();
+    expect(result.current.getWalletAttempt({ userId: "user_1", amount: 200 })).toBeNull();
+  });
+
+  it("retains the pending wallet in memory when persistence is unavailable", () => {
+    vi.spyOn(window.sessionStorage, "setItem").mockImplementation(() => {
+      throw new Error("storage blocked");
+    });
+    const { result } = setup();
+    const key = result.current.resolve({ ...INPUT, walletType: "apple_pay" });
+    window.sessionStorage.clear();
+
+    expect(result.current.getWalletAttempt(INPUT)).toEqual({ paymentMethodId: "pm_1", type: "apple_pay" });
+    expect(result.current.resolve(INPUT)).toBe(key);
+  });
+
+  it("expires the in-memory wallet at the end of the replay window", () => {
+    const now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    const { result } = setup();
+    result.current.resolve({ ...INPUT, walletType: "apple_pay" });
+    window.sessionStorage.clear();
+
+    clock.mockReturnValue(now + 24 * 60 * 60 * 1000 - 1);
+    expect(result.current.getWalletAttempt(INPUT)).toEqual({ paymentMethodId: "pm_1", type: "apple_pay" });
+
+    clock.mockReturnValue(now + 24 * 60 * 60 * 1000);
+    expect(result.current.getWalletAttempt(INPUT)).toBeNull();
+  });
+
   function seedStoredAttempt(input: { key: string; ageMs: number }) {
     window.sessionStorage.setItem(
       STORAGE_KEY,
