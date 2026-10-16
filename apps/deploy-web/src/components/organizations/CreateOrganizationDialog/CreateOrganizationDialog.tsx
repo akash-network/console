@@ -126,7 +126,7 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
 
   const inviteTeammates = async () => {
     try {
-      await inviteToActiveOrganization({ data: { emails, role: "member" } });
+      await inviteToActiveOrganization({ data: { emails, role: "member", projectAccess: "all" } });
     } catch {
       reportUnsentInvitations();
     }

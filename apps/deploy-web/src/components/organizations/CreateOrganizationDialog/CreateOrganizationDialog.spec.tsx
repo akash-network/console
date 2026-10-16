@@ -248,7 +248,7 @@ describe("CreateOrganizationDialog", () => {
     });
   });
 
-  it("invites the teammates as members once the new organization is the active one", async () => {
+  it("invites the teammates as members of every project once the new organization is the active one", async () => {
     const { user, switchOrganization, inviteToActiveOrganization } = setup({});
 
     await user.type(screen.getByLabelText("Organization name"), "Harborline");
@@ -257,7 +257,9 @@ describe("CreateOrganizationDialog", () => {
     await user.click(screen.getByRole("button", { name: "Create organization" }));
 
     await waitFor(() => expect(inviteToActiveOrganization).toHaveBeenCalledOnce());
-    expect(inviteToActiveOrganization).toHaveBeenCalledWith({ data: { emails: ["bob@harborline.io", "carol@harborline.io"], role: "member" } });
+    expect(inviteToActiveOrganization).toHaveBeenCalledWith({
+      data: { emails: ["bob@harborline.io", "carol@harborline.io"], role: "member", projectAccess: "all" }
+    });
     expect(switchOrganization.mock.invocationCallOrder[0]).toBeLessThan(inviteToActiveOrganization.mock.invocationCallOrder[0]);
   });
 
