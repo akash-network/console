@@ -10,7 +10,6 @@ describe(ProjectGrantsField.name, () => {
   it("starts with no project and offers every project to add", async () => {
     const { user } = setup({ grants: [] });
 
-    expect(screen.getByText("(optional)")).toBeInTheDocument();
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("combobox", { name: "Add a project" }));
@@ -30,7 +29,7 @@ describe(ProjectGrantsField.name, () => {
   it("lists the projects added, with their roles, and offers only the rest", async () => {
     const { user } = setup({ grants: [{ projectId: "storefront", role: "viewer" }] });
 
-    const rows = within(screen.getByRole("list")).getAllByRole("listitem");
+    const rows = within(screen.getByRole("list", { name: "Picked projects" })).getAllByRole("listitem");
     expect(rows).toHaveLength(1);
     expect(within(rows[0]).getByText("storefront")).toBeInTheDocument();
     expect(within(rows[0]).getByRole("combobox", { name: "Role in storefront" })).toHaveTextContent("Viewer");

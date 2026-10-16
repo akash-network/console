@@ -19,6 +19,7 @@ export class MembersPage {
     await dialog.getByLabel("Email addresses").fill(input.email);
     await dialog.getByLabel("Email addresses").press("Enter");
     await dialog.getByRole("radio", { name: /^Member/ }).check();
+    await dialog.getByRole("radio", { name: /^Specific projects/ }).check();
     await dialog.getByRole("combobox", { name: "Add a project" }).click();
     await this.page.getByRole("option", { name: input.projectName, exact: true }).click();
     await dialog.getByRole("button", { name: "Send invite" }).click();

@@ -4,6 +4,8 @@ export type OrganizationMemberOutput = operationDefs["listOrganizationMembers"][
 
 export type OrganizationInvitationOutput = operationDefs["listOrganizationInvitations"]["responses"][200]["content"]["application/json"]["data"][number];
 
+export type ProjectAccess = OrganizationInvitationOutput["projectAccess"];
+
 export type InvitationPreviewOutput = operationDefs["previewInvitation"]["responses"][200]["content"]["application/json"]["data"];
 
 export const OWNER_ROLE_RESTRICTED_ERROR_CODE = "owner_role_restricted";

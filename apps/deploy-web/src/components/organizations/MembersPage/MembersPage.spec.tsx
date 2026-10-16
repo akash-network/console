@@ -191,6 +191,7 @@ const ERIN: OrganizationInvitationOutput = {
   id: "invitation-1",
   email: "erin@acme.io",
   role: "member",
+  projectAccess: "all",
   projectGrants: [],
   invitedBy: null,
   createdAt: "2026-10-01T00:00:00Z",
