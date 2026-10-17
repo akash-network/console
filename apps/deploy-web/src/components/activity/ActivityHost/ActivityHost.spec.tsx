@@ -298,6 +298,33 @@ describe(ActivityHost.name, () => {
     });
   });
 
+  it.each([
+    { type: "deployment_create", status: "succeeded" },
+    { type: "deployment_create", status: "failed" },
+    { type: "lease_create", status: "succeeded" },
+    { type: "lease_create", status: "failed" },
+    { type: "deployment_update", status: "succeeded" },
+    { type: "deployment_update", status: "failed" }
+  ] as const)("announces no $type that had already $status when it first heard of it, yet refreshes the data it changed", ({ type, status }) => {
+    const { enqueueSnackbar, queryClient, receive, api } = setup({ activities: [] });
+
+    receive([buildActivity({ type, status, meta: { dseq: "5678" } })]);
+
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+    expect(invalidatedKeysOf(queryClient)).toEqual(expect.arrayContaining([api.v1.getDeployment.getKey({ dseq: "5678" })]));
+  });
+
+  it("announces a create it heard of as failed that later turns out created", () => {
+    const failed = buildActivity({ type: "deployment_create", status: "failed", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [failed] });
+
+    receive([{ ...failed, status: "succeeded" }]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Deployment 1234 created" }) }), {
+      variant: "success"
+    });
+  });
+
   it("announces nothing while an action is still pending", () => {
     const pending = buildActivity({ status: "pending" });
     const { enqueueSnackbar, receive } = setup({ activities: [] });

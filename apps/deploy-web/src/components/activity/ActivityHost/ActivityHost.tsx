@@ -106,16 +106,17 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
     function announceFinishedActivities() {
       if (!activities || isLoadingDeploymentNames) return;
 
-      const finished = lastSeenStatuses.current ? findFinishedSince(lastSeenStatuses.current, activities) : [];
+      const lastSeen = lastSeenStatuses.current;
       lastSeenStatuses.current = new Map(activities.map(activity => [activity.id, activity.status]));
+      if (!lastSeen) return;
 
-      for (const activity of finished) {
+      for (const activity of findFinishedSince(lastSeen, activities)) {
         for (const queryKey of queryKeysChangedBy(activity)) {
           queryClient.invalidateQueries({ queryKey });
         }
 
         if (activity.meta.batchId) batchesToSumUp.current.add(activity.meta.batchId);
-        else announceActivity(activity);
+        else if (isWorthAnnouncing(activity, lastSeen)) announceActivity(activity);
       }
 
       for (const batchId of batchesToSumUp.current) {
@@ -212,9 +213,16 @@ function ActivityToast({
   );
 }
 
-/** An action never seen before counts too, so one that started and finished between two checks is still announced. */
+/** An action never seen before counts too, so one that started and finished between two checks still refreshes what it changed. */
 function findFinishedSince(lastSeenStatuses: Map<string, Activity["status"]>, activities: Activity[]): FinishedActivity[] {
   return activities.filter((activity): activity is FinishedActivity => isFinished(activity) && lastSeenStatuses.get(activity.id) !== activity.status);
+}
+
+/** The page that sends one of these waits for its answer and shows how it ended, so one first heard of already finished needs no toast. */
+const FOREGROUND_ACTION_TYPES: ReadonlySet<Activity["type"]> = new Set(["deployment_create", "deployment_update", "lease_create"]);
+
+function isWorthAnnouncing(activity: FinishedActivity, lastSeenStatuses: Map<string, Activity["status"]>): boolean {
+  return !FOREGROUND_ACTION_TYPES.has(activity.type) || lastSeenStatuses.has(activity.id);
 }
 
 /** Undefined while any action of the batch is still pending. */
