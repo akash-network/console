@@ -282,6 +282,7 @@ describe("Providers", () => {
     it("locates online providers and leaves offline ones out", async () => {
       const online = await createProviderInRegion("na-ca-central", ["h100", "h100", "a100"], {
         isOnline: true,
+        cosmosSdkVersion: "v0.47.0",
         ipRegion: "Quebec",
         ipCountryCode: "CA",
         ipLat: "45.5",
@@ -293,8 +294,9 @@ describe("Providers", () => {
       const response = await app.request("/v1/provider-locations");
 
       const { data } = (await response.json()) as ProviderLocationsResponse;
+      const location = data.find(({ owner }) => owner === online.owner);
       expect(response.status).toBe(200);
-      expect(data).toContainEqual({
+      expect(location).toEqual({
         owner: online.owner,
         name: new URL(online.hostUri).hostname,
         hostUri: online.hostUri,
@@ -305,9 +307,10 @@ describe("Providers", () => {
         isAudited: true,
         locationRegion: "na-ca-central",
         uptime30d: 0.995,
-        gpuModels: ["h100", "a100"],
+        gpuModels: expect.arrayContaining(["h100", "a100"]),
         stats: expect.objectContaining({ gpu: expect.objectContaining({ available: 4, active: 2, pending: 0 }) })
       });
+      expect(location?.gpuModels).toHaveLength(2);
       expect(map(data, "owner")).not.toContain(offline.owner);
     });
   });
