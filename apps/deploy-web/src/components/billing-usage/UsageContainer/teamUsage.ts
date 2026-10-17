@@ -1,7 +1,7 @@
 import type { DailySpend, SpendSeries } from "@src/components/billing-usage/DailySpendChart/DailySpendChart";
 import { spendShade } from "@src/components/billing-usage/spendShade";
 import type { UsageHistoryStats } from "@src/types";
-import type { DeploymentSpendReport } from "@src/types/deployment-spend";
+import type { DeploymentSpend, DeploymentSpendReport } from "@src/types/deployment-spend";
 import type { ProjectSpendReport, SpendAmounts, SpendRange } from "@src/types/project-budget";
 import { perBlockToHourly } from "@src/utils/priceUtils";
 
@@ -59,7 +59,8 @@ export function scopeUsage(report: DeploymentSpendReport, scope: ProjectScope): 
     const spendBySeries = spendBySeriesByDate.get(date) ?? {};
     return { date, dailyUsdSpent: roundToCents(sumOf(Object.values(spendBySeries))), spendBySeries };
   });
-  const dseqs = report.deployments.filter(({ projectId }) => isInScope(projectId, scope)).map(({ dseq }) => dseq);
+  const deployments = report.deployments.filter(({ projectId }) => isInScope(projectId, scope));
+  const dseqs = deployments.map(({ dseq }) => dseq);
   const totalSpent = roundToCents(sumOf(dailySpend.map(({ dailyUsdSpent }) => dailyUsdSpent)));
 
   return {
@@ -68,7 +69,8 @@ export function scopeUsage(report: DeploymentSpendReport, scope: ProjectScope): 
       totalSpent,
       averageSpentPerDay: totalSpent / dailySpend.length,
       totalDeployments: dseqs.length,
-      averageDeploymentsPerDay: dseqs.length / dailySpend.length
+      averageDeploymentsPerDay: dseqs.length / dailySpend.length,
+      ...(reportsGpuUsage(report) && gpuUsageOf(deployments))
     },
     dseqs
   };
@@ -154,6 +156,17 @@ function deploymentUsageByKeyOf(deployments: DeploymentSpendReport["deployments"
   });
 
   return usageByKey;
+}
+
+function reportsGpuUsage(report: DeploymentSpendReport): boolean {
+  return report.deployments.every(({ gpuHours }) => gpuHours !== undefined);
+}
+
+function gpuUsageOf(deployments: DeploymentSpend[]): Pick<UsageHistoryStats, "gpuHours" | "gpuModels"> {
+  return {
+    gpuHours: sumOf(deployments.map(({ gpuHours = 0 }) => gpuHours)),
+    gpuModels: [...new Set(deployments.flatMap(({ gpuModels = [] }) => gpuModels))].sort((left, right) => left.localeCompare(right))
+  };
 }
 
 function projectLabelOf({ name, isDeleted }: { name: string; isDeleted: boolean }): string {

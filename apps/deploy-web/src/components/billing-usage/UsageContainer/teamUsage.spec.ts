@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { spendShade } from "@src/components/billing-usage/spendShade";
-import type { DeploymentSpendReport } from "@src/types/deployment-spend";
+import type { DeploymentSpend, DeploymentSpendReport } from "@src/types/deployment-spend";
 import { perBlockToHourly } from "@src/utils/priceUtils";
 import { deploymentRowsOf, hourlyRateOf, isInScope, projectSeriesOf, projectSpendRowsOf, scopeUsage } from "./teamUsage";
 
@@ -34,7 +34,46 @@ describe(scopeUsage.name, () => {
 
     expect(usage.dailySpend).toEqual([{ date: "2026-03-01", dailyUsdSpent: 2.5, spendBySeries: { storefront: 2, marketing: 0.5 } }]);
   });
+
+  it("adds up the gpu hours of every deployment and lists each of their models once", () => {
+    const usage = scopeUsage(buildReportWithGpuUsage(), null);
+
+    expect(usage.stats).toMatchObject({ gpuHours: 8.5, gpuModels: ["A100", "H100"] });
+  });
+
+  it("keeps only the gpu hours of the project the page is narrowed to", () => {
+    const usage = scopeUsage(buildReportWithGpuUsage(), "storefront");
+
+    expect(usage.stats).toMatchObject({ gpuHours: 6, gpuModels: ["H100"] });
+  });
+
+  it("reports no gpu hours from an api that leaves them out of a deployment", () => {
+    const report = buildReportWithGpuUsage();
+    report.deployments[2] = buildReport().deployments[2];
+
+    const usage = scopeUsage(report, null);
+
+    expect(usage.stats).not.toHaveProperty("gpuHours");
+    expect(usage.stats).not.toHaveProperty("gpuModels");
+  });
+
+  it("reports zero gpu hours for a range no deployment ran in", () => {
+    const usage = scopeUsage({ ...buildReport(), days: [], deployments: [] }, null);
+
+    expect(usage.stats).toMatchObject({ gpuHours: 0, gpuModels: [] });
+  });
 });
+
+function buildReportWithGpuUsage(): DeploymentSpendReport {
+  const report = buildReport();
+  const gpuUsageByDseq: Record<string, Pick<DeploymentSpend, "gpuHours" | "gpuModels">> = {
+    "1": { gpuHours: 6, gpuModels: ["H100"] },
+    "2": { gpuHours: 2.5, gpuModels: ["H100", "A100"] },
+    "3": { gpuHours: 0, gpuModels: [] }
+  };
+
+  return { ...report, deployments: report.deployments.map(deployment => ({ ...deployment, ...gpuUsageByDseq[deployment.dseq] })) };
+}
 
 describe(projectSeriesOf.name, () => {
   it("lists the projects and the unassigned deployments that spent in the range, biggest spender first", () => {
