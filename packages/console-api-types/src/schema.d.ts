@@ -629,6 +629,18 @@ export interface paths {
                * @example 1.5
                */
               averageDeploymentsPerDay: number;
+              /**
+               * @description Each lease's hours over the range times its GPU count, summed
+               * @example 6
+               */
+              gpuHours: number;
+              /**
+               * @description The GPU models those leases asked for, leaving out a request that accepts any model or several
+               * @example [
+               *       "H100"
+               *     ]
+               */
+              gpuModels: string[];
             };
           };
         };
@@ -15572,6 +15584,18 @@ export interface operations {
                 consumedUsd: number;
                 /** @description How long the deployment held a lease over the range */
                 hours: number;
+                /**
+                 * @description Each of the deployment's leases' hours over the range times its GPU count, summed
+                 * @example 6
+                 */
+                gpuHours: number;
+                /**
+                 * @description The GPU models the deployment's leases asked for, leaving out a request that accepts any model or several
+                 * @example [
+                 *       "H100"
+                 *     ]
+                 */
+                gpuModels: string[];
               }[];
             };
           };
