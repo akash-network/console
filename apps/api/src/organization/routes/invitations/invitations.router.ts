@@ -21,7 +21,6 @@ const previewInvitationRoute = createRoute({
   summary: "Preview an organization invitation from the token of its link",
   tags: ["Organizations"],
   security: SECURITY_NONE,
-  hiddenInOpenApiDocs: true,
   request: {
     body: { required: true, content: { "application/json": { schema: PreviewInvitationRequestSchema } } }
   },
