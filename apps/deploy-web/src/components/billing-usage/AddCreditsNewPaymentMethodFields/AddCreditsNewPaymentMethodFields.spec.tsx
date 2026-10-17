@@ -135,6 +135,18 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     expect(onPaymentTypeChange).toHaveBeenCalledWith("us_bank_account");
   });
 
+  it("ignores a payment method change when nobody listens for it", () => {
+    const PaymentElement = ((props: { onChange?: (event: { value: { type: string } }) => void }) => (
+      <button type="button" onClick={() => props.onChange?.({ value: { type: "card" } })}>
+        choose card
+      </button>
+    )) as unknown as typeof DEPENDENCIES.PaymentElement;
+
+    setup({ isLoading: false, clientSecret: "seti_secret", dependencies: { PaymentElement } });
+
+    expect(() => fireEvent.click(screen.getByRole("button", { name: /choose card/i }))).not.toThrow();
+  });
+
   it("keeps the Stripe fields mounted while disabling and re-enabling interaction", () => {
     const { rerender } = setup({ isLoading: false, clientSecret: "seti_secret" });
     const elements = screen.getByTestId("stripe-elements");
@@ -149,12 +161,12 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     expect(fields).toHaveProperty("inert", false);
   });
 
-  it("offers Link before card entry in the tabbed payment element", () => {
+  it("opens the tabbed payment element on card entry, with Link after it", () => {
     const PaymentElement = vi.fn<typeof DEPENDENCIES.PaymentElement>(() => null);
     setup({ isLoading: false, clientSecret: "seti_secret", dependencies: { PaymentElement } });
 
     expect(PaymentElement).toHaveBeenCalledWith(
-      expect.objectContaining({ options: { layout: "tabs", paymentMethodOrder: ["link", "card"] } }),
+      expect.objectContaining({ options: { layout: "tabs", paymentMethodOrder: ["card", "link"] } }),
       expect.anything()
     );
   });
