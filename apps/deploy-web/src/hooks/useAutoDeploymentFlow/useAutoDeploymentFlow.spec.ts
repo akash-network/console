@@ -20,7 +20,7 @@ const BID_ID = `${PROVIDER_OWNER}/${DSEQ}/1/1`;
 describe(useAutoDeploymentFlow.name, () => {
   const UNREACHED_DEADLINE_MS = 10_000;
   const SHORT_DEADLINE_MS = 20;
-  const DISARMABLE_DEADLINE_MS = 300;
+  const DEADLINE_PAST_WAIT_FOR_MS = 5_000;
 
   async function waitForDeadline() {
     await new Promise(resolve => setTimeout(resolve, SHORT_DEADLINE_MS * 4));
@@ -111,13 +111,14 @@ describe(useAutoDeploymentFlow.name, () => {
   });
 
   it("closes the deployment and fails the attempt when no bidder is reachable before the deadline", async () => {
+    vi.useFakeTimers();
     const { result, flow, analyticsService } = setup({
       providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")),
-      matchDeadlineMs: SHORT_DEADLINE_MS
+      matchDeadlineMs: DEADLINE_PAST_WAIT_FOR_MS
     });
 
     await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
-    await waitForDeadline();
+    await act(() => vi.advanceTimersByTimeAsync(DEADLINE_PAST_WAIT_FOR_MS));
 
     expect(flow.actions.selectProvider).not.toHaveBeenCalled();
     expect(flow.actions.closeAndFail).toHaveBeenCalledTimes(1);
@@ -160,10 +161,11 @@ describe(useAutoDeploymentFlow.name, () => {
   });
 
   it("does not abandon the attempt once a provider is matched and the lease is away", async () => {
-    const { flow } = setup({ matchDeadlineMs: SHORT_DEADLINE_MS });
+    vi.useFakeTimers();
+    const { flow } = setup({ matchDeadlineMs: DEADLINE_PAST_WAIT_FOR_MS });
 
     await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
-    await waitForDeadline();
+    await act(() => vi.advanceTimersByTimeAsync(DEADLINE_PAST_WAIT_FOR_MS));
 
     expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
   });
@@ -198,11 +200,12 @@ describe(useAutoDeploymentFlow.name, () => {
   });
 
   it("does not abandon the attempt after a failed deploy, whose error the scene already shows", async () => {
-    const { flow } = setup({ holdDeploy: true, matchDeadlineMs: DISARMABLE_DEADLINE_MS });
+    vi.useFakeTimers();
+    const { flow } = setup({ holdDeploy: true, matchDeadlineMs: DEADLINE_PAST_WAIT_FOR_MS });
 
     await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
     act(() => flow.setDeployError("lease failed"));
-    await new Promise(resolve => setTimeout(resolve, DISARMABLE_DEADLINE_MS * 3));
+    await act(() => vi.advanceTimersByTimeAsync(DEADLINE_PAST_WAIT_FOR_MS));
 
     expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
   });
@@ -421,6 +424,7 @@ describe(useAutoDeploymentFlow.name, () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   function setup(input?: {
