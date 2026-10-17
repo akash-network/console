@@ -33,8 +33,6 @@ export class QueryKeys {
   static getLeaseExistenceKey = (address: string) => [...QueryKeys.getAllLeasesKey(address), "EXISTENCE"];
   static getLeasesKey = (address: string, dseq: string) => ["LEASE_LIST", address, dseq];
   static getLeaseStatusKey = (dseq: string, gseq: number, oseq: number) => ["LEASE_STATUS", dseq, gseq, oseq];
-  static getBidListKey = (address: string, dseq: string) => ["BID_LIST", address, dseq];
-  static getBidInfoKey = (address: string, dseq: string, gseq: number, oseq: number, provider: string) => ["BID_INFO", address, dseq, gseq, oseq, provider];
   static getAllProviderSearchesKey = () => ["PROVIDER_SEARCH"];
   static getProviderSearchKey = (params: object) => [...QueryKeys.getAllProviderSearchesKey(), params];
   static getProviderLocationsKey = () => ["PROVIDER_LOCATIONS"];
@@ -49,7 +47,6 @@ export class QueryKeys {
   static getBalancesKey = (address?: string) => (address ? ["BALANCES", address] : []);
   static getTemplatesKey = () => ["TEMPLATES"];
   static getProviderAttributesSchema = () => ["PROVIDER_ATTRIBUTES_SCHEMA"];
-  static getDepositParamsKey = () => ["DEPOSIT_PARAMS"];
   static getBmeParamsKey = () => ["BME_PARAMS"];
   static getGpuModelsKey = () => ["GPU_MODELS"];
   static getProviderGpusKey = (providerAddress: string) => ["PROVIDER_GPUS", providerAddress];

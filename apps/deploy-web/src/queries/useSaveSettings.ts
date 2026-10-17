@@ -1,15 +1,11 @@
-import type { UseQueryOptions } from "@tanstack/react-query";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import axios, { type AxiosInstance, type AxiosResponse } from "axios";
+import { useMutation } from "@tanstack/react-query";
+import axios, { type AxiosResponse } from "axios";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import { SKIP_REPORTING_HANDLED_BY_CALLER } from "@src/services/query-error-policy/query-error-policy";
-import type { DepositParams, RpcDeploymentParams } from "@src/types/deployment";
 import type { UserSettings } from "@src/types/user";
-import { ApiUrlService } from "@src/utils/apiUtils";
-import { QueryKeys } from "./queryKeys";
 
 export type UserSettingsUpdate = UserSettings & { subscribedToProductUpdates?: boolean };
 
@@ -33,23 +29,5 @@ export function useSaveSettings() {
       errorHandler.reportError({ error, tags: { category: "user-settings" } });
     },
     meta: SKIP_REPORTING_HANDLED_BY_CALLER
-  });
-}
-
-async function getDepositParams(chainApiHttpClient: AxiosInstance): Promise<DepositParams[]> {
-  const response = await chainApiHttpClient.get<RpcDeploymentParams>(ApiUrlService.depositParams(""));
-  return response.data.params?.min_deposits ?? [];
-}
-
-const ONE_HOUR_IN_MS = 60 * 60 * 1000;
-export function useDepositParams(options?: Omit<UseQueryOptions<DepositParams[]>, "queryKey" | "queryFn">) {
-  const { chainApiHttpClient } = useServices();
-  return useQuery({
-    queryKey: QueryKeys.getDepositParamsKey(),
-    queryFn: () => getDepositParams(chainApiHttpClient),
-    staleTime: ONE_HOUR_IN_MS,
-    gcTime: ONE_HOUR_IN_MS,
-    ...options,
-    enabled: options?.enabled !== false && !chainApiHttpClient.isFallbackEnabled
   });
 }

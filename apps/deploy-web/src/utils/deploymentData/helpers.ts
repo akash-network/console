@@ -8,11 +8,11 @@ export class CustomValidationError extends Error {
   }
 }
 
-export function parseSdlInput(yamlJson: string | SDLInput): SDLInput {
+function parseSdlInput(yamlJson: string | SDLInput): SDLInput {
   return typeof yamlJson === "string" ? yaml.raw<SDLInput>(yamlJson) : yamlJson;
 }
 
-export function buildManifest(sdlInput: SDLInput) {
+function buildManifest(sdlInput: SDLInput) {
   const result = generateManifest(sdlInput);
   if (!result.ok) {
     throw new Error(result.value.map(e => e.message).join(", "));

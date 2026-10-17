@@ -6,9 +6,6 @@ import type { DeploymentStatus } from "@src/types/deployment";
 import { appendSearchParams } from "./urlUtils";
 
 export class ApiUrlService {
-  static depositParams(apiEndpoint: string) {
-    return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/params`;
-  }
   static deploymentList(apiEndpoint: string, address: string, state?: DeploymentStatus, reverse?: boolean) {
     let url = `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${address}${state ? `&filters.state=${state}` : ""}`;
     if (reverse) url += "&pagination.reverse=true";
@@ -16,12 +13,6 @@ export class ApiUrlService {
   }
   static deploymentDetail(apiEndpoint: string, address: string, dseq: string) {
     return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`;
-  }
-  static bidList(apiEndpoint: string, address: string, dseq: string) {
-    return `${apiEndpoint}/akash/market/${networkStore.marketVersion}/bids/list?filters.owner=${address}&filters.dseq=${dseq}`;
-  }
-  static bidInfo(apiEndpoint: string, address: string, dseq: string, gseq: number, oseq: number, provider: string) {
-    return `${apiEndpoint}/akash/market/${networkStore.marketVersion}/bids/info?id.owner=${address}&id.dseq=${dseq}&id.gseq=${gseq}&id.oseq=${oseq}&id.provider=${provider}`;
   }
   static leaseList(apiEndpoint: string, address: string, dseq: string, state?: string) {
     return `${apiEndpoint}/akash/market/${networkStore.marketVersion}/leases/list?filters.owner=${address}${dseq ? "&filters.dseq=" + dseq : ""}${state ? "&filters.state=" + state : ""}`;

@@ -1,42 +1,6 @@
-import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
-import { MsgSend } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-
-import type { BidDto, NewDeploymentData } from "@src/types/deployment";
+import { MsgCloseDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 
 export class TransactionMessageData {
-  static getCreateLeaseMsg(bid: BidDto) {
-    return {
-      typeUrl: `/${MsgCreateLease.$type}`,
-      value: MsgCreateLease.fromPartial({
-        bidId: {
-          owner: bid.owner,
-          dseq: bid.dseq,
-          gseq: bid.gseq,
-          oseq: bid.oseq,
-          provider: bid.provider
-        }
-      })
-    };
-  }
-
-  static getCreateDeploymentMsg(deploymentData: NewDeploymentData) {
-    return {
-      typeUrl: `/${MsgCreateDeployment.$type}`,
-      value: MsgCreateDeployment.fromPartial({
-        id: deploymentData.deploymentId,
-        groups: deploymentData.groups,
-        hash: deploymentData.hash,
-        deposit: {
-          amount: deploymentData.deposit,
-          sources: [Source.grant, Source.balance]
-        },
-        reclamation: deploymentData.reclamation
-      })
-    };
-  }
-
   static getCloseDeploymentMsg(address: string, dseq: string) {
     return {
       typeUrl: `/${MsgCloseDeployment.$type}`,
@@ -45,22 +9,6 @@ export class TransactionMessageData {
           owner: address,
           dseq
         }
-      })
-    };
-  }
-
-  static getSendTokensMsg(address: string, recipient: string, amount: number) {
-    return {
-      typeUrl: `/${MsgSend.$type}`,
-      value: MsgSend.fromPartial({
-        fromAddress: address,
-        toAddress: recipient,
-        amount: [
-          {
-            denom: "uakt",
-            amount: amount.toString()
-          }
-        ]
       })
     };
   }
