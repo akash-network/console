@@ -49,8 +49,7 @@ export const DeploymentGettingStarted: FC<DeploymentGettingStartedProps> = ({ le
         </div>
         <div className="flex min-w-0 flex-col gap-3 sm:pl-11">
           <p className="text-sm text-muted-foreground">
-            In Terminal on macOS or Linux, unpack the <code className="font-mono">keypair.zip</code> you downloaded. It contains{" "}
-            <code className="font-mono">id_rsa</code>. There is no password.
+            In Terminal on macOS or Linux, unpack <code className="font-mono">keypair.zip</code> from your downloads. There is no password.
           </p>
           <d.CommandBlock label="Prepare the SSH key" lines={[SSH_KEY_UNPACK_COMMAND, SSH_KEY_PERMISSION_COMMAND]} />
           {sshCommands.length === 0 ? (
