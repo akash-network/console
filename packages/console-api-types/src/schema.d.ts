@@ -12841,8 +12841,15 @@ export interface operations {
       query?: {
         limit?: number;
         cursor?: string;
-        status?: "pending" | "succeeded" | "failed";
-        type?: "deployment_close" | "deployment_create" | "deployment_update" | "lease_create";
+        status?: "pending" | "succeeded" | "failed" | "info";
+        type?:
+          | "deployment_close"
+          | "deployment_create"
+          | "deployment_update"
+          | "lease_create"
+          | "wallet_balance_alert"
+          | "deployment_closed_alert"
+          | "deployment_reclaim_alert";
       };
       header?: {
         /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
@@ -12868,22 +12875,29 @@ export interface operations {
                 /** Format: uuid */
                 id: string;
                 /**
-                 * @description What the action was.
+                 * @description What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`.
                  * @enum {string}
                  */
-                type: "deployment_close" | "deployment_create" | "deployment_update" | "lease_create";
+                type:
+                  | "deployment_close"
+                  | "deployment_create"
+                  | "deployment_update"
+                  | "lease_create"
+                  | "wallet_balance_alert"
+                  | "deployment_closed_alert"
+                  | "deployment_reclaim_alert";
                 /**
-                 * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
+                 * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome.
                  * @enum {string}
                  */
-                status: "pending" | "succeeded" | "failed";
+                status: "pending" | "succeeded" | "failed" | "info";
                 /**
-                 * @description Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf.
+                 * @description Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf or an alert that fired.
                  * @enum {string}
                  */
                 initiator: "user" | "system";
                 meta: {
-                  /** @description The deployment the action was about. */
+                  /** @description The deployment the action or the alert was about. */
                   dseq?: string;
                   /** @description The providers a lease was created with, each named once. */
                   providers?: string[];
@@ -12903,6 +12917,13 @@ export interface operations {
                    * @enum {string}
                    */
                   reason?: "runtime_limit_reached" | "trial_ended" | "provider_unreachable" | "no_lease";
+                  /**
+                   * Format: uuid
+                   * @description The alert that fired, on an alert.
+                   */
+                  alertId?: string;
+                  /** @description The alert's summary as the user wrote it, filled in for this firing, on an alert. */
+                  summary?: string;
                 };
                 /**
                  * Format: date-time
@@ -12970,22 +12991,29 @@ export interface operations {
               /** Format: uuid */
               id: string;
               /**
-               * @description What the action was.
+               * @description What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`.
                * @enum {string}
                */
-              type: "deployment_close" | "deployment_create" | "deployment_update" | "lease_create";
+              type:
+                | "deployment_close"
+                | "deployment_create"
+                | "deployment_update"
+                | "lease_create"
+                | "wallet_balance_alert"
+                | "deployment_closed_alert"
+                | "deployment_reclaim_alert";
               /**
-               * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`.
+               * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome.
                * @enum {string}
                */
-              status: "pending" | "succeeded" | "failed";
+              status: "pending" | "succeeded" | "failed" | "info";
               /**
-               * @description Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf.
+               * @description Who started the action: `user` for the user's own request, `system` for a close Console made on the user's behalf or an alert that fired.
                * @enum {string}
                */
               initiator: "user" | "system";
               meta: {
-                /** @description The deployment the action was about. */
+                /** @description The deployment the action or the alert was about. */
                 dseq?: string;
                 /** @description The providers a lease was created with, each named once. */
                 providers?: string[];
@@ -13005,6 +13033,13 @@ export interface operations {
                  * @enum {string}
                  */
                 reason?: "runtime_limit_reached" | "trial_ended" | "provider_unreachable" | "no_lease";
+                /**
+                 * Format: uuid
+                 * @description The alert that fired, on an alert.
+                 */
+                alertId?: string;
+                /** @description The alert's summary as the user wrote it, filled in for this firing, on an alert. */
+                summary?: string;
               };
               /**
                * Format: date-time

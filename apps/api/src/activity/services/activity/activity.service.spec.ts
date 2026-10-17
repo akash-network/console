@@ -1,5 +1,6 @@
 import { createMongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
+import createError from "http-errors";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -9,11 +10,17 @@ import type { ActivityInstrumentationService } from "@src/activity/services/acti
 import { PurgeExpiredActivities } from "@src/activity/services/purge-expired-activities/purge-expired-activities.job";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { CreateLogger, JobQueueService } from "@src/core";
+import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
+import { type OrganizationContextResolver, PROJECT_FORBIDDEN_ERROR_CODE } from "@src/organization/services/organization-context/organization-context.resolver";
+import type { OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
+import type { UserRepository } from "@src/user/repositories/user/user.repository";
 import { encodeActivityCursor } from "../../lib/activity-cursor/activity-cursor";
-import { ActivityService } from "./activity.service";
+import { ActivityService, type NewAlertActivity } from "./activity.service";
 
 import { createActivity } from "@test/seeders/activity.seeder";
+import { createForeignKeyViolation } from "@test/seeders/foreign-key-violation.seeder";
 import { createUniqueViolation } from "@test/seeders/unique-violation.seeder";
+import { createUser } from "@test/seeders/user.seeder";
 
 describe(ActivityService.name, () => {
   describe("record", () => {
@@ -93,6 +100,141 @@ describe(ActivityService.name, () => {
       await expect(service.record(createNewActivity())).resolves.toBeUndefined();
 
       expect(logger.error).toHaveBeenCalledWith({ event: "ACTIVITY_PURGE_QUEUE_FAILED", error });
+    });
+  });
+
+  describe("addAlert", () => {
+    it("adds an alert set before organizations as an info entry Console wrote, measuring it, without asking who can see it", async () => {
+      const { service, activityRepository, activityInstrumentation, organizationContextResolver, userRepository, logger } = setup();
+      const alert = createNewAlertActivity({ organizationId: null, projectId: null });
+      const added = createActivity({ type: "wallet_balance_alert", status: "info", initiator: "system" });
+      activityRepository.createUnlessDuplicate.mockResolvedValue(added);
+
+      await service.addAlert(alert);
+
+      expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledWith({
+        userId: alert.userId,
+        type: "wallet_balance_alert",
+        status: "info",
+        initiator: "system",
+        meta: alert.meta,
+        dedupeKey: alert.dedupeKey
+      });
+      expect(activityInstrumentation.trackRecorded).toHaveBeenCalledWith(added);
+      expect(userRepository.findById).not.toHaveBeenCalled();
+      expect(organizationContextResolver.resolveBoundTo).not.toHaveBeenCalled();
+      expect(logger.info).not.toHaveBeenCalled();
+    });
+
+    it("resolves the user in the alert's organization as a job bound to it does, and adds an alert the user reaches every project of", async () => {
+      const { service, activityRepository, organizationContextResolver, userRepository, user } = setup({ access: { kind: "all" } });
+      const alert = createNewAlertActivity({ userId: user.id, projectId: null });
+      activityRepository.createUnlessDuplicate.mockResolvedValue(createActivity());
+
+      await service.addAlert(alert);
+
+      expect(userRepository.findById).toHaveBeenCalledWith(user.id);
+      expect(organizationContextResolver.resolveBoundTo).toHaveBeenCalledWith(user, alert.organizationId);
+      expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledWith(expect.objectContaining({ userId: user.id, dedupeKey: alert.dedupeKey }));
+    });
+
+    it("adds the alert of a project the member can still see", async () => {
+      const projectId = faker.string.uuid();
+      const { service, activityRepository } = setup({ access: projectScopeOf([faker.string.uuid(), projectId]) });
+      activityRepository.createUnlessDuplicate.mockResolvedValue(createActivity());
+
+      await service.addAlert(createNewAlertActivity({ type: "deployment_reclaim_alert", projectId }));
+
+      expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["the user left the organization", { access: "not_a_member" as const, projectId: faker.string.uuid() }],
+      ["no organization context resolves for the user", { access: "no_context" as const, projectId: faker.string.uuid() }],
+      ["the member cannot see the alert's project", { access: projectScopeOf([faker.string.uuid()]), projectId: faker.string.uuid() }],
+      ["the alert is in no project and the member reaches only some", { access: projectScopeOf([faker.string.uuid()]), projectId: null }]
+    ])("writes nothing and says so when %s", async (_, { access, projectId }) => {
+      const { service, activityRepository, activityInstrumentation, jobQueueService, logger } = setup({ access });
+      const alert = createNewAlertActivity({ type: "deployment_closed_alert", projectId });
+
+      await expect(service.addAlert(alert)).resolves.toBeUndefined();
+
+      expect(activityRepository.createUnlessDuplicate).not.toHaveBeenCalled();
+      expect(activityInstrumentation.trackRecorded).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "ACTIVITY_ALERT_OUT_OF_REACH",
+        userId: alert.userId,
+        organizationId: alert.organizationId,
+        projectId,
+        type: "deployment_closed_alert",
+        alertId: alert.meta.alertId
+      });
+    });
+
+    it("answers 404 for an organization's alert whose user console-api does not know", async () => {
+      const { service, activityRepository, organizationContextResolver } = setup({ userExists: false });
+
+      await expect(service.addAlert(createNewAlertActivity())).rejects.toMatchObject({ status: 404, message: "User not found" });
+
+      expect(organizationContextResolver.resolveBoundTo).not.toHaveBeenCalled();
+      expect(activityRepository.createUnlessDuplicate).not.toHaveBeenCalled();
+    });
+
+    it("lets another failure to resolve the organization reach the caller and writes nothing", async () => {
+      const error = new Error("connection reset");
+      const { service, activityRepository } = setup({ access: error });
+
+      await expect(service.addAlert(createNewAlertActivity())).rejects.toBe(error);
+
+      expect(activityRepository.createUnlessDuplicate).not.toHaveBeenCalled();
+    });
+
+    it("lets another refusal to resolve the organization reach the caller", async () => {
+      const refusal = createError(403, "The API key belongs to an organization this request cannot run in", { errorCode: PROJECT_FORBIDDEN_ERROR_CODE });
+      const { service } = setup({ access: refusal });
+
+      await expect(service.addAlert(createNewAlertActivity())).rejects.toBe(refusal);
+    });
+
+    it("says so when another row already holds the alert's dedupe key, and still succeeds without measuring a write", async () => {
+      const { service, activityRepository, activityInstrumentation, logger } = setup();
+      const alert = createNewAlertActivity({ type: "deployment_closed_alert", dedupeKey: "deployment_close.akash1owner.1234" });
+      activityRepository.createUnlessDuplicate.mockResolvedValue(undefined);
+
+      await expect(service.addAlert(alert)).resolves.toBeUndefined();
+
+      expect(activityInstrumentation.trackRecorded).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "ACTIVITY_ALERT_DEDUPED",
+        userId: alert.userId,
+        type: "deployment_closed_alert",
+        dedupeKey: "deployment_close.akash1owner.1234"
+      });
+    });
+
+    it("queues the next purge of old activities once the alert is in", async () => {
+      const { service, activityRepository, jobQueueService } = setup();
+      activityRepository.createUnlessDuplicate.mockResolvedValue(createActivity());
+
+      await service.addAlert(createNewAlertActivity());
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new PurgeExpiredActivities(), expect.objectContaining({ singletonKey: "purgeExpiredActivities" }));
+    });
+
+    it("answers 404 when the write finds no user with the alert's user id", async () => {
+      const { service, activityRepository } = setup();
+      activityRepository.createUnlessDuplicate.mockRejectedValue(createForeignKeyViolation("activities_user_id_userSetting_id_fk"));
+
+      await expect(service.addAlert(createNewAlertActivity({ organizationId: null }))).rejects.toMatchObject({ status: 404, message: "User not found" });
+    });
+
+    it("lets any other failure reach the caller", async () => {
+      const { service, activityRepository } = setup();
+      const error = createUniqueViolation("activities_pkey");
+      activityRepository.createUnlessDuplicate.mockRejectedValue(error);
+
+      await expect(service.addAlert(createNewAlertActivity())).rejects.toBe(error);
     });
   });
 
@@ -367,7 +509,26 @@ describe(ActivityService.name, () => {
     };
   }
 
-  function setup() {
+  function createNewAlertActivity(overrides: Partial<NewAlertActivity> = {}): NewAlertActivity {
+    const alertId = faker.string.uuid();
+
+    return {
+      userId: faker.string.uuid(),
+      organizationId: faker.string.uuid(),
+      projectId: faker.string.uuid(),
+      type: "wallet_balance_alert",
+      status: "info",
+      meta: { alertId, summary: "Wallet balance is low" },
+      dedupeKey: `wallet_balance_alert.${alertId}.1200`,
+      ...overrides
+    };
+  }
+
+  function projectScopeOf(projectIds: string[]): ProjectScope {
+    return { kind: "projects", projectIds, writableProjectIds: projectIds, adminProjectIds: [] };
+  }
+
+  function setup(input: { access?: ProjectScope | "not_a_member" | "no_context" | Error; userExists?: boolean } = {}) {
     const activityRepository = mock<ActivityRepository>();
     const readRepository = mock<ActivityRepository>();
     const updateRepository = mock<ActivityRepository>();
@@ -380,8 +541,46 @@ describe(ActivityService.name, () => {
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const activityInstrumentation = mock<ActivityInstrumentationService>();
 
-    const service = new ActivityService(activityRepository, authService, jobQueueService, activityInstrumentation, createLogger);
+    const user = createUser();
+    const userRepository = mock<UserRepository>();
+    userRepository.findById.mockResolvedValue(input.userExists === false ? undefined : user);
+    const organizationContextResolver = mock<OrganizationContextResolver>();
+    const access = input.access ?? { kind: "all" };
+    if (access === "not_a_member") {
+      organizationContextResolver.resolveBoundTo.mockRejectedValue(
+        createError(403, "Not a member of this organization", { errorCode: ORGANIZATION_FORBIDDEN_ERROR_CODE })
+      );
+    } else if (access === "no_context") {
+      organizationContextResolver.resolveBoundTo.mockResolvedValue(undefined);
+    } else if (access instanceof Error) {
+      organizationContextResolver.resolveBoundTo.mockRejectedValue(access);
+    } else {
+      organizationContextResolver.resolveBoundTo.mockResolvedValue(mock<OrganizationContext>({ projectScope: access }));
+    }
 
-    return { service, activityRepository, readRepository, updateRepository, jobQueueService, activityInstrumentation, logger, createLogger, ability };
+    const service = new ActivityService(
+      activityRepository,
+      authService,
+      jobQueueService,
+      activityInstrumentation,
+      organizationContextResolver,
+      userRepository,
+      createLogger
+    );
+
+    return {
+      service,
+      activityRepository,
+      readRepository,
+      updateRepository,
+      jobQueueService,
+      activityInstrumentation,
+      organizationContextResolver,
+      userRepository,
+      user,
+      logger,
+      createLogger,
+      ability
+    };
   }
 });

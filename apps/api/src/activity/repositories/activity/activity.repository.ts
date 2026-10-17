@@ -21,8 +21,15 @@ export type ActivitySelection = { ids: string[] } | { upTo: string };
 
 export type PendingActivitySummary = { type: ActivityType; count: number; oldestCreatedAt: Date };
 
+const FOREIGN_KEY_VIOLATION_CODE = "23503";
+
 export function isDedupeKeyTaken(error: unknown): boolean {
   return isUniqueViolation(error) && getPostgresError(error)?.constraint_name === ACTIVITIES_DEDUPE_KEY_INDEX;
+}
+
+/** The user is the only row an activity references, so a foreign key violation on a write means the user does not exist. */
+export function isUnknownUser(error: unknown): boolean {
+  return getPostgresError(error)?.code === FOREIGN_KEY_VIOLATION_CODE;
 }
 
 @singleton()

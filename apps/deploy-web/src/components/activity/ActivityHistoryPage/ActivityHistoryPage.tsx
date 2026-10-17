@@ -30,13 +30,16 @@ export const DEPENDENCIES = { Layout, useActivityHistoryQuery, useDeploymentName
 
 const ANY = "any";
 
-const STATUS_LABELS = { pending: "In progress", succeeded: "Succeeded", failed: "Failed" } satisfies Record<Activity["status"], string>;
+const STATUS_LABELS = { pending: "In progress", succeeded: "Succeeded", failed: "Failed", info: "Alerts" } satisfies Record<Activity["status"], string>;
 
 const ACTION_LABELS = {
   deployment_close: "Deployment closes",
   deployment_create: "New deployments",
   deployment_update: "Deployment updates",
-  lease_create: "Deploys"
+  lease_create: "Deploys",
+  wallet_balance_alert: "Wallet balance alerts",
+  deployment_closed_alert: "Deployment closed alerts",
+  deployment_reclaim_alert: "Reclaim alerts"
 } satisfies Record<Activity["type"], string>;
 
 const FILTER_TRIGGER_CLASS_NAME = "h-9 min-w-0 flex-1 gap-2 text-[13px] font-medium sm:w-auto sm:min-w-[9.5rem] sm:flex-none";

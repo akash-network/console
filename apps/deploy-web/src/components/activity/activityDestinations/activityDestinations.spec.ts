@@ -85,6 +85,26 @@ describe("activityDestinations", () => {
 
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments", label: "View deployments" });
     });
+
+    it.each(["deployment_closed_alert", "deployment_reclaim_alert"] as const)("leads a %s to the deployment it is about", type => {
+      const activity = buildActivity({
+        type,
+        status: "info",
+        meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Deployment 1234 closed", dseq: "1234" }
+      });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
+    });
+
+    it("leads an alert about no particular deployment to the deployments list", () => {
+      const activity = buildActivity({
+        type: "wallet_balance_alert",
+        status: "info",
+        meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Low balance" }
+      });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/deployments", label: "View deployments" });
+    });
   });
 
   describe("SUMMARY_DESTINATION", () => {

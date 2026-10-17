@@ -3,13 +3,22 @@ import { index, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } fro
 
 import { Users } from "@src/user/model-schemas";
 
-export const activityTypeEnum = pgEnum("activity_type", ["deployment_close", "deployment_create", "deployment_update", "lease_create"]);
-export const activityStatusEnum = pgEnum("activity_status", ["pending", "succeeded", "failed"]);
+export const ALERT_ACTIVITY_TYPES = ["wallet_balance_alert", "deployment_closed_alert", "deployment_reclaim_alert"] as const;
+
+export const activityTypeEnum = pgEnum("activity_type", [
+  "deployment_close",
+  "deployment_create",
+  "deployment_update",
+  "lease_create",
+  ...ALERT_ACTIVITY_TYPES
+]);
+export const activityStatusEnum = pgEnum("activity_status", ["pending", "succeeded", "failed", "info"]);
 export const activityInitiatorEnum = pgEnum("activity_initiator", ["user", "system"]);
 
 export type ActivityType = (typeof activityTypeEnum.enumValues)[number];
 export type ActivityStatus = (typeof activityStatusEnum.enumValues)[number];
 export type ActivityInitiator = (typeof activityInitiatorEnum.enumValues)[number];
+export type AlertActivityType = (typeof ALERT_ACTIVITY_TYPES)[number];
 
 export const SYSTEM_CLOSE_REASONS = ["runtime_limit_reached", "trial_ended", "provider_unreachable", "no_lease"] as const;
 
@@ -23,6 +32,8 @@ export type ActivityMeta = {
   txHash?: string;
   error?: { code: string; message: string };
   reason?: SystemCloseReason;
+  alertId?: string;
+  summary?: string;
 };
 
 export type NewActivity = {
