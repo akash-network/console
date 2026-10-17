@@ -2577,13 +2577,30 @@
                       "type": "number",
                       "description": "Average number of deployments deployed per day",
                       "example": 1.5
+                    },
+                    "gpuHours": {
+                      "type": "number",
+                      "description": "Each lease's hours over the range times its GPU count, summed",
+                      "example": 6
+                    },
+                    "gpuModels": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "The GPU models those leases asked for, leaving out a request that accepts any model or several",
+                      "example": [
+                        "H100"
+                      ]
                     }
                   },
                   "required": [
                     "totalSpent",
                     "averageSpentPerDay",
                     "totalDeployments",
-                    "averageDeploymentsPerDay"
+                    "averageDeploymentsPerDay",
+                    "gpuHours",
+                    "gpuModels"
                   ]
                 }
               }
@@ -28847,6 +28864,21 @@
                               "hours": {
                                 "type": "number",
                                 "description": "How long the deployment held a lease over the range"
+                              },
+                              "gpuHours": {
+                                "type": "number",
+                                "description": "Each of the deployment's leases' hours over the range times its GPU count, summed",
+                                "example": 6
+                              },
+                              "gpuModels": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "description": "The GPU models the deployment's leases asked for, leaving out a request that accepts any model or several",
+                                "example": [
+                                  "H100"
+                                ]
                               }
                             },
                             "required": [
@@ -28854,7 +28886,9 @@
                               "name",
                               "projectId",
                               "consumedUsd",
-                              "hours"
+                              "hours",
+                              "gpuHours",
+                              "gpuModels"
                             ]
                           },
                           "description": "The deployments that held a lease in the range, most spent first"

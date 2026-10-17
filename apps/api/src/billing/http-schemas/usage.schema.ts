@@ -117,6 +117,14 @@ export const UsageHistoryStatsResponseSchema = z.object({
   averageDeploymentsPerDay: z.number().openapi({
     description: "Average number of deployments deployed per day",
     example: 1.5
+  }),
+  gpuHours: z.number().openapi({
+    description: "Each lease's hours over the range times its GPU count, summed",
+    example: 6
+  }),
+  gpuModels: z.array(z.string()).openapi({
+    description: "The GPU models those leases asked for, leaving out a request that accepts any model or several",
+    example: ["H100"]
   })
 });
 

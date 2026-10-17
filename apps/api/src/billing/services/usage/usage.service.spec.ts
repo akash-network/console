@@ -3,8 +3,10 @@ import { addDays, format } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { DeploymentSpendRepository } from "@src/billing/repositories/deployment-spend/deployment-spend.repository";
 import type { BillingUsageRawResult, UsageRepository } from "@src/billing/repositories/usage/usage.repository";
 import type { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
+import { GpuFormattingService } from "@src/gpu/services/gpu-formatting/gpu-formatting.service";
 import { UsageService } from "./usage.service";
 
 import { createAkashAddress } from "@test/seeders";
@@ -48,7 +50,9 @@ describe(UsageService.name, () => {
           totalSpent: 15.55,
           averageSpentPerDay: 5.18,
           totalDeployments,
-          averageDeploymentsPerDay: 8.33
+          averageDeploymentsPerDay: 8.33,
+          gpuHours: 0,
+          gpuModels: []
         });
       });
 
@@ -65,7 +69,9 @@ describe(UsageService.name, () => {
           totalSpent: 7.75,
           averageSpentPerDay: 7.75,
           totalDeployments,
-          averageDeploymentsPerDay: 25.0
+          averageDeploymentsPerDay: 25.0,
+          gpuHours: 0,
+          gpuModels: []
         });
       });
 
@@ -79,7 +85,9 @@ describe(UsageService.name, () => {
           totalSpent: 15.55,
           averageSpentPerDay: 5.18,
           totalDeployments: 0,
-          averageDeploymentsPerDay: 0.0
+          averageDeploymentsPerDay: 0.0,
+          gpuHours: 0,
+          gpuModels: []
         });
       });
     });
@@ -99,7 +107,9 @@ describe(UsageService.name, () => {
           totalSpent: 0,
           averageSpentPerDay: 0,
           totalDeployments: 0,
-          averageDeploymentsPerDay: 0
+          averageDeploymentsPerDay: 0,
+          gpuHours: 0,
+          gpuModels: []
         });
       });
     });
@@ -115,8 +125,44 @@ describe(UsageService.name, () => {
           totalSpent: 15.55,
           averageSpentPerDay: 5.18,
           totalDeployments: 0,
-          averageDeploymentsPerDay: 0
+          averageDeploymentsPerDay: 0,
+          gpuHours: 0,
+          gpuModels: []
         });
+      });
+    });
+
+    describe("when leases used gpus", () => {
+      it("sums every deployment's gpu hours to hundredths and lists each model's display name once", async () => {
+        const { address, startDate, endDate, service, deploymentSpendRepository } = setup();
+        deploymentSpendRepository.findGpuUsage.mockResolvedValue([
+          { dseq: "1", gpuHours: 2.004, gpuModels: ["h100"] },
+          { dseq: "2", gpuHours: 4, gpuModels: ["H100", "a100"] }
+        ]);
+
+        const result = await service.getHistoryStats(address, startDate, endDate);
+
+        expect(result).toMatchObject({ gpuHours: 6, gpuModels: ["A100", "H100"] });
+      });
+
+      it("reads the gpu usage of every address the wallet spent from over the range", async () => {
+        const earlierAddress = createAkashAddress();
+        const { address, startDate, endDate, service, usageRepository, deploymentSpendRepository } = setup();
+        usageRepository.resolveAddresses.mockResolvedValue([address, earlierAddress]);
+
+        await service.getHistoryStats(address, startDate, endDate);
+
+        expect(usageRepository.resolveAddresses).toHaveBeenCalledWith(address);
+        expect(deploymentSpendRepository.findGpuUsage).toHaveBeenCalledWith({ owners: [address, earlierAddress], startDate, endDate });
+      });
+
+      it("reports the gpu usage when the history has no day", async () => {
+        const { address, startDate, endDate, service, deploymentSpendRepository } = setup({ usageData: [] });
+        deploymentSpendRepository.findGpuUsage.mockResolvedValue([{ dseq: "1", gpuHours: 1.5, gpuModels: ["t4"] }]);
+
+        const result = await service.getHistoryStats(address, startDate, endDate);
+
+        expect(result).toMatchObject({ gpuHours: 1.5, gpuModels: ["T4"] });
       });
     });
 
@@ -229,14 +275,19 @@ describe(UsageService.name, () => {
     ];
 
     const usageRepository = mock<UsageRepository>({
-      getHistory: vi.fn().mockResolvedValue(mockUsageData)
+      getHistory: vi.fn().mockResolvedValue(mockUsageData),
+      resolveAddresses: vi.fn().mockResolvedValue([address])
     });
 
     const deploymentRepository = mock<DeploymentRepository>({
       countActiveByOwner: vi.fn().mockResolvedValue(totalDeployments)
     });
 
-    const service = new UsageService(usageRepository, deploymentRepository);
+    const deploymentSpendRepository = mock<DeploymentSpendRepository>({
+      findGpuUsage: vi.fn().mockResolvedValue([])
+    });
+
+    const service = new UsageService(usageRepository, deploymentRepository, deploymentSpendRepository, new GpuFormattingService());
 
     return {
       address,
@@ -246,6 +297,7 @@ describe(UsageService.name, () => {
       service,
       usageRepository,
       deploymentRepository,
+      deploymentSpendRepository,
       totalDeployments
     };
   }

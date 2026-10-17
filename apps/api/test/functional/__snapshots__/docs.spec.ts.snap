@@ -20999,6 +20999,21 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "example": 12.34,
                       "type": "number",
                     },
+                    "gpuHours": {
+                      "description": "Each lease's hours over the range times its GPU count, summed",
+                      "example": 6,
+                      "type": "number",
+                    },
+                    "gpuModels": {
+                      "description": "The GPU models those leases asked for, leaving out a request that accepts any model or several",
+                      "example": [
+                        "H100",
+                      ],
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
                     "totalDeployments": {
                       "description": "Total number of deployments deployed",
                       "example": 15,
@@ -21015,6 +21030,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "averageSpentPerDay",
                     "totalDeployments",
                     "averageDeploymentsPerDay",
+                    "gpuHours",
+                    "gpuModels",
                   ],
                   "type": "object",
                 },

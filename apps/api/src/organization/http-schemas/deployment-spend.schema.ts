@@ -22,7 +22,12 @@ const DeploymentSpendSchema = z.object({
   name: z.string().nullable(),
   projectId: z.string().uuid().nullable().openapi({ description: "Null for a deployment filed in no project" }),
   consumedUsd: z.number().openapi({ description: "What the deployment's leases cost over the range, including costs not settled yet" }),
-  hours: z.number().openapi({ description: "How long the deployment held a lease over the range" })
+  hours: z.number().openapi({ description: "How long the deployment held a lease over the range" }),
+  gpuHours: z.number().openapi({ description: "Each of the deployment's leases' hours over the range times its GPU count, summed", example: 6 }),
+  gpuModels: z.array(z.string()).openapi({
+    description: "The GPU models the deployment's leases asked for, leaving out a request that accepts any model or several",
+    example: ["H100"]
+  })
 });
 
 export const ListDeploymentSpendResponseSchema = z.object({

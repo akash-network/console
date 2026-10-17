@@ -11,6 +11,9 @@ export type DeploymentDeposited = { owner: string; dseq: string; depositedMicroU
 
 export type DailyDeploymentConsumption = { dseq: string; date: string; consumedMicroUsd: string; hours: number };
 
+/** Models are the SDL model keys the deployment's gpu groups asked for, so a group accepting any model or several names none. */
+export type DeploymentGpuUsage = { dseq: string; gpuHours: number; gpuModels: string[] };
+
 export type LandingWindow = { since: Date; until: Date };
 
 const DEPOSIT_MESSAGE_TYPES = [
@@ -25,6 +28,22 @@ const MICRO_USD_PER_UNIT = `CASE
   WHEN denom IN ('uusdc', 'uact') THEN 1
   ELSE 0
 END`;
+
+const DAYS_WITH_BLOCK_TIME = `days AS (
+  SELECT
+    d.date,
+    d."firstBlockHeight" AS first_height,
+    d."lastBlockHeightYet" AS last_height,
+    d."aktPrice" AS akt_price,
+    COALESCE(
+      EXTRACT(EPOCH FROM last_block.datetime - first_block.datetime) / NULLIF(d."lastBlockHeightYet" - d."firstBlockHeight", 0),
+      :averageBlockSeconds
+    ) AS seconds_per_block
+  FROM day d
+  LEFT JOIN block first_block ON first_block.height = d."firstBlockHeight"
+  LEFT JOIN block last_block ON last_block.height = d."lastBlockHeightYet"
+  WHERE d.date >= :startDate::date AND d.date <= :endDate::date
+)`;
 
 /** Reads what the chain index recorded per deployment, keyed by owner address like the public usage history it mirrors. */
 @singleton()
@@ -91,21 +110,7 @@ export class DeploymentSpendRepository {
 
     return await this.#chainDb.query<DailyDeploymentConsumption>(
       `/* deployment-spend:daily */
-      WITH days AS (
-        SELECT
-          d.date,
-          d."firstBlockHeight" AS first_height,
-          d."lastBlockHeightYet" AS last_height,
-          d."aktPrice" AS akt_price,
-          COALESCE(
-            EXTRACT(EPOCH FROM last_block.datetime - first_block.datetime) / NULLIF(d."lastBlockHeightYet" - d."firstBlockHeight", 0),
-            :averageBlockSeconds
-          ) AS seconds_per_block
-        FROM day d
-        LEFT JOIN block first_block ON first_block.height = d."firstBlockHeight"
-        LEFT JOIN block last_block ON last_block.height = d."lastBlockHeightYet"
-        WHERE d.date >= :startDate::date AND d.date <= :endDate::date
-      ),
+      WITH ${DAYS_WITH_BLOCK_TIME},
       leases AS (
         SELECT l.dseq, l.denom, l.price, l."createdHeight" AS created_height, COALESCE(l."closedHeight", l."predictedClosedHeight") AS end_height
         FROM lease l
@@ -140,6 +145,51 @@ export class DeploymentSpendRepository {
       FROM swept
       GROUP BY dseq, date, seconds_per_block
       ORDER BY date, dseq`,
+      { type: QueryTypes.SELECT, replacements: { owners, startDate, endDate, averageBlockSeconds: averageBlockTime } }
+    );
+  }
+
+  /** Each gpu lease counts its own gpus for every hour it ran in the range, so leases of one deployment that overlap add up rather than merge. */
+  async findGpuUsage({ owners, startDate, endDate }: { owners: string[]; startDate: string; endDate: string }): Promise<DeploymentGpuUsage[]> {
+    if (!owners.length) return [];
+
+    return await this.#chainDb.query<DeploymentGpuUsage>(
+      `/* deployment-spend:gpu-usage */
+      WITH ${DAYS_WITH_BLOCK_TIME},
+      leases AS (
+        SELECT
+          l.dseq,
+          l."deploymentGroupId" AS group_id,
+          l."gpuUnits" AS gpu_units,
+          l."createdHeight" AS created_height,
+          COALESCE(l."closedHeight", l."predictedClosedHeight") AS end_height
+        FROM lease l
+        WHERE l.owner IN (:owners)
+          AND l."gpuUnits" > 0
+          AND l."createdHeight" < (SELECT MAX(last_height) FROM days)
+          AND COALESCE(l."closedHeight", l."predictedClosedHeight") > (SELECT MIN(first_height) FROM days)
+      ),
+      gpu_hours AS (
+        SELECT
+          l.dseq,
+          SUM(l.gpu_units * (LEAST(d.last_height, l.end_height) - GREATEST(d.first_height, l.created_height)) * d.seconds_per_block) / 3600 AS gpu_hours
+        FROM leases l
+        INNER JOIN days d ON l.created_height < d.last_height AND l.end_height > d.first_height
+        GROUP BY l.dseq
+      )
+      SELECT
+        h.dseq,
+        h.gpu_hours::float8 AS "gpuHours",
+        ARRAY(
+          SELECT DISTINCT split_part(r."gpuModel", '/', 1) AS model
+          FROM "deploymentGroupResource" r
+          WHERE r."deploymentGroupId" IN (SELECT group_id FROM leases WHERE leases.dseq = h.dseq)
+            AND r."gpuUnits" > 0
+            AND split_part(r."gpuModel", '/', 1) <> ''
+          ORDER BY model
+        ) AS "gpuModels"
+      FROM gpu_hours h
+      ORDER BY h.dseq`,
       { type: QueryTypes.SELECT, replacements: { owners, startDate, endDate, averageBlockSeconds: averageBlockTime } }
     );
   }

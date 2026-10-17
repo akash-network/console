@@ -12,7 +12,16 @@ import type { OrganizationRole } from "@src/organization/model-schemas/organizat
 import { app, initDb } from "@src/rest-app";
 import type { UserOutput } from "@src/user/repositories";
 
-import { createAkashAddress, createAkashBlock, createDay, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
+import {
+  createAkashAddress,
+  createAkashBlock,
+  createDay,
+  createDeployment,
+  createDeploymentGroup,
+  createDeploymentGroupResource,
+  createLease,
+  createProvider
+} from "@test/seeders";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
@@ -61,9 +70,9 @@ describe("Deployment spend", () => {
         ])
       );
       expect(data.deployments).toEqual([
-        { dseq: deployments.api, name: "api", projectId: defaultProject.id, consumedUsd: 24, hours: 36 },
-        { dseq: deployments.web, name: null, projectId: staging.id, consumedUsd: 14.4, hours: 36 },
-        { dseq: deployments.unrecorded, name: null, projectId: null, consumedUsd: 2.4, hours: 6 }
+        { dseq: deployments.api, name: "api", projectId: defaultProject.id, consumedUsd: 24, hours: 36, gpuHours: 60, gpuModels: ["H100"] },
+        { dseq: deployments.web, name: null, projectId: staging.id, consumedUsd: 14.4, hours: 36, gpuHours: 72, gpuModels: ["A100"] },
+        { dseq: deployments.unrecorded, name: null, projectId: null, consumedUsd: 2.4, hours: 6, gpuHours: 0, gpuModels: [] }
       ]);
     });
 
@@ -87,7 +96,7 @@ describe("Deployment spend", () => {
 
       expect(data.projects.map(({ projectId }) => projectId)).toEqual([staging.id]);
       expect(data.days.map(({ projectId }) => projectId)).toEqual([staging.id, staging.id]);
-      expect(data.deployments.map(({ dseq }) => dseq)).toEqual([deployments.web]);
+      expect(data.deployments.map(({ dseq, gpuHours }) => ({ dseq, gpuHours }))).toEqual([{ dseq: deployments.web, gpuHours: 72 }]);
     });
 
     it("gives a member granted no project an empty report", async () => {
@@ -138,14 +147,21 @@ describe("Deployment spend", () => {
     return await chainDays;
   }
 
-  async function seedChainDeployment(input: { owner: string; leases: Array<{ createdHeight: number; closedHeight?: number }> }) {
+  async function seedChainDeployment(input: {
+    owner: string;
+    leases: Array<{ createdHeight: number; closedHeight?: number; gpu?: { units: number; model: string } }>;
+  }) {
     const providerAddress = await seedChainDays();
     const dseq = faker.string.numeric(12);
     const deployment = await createDeployment({ owner: input.owner, dseq, createdHeight: input.leases[0].createdHeight, denom: "uact" });
 
     for (const lease of input.leases) {
       const group = await createDeploymentGroup({ deploymentId: deployment.id, owner: input.owner, dseq });
+      if (lease.gpu) {
+        await createDeploymentGroupResource({ deploymentGroupId: group.id, gpuUnits: lease.gpu.units, gpuModel: lease.gpu.model, count: 1 });
+      }
       await createLease({
+        gpuUnits: lease.gpu?.units ?? 0,
         owner: input.owner,
         dseq,
         providerAddress,
@@ -163,8 +179,14 @@ describe("Deployment spend", () => {
   }
 
   async function seedOrganizationDeployments(input: { organizationId: string; ownerId: string; address: string; stagingId: string; defaultProjectId: string }) {
-    const web = await seedChainDeployment({ owner: input.address, leases: [{ createdHeight: 1000, closedHeight: 2480 }] });
-    const api = await seedChainDeployment({ owner: input.address, leases: [{ createdHeight: 2000 }, { createdHeight: 2480 }] });
+    const web = await seedChainDeployment({ owner: input.address, leases: [{ createdHeight: 1000, closedHeight: 2480, gpu: { units: 2, model: "a100" } }] });
+    const api = await seedChainDeployment({
+      owner: input.address,
+      leases: [
+        { createdHeight: 2000, gpu: { units: 1, model: "h100" } },
+        { createdHeight: 2480, gpu: { units: 1, model: "h100" } }
+      ]
+    });
     const unrecorded = await seedChainDeployment({ owner: input.address, leases: [{ createdHeight: 3000, closedHeight: 3240 }] });
     await seedChainDeployment({ owner: createAkashAddress(), leases: [{ createdHeight: 1000 }] });
 

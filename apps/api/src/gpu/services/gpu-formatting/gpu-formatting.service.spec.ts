@@ -68,6 +68,18 @@ describe(GpuFormattingService.name, () => {
     });
   });
 
+  describe("formatModelNames", () => {
+    it("gives each distinct display name once, in alphabetical order", () => {
+      const { service } = setup();
+      expect(service.formatModelNames(["rtx4090", "h100", "a100", "H100"])).toEqual(["A100", "H100", "RTX 4090"]);
+    });
+
+    it("gives no name for no model", () => {
+      const { service } = setup();
+      expect(service.formatModelNames([])).toEqual([]);
+    });
+  });
+
   describe("formatVendorName", () => {
     it("returns the branded name for known vendors", () => {
       const { service } = setup();
