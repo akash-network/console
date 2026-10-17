@@ -132,7 +132,8 @@ export class UsageRepository {
     }));
   }
 
-  private async resolveAddresses(address: string): Promise<string[]> {
+  /** A wallet made before the derivation migration also spent from its earlier address, so its history reads both. */
+  async resolveAddresses(address: string): Promise<string[]> {
     const userWallet = await this.userWalletRepository.findOneByAddress(address);
 
     if (!userWallet) {

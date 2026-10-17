@@ -104,6 +104,11 @@ export class GpuFormattingService {
     return name.toUpperCase();
   }
 
+  /** Raw names that format alike, such as `h100` and `H100`, collapse into one display name. */
+  formatModelNames(names: string[]): string[] {
+    return [...new Set(names.map(name => this.formatModelName(name)))].sort((left, right) => left.localeCompare(right));
+  }
+
   /** Turns a raw vendor name (e.g. `nvidia`) into its branded label (`NVIDIA`), falling back to uppercase. */
   formatVendorName(name: string): string {
     return GPU_VENDOR_LABELS[this.#normalize(name)] ?? name.toUpperCase();

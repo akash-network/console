@@ -12,6 +12,7 @@ import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manag
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { GpuFormattingService } from "@src/gpu/services/gpu-formatting/gpu-formatting.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
@@ -255,13 +256,30 @@ describe(ProjectSpendService.name, () => {
           { date: "2026-10-02", projectId: null, consumedCents: 4 }
         ],
         deployments: [
-          { dseq: "2", name: null, projectId: staging.id, consumedCents: 200, hours: 24 },
-          { dseq: "1", name: "web", projectId: defaultProject.id, consumedCents: 150, hours: 36 },
-          { dseq: "3", name: null, projectId: null, consumedCents: 4, hours: 2.5 }
+          { dseq: "2", name: null, projectId: staging.id, consumedCents: 200, hours: 24, gpuHours: 0, gpuModels: [] },
+          { dseq: "1", name: "web", projectId: defaultProject.id, consumedCents: 150, hours: 36, gpuHours: 0, gpuModels: [] },
+          { dseq: "3", name: null, projectId: null, consumedCents: 4, hours: 2.5, gpuHours: 0, gpuModels: [] }
         ]
       });
       expect(deploymentSpendRepository.findDailyConsumption).toHaveBeenCalledWith({ owners: [wallet.address], ...RANGE });
+      expect(deploymentSpendRepository.findGpuUsage).toHaveBeenCalledWith({ owners: [wallet.address], ...RANGE });
       expect(deploymentSettingRepository.findNamedFilingsInOrganizationByDseqs).toHaveBeenCalledWith(organizationId, ["1", "2", "1", "3"]);
+    });
+
+    it("gives each deployment its gpu hours rounded to hundredths and the display names of the models it asked for", async () => {
+      const { service, deploymentSpendRepository } = setup({ role: "owner" });
+      deploymentSpendRepository.findDailyConsumption.mockResolvedValue([
+        { dseq: "1", date: "2026-10-01", consumedMicroUsd: "3000000", hours: 3 },
+        { dseq: "2", date: "2026-10-01", consumedMicroUsd: "1000000", hours: 3 }
+      ]);
+      deploymentSpendRepository.findGpuUsage.mockResolvedValue([{ dseq: "1", gpuHours: 6.004, gpuModels: ["rtx4090", "h100"] }]);
+
+      const breakdown = await service.breakdown(RANGE);
+
+      expect(breakdown.deployments.map(({ dseq, gpuHours, gpuModels }) => ({ dseq, gpuHours, gpuModels }))).toEqual([
+        { dseq: "1", gpuHours: 6, gpuModels: ["H100", "RTX 4090"] },
+        { dseq: "2", gpuHours: 0, gpuModels: [] }
+      ]);
     });
 
     it("sums a project's deployments before rounding each day to cents", async () => {
@@ -293,7 +311,7 @@ describe(ProjectSpendService.name, () => {
       const breakdown = await service.breakdown(RANGE);
 
       expect(breakdown.days).toEqual([]);
-      expect(breakdown.deployments).toEqual([{ dseq: "1", name: null, projectId: null, consumedCents: 0, hours: 3.14 }]);
+      expect(breakdown.deployments).toEqual([{ dseq: "1", name: null, projectId: null, consumedCents: 0, hours: 3.14, gpuHours: 0, gpuModels: [] }]);
     });
 
     it("orders deployments that spent the same by dseq", async () => {
@@ -327,6 +345,30 @@ describe(ProjectSpendService.name, () => {
       expect(breakdown.projects).toEqual([projects[1]]);
       expect(breakdown.days).toEqual([{ date: "2026-10-01", projectId: projects[1].id, consumedCents: 200 }]);
       expect(breakdown.deployments.map(({ dseq }) => dseq)).toEqual(["2"]);
+    });
+
+    it("leaves the gpu hours of a project a member was not granted out of its report", async () => {
+      const { service, projects, deploymentSpendRepository, deploymentSettingRepository } = setup({ role: "member", grantedProjectIndexes: [1] });
+      deploymentSpendRepository.findDailyConsumption.mockResolvedValue([
+        { dseq: "1", date: "2026-10-01", consumedMicroUsd: "1000000", hours: 24 },
+        { dseq: "2", date: "2026-10-01", consumedMicroUsd: "2000000", hours: 24 }
+      ]);
+      deploymentSpendRepository.findGpuUsage.mockResolvedValue([
+        { dseq: "1", gpuHours: 48, gpuModels: ["a100"] },
+        { dseq: "2", gpuHours: 24, gpuModels: ["h100"] }
+      ]);
+      deploymentSettingRepository.findNamedFilingsInOrganizationByDseqs.mockResolvedValue(
+        new Map([
+          ["1", { projectId: projects[0].id, name: null }],
+          ["2", { projectId: projects[1].id, name: null }]
+        ])
+      );
+
+      const breakdown = await service.breakdown(RANGE);
+
+      expect(breakdown.deployments.map(({ dseq, gpuHours, gpuModels }) => ({ dseq, gpuHours, gpuModels }))).toEqual([
+        { dseq: "2", gpuHours: 24, gpuModels: ["H100"] }
+      ]);
     });
 
     it("gives the billing role every deployment, unassigned ones included", async () => {
@@ -364,6 +406,7 @@ describe(ProjectSpendService.name, () => {
       expect(breakdown).toEqual({ ...RANGE, projects: [], days: [], deployments: [] });
       expect(userWalletRepository.findOneBy).not.toHaveBeenCalled();
       expect(deploymentSpendRepository.findDailyConsumption).not.toHaveBeenCalled();
+      expect(deploymentSpendRepository.findGpuUsage).not.toHaveBeenCalled();
     });
 
     it("refuses a request that runs in no organization", async () => {
@@ -416,7 +459,8 @@ describe(ProjectSpendService.name, () => {
     const deploymentSpendRepository = mock<DeploymentSpendRepository>({
       findDepositedByDeployment: vi.fn().mockResolvedValue([]),
       findConsumedByDeployment: vi.fn().mockResolvedValue([]),
-      findDailyConsumption: vi.fn().mockResolvedValue([])
+      findDailyConsumption: vi.fn().mockResolvedValue([]),
+      findGpuUsage: vi.fn().mockResolvedValue([])
     });
     const txManagerService = mock<TxManagerService>();
     const authService = mock<AuthService>();
@@ -435,6 +479,7 @@ describe(ProjectSpendService.name, () => {
       txManagerService,
       authService,
       executionContextService,
+      new GpuFormattingService(),
       () => logger
     );
 

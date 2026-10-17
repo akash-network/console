@@ -4,7 +4,16 @@ import { describe, expect, it, vi } from "vitest";
 import type { UsageHistoryResponse, UsageHistoryStats } from "@src/billing/http-schemas/usage.schema";
 import { app, initDb } from "@src/rest-app";
 
-import { createAkashAddress, createAkashBlock, createDay, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
+import {
+  createAkashAddress,
+  createAkashBlock,
+  createDay,
+  createDeployment,
+  createDeploymentGroup,
+  createDeploymentGroupResource,
+  createLease,
+  createProvider
+} from "@test/seeders";
 import { formatUTCDate } from "@test/utils";
 
 describe("GET /v1/usage/history", () => {
@@ -472,6 +481,31 @@ describe("GET /v1/usage/history/stats", () => {
     return { owner, startDate: formatUTCDate(subDays(now, 5)), endDate: formatUTCDate(now) };
   }
 
+  async function seedGpuDeployment() {
+    await initDb();
+    const owner = createAkashAddress();
+    const dseq = "9101";
+    const provider = await createProvider({ deletedHeight: null });
+    await createDay({ date: "2030-03-01", firstBlockHeight: 5_000_000, lastBlockHeight: 5_014_400, lastBlockHeightYet: 5_014_400, aktPrice: 2 });
+    const deployment = await createDeployment({ owner, dseq, createdHeight: 5_001_000, denom: "uact" });
+    const group = await createDeploymentGroup({ deploymentId: deployment.id, owner, dseq });
+    await createDeploymentGroupResource({ deploymentGroupId: group.id, gpuUnits: 2, gpuModel: "h100", count: 1 });
+    await createLease({
+      owner,
+      dseq,
+      providerAddress: provider.owner,
+      deploymentId: deployment.id,
+      deploymentGroupId: group.id,
+      createdHeight: 5_001_000,
+      closedHeight: 5_002_800,
+      gpuUnits: 2,
+      price: 1,
+      denom: "uact"
+    });
+
+    return { owner, startDate: "2030-03-01", endDate: "2030-03-01" };
+  }
+
   it("returns usage stats for a valid address with default date range", async () => {
     const { owners, expectUsageStats } = setup();
     const response = await app.request(`/v1/usage/history/stats?address=${owners[0]}`);
@@ -501,6 +535,8 @@ describe("GET /v1/usage/history/stats", () => {
     expect(data.averageSpentPerDay).toBe(0);
     expect(data.totalDeployments).toBe(0);
     expect(data.averageDeploymentsPerDay).toBe(0);
+    expect(data.gpuHours).toBe(0);
+    expect(data.gpuModels).toEqual([]);
   });
 
   it("counts the deployments that were active during the window", async () => {
@@ -511,6 +547,16 @@ describe("GET /v1/usage/history/stats", () => {
     const data = await expectUsageStats(response);
 
     expect(data.totalDeployments).toBe(2);
+  });
+
+  it("reports the gpu hours of the address's leases and the models they asked for", async () => {
+    const { expectUsageStats } = setup();
+    const { owner, startDate, endDate } = await seedGpuDeployment();
+
+    const response = await app.request(`/v1/usage/history/stats?address=${owner}&startDate=${startDate}&endDate=${endDate}`);
+    const data = await expectUsageStats(response);
+
+    expect(data).toMatchObject({ gpuHours: 6, gpuModels: ["H100"] });
   });
 
   it("responds with 400 for invalid address format", async () => {

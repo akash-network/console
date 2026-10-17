@@ -20,7 +20,7 @@ export const createLease = async (overrides: Partial<CreationAttributes<Lease>> 
     withdrawnAmount: overrides.withdrawnAmount || faker.number.float({ min: 0, max: 100, multipleOf: 0.000001 }),
     denom: overrides.denom || faker.helpers.arrayElement(["uakt", "uusdc"]),
     cpuUnits: overrides.cpuUnits || faker.number.int({ min: 1000, max: 10000 }),
-    gpuUnits: overrides.gpuUnits || faker.number.int({ min: 0, max: 8 }),
+    gpuUnits: overrides.gpuUnits ?? faker.number.int({ min: 0, max: 8 }),
     memoryQuantity: overrides.memoryQuantity || faker.number.int({ min: 1024 * 1024 * 1024, max: 16 * 1024 * 1024 * 1024 }),
     ephemeralStorageQuantity: overrides.ephemeralStorageQuantity || faker.number.int({ min: 1024 * 1024 * 1024, max: 100 * 1024 * 1024 * 1024 }),
     persistentStorageQuantity: overrides.persistentStorageQuantity || faker.number.int({ min: 1024 * 1024 * 1024, max: 1000 * 1024 * 1024 * 1024 })

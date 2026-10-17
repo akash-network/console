@@ -5,13 +5,18 @@ import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
-import { type DailyDeploymentConsumption, DeploymentSpendRepository } from "@src/billing/repositories/deployment-spend/deployment-spend.repository";
+import {
+  type DailyDeploymentConsumption,
+  type DeploymentGpuUsage,
+  DeploymentSpendRepository
+} from "@src/billing/repositories/deployment-spend/deployment-spend.repository";
 import { WALLET_MIGRATION_DATE } from "@src/billing/repositories/usage/usage.repository";
 import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { DeploymentSettingRepository, type NamedDeploymentFiling } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { GpuFormattingService } from "@src/gpu/services/gpu-formatting/gpu-formatting.service";
 import { type ProjectOutput, ProjectRepository } from "@src/organization/repositories/project/project.repository";
 
 export type SpendRange = { startDate: string; endDate: string };
@@ -29,7 +34,9 @@ export type ProjectSpendReport = SpendRange & {
 
 export type DailyProjectSpend = { date: string; projectId: string | null; consumedCents: number };
 
-export type DeploymentSpend = { dseq: string; name: string | null; projectId: string | null; consumedCents: number; hours: number };
+type GpuUsage = Omit<DeploymentGpuUsage, "dseq">;
+
+export type DeploymentSpend = { dseq: string; name: string | null; projectId: string | null; consumedCents: number; hours: number } & GpuUsage;
 
 /** Deployments filed in no project show only to a caller who may see the whole organization's spend. */
 export type DeploymentSpendReport = SpendRange & {
@@ -59,6 +66,7 @@ export class ProjectSpendService {
     private readonly txManagerService: TxManagerService,
     private readonly authService: AuthService,
     private readonly executionContextService: ExecutionContextService,
+    private readonly gpuFormattingService: GpuFormattingService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ProjectSpendService.name });
@@ -91,7 +99,11 @@ export class ProjectSpendService {
       return { ...range, projects: [], days: [], deployments: [] };
     }
 
-    const consumption = await this.deploymentSpendRepository.findDailyConsumption({ owners: await this.#ownersOf(organizationId), ...range });
+    const owners = await this.#ownersOf(organizationId);
+    const [consumption, gpuUsage] = await Promise.all([
+      this.deploymentSpendRepository.findDailyConsumption({ owners, ...range }),
+      this.deploymentSpendRepository.findGpuUsage({ owners, ...range })
+    ]);
     const filings = await this.deploymentSettingRepository.findNamedFilingsInOrganizationByDseqs(
       organizationId,
       consumption.map(({ dseq }) => dseq)
@@ -103,7 +115,7 @@ export class ProjectSpendService {
 
       return projectId ? visibleProjectIds.has(projectId) : seesOrganization;
     });
-    const deployments = deploymentSpendOf(visible, filings);
+    const deployments = deploymentSpendOf(visible, filings, this.#gpuUsageByDseq(gpuUsage));
 
     return {
       ...range,
@@ -111,6 +123,10 @@ export class ProjectSpendService {
       days: dailyProjectSpendOf(visible, projectIdOf),
       deployments
     };
+  }
+
+  #gpuUsageByDseq(usage: DeploymentGpuUsage[]): Map<string, GpuUsage> {
+    return new Map(usage.map(({ dseq, gpuHours, gpuModels }) => [dseq, { gpuHours, gpuModels: this.gpuFormattingService.formatModelNames(gpuModels) }]));
   }
 
   async #visibleProjects(organizationId: string): Promise<VisibleProjects> {
@@ -183,7 +199,15 @@ function toCents(microUsd: string | number): number {
   return Math.round(Number(microUsd) / MICRO_USD_PER_CENT);
 }
 
-function deploymentSpendOf(consumption: DailyDeploymentConsumption[], filings: Map<string, NamedDeploymentFiling>): DeploymentSpend[] {
+function toHundredths(hours: number): number {
+  return Math.round(hours * 100) / 100;
+}
+
+function deploymentSpendOf(
+  consumption: DailyDeploymentConsumption[],
+  filings: Map<string, NamedDeploymentFiling>,
+  gpuUsageByDseq: Map<string, GpuUsage>
+): DeploymentSpend[] {
   const totals = new Map<string, { microUsd: number; hours: number }>();
 
   consumption.forEach(({ dseq, consumedMicroUsd, hours }) => {
@@ -197,7 +221,9 @@ function deploymentSpendOf(consumption: DailyDeploymentConsumption[], filings: M
       name: filings.get(dseq)?.name ?? null,
       projectId: filings.get(dseq)?.projectId ?? null,
       consumedCents: toCents(microUsd),
-      hours: Math.round(hours * 100) / 100
+      hours: toHundredths(hours),
+      gpuHours: toHundredths(gpuUsageByDseq.get(dseq)?.gpuHours ?? 0),
+      gpuModels: gpuUsageByDseq.get(dseq)?.gpuModels ?? []
     }))
     .sort((left, right) => right.consumedCents - left.consumedCents || left.dseq.localeCompare(right.dseq));
 }
