@@ -71,6 +71,29 @@ describe(useDeploymentNames.name, () => {
     await vi.waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 
+  it("reports the names as loading from the first render that holds a deployment it had not named yet", async () => {
+    const { result, rerenderWith, settleLookups } = setup({ dseqs: ["100"], apiNames: { "100": "api-name", "200": "storefront" } });
+    await settleLookups();
+
+    rerenderWith(["100", "200"]);
+
+    expect(result.current.isLoading).toBe(true);
+    await vi.waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.getDeploymentName("200")).toBe("storefront");
+  });
+
+  it("reports nothing loading once a lookup the server failed has given up", async () => {
+    const { result, rerenderWith, settleLookups } = setup({ dseqs: [], apiError: new ApiError(500, {}, "GET /v1/deployment-names → 500") });
+
+    rerenderWith(["100"]);
+    const isLoadingWhileAsking = result.current.isLoading;
+    await settleLookups();
+
+    expect(isLoadingWhileAsking).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.getDeploymentName("100")).toBeNull();
+  });
+
   it("reports nothing loading when there is no deployment to name", () => {
     const { result } = setup({ dseqs: [] });
 

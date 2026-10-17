@@ -8,7 +8,7 @@ import type { SnackbarKey } from "notistack";
 import { useSnackbar } from "notistack";
 
 import { type ActivityDestination, activityDestinationOf, SUMMARY_DESTINATION } from "@src/components/activity/activityDestinations/activityDestinations";
-import { deploymentLabelOf, listOf } from "@src/components/activity/activityLabels/activityLabels";
+import { deploymentLabelOf, listOf, systemCloseOf } from "@src/components/activity/activityLabels/activityLabels";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCloseBatchesBeingSent } from "@src/hooks/useCloseBatches/useCloseBatches";
@@ -34,13 +34,18 @@ export const DEPENDENCIES = {
 
 type FinishedActivity = Activity & { type: Exclude<Activity["type"], `${string}_alert`>; status: "succeeded" | "failed" };
 
-type Announcement = { title: string; subTitle: string; variant: "success" | "warning" | "error" };
+type Announcement = { title: string; subTitle: string; variant: "success" | "info" | "warning" | "error" };
 
 type LabelDeployment = (dseq: string | undefined) => string;
 
 const ANNOUNCEMENTS: Record<FinishedActivity["type"], (activity: FinishedActivity, labelDeployment: LabelDeployment) => Announcement> = {
-  deployment_close: ({ status, meta }, labelDeployment) => {
+  deployment_close: ({ status, initiator, meta }, labelDeployment) => {
     const deployment = labelDeployment(meta.dseq);
+
+    if (initiator === "system") {
+      const { title, detail } = systemCloseOf(deployment, meta.reason);
+      return { title, subTitle: detail, variant: "info" };
+    }
 
     return status === "succeeded"
       ? { title: `${upperFirst(deployment)} closed`, subTitle: "It no longer runs or costs anything.", variant: "success" }
@@ -224,7 +229,7 @@ function ActivityToast({
   );
 }
 
-/** An action never seen before counts too, so one that started and finished between two checks is still announced, unless the page that sent it already showed how it ended. */
+/** An action never seen before counts too, so one that finished between two checks, or a close Console made, is still announced, unless the page that sent it already showed how it ended. */
 function findFinishedSince(lastSeenStatuses: Map<string, Activity["status"]>, activities: Activity[]): FinishedActivity[] {
   return activities.filter((activity): activity is FinishedActivity => isFinished(activity) && lastSeenStatuses.get(activity.id) !== activity.status);
 }

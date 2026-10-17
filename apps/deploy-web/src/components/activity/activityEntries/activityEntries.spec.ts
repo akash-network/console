@@ -14,10 +14,11 @@ describe(activityEntriesOf.name, () => {
     ]);
   });
 
-  it("describes a finished close as closed", () => {
-    const [entry] = entriesOf([buildActivity({ status: "succeeded", meta: { dseq: "1234" } })]);
+  it("describes a finished close the user made as closed", () => {
+    const [entry] = entriesOf([buildActivity({ status: "succeeded", initiator: "user", meta: { dseq: "1234" } })]);
 
     expect(entry).toMatchObject({ status: "succeeded", title: "Closed “web-1234”", href: "/deployments/1234" });
+    expect(entry).not.toHaveProperty("detail");
   });
 
   it("describes a failed close with its reason, linking to the settings where the deployment can be closed again", () => {
@@ -98,6 +99,7 @@ describe(activityEntriesOf.name, () => {
     const activity = buildActivity({
       type: "deployment_reclaim_alert",
       status: "info",
+      initiator: "system",
       meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Deployment 1234 is being reclaimed by the provider", dseq: "1234" }
     });
 
@@ -107,9 +109,30 @@ describe(activityEntriesOf.name, () => {
   });
 
   it("says one of the user's alerts fired when the alert carries no summary", () => {
-    const [entry] = entriesOf([buildActivity({ type: "wallet_balance_alert", status: "info", meta: {} })]);
+    const [entry] = entriesOf([buildActivity({ type: "wallet_balance_alert", status: "info", initiator: "system", meta: {} })]);
 
     expect(entry).toMatchObject({ status: "info", title: "One of your alerts fired", href: "/deployments" });
+  });
+
+  it("describes a close Console made as Console closing the deployment, with its reason, linking to it", () => {
+    const activity = buildActivity({ status: "succeeded", initiator: "system", meta: { dseq: "1234", reason: "provider_unreachable" } });
+
+    expect(entriesOf([activity])).toEqual([
+      {
+        id: activity.id,
+        status: "succeeded",
+        title: "Console closed “web-1234”",
+        detail: "Its provider stopped responding.",
+        href: "/deployments/1234",
+        createdAt: activity.createdAt
+      }
+    ]);
+  });
+
+  it("describes a close Console made for a reason it has no words for as a plain close by Console", () => {
+    const [entry] = entriesOf([buildActivity({ status: "succeeded", initiator: "system", meta: { dseq: "1234" } })]);
+
+    expect(entry).toMatchObject({ title: "Console closed “web-1234”", detail: "It no longer runs or costs anything." });
   });
 
   it("links an activity about no particular deployment to the deployments list", () => {
