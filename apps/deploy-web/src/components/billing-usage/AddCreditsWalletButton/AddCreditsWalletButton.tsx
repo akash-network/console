@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, AlertDescription } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 import { Elements, PaymentRequestButtonElement } from "@stripe/react-stripe-js";
 import type { PaymentRequest, PaymentRequestPaymentMethodEvent } from "@stripe/stripe-js";
 
@@ -115,19 +116,21 @@ export function AddCreditsWalletButton({ amount, disabled, onSubmit, onOpenChang
   return (
     <div className="space-y-3">
       <p className="text-sm font-medium">Express checkout</p>
-      <d.Elements stripe={stripePromise}>
-        <d.PaymentRequestButtonElement
-          options={{ paymentRequest, style: { paymentRequestButton: { type: "buy", height: "44px" } } }}
-          onClick={event => {
-            if (disabled) {
-              event.preventDefault();
-              return;
-            }
-            paymentRequest.update({ total: { label: "Akash credits", amount: Math.round(amount * 100) } });
-            callbacks.current.onOpenChange(true);
-          }}
-        />
-      </d.Elements>
+      <div role="group" aria-label="Express checkout" aria-disabled={disabled} className={cn({ "pointer-events-none opacity-50": disabled })}>
+        <d.Elements stripe={stripePromise}>
+          <d.PaymentRequestButtonElement
+            options={{ paymentRequest, style: { paymentRequestButton: { type: "buy", height: "44px" } } }}
+            onClick={event => {
+              if (disabled) {
+                event.preventDefault();
+                return;
+              }
+              paymentRequest.update({ total: { label: "Akash credits", amount: Math.round(amount * 100) } });
+              callbacks.current.onOpenChange(true);
+            }}
+          />
+        </d.Elements>
+      </div>
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
