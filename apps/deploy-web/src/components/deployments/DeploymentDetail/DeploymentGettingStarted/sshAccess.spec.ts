@@ -35,7 +35,7 @@ describe("sshAccess", () => {
         { vm: [forwardedPort({ port: 80, externalPort: 31080 }), forwardedPort({ host: "provider.example.com", port: 22, externalPort: 31022 })] }
       );
 
-      expect(commands).toEqual([{ serviceName: "vm", command: "ssh root@provider.example.com -p 31022 -i ~/.ssh/id_rsa" }]);
+      expect(commands).toEqual([{ serviceName: "vm", command: "ssh -i ~/akash-key/id_rsa -o IdentitiesOnly=yes -p 31022 root@provider.example.com" }]);
     });
 
     it("builds one command per SSH service", () => {
@@ -63,8 +63,8 @@ describe("sshAccess", () => {
       const commands = buildSshCommands({ vm: vmService() }, { vm: [forwardedPort({ host: "203.0.113.7" }), forwardedPort({ host: "2001:db8::7" })] });
 
       expect(commands.map(command => command.command)).toEqual([
-        "ssh root@203.0.113.7 -p 31022 -i ~/.ssh/id_rsa",
-        "ssh root@2001:db8::7 -p 31022 -i ~/.ssh/id_rsa"
+        "ssh -i ~/akash-key/id_rsa -o IdentitiesOnly=yes -p 31022 root@203.0.113.7",
+        "ssh -i ~/akash-key/id_rsa -o IdentitiesOnly=yes -p 31022 root@2001:db8::7"
       ]);
     });
 
@@ -81,7 +81,7 @@ describe("sshAccess", () => {
 
     it("keeps the highest valid external port", () => {
       expect(buildSshCommands({ vm: vmService() }, { vm: [forwardedPort({ externalPort: 65535 })] })).toEqual([
-        { serviceName: "vm", command: "ssh root@provider.example.com -p 65535 -i ~/.ssh/id_rsa" }
+        { serviceName: "vm", command: "ssh -i ~/akash-key/id_rsa -o IdentitiesOnly=yes -p 65535 root@provider.example.com" }
       ]);
     });
   });

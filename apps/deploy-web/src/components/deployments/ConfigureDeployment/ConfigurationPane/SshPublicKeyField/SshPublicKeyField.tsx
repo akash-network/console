@@ -9,6 +9,7 @@ import { useSnackbar } from "notistack";
 import { CodeSnippet } from "@src/components/shared/CodeSnippet";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { withServiceSshKey } from "@src/utils/sdl/sshKey";
+import { SSH_KEY_PERMISSION_COMMAND, SSH_KEY_UNPACK_COMMAND, SSH_PRIVATE_KEY_PATH } from "@src/utils/sshKeyInstructions";
 import { generateSSHKeyPair } from "@src/utils/sshKeyUtils";
 
 type JSZipInstance = { file(name: string, data: string): void; generateAsync(opts: { type: string }): Promise<Blob> };
@@ -126,22 +127,20 @@ const SshKeyInstructions: FC<{ dependencies: typeof DEPENDENCIES }> = ({ depende
 const SshKeyUsage: FC<{ dependencies: typeof DEPENDENCIES }> = ({ dependencies: d }) => (
   <div role="note" aria-label="How to use the SSH key" className="text-muted-foreground">
     <p className="font-bold">How to use</p>
-    <p>The generated SSH key pair is used to access the container via SSH. Here are generalized steps to use them:</p>
+    <p>The download is named keypair.zip. It contains id_rsa and id_rsa.pub. In Terminal on macOS or Linux:</p>
     <ul className="mt-1 list-inside list-disc space-y-1">
       <li>
-        Download the key pair and extract it.
-        <d.CodeSnippet code="unzip ~/Downloads/keypair.zip" />
+        Unpack it.
+        <d.CodeSnippet code={SSH_KEY_UNPACK_COMMAND} />
       </li>
       <li>
-        Copy the private key file to <code>~/.ssh/id_rsa</code> on your local machine.
-        <d.CodeSnippet code="mv ~/Downloads/keypair/* ~/.ssh/" />
+        Let SSH accept the private key.
+        <d.CodeSnippet code={SSH_KEY_PERMISSION_COMMAND} />
       </li>
       <li>
-        Make sure to set the correct permissions on the private key file:
-        <d.CodeSnippet code="chmod 600 ~/.ssh/id_rsa" />
+        Once the deployment is running, its Details tab shows the command to connect. That command uses <code>{SSH_PRIVATE_KEY_PATH}</code>.
       </li>
-      <li>Once the deployment is running, its Details tab shows the command to connect.</li>
     </ul>
-    <p className="mt-2">Note: the above is valid for unix operating systems. Make sure your image has SSH configured.</p>
+    <p className="mt-2">The image needs SSH configured.</p>
   </div>
 );
