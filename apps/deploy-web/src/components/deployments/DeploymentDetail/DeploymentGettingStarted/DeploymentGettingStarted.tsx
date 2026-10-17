@@ -9,10 +9,11 @@ import { useLeaseStatuses } from "@src/queries/useLeaseQuery";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { isLeaseLive } from "@src/utils/leaseUtils";
+import { SSH_KEY_PERMISSION_COMMAND, SSH_KEY_UNPACK_COMMAND } from "@src/utils/sshKeyInstructions";
 import { parseManifestServices } from "../DeploymentPlacements/placementModel";
 import { DeploymentTabHeader } from "../DeploymentTabHeader";
 import type { SshCommand } from "./sshAccess";
-import { buildSshCommands, isSshService, SSH_PRIVATE_KEY_PATH } from "./sshAccess";
+import { buildSshCommands, isSshService } from "./sshAccess";
 
 export const DEPENDENCIES = { useLeaseStatuses, CommandBlock };
 
@@ -47,6 +48,11 @@ export const DeploymentGettingStarted: FC<DeploymentGettingStartedProps> = ({ le
           <h3 className="text-base font-medium">Connect over SSH</h3>
         </div>
         <div className="flex min-w-0 flex-col gap-3 sm:pl-11">
+          <p className="text-sm text-muted-foreground">
+            In Terminal on macOS or Linux, unpack <code className="font-mono">keypair.zip</code> from your downloads. There is no password.
+          </p>
+          <p className="text-sm text-muted-foreground">If you deployed with your own key, use its path in the command.</p>
+          <d.CommandBlock label="Prepare the SSH key" lines={[SSH_KEY_UNPACK_COMMAND, SSH_KEY_PERMISSION_COMMAND]} />
           {sshCommands.length === 0 ? (
             <Skeleton className="h-10 w-full rounded-lg" data-testid="ssh-command-skeleton" />
           ) : (
@@ -54,10 +60,6 @@ export const DeploymentGettingStarted: FC<DeploymentGettingStartedProps> = ({ le
               <SshCommandBlock key={sshCommand.command} sshCommand={sshCommand} showsServiceName={sshCommands.length > 1} dependencies={d} />
             ))
           )}
-          <p className="text-sm text-muted-foreground">
-            Use the private key that matches the public key you deployed with. Replace <code className="font-mono">{SSH_PRIVATE_KEY_PATH}</code> if it lives
-            somewhere else.
-          </p>
         </div>
       </div>
     </section>

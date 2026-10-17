@@ -1,6 +1,7 @@
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
 import { SSH_PUBKEY_ENV_KEY } from "@src/types/sdlBuilder/sdlBuilder";
 import { isVmImage } from "@src/utils/sdl/vmImages";
+import { sshConnectCommand } from "@src/utils/sshKeyInstructions";
 import type { ManifestServiceDetail } from "../DeploymentPlacements/placementModel";
 
 const SSH_PORT = 22;
@@ -8,9 +9,6 @@ const SSH_PORT = 22;
 const MAX_PORT = 65535;
 
 const PLAIN_HOST = /^[A-Za-z0-9.:-]+$/;
-
-/** Must match where the configure page's SSH key instructions put the private key it generates. */
-export const SSH_PRIVATE_KEY_PATH = "~/.ssh/id_rsa";
 
 export interface SshCommand {
   serviceName: string;
@@ -31,7 +29,7 @@ export function buildSshCommands(
 
     return forwardedPorts
       .filter(forwardedPort => forwardedPort.port === SSH_PORT && PLAIN_HOST.test(forwardedPort.host) && isValidPort(forwardedPort.externalPort))
-      .map(forwardedPort => ({ serviceName, command: `ssh root@${forwardedPort.host} -p ${forwardedPort.externalPort} -i ${SSH_PRIVATE_KEY_PATH}` }));
+      .map(forwardedPort => ({ serviceName, command: sshConnectCommand(forwardedPort.host, forwardedPort.externalPort) }));
   });
 }
 

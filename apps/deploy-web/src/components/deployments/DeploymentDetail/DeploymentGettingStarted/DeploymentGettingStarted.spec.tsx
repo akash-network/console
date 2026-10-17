@@ -17,8 +17,11 @@ describe(DeploymentGettingStarted.name, () => {
 
     expect(screen.getByRole("heading", { name: "Getting started" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Connect over SSH" })).toBeInTheDocument();
-    expect(screen.getByLabelText("SSH command for vm")).toHaveTextContent("ssh root@provider.example.com -p 31022 -i ~/.ssh/id_rsa");
-    expect(screen.getByText(/Use the private key that matches the public key you deployed with/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Prepare the SSH key")).toHaveTextContent("mkdir -p ~/akash-key && unzip -o ~/Downloads/keypair.zip -d ~/akash-key");
+    expect(screen.getByLabelText("Prepare the SSH key")).toHaveTextContent("chmod 600 ~/akash-key/id_rsa");
+    expect(screen.getByLabelText("SSH command for vm")).toHaveTextContent("ssh -i ~/akash-key/id_rsa -o IdentitiesOnly=yes -p 31022 root@provider.example.com");
+    expect(screen.getByText(/There is no password/)).toBeInTheDocument();
+    expect(screen.getByText("If you deployed with your own key, use its path in the command.")).toBeInTheDocument();
   });
 
   it("names each command's service when more than one service runs SSH", () => {
