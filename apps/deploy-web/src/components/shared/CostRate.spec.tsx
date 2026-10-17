@@ -47,6 +47,14 @@ describe(CostRate.name, () => {
     expect(screen.queryAllByText(/per hour \/ GPU/i)).toHaveLength(0);
   });
 
+  it("shows the hourly rate of an inexpensive CPU-only spec in the breakdown tooltip instead of $0.00", async () => {
+    const { user, trigger } = setup({ gpuCount: 0, perBlockUDenom: 2 });
+
+    await user.hover(trigger);
+
+    expect(await screen.findAllByText("$0.0012")).not.toHaveLength(0);
+  });
+
   it("omits the breakdown tooltip when the consumer renders it elsewhere", () => {
     const { trigger } = setup({ gpuCount: 2, hideBreakdownTooltip: true });
 

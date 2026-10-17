@@ -27,6 +27,12 @@ describe(DeploymentSpendList.name, () => {
     expect(within(row).getByText("62.3%")).toBeInTheDocument();
   });
 
+  it("shows the digits of an hourly rate under half a cent instead of $0.00/hr", () => {
+    setup({ rows: [buildRow({ hours: 120, hourlyRateUsd: 0.00123, consumedUsd: 0.1476 })] });
+
+    expect(screen.getByRole("listitem")).toHaveTextContent("120 hrs · $0.0012/hr");
+  });
+
   it("draws each deployment's share as the width of its bar", () => {
     setup({ rows: [buildRow({ sharePercent: 40 })] });
 

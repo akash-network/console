@@ -8,6 +8,7 @@ import { spendShade } from "@src/components/billing-usage/spendShade";
 import type { DeploymentSpendRow } from "@src/components/billing-usage/UsageContainer/teamUsage";
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 import { SectionLabel } from "@src/components/projects/SectionLabel/SectionLabel";
+import { UsdRateValue } from "@src/components/shared/UsdRateValue/UsdRateValue";
 import { UrlService } from "@src/utils/urlUtils";
 
 const LOADING_ROW_COUNT = 3;
@@ -59,7 +60,7 @@ const DeploymentSpendItem: FC<{ row: DeploymentSpendRow; shade: string; showsPro
       </Link>
       <span className="block truncate font-mono text-[11px] text-muted-foreground">
         {showsProject && `${row.projectName} · `}
-        <FormattedNumber value={row.hours} maximumFractionDigits={0} /> hrs · <UsdValue value={row.hourlyRateUsd} />
+        <FormattedNumber value={row.hours} maximumFractionDigits={0} /> hrs · <UsdRateValue value={row.hourlyRateUsd} />
         /hr
       </span>
     </div>

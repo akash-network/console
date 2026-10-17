@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
+import { UsdRateValue } from "@src/components/shared/UsdRateValue/UsdRateValue";
 import { UrlService } from "@src/utils/urlUtils";
 import { BalanceBreakdownBar, buildBalanceSegments } from "./BalanceBreakdownBar";
 import { useAccountBalanceOverview } from "./useAccountBalanceOverview";
@@ -17,6 +18,7 @@ export const DEPENDENCIES = {
   CustomNoDivTooltip,
   Skeleton,
   UsdValue,
+  UsdRateValue,
   BalanceBreakdownBar,
   Wallet,
   Info,
@@ -45,6 +47,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ footerAction?: Re
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
   const segments = useMemo(() => buildBalanceSegments(overview.deployments, overview.available), [overview.deployments, overview.available]);
   const usd = (value: number) => <d.UsdValue value={value} />;
+  const usdRate = (value: number) => <d.UsdRateValue value={value} />;
 
   const escrowSegments = segments.filter(segment => segment.key !== "available");
   const hasBreakdown = !overview.isError && !overview.isLoading && escrowSegments.length > 0;
@@ -81,7 +84,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ footerAction?: Re
               )}
               {hasRunway && (
                 <p className="w-full text-[13px] text-muted-foreground sm:ml-auto sm:w-auto">
-                  Spending {usd(overview.perHour)}/hr · lasts until{" "}
+                  Spending {usdRate(overview.perHour)}/hr · lasts until{" "}
                   <span className="font-semibold text-foreground">{format(overview.lastsUntil!, "MMM d, yyyy")}</span>
                 </p>
               )}
@@ -166,7 +169,7 @@ export const AccountBalanceOverview: React.FunctionComponent<{ footerAction?: Re
                         <span className="h-[7px] w-[7px] shrink-0 rounded-full bg-foreground" aria-hidden />
                         <span className="min-w-0 truncate font-semibold">{segment.label}</span>
                         {segment.perHourUsd !== undefined && (
-                          <span className="whitespace-nowrap tabular-nums text-muted-foreground">{usd(segment.perHourUsd)}/hr</span>
+                          <span className="whitespace-nowrap tabular-nums text-muted-foreground">{usdRate(segment.perHourUsd)}/hr</span>
                         )}
                         <span className="whitespace-nowrap font-semibold tabular-nums">{usd(segment.amountUsd)}</span>
                       </d.Link>
