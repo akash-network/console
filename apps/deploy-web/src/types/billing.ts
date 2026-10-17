@@ -16,9 +16,12 @@ export type UsageHistory = Array<{
   totalUsdSpent: number;
 }>;
 
+/** The gpu fields are absent from an api older than the gpu hours report, so the page can tell "not reported" from "no gpu used". */
 export type UsageHistoryStats = {
   totalSpent: number;
   averageSpentPerDay: number;
   totalDeployments: number;
   averageDeploymentsPerDay: number;
+  gpuHours?: number;
+  gpuModels?: string[];
 };

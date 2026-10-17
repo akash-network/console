@@ -83,6 +83,28 @@ describe(UsageView.name, () => {
     expect(within(tile).getByText("0.25 a day on average")).toBeInTheDocument();
   });
 
+  it("shows the gpu hours of the range to a tenth with the models they ran on", () => {
+    setup({ stats: { gpuHours: 1234.56, gpuModels: ["A100", "H100"] } });
+
+    const tile = screen.getByRole("group", { name: "GPU hrs" });
+    expect(within(tile).getByText("1,234.6")).toBeInTheDocument();
+    expect(within(tile).getByText("A100 · H100")).toBeInTheDocument();
+  });
+
+  it("shows zero gpu hours over the range when no gpu was used", () => {
+    setup({ stats: { gpuHours: 0, gpuModels: [] } });
+
+    const tile = screen.getByRole("group", { name: "GPU hrs" });
+    expect(within(tile).getByText("0")).toBeInTheDocument();
+    expect(within(tile).getByText("Last 30 days")).toBeInTheDocument();
+  });
+
+  it("leaves the gpu hours out when the stats don't report them", () => {
+    setup({ stats: { gpuHours: undefined, gpuModels: undefined } });
+
+    expect(screen.queryByRole("group", { name: "GPU hrs" })).not.toBeInTheDocument();
+  });
+
   it("projects this month at the current spend rate", () => {
     setup({ spendRate: { perHourUsd: 2, isLoading: false, isError: false } });
 
@@ -108,9 +130,9 @@ describe(UsageView.name, () => {
   });
 
   it("holds the stats figures back while they load", () => {
-    setup({ stats: { totalSpent: 1234.5 }, isUsageHistoryStatsLoading: true });
+    setup({ stats: { totalSpent: 1234.5, gpuHours: undefined, gpuModels: undefined }, isUsageHistoryStatsLoading: true });
 
-    for (const name of ["Total spend", "Daily average", "Deployments"]) {
+    for (const name of ["Total spend", "Daily average", "Deployments", "GPU hrs"]) {
       expect(screen.getByRole("group", { name })).toHaveAttribute("aria-busy", "true");
     }
     expect(screen.queryByText("$1,234.50")).not.toBeInTheDocument();
@@ -118,9 +140,13 @@ describe(UsageView.name, () => {
   });
 
   it("shows its own error in each stats tile when the stats fail to load", () => {
-    setup({ isUsageHistoryStatsError: true, spendRate: { perHourUsd: 1, isLoading: false, isError: false } });
+    setup({
+      stats: { gpuHours: undefined, gpuModels: undefined },
+      isUsageHistoryStatsError: true,
+      spendRate: { perHourUsd: 1, isLoading: false, isError: false }
+    });
 
-    for (const name of ["Total spend", "Daily average", "Deployments"]) {
+    for (const name of ["Total spend", "Daily average", "Deployments", "GPU hrs"]) {
       expect(within(screen.getByRole("group", { name })).getByText("Couldn't be loaded. Refresh the page to try again.")).toBeInTheDocument();
     }
     expect(within(screen.getByRole("group", { name: "Projected month" })).getByText("At your current $1.00/hr")).toBeInTheDocument();

@@ -45,6 +45,8 @@ export const buildUsageHistoryStats = (overrides: Partial<UsageHistoryStats> = {
     averageSpentPerDay: faker.number.float({ min: 0, max: 100 }),
     totalDeployments: faker.number.int({ min: 0, max: 100 }),
     averageDeploymentsPerDay: faker.number.float({ min: 0, max: 10 }),
+    gpuHours: faker.number.int({ min: 0, max: 1000 }),
+    gpuModels: [],
     ...overrides
   };
 };

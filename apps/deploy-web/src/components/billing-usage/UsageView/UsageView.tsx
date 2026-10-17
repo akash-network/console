@@ -59,6 +59,7 @@ export const UsageView: FC<UsageViewProps> = ({
   const rangeLabel = getRangeLabel(datePreset, dateRange);
   const totalSpendCaption = [rangeLabel, describeChange(spendChangePercent)].filter(Boolean).join(" · ");
   const daysInRange = countDaysInRange(dateRange);
+  const isGpuHoursUnreported = !isUsageHistoryStatsLoading && !isUsageHistoryStatsError && usageHistoryStatsData.gpuHours === undefined;
 
   return (
     <div className="space-y-6">
@@ -74,7 +75,7 @@ export const UsageView: FC<UsageViewProps> = ({
         </div>
       )}
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:auto-cols-fr xl:grid-flow-col xl:grid-cols-none">
         <StatTile
           label="Total spend"
           isLoading={isUsageHistoryStatsLoading}
@@ -100,6 +101,15 @@ export const UsageView: FC<UsageViewProps> = ({
             </>
           }
         />
+        {!isGpuHoursUnreported && (
+          <StatTile
+            label="GPU hrs"
+            isLoading={isUsageHistoryStatsLoading}
+            error={statsError}
+            value={<FormattedNumber value={usageHistoryStatsData.gpuHours ?? 0} maximumFractionDigits={1} />}
+            caption={usageHistoryStatsData.gpuModels?.length ? usageHistoryStatsData.gpuModels.join(" · ") : rangeLabel}
+          />
+        )}
         <StatTile
           label="Projected month"
           isLoading={spendRate.isLoading}
