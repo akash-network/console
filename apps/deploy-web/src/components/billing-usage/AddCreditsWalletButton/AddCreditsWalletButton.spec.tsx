@@ -53,6 +53,25 @@ describe(AddCreditsWalletButton.name, () => {
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 
+  it("shows the wallet button as unavailable while checkout is disabled", async () => {
+    setup({ disabled: true });
+
+    const walletButtonGroup = await screen.findByRole("group", { name: "Express checkout" });
+
+    expect(walletButtonGroup).toHaveAttribute("aria-disabled", "true");
+    expect(walletButtonGroup).toHaveClass("pointer-events-none", "opacity-50");
+  });
+
+  it("lets the wallet button take clicks while checkout is enabled", async () => {
+    setup({ disabled: false });
+
+    const walletButtonGroup = await screen.findByRole("group", { name: "Express checkout" });
+
+    expect(walletButtonGroup).toHaveAttribute("aria-disabled", "false");
+    expect(walletButtonGroup).not.toHaveClass("pointer-events-none");
+    expect(walletButtonGroup).not.toHaveClass("opacity-50");
+  });
+
   it("saves the wallet method for the shared charge flow and reports its type", async () => {
     const { authorize, onSubmit, result, event, stripe } = setup();
 
