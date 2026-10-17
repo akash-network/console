@@ -1,6 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
 import { signInPasswordless } from "./actions/auth";
+import { closeAllActiveDeployments } from "./actions/deployment-janitor";
 import { acceptFairUsePolicyIfPrompted } from "./actions/fair-use-policy";
 import { expect, getUserAgent, openSignedOutPage, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
@@ -9,6 +10,7 @@ import { ApiKeysPage } from "./pages/ApiKeysPage";
 import { AppNav } from "./pages/AppNav";
 import { BillingPage } from "./pages/BillingPage";
 import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
+import { DeploymentDetailPage } from "./pages/DeploymentDetailPage";
 import { InvitationPage } from "./pages/InvitationPage";
 import { MembersPage } from "./pages/MembersPage";
 import { OrganizationSettingsPage } from "./pages/OrganizationSettingsPage";
@@ -22,7 +24,12 @@ const STANDARD_TOP_UP_MIN_AMOUNT_USD = "20";
 
 type ProjectList = { data: { id: string; name: string }[] };
 
-type OrganizationList = { data: { id: string; name: string }[] };
+type OrganizationList = { data: { id: string; name: string; type: "personal" | "team"; role: string; isActive: boolean }[] };
+
+type DeletionRefusal = { data?: { balanceUsd?: number } };
+
+/** The app's proxy takes the organization a request runs in from this cookie only. */
+const ACTIVE_ORGANIZATION_COOKIE = "console_org";
 
 test.describe("Team organizations", () => {
   test.use({ userType: "new" });
@@ -95,7 +102,12 @@ test.describe("Team organizations", () => {
         const teamRequest = await teammatePage.request.get(`${testEnvConfig.BASE_URL}/api/proxy/v1/projects`);
         expect(teamRequest.status()).toBe(403);
       });
+
+      await test.step("the owner deletes the team", async () => {
+        await deleteTeam(page, team);
+      });
     } finally {
+      await deleteTeamsLeftBehind(page);
       await teammatePage.context().close();
       const teammate = await auth0.getUserByEmail(teammateEmail).catch(() => undefined);
       if (teammate) await auth0.deleteUser(teammate.user_id).catch(() => undefined);
@@ -145,7 +157,12 @@ test.describe("Team organizations", () => {
         await members.goto();
         await expect(members.memberRow(teammateEmail)).toBeHidden();
       });
+
+      await test.step("the owner deletes the team", async () => {
+        await deleteTeam(page, team);
+      });
     } finally {
+      await deleteTeamsLeftBehind(page);
       await teammatePage.context().close();
       const teammate = await auth0.getUserByEmail(teammateEmail).catch(() => undefined);
       if (teammate) await auth0.deleteUser(teammate.user_id).catch(() => undefined);
@@ -197,8 +214,13 @@ test.describe("Team organizations", () => {
         await apiKeys.revokeKey(keyName);
         await expect(apiKeys.getKeyRow(keyName)).toBeHidden({ timeout: 10_000 });
       });
+
+      await test.step("the owner deletes the team", async () => {
+        await deleteTeam(page, team);
+      });
     } finally {
       await api?.dispose();
+      await deleteTeamsLeftBehind(page);
     }
   });
 
@@ -207,24 +229,33 @@ test.describe("Team organizations", () => {
     const renamedTeam = `${team}-renamed`;
     const settings = new OrganizationSettingsPage(page);
 
-    await test.step("the owner creates a team and opens its general settings", async () => {
-      await createTeam(page, team);
-      await settings.goto();
-      await expect(settings.heading()).toBeVisible();
-    });
+    try {
+      await test.step("the owner creates a team and opens its general settings", async () => {
+        await createTeam(page, team);
+        await settings.goto();
+        await expect(settings.heading()).toBeVisible();
+      });
 
-    await test.step("the owner renames the team, which the switcher shows right away", async () => {
-      await settings.rename(renamedTeam);
-      await expect(page.getByText(`${team} is now ${renamedTeam}.`)).toBeVisible();
-      await expect(new OrganizationSwitcher(page).trigger(renamedTeam)).toBeVisible();
-    });
+      await test.step("the owner renames the team, which the switcher shows right away", async () => {
+        await settings.rename(renamedTeam);
+        await expect(page.getByText(`${team} is now ${renamedTeam}.`)).toBeVisible();
+        await expect(new OrganizationSwitcher(page).trigger(renamedTeam)).toBeVisible();
+      });
+
+      await test.step("the owner deletes the team under its new name", async () => {
+        await deleteTeam(page, renamedTeam);
+      });
+    } finally {
+      await deleteTeamsLeftBehind(page);
+    }
   });
 
-  test("an owner funds the team, deploys into a project, then finds the deployment in it and in the team's activity", async ({ page }) => {
+  test("an owner funds the team, deploys into a project, finds the deployment in it and in the team's activity, then deletes the team", async ({ page }) => {
     const { team, sharedProject: project, deployment } = createNames();
     const projects = new ProjectsPage(page);
     const projectPage = new ProjectPage(page);
     const configure = new ConfigureDeploymentPage(page);
+    const deploymentDetail = new DeploymentDetailPage(page);
     let dseq: string | undefined;
 
     try {
@@ -269,8 +300,18 @@ test.describe("Team organizations", () => {
         await expect(activity).toContainText("deployed", { timeout: 30_000 });
         await expect(activity.getByRole("link", { name: project, exact: true })).toBeVisible();
       });
+
+      await test.step("the owner closes the deployment", async () => {
+        await page.goto(`${testEnvConfig.BASE_URL}/deployments/${dseq}`);
+        await deploymentDetail.closeDeployment();
+        await deploymentDetail.expectClosed();
+      });
+
+      await test.step("the owner deletes the team, forfeiting the credits it has left", async () => {
+        await deleteTeam(page, team, { forfeitingCredits: true });
+      });
     } finally {
-      if (dseq) await closeDeployment(page, dseq);
+      await deleteTeamsLeftBehind(page);
     }
   });
 });
@@ -298,9 +339,46 @@ async function buyMinimumCredits(page: Page) {
   await addCredits.dismissPurchaseConfirmation();
 }
 
-/** Closed straight through the api, so a deployment the run created is closed even when the page is in no state to drive the UI. */
-async function closeDeployment(page: Page, dseq: string) {
-  await page.request.delete(`${testEnvConfig.BASE_URL}/api/proxy/v1/deployments/${dseq}`, { failOnStatusCode: false, timeout: 60_000 }).catch(() => undefined);
+/** Deleting the team the owner works in moves them back to their personal account. */
+async function deleteTeam(page: Page, team: string, { forfeitingCredits = false } = {}) {
+  const settings = new OrganizationSettingsPage(page);
+  const switcher = new OrganizationSwitcher(page);
+
+  await settings.goto();
+  await (forfeitingCredits ? settings.deleteForfeitingCredits(team) : settings.delete(team));
+  await expect(page.getByText(`Deleted ${team}`)).toBeVisible();
+  await page.waitForURL(url => url.pathname !== "/organization");
+  await expect(switcher.trigger(team)).toBeHidden();
+
+  const organizations = await listOrganizations(page.request);
+  expect(organizations.data.map(organization => organization.name)).not.toContain(team);
+  expect(organizations.data.find(organization => organization.isActive)?.type).toBe("personal");
+}
+
+/** Deleted straight through the api, so a run that fails before deleting its team in the UI leaves no team behind on beta. */
+async function deleteTeamsLeftBehind(page: Page) {
+  await deleteOwnedTeams(page).catch(() => undefined);
+  await page.context().clearCookies({ name: ACTIVE_ORGANIZATION_COOKIE });
+}
+
+async function deleteOwnedTeams(page: Page) {
+  const organizationsUrl = `${testEnvConfig.BASE_URL}/api/proxy/v1/organizations`;
+  await page.context().clearCookies({ name: ACTIVE_ORGANIZATION_COOKIE });
+  const ownedTeams = (await listOrganizations(page.request)).data.filter(organization => organization.type === "team" && organization.role === "owner");
+
+  for (const { id } of ownedTeams) {
+    await page.context().addCookies([{ name: ACTIVE_ORGANIZATION_COOKIE, value: id, url: testEnvConfig.BASE_URL }]);
+    await closeAllActiveDeployments(page, testEnvConfig.BASE_URL);
+    const refusal = await page.request.delete(`${organizationsUrl}/${id}`, { failOnStatusCode: false });
+    const balanceUsd = ((await refusal.json().catch(() => ({}))) as DeletionRefusal).data?.balanceUsd;
+    if (balanceUsd) await page.request.delete(`${organizationsUrl}/${id}`, { params: { acknowledgedForfeitUsd: balanceUsd }, failOnStatusCode: false });
+  }
+}
+
+async function listOrganizations(request: APIRequestContext) {
+  const response = await request.get(`${testEnvConfig.BASE_URL}/api/proxy/v1/organizations`);
+
+  return (await response.json()) as OrganizationList;
 }
 
 /** Billing shows the full header even while a new user's personal account is still in onboarding. */
