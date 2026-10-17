@@ -51,6 +51,7 @@ export const DeploymentGettingStarted: FC<DeploymentGettingStartedProps> = ({ le
           <p className="text-sm text-muted-foreground">
             In Terminal on macOS or Linux, unpack <code className="font-mono">keypair.zip</code> from your downloads. There is no password.
           </p>
+          <p className="text-sm text-muted-foreground">If you deployed with your own key, use its path in the command.</p>
           <d.CommandBlock label="Prepare the SSH key" lines={[SSH_KEY_UNPACK_COMMAND, SSH_KEY_PERMISSION_COMMAND]} />
           {sshCommands.length === 0 ? (
             <Skeleton className="h-10 w-full rounded-lg" data-testid="ssh-command-skeleton" />
