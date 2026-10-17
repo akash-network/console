@@ -10,6 +10,7 @@ import { ProjectSpendList } from "@src/components/billing-usage/ProjectSpendList
 import type { ChildrenProps } from "@src/components/billing-usage/UsageContainer/UsageContainer";
 import { countDaysInRange, USAGE_DATE_PRESETS, type UsageDatePreset, type UsageDateRange } from "@src/components/billing-usage/UsageContainer/usageDatePresets";
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
+import { UsdRateValue } from "@src/components/shared/UsdRateValue/UsdRateValue";
 
 export const DEPENDENCIES = {
   DailySpendChart,
@@ -107,7 +108,7 @@ export const UsageView: FC<UsageViewProps> = ({
           caption={
             spendRate.perHourUsd > 0 ? (
               <>
-                At your current <UsdValue value={spendRate.perHourUsd} />
+                At your current <UsdRateValue value={spendRate.perHourUsd} />
                 /hr
               </>
             ) : (

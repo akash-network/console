@@ -93,6 +93,12 @@ describe(UsageView.name, () => {
     expect(within(tile).getByText("At your current $2.00/hr")).toBeInTheDocument();
   });
 
+  it("shows the digits of a spend rate under half a cent instead of $0.00/hr", () => {
+    setup({ spendRate: { perHourUsd: 0.00123, isLoading: false, isError: false } });
+
+    expect(within(screen.getByRole("group", { name: "Projected month" })).getByText("At your current $0.0012/hr")).toBeInTheDocument();
+  });
+
   it("says nothing is running when there is no spend rate", () => {
     setup({ spendRate: { perHourUsd: 0, isLoading: false, isError: false } });
 

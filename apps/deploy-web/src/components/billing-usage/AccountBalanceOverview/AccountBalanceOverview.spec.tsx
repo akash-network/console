@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect } from "react";
+import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vitest";
 
 import { UrlService } from "@src/utils/urlUtils";
@@ -26,7 +27,13 @@ describe(AccountBalanceOverview.name, () => {
     setup({ runwayDays: 12, perHour: 11.15, lastsUntil: new Date(2026, 7, 23) });
 
     expect(screen.getByText("12 days of runway")).toBeInTheDocument();
-    expect(screen.getByText(/lasts until/)).toHaveTextContent("Spending 11.15/hr · lasts until Aug 23, 2026");
+    expect(screen.getByText(/lasts until/)).toHaveTextContent("Spending $11.15/hr · lasts until Aug 23, 2026");
+  });
+
+  it("shows the digits of a spend rate under half a cent instead of $0.00/hr", () => {
+    setup({ runwayDays: 12, perHour: 0.00123, lastsUntil: new Date(2026, 7, 23) });
+
+    expect(screen.getByText(/lasts until/)).toHaveTextContent("Spending $0.0012/hr · lasts until Aug 23, 2026");
   });
 
   it("hides the runway indicator when nothing is being spent", () => {
@@ -110,8 +117,16 @@ describe(AccountBalanceOverview.name, () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Show breakdown" }));
 
-    expect(screen.getByRole("link", { name: /llama-chat/ })).toHaveTextContent("llama-chat4.24/hr508.8");
+    expect(screen.getByRole("link", { name: /llama-chat/ })).toHaveTextContent("llama-chat$4.24/hr508.8");
     expect(screen.getByText("Each running deployment keeps around 48 hours of its cost in escrow.")).toBeInTheDocument();
+  });
+
+  it("shows the digits of a deployment's hourly rate under half a cent in the breakdown", () => {
+    setup({ deployments: [{ dseq: "1", name: "tiny-api", escrowUsd: 0.06, perHourUsd: 0.00123 }] });
+
+    fireEvent.click(screen.getByRole("button", { name: "Show breakdown" }));
+
+    expect(screen.getByRole("link", { name: /tiny-api/ })).toHaveTextContent("tiny-api$0.0012/hr0.06");
   });
 
   it("toggles the breakdown between shown and hidden", () => {
@@ -294,9 +309,14 @@ describe(AccountBalanceOverview.name, () => {
       useAccountBalanceOverview: () => currentOverview,
       BalanceBreakdownBar,
       UsdValue,
+      UsdRateValue: DEPENDENCIES.UsdRateValue,
       Link: DEPENDENCIES.Link
     });
-    const renderView = () => <AccountBalanceOverview footerAction={footerAction} dependencies={dependencies} />;
+    const renderView = () => (
+      <IntlProvider locale="en-US">
+        <AccountBalanceOverview footerAction={footerAction} dependencies={dependencies} />
+      </IntlProvider>
+    );
 
     const view = render(renderView());
 
