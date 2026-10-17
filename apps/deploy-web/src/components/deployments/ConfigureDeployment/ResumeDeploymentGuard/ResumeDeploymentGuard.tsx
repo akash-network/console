@@ -10,7 +10,7 @@ import Layout from "@src/components/layout/Layout";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
-import { PENDING_ACTIVITY_POLL_MS, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
+import { PENDING_ACTIVITY_POLL_MS, useActivityFeedQuery } from "@src/queries/useLatestActivitiesQuery";
 import { isStoredSdlRedeployable } from "@src/utils/sdl/storedDefinition";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
@@ -52,7 +52,7 @@ function useGetDeployment(dseq: string | undefined, { isAwaitingCreate }: { isAw
   );
 }
 
-export const DEPENDENCIES = { Layout, useRouter, useSnackbar, Snackbar, useGetDeployment, useFlag, useLatestActivitiesQuery };
+export const DEPENDENCIES = { Layout, useRouter, useSnackbar, Snackbar, useGetDeployment, useFlag, useActivityFeedQuery };
 
 interface Props {
   /** The resolved configure intent. Its `dseq` (pinned at mount) is the deployment being resumed, if any. */
@@ -101,8 +101,8 @@ export const ResumeDeploymentGuard: FC<Props> = ({ intent, canResume, children, 
   const [isAwaitingCreate, setIsAwaitingCreate] = useState(false);
   const query = d.useGetDeployment(resumeDseq, { isAwaitingCreate: isAwaitingCreate && !outcome });
   const isFollowingFeed = d.useFlag("notifications_activity_center");
-  const feed = d.useLatestActivitiesQuery({ enabled: isFollowingFeed && !outcome && isNotFoundError(query.error) });
-  const creates = isFollowingFeed ? { activities: feed.data, isUnavailable: feed.isError } : null;
+  const feed = d.useActivityFeedQuery({ enabled: isFollowingFeed && !outcome && (isAwaitingCreate || isNotFoundError(query.error)) });
+  const creates = isFollowingFeed ? { activities: feed.data?.activities, isUnavailable: feed.isError && !feed.data } : null;
 
   const decision = useMemo(
     () => resolveDecision(resumeDseq, query, canResume, creates),
@@ -153,7 +153,7 @@ export const ResumeDeploymentGuard: FC<Props> = ({ intent, canResume, children, 
     <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
         <Spinner size="large" />
-        {!outcome && decision.kind === "creating" && (
+        {!outcome && isAwaitingCreate && (
           <>
             <h1 className="text-lg font-semibold">Creating your deployment</h1>
             <p className="text-sm text-muted-foreground">You can leave this page. We&apos;ll let you know when it&apos;s ready.</p>
@@ -198,9 +198,7 @@ function resolveMissingDeployment(resumeDseq: string, creates: CreatesInFeed): D
   if (!creates || creates.isUnavailable) return { kind: "notFound" };
   if (!creates.activities) return { kind: "loading" };
 
-  const isBeingCreated = creates.activities.some(
-    ({ type, status, meta }) => type === "deployment_create" && status !== "failed" && meta.dseq === resumeDseq
-  );
+  const isBeingCreated = creates.activities.some(({ type, status, meta }) => type === "deployment_create" && status !== "failed" && meta.dseq === resumeDseq);
   return isBeingCreated ? { kind: "creating" } : { kind: "notFound" };
 }
 

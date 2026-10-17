@@ -10,7 +10,7 @@ import { useFlag } from "@src/hooks/useFlag";
 import { useMarkActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { useHoldCreateEvent } from "@src/hooks/useHeldCreateEvents/useHeldCreateEvents";
 import { QueryKeys } from "@src/queries/queryKeys";
-import { useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
+import { PENDING_ACTIVITY_POLL_MS, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import { settingsIdAtom } from "@src/store/settingsStore";
@@ -234,10 +234,16 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   /** A close the api took on in the background, followed through the activity feed until it settles; `token` is the close that started it. */
   const [backgroundClose, setBackgroundClose] = useState<{ dseq: string; token: number; activityId: string } | null>(null);
+  const { data: activities } = dependencies.useLatestActivitiesQuery({ enabled: backgroundClose !== null });
 
-  /** A create the api took on in the background, followed through the activity feed until it settles; `attempt` is the request that sent it. */
+  /** A create the api took on in the background, followed by its activity's id until it settles; `attempt` is the request that sent it. */
   const [backgroundCreate, setBackgroundCreate] = useState<{ dseq: string; activityId: string; attempt: number } | null>(null);
-  const { data: activities } = dependencies.useLatestActivitiesQuery({ enabled: backgroundClose !== null || backgroundCreate !== null });
+
+  /** Read by id rather than from the feed, whose latest page a burst of other actions can push the create out of before it settles. */
+  const { data: backgroundCreateActivity } = api.v1.getActivity.useQuery(
+    { id: backgroundCreate?.activityId ?? "" },
+    { enabled: backgroundCreate !== null, refetchInterval: PENDING_ACTIVITY_POLL_MS }
+  );
 
   /** The deployment once the chain has it: one still being created in the background is not there to close yet. */
   const createdDseq = dseq === backgroundCreate?.dseq ? null : dseq;
@@ -497,10 +503,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   );
 
   useEffect(
-    function settleBackgroundCreateFromFeed() {
-      if (!backgroundCreate) return;
-      const activity = activities?.find(({ id }) => id === backgroundCreate.activityId);
-      if (!activity || activity.status === "pending") return;
+    function settleBackgroundCreate() {
+      const activity = backgroundCreateActivity?.data;
+      if (!backgroundCreate || !activity || activity.status === "pending") return;
       setBackgroundCreate(null);
       createInFlightRef.current = false;
       const isCreated = activity.status === "succeeded";
@@ -521,7 +526,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       setError({ message: activity.meta.error?.message, kind: "create" });
       setPhase("error");
     },
-    [activities, backgroundCreate, closeSupersededCreate, runQueuedCreate, clearDeploymentState, router]
+    [backgroundCreateActivity, backgroundCreate, closeSupersededCreate, runQueuedCreate, clearDeploymentState, router]
   );
 
   /** A deployment this session opened that is known to be still open with no close in flight: the next create closes it first. */

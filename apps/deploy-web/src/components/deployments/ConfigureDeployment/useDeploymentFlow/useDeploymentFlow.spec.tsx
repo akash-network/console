@@ -2688,14 +2688,15 @@ describe(useDeploymentFlow.name, () => {
 
     it("shows the create as in progress once the api accepts it, with the deployment in the URL and the page free to leave", async () => {
       const replace = vi.fn();
-      const { result, queryClient, useLatestActivitiesQuery, accept } = await setupBackgroundCreate({ replace });
+      const { result, queryClient, useLatestActivitiesQuery, services, accept } = await setupBackgroundCreate({ replace });
 
       act(() => accept());
 
       expect(result.current).toMatchObject({ phase: "creating", dseq: "1000", isCreatingInBackground: true });
       expect(replace).toHaveBeenLastCalledWith(UrlService.configureDeployment({ dseq: "1000", bidStrategy: "select" }), undefined, { shallow: true });
       expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listActivities"] });
-      expect(useLatestActivitiesQuery).toHaveBeenLastCalledWith({ enabled: true });
+      expect(services.api.v1.getActivity.useQuery).toHaveBeenLastCalledWith({ id: "activity-1" }, { enabled: true, refetchInterval: 5_000 });
+      expect(useLatestActivitiesQuery).toHaveBeenLastCalledWith({ enabled: false });
     });
 
     it("holds the create_deployment event for the create's activity rather than tracking it when the create is accepted", async () => {
@@ -2712,37 +2713,37 @@ describe(useDeploymentFlow.name, () => {
       expect(analyticsService.track).not.toHaveBeenCalledWith("create_deployment", expect.anything());
     });
 
-    it("keeps the create in progress while the feed still reports it running", async () => {
-      const { result, feed, rerender, accept } = await setupBackgroundCreate({});
+    it("keeps the create in progress while its activity still reports it running", async () => {
+      const { result, api, rerender, accept } = await setupBackgroundCreate({});
       act(() => accept());
 
-      feed.activities = [buildActivity({ id: "activity-2", status: "succeeded" }), createActivity("pending")];
+      api.activities = [buildActivity({ id: "activity-2", status: "succeeded" }), createActivity("pending")];
       rerender();
 
       expect(result.current).toMatchObject({ phase: "creating", isCreatingInBackground: true });
     });
 
-    it("moves on to choosing a provider once the feed reports the deployment created", async () => {
-      const { result, feed, rerender, useLatestActivitiesQuery, analyticsService, accept } = await setupBackgroundCreate({});
+    it("moves on to choosing a provider once its activity reports the deployment created", async () => {
+      const { result, api, rerender, services, analyticsService, accept } = await setupBackgroundCreate({});
       act(() => accept());
 
-      feed.activities = [createActivity("succeeded")];
+      api.activities = [createActivity("succeeded")];
       rerender();
 
       expect(result.current).toMatchObject({ phase: "quoting", dseq: "1000", isCreatingInBackground: false });
-      expect(useLatestActivitiesQuery).toHaveBeenLastCalledWith({ enabled: false });
+      expect(services.api.v1.getActivity.useQuery).toHaveBeenLastCalledWith({ id: "" }, { enabled: false, refetchInterval: 5_000 });
       expect(analyticsService.track).not.toHaveBeenCalledWith("create_deployment", expect.anything());
     });
 
     it.each([
       { meta: { dseq: "1000", error: { code: "create_incomplete", message: "The deployment was not created." } }, message: "The deployment was not created." },
       { meta: { dseq: "1000" }, message: undefined }
-    ])("hands the form back with the feed's reason ($message) once the create fails, dropping the deployment", async ({ meta, message }) => {
+    ])("hands the form back with its activity's reason ($message) once the create fails, dropping the deployment", async ({ meta, message }) => {
       const replace = vi.fn();
-      const { result, feed, rerender, accept } = await setupBackgroundCreate({ replace });
+      const { result, api, rerender, accept } = await setupBackgroundCreate({ replace });
       act(() => accept());
 
-      feed.activities = [buildActivity({ id: "activity-1", type: "deployment_create", status: "failed", meta })];
+      api.activities = [buildActivity({ id: "activity-1", type: "deployment_create", status: "failed", meta })];
       rerender();
 
       expect(result.current).toMatchObject({ phase: "error", dseq: null, error: { message, kind: "create" }, isCreatingInBackground: false });
@@ -2750,9 +2751,9 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("creates again at once after a background create failed", async () => {
-      const { result, feed, rerender, createMutate, accept } = await setupBackgroundCreate({});
+      const { result, api, rerender, createMutate, accept } = await setupBackgroundCreate({});
       act(() => accept());
-      feed.activities = [createActivity("failed")];
+      api.activities = [createActivity("failed")];
       rerender();
 
       act(() => result.current.actions.requestQuotes("sdl"));
@@ -2772,12 +2773,12 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("waits until a cancelled background create exists before closing it", async () => {
-      const { result, feed, rerender, closeMutate, analyticsService, accept } = await setupBackgroundCreate({});
+      const { result, api, rerender, closeMutate, analyticsService, accept } = await setupBackgroundCreate({});
       act(() => accept());
 
       act(() => result.current.actions.cancelAndEdit());
       const closedBeforeCreated = closeMutate.mock.calls.length;
-      feed.activities = [createActivity("succeeded")];
+      api.activities = [createActivity("succeeded")];
       rerender();
 
       expect(closedBeforeCreated).toBe(0);
@@ -2787,11 +2788,11 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("closes nothing when a cancelled background create fails", async () => {
-      const { result, feed, rerender, closeMutate, accept } = await setupBackgroundCreate({});
+      const { result, api, rerender, closeMutate, accept } = await setupBackgroundCreate({});
       act(() => accept());
       act(() => result.current.actions.cancelAndEdit());
 
-      feed.activities = [createActivity("failed")];
+      api.activities = [createActivity("failed")];
       rerender();
 
       expect(closeMutate).not.toHaveBeenCalled();
@@ -2800,11 +2801,11 @@ describe(useDeploymentFlow.name, () => {
 
     it("follows a create the api accepts only after it was cancelled, closing it once it exists", async () => {
       const replace = vi.fn();
-      const { result, feed, rerender, closeMutate, holdCreateEvent, createCalls } = await setupBackgroundCreate({ replace });
+      const { result, api, rerender, closeMutate, holdCreateEvent, createCalls } = await setupBackgroundCreate({ replace });
       act(() => result.current.actions.cancelAndEdit());
 
       act(() => createCalls[0].options.onSuccess?.({ data: { dseq: "1000", manifest: "m", activityId: "activity-1" } }));
-      feed.activities = [createActivity("succeeded")];
+      api.activities = [createActivity("succeeded")];
       rerender();
 
       expect(holdCreateEvent).not.toHaveBeenCalled();
@@ -2814,13 +2815,13 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("queues a new create behind one still being created, closing that one first once it exists", async () => {
-      const { result, feed, rerender, closeMutate, createMutate, accept } = await setupBackgroundCreate({});
+      const { result, api, rerender, closeMutate, createMutate, accept } = await setupBackgroundCreate({});
       act(() => accept());
 
       act(() => result.current.actions.requestQuotes("sdl-2"));
       await settleSeal();
       const stateWhileQueued = { ...result.current };
-      feed.activities = [createActivity("succeeded")];
+      api.activities = [createActivity("succeeded")];
       rerender();
       act(() => closeMutate.mock.calls[0][1].onSuccess?.({ data: { success: true } }));
       await settleSeal();
@@ -2832,12 +2833,12 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("sends a create queued behind a background create that fails without closing anything", async () => {
-      const { result, feed, rerender, closeMutate, createMutate, accept } = await setupBackgroundCreate({});
+      const { result, api, rerender, closeMutate, createMutate, accept } = await setupBackgroundCreate({});
       act(() => accept());
       act(() => result.current.actions.requestQuotes("sdl-2"));
       await settleSeal();
 
-      feed.activities = [createActivity("failed")];
+      api.activities = [createActivity("failed")];
       rerender();
       await settleSeal();
 
@@ -2870,6 +2871,7 @@ describe(useDeploymentFlow.name, () => {
     const forgetProject = vi.fn();
     const intent = { vm: false, ...(input.intent ?? { sdlStrategy: "edit" as const, bidStrategy: "select" as const, dseq: undefined }) };
     const feed: { activities?: Activity[] } = {};
+    const api: { activities: Activity[] } = { activities: [] };
     const useFlag = vi.fn((_flag: string) => input.isRunningInBackground ?? false);
     const useLatestActivitiesQuery = vi.fn((_options: { enabled: boolean }) =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), { data: feed.activities })
@@ -2884,6 +2886,10 @@ describe(useDeploymentFlow.name, () => {
     const forgetEarlierOutcomes = vi.fn();
     const holdCreateEvent = vi.fn();
     const services = mockServices({ createDeployment, closeDeployment, getDeployment, getSdlSecretsContext });
+    services.api.v1.getActivity.useQuery.mockImplementation(({ id }) => {
+      const activity = api.activities.find(candidate => candidate.id === id);
+      return mock<ReturnType<typeof services.api.v1.getActivity.useQuery>>({ data: activity && { data: activity } });
+    });
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
       useListBids: (() => ({ data: { data: [] }, isLoading: false, isError: false })) as never,
@@ -2907,6 +2913,7 @@ describe(useDeploymentFlow.name, () => {
       services,
       ...renderDeploymentFlow(intent, dependencies),
       feed,
+      api,
       useFlag,
       useLatestActivitiesQuery,
       analyticsService: services.analyticsService,
@@ -3061,6 +3068,7 @@ describe(useDeploymentFlow.name, () => {
     services.api.v1.listDeployments.getKey.mockReturnValue(["v1", "listDeployments"]);
     services.api.v1.listActivities.getKey.mockReturnValue(["v1", "listActivities"]);
     services.api.v1.getSpendRate.getKey.mockReturnValue(["v1", "getSpendRate"]);
+    services.api.v1.getActivity.useQuery.mockReturnValue(mock<ReturnType<typeof services.api.v1.getActivity.useQuery>>({ data: undefined }));
     return services;
   }
 
