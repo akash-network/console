@@ -259,6 +259,11 @@ const ROUTE_ACCESS: RouteAccess[] = [
     route: "POST /v1/create-jwt-token reading a deployment of an ungranted project",
     request: team => post("/v1/create-jwt-token", providerTokenFor(team.otherDseq, READ_ONLY_SCOPE)),
     statusFor: access(201, 201, 403, 403, 403, 403)
+  },
+  {
+    route: "POST /v1/create-jwt-token outliving an hour, reading a deployment of the granted project",
+    request: team => post("/v1/create-jwt-token", { ...providerTokenFor(team.grantedDseq, READ_ONLY_SCOPE), ttl: 3601 }),
+    statusFor: access(400, 400, 400, 400, 400, 400)
   }
 ];
 
@@ -283,7 +288,8 @@ const ALL_PROJECTS_ROUTE_ACCESS: Array<{ route: string; statusFor: Record<AllPro
   { route: "GET /v1/deployments/{dseq} of an ungranted project", statusFor: allProjectsAccess(200, 200) },
   { route: "GET /v1/deployment-alerts/{dseq} of an ungranted project", statusFor: allProjectsAccess(200, 200) },
   { route: "POST /v1/create-jwt-token for a deployment of an ungranted project", statusFor: allProjectsAccess(201, 403) },
-  { route: "POST /v1/create-jwt-token reading a deployment of an ungranted project", statusFor: allProjectsAccess(201, 201) }
+  { route: "POST /v1/create-jwt-token reading a deployment of an ungranted project", statusFor: allProjectsAccess(201, 201) },
+  { route: "POST /v1/create-jwt-token outliving an hour, reading a deployment of the granted project", statusFor: allProjectsAccess(400, 400) }
 ];
 
 const EVERY_PROJECT: Array<keyof Team> = ["defaultProjectId", "grantedProjectId", "otherProjectId", "emptyProjectId"];

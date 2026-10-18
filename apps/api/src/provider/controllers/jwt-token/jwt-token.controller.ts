@@ -8,10 +8,12 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { PROJECT_FORBIDDEN_ERROR_CODE } from "@src/organization/services/organization-context/organization-context.resolver";
+import type { OrganizationContext } from "@src/organization/types/organization-context";
 import { CreateJwtTokenRequest, CreateJwtTokenResponse } from "../../http-schemas/jwt-token.schema";
 import { ProviderJwtTokenService } from "../../services/provider-jwt-token/provider-jwt-token.service";
 
-const MAX_PROJECT_LIMITED_TTL_SECONDS = 3600;
+/** Providers honor a token until it expires, so this bounds how long a removed team member or narrowed key keeps access. */
+const MAX_REVOCABLE_ACCESS_TTL_SECONDS = 3600;
 
 /** What a project viewer may be granted: reading a lease, never a shell, a manifest or a restart. */
 const READ_ONLY_SCOPES: readonly unknown[] = ["status", "events", "logs"] satisfies JwtTokenAccessScope[];
@@ -36,8 +38,13 @@ export class JwtTokenController {
       .findOneUsedBy(this.authService.currentUser.id);
     if (!wallet) return Err(new BadRequest("User does not have a wallet"));
 
-    if (this.#isLimitedToProjects()) {
-      if (payload.ttl > MAX_PROJECT_LIMITED_TTL_SECONDS) return Err(new BadRequest(`ttl must be at most ${MAX_PROJECT_LIMITED_TTL_SECONDS} seconds`));
+    const organizationContext = this.executionContextService.get("ORGANIZATION_CONTEXT");
+
+    if (holdsRevocableAccess(organizationContext) && payload.ttl > MAX_REVOCABLE_ACCESS_TTL_SECONDS) {
+      return Err(new BadRequest(`ttl must be at most ${MAX_REVOCABLE_ACCESS_TTL_SECONDS} seconds`));
+    }
+
+    if (isLimitedToProjects(organizationContext)) {
       if (!grants) return Err(createError(403, "Name the deployments the token is for", { errorCode: PROJECT_FORBIDDEN_ERROR_CODE }));
 
       await this.signerService.assertDeploymentsInProjectScope(
@@ -55,12 +62,14 @@ export class JwtTokenController {
 
     return result.map(token => ({ token })).mapErr(errors => new BadRequest(errors.join(".\n")));
   }
+}
 
-  #isLimitedToProjects(): boolean {
-    const organizationContext = this.executionContextService.get("ORGANIZATION_CONTEXT");
+function holdsRevocableAccess(organizationContext: OrganizationContext | undefined): boolean {
+  return organizationContext?.organizationType === "team" || isLimitedToProjects(organizationContext);
+}
 
-    return organizationContext?.mode === "organization" && organizationContext.projectScope.kind === "projects";
-  }
+function isLimitedToProjects(organizationContext: OrganizationContext | undefined): boolean {
+  return organizationContext?.mode === "organization" && organizationContext.projectScope.kind === "projects";
 }
 
 type DeploymentGrant = { dseq: string; scope: unknown };
