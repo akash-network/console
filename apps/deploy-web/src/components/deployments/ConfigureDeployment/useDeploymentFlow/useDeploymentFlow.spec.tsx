@@ -452,7 +452,7 @@ describe(useDeploymentFlow.name, () => {
         servicesPatchBetween,
         useFlag: () => false,
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
-        useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes: vi.fn(), markOutcomeHandled: vi.fn() }),
+        useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
         useHoldCreateEvent: () => vi.fn()
       };
@@ -565,7 +565,7 @@ describe(useDeploymentFlow.name, () => {
         servicesPatchBetween,
         useFlag: () => false,
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
-        useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes: vi.fn(), markOutcomeHandled: vi.fn() }),
+        useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
         useHoldCreateEvent: () => vi.fn()
       };
@@ -2772,6 +2772,46 @@ describe(useDeploymentFlow.name, () => {
       expect(holdCreateEvent).not.toHaveBeenCalled();
     });
 
+    it("marks a create the api answered during the request as shown on its page, rather than following it", async () => {
+      const { markOutcomeHandled, followUntilSettled, createCalls } = await setupBackgroundCreate({});
+
+      act(() => createCalls[0].options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
+
+      expect(markOutcomeHandled).toHaveBeenCalledWith("deployment_create", "1000", "succeeded");
+      expect(followUntilSettled).not.toHaveBeenCalled();
+    });
+
+    it("tells the activity host it follows a create the api took on in the background, so the host leaves its outcome to the page", async () => {
+      const { followUntilSettled, markOutcomeHandled, accept } = await setupBackgroundCreate({});
+
+      act(() => accept());
+
+      expect(followUntilSettled).toHaveBeenCalledWith("activity-1");
+      expect(markOutcomeHandled).not.toHaveBeenCalled();
+    });
+
+    it.each(["succeeded", "failed"] as const)("keeps the host off a create that %s while the page stayed, even once the page is gone", async status => {
+      const { api, rerender, unmount, stopFollowing, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+
+      api.activities = [createActivity(status)];
+      rerender();
+      unmount();
+
+      expect(stopFollowing).not.toHaveBeenCalled();
+    });
+
+    it("hands a create still being created back to the activity host when the page goes, so its toast brings the user back", async () => {
+      const { api, rerender, unmount, stopFollowing, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+
+      api.activities = [createActivity("pending")];
+      rerender();
+      unmount();
+
+      expect(stopFollowing).toHaveBeenCalledWith("activity-1");
+    });
+
     it("waits until a cancelled background create exists before closing it", async () => {
       const { result, api, rerender, closeMutate, analyticsService, accept } = await setupBackgroundCreate({});
       act(() => accept());
@@ -2884,6 +2924,8 @@ describe(useDeploymentFlow.name, () => {
     const sealSdlSecrets = vi.fn(input.sealSdlSecrets ?? (async () => "SEALED"));
     const markOutcomeHandled = vi.fn();
     const forgetEarlierOutcomes = vi.fn();
+    const followUntilSettled = vi.fn();
+    const stopFollowing = vi.fn();
     const holdCreateEvent = vi.fn();
     const services = mockServices({ createDeployment, closeDeployment, getDeployment, getSdlSecretsContext });
     services.api.v1.getActivity.useQuery.mockImplementation(({ id }) => {
@@ -2901,7 +2943,8 @@ describe(useDeploymentFlow.name, () => {
       servicesPatchBetween,
       useFlag,
       useLatestActivitiesQuery,
-      useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes, markOutcomeHandled }),
+      useMarkActivityOutcomes: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>({ forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing }),
       useConfigureDeployTarget: () =>
         mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({
           project: input.deployTargetProjectId ? mock<Project>({ id: input.deployTargetProjectId }) : undefined,
@@ -2926,6 +2969,8 @@ describe(useDeploymentFlow.name, () => {
       forgetProject,
       markOutcomeHandled,
       forgetEarlierOutcomes,
+      followUntilSettled,
+      stopFollowing,
       holdCreateEvent
     };
   }
@@ -2961,6 +3006,8 @@ describe(useDeploymentFlow.name, () => {
     const sealSdlSecrets = vi.fn(input?.sealSdlSecrets ?? (async () => "SEALED"));
     const markOutcomeHandled = vi.fn();
     const forgetEarlierOutcomes = vi.fn();
+    const followUntilSettled = vi.fn();
+    const stopFollowing = vi.fn();
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
       useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
@@ -2972,7 +3019,8 @@ describe(useDeploymentFlow.name, () => {
       servicesPatchBetween: input?.servicesPatchBetween ?? servicesPatchBetween,
       useFlag: () => false,
       useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
-      useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes, markOutcomeHandled }),
+      useMarkActivityOutcomes: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>({ forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing }),
       useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
       useHoldCreateEvent: () => vi.fn()
     };
@@ -3004,7 +3052,7 @@ describe(useDeploymentFlow.name, () => {
       servicesPatchBetween,
       useFlag: () => false,
       useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
-      useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes: vi.fn(), markOutcomeHandled: vi.fn() }),
+      useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
       useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
       useHoldCreateEvent: () => vi.fn()
     };

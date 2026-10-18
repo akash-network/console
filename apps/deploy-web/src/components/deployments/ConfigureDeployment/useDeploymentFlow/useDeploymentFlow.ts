@@ -196,7 +196,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const discardedRef = useRef(false);
   const isRunningInBackground = dependencies.useFlag("notifications_activity_center");
   /** Only the per-call callbacks mark an outcome handled, since they run only while this page is still there to show it. */
-  const { forgetEarlierOutcomes, markOutcomeHandled } = dependencies.useMarkActivityOutcomes();
+  const { forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing } = dependencies.useMarkActivityOutcomes();
   const holdCreateEvent = dependencies.useHoldCreateEvent();
   const deployTarget = dependencies.useConfigureDeployTarget();
   const deployTargetProjectId = deployTarget.project?.id;
@@ -238,6 +238,19 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   /** A create the api took on in the background, followed by its activity's id until it settles; `attempt` is the request that sent it. */
   const [backgroundCreate, setBackgroundCreate] = useState<{ dseq: string; activityId: string; attempt: number } | null>(null);
+
+  /** Read on unmount: a create still unsettled when the page goes is the activity host's to announce. */
+  const followedCreateIdRef = useRef<string | null>(null);
+  followedCreateIdRef.current = backgroundCreate?.activityId ?? null;
+
+  useEffect(
+    function handTheFollowedCreateToTheHost() {
+      return function stopFollowingTheCreate() {
+        if (followedCreateIdRef.current) stopFollowing(followedCreateIdRef.current);
+      };
+    },
+    [stopFollowing]
+  );
 
   /** Read by id rather than from the feed, whose latest page a burst of other actions can push the create out of before it settles. */
   const { data: backgroundCreateActivity } = api.v1.getActivity.useQuery(
@@ -577,6 +590,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       /** Only a create still current takes the page over and holds its analytics until the feed reports it created. */
       function followInBackground(result: { dseq: string; manifest: string }, activityId: string) {
         setBackgroundCreate({ dseq: result.dseq, activityId, attempt });
+        followUntilSettled(activityId);
         queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
         if (!isCurrentAttempt()) return;
         adoptDeployment(result);
@@ -689,6 +703,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       runQueuedCreate,
       isRunningInBackground,
       holdCreateEvent,
+      followUntilSettled,
       queryClient,
       api,
       deployTargetProjectId,

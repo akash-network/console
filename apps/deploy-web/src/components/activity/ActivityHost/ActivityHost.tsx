@@ -108,7 +108,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   const { data: activities } = d.useLatestActivitiesQuery({ enabled: isEnabled && !!user?.userId });
   const { getDeploymentName, isLoading: isLoadingDeploymentNames } = d.useDeploymentNames(activities?.map(activity => activity.meta.dseq) ?? []);
   const closeBatchesBeingSent = d.useCloseBatchesBeingSent();
-  const { isOutcomeHandled, forgetHandledOutcome } = d.useHandledActivityOutcomes();
+  const { isOutcomeHandled, isFollowedOnItsPage, forgetHandledOutcome } = d.useHandledActivityOutcomes();
   const takeHeldCreateEvent = d.useTakeHeldCreateEvent();
   const lastSeenStatuses = useRef<Map<string, Activity["status"]>>();
   const batchesToSumUp = useRef(new Set<string>());
@@ -132,9 +132,10 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
           continue;
         }
 
-        const isShownOnItsPage = isOutcomeHandled(activity);
+        const isFollowedToItsEnd = isFollowedOnItsPage(activity);
+        const isShownOnItsPage = isFollowedToItsEnd || isOutcomeHandled(activity);
         if (isShownOnItsPage) forgetHandledOutcome(activity);
-        if (!isShownOnItsPage || lastSeen.has(activity.id)) announceActivity(activity);
+        if (!isShownOnItsPage || (!isFollowedToItsEnd && lastSeen.has(activity.id))) announceActivity(activity);
       }
 
       for (const batchId of batchesToSumUp.current) {
@@ -195,6 +196,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
       getDeploymentName,
       closeBatchesBeingSent,
       isOutcomeHandled,
+      isFollowedOnItsPage,
       forgetHandledOutcome,
       takeHeldCreateEvent,
       address,

@@ -393,6 +393,33 @@ describe(ActivityHost.name, () => {
     expect(forgetHandledOutcome).toHaveBeenCalledWith(settled);
   });
 
+  it.each(["succeeded", "failed"] as const)(
+    "announces no create it saw pending that %s while its page followed it until it settled, and forgets the mark",
+    status => {
+      const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+      const settled = { ...pending, status };
+      const { enqueueSnackbar, queryClient, receive, api, forgetHandledOutcome } = setup({ activities: [pending], followed: ["activity-1"] });
+
+      receive([settled]);
+
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+      expect(forgetHandledOutcome).toHaveBeenCalledWith(settled);
+      expect(invalidatedKeysOf(queryClient)).toEqual(expect.arrayContaining([api.v1.getDeployment.getKey({ dseq: "1234" })]));
+    }
+  );
+
+  it("announces a create once no page follows it any more", () => {
+    const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive, forgetHandledOutcome } = setup({ activities: [pending], followed: ["activity-2"] });
+
+    receive([{ ...pending, status: "succeeded" }]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Deployment 1234 created" }) }), {
+      variant: "success"
+    });
+    expect(forgetHandledOutcome).not.toHaveBeenCalled();
+  });
+
   it("announces a deploy that ended differently from what its page showed", () => {
     const deployed = buildActivity({ type: "lease_create", status: "succeeded", meta: { dseq: "1234" } });
     const { enqueueSnackbar, receive } = setup({ activities: [], handled: [{ ...deployed, status: "failed" }] });
@@ -746,7 +773,7 @@ describe(ActivityHost.name, () => {
         useLatestActivitiesQuery,
         useDeploymentNames,
         useCloseBatchesBeingSent: () => new Set(),
-        useHandledActivityOutcomes: () => ({ isOutcomeHandled: () => false, forgetHandledOutcome: vi.fn() }),
+        useHandledActivityOutcomes: () => ({ isOutcomeHandled: () => false, isFollowedOnItsPage: () => false, forgetHandledOutcome: vi.fn() }),
         useTakeHeldCreateEvent: () => vi.fn(),
         useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
         useQueryClient: () => queryClient,
@@ -782,12 +809,14 @@ describe(ActivityHost.name, () => {
       names?: Record<string, string>;
       heldCreateEvents?: Record<string, EventProperties>;
       handled?: Activity[];
+      followed?: string[];
     } = {}
   ) {
     const user = buildUser();
     const forgetHandledOutcome = vi.fn();
     const isOutcomeHandled = (activity: Activity) =>
       (input.handled ?? []).some(handled => handled.type === activity.type && handled.meta.dseq === activity.meta.dseq && handled.status === activity.status);
+    const isFollowedOnItsPage = (activity: Activity) => (input.followed ?? []).includes(activity.id);
     let activities = input.activities;
     let isLoadingNames = false;
     let closeBatchesBeingSent: ReadonlySet<string> = new Set();
@@ -817,7 +846,7 @@ describe(ActivityHost.name, () => {
       useLatestActivitiesQuery,
       useDeploymentNames,
       useCloseBatchesBeingSent: () => closeBatchesBeingSent,
-      useHandledActivityOutcomes: () => ({ isOutcomeHandled, forgetHandledOutcome }),
+      useHandledActivityOutcomes: () => ({ isOutcomeHandled, isFollowedOnItsPage, forgetHandledOutcome }),
       useTakeHeldCreateEvent: () => takeHeldCreateEvent,
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar }),
       useQueryClient: () => queryClient,

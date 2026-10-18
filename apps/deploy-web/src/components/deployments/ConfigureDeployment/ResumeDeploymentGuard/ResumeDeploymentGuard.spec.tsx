@@ -3,7 +3,7 @@ import { ApiError } from "@akashnetwork/openapi-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { Activity } from "@src/queries/useActivityFeedQuery";
+import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import { buildConfigureUrl } from "../useDeploymentFlow/useDeploymentFlow";
