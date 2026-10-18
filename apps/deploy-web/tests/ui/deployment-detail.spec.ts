@@ -24,14 +24,13 @@ test.describe("Deployment detail", () => {
       await configure.requestQuotes();
       await page.waitForURL(/\/new-deployment\/configure\/\d+/, { timeout: 180_000 });
 
-      await configure.selectFirstAvailableProvider();
-      await expect(configure.reviewDialog()).toBeVisible({ timeout: 30_000 });
-      await configure.confirmAndDeploy();
-      await page.waitForURL(/\/deployments\/\d+/, { timeout: 180_000 });
-
-      const match = page.url().match(/deployments\/(\d+)/);
+      const match = page.url().match(/\/new-deployment\/configure\/(\d+)/);
       if (!match) throw new Error(`Could not extract DSEQ from URL: ${page.url()}`);
       dseq = match[1];
+
+      await configure.selectFirstAvailableProvider();
+      await expect(configure.reviewDialog()).toBeVisible({ timeout: 30_000 });
+      await configure.confirmAndOpenDeployment(dseq);
     });
 
     await test.step("renders the summary header and full tab bar", async () => {

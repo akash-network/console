@@ -8,7 +8,7 @@ import { useConfigureDeployTarget } from "@src/components/projects/DeployTargetG
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useMarkActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
-import { useHoldCreateEvent } from "@src/hooks/useHeldCreateEvents/useHeldCreateEvents";
+import { type HeldActivityEvent, useHoldActivityEvents } from "@src/hooks/useHeldActivityEvents/useHeldActivityEvents";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { PENDING_ACTIVITY_POLL_MS, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
@@ -56,8 +56,10 @@ export interface DeploymentFlowState {
    * Surfaced so the auto flow can match a provider off the flow's own query rather than re-declaring `listBids`.
    */
   bids: DeploymentBids;
-  /** True once the lease is created; the deploy overlay completes its progress before the brief redirect to the deployment. */
+  /** True once the lease is created, or once the api has taken it on in the background; the deploy overlay completes its progress before the page moves on. */
   deploySucceeded: boolean;
+  /** True once the api has taken the lease on to finish in the background, so the page tells the user before they land on the deployments list. */
+  isDeployedInBackground: boolean;
   /** True once the wait for a first bid ran out with none; cleared when a bid lands or the deployment goes away. */
   noBidsReceived: boolean;
   deployError?: { message?: string };
@@ -89,6 +91,8 @@ export interface DeployOptions {
   secrets?: SdlSecretValues;
   /** Secrets the SDL references that nothing holds a value for, which the api could not resolve once the manifest is sent. */
   unresolvedSecrets?: UnresolvedSdlSecret[];
+  /** Lets the lease finish in the background while the activity center is on; the auto flow leaves it out, as its progress scene follows the lease to the end. */
+  inBackground?: boolean;
 }
 
 export interface DeploymentFlowActions {
@@ -170,7 +174,7 @@ export const DEPENDENCIES = {
   useLatestActivitiesQuery,
   useConfigureDeployTarget,
   useMarkActivityOutcomes,
-  useHoldCreateEvent,
+  useHoldActivityEvents,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   manifestFromSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -197,7 +201,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const isRunningInBackground = dependencies.useFlag("notifications_activity_center");
   /** Only the per-call callbacks mark an outcome handled, since they run only while this page is still there to show it. */
   const { forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing } = dependencies.useMarkActivityOutcomes();
-  const holdCreateEvent = dependencies.useHoldCreateEvent();
+  const holdActivityEvents = dependencies.useHoldActivityEvents();
   const deployTarget = dependencies.useConfigureDeployTarget();
   const deployTargetProjectId = deployTarget.project?.id;
   const forgetProject = deployTarget.forgetProject;
@@ -229,6 +233,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const [createdSdl, setCreatedSdl] = useState<string | null>(null);
   const [deployError, setDeployError] = useState<{ message?: string } | undefined>(undefined);
   const [deploySucceeded, setDeploySucceeded] = useState(false);
+  const [isDeployedInBackground, setIsDeployedInBackground] = useState(false);
   const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
   const [noBidsReceived, setNoBidsReceived] = useState(false);
 
@@ -594,7 +599,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
         if (!isCurrentAttempt()) return;
         adoptDeployment(result);
-        holdCreateEvent(activityId, createdEventOf(result.dseq));
+        holdActivityEvents(activityId, [{ event: "create_deployment", properties: createdEventOf(result.dseq) }]);
       }
 
       function onCreated(result: { data: { dseq: string; manifest: string } }) {
@@ -702,7 +707,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       closeSupersededCreate,
       runQueuedCreate,
       isRunningInBackground,
-      holdCreateEvent,
+      holdActivityEvents,
       followUntilSettled,
       queryClient,
       api,
@@ -835,21 +840,20 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       /** A corrected secret leaves the SDL untouched, because its reference is what the SDL carries, so an unchanged manifest still has to patch. */
       const hasTypedSecrets = Object.keys(options.secrets ?? {}).length > 0;
       const keepsStoredReference = hasSdlReference(sdl);
-      const resources = dependencies.deploymentResourcesFromSdl(sdl);
+      const deployEvents = deployEventsOf(activeDseq, dependencies.deploymentResourcesFromSdl(sdl));
+      const inBackground = !!options.inBackground && isRunningInBackground;
       setDeployError(undefined);
       setDeploySucceeded(false);
       setPhase("deploying");
+
       /**
        * The onboarding gate reads "onboarded" off the leases cache, empty until this first deploy, so refreshing it
        * keeps a client-side nav to /deployments from bouncing the user back to onboarding until a full reload.
        */
-      function completeDeploy(result: { data: { deployment: { id: { owner: string } } } }) {
-        const owner = result.data.deployment.id.owner;
-        analyticsService.track("create_lease", { category: "deployments", label: "Create lease", dseq: activeDseq, ...resources });
-        if (resources.gpuAmount > 0) {
-          analyticsService.track("create_gpu_deployment", { category: "deployments", label: "Create lease", dseq: activeDseq, ...resources });
+      function completeDeploy(owner: string) {
+        for (const { event, properties } of deployEvents) {
+          analyticsService.track(event, properties);
         }
-        analyticsService.track("send_manifest", { category: "deployments", label: "Send manifest after creating lease", dseq: activeDseq });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getLeaseExistenceKey(owner) });
         queryClient.invalidateQueries({ queryKey: QueryKeys.getAllLeasesKey(owner) });
         queryClient.invalidateQueries({ queryKey: api.v1.getSpendRate.getKey() });
@@ -861,20 +865,50 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         }, DEPLOY_SUCCESS_DWELL_MS);
       }
 
+      /** The lease does not exist yet, so the onboarding gate is told to expect it and the list waits for the feed that shows it spinning up. */
+      async function followDeployInBackground(activityId: string) {
+        holdActivityEvents(activityId, deployEvents);
+        if (settingsId) {
+          queryClient.setQueryData(QueryKeys.getLeaseExistenceKey(settingsId), true);
+          queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(settingsId) });
+        }
+        queryClient.invalidateQueries({ queryKey: api.v1.listDeployments.getKey() });
+        setDeploySucceeded(true);
+        setIsDeployedInBackground(true);
+        await queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
+        router.replace(UrlService.deploymentList());
+      }
+
       function failDeploy(cause: unknown) {
         setDeployError({ message: extractApiErrorMessage(cause) ?? undefined });
         setPhase("quoting");
       }
 
-      /** A manifest hashed from references would ship them to the provider as literal values, so the api's own derivation is left as the only source. */
+      /**
+       * A manifest hashed from references would ship them to the provider as literal values, so the api's own derivation is
+       * left as the only source. A lease the api took on in the background is not marked, as the activity host tells how it ends.
+       */
       function sendManifestAndLease() {
         const lease = keepsStoredReference ? { leases } : { manifest: activeManifest, leases };
         forgetEarlierOutcomes("lease_create", activeDseq);
-        createLease.mutate(lease, {
-          onSuccess: completeDeploy,
-          onError: failDeploy,
-          onSettled: (_result, error) => markOutcomeHandled("lease_create", activeDseq, shownOutcomeOf(error))
-        });
+        createLease.mutate(
+          { ...lease, ...backgroundQueryFor(inBackground) },
+          {
+            onSuccess: function completeOrFollowDeploy(result) {
+              const activityId = acceptedActivityIdOf(result.data);
+              if (activityId) {
+                void followDeployInBackground(activityId);
+                return;
+              }
+              markOutcomeHandled("lease_create", activeDseq, "succeeded");
+              completeDeploy(result.data.deployment.id.owner);
+            },
+            onError: function markAndFailDeploy(cause: unknown) {
+              markOutcomeHandled("lease_create", activeDseq, "failed");
+              failDeploy(cause);
+            }
+          }
+        );
       }
 
       function updateWholeSdlAndLease() {
@@ -956,7 +990,11 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       queryClient,
       analyticsService,
       forgetEarlierOutcomes,
-      markOutcomeHandled
+      markOutcomeHandled,
+      api,
+      settingsId,
+      isRunningInBackground,
+      holdActivityEvents
     ]
   );
 
@@ -967,6 +1005,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     selections,
     bids: bidsQuery.data?.data ?? [],
     deploySucceeded,
+    isDeployedInBackground,
     noBidsReceived,
     deployError,
     error,
@@ -988,7 +1027,7 @@ function shownOutcomeOf(error: unknown): "succeeded" | "failed" {
   return error ? "failed" : "succeeded";
 }
 
-/** The activity the api answered a background close or create with; one it finished during the request answers without one. */
+/** The activity the api answered a background close, create or lease with; one it finished during the request answers without one. */
 function acceptedActivityIdOf(data: object): string | undefined {
   return "activityId" in data && typeof data.activityId === "string" ? data.activityId : undefined;
 }
@@ -1046,6 +1085,16 @@ function manifestFromSdl(sdl: string): string | null {
   } catch {
     return null;
   }
+}
+
+function deployEventsOf(dseq: string, resources: ReturnType<typeof deploymentResourcesFromSdl>): HeldActivityEvent[] {
+  const leaseProperties = { category: "deployments" as const, label: "Create lease", dseq, ...resources };
+
+  return [
+    { event: "create_lease", properties: leaseProperties },
+    ...(resources.gpuAmount > 0 ? [{ event: "create_gpu_deployment" as const, properties: leaseProperties }] : []),
+    { event: "send_manifest", properties: { category: "deployments", label: "Send manifest after creating lease", dseq } }
+  ];
 }
 
 function deploymentResourcesFromSdl(sdl: string): { gpuAmount: number; cpuAmount: number; memoryAmount: number; storageAmount: number } {

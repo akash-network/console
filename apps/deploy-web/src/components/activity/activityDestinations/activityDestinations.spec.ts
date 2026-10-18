@@ -62,8 +62,34 @@ describe("activityDestinations", () => {
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
     });
 
-    it.each(["pending", "succeeded", "failed"] as const)("leads a %s deploy to its deployment, where a provider can be chosen again", status => {
+    it.each(["pending", "succeeded"] as const)("leads a %s deploy to its deployment", status => {
       const activity = buildActivity({ type: "lease_create", status, meta: { dseq: "1234" } });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
+    });
+
+    it("leads a deploy that failed back to choosing a provider for its deployment", () => {
+      const activity = buildActivity({
+        type: "lease_create",
+        status: "failed",
+        meta: { dseq: "1234", error: { code: "lease_not_created", message: "No lease." } }
+      });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/new-deployment/configure/1234", label: "Choose a provider" });
+    });
+
+    it("leads a deploy that failed with no reason back to choosing a provider", () => {
+      const activity = buildActivity({ type: "lease_create", status: "failed", meta: { dseq: "1234" } });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/new-deployment/configure/1234", label: "Choose a provider" });
+    });
+
+    it("leads a deploy whose provider never received it to its deployment, where it can be sent again", () => {
+      const activity = buildActivity({
+        type: "lease_create",
+        status: "failed",
+        meta: { dseq: "1234", error: { code: "manifest_not_delivered", message: "Not sent." } }
+      });
 
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
     });

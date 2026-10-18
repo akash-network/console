@@ -454,7 +454,7 @@ describe(useDeploymentFlow.name, () => {
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
         useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
-        useHoldCreateEvent: () => vi.fn()
+        useHoldActivityEvents: () => vi.fn()
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       act(() => vi.advanceTimersByTime(60_000));
@@ -567,7 +567,7 @@ describe(useDeploymentFlow.name, () => {
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
         useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
-        useHoldCreateEvent: () => vi.fn()
+        useHoldActivityEvents: () => vi.fn()
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       expect(result.current.phase).toBe("quoting");
@@ -780,16 +780,13 @@ describe(useDeploymentFlow.name, () => {
   });
 
   it.each([
-    { outcome: "succeeded", settle: (o: LeaseCallbacks) => o.onSuccess(deployedResult("akash1owner")), error: null },
-    { outcome: "failed", settle: (o: LeaseCallbacks) => o.onError(new Error("boom")), error: new Error("boom") }
-  ])("marks a deploy whose lease request $outcome as handled with that outcome", async ({ outcome, settle, error }) => {
+    { outcome: "succeeded", settle: (o: LeaseCallbacks) => o.onSuccess(deployedResult("akash1owner")) },
+    { outcome: "failed", settle: (o: LeaseCallbacks) => o.onError(new Error("boom")) }
+  ])("marks a deploy whose lease request $outcome as handled with that outcome", async ({ outcome, settle }) => {
     const createDeployment = mockMutation();
     createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
     const createLease = mockMutation();
-    createLease.mutate.mockImplementation((_i, o: LeaseCallbacks) => {
-      settle(o);
-      o.onSettled(undefined, error);
-    });
+    createLease.mutate.mockImplementation((_i, o: LeaseCallbacks) => settle(o));
     const { result, markOutcomeHandled } = renderFlow({ createDeployment, createLease });
 
     act(() => result.current.actions.requestQuotes("sdl"));
@@ -1653,6 +1650,203 @@ describe(useDeploymentFlow.name, () => {
       expect(updateDeployment.mutate).not.toHaveBeenCalled();
       expect(createLease.mutate).toHaveBeenCalledWith({ leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] }, expect.anything());
     });
+  });
+
+  describe("deploying in the background", () => {
+    const LEASE = { dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" };
+
+    it("asks the api to finish the lease in the background while the activity center is on", async () => {
+      const createLease = mockMutation();
+      const { result, useFlag } = await renderQuotingFlow({ createLease, isActivityCenterOn: true });
+
+      act(() => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(useFlag).toHaveBeenCalledWith("notifications_activity_center");
+      expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M", leases: [LEASE], async: "true" }, expect.anything());
+      expect(result.current.phase).toBe("deploying");
+      expect(result.current.isDeployedInBackground).toBe(false);
+    });
+
+    it.each([
+      { case: "the activity center is off", isActivityCenterOn: false, inBackground: true },
+      { case: "the caller waits on the lease", isActivityCenterOn: true, inBackground: undefined }
+    ])("creates the lease during the request when $case", async ({ isActivityCenterOn, inBackground }) => {
+      const createLease = mockMutation();
+      const { result } = await renderQuotingFlow({ createLease, isActivityCenterOn });
+
+      act(() => result.current.actions.deploy("sdl", { inBackground }));
+
+      expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M", leases: [LEASE] }, expect.anything());
+    });
+
+    it("sends the user to the deployments list as soon as the api takes the lease on, without waiting to show the deployment", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, router } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+
+        await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+        act(() => vi.runAllTimers());
+
+        expect(router.replace).toHaveBeenLastCalledWith(UrlService.deploymentList());
+        expect(router.replace).not.toHaveBeenCalledWith(UrlService.deploymentDetails("555", "EVENTS", "events"));
+        expect(result.current.deploySucceeded).toBe(true);
+        expect(result.current.isDeployedInBackground).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("waits for the feed to show the lease underway before sending the user to the list, so the deployment reads as spinning up there", async () => {
+      let refreshFeed = () => {};
+      const { result, router, queryClient } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+      queryClient.invalidateQueries.mockImplementation(async filters => {
+        if (filters?.queryKey?.[1] === "listActivities") await new Promise<void>(resolve => (refreshFeed = resolve));
+      });
+
+      await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(result.current.deploySucceeded).toBe(true);
+      expect(router.replace).not.toHaveBeenCalledWith(UrlService.deploymentList());
+
+      await act(async () => refreshFeed());
+
+      expect(router.replace).toHaveBeenLastCalledWith(UrlService.deploymentList());
+    });
+
+    it("leaves telling how a lease the api took on ends to the activity host, so it marks and follows nothing", async () => {
+      const createLease = acceptedLease();
+      const { result, markOutcomeHandled, forgetEarlierOutcomes, followUntilSettled } = await renderQuotingFlow({ createLease, isActivityCenterOn: true });
+
+      await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(forgetEarlierOutcomes).toHaveBeenCalledWith("lease_create", "555");
+      expect(forgetEarlierOutcomes.mock.invocationCallOrder[0]).toBeLessThan(createLease.mutate.mock.invocationCallOrder[0]);
+      expect(markOutcomeHandled).not.toHaveBeenCalledWith("lease_create", expect.anything(), expect.anything());
+      expect(followUntilSettled).not.toHaveBeenCalled();
+    });
+
+    it("holds the deploy analytics for the lease's activity instead of tracking them when the api takes it on", async () => {
+      const resources = { gpuAmount: 1, cpuAmount: 4, memoryAmount: 2048, storageAmount: 4096 };
+      const { result, holdActivityEvents, analyticsService } = await renderQuotingFlow({
+        createLease: acceptedLease(),
+        isActivityCenterOn: true,
+        deploymentResourcesFromSdl: () => resources
+      });
+
+      await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      const leaseProperties = { category: "deployments", label: "Create lease", dseq: "555", ...resources };
+      expect(holdActivityEvents).toHaveBeenCalledWith("activity-1", [
+        { event: "create_lease", properties: leaseProperties },
+        { event: "create_gpu_deployment", properties: leaseProperties },
+        { event: "send_manifest", properties: { category: "deployments", label: "Send manifest after creating lease", dseq: "555" } }
+      ]);
+      expect(analyticsService.track).not.toHaveBeenCalledWith("create_lease", expect.anything());
+      expect(analyticsService.track).not.toHaveBeenCalledWith("send_manifest", expect.anything());
+    });
+
+    it("holds no gpu deploy event for a deployment without a GPU", async () => {
+      const { result, holdActivityEvents } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+
+      await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(holdActivityEvents).toHaveBeenCalledWith("activity-1", [
+        expect.objectContaining({ event: "create_lease" }),
+        expect.objectContaining({ event: "send_manifest" })
+      ]);
+    });
+
+    it("tells the onboarding gate to expect the lease and refreshes the feed and the list the user lands on", async () => {
+      const { result, queryClient } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+
+      await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(queryClient.setQueryData).toHaveBeenCalledWith(QueryKeys.getLeaseExistenceKey("akash1owner"), true);
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listActivities"] });
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listDeployments"] });
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: QueryKeys.getDeploymentListKey("akash1owner") });
+    });
+
+    it("leaves the wallet's caches alone while the wallet is not known yet", async () => {
+      const { result, queryClient, router } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true, settingsId: null });
+
+      await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(queryClient.setQueryData).not.toHaveBeenCalled();
+      expect(queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: expect.arrayContaining(["DEPLOYMENT_LIST"]) });
+      expect(router.replace).toHaveBeenLastCalledWith(UrlService.deploymentList());
+    });
+
+    it("finishes the deploy as it does without the activity center when the api answers 200 and creates the lease during the request", async () => {
+      vi.useFakeTimers();
+      try {
+        const createLease = mockMutation(vi.fn((_i, o) => o.onSuccess(deployedResult("akash1owner"))));
+        const { result, router, analyticsService, holdActivityEvents, markOutcomeHandled } = await renderQuotingFlow({ createLease, isActivityCenterOn: true });
+
+        act(() => result.current.actions.deploy("sdl", { inBackground: true }));
+
+        expect(result.current.deploySucceeded).toBe(true);
+        expect(result.current.isDeployedInBackground).toBe(false);
+        expect(analyticsService.track).toHaveBeenCalledWith("create_lease", expect.objectContaining({ dseq: "555" }));
+        expect(holdActivityEvents).not.toHaveBeenCalled();
+        expect(markOutcomeHandled).toHaveBeenCalledWith("lease_create", "555", "succeeded");
+
+        act(() => vi.runAllTimers());
+        expect(router.replace).toHaveBeenLastCalledWith(UrlService.deploymentDetails("555", "EVENTS", "events"));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("stays on the provider step with the api's reason when other bids of the deployment are already being leased", async () => {
+      const conflict = new ApiError(409, { message: "A lease is already being created for this deployment" }, "POST /v1/leases → 409");
+      const createLease = mockMutation(vi.fn((_i, o) => o.onError(conflict)));
+      const { result, router, holdActivityEvents, markOutcomeHandled } = await renderQuotingFlow({ createLease, isActivityCenterOn: true });
+
+      act(() => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(result.current.phase).toBe("quoting");
+      expect(result.current.deployError).toEqual({ message: "A lease is already being created for this deployment" });
+      expect(router.replace).not.toHaveBeenCalledWith(UrlService.deploymentList());
+      expect(holdActivityEvents).not.toHaveBeenCalled();
+      expect(markOutcomeHandled).toHaveBeenCalledWith("lease_create", "555", "failed");
+    });
+
+    it("finishes the update before the lease, and sends the user away only once the api has taken the lease on", async () => {
+      const patch = deferredMutate();
+      const createLease = acceptedLease();
+      const { result, router } = await renderQuotingFlow({
+        createLease,
+        patchDeployment: mockMutation(patch.mutate),
+        isActivityCenterOn: true,
+        manifestFromSdl: () => "M2",
+        servicesPatchBetween: () => ({ web: { env: { FOO: "bar" } } })
+      });
+
+      act(() => result.current.actions.deploy("sdl-b", { inBackground: true }));
+      await waitFor(() => expect(patch.calls).toHaveLength(1));
+
+      expect(createLease.mutate).not.toHaveBeenCalled();
+      expect(router.replace).not.toHaveBeenCalledWith(UrlService.deploymentList());
+
+      await act(async () => patch.calls[0].options.onSuccess?.({}));
+
+      expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M2", leases: [LEASE], async: "true" }, expect.anything());
+      expect(router.replace).toHaveBeenLastCalledWith(UrlService.deploymentList());
+    });
+
+    function acceptedLease() {
+      return mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { activityId: "activity-1" } })));
+    }
+
+    async function renderQuotingFlow(input: NonNullable<Parameters<typeof renderFlow>[0]>) {
+      const createDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } })));
+      const flow = renderFlow({ createDeployment, ...input });
+      act(() => flow.result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => flow.result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      return flow;
+    }
   });
 
   describe("deploy funnel analytics", () => {
@@ -2700,16 +2894,13 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("holds the create_deployment event for the create's activity rather than tracking it when the create is accepted", async () => {
-      const { holdCreateEvent, analyticsService, accept } = await setupBackgroundCreate({});
+      const { holdActivityEvents, analyticsService, accept } = await setupBackgroundCreate({});
 
       act(() => accept());
 
-      expect(holdCreateEvent).toHaveBeenCalledWith("activity-1", {
-        category: "deployments",
-        label: "Create deployment in wizard",
-        dseq: "1000",
-        secretCount: 0
-      });
+      expect(holdActivityEvents).toHaveBeenCalledWith("activity-1", [
+        { event: "create_deployment", properties: { category: "deployments", label: "Create deployment in wizard", dseq: "1000", secretCount: 0 } }
+      ]);
       expect(analyticsService.track).not.toHaveBeenCalledWith("create_deployment", expect.anything());
     });
 
@@ -2763,13 +2954,13 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("keeps today's flow when the api answers a create made during the request", async () => {
-      const { result, holdCreateEvent, analyticsService, createCalls } = await setupBackgroundCreate({});
+      const { result, holdActivityEvents, analyticsService, createCalls } = await setupBackgroundCreate({});
 
       act(() => createCalls[0].options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
 
       expect(result.current).toMatchObject({ phase: "quoting", dseq: "1000", isCreatingInBackground: false });
       expect(analyticsService.track).toHaveBeenCalledWith("create_deployment", expect.objectContaining({ dseq: "1000" }));
-      expect(holdCreateEvent).not.toHaveBeenCalled();
+      expect(holdActivityEvents).not.toHaveBeenCalled();
     });
 
     it("marks a create the api answered during the request as shown on its page, rather than following it", async () => {
@@ -2841,14 +3032,14 @@ describe(useDeploymentFlow.name, () => {
 
     it("follows a create the api accepts only after it was cancelled, closing it once it exists", async () => {
       const replace = vi.fn();
-      const { result, api, rerender, closeMutate, holdCreateEvent, createCalls } = await setupBackgroundCreate({ replace });
+      const { result, api, rerender, closeMutate, holdActivityEvents, createCalls } = await setupBackgroundCreate({ replace });
       act(() => result.current.actions.cancelAndEdit());
 
       act(() => createCalls[0].options.onSuccess?.({ data: { dseq: "1000", manifest: "m", activityId: "activity-1" } }));
       api.activities = [createActivity("succeeded")];
       rerender();
 
-      expect(holdCreateEvent).not.toHaveBeenCalled();
+      expect(holdActivityEvents).not.toHaveBeenCalled();
       expect(replace.mock.calls.every(([url]) => !String(url).includes("/configure/1000"))).toBe(true);
       expect(result.current).toMatchObject({ phase: "configuring", dseq: null, isCreatingInBackground: false });
       expect(closeMutate).toHaveBeenCalledWith({ dseq: "1000", async: "true" }, expect.any(Object));
@@ -2926,7 +3117,7 @@ describe(useDeploymentFlow.name, () => {
     const forgetEarlierOutcomes = vi.fn();
     const followUntilSettled = vi.fn();
     const stopFollowing = vi.fn();
-    const holdCreateEvent = vi.fn();
+    const holdActivityEvents = vi.fn();
     const services = mockServices({ createDeployment, closeDeployment, getDeployment, getSdlSecretsContext });
     services.api.v1.getActivity.useQuery.mockImplementation(({ id }) => {
       const activity = api.activities.find(candidate => candidate.id === id);
@@ -2950,7 +3141,7 @@ describe(useDeploymentFlow.name, () => {
           project: input.deployTargetProjectId ? mock<Project>({ id: input.deployTargetProjectId }) : undefined,
           forgetProject
         }),
-      useHoldCreateEvent: () => holdCreateEvent
+      useHoldActivityEvents: () => holdActivityEvents
     };
     return {
       services,
@@ -2971,7 +3162,7 @@ describe(useDeploymentFlow.name, () => {
       forgetEarlierOutcomes,
       followUntilSettled,
       stopFollowing,
-      holdCreateEvent
+      holdActivityEvents
     };
   }
 
@@ -2989,6 +3180,7 @@ describe(useDeploymentFlow.name, () => {
     sealSdlSecrets?: typeof DEPENDENCIES.sealSdlSecrets;
     servicesPatchBetween?: typeof DEPENDENCIES.servicesPatchBetween;
     settingsId?: string | null;
+    isActivityCenterOn?: boolean;
   }) {
     const getSdlSecretsContext = mockSealContextMutation();
     const intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, vm: false, ...input?.intent };
@@ -3008,6 +3200,8 @@ describe(useDeploymentFlow.name, () => {
     const forgetEarlierOutcomes = vi.fn();
     const followUntilSettled = vi.fn();
     const stopFollowing = vi.fn();
+    const holdActivityEvents = vi.fn<ReturnType<typeof DEPENDENCIES.useHoldActivityEvents>>();
+    const useFlag = vi.fn((_flag: string) => input?.isActivityCenterOn ?? false);
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
       useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
@@ -3017,18 +3211,21 @@ describe(useDeploymentFlow.name, () => {
       deploymentResourcesFromSdl: input?.deploymentResourcesFromSdl ?? (() => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 })),
       sealSdlSecrets,
       servicesPatchBetween: input?.servicesPatchBetween ?? servicesPatchBetween,
-      useFlag: () => false,
+      useFlag,
       useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
       useMarkActivityOutcomes: () =>
         mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>({ forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing }),
       useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
-      useHoldCreateEvent: () => vi.fn()
+      useHoldActivityEvents: () => holdActivityEvents
     };
     const utils = renderDeploymentFlow(intent, dependencies, input?.settingsId);
     return {
       ...utils,
       router,
       queryClient,
+      holdActivityEvents,
+      useFlag,
+      followUntilSettled,
       services,
       sealSdlSecrets,
       getSdlSecretsContext,
@@ -3054,7 +3251,7 @@ describe(useDeploymentFlow.name, () => {
       useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
       useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
       useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
-      useHoldCreateEvent: () => vi.fn()
+      useHoldActivityEvents: () => vi.fn()
     };
     return {
       ...renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies),

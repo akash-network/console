@@ -249,8 +249,8 @@ test.describe("Team organizations", () => {
 
         await configure.selectFirstAvailableProvider();
         await expect(configure.reviewDialog()).toBeVisible({ timeout: 30_000 });
-        await configure.confirmAndDeploy();
-        await page.waitForURL(new RegExp(`/deployments/${dseq}(?:[/?]|$)`), { timeout: 180_000 });
+        await configure.confirmAndOpenDeployment(dseq!);
+        await page.waitForURL(new RegExp(`/deployments/${dseq}(?:[/?]|$)`), { timeout: 30_000 });
       });
 
       await test.step("the project holds the deployment", async () => {

@@ -423,6 +423,26 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(clear).not.toHaveBeenCalled();
   });
 
+  describe("while deploying", () => {
+    it("says the deployment was created once the api has taken its lease on in the background", () => {
+      const { enqueueSnackbar } = setup({ initialSdl: undefined, phase: "deploying", isDeployedInBackground: true, deploySucceeded: true });
+
+      expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          props: { title: "Deployment created", subTitle: "It's spinning up. We'll let you know when it's ready.", iconVariant: "success" }
+        }),
+        { variant: "success" }
+      );
+    });
+
+    it("says nothing about a created deployment whose lease was created during the request", () => {
+      const { enqueueSnackbar } = setup({ initialSdl: undefined, phase: "deploying", isDeployedInBackground: false, deploySucceeded: true });
+
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+    });
+  });
+
   it("seeds the deployment name from initialName", () => {
     const { ConfigureDeploymentPanes } = setup({ initialSdl: undefined, initialName: "my-app" });
 
@@ -679,7 +699,7 @@ describe(ConfigureDeploymentForm.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
 
     const previewed = lastPanesProps(ConfigureDeploymentPanes).sdl;
-    expect(flow.actions.deploy).toHaveBeenCalledWith(previewed, { secrets: {}, unresolvedSecrets: [] });
+    expect(flow.actions.deploy).toHaveBeenCalledWith(previewed, { secrets: {}, unresolvedSecrets: [], inBackground: true });
   });
 
   it("hands a secret typed in the form to the deploy and leaves only its reference in the sdl", async () => {
@@ -691,7 +711,8 @@ describe(ConfigureDeploymentForm.name, () => {
 
     expect(flow.actions.deploy).toHaveBeenCalledWith(expect.stringContaining("API_KEY=ac-secret://API_KEY"), {
       secrets: { API_KEY: "hunter2" },
-      unresolvedSecrets: []
+      unresolvedSecrets: [],
+      inBackground: true
     });
   });
 
@@ -1025,6 +1046,7 @@ describe(ConfigureDeploymentForm.name, () => {
     persistedRuntimeLimitHours?: number;
     persistedPlacementRegions?: Record<string, string[]>;
     deploySucceeded?: boolean;
+    isDeployedInBackground?: boolean;
     flowError?: FlowError;
     noBidsReceived?: boolean;
     vm?: boolean;
@@ -1091,6 +1113,7 @@ describe(ConfigureDeploymentForm.name, () => {
         bidStrategy: "select",
         selections: {},
         deploySucceeded: input.deploySucceeded ?? false,
+        isDeployedInBackground: input.isDeployedInBackground ?? false,
         noBidsReceived: input.noBidsReceived ?? false,
         pendingClose: input.pendingClose ?? null,
         actions: mock<DeploymentFlow["actions"]>({ requestQuotes })
