@@ -275,6 +275,15 @@ describe(ImageCard.name, () => {
     expect(getValues().services[0].image).toBe("ghcr.io/akash-network/debian-11-ssh:2");
   });
 
+  it("offers Debian 13 as a distro", async () => {
+    const { getValues } = setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2" });
+
+    await userEvent.click(screen.getByRole("combobox", { name: "Distribution" }));
+    await userEvent.click(screen.getByRole("option", { name: "Debian 13" }));
+
+    expect(getValues().services[0].image).toBe("ghcr.io/akash-network/debian-13-ssh:1");
+  });
+
   it("clears private-registry credentials when the service runs a vm image", async () => {
     const { getValues } = setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", hasCredentials: true });
 

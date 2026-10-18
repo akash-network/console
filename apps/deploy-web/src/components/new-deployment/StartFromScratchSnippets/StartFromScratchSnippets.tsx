@@ -14,6 +14,7 @@ const TOKEN_CLASSES = {
 const WELCOME_BANNERS: string[] = Object.values({
   "Ubuntu 24.04": "Welcome to Ubuntu 24.04 LTS",
   "CentOS Stream 9": "CentOS Stream release 9",
+  "Debian 13": "Debian GNU/Linux 13 (trixie)",
   "Debian 11": "Debian GNU/Linux 11 (bullseye)",
   "SuSE Leap 15.5": "openSUSE Leap 15.5"
 } satisfies Record<keyof typeof SSH_VM_IMAGES, string>);
