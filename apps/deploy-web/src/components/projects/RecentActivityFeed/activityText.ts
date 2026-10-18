@@ -26,10 +26,7 @@ export function describeActivity(activity: OrganizationActivity): ActivityText {
     case "member_invited":
       return { segments: [text("invited"), strong(payload.email ?? "someone"), text(`as ${withArticle(roleLabel(payload.role))}`)], systemIcon: "activity" };
     case "member_joined":
-      return {
-        segments: activity.actor ? [text("joined the organization")] : [strong(payload.email ?? "Someone"), text("joined the organization")],
-        systemIcon: "activity"
-      };
+      return { segments: [text("joined the organization")], systemIcon: "activity" };
     case "deployment_created":
       return { segments: [text("deployed"), deploymentSegment(payload)], systemIcon: "activity" };
     case "deployment_closed":

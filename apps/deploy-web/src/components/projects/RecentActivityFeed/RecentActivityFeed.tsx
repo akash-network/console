@@ -1,11 +1,12 @@
 "use client";
 import type { ComponentType } from "react";
 import { Avatar, AvatarFallback, Button } from "@akashnetwork/ui/components";
-import { Activity, Clock, Wallet } from "lucide-react";
+import { Activity, Clock, User, Wallet } from "lucide-react";
 import Link from "next/link";
 
 import type { OrganizationActivity, OrganizationActivityActor } from "@src/types/organization-activity";
 import type { Project } from "@src/types/project";
+import { DELETED_ACCOUNT_LABEL } from "@src/utils/deletedAccount";
 import { initialsOf } from "@src/utils/initials";
 import { formatRelativeTime } from "@src/utils/relativeTime";
 import { UrlService } from "@src/utils/urlUtils";
@@ -73,14 +74,23 @@ export function RecentActivityFeed({ activities, projects, hasMore, onShowMore, 
   );
 }
 
+/** Only the console's own deployment closes are recorded without an actor, so any other entry lacking one was made by a since deleted account. */
+function isByDeletedAccount(activity: OrganizationActivity): boolean {
+  return activity.actor === null && activity.type !== "deployment_closed";
+}
+
 function ActivityItem({ activity, projectName }: { activity: OrganizationActivity; projectName: string | undefined }) {
   const { segments, systemIcon } = describeActivity(activity);
   const SystemIcon = SYSTEM_ICONS[systemIcon];
+  const isDeletedAccountSubject = isByDeletedAccount(activity);
+  const hasSubject = !!activity.actor || isDeletedAccountSubject;
 
   return (
     <li className="flex gap-3 px-4 py-3.5">
       {activity.actor ? (
         <ActorAvatar actor={activity.actor} />
+      ) : isDeletedAccountSubject ? (
+        <DeletedAccountAvatar />
       ) : (
         <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border border-border bg-muted">
           <SystemIcon className="h-3.5 w-3.5 text-muted-foreground" />
@@ -90,9 +100,10 @@ function ActivityItem({ activity, projectName }: { activity: OrganizationActivit
       <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
         <p className="break-words text-[13px] leading-[19px] text-muted-foreground">
           {activity.actor && <strong className="font-semibold text-foreground">{activity.actor.username ?? "A member"}</strong>}
+          {isDeletedAccountSubject && <span className="font-semibold">{DELETED_ACCOUNT_LABEL}</span>}
           {segments.map((segment, index) => (
             <span key={index}>
-              {activity.actor || index > 0 ? " " : null}
+              {hasSubject || index > 0 ? " " : null}
               <Segment segment={segment} />
             </span>
           ))}
@@ -130,6 +141,16 @@ function ActorAvatar({ actor }: { actor: OrganizationActivityActor }) {
   return (
     <Avatar className="h-[30px] w-[30px]">
       <AvatarFallback className="text-[11px] font-semibold">{initialsOf(actor.username ?? "?")}</AvatarFallback>
+    </Avatar>
+  );
+}
+
+function DeletedAccountAvatar() {
+  return (
+    <Avatar className="h-[30px] w-[30px]">
+      <AvatarFallback>
+        <User className="h-3.5 w-3.5 text-muted-foreground" />
+      </AvatarFallback>
     </Avatar>
   );
 }

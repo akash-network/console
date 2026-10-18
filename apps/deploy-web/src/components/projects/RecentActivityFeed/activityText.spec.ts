@@ -47,6 +47,10 @@ describe(describeActivity.name, () => {
     expect(read({ type: "member_updated", payload: { username: "lena", role: "admin" } }).systemIcon).toBe("activity");
   });
 
+  it("marks a join with the activity icon", () => {
+    expect(read({ type: "member_joined", payload: { role: "member" } }).systemIcon).toBe("activity");
+  });
+
   it("marks a rename with the activity icon", () => {
     expect(read({ type: "organization_renamed", payload: { fromName: "Acme Corp", toName: "Acme Labs" } }).systemIcon).toBe("activity");
   });
@@ -66,8 +70,8 @@ describe(describeActivity.name, () => {
     expect(sentence(read({ type: "project_created", payload: { projectName: 42 } }))).toBe("created the project *a project*");
   });
 
-  it("names who joined when the record carries no actor", () => {
-    expect(sentence(read({ type: "member_joined", payload: { email: "lena@acme.com" }, actor: null }))).toBe("*lena@acme.com* joined the organization");
+  it("reads the join of a member who since deleted their account like any other join", () => {
+    expect(sentence(read({ type: "member_joined", payload: { role: "member" }, actor: null }))).toBe("joined the organization");
   });
 
   function read(overrides: Partial<OrganizationActivity>) {

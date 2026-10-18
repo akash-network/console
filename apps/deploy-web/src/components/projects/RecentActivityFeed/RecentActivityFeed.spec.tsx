@@ -31,6 +31,26 @@ describe(RecentActivityFeed.name, () => {
 
     expect(screen.getByRole("listitem")).toHaveTextContent("session-cache was closed when its runtime limit ran out");
     expect(container.querySelector("svg.lucide-clock")).not.toBeNull();
+    expect(container.querySelector("svg.lucide-user")).toBeNull();
+    expect(screen.queryByText("Deleted account")).not.toBeInTheDocument();
+  });
+
+  it("opens a sentence without a subject at its first word", () => {
+    setup({ activities: [activity({ actor: null, type: "deployment_closed", payload: { dseq: "2987", name: "session-cache", reason: null } })] });
+
+    expect(screen.getByRole("listitem")).toHaveTextContent(/^session-cache was closed/, { normalizeWhitespace: false });
+  });
+
+  it.each<[OrganizationActivity["type"], OrganizationActivity["payload"], string]>([
+    ["deployment_created", { dseq: "3140", name: "acme-storefront" }, "Deleted account deployed acme-storefront"],
+    ["member_updated", { userId: "u2", username: "lena", role: "admin", projectAccess: "all" }, "Deleted account changed lena to Admin"],
+    ["member_joined", { role: "member" }, "Deleted account joined the organization"]
+  ])("names a member who since deleted their account behind a %s event", (type, payload, expected) => {
+    const { container } = setup({ activities: [activity({ actor: null, type, payload })] });
+
+    expect(screen.getByRole("listitem")).toHaveTextContent(expected);
+    expect(container.querySelector("svg.lucide-user")).not.toBeNull();
+    expect(container.querySelector("svg.lucide-activity")).toBeNull();
   });
 
   it("names an actor without a username generically", () => {
