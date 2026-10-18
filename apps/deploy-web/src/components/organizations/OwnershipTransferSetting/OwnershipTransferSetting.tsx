@@ -23,7 +23,7 @@ export const OwnershipTransferSetting: FC<Props> = ({ organization, dependencies
   const { confirm } = d.usePopup();
   const { enqueueSnackbar } = d.useSnackbar();
   const members = d.useOrganizationMembersQuery({ enabled: true });
-  const { mutate: transferOwnership, isPending } = d.useTransferOrganizationOwnershipMutation();
+  const { mutateAsync: transferOwnership, isPending } = d.useTransferOrganizationOwnershipMutation();
   const [newOwnerId, setNewOwnerId] = useState("");
 
   const candidates = (members.data ?? [])
@@ -38,6 +38,7 @@ export const OwnershipTransferSetting: FC<Props> = ({ organization, dependencies
     return `Make another member the owner of ${organization.name}. You stay on as an Admin.`;
   };
 
+  /** Notifies once the transfer settles rather than from per-call mutate callbacks, which never run because the demoted owner loses this setting first. */
   const handOverOwnership = async () => {
     if (!newOwner) return;
 
@@ -48,16 +49,16 @@ export const OwnershipTransferSetting: FC<Props> = ({ organization, dependencies
     });
     if (!isConfirmed) return;
 
-    transferOwnership(
-      { id: newOwner.id },
-      {
-        onSuccess: () => enqueueSnackbar(<Snackbar title={`${name} is now the owner of ${organization.name}`} iconVariant="success" />, { variant: "success" }),
-        onError: error =>
-          enqueueSnackbar(<Snackbar title={getMembershipErrorMessage(error, `Couldn't transfer ownership to ${name}`)} iconVariant="error" />, {
-            variant: "error"
-          })
-      }
-    );
+    try {
+      await transferOwnership({ id: newOwner.id });
+    } catch (error) {
+      enqueueSnackbar(<Snackbar title={getMembershipErrorMessage(error, `Couldn't transfer ownership to ${name}`)} iconVariant="error" />, {
+        variant: "error"
+      });
+      return;
+    }
+
+    enqueueSnackbar(<Snackbar title={`${name} is now the owner of ${organization.name}`} iconVariant="success" />, { variant: "success" });
   };
 
   return (

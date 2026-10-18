@@ -6,7 +6,7 @@ import type { OrganizationMemberOutput } from "@src/types/organizationMembership
 import type { DEPENDENCIES } from "./OwnershipTransferSetting";
 import { OwnershipTransferSetting } from "./OwnershipTransferSetting";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe("OwnershipTransferSetting", () => {
@@ -28,7 +28,7 @@ describe("OwnershipTransferSetting", () => {
 
   it("transfers ownership to the chosen member once the owner confirms", async () => {
     const { user, confirm, transferOwnership, enqueueSnackbar } = setup({});
-    transferOwnership.mockImplementation((input, options) => options?.onSuccess?.({ data: { ...DAVE, role: "owner" } }, input, undefined));
+    transferOwnership.mockResolvedValue({ data: { ...DAVE, role: "owner" } });
 
     await chooseNewOwner(user, "dave");
     await user.click(screen.getByRole("button", { name: "Transfer" }));
@@ -37,10 +37,33 @@ describe("OwnershipTransferSetting", () => {
       title: "Transfer ownership to dave?",
       message: "dave becomes the owner of Acme Corp. You stay on as an Admin."
     });
-    expect(transferOwnership).toHaveBeenCalledWith({ id: "member-dave" }, expect.anything());
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "dave is now the owner of Acme Corp" }) }), {
-      variant: "success"
-    });
+    expect(transferOwnership).toHaveBeenCalledWith({ id: "member-dave" });
+    await waitFor(() =>
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ title: "dave is now the owner of Acme Corp" }) }),
+        { variant: "success" }
+      )
+    );
+  });
+
+  it("confirms the transfer after the demoted owner loses the setting", async () => {
+    const { user, transferOwnership, enqueueSnackbar, unmount } = setup({});
+    const transfer = Promise.withResolvers<Awaited<ReturnType<TransferMutation["mutateAsync"]>>>();
+    transferOwnership.mockReturnValue(transfer.promise);
+
+    await chooseNewOwner(user, "dave");
+    await user.click(screen.getByRole("button", { name: "Transfer" }));
+    await waitFor(() => expect(transferOwnership).toHaveBeenCalled());
+    unmount();
+    transfer.resolve({ data: { ...DAVE, role: "owner" } });
+
+    await waitFor(() =>
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ title: "dave is now the owner of Acme Corp" }) }),
+        { variant: "success" }
+      )
+    );
+    expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
   });
 
   it("does nothing when the owner cancels", async () => {
@@ -54,29 +77,34 @@ describe("OwnershipTransferSetting", () => {
 
   it("explains a refused transfer", async () => {
     const { user, transferOwnership, enqueueSnackbar } = setup({});
-    transferOwnership.mockImplementation((input, options) =>
-      options?.onError?.(new ApiError(403, { code: "owner_role_restricted" }, "POST"), input, undefined)
-    );
+    transferOwnership.mockRejectedValue(new ApiError(403, { code: "owner_role_restricted" }, "POST"));
 
     await chooseNewOwner(user, "bob");
     await user.click(screen.getByRole("button", { name: "Transfer" }));
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(
-      expect.objectContaining({ props: expect.objectContaining({ title: "Only the owner can change the owner's role or hand over ownership." }) }),
-      { variant: "error" }
+    await waitFor(() =>
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ title: "Only the owner can change the owner's role or hand over ownership." }) }),
+        { variant: "error" }
+      )
     );
+    expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to a generic message for an unexplained failure", async () => {
     const { user, transferOwnership, enqueueSnackbar } = setup({});
-    transferOwnership.mockImplementation((input, options) => options?.onError?.(new Error("boom"), input, undefined));
+    transferOwnership.mockRejectedValue(new Error("boom"));
 
     await chooseNewOwner(user, "bob");
     await user.click(screen.getByRole("button", { name: "Transfer" }));
 
-    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't transfer ownership to bob" }) }), {
-      variant: "error"
-    });
+    await waitFor(() =>
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't transfer ownership to bob" }) }),
+        { variant: "error" }
+      )
+    );
+    expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
   });
 
   it("asks the owner to invite someone first when they are the only member", () => {
@@ -107,7 +135,7 @@ describe("OwnershipTransferSetting", () => {
   }
 
   function setup(input: { members?: OrganizationMemberOutput[]; isError?: boolean; isConfirmed?: boolean }) {
-    const transferOwnership = vi.fn<ReturnType<typeof DEPENDENCIES.useTransferOrganizationOwnershipMutation>["mutate"]>();
+    const transferOwnership = vi.fn<TransferMutation["mutateAsync"]>();
     const confirm = vi.fn(async () => input.isConfirmed ?? true);
     const enqueueSnackbar = vi.fn();
     const useOrganizationMembersQuery = vi.fn(() =>
@@ -120,15 +148,16 @@ describe("OwnershipTransferSetting", () => {
       usePopup: () => mock<ReturnType<typeof DEPENDENCIES.usePopup>>({ confirm }),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       useOrganizationMembersQuery,
-      useTransferOrganizationOwnershipMutation: () =>
-        mock<ReturnType<typeof DEPENDENCIES.useTransferOrganizationOwnershipMutation>>({ mutate: transferOwnership, isPending: false })
+      useTransferOrganizationOwnershipMutation: () => mock<TransferMutation>({ mutateAsync: transferOwnership, isPending: false })
     };
 
-    render(<OwnershipTransferSetting organization={{ name: "Acme Corp" }} dependencies={dependencies} />);
+    const { unmount } = render(<OwnershipTransferSetting organization={{ name: "Acme Corp" }} dependencies={dependencies} />);
 
-    return { user: userEvent.setup(), confirm, transferOwnership, enqueueSnackbar, useOrganizationMembersQuery };
+    return { user: userEvent.setup(), confirm, transferOwnership, enqueueSnackbar, useOrganizationMembersQuery, unmount };
   }
 });
+
+type TransferMutation = ReturnType<typeof DEPENDENCIES.useTransferOrganizationOwnershipMutation>;
 
 const ALICE: OrganizationMemberOutput = {
   id: "member-alice",
