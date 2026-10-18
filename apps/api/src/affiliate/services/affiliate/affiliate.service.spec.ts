@@ -227,11 +227,37 @@ describe(AffiliateService.name, () => {
 
       await service.approve({ userId: created.userId, actor: "new-ops@akash.network" });
 
-      expect(affiliateRepository.updateById).toHaveBeenCalledWith(
-        existing.id,
-        { code: "old-code", approvedAt: expect.any(Date), approvedBy: "new-ops@akash.network", revokedAt: null, revokedBy: null },
-        { returning: true }
-      );
+      expect(affiliateRepository.reapproveIfRevoked).toHaveBeenCalledWith(existing.id, {
+        code: "old-code",
+        approvedAt: expect.any(Date),
+        approvedBy: "new-ops@akash.network"
+      });
+    });
+
+    it("returns the re-approved affiliate", async () => {
+      const { service, affiliateRepository, created } = setup();
+      const existing = createAffiliate({ userId: created.userId, revokedAt: new Date().toISOString(), revokedBy: "ops@akash.network" });
+      affiliateRepository.findByUserId.mockResolvedValue(existing);
+      const reapproved = createAffiliate({ ...existing, revokedAt: null, revokedBy: null });
+      affiliateRepository.reapproveIfRevoked.mockResolvedValue(reapproved);
+
+      const result = await service.approve({ userId: created.userId, actor: "new-ops@akash.network" });
+
+      expect(result).toEqual(reapproved);
+    });
+
+    it("rejects with 409 when a concurrent request re-approved the affiliate first", async () => {
+      const { service, affiliateRepository, created, logger } = setup();
+      const existing = createAffiliate({ userId: created.userId, revokedAt: new Date().toISOString(), revokedBy: "ops@akash.network" });
+      affiliateRepository.findByUserId.mockResolvedValue(existing);
+      affiliateRepository.reapproveIfRevoked.mockResolvedValue(undefined);
+
+      await expect(service.approve({ userId: created.userId, actor: "new-ops@akash.network" })).rejects.toMatchObject({
+        status: 409,
+        message: "This user is already an approved affiliate",
+        errorCode: "affiliate_already_approved"
+      });
+      expect(logger.info).not.toHaveBeenCalled();
     });
 
     it("replaces the code of a re-approved affiliate only when a new code is given", async () => {
@@ -241,7 +267,7 @@ describe(AffiliateService.name, () => {
 
       await service.approve({ userId: created.userId, code: "new-code", actor: "new-ops@akash.network" });
 
-      expect(affiliateRepository.updateById).toHaveBeenCalledWith(existing.id, expect.objectContaining({ code: "new-code" }), { returning: true });
+      expect(affiliateRepository.reapproveIfRevoked).toHaveBeenCalledWith(existing.id, expect.objectContaining({ code: "new-code" }));
     });
 
     it("re-approves with the same code already assigned to the affiliate", async () => {
@@ -252,14 +278,14 @@ describe(AffiliateService.name, () => {
 
       await service.approve({ userId: created.userId, code: "same-code", actor: "new-ops@akash.network" });
 
-      expect(affiliateRepository.updateById).toHaveBeenCalledWith(existing.id, expect.objectContaining({ code: "same-code" }), { returning: true });
+      expect(affiliateRepository.reapproveIfRevoked).toHaveBeenCalledWith(existing.id, expect.objectContaining({ code: "same-code" }));
     });
 
     it("converts a concurrent code conflict on re-approval into a 409", async () => {
       const { service, affiliateRepository, created } = setup();
       const existing = createAffiliate({ userId: created.userId, code: "old-code", revokedAt: new Date().toISOString(), revokedBy: "ops@akash.network" });
       affiliateRepository.findByUserId.mockResolvedValue(existing);
-      affiliateRepository.updateById.mockRejectedValue(createUniqueViolation("affiliates_code_unique"));
+      affiliateRepository.reapproveIfRevoked.mockRejectedValue(createUniqueViolation("affiliates_code_unique"));
 
       await expect(service.approve({ userId: created.userId, code: "new-code", actor: "ops@akash.network" })).rejects.toMatchObject({
         status: 409,
@@ -273,7 +299,7 @@ describe(AffiliateService.name, () => {
       const existing = createAffiliate({ userId: created.userId, code: "old-code", revokedAt: new Date().toISOString(), revokedBy: "ops@akash.network" });
       affiliateRepository.findByUserId.mockResolvedValue(existing);
       const error = new Error("connection reset");
-      affiliateRepository.updateById.mockRejectedValue(error);
+      affiliateRepository.reapproveIfRevoked.mockRejectedValue(error);
 
       await expect(service.approve({ userId: created.userId, actor: "ops@akash.network" })).rejects.toBe(error);
     });
@@ -309,23 +335,49 @@ describe(AffiliateService.name, () => {
 
       await service.revoke({ code: active.code, actor: "ops@akash.network" });
 
-      expect(affiliateRepository.updateById).toHaveBeenCalledWith(
-        active.id,
-        { revokedAt: expect.any(Date), revokedBy: "ops@akash.network" },
-        { returning: true }
-      );
+      expect(affiliateRepository.revokeIfActive).toHaveBeenCalledWith(active.id, { revokedAt: expect.any(Date), revokedBy: "ops@akash.network" });
     });
 
-    it("logs AFFILIATE_REVOKED when revoking an active affiliate", async () => {
+    it("logs AFFILIATE_REVOKED and returns the revoked affiliate when revoking an active affiliate", async () => {
       const { service, affiliateRepository, logger } = setup();
       const active = createAffiliate({ revokedAt: null });
       affiliateRepository.findByCode.mockResolvedValue(active);
       const revoked = createAffiliate({ ...active, revokedAt: new Date().toISOString(), revokedBy: "ops@akash.network" });
-      affiliateRepository.updateById.mockResolvedValue(revoked as never);
+      affiliateRepository.revokeIfActive.mockResolvedValue(revoked);
 
-      await service.revoke({ code: active.code, actor: "ops@akash.network" });
+      const result = await service.revoke({ code: active.code, actor: "ops@akash.network" });
 
+      expect(result).toEqual(revoked);
       expect(logger.info).toHaveBeenCalledWith({ event: "AFFILIATE_REVOKED", actor: "ops@akash.network", userId: active.userId, code: active.code });
+    });
+
+    it("returns the revocation a concurrent request wrote without logging again", async () => {
+      const { service, affiliateRepository, logger } = setup();
+      const active = createAffiliate({ revokedAt: null });
+      affiliateRepository.findByCode.mockResolvedValue(active);
+      affiliateRepository.revokeIfActive.mockResolvedValue(undefined);
+      const revokedByOther = createAffiliate({ ...active, revokedAt: new Date().toISOString(), revokedBy: "other-ops@akash.network" });
+      affiliateRepository.findById.mockResolvedValue(revokedByOther);
+
+      const result = await service.revoke({ code: active.code, actor: "ops@akash.network" });
+
+      expect(result).toEqual(revokedByOther);
+      expect(affiliateRepository.findById).toHaveBeenCalledWith(active.id);
+      expect(logger.info).not.toHaveBeenCalled();
+    });
+
+    it("rejects with 404 when the affiliate is gone by the time a concurrent revocation is read", async () => {
+      const { service, affiliateRepository } = setup();
+      const active = createAffiliate({ revokedAt: null });
+      affiliateRepository.findByCode.mockResolvedValue(active);
+      affiliateRepository.revokeIfActive.mockResolvedValue(undefined);
+      affiliateRepository.findById.mockResolvedValue(undefined);
+
+      await expect(service.revoke({ code: active.code, actor: "ops@akash.network" })).rejects.toMatchObject({
+        status: 404,
+        message: "No affiliate with this code was found",
+        errorCode: "affiliate_not_found"
+      });
     });
 
     it("returns an already-revoked affiliate unchanged without updating or logging again", async () => {
@@ -336,7 +388,7 @@ describe(AffiliateService.name, () => {
       const result = await service.revoke({ code: revoked.code, actor: "someone-else@akash.network" });
 
       expect(result).toEqual(revoked);
-      expect(affiliateRepository.updateById).not.toHaveBeenCalled();
+      expect(affiliateRepository.revokeIfActive).not.toHaveBeenCalled();
       expect(logger.info).not.toHaveBeenCalled();
     });
   });
@@ -397,7 +449,8 @@ describe(AffiliateService.name, () => {
     affiliateRepository.findByUserId.mockResolvedValue(undefined);
     affiliateRepository.findByCode.mockResolvedValue(undefined);
     affiliateRepository.create.mockResolvedValue(created);
-    affiliateRepository.updateById.mockResolvedValue(created as never);
+    affiliateRepository.revokeIfActive.mockResolvedValue(created);
+    affiliateRepository.reapproveIfRevoked.mockResolvedValue(created);
     const userRepository = mock<UserRepository>();
     userRepository.findById.mockImplementation(async id => createUser({ id }));
     const logger = mock<ReturnType<CreateLogger>>();

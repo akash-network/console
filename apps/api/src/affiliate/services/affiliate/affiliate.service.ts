@@ -49,10 +49,11 @@ export class AffiliateService {
     const normalizedCode = normalizeAffiliateCode(code);
     const affiliate = normalizedCode ? await this.affiliateRepository.findByCode(normalizedCode) : undefined;
 
-    if (!affiliate) throw createError(404, "No affiliate with this code was found", { errorCode: "affiliate_not_found" });
+    if (!affiliate) throw this.#notFoundError();
     if (affiliate.revokedAt) return affiliate;
 
-    const revoked = await this.affiliateRepository.updateById(affiliate.id, { revokedAt: new Date(), revokedBy: actor }, { returning: true });
+    const revoked = await this.affiliateRepository.revokeIfActive(affiliate.id, { revokedAt: new Date(), revokedBy: actor });
+    if (!revoked) return this.#findRevokedByConcurrentRequest(affiliate.id);
 
     this.logger.info({ event: "AFFILIATE_REVOKED", actor, userId: affiliate.userId, code: affiliate.code });
 
@@ -102,16 +103,26 @@ export class AffiliateService {
   }
 
   async #writeApproval(existing: AffiliateOutput, { code, approvedAt, actor }: { code?: string; approvedAt: Date; actor: string }): Promise<AffiliateOutput> {
+    const reapproved = await this.#reapproveOrConflict(existing.id, { code: code ?? existing.code, approvedAt, approvedBy: actor });
+    if (!reapproved) throw this.#alreadyApprovedError();
+
+    return reapproved;
+  }
+
+  async #reapproveOrConflict(id: string, approval: { code: string; approvedAt: Date; approvedBy: string }): Promise<AffiliateOutput | undefined> {
     try {
-      return await this.affiliateRepository.updateById(
-        existing.id,
-        { code: code ?? existing.code, approvedAt, approvedBy: actor, revokedAt: null, revokedBy: null },
-        { returning: true }
-      );
+      return await this.affiliateRepository.reapproveIfRevoked(id, approval);
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
       throw this.#codeTakenError();
     }
+  }
+
+  async #findRevokedByConcurrentRequest(id: string): Promise<AffiliateOutput> {
+    const affiliate = await this.affiliateRepository.findById(id);
+    if (!affiliate) throw this.#notFoundError();
+
+    return affiliate;
   }
 
   async #createWithCode({ userId, code, approvedAt, actor }: { userId: string; code?: string; approvedAt: Date; actor: string }): Promise<AffiliateOutput> {
@@ -149,6 +160,10 @@ export class AffiliateService {
 
   #alreadyApprovedError() {
     return createError(409, "This user is already an approved affiliate", { errorCode: "affiliate_already_approved" });
+  }
+
+  #notFoundError() {
+    return createError(404, "No affiliate with this code was found", { errorCode: "affiliate_not_found" });
   }
 
   #codeTakenError() {
