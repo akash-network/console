@@ -344,6 +344,44 @@ describe("Organization wallet", () => {
       expect(await response.json()).toMatchObject({ message: "ttl must be at most 3600 seconds" });
     });
 
+    it("refuses the team's admin a token meant to outlive an hour", async () => {
+      const { token, team } = await setup({ role: "admin" });
+
+      const response = await requestProviderToken(deploymentLeases("123", ["shell"]), { authorization: `Bearer ${token}`, "x-organization-id": team.id }, 3601);
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ message: "ttl must be at most 3600 seconds" });
+    });
+
+    it("grants the team's admin a token that lives an hour", async () => {
+      const { token, team } = await setup({ role: "admin" });
+
+      const response = await requestProviderToken(deploymentLeases("123", ["shell"]), { authorization: `Bearer ${token}`, "x-organization-id": team.id }, 3600);
+
+      expect(response.status).toBe(201);
+    });
+
+    it("grants a token meant to outlive an hour in the caller's personal organization", async () => {
+      const { user, token } = await setup();
+      const personal = await container.resolve(OrganizationRepository).findPersonalByUserId(user.id);
+
+      const response = await requestProviderToken(
+        deploymentLeases("123", ["shell"]),
+        { authorization: `Bearer ${token}`, "x-organization-id": personal!.id },
+        7200
+      );
+
+      expect(response.status).toBe(201);
+    });
+
+    it("grants a token meant to outlive an hour while organizations are off for the caller", async () => {
+      const { token, team } = await setup({ organizationsOn: false });
+
+      const response = await requestProviderToken(deploymentLeases("123", ["shell"]), { authorization: `Bearer ${token}`, "x-organization-id": team.id }, 7200);
+
+      expect(response.status).toBe(201);
+    });
+
     it("grants a viewer a token that reads the status, events and logs of a deployment in their project", async () => {
       const { token, team } = await setupFiledDeployments({ role: "viewer" });
       const leases = deploymentLeases("123", ["status", "events", "logs"]);
@@ -584,10 +622,10 @@ describe("Organization wallet", () => {
     return { ...context, granted, other };
   }
 
-  async function requestProviderToken(leases: ReturnType<typeof deploymentLeases>, headers: Record<string, string>) {
+  async function requestProviderToken(leases: ReturnType<typeof deploymentLeases>, headers: Record<string, string>, ttl = 1800) {
     return await app.request("/v1/create-jwt-token", {
       method: "POST",
-      body: JSON.stringify({ data: { ttl: 1800, leases } }),
+      body: JSON.stringify({ data: { ttl, leases } }),
       headers: { "Content-Type": "application/json", ...headers }
     });
   }

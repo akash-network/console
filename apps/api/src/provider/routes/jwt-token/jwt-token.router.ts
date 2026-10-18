@@ -39,6 +39,10 @@ providerJwtTokenRouter.openapi(
           }
         }
       },
+      400: {
+        description:
+          "The `ttl` is over 3600 seconds while the request runs in a team organization or is limited to some projects, the `leases` claim is not valid, or the caller has no wallet"
+      },
       403: {
         description:
           "With `code` `project_forbidden`, the caller is limited to some projects and the token does not name its deployments one by one, or names one filed in a project the caller cannot view, or cannot change when the token does more than read"

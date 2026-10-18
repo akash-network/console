@@ -1,11 +1,13 @@
 import { faker } from "@faker-js/faker";
 import createError from "http-errors";
 import { Ok } from "ts-results";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import type { OrganizationType } from "@src/organization/model-schemas/organization/organization.schema";
+import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import { createUser } from "../../../../test/seeders/user.seeder";
 import { createUserWallet } from "../../../../test/seeders/user-wallet.seeder";
@@ -186,11 +188,11 @@ describe(JwtTokenController.name, () => {
         expect(providerJwtTokenService.generateJwtToken).not.toHaveBeenCalled();
       });
 
-      it("refuses a token meant to outlive an hour", async () => {
+      it.each<OrganizationType>(["team", "personal"])("refuses a token meant to outlive an hour in a %s organization", async organizationType => {
         const user = createUser();
         const { controller, authService, userWalletRepository, providerJwtTokenService, signerService, wallet } = setup({
           user,
-          organizationContext: projectScoped
+          organizationContext: { ...projectScoped, organizationType }
         });
         authService.currentUser = user;
         userWalletRepository.accessibleBy.mockReturnThis();
@@ -214,20 +216,65 @@ describe(JwtTokenController.name, () => {
       }
     });
 
-    it("grants a token of any lifetime to a caller who reaches every project", async () => {
-      const user = createUser();
-      const { controller, authService, userWalletRepository, providerJwtTokenService, jwtToken, wallet } = setup({
-        user,
-        organizationContext: createOrganizationContext({ projectScope: { kind: "all" } })
+    describe("when the caller runs in a team and reaches every project", () => {
+      it.each<OrganizationRole>(["owner", "admin", "member"])("refuses the %s a token meant to outlive an hour", async role => {
+        const user = createUser();
+        const { controller, authService, userWalletRepository, providerJwtTokenService, wallet } = setup({
+          user,
+          organizationContext: createOrganizationContext({ organizationType: "team", role, projectScope: { kind: "all" } })
+        });
+        authService.currentUser = user;
+        userWalletRepository.accessibleBy.mockReturnThis();
+        userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
+
+        const result = await controller.createJwtToken({ ...createPayload(), ttl: 3601 });
+
+        expect(result.err && result.val).toMatchObject({ status: 400, message: "ttl must be at most 3600 seconds" });
+        expect(providerJwtTokenService.generateJwtToken).not.toHaveBeenCalled();
       });
+
+      it.each<OrganizationRole>(["owner", "admin", "member"])("grants the %s a token that lives an hour", async role => {
+        const user = createUser();
+        const { controller, authService, userWalletRepository, providerJwtTokenService, jwtToken, wallet } = setup({
+          user,
+          organizationContext: createOrganizationContext({ organizationType: "team", role, projectScope: { kind: "all" } })
+        });
+        authService.currentUser = user;
+        userWalletRepository.accessibleBy.mockReturnThis();
+        userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
+        providerJwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
+        const payload = { ...createPayload(), ttl: 3600 };
+
+        const result = await controller.createJwtToken(payload);
+
+        expect(result.unwrap()).toEqual({ token: jwtToken });
+        expect(providerJwtTokenService.generateJwtToken).toHaveBeenCalledWith({ walletId: wallet.id, leases: payload.leases, ttl: 3600 });
+      });
+    });
+
+    it.each([
+      {
+        name: "in their personal organization",
+        organizationContext: createOrganizationContext({ organizationType: "personal", projectScope: { kind: "all" } })
+      },
+      {
+        name: "while organizations are off for them",
+        organizationContext: createOrganizationContext({ organizationType: "personal", projectScope: { kind: "all" }, mode: "legacy" })
+      },
+      { name: "without an organization", organizationContext: undefined }
+    ])("grants a caller $name a token of any lifetime", async ({ organizationContext }) => {
+      const user = createUser();
+      const { controller, authService, userWalletRepository, providerJwtTokenService, jwtToken, wallet } = setup({ user, organizationContext });
       authService.currentUser = user;
       userWalletRepository.accessibleBy.mockReturnThis();
       userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
       providerJwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
+      const payload = { ...createPayload(), ttl: 86400 };
 
-      const result = await controller.createJwtToken({ ...createPayload(), ttl: 86400 });
+      const result = await controller.createJwtToken(payload);
 
       expect(result.unwrap()).toEqual({ token: jwtToken });
+      expect(providerJwtTokenService.generateJwtToken).toHaveBeenCalledWith({ walletId: wallet.id, leases: payload.leases, ttl: 86400 });
     });
 
     it("grants any lease access to a caller who reaches every project", async () => {
@@ -241,7 +288,7 @@ describe(JwtTokenController.name, () => {
       userWalletRepository.findOneUsedBy.mockResolvedValue(wallet);
       providerJwtTokenService.generateJwtToken.mockResolvedValue(Ok(jwtToken));
 
-      const result = await controller.createJwtToken(createPayload());
+      const result = await controller.createJwtToken({ ...createPayload(), ttl: 3600 });
 
       expect(result.unwrap()).toEqual({ token: jwtToken });
       expect(signerService.assertDeploymentsInProjectScope).not.toHaveBeenCalled();
@@ -274,7 +321,8 @@ describe(JwtTokenController.name, () => {
     const userWalletRepository = mock<UserWalletRepository>();
     const providerJwtTokenService = mock<ProviderJwtTokenService>();
     const signerService = mock<ManagedSignerService>();
-    const executionContextService = mock<ExecutionContextService>({ get: vi.fn().mockReturnValue(input?.organizationContext) });
+    const executionContextService = mock<ExecutionContextService>();
+    executionContextService.get.calledWith("ORGANIZATION_CONTEXT").mockReturnValue(input?.organizationContext);
 
     const controller = new JwtTokenController(providerJwtTokenService, authService, userWalletRepository, signerService, executionContextService);
 
