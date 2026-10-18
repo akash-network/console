@@ -15,6 +15,18 @@ export function createOrganizationSlug() {
   return `org-${faker.string.alphanumeric(12).toLowerCase()}`;
 }
 
+let generatedProjectCount = 0;
+
+export function createProjectName() {
+  generatedProjectCount += 1;
+  return `${faker.commerce.productName().slice(0, 50)} ${generatedProjectCount}`;
+}
+
+export function createProjectSlug() {
+  generatedProjectCount += 1;
+  return `project-${generatedProjectCount}-${faker.string.alphanumeric(8).toLowerCase()}`;
+}
+
 export function createOrganization({
   id = faker.string.uuid(),
   name = faker.company.name().slice(0, 64),
@@ -57,8 +69,8 @@ export function createOrganizationMemberWithUser({
 export function createProject({
   id = faker.string.uuid(),
   organizationId = faker.string.uuid(),
-  name = faker.commerce.productName().slice(0, 64),
-  slug = `project-${faker.string.alphanumeric(8).toLowerCase()}`,
+  name = createProjectName(),
+  slug = createProjectSlug(),
   description = null,
   isDefault = false,
   createdByUserId = faker.string.uuid(),
