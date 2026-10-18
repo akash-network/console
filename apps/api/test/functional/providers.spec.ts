@@ -307,10 +307,9 @@ describe("Providers", () => {
         isAudited: true,
         locationRegion: "na-ca-central",
         uptime30d: 0.995,
-        gpuModels: expect.arrayContaining(["h100", "a100"]),
+        gpuModels: ["a100", "h100"],
         stats: expect.objectContaining({ gpu: expect.objectContaining({ available: 4, active: 2, pending: 0 }) })
       });
-      expect(location?.gpuModels).toHaveLength(2);
       expect(map(data, "owner")).not.toContain(offline.owner);
     });
   });
