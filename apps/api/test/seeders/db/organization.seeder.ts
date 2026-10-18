@@ -6,7 +6,7 @@ import type { ApiPgDatabase, ApiPgTables } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_SLUG } from "@src/organization/model-schemas/project/project.schema";
 import type { UserInput } from "@src/user/repositories";
-import { createOrganizationSlug } from "../organization.seeder";
+import { createOrganizationSlug, createProjectName, createProjectSlug } from "../organization.seeder";
 import { seedUser } from "./user-with-wallet.seeder";
 
 type OrganizationInsert = ApiPgTables["Organizations"]["$inferInsert"];
@@ -47,8 +47,8 @@ export async function seedProject(overrides: Partial<ProjectInsert> & Pick<Proje
   const [project] = await db
     .insert(resolveTable("Projects"))
     .values({
-      name: faker.commerce.productName().slice(0, 64),
-      slug: `project-${faker.string.alphanumeric(8).toLowerCase()}`,
+      name: createProjectName(),
+      slug: createProjectSlug(),
       ...overrides
     })
     .returning();
