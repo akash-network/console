@@ -6,10 +6,12 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
+import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
 import { deploymentData } from "@src/utils/deploymentData";
 import { DEPENDENCIES, isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "./useDeploymentDefinition";
 
+import { buildActivity } from "@tests/seeders/activity";
 import { helloWorldManifest } from "@tests/seeders/manifest";
 import { buildWallet } from "@tests/seeders/wallet";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
@@ -93,6 +95,76 @@ describe(useDeploymentDefinition.name, () => {
 
     await vi.waitFor(() => expect(result.current.source).toBe("local"));
     expect(result.current.sdl).toBe(LOCAL_SDL);
+  });
+
+  describe("when the console saved the copy for an update the chain does not run yet", () => {
+    it.each(["pending", "failed"] as const)("serves the copy while that update is %s, since the api saves an update before applying it", async status => {
+      const { result, useNewestDeploymentUpdate } = setup({
+        apiSdl: API_SDL,
+        recordedManifestVersion: "saved-version",
+        chainManifestVersion: "running-version",
+        localSdl: LOCAL_SDL,
+        newestUpdate: { status, manifestVersion: "saved-version" }
+      });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.sdl).toBe(API_SDL);
+      expect(result.current.manifestVersion).toBe("saved-version");
+      expect(useNewestDeploymentUpdate).toHaveBeenCalledWith("123");
+    });
+
+    it("falls back once that update succeeded and the chain has moved past it since", async () => {
+      const { result } = setup({
+        apiSdl: API_SDL,
+        recordedManifestVersion: "saved-version",
+        chainManifestVersion: "running-version",
+        localSdl: LOCAL_SDL,
+        newestUpdate: { status: "succeeded", manifestVersion: "saved-version" }
+      });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("local"));
+    });
+
+    it("falls back when the newest update saved another version than the one recorded", async () => {
+      const { result } = setup({
+        apiSdl: API_SDL,
+        recordedManifestVersion: "saved-version",
+        chainManifestVersion: "running-version",
+        localSdl: LOCAL_SDL,
+        newestUpdate: { status: "pending", manifestVersion: "another-version" }
+      });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("local"));
+    });
+
+    it("hashes a copy that leaves an env value blank against the version it was saved under", async () => {
+      const { result } = setup({
+        apiSdl: PARTLY_BLANK_ENV_SDL,
+        recordedManifestVersion: "saved-version",
+        chainManifestVersion: "running-version",
+        apiCopyVersion: "saved-version",
+        localSdl: LOCAL_SDL,
+        newestUpdate: { status: "pending", manifestVersion: "saved-version" }
+      });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.sdl).toBe(PARTLY_BLANK_ENV_SDL);
+    });
+
+    it("restores nothing from this browser's copy, which describes an older configuration", async () => {
+      const { result } = setup({
+        apiSdl: WITHHELD_VALUES_SDL,
+        recordedManifestVersion: "saved-version",
+        chainManifestVersion: "running-version",
+        localSdl: LOCAL_SDL,
+        acceptReferences: true,
+        browserCopyVersion: "running-version",
+        newestUpdate: { status: "pending", manifestVersion: "saved-version" }
+      });
+
+      await vi.waitFor(() => expect(result.current.source).toBe("api"));
+      expect(result.current.restoredSdl).toBeUndefined();
+    });
   });
 
   describe("when the api's copy leaves an env value blank", () => {
@@ -409,6 +481,7 @@ describe(useDeploymentDefinition.name, () => {
     isReadingApiCopy?: boolean;
     hashesCopies?: boolean;
     now?: Date;
+    newestUpdate?: { status: Activity["status"]; manifestVersion: string };
   }) {
     const chainManifestVersion = input.chainManifestVersion ?? "on-chain-version";
     const recordedManifestVersion = input.recordedManifestVersion ?? chainManifestVersion;
@@ -451,20 +524,28 @@ describe(useDeploymentDefinition.name, () => {
     };
     const useManifestVersionOf = input.hashesCopies ? DEPENDENCIES.useManifestVersionOf : readCopyVersion;
     const now = () => input.now ?? new Date("2026-10-08T12:00:00Z");
+    const newestUpdate =
+      input.newestUpdate &&
+      buildActivity({
+        type: "deployment_update",
+        status: input.newestUpdate.status,
+        meta: { dseq: "123", manifestVersion: input.newestUpdate.manifestVersion }
+      });
+    const useNewestDeploymentUpdate = vi.fn<typeof DEPENDENCIES.useNewestDeploymentUpdate>(() => newestUpdate);
 
     const { result } = setupQuery(
       () =>
         useDeploymentDefinition(
           input.dseq === undefined ? "123" : input.dseq,
           { acceptReferences: input.acceptReferences },
-          { useServices, useWallet, useResolvedDeploymentName: useResolvedName, useManifestVersionOf, now }
+          { useServices, useWallet, useResolvedDeploymentName: useResolvedName, useManifestVersionOf, useNewestDeploymentUpdate, now }
         ),
       {
         services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient }
       }
     );
 
-    return { result, getDeployment, deploymentLocalStorage, onQueryError };
+    return { result, getDeployment, deploymentLocalStorage, onQueryError, useNewestDeploymentUpdate };
   }
 });
 

@@ -16,6 +16,13 @@ export function useFollowedActivities(dependencies: typeof DEPENDENCIES = DEPEND
   return isFollowingFeed ? activities : undefined;
 }
 
+/** The deployment's newest update in the feed; the api saves an update before applying it, so this is the one the console's copy of its configuration comes from. */
+export function useNewestDeploymentUpdate(dseq: string | null | undefined, dependencies: typeof DEPENDENCIES = DEPENDENCIES): Activity | undefined {
+  const activities = useFollowedActivities(dependencies);
+
+  return dseq ? activities?.find(activity => activity.type === "deployment_update" && activity.meta.dseq === dseq) : undefined;
+}
+
 /** The dseqs of the user's deployments with an action of this type still running in the background. */
 export function useDeploymentsWithPendingActivity(type: Activity["type"], dependencies: typeof DEPENDENCIES = DEPENDENCIES): ReadonlySet<string> {
   const activities = useFollowedActivities(dependencies);

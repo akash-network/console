@@ -3,7 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import type { DEPENDENCIES } from "./useFollowedActivities";
-import { useDeploymentsWithPendingActivity, useFollowedActivities } from "./useFollowedActivities";
+import { useDeploymentsWithPendingActivity, useFollowedActivities, useNewestDeploymentUpdate } from "./useFollowedActivities";
 
 import { renderHook } from "@testing-library/react";
 import { buildActivity } from "@tests/seeders/activity";
@@ -56,6 +56,32 @@ describe(useFollowedActivities.name, () => {
       rerender();
 
       expect(result.current).toBe(first);
+    });
+  });
+
+  describe(useNewestDeploymentUpdate.name, () => {
+    it("finds the newest update of the deployment, whatever became of it", () => {
+      const newest = buildActivity({ type: "deployment_update", status: "succeeded", meta: { dseq: "1001" } });
+      const { dependencies } = setup({
+        activities: [
+          buildActivity({ type: "deployment_close", status: "pending", meta: { dseq: "1001" } }),
+          buildActivity({ type: "deployment_update", status: "pending", meta: { dseq: "2002" } }),
+          newest,
+          buildActivity({ type: "deployment_update", status: "failed", meta: { dseq: "1001" } })
+        ]
+      });
+
+      const { result } = renderHook(() => useNewestDeploymentUpdate("1001", dependencies));
+
+      expect(result.current).toBe(newest);
+    });
+
+    it("finds nothing for a deployment not known yet", () => {
+      const { dependencies } = setup({ activities: [buildActivity({ type: "deployment_update", status: "pending", meta: {} })] });
+
+      const { result } = renderHook(() => useNewestDeploymentUpdate(undefined, dependencies));
+
+      expect(result.current).toBeUndefined();
     });
   });
 
