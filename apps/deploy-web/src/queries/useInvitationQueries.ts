@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
-import { addCachedOrganization, readCachedOrganizations } from "./useOrganizationQueries";
+import { addCachedOrganization } from "./useOrganizationQueries";
 
 export function useInvitationPreviewQuery(token: string | null | undefined) {
   const { api } = useServices();
@@ -20,10 +20,7 @@ export function useAcceptInvitationMutation() {
 
   return api.v1.acceptInvitation.useMutation({
     meta: SKIP_REPORTING_REFUSED_INPUT,
-    onSuccess: ({ data: joined }) => {
-      const isKnown = readCachedOrganizations(queryClient)?.some(organization => organization.id === joined.id);
-      if (!isKnown) addCachedOrganization(queryClient, joined);
-    },
+    onSuccess: ({ data: joined }) => addCachedOrganization(queryClient, joined),
     onSettled: () => queryClient.invalidateQueries({ queryKey: api.v1.previewInvitation.getKey() })
   });
 }

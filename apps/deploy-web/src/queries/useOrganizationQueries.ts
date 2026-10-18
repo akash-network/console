@@ -43,8 +43,14 @@ export function readCachedOrganizations(queryClient: QueryClient): OrganizationO
   return queryClient.getQueryData<ListOrganizationsResponse>(ORGANIZATIONS_QUERY_KEY)?.data;
 }
 
-export function addCachedOrganization(queryClient: QueryClient, created: OrganizationOutput): void {
-  queryClient.setQueryData<ListOrganizationsResponse>(ORGANIZATIONS_QUERY_KEY, response => ({ data: [...(response?.data ?? []), created] }));
+/** A membership fetch still in flight was read before the organization existed, so it is cancelled rather than left to drop the organization when it lands. */
+export async function addCachedOrganization(queryClient: QueryClient, added: OrganizationOutput): Promise<void> {
+  await queryClient.cancelQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
+  queryClient.setQueryData<ListOrganizationsResponse>(ORGANIZATIONS_QUERY_KEY, response => {
+    const organizations = response?.data ?? [];
+
+    return organizations.some(organization => organization.id === added.id) ? response : { data: [...organizations, added] };
+  });
 }
 
 export function useRenameOrganizationMutation() {
