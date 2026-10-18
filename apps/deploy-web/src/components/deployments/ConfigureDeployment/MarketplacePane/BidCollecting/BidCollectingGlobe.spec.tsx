@@ -13,6 +13,7 @@ const PIN_DIM = "#6b5c7d";
 const PIN_LIT = "#d9b6f7";
 const LAND = "rgba(150,150,178,0.32)";
 const BID_ANSWER_HEAD = "#d1fae5";
+const VIEWER_PULSE_START = "rgba(255,255,255,0.500)";
 
 describe(BidCollectingGlobe.name, () => {
   afterEach(() => {
@@ -155,6 +156,15 @@ describe(BidCollectingGlobe.name, () => {
     expect(fills().filter(fill => fill.fillStyle === LAND).map(fill => fill.globalAlpha)).toEqual([1]);
   });
 
+  it("starts the animation from its first frame even when the browser stamps that frame before the globe mounted", () => {
+    const { strokes, frames, frameAt } = setup({ mountedAtSeconds: 875.9 });
+
+    frameAt(875.47);
+
+    expect(strokes().some(stroke => stroke.strokeStyle === VIEWER_PULSE_START)).toBe(true);
+    expect(frames.requested).toHaveLength(2);
+  });
+
   it("draws nothing when the browser has no 2D canvas", () => {
     const { frames } = setup({ hasContext: false });
 
@@ -169,6 +179,7 @@ describe(BidCollectingGlobe.name, () => {
     isStill?: boolean;
     pixelRatio?: number;
     hasContext?: boolean;
+    mountedAtSeconds?: number;
   }) {
     const drawn: Array<{ op: "fill" | "stroke"; fillStyle: unknown; strokeStyle: unknown; globalAlpha: number }> = [];
     const saved: Array<Pick<CanvasRenderingContext2D, "fillStyle" | "strokeStyle" | "globalAlpha">> = [];
@@ -180,11 +191,14 @@ describe(BidCollectingGlobe.name, () => {
       restore: vi.fn(() => Object.assign(context, saved.pop())),
       fill: vi.fn(() => drawn.push({ op: "fill", fillStyle: context.fillStyle, strokeStyle: context.strokeStyle, globalAlpha: context.globalAlpha })),
       stroke: vi.fn(() => drawn.push({ op: "stroke", fillStyle: context.fillStyle, strokeStyle: context.strokeStyle, globalAlpha: context.globalAlpha })),
+      ellipse: vi.fn((_x: number, _y: number, radiusX: number, radiusY: number) => {
+        if (radiusX < 0 || radiusY < 0) throw new DOMException("An ellipse radius is negative.", "IndexSizeError");
+      }),
       createRadialGradient: vi.fn(() => mock<CanvasGradient>())
     });
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue((input.hasContext === false ? null : context) as never);
     vi.spyOn(Date.prototype, "getTimezoneOffset").mockReturnValue(0);
-    vi.spyOn(performance, "now").mockReturnValue(0);
+    vi.spyOn(performance, "now").mockReturnValue((input.mountedAtSeconds ?? 0) * 1000);
     Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: input.pixelRatio ?? 1 });
 
     const frames = { pending: [] as Array<{ id: number; callback: FrameRequestCallback }>, requested: [] as number[], cancelled: [] as number[] };
