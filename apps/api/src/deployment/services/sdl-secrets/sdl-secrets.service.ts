@@ -184,7 +184,7 @@ export class SdlSecretsService {
   /** Records only a permanent failure, and only the header's claims, which name the data key, the user and the deployment and carry none of the ciphertext. */
   async #decryptStored(input: { userId: string; dseq: string; sealedSecrets: string }): Promise<string> {
     try {
-      return await this.secretCipherService.decrypt(input.userId, input.sealedSecrets, { sub: input.userId, dseq: input.dseq });
+      return await this.secretCipherService.decrypt({ userId: input.userId }, input.sealedSecrets, { sub: input.userId, dseq: input.dseq });
     } catch (error) {
       if (!isRetryable(error)) {
         this.#loggerService.error({

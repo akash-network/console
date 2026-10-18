@@ -9,6 +9,8 @@ import { UserRepository } from "@src/user/repositories";
 import type { DataKeyOutput } from "./data-key.repository";
 import { DataKeyRepository } from "./data-key.repository";
 
+import { seedOrganization } from "@test/seeders/db/organization.seeder";
+
 describe(DataKeyRepository.name, () => {
   describe("one active data key per user", () => {
     it("lets a replacement key be created once the user's key is retired", async () => {
@@ -112,7 +114,7 @@ describe(DataKeyRepository.name, () => {
       await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
 
       expect(await dataKeyRepository.findByUserId(user.id)).toBeUndefined();
-      expect(await dataKeyRepository.findOwnedById(user.id, retired.id)).toMatchObject({ id: retired.id, wrappedKey: "retired-blob" });
+      expect(await dataKeyRepository.findOwnedById({ userId: user.id }, retired.id)).toMatchObject({ id: retired.id, wrappedKey: "retired-blob" });
     });
 
     it("returns nothing for a key another user owns", async () => {
@@ -121,14 +123,14 @@ describe(DataKeyRepository.name, () => {
       const other = await createTestUser();
       const ownersKey = await dataKeyRepository.create({ userId: owner.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
 
-      expect(await dataKeyRepository.findOwnedById(other.id, ownersKey.id)).toBeUndefined();
+      expect(await dataKeyRepository.findOwnedById({ userId: other.id }, ownersKey.id)).toBeUndefined();
     });
 
     it("returns nothing for an id that is not a uuid, rather than failing the query", async () => {
       const { dataKeyRepository, createTestUser } = setup();
       const user = await createTestUser();
 
-      expect(await dataKeyRepository.findOwnedById(user.id, "not-a-uuid")).toBeUndefined();
+      expect(await dataKeyRepository.findOwnedById({ userId: user.id }, "not-a-uuid")).toBeUndefined();
     });
   });
 
@@ -339,6 +341,68 @@ describe(DataKeyRepository.name, () => {
     });
   });
 
+  describe("a team organization's data key", () => {
+    it("is the team's active key, which no user's lookup returns", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const [team, member] = await Promise.all([seedOrganization(), createTestUser()]);
+      const teamKey = await dataKeyRepository.create({ organizationId: team.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      await dataKeyRepository.create({ userId: member.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+
+      expect(await dataKeyRepository.findActiveOf({ organizationId: team.id })).toMatchObject({ id: teamKey.id, userId: null, organizationId: team.id });
+      expect(await dataKeyRepository.findOwnedById({ organizationId: team.id }, teamKey.id)).toMatchObject({ id: teamKey.id });
+      expect(await dataKeyRepository.findOwnedById({ userId: member.id }, teamKey.id)).toBeUndefined();
+      expect(await dataKeyRepository.findActiveOf({ userId: member.id })).toMatchObject({ userId: member.id, organizationId: null });
+    });
+
+    it("returns a team's retired key by id to that team and to no other", async () => {
+      const { dataKeyRepository } = setup();
+      const [team, otherTeam] = await Promise.all([seedOrganization(), seedOrganization()]);
+      const retired = await dataKeyRepository.create({ organizationId: team.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
+
+      expect(await dataKeyRepository.findActiveOf({ organizationId: team.id })).toBeUndefined();
+      expect(await dataKeyRepository.findOwnedById({ organizationId: team.id }, retired.id)).toMatchObject({ id: retired.id });
+      expect(await dataKeyRepository.findOwnedById({ organizationId: otherTeam.id }, retired.id)).toBeUndefined();
+    });
+
+    it("rejects a second active key for the same team, and lets a replacement in once the first is retired", async () => {
+      const { dataKeyRepository } = setup();
+      const team = await seedOrganization();
+      const first = await dataKeyRepository.create({ organizationId: team.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+
+      await expect(dataKeyRepository.create({ organizationId: team.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() })).rejects.toThrow();
+
+      await dataKeyRepository.updateById(first.id, { retiredAt: new Date() });
+      const replacement = await dataKeyRepository.create({ organizationId: team.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+
+      expect(await dataKeyRepository.findActiveOf({ organizationId: team.id })).toMatchObject({ id: replacement.id });
+      expect(await dataKeyRepository.count({ organizationId: team.id })).toBe(2);
+    });
+
+    it("refuses a key with no owner and a key with two", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const [team, member] = await Promise.all([seedOrganization(), createTestUser()]);
+
+      await expect(dataKeyRepository.create({ wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() })).rejects.toMatchObject({
+        cause: expect.objectContaining({ constraint_name: "data_keys_one_owner" })
+      });
+      await expect(
+        dataKeyRepository.create({ userId: member.id, organizationId: team.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() })
+      ).rejects.toMatchObject({ cause: expect.objectContaining({ constraint_name: "data_keys_one_owner" }) });
+    });
+
+    it("is deleted along with the organization row", async () => {
+      const { dataKeyRepository, db } = setup();
+      const team = await seedOrganization();
+      const teamKey = await dataKeyRepository.create({ organizationId: team.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      const organizations = resolveTable("Organizations");
+
+      await db.delete(organizations).where(eq(organizations.id, team.id));
+
+      expect(await dataKeyRepository.findById(teamKey.id)).toBeUndefined();
+    });
+  });
+
   let cleanup: () => Promise<void>;
   afterEach(async () => {
     await cleanup?.();
@@ -410,6 +474,6 @@ describe(DataKeyRepository.name, () => {
       return candidates;
     }
 
-    return { dataKeyRepository, userRepository, createTestUser, versionOf, seedDataKey, censusOfOwnKey, findRewrapCandidates, backdateUpdatedAt };
+    return { dataKeyRepository, userRepository, db, createTestUser, versionOf, seedDataKey, censusOfOwnKey, findRewrapCandidates, backdateUpdatedAt };
   }
 });

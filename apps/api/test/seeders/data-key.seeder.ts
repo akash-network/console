@@ -7,9 +7,10 @@ export function createDataKey({
   userId = faker.string.uuid(),
   wrappedKey = `wrapped-${faker.string.alphanumeric(64)}`,
   wrappedByKid = "sdl-secrets.v1",
+  organizationId = null,
   retiredAt = null,
   createdAt = faker.date.recent(),
   updatedAt = faker.date.recent()
 }: Partial<DataKeyOutput> = {}): DataKeyOutput {
-  return { id, userId, wrappedKey, wrappedByKid, retiredAt, createdAt, updatedAt };
+  return { id, userId, organizationId, wrappedKey, wrappedByKid, retiredAt, createdAt, updatedAt };
 }

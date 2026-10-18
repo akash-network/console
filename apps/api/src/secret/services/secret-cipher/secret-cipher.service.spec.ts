@@ -13,6 +13,7 @@ const OTHER_DATA_KEY_ID = "9c8b7a65-4321-4def-8abc-0123456789ab";
 const USER_ID = "3f2b6f7a-1c1d-4b0e-8b8a-9a0f5f5c2b11";
 const DSEQ = "1420000";
 const OTHER_DSEQ = "1420001";
+const OWNER = { userId: USER_ID };
 const BINDING = { sub: USER_ID, dseq: DSEQ };
 
 describe(SecretCipherService.name, () => {
@@ -22,7 +23,7 @@ describe(SecretCipherService.name, () => {
 
     const encrypted = await service.encrypt(USER_ID, value, BINDING);
 
-    await expect(service.decrypt(USER_ID, encrypted, BINDING)).resolves.toBe(value);
+    await expect(service.decrypt(OWNER, encrypted, BINDING)).resolves.toBe(value);
   });
 
   it("preserves a value carrying multibyte characters, newlines and quotes", async () => {
@@ -31,7 +32,7 @@ describe(SecretCipherService.name, () => {
 
     const encrypted = await service.encrypt(USER_ID, value, BINDING);
 
-    await expect(service.decrypt(USER_ID, encrypted, BINDING)).resolves.toBe(value);
+    await expect(service.decrypt(OWNER, encrypted, BINDING)).resolves.toBe(value);
   });
 
   it("preserves an empty value", async () => {
@@ -39,7 +40,7 @@ describe(SecretCipherService.name, () => {
 
     const encrypted = await service.encrypt(USER_ID, "", BINDING);
 
-    await expect(service.decrypt(USER_ID, encrypted, BINDING)).resolves.toBe("");
+    await expect(service.decrypt(OWNER, encrypted, BINDING)).resolves.toBe("");
   });
 
   it("records the data key record that encrypted the value", async () => {
@@ -78,7 +79,7 @@ describe(SecretCipherService.name, () => {
     const { service, key, logger } = setup();
     const encryptedForAnotherRecord = await setup({ dataKeyId: OTHER_DATA_KEY_ID, key }).service.encrypt(USER_ID, "value", BINDING);
 
-    await expect(service.decrypt(USER_ID, encryptedForAnotherRecord, BINDING)).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, encryptedForAnotherRecord, BINDING)).rejects.toMatchObject({ status: 500 });
 
     expect(logger.error).toHaveBeenCalledWith({ event: "SECRET_VALUE_DATA_KEY_MISMATCH", userId: USER_ID, received: OTHER_DATA_KEY_ID, expected: DATA_KEY_ID });
   });
@@ -87,7 +88,7 @@ describe(SecretCipherService.name, () => {
     const { service, unwrap, key } = setup();
     const encryptedForAnotherRecord = await setup({ dataKeyId: OTHER_DATA_KEY_ID, key }).service.encrypt(USER_ID, "value", BINDING);
 
-    await expect(service.decrypt(USER_ID, encryptedForAnotherRecord, BINDING)).rejects.toThrow();
+    await expect(service.decrypt(OWNER, encryptedForAnotherRecord, BINDING)).rejects.toThrow();
 
     expect(unwrap).not.toHaveBeenCalled();
   });
@@ -96,7 +97,7 @@ describe(SecretCipherService.name, () => {
     const { service } = setup();
     const encryptedUnderAnotherKey = await setup({ key: randomBytes(32) }).service.encrypt(USER_ID, "value", BINDING);
 
-    await expect(service.decrypt(USER_ID, encryptedUnderAnotherKey, BINDING)).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, encryptedUnderAnotherKey, BINDING)).rejects.toMatchObject({ status: 500 });
   });
 
   it("rejects a value whose ciphertext was altered", async () => {
@@ -104,7 +105,7 @@ describe(SecretCipherService.name, () => {
     const parts = (await service.encrypt(USER_ID, "value", BINDING)).split(".");
     parts[3] = Buffer.from("tampered").toString("base64url");
 
-    await expect(service.decrypt(USER_ID, parts.join("."), BINDING)).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, parts.join("."), BINDING)).rejects.toMatchObject({ status: 500 });
   });
 
   it("rejects a value whose recorded data key was rewritten in place", async () => {
@@ -112,7 +113,7 @@ describe(SecretCipherService.name, () => {
     const [, ...rest] = (await service.encrypt(USER_ID, "value", BINDING)).split(".");
     const forged = Buffer.from(JSON.stringify({ ...BINDING, alg: "dir", enc: "A256GCM", kid: OTHER_DATA_KEY_ID })).toString("base64url");
 
-    await expect(service.decrypt(USER_ID, [forged, ...rest].join("."), BINDING)).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, [forged, ...rest].join("."), BINDING)).rejects.toMatchObject({ status: 500 });
   });
 
   it("rejects a value carrying a bound claim the reader never named", async () => {
@@ -120,7 +121,7 @@ describe(SecretCipherService.name, () => {
     const [, ...rest] = (await service.encrypt(USER_ID, "value", BINDING)).split(".");
     const forged = Buffer.from(JSON.stringify({ ...BINDING, alg: "dir", enc: "A256GCM", kid: DATA_KEY_ID, tampered: "true" })).toString("base64url");
 
-    await expect(service.decrypt(USER_ID, [forged, ...rest].join("."), BINDING)).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, [forged, ...rest].join("."), BINDING)).rejects.toMatchObject({ status: 500 });
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_VALUE_BINDING_UNACCOUNTED" }));
   });
 
@@ -129,7 +130,7 @@ describe(SecretCipherService.name, () => {
     const encrypted = await service.encrypt(USER_ID, "value", BINDING);
     unwrap.mockClear();
 
-    await expect(service.decrypt(USER_ID, encrypted, { sub: USER_ID })).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, encrypted, { sub: USER_ID })).rejects.toMatchObject({ status: 500 });
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_VALUE_BINDING_UNACCOUNTED", bound: ["sub", "dseq"], named: ["sub"] }));
     expect(unwrap).not.toHaveBeenCalled();
   });
@@ -138,7 +139,7 @@ describe(SecretCipherService.name, () => {
     const { service } = setup();
     const encrypted = await service.encrypt(USER_ID, "value", BINDING);
 
-    await expect(service.decrypt(USER_ID, encrypted, {})).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, encrypted, {})).rejects.toMatchObject({ status: 500 });
   });
 
   it("rejects a value declaring a key management algorithm it does not use", async () => {
@@ -147,7 +148,7 @@ describe(SecretCipherService.name, () => {
       .setProtectedHeader({ ...BINDING, alg: "A256GCMKW", enc: "A256GCM", kid: DATA_KEY_ID })
       .encrypt(key);
 
-    await expect(service.decrypt(USER_ID, wrapped, BINDING)).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, wrapped, BINDING)).rejects.toMatchObject({ status: 500 });
   });
 
   it("rejects a value declaring a content encryption it does not use", async () => {
@@ -156,7 +157,7 @@ describe(SecretCipherService.name, () => {
       .setProtectedHeader({ ...BINDING, alg: "dir", enc: "A128CBC-HS256", kid: DATA_KEY_ID })
       .encrypt(key);
 
-    await expect(service.decrypt(USER_ID, wrapped, BINDING)).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, wrapped, BINDING)).rejects.toMatchObject({ status: 500 });
   });
 
   it("spends no unwrap on a value declaring a key management algorithm it does not use", async () => {
@@ -165,7 +166,7 @@ describe(SecretCipherService.name, () => {
       .setProtectedHeader({ ...BINDING, alg: "A256GCMKW", enc: "A256GCM", kid: DATA_KEY_ID })
       .encrypt(key);
 
-    await expect(service.decrypt(USER_ID, wrapped, BINDING)).rejects.toThrow();
+    await expect(service.decrypt(OWNER, wrapped, BINDING)).rejects.toThrow();
 
     expect(unwrap).not.toHaveBeenCalled();
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_VALUE_ALGORITHM_UNSUPPORTED" }));
@@ -177,7 +178,7 @@ describe(SecretCipherService.name, () => {
       .setProtectedHeader({ ...BINDING, alg: "dir", enc: "A128CBC-HS256", kid: DATA_KEY_ID })
       .encrypt(key);
 
-    await expect(service.decrypt(USER_ID, wrapped, BINDING)).rejects.toThrow();
+    await expect(service.decrypt(OWNER, wrapped, BINDING)).rejects.toThrow();
 
     expect(unwrap).not.toHaveBeenCalled();
   });
@@ -185,7 +186,7 @@ describe(SecretCipherService.name, () => {
   it("rejects a value that is not a compact JWE", async () => {
     const { service, logger } = setup();
 
-    await expect(service.decrypt(USER_ID, "not-a-jwe", BINDING)).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, "not-a-jwe", BINDING)).rejects.toMatchObject({ status: 500 });
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_VALUE_HEADER_UNREADABLE" }));
   });
 
@@ -194,7 +195,7 @@ describe(SecretCipherService.name, () => {
 
     const encrypted = await service.encrypt(USER_ID, "value", BINDING);
 
-    await expect(service.decrypt(USER_ID, encrypted, { sub: USER_ID, dseq: OTHER_DSEQ })).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, encrypted, { sub: USER_ID, dseq: OTHER_DSEQ })).rejects.toMatchObject({ status: 500 });
   });
 
   it("spends no unwrap on a value bound to another deployment of the same owner", async () => {
@@ -202,7 +203,7 @@ describe(SecretCipherService.name, () => {
     const encrypted = await service.encrypt(USER_ID, "value", BINDING);
     unwrap.mockClear();
 
-    await expect(service.decrypt(USER_ID, encrypted, { sub: USER_ID, dseq: OTHER_DSEQ })).rejects.toThrow();
+    await expect(service.decrypt(OWNER, encrypted, { sub: USER_ID, dseq: OTHER_DSEQ })).rejects.toThrow();
 
     expect(unwrap).not.toHaveBeenCalled();
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_VALUE_BINDING_MISMATCH", claim: "dseq" }));
@@ -213,7 +214,7 @@ describe(SecretCipherService.name, () => {
 
     const encrypted = await service.encrypt(USER_ID, "value", BINDING);
 
-    await expect(service.decrypt(USER_ID, encrypted, { sub: OTHER_DATA_KEY_ID, dseq: DSEQ })).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, encrypted, { sub: OTHER_DATA_KEY_ID, dseq: DSEQ })).rejects.toMatchObject({ status: 500 });
   });
 
   it("refuses a value bound to a claim the reader asks about and the value never carried", async () => {
@@ -221,7 +222,7 @@ describe(SecretCipherService.name, () => {
 
     const encrypted = await service.encrypt(USER_ID, "value", { sub: USER_ID });
 
-    await expect(service.decrypt(USER_ID, encrypted, BINDING)).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, encrypted, BINDING)).rejects.toMatchObject({ status: 500 });
   });
 
   it("fails the authentication tag rather than the claim check when a bound claim is rewritten in place", async () => {
@@ -230,7 +231,7 @@ describe(SecretCipherService.name, () => {
     const rebound = { sub: USER_ID, dseq: OTHER_DSEQ, alg: "dir", enc: "A256GCM", kid: DATA_KEY_ID };
     const forged = Buffer.from(JSON.stringify(rebound)).toString("base64url");
 
-    await expect(service.decrypt(USER_ID, [forged, ...rest].join("."), { sub: USER_ID, dseq: OTHER_DSEQ })).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, [forged, ...rest].join("."), { sub: USER_ID, dseq: OTHER_DSEQ })).rejects.toMatchObject({ status: 500 });
   });
 
   it("keeps the claims describing its own encryption when a binding reaches it naming them", async () => {
@@ -248,7 +249,7 @@ describe(SecretCipherService.name, () => {
     const encrypted = await service.encrypt(USER_ID, "value", {});
 
     expect(Object.keys(decodeProtectedHeader(encrypted))).toEqual(["alg", "enc", "kid"]);
-    await expect(service.decrypt(USER_ID, encrypted, {})).resolves.toBe("value");
+    await expect(service.decrypt(OWNER, encrypted, {})).resolves.toBe("value");
   });
 
   it("opens a value recorded against a retired data key of the same owner", async () => {
@@ -256,7 +257,7 @@ describe(SecretCipherService.name, () => {
     const { service } = setup({ retired: { id: OTHER_DATA_KEY_ID, key: retiredKey } });
     const encryptedUnderRetiredKey = await setup({ dataKeyId: OTHER_DATA_KEY_ID, key: retiredKey }).service.encrypt(USER_ID, "value", BINDING);
 
-    await expect(service.decrypt(USER_ID, encryptedUnderRetiredKey, BINDING)).resolves.toBe("value");
+    await expect(service.decrypt(OWNER, encryptedUnderRetiredKey, BINDING)).resolves.toBe("value");
   });
 
   it("asks for the retired key by the record the value names, for the value's owner", async () => {
@@ -264,16 +265,16 @@ describe(SecretCipherService.name, () => {
     const { service, dataKeyUnwrapperService } = setup({ retired: { id: OTHER_DATA_KEY_ID, key: retiredKey } });
     const encryptedUnderRetiredKey = await setup({ dataKeyId: OTHER_DATA_KEY_ID, key: retiredKey }).service.encrypt(USER_ID, "value", BINDING);
 
-    await service.decrypt(USER_ID, encryptedUnderRetiredKey, BINDING);
+    await service.decrypt(OWNER, encryptedUnderRetiredKey, BINDING);
 
-    expect(dataKeyUnwrapperService.getDataKeyById).toHaveBeenCalledExactlyOnceWith(USER_ID, OTHER_DATA_KEY_ID);
+    expect(dataKeyUnwrapperService.getDataKeyById).toHaveBeenCalledExactlyOnceWith(OWNER, OTHER_DATA_KEY_ID);
   });
 
   it("asks for no key by id for a value recorded against the active key", async () => {
     const { service, dataKeyUnwrapperService } = setup();
     const encrypted = await service.encrypt(USER_ID, "value", BINDING);
 
-    await service.decrypt(USER_ID, encrypted, BINDING);
+    await service.decrypt(OWNER, encrypted, BINDING);
 
     expect(dataKeyUnwrapperService.getDataKeyById).not.toHaveBeenCalled();
   });
@@ -282,7 +283,7 @@ describe(SecretCipherService.name, () => {
     const { service, dataKeyUnwrapperService, key, logger } = setup();
     const unnamed = await new CompactEncrypt(new TextEncoder().encode("value")).setProtectedHeader({ ...BINDING, alg: "dir", enc: "A256GCM" }).encrypt(key);
 
-    await expect(service.decrypt(USER_ID, unnamed, BINDING)).rejects.toMatchObject({ status: 500 });
+    await expect(service.decrypt(OWNER, unnamed, BINDING)).rejects.toMatchObject({ status: 500 });
 
     expect(dataKeyUnwrapperService.getDataKeyById).not.toHaveBeenCalled();
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_VALUE_DATA_KEY_MISMATCH", expected: DATA_KEY_ID }));
@@ -304,12 +305,55 @@ describe(SecretCipherService.name, () => {
     expect(dataKeyUnwrapperService.getDataKey).toHaveBeenCalledWith(USER_ID);
   });
 
-  function setup(input?: { dataKeyId?: string; key?: Buffer; retired?: { id: string; key: Buffer } }) {
+  describe("opening a value", () => {
+    it("asks for the active key of the owner it opens for, without creating one", async () => {
+      const { service, dataKeyUnwrapperService } = setup();
+      const encrypted = await service.encrypt(USER_ID, "value", BINDING);
+      dataKeyUnwrapperService.getDataKey.mockClear();
+
+      await service.decrypt(OWNER, encrypted, BINDING);
+
+      expect(dataKeyUnwrapperService.findDataKey).toHaveBeenCalledExactlyOnceWith(OWNER);
+      expect(dataKeyUnwrapperService.getDataKey).not.toHaveBeenCalled();
+    });
+
+    it("opens a value sealed under a team's key for that team", async () => {
+      const { service, dataKeyUnwrapperService, key } = setup();
+      const team = { organizationId: randomUUID() };
+      const binding = { org: team.organizationId, dseq: DSEQ };
+      const sealed = await new CompactEncrypt(new TextEncoder().encode("team-value"))
+        .setProtectedHeader({ ...binding, alg: "dir", enc: "A256GCM", kid: DATA_KEY_ID })
+        .encrypt(key);
+
+      await expect(service.decrypt(team, sealed, binding)).resolves.toBe("team-value");
+      expect(dataKeyUnwrapperService.findDataKey).toHaveBeenCalledExactlyOnceWith(team);
+    });
+
+    it("opens a value under the key it names when its owner holds no active key", async () => {
+      const retiredKey = randomBytes(32);
+      const { service } = setup({ retired: { id: OTHER_DATA_KEY_ID, key: retiredKey }, holdsActiveKey: false });
+      const encryptedUnderRetiredKey = await setup({ dataKeyId: OTHER_DATA_KEY_ID, key: retiredKey }).service.encrypt(USER_ID, "value", BINDING);
+
+      await expect(service.decrypt(OWNER, encryptedUnderRetiredKey, BINDING)).resolves.toBe("value");
+    });
+
+    it("refuses a value naming no key its owner holds when the owner holds no active key", async () => {
+      const { service, logger, key } = setup({ holdsActiveKey: false });
+      const encrypted = await setup({ key }).service.encrypt(USER_ID, "value", BINDING);
+
+      await expect(service.decrypt(OWNER, encrypted, BINDING)).rejects.toMatchObject({ status: 500 });
+      expect(logger.error).toHaveBeenCalledWith({ event: "SECRET_VALUE_DATA_KEY_MISMATCH", userId: USER_ID, received: DATA_KEY_ID, expected: undefined });
+    });
+  });
+
+  function setup(input?: { dataKeyId?: string; key?: Buffer; retired?: { id: string; key: Buffer }; holdsActiveKey?: boolean }) {
     const key = input?.key ?? randomBytes(32);
     const unwrap = vi.fn(async () => key);
     const dataKeyUnwrapperService = mock<DataKeyUnwrapperService>();
-    dataKeyUnwrapperService.getDataKey.mockResolvedValue({ id: input?.dataKeyId ?? DATA_KEY_ID, unwrap });
-    dataKeyUnwrapperService.getDataKeyById.mockImplementation(async (_userId, id) =>
+    const active = { id: input?.dataKeyId ?? DATA_KEY_ID, unwrap };
+    dataKeyUnwrapperService.getDataKey.mockResolvedValue(active);
+    dataKeyUnwrapperService.findDataKey.mockResolvedValue(input?.holdsActiveKey === false ? undefined : active);
+    dataKeyUnwrapperService.getDataKeyById.mockImplementation(async (_owner, id) =>
       input?.retired && id === input.retired.id ? { id, unwrap: async () => input.retired!.key } : undefined
     );
     const logger = mock<ReturnType<CreateLogger>>();

@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNotNull, isNull, ne, type SQL, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { assertBatchSize } from "@src/core/lib/batch-size/batch-size";
@@ -11,6 +11,9 @@ type Table = ApiPgTables["DataKeys"];
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type DataKeyInput = Table["$inferInsert"];
 export type DataKeyOutput = Table["$inferSelect"];
+
+/** Exactly one of the two, as the table's check constraint holds every row to. */
+export type DataKeyOwner = { userId: string; organizationId?: never } | { organizationId: string; userId?: never };
 
 /** How many data keys one KMS key version still holds, which is what gates destroying that version. */
 export type DataKeyWrappingCount = {
@@ -33,19 +36,38 @@ export class DataKeyRepository extends BaseRepository<Table, DataKeyInput, DataK
   }
 
   /** The key new values are sealed under; a retired key is reached only through the id a stored value names. */
-  async findByUserId(userId: DataKeyOutput["userId"]): Promise<DataKeyOutput | undefined> {
-    return this.findOneBy({ userId, retiredAt: null });
+  async findByUserId(userId: string): Promise<DataKeyOutput | undefined> {
+    return await this.findActiveOf({ userId });
   }
 
-  /** Any of the user's keys, retired or not, so a value sealed before a re-key still opens; a header is untrusted input, so an id that is not a uuid is a miss rather than a query error. */
-  async findOwnedById(userId: DataKeyOutput["userId"], id: DataKeyOutput["id"]): Promise<DataKeyOutput | undefined> {
+  async findActiveOf(owner: DataKeyOwner): Promise<DataKeyOutput | undefined> {
+    return await this.#findOneOwnedBy(owner, isNull(this.table.retiredAt));
+  }
+
+  /** Any of the owner's keys, retired or not, so a value sealed before a re-key still opens; a header is untrusted input, so an id that is not a uuid is a miss rather than a query error. */
+  async findOwnedById(owner: DataKeyOwner, id: DataKeyOutput["id"]): Promise<DataKeyOutput | undefined> {
     if (!UUID_PATTERN.test(id)) return undefined;
 
-    return this.findOneBy({ id, userId });
+    return await this.#findOneOwnedBy(owner, eq(this.table.id, id));
+  }
+
+  async #findOneOwnedBy(owner: DataKeyOwner, where: SQL): Promise<DataKeyOutput | undefined> {
+    const [row] = await this.cursor
+      .select()
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(this.#ownedBy(owner), where)))
+      .limit(1);
+
+    return row && this.toOutput(row);
+  }
+
+  /** Reads the column the owner names rather than spreading the owner into a filter, which would drop a missing id and match every owner's rows. */
+  #ownedBy(owner: DataKeyOwner): SQL {
+    return owner.organizationId === undefined ? eq(this.table.userId, owner.userId) : eq(this.table.organizationId, owner.organizationId);
   }
 
   /** The keys a re-key retired for the user and has not deleted yet, oldest first; more than one means two runs were each interrupted. */
-  async findRetiredByUserId(userId: DataKeyOutput["userId"]): Promise<DataKeyOutput[]> {
+  async findRetiredByUserId(userId: string): Promise<DataKeyOutput[]> {
     const rows = await this.cursor
       .select()
       .from(this.table)
@@ -75,7 +97,7 @@ export class DataKeyRepository extends BaseRepository<Table, DataKeyInput, DataK
    * discards its own wrapped key to re-read the winner's row — retrying its insert would leave the
    * user with two active keys and half their values unreadable under each.
    */
-  async createUnlessExists(input: Pick<DataKeyInput, "userId" | "wrappedKey" | "wrappedByKid">): Promise<{ dataKey: DataKeyOutput; isNew: boolean }> {
+  async createUnlessExists(input: { userId: string } & Pick<DataKeyInput, "wrappedKey" | "wrappedByKid">): Promise<{ dataKey: DataKeyOutput; isNew: boolean }> {
     const [created] = await this.cursor
       .insert(this.table)
       .values(input)
