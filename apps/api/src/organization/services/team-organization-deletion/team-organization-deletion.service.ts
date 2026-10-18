@@ -18,6 +18,7 @@ import {
   TEAM_ORGANIZATION_DELETED_RETRY_OPTIONS,
   TeamOrganizationDeleted
 } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
+import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import { AccountDeletionEligibilityService } from "@src/user/services/account-deletion-eligibility/account-deletion-eligibility.service";
 
 export const ACTIVE_DEPLOYMENTS_ERROR_CODE = "active_deployments";
@@ -44,6 +45,7 @@ export class TeamOrganizationDeletionService {
     private readonly walletSettingRepository: WalletSettingRepository,
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly deploymentDepositRepository: DeploymentDepositRepository,
+    private readonly dataKeyRepository: DataKeyRepository,
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
@@ -116,11 +118,13 @@ export class TeamOrganizationDeletionService {
     }
   }
 
-  /** Marks the row deleted rather than removing it, so what the team paid and deployed stays on record. */
+  /** Marks the row deleted rather than removing it, so what the team paid and deployed stays on record; its data keys go, so what was sealed for it does not. */
   async erase({ id: organizationId, wallet }: LockedTeam, deletedByUserId: string): Promise<void> {
     const deletedAt = new Date();
 
     await this.organizationRepository.updateById(organizationId, { deletedAt });
+    const dataKeyCount = await this.dataKeyRepository.deleteAllOfOrganization(organizationId);
+    this.txService.afterCommit(() => this.#logger.info({ event: "TEAM_ORGANIZATION_DATA_KEYS_DESTROYED", organizationId, dataKeyCount }));
     await this.invitationRepository
       .unscoped("organization-deletion")
       .updateBy({ organizationId, status: "pending" }, { status: "revoked", revokedAt: deletedAt });

@@ -19,6 +19,7 @@ import {
   TeamOrganizationDeleted
 } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
+import type { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import type {
   AccountDeletionEligibility,
   AccountDeletionEligibilityService
@@ -55,6 +56,7 @@ describe(TeamOrganizationDeletionService.name, () => {
       "assessWallet",
       "findPendingDeposits",
       "markDeleted",
+      "destroyDataKeys",
       "revokeInvitations",
       "deleteApiKeys",
       "deletePaymentMethods",
@@ -82,6 +84,25 @@ describe(TeamOrganizationDeletionService.name, () => {
     ]) {
       expect(repository.unscoped).toHaveBeenCalledWith("organization-deletion");
     }
+  });
+
+  it("destroys every data key the team holds, so nothing sealed for the team opens again", async () => {
+    const { service, team, dataKeyRepository, logger } = setup();
+
+    await service.delete(team.id, { acknowledgedForfeitUsd: 0 });
+
+    expect(dataKeyRepository.deleteAllOfOrganization).toHaveBeenCalledWith(team.id);
+    expect(logger.info).toHaveBeenCalledWith({ event: "TEAM_ORGANIZATION_DATA_KEYS_DESTROYED", organizationId: team.id, dataKeyCount: 2 });
+  });
+
+  it("records no destroyed data keys when the deletion rolls back after deleting them", async () => {
+    const { service, team, dataKeyRepository, jobQueueService, logger } = setup();
+    jobQueueService.enqueue.mockRejectedValue(new Error("queue unavailable"));
+
+    await expect(service.delete(team.id, { acknowledgedForfeitUsd: 0 })).rejects.toThrow("queue unavailable");
+
+    expect(dataKeyRepository.deleteAllOfOrganization).toHaveBeenCalledWith(team.id);
+    expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "TEAM_ORGANIZATION_DATA_KEYS_DESTROYED" }));
   });
 
   it("cancels the reload and credits-low checks still queued for the team's wallet", async () => {
@@ -337,17 +358,24 @@ describe(TeamOrganizationDeletionService.name, () => {
     const depositRepository = mock<DeploymentDepositRepository>();
     depositRepository.unscoped.mockReturnValue(depositRepository);
     depositRepository.findPendingDseqsOf.mockImplementation(track("findPendingDeposits", input.pendingDseqs ?? []));
+    const dataKeyRepository = mock<DataKeyRepository>();
+    dataKeyRepository.deleteAllOfOrganization.mockImplementation(track("destroyDataKeys", 2));
     const walletReloadJobService = mock<WalletReloadJobService>();
     walletReloadJobService.cancelReloadCheck.mockImplementation(track("cancelReloadCheck"));
     walletReloadJobService.cancelCreditsLowCheck.mockImplementation(track("cancelCreditsLowCheck"));
     const jobQueueService = mock<JobQueueService>();
     jobQueueService.enqueue.mockImplementation(track("enqueue", "job-id"));
+    const runAfterCommit: Array<() => void> = [];
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async callback => {
       calls.push("transaction:start");
       const result = await callback();
       calls.push("transaction:end");
+      runAfterCommit.splice(0).forEach(run => run());
       return result;
+    });
+    txService.afterCommit.mockImplementation(run => {
+      runAfterCommit.push(run);
     });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
@@ -363,6 +391,7 @@ describe(TeamOrganizationDeletionService.name, () => {
       walletSettingRepository,
       paymentMethodRepository,
       depositRepository,
+      dataKeyRepository,
       walletReloadJobService,
       jobQueueService,
       txService,
@@ -383,6 +412,7 @@ describe(TeamOrganizationDeletionService.name, () => {
       walletSettingRepository,
       paymentMethodRepository,
       depositRepository,
+      dataKeyRepository,
       walletReloadJobService,
       jobQueueService,
       txService,
