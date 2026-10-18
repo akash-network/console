@@ -6,15 +6,15 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  Spinner
+  DropdownMenuTrigger
 } from "@akashnetwork/ui/components";
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, TriangleAlert } from "lucide-react";
+import { Bell } from "lucide-react";
 import Link from "next/link";
 
 import { activityEntriesOf, type ActivityEntry } from "@src/components/activity/activityEntries/activityEntries";
 import { ActivityEntryContent } from "@src/components/activity/ActivityEntryContent/ActivityEntryContent";
+import { ActivityFeedNotice, activityFeedStatusOf } from "@src/components/activity/ActivityFeedNotice/ActivityFeedNotice";
 import { deploymentLabelOf } from "@src/components/activity/activityLabels/activityLabels";
 import { useServices } from "@src/context/ServicesProvider";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
@@ -87,33 +87,9 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
 }
 
 function ActivityList({ entries, isLoaded, isError }: { entries: ActivityEntry[]; isLoaded: boolean; isError: boolean }) {
-  if (!isLoaded && isError) {
-    return (
-      <div className="flex flex-col items-center gap-1 px-6 py-10 text-center">
-        <TriangleAlert className="mb-2 h-6 w-6 text-muted-foreground" />
-        <p className="text-sm font-medium">Couldn't load your activity</p>
-        <p className="text-xs text-muted-foreground">Try again in a moment.</p>
-      </div>
-    );
-  }
+  const status = activityFeedStatusOf({ isLoaded, isError, entryCount: entries.length });
 
-  if (!isLoaded) {
-    return (
-      <div className="flex justify-center px-6 py-10" role="status" aria-label="Loading activity">
-        <Spinner size="small" />
-      </div>
-    );
-  }
-
-  if (entries.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-1 px-6 py-10 text-center">
-        <Bell className="mb-2 h-6 w-6 text-muted-foreground" />
-        <p className="text-sm font-medium">No activity yet</p>
-        <p className="text-xs text-muted-foreground">When you close a deployment, you can follow how it goes here.</p>
-      </div>
-    );
-  }
+  if (status !== "listed") return <ActivityFeedNotice status={status} />;
 
   return (
     <div className="max-h-[min(28rem,70vh)] overflow-y-auto py-1">
