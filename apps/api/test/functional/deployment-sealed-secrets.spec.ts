@@ -106,7 +106,10 @@ describe("Deployment sealed secrets", () => {
       findByUserId: async (id: string) => knownWallets[id],
       findOneByUserId: async (id: string) => knownWallets[id][0],
       findOneUsedBy: async (id: string) => knownWallets[id][0],
-      findById: async (id: number) => Object.values(knownWallets).flat().find(wallet => wallet.id === id)
+      findById: async (id: number) =>
+        Object.values(knownWallets)
+          .flat()
+          .find(wallet => wallet.id === id)
     } as unknown as UserWalletRepository);
     vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValue({
       code: 200,
@@ -899,7 +902,7 @@ describe("Deployment sealed secrets", () => {
     return await executionContextService.runWithContext(async () => {
       authService.currentUser = user;
 
-      return await container.resolve(SdlSecretsService).openStored({ userId: user.id, dseq, sealedSecrets });
+      return await container.resolve(SdlSecretsService).openStored({ userId: user.id, organizationId: null, dseq, sealedSecrets });
     });
   }
 

@@ -145,7 +145,7 @@ export type DeploymentStoredSecrets = {
 };
 
 /** A user's stored secrets token with the deployment it is bound to, which re-sealing it under another key has to name. */
-export type DeploymentStoredSecretsOfUser = DeploymentStoredSecrets & { dseq: string };
+export type DeploymentStoredSecretsOfUser = DeploymentStoredSecrets & Pick<DeploymentSettingsDbOutput, "dseq" | "organizationId">;
 
 export type StoredLeaseGpus = { readings: LeaseGpuReading[]; offers: LeaseGpuOffer[] };
 
@@ -840,7 +840,13 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
 
     while (true) {
       const batch = await this.pg
-        .select({ id: this.table.id, dseq: this.table.dseq, sealedSecrets: this.table.sealedSecrets, updatedAt: this.table.updatedAt })
+        .select({
+          id: this.table.id,
+          dseq: this.table.dseq,
+          organizationId: this.table.organizationId,
+          sealedSecrets: this.table.sealedSecrets,
+          updatedAt: this.table.updatedAt
+        })
         .from(this.table)
         .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), isNotNull(this.table.sealedSecrets), ...(cursor ? [gt(this.table.id, cursor)] : []))))
         .orderBy(asc(this.table.id))

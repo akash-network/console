@@ -251,7 +251,9 @@ async function inspectDeployment(userId: string, row: DeploymentStoredSecretsOfU
   const kid = kidOf(row.sealedSecrets);
 
   try {
-    const secrets = await container.resolve(SdlSecretsService).openStored({ userId, dseq: row.dseq, sealedSecrets: row.sealedSecrets });
+    const secrets = await container
+      .resolve(SdlSecretsService)
+      .openStored({ userId, organizationId: row.organizationId, dseq: row.dseq, sealedSecrets: row.sealedSecrets });
 
     return { dseq: row.dseq, kid, opens: true, secretCount: Object.keys(secrets).length };
   } catch (error) {

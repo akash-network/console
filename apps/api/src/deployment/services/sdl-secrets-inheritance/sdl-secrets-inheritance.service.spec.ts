@@ -30,7 +30,7 @@ describe(SdlSecretsInheritanceService.name, () => {
 
     await service.open(REQUEST);
 
-    expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ ...SOURCE, sealedSecrets: TOKEN });
+    expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ ...SOURCE, organizationId: null, sealedSecrets: TOKEN });
   });
 
   it("finds the source through the wallet that owns it, only where the caller may change it", async () => {
@@ -43,11 +43,13 @@ describe(SdlSecretsInheritanceService.name, () => {
   });
 
   it("opens an organization's source under the member it was filed by", async () => {
-    const { service, sdlSecretsService } = setup({ setting: mock<DeploymentSettingsOutput>({ sealedSecrets: TOKEN, userId: "filer-1" }) });
+    const { service, sdlSecretsService } = setup({
+      setting: mock<DeploymentSettingsOutput>({ sealedSecrets: TOKEN, userId: "filer-1", organizationId: "organization-1" })
+    });
 
     await service.open({ wallet: { userId: null, organizationId: "organization-1" }, dseq: SOURCE.dseq });
 
-    expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: "filer-1", dseq: SOURCE.dseq, sealedSecrets: TOKEN });
+    expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: "filer-1", organizationId: "organization-1", dseq: SOURCE.dseq, sealedSecrets: TOKEN });
   });
 
   it("inherits from a closed deployment, because closing a deployment keeps its secrets", async () => {
@@ -90,6 +92,26 @@ describe(SdlSecretsInheritanceService.name, () => {
       await expect(service.open({ wallet: { userId: null, organizationId: "organization-1" }, dseq: SOURCE.dseq })).rejects.toMatchObject({ status: 404 });
 
       expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+    });
+
+    it("answers not found for a team's source whose filer has deleted their account and that holds no token", async () => {
+      const { service } = setup({ setting: mock<DeploymentSettingsOutput>({ sealedSecrets: null, userId: null }) });
+
+      await expect(service.open({ wallet: { userId: null, organizationId: "organization-1" }, dseq: SOURCE.dseq })).rejects.toMatchObject({ status: 404 });
+    });
+  });
+
+  describe("a team's source whose token is sealed under the team's key", () => {
+    it("opens it after its filer has deleted their account, since the team's key outlives them", async () => {
+      const carried = { TOKEN: faker.string.alphanumeric(32) };
+      const sealedSecrets = tokenSealedForTeam("organization-1");
+      const { service, sdlSecretsService } = setup({
+        setting: mock<DeploymentSettingsOutput>({ sealedSecrets, userId: null, organizationId: "organization-1" }),
+        opened: carried
+      });
+
+      await expect(service.open({ wallet: { userId: null, organizationId: "organization-1" }, dseq: SOURCE.dseq })).resolves.toEqual(carried);
+      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: null, organizationId: "organization-1", dseq: SOURCE.dseq, sealedSecrets });
     });
 
     it("says nothing about whether the deployment exists", async () => {
@@ -241,12 +263,19 @@ describe(SdlSecretsInheritanceService.name, () => {
     expect(JSON.stringify(vi.mocked(logger.info).mock.calls)).not.toContain(value);
   });
 
+  function tokenSealedForTeam(organizationId: string) {
+    const header = Buffer.from(JSON.stringify({ org: organizationId, dseq: SOURCE.dseq, alg: "dir", enc: "A256GCM", kid: "team-key" })).toString("base64url");
+
+    return `${header}..iv.ciphertext.tag`;
+  }
+
   function unreadableTokenError() {
     return createError(500, SECRET_UNREADABLE_ERROR_MESSAGE, { errorCode: SECRET_UNREADABLE_ERROR_CODE });
   }
 
   function setup(input?: { setting?: DeploymentSettingsOutput; opened?: SdlSecrets; openStoredError?: Error }) {
-    const setting = "setting" in (input ?? {}) ? input!.setting : mock<DeploymentSettingsOutput>({ sealedSecrets: TOKEN, userId: SOURCE.userId });
+    const setting =
+      "setting" in (input ?? {}) ? input!.setting : mock<DeploymentSettingsOutput>({ sealedSecrets: TOKEN, userId: SOURCE.userId, organizationId: null });
 
     const scoped = mock<DeploymentSettingRepository>();
     scoped.findOneOfWallet.mockResolvedValue(setting);

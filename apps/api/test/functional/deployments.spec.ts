@@ -2873,7 +2873,7 @@ describe("Deployments API", () => {
       return await container.resolve(ExecutionContextService).runWithContext(async () => {
         container.resolve(AuthService).currentUser = mock<UserOutput>({ id: user.id });
 
-        return await container.resolve(SdlSecretsService).openStored({ userId: user.id, dseq, sealedSecrets: token });
+        return await container.resolve(SdlSecretsService).openStored({ userId: user.id, organizationId: null, dseq, sealedSecrets: token });
       });
     }
 

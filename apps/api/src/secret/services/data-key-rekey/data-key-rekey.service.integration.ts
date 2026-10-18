@@ -242,7 +242,10 @@ describe(`${DataKeyRekeyService.name} against Cloud KMS`, () => {
       return await inRequest(async () =>
         Object.fromEntries(
           await Promise.all(
-            Object.entries(tokens).map(async ([dseq, sealedSecrets]) => [dseq, await sdlSecretsService.openStored({ userId, dseq, sealedSecrets })])
+            Object.entries(tokens).map(async ([dseq, sealedSecrets]) => [
+              dseq,
+              await sdlSecretsService.openStored({ userId, organizationId: null, dseq, sealedSecrets })
+            ])
           )
         )
       );

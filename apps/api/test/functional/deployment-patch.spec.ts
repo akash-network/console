@@ -747,7 +747,9 @@ describe("PATCH /v1/deployments/{dseq}", () => {
     return await container.resolve(ExecutionContextService).runWithContext(async () => {
       container.resolve(AuthService).currentUser = user;
 
-      return await container.resolve(SdlSecretsService).openStored({ userId: user.id, dseq: DSEQ, sealedSecrets: setting!.sealedSecrets! });
+      return await container
+        .resolve(SdlSecretsService)
+        .openStored({ userId: user.id, organizationId: setting!.organizationId, dseq: DSEQ, sealedSecrets: setting!.sealedSecrets! });
     });
   }
 

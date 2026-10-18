@@ -23,6 +23,7 @@ import { mockConfigService } from "@test/mocks/config-service.mock";
 
 const USER_ID = "3f1b6d4e-0000-4000-8000-000000000001";
 const DSEQ = "1420000000001";
+const ORGANIZATION_ID = "5c2a7e1f-0000-4000-8000-000000000002";
 
 function sdlWith(env: string[], options: { credentials?: Record<string, string>; gpuModel?: string } = {}) {
   const credentialsBlock = options.credentials
@@ -184,7 +185,7 @@ describe(LeaseManifestService.name, () => {
 
       await service.deriveFor({ dseq: DSEQ, userId: USER_ID });
 
-      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ, sealedSecrets: "sealed" });
+      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: USER_ID, organizationId: ORGANIZATION_ID, dseq: DSEQ, sealedSecrets: "sealed" });
     });
 
     it("logs what it derived and no part of what it resolved", async () => {
@@ -400,7 +401,9 @@ describe(LeaseManifestService.name, () => {
 
     deploymentSettingRepository.accessibleBy.mockReturnValue(scopedRepository);
     scopedRepository.findOneBy.mockResolvedValue(
-      input.definition ? mock<DeploymentSettingsOutput>({ sdl: input.definition.sdl, sealedSecrets: input.definition.sealedSecrets }) : undefined
+      input.definition
+        ? mock<DeploymentSettingsOutput>({ sdl: input.definition.sdl, sealedSecrets: input.definition.sealedSecrets, organizationId: ORGANIZATION_ID })
+        : undefined
     );
 
     const createLogger: CreateLogger = () => logger;

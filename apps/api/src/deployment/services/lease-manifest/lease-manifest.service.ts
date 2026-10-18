@@ -10,7 +10,7 @@ import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 
-type StoredDefinition = { sdl: string; sealedSecrets: string | null };
+type StoredDefinition = { sdl: string; sealedSecrets: string | null; organizationId: string | null };
 
 /** Why a deployment has no manifest of its own, which is what the residual volume of client-supplied ones is measured by. */
 type StoredDefinitionMiss = "nothing-recorded" | "unresolvable";
@@ -48,7 +48,8 @@ export class LeaseManifestService {
       return this.#fallBack({ userId, dseq, reason: "nothing-recorded" });
     }
 
-    const secrets = definition.sealedSecrets ? await this.#openStored(definition.sealedSecrets, { userId, dseq }) : {};
+    const { sealedSecrets, organizationId } = definition;
+    const secrets = sealedSecrets ? await this.#openStored({ sealedSecrets, organizationId }, { userId, dseq }) : {};
 
     const resolved = await this.sdlService.generateResolvedManifest({ sdl: definition.sdl, secrets });
 
@@ -65,7 +66,7 @@ export class LeaseManifestService {
   async #findDefinition(key: { userId: string; dseq: string }): Promise<StoredDefinition | null> {
     const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "read").findOneBy(key);
 
-    if (setting?.sdl) return { sdl: setting.sdl, sealedSecrets: setting.sealedSecrets };
+    if (setting?.sdl) return { sdl: setting.sdl, sealedSecrets: setting.sealedSecrets, organizationId: setting.organizationId };
 
     if (setting?.sealedSecrets) throw this.#refuse(key);
 
@@ -95,9 +96,9 @@ export class LeaseManifestService {
   }
 
   /** Keeps the cause's own error, so a key service that is merely unreachable still answers 503 rather than reading as a definition that cannot be derived. */
-  async #openStored(sealedSecrets: string, key: { userId: string; dseq: string }) {
+  async #openStored(stored: { sealedSecrets: string; organizationId: string | null }, key: { userId: string; dseq: string }) {
     try {
-      return await this.sdlSecretsService.openStored({ ...key, sealedSecrets });
+      return await this.sdlSecretsService.openStored({ ...key, ...stored });
     } catch (error) {
       throw isRetryable(error) ? this.#reportUnreachable(key, error) : this.#refuse(key, error);
     }

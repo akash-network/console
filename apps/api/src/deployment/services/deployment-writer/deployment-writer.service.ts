@@ -200,6 +200,15 @@ type PreparedPatch = {
   assertMayStillSign?: () => Promise<void>;
 };
 
+type StoredDefinition = {
+  sdl: string;
+  sealedSecrets: string | null;
+  manifestVersion?: string;
+  runtimeLimitHours?: number;
+  /** Absent for a deployment filed before organizations, whose row only its user reaches. */
+  organizationId?: string;
+};
+
 type PatchWrite = {
   definition: Parameters<DeploymentSettingRepository["replaceDefinitionIfVersionMatches"]>[0];
   counts: { patchedServiceCount: number; secretCount: number; guarded: boolean };
@@ -981,7 +990,9 @@ export class DeploymentWriterService {
 
     const [supplied, held] = await Promise.all([
       input.sealedSecrets ? this.sdlSecretsService.receiveForMerge({ rawSdl: stored.sdl, sealedSecrets: input.sealedSecrets }) : {},
-      stored.sealedSecrets ? this.sdlSecretsService.openStored({ userId: filedUserId, dseq, sealedSecrets: stored.sealedSecrets }) : {}
+      stored.sealedSecrets
+        ? this.sdlSecretsService.openStored({ userId: filedUserId, organizationId: stored.organizationId ?? null, dseq, sealedSecrets: stored.sealedSecrets })
+        : {}
     ]);
     const merged = this.#mergeAndPrune({ held, supplied, derived }, document);
 
@@ -1027,11 +1038,7 @@ export class DeploymentWriterService {
   }
 
   /** Read from the row even right after the save, so a patch a newer one replaced is never applied on chain, however late it runs. */
-  async #findDefinitionSavedAs(
-    saved: SavedPatch,
-    filedUserId: string,
-    ability: AnyAbility
-  ): Promise<{ sdl: string; sealedSecrets: string | null } | undefined> {
+  async #findDefinitionSavedAs(saved: SavedPatch, filedUserId: string, ability: AnyAbility): Promise<StoredDefinition | undefined> {
     const definition = await this.#findStoredDefinition({ userId: filedUserId, dseq: saved.dseq }, ability, NOT_PATCHABLE_MESSAGE);
 
     if (definition.manifestVersion === saved.manifestVersion) return definition;
@@ -1044,10 +1051,15 @@ export class DeploymentWriterService {
   /** Resolved without trial limits, which refuse a patch when it is saved and never change the manifest it hashes. */
   async #prepareSavedDefinition(
     { saved, wallet, filedUserId }: { saved: SavedPatch; wallet: WalletInitialized; filedUserId: string },
-    definition: { sdl: string; sealedSecrets: string | null }
+    definition: StoredDefinition
   ): Promise<PreparedPatch> {
     const secrets = definition.sealedSecrets
-      ? await this.sdlSecretsService.openStored({ userId: filedUserId, dseq: saved.dseq, sealedSecrets: definition.sealedSecrets })
+      ? await this.sdlSecretsService.openStored({
+          userId: filedUserId,
+          organizationId: definition.organizationId ?? null,
+          dseq: saved.dseq,
+          sealedSecrets: definition.sealedSecrets
+        })
       : {};
     const resolved = await this.#resolveSdl(definition.sdl, { secrets });
     const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(wallet, saved.dseq);
@@ -1173,11 +1185,7 @@ export class DeploymentWriterService {
     return { ...deployment, name: persistedName };
   }
 
-  async #findStoredDefinition(
-    key: { userId: string; dseq: string },
-    ability: AnyAbility,
-    notFoundMessage: string
-  ): Promise<{ sdl: string; sealedSecrets: string | null; manifestVersion?: string; runtimeLimitHours?: number; organizationId?: string }> {
+  async #findStoredDefinition(key: { userId: string; dseq: string }, ability: AnyAbility, notFoundMessage: string): Promise<StoredDefinition> {
     const setting = await this.deploymentSettingRepository.accessibleBy(ability, "read").findOneBy(key);
 
     if (!setting?.sdl) {
