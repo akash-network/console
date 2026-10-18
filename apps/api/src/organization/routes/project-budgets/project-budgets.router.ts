@@ -31,6 +31,7 @@ const listProjectBudgetsRoute = createRoute({
   request: { query: ListProjectBudgetsQuerySchema },
   responses: {
     200: { description: "The budgets with this month's committed spend", content: { "application/json": { schema: ListProjectBudgetsResponseSchema } } },
+    400: { description: "The projectId is not a uuid" },
     401: UNAUTHORIZED
   }
 });
@@ -80,7 +81,7 @@ const updateProjectBudgetRoute = createRoute({
   },
   responses: {
     200: { description: "The updated budget", content: { "application/json": { schema: ProjectBudgetResponseSchema } } },
-    400: { description: "The budget settings are not valid" },
+    400: { description: "The id is not a uuid, or the budget settings are not valid" },
     401: UNAUTHORIZED,
     403: FORBIDDEN,
     404: NOT_FOUND
@@ -105,6 +106,7 @@ const deleteProjectBudgetRoute = createRoute({
   request: { params: ProjectBudgetParamsSchema },
   responses: {
     204: { description: "The budget is removed" },
+    400: { description: "The id is not a uuid" },
     401: UNAUTHORIZED,
     403: FORBIDDEN,
     404: NOT_FOUND

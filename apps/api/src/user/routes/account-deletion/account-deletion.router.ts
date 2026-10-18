@@ -28,12 +28,15 @@ const initiateRoute = createRoute({
   },
   responses: {
     204: { description: "Confirmation link sent" },
-    400: { description: "The account has credits and the forfeit was not acknowledged" },
+    400: { description: "The account or a team deleted with it has credits and the forfeit was not acknowledged (`forfeit_acknowledgement_required`)" },
     401: { description: "Unauthorized" },
     403: { description: "Requested with an API key instead of a signed-in session (`session_required`)" },
     404: { description: "Account deletion is not available" },
-    409: { description: "The account has active deployments, or is the last owner of a team others belong to (`last_owner`)" },
-    429: { description: "A link was sent less than a minute ago" }
+    409: {
+      description:
+        "The account or a team deleted with it has active deployments (`active_deployments`), or the account is the last owner of a team others belong to (`last_owner`)"
+    },
+    429: { description: "A link was sent less than a minute ago (`account_deletion_cooldown`)" }
   }
 });
 
@@ -80,10 +83,11 @@ const confirmRoute = createRoute({
   },
   responses: {
     204: { description: "Account deleted" },
-    400: { description: "The link is invalid or expired" },
+    400: { description: "The link is invalid (`invalid_deletion_token`) or expired (`expired_deletion_token`)" },
     404: { description: "Account deletion is not available" },
     409: {
-      description: "The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team others belong to (`last_owner`)"
+      description:
+        "The account or a team deleted with it has active deployments (`active_deployments`) or credits nobody agreed to forfeit (`forfeit_acknowledgement_required`), or the account is the last owner of a team others belong to (`last_owner`)"
     }
   }
 });

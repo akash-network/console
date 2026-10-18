@@ -63,9 +63,9 @@ const listOrganizationMemberProjectGrantsRoute = createRoute({
   },
   responses: {
     200: { description: "The member's project grants", content: { "application/json": { schema: ListOrganizationMemberProjectGrantsResponseSchema } } },
-    400: { description: "The organization header names another organization than the API key's (`organization_mismatch`)" },
+    400: { description: "The id is not a uuid, or the organization header names another organization than the API key's (`organization_mismatch`)" },
     401: { description: "Unauthorized" },
-    403: { description: "The caller is neither an owner nor an admin" },
+    403: { description: "The caller is neither an owner nor an admin, or uses an API key limited to a project" },
     404: { description: "No such member in the active organization" }
   }
 });
@@ -147,7 +147,10 @@ const transferOrganizationOwnershipRoute = createRoute({
       description:
         "The request is invalid, the member is the caller, or the organization header names another organization than the API key's (`organization_mismatch`)"
     },
-    403: { description: "The caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)" }
+    403: {
+      description:
+        "The caller is not an owner (`owner_role_restricted` when they are an admin), or the active organization is a personal one (`personal_organization`)"
+    }
   }
 });
 

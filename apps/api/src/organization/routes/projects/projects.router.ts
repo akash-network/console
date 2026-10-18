@@ -74,6 +74,7 @@ const getProjectRoute = createRoute({
   request: { params: ProjectParamsSchema },
   responses: {
     200: { description: "The project", content: { "application/json": { schema: ProjectResponseSchema } } },
+    400: { description: "The id is not a uuid" },
     401: UNAUTHORIZED,
     404: NOT_FOUND
   }
@@ -99,7 +100,7 @@ const updateProjectRoute = createRoute({
   },
   responses: {
     200: { description: "The updated project", content: { "application/json": { schema: ProjectResponseSchema } } },
-    400: { description: "The name or description is not valid" },
+    400: { description: "The id is not a uuid, or the name or description is not valid" },
     401: UNAUTHORIZED,
     403: FORBIDDEN,
     404: NOT_FOUND,
@@ -125,6 +126,7 @@ const deleteProjectRoute = createRoute({
   request: { params: ProjectParamsSchema },
   responses: {
     204: { description: "The project is deleted" },
+    400: { description: "The id is not a uuid" },
     401: UNAUTHORIZED,
     403: FORBIDDEN,
     404: NOT_FOUND,

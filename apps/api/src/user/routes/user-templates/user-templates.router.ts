@@ -72,7 +72,7 @@ const saveTemplateRoute = createRoute({
       description: "Template saved successfully"
     },
     400: {
-      description: "Invalid input"
+      description: "Invalid input, or a new template needs a project (`project_required`)"
     },
     401: {
       description: "Unauthorized"

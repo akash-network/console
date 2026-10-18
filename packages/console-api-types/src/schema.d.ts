@@ -1148,6 +1148,11 @@ export interface paths {
             storage: number;
             isPublic: boolean;
             description?: string;
+            /**
+             * Format: uuid
+             * @description Project to file a new template in. A template that already exists stays in its project.
+             */
+            projectId?: string;
           };
         };
       };
@@ -1159,7 +1164,7 @@ export interface paths {
           };
           content?: never;
         };
-        /** @description Invalid input */
+        /** @description Invalid input, or a new template needs a project (`project_required`) */
         400: {
           headers: {
             [name: string]: unknown;
@@ -1168,6 +1173,20 @@ export interface paths {
         };
         /** @description Unauthorized */
         401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Not allowed to change templates in this project */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Project not found */
+        404: {
           headers: {
             [name: string]: unknown;
           };
@@ -1222,6 +1241,13 @@ export interface paths {
         };
         /** @description Unauthorized */
         401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Not allowed to change templates in this project */
+        403: {
           headers: {
             [name: string]: unknown;
           };
@@ -1321,6 +1347,13 @@ export interface paths {
         };
         /** @description Unauthorized */
         401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Not allowed to change templates in this project */
+        403: {
           headers: {
             [name: string]: unknown;
           };
@@ -9449,7 +9482,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The account has credits and the forfeit was not acknowledged */
+      /** @description The account or a team deleted with it has credits and the forfeit was not acknowledged (`forfeit_acknowledgement_required`) */
       400: {
         headers: {
           [name: string]: unknown;
@@ -9477,14 +9510,14 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The account has active deployments, or is the last owner of a team others belong to (`last_owner`) */
+      /** @description The account or a team deleted with it has active deployments (`active_deployments`), or the account is the last owner of a team others belong to (`last_owner`) */
       409: {
         headers: {
           [name: string]: unknown;
         };
         content?: never;
       };
-      /** @description A link was sent less than a minute ago */
+      /** @description A link was sent less than a minute ago (`account_deletion_cooldown`) */
       429: {
         headers: {
           [name: string]: unknown;
@@ -9585,7 +9618,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The link is invalid or expired */
+      /** @description The link is invalid (`invalid_deletion_token`) or expired (`expired_deletion_token`) */
       400: {
         headers: {
           [name: string]: unknown;
@@ -9599,7 +9632,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team others belong to (`last_owner`) */
+      /** @description The account or a team deleted with it has active deployments (`active_deployments`) or credits nobody agreed to forfeit (`forfeit_acknowledgement_required`), or the account is the last owner of a team others belong to (`last_owner`) */
       409: {
         headers: {
           [name: string]: unknown;
@@ -11127,7 +11160,7 @@ export interface operations {
           };
         };
       };
-      /** @description Either the `sealedSecrets` value was sealed to a key the console no longer holds — refetch `GET /v1/sdl-secrets-context` and seal again — or, with `code` `inherited_secrets_unreadable`, the secrets recorded for the deployment named by `inheritSecretsFrom` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in `sealedSecrets` instead */
+      /** @description Either the `sealedSecrets` value was sealed to a key the console no longer holds, so refetch `GET /v1/sdl-secrets-context` and seal again, or, with `code` `inherited_secrets_unreadable`, the secrets recorded for the deployment named by `inheritSecretsFrom` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in `sealedSecrets` instead */
       409: {
         headers: {
           [name: string]: unknown;
@@ -11141,7 +11174,7 @@ export interface operations {
           };
         };
       };
-      /** @description The key management service is temporarily unreachable. Transient and worth retrying, unlike the 409 above */
+      /** @description The key management service is temporarily unreachable, or, with `code` `deposit_price_unavailable`, the deposit could not be priced against its project's budget. Both are transient and worth retrying, unlike the 409 above */
       503: {
         headers: {
           [name: string]: unknown;
@@ -11329,7 +11362,7 @@ export interface operations {
           };
         };
       };
-      /** @description With `code` `unsupported_deposit_denom`, the deposit is in a denomination a project budget cannot count */
+      /** @description The dseq is malformed or the deposit is below the minimum */
       400: {
         headers: {
           [name: string]: unknown;
@@ -11672,6 +11705,13 @@ export interface operations {
           };
         };
       };
+      /** @description The dseq is malformed */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description Unauthorized */
       401: {
         headers: {
@@ -11956,6 +11996,23 @@ export interface operations {
       };
       /** @description With `code` `deployment_record_unfiled`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With `code` `stored_secrets_unavailable`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values. With `async=true`, also when a lease is already being created for the deployment by another request. */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            error: string;
+            message: string;
+            code: string;
+            type: string;
+            data?: {
+              [key: string]: unknown;
+            };
+          };
+        };
+      };
+      /** @description With `code` `stored_secrets_unreadable`, the secrets stored for the deployment can no longer be decrypted, so a retry cannot help */
+      500: {
         headers: {
           [name: string]: unknown;
         };
@@ -13732,7 +13789,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The organization holds more credits than the owner acknowledged forfeiting (`forfeit_acknowledgement_required`) */
+      /** @description The id or the acknowledged amount is not valid, or the organization holds more credits than the owner acknowledged forfeiting (`forfeit_acknowledgement_required`) */
       400: {
         headers: {
           [name: string]: unknown;
@@ -13823,7 +13880,7 @@ export interface operations {
           };
         };
       };
-      /** @description The name is empty, too long or holds a control character */
+      /** @description The id is not a uuid, or the name is empty, too long or holds a control character */
       400: {
         headers: {
           [name: string]: unknown;
@@ -13878,6 +13935,13 @@ export interface operations {
     responses: {
       /** @description The caller left the organization */
       204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The id is not a uuid */
+      400: {
         headers: {
           [name: string]: unknown;
         };
@@ -14112,6 +14176,13 @@ export interface operations {
           };
         };
       };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description Unauthorized */
       401: {
         headers: {
@@ -14146,6 +14217,13 @@ export interface operations {
     responses: {
       /** @description The project is deleted */
       204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The id is not a uuid */
+      400: {
         headers: {
           [name: string]: unknown;
         };
@@ -14236,7 +14314,7 @@ export interface operations {
           };
         };
       };
-      /** @description The name or description is not valid */
+      /** @description The id is not a uuid, or the name or description is not valid */
       400: {
         headers: {
           [name: string]: unknown;
@@ -14453,7 +14531,7 @@ export interface operations {
           };
         };
       };
-      /** @description The organization header names another organization than the API key's (`organization_mismatch`) */
+      /** @description The id is not a uuid, or the organization header names another organization than the API key's (`organization_mismatch`) */
       400: {
         headers: {
           [name: string]: unknown;
@@ -14467,7 +14545,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller is neither an owner nor an admin */
+      /** @description The caller is neither an owner nor an admin, or uses an API key limited to a project */
       403: {
         headers: {
           [name: string]: unknown;
@@ -14705,7 +14783,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`) */
+      /** @description The caller is not an owner (`owner_role_restricted` when they are an admin), or the active organization is a personal one (`personal_organization`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -14874,7 +14952,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller cannot invite with this role (`owner_role_restricted`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`) */
+      /** @description The caller cannot invite members, invites an owner or renews an expired owner invitation without being an owner (`owner_role_restricted`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -14950,6 +15028,13 @@ export interface operations {
           };
         };
       };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description Unauthorized */
       401: {
         headers: {
@@ -15010,6 +15095,13 @@ export interface operations {
           };
         };
       };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description Unauthorized */
       401: {
         headers: {
@@ -15051,6 +15143,13 @@ export interface operations {
     responses: {
       /** @description The invitation was revoked */
       204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The id is not a uuid */
+      400: {
         headers: {
           [name: string]: unknown;
         };
@@ -15131,7 +15230,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description No invitation has this token */
+      /** @description No invitation has this token, or its organization was deleted */
       404: {
         headers: {
           [name: string]: unknown;
@@ -15215,14 +15314,14 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description No invitation has this token */
+      /** @description No invitation has this token, or its organization was deleted */
       404: {
         headers: {
           [name: string]: unknown;
         };
         content?: never;
       };
-      /** @description The invitation was sent to an address the caller has not verified and they did not confirm (`invitation_email_mismatch`), someone else already accepted it (`invitation_already_accepted`), or the caller already belongs to the organization and was not the verified invitee (`already_member`) */
+      /** @description The invitation was sent to an address the caller has not verified and they did not confirm (`invitation_email_mismatch`), someone else accepted it or the caller accepted it and has since left (`invitation_already_accepted`), or the caller already belongs to the organization and was not the verified invitee (`already_member`) */
       409: {
         headers: {
           [name: string]: unknown;
@@ -15301,6 +15400,13 @@ export interface operations {
             }[];
           };
         };
+      };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Unauthorized */
       401: {
@@ -15448,6 +15554,13 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description Unauthorized */
       401: {
         headers: {
@@ -15529,7 +15642,7 @@ export interface operations {
           };
         };
       };
-      /** @description The body is not valid */
+      /** @description The id is not a uuid, or the body is not valid */
       400: {
         headers: {
           [name: string]: unknown;
@@ -15780,6 +15893,13 @@ export interface operations {
           };
         };
       };
+      /** @description The projectId is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description Unauthorized */
       401: {
         headers: {
@@ -15907,6 +16027,13 @@ export interface operations {
         };
         content?: never;
       };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description Unauthorized */
       401: {
         headers: {
@@ -15988,7 +16115,7 @@ export interface operations {
           };
         };
       };
-      /** @description The budget settings are not valid */
+      /** @description The id is not a uuid, or the budget settings are not valid */
       400: {
         headers: {
           [name: string]: unknown;

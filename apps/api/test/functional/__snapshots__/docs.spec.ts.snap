@@ -6651,6 +6651,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "Where the deployment is filed",
           },
+          "400": {
+            "description": "The dseq is malformed",
+          },
           "401": {
             "description": "Unauthorized",
           },
@@ -7401,6 +7404,21 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "dseq": {
                                 "type": "string",
                               },
+                              "gpuHours": {
+                                "description": "Each of the deployment's leases' hours over the range times its GPU count, summed",
+                                "example": 6,
+                                "type": "number",
+                              },
+                              "gpuModels": {
+                                "description": "The GPU models the deployment's leases asked for, leaving out a request that accepts any model or several",
+                                "example": [
+                                  "H100",
+                                ],
+                                "items": {
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
                               "hours": {
                                 "description": "How long the deployment held a lease over the range",
                                 "type": "number",
@@ -7422,6 +7440,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "projectId",
                               "consumedUsd",
                               "hours",
+                              "gpuHours",
+                              "gpuModels",
                             ],
                             "type": "object",
                           },
@@ -9443,7 +9463,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "Either the \`sealedSecrets\` value was sealed to a key the console no longer holds — refetch \`GET /v1/sdl-secrets-context\` and seal again — or, with \`code\` \`inherited_secrets_unreadable\`, the secrets recorded for the deployment named by \`inheritSecretsFrom\` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in \`sealedSecrets\` instead",
+            "description": "Either the \`sealedSecrets\` value was sealed to a key the console no longer holds, so refetch \`GET /v1/sdl-secrets-context\` and seal again, or, with \`code\` \`inherited_secrets_unreadable\`, the secrets recorded for the deployment named by \`inheritSecretsFrom\` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in \`sealedSecrets\` instead",
           },
           "503": {
             "content": {
@@ -9473,7 +9493,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 409 above",
+            "description": "The key management service is temporarily unreachable, or, with \`code\` \`deposit_price_unavailable\`, the deposit could not be priced against its project's budget. Both are transient and worth retrying, unlike the 409 above",
           },
         },
         "security": [
@@ -12982,7 +13002,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
               },
             },
-            "description": "With \`code\` \`unsupported_deposit_denom\`, the deposit is in a denomination a project budget cannot count",
+            "description": "The dseq is malformed or the deposit is below the minimum",
           },
           "403": {
             "content": {
@@ -14365,10 +14385,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Requested with an API key instead of a signed-in session (\`session_required\`)",
           },
           "404": {
-            "description": "No invitation has this token",
+            "description": "No invitation has this token, or its organization was deleted",
           },
           "409": {
-            "description": "The invitation was sent to an address the caller has not verified and they did not confirm (\`invitation_email_mismatch\`), someone else already accepted it (\`invitation_already_accepted\`), or the caller already belongs to the organization and was not the verified invitee (\`already_member\`)",
+            "description": "The invitation was sent to an address the caller has not verified and they did not confirm (\`invitation_email_mismatch\`), someone else accepted it or the caller accepted it and has since left (\`invitation_already_accepted\`), or the caller already belongs to the organization and was not the verified invitee (\`already_member\`)",
           },
           "410": {
             "description": "The invitation expired (\`invitation_expired\`) or was revoked (\`invitation_revoked\`)",
@@ -14436,6 +14456,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "string",
                         },
+                        "organizationId": {
+                          "description": "The organization the invitation joins, the same id it has once the invitee is a member.",
+                          "format": "uuid",
+                          "type": "string",
+                        },
                         "organizationName": {
                           "type": "string",
                         },
@@ -14460,6 +14485,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         },
                       },
                       "required": [
+                        "organizationId",
                         "organizationName",
                         "inviterName",
                         "role",
@@ -14483,7 +14509,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "The token is not an invitation token",
           },
           "404": {
-            "description": "No invitation has this token",
+            "description": "No invitation has this token, or its organization was deleted",
           },
         },
         "security": [],
@@ -15193,6 +15219,42 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "With \`code\` \`deployment_record_unfiled\`, the member who filed this team deployment deleted their account and the caller holds a record of the same deployment id in another organization. With \`code\` \`stored_secrets_unavailable\`, the stored secrets were sealed for a member who deleted their account, so update the deployment with its full SDL and secret values. With \`async=true\`, also when a lease is already being created for the deployment by another request.",
           },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                    },
+                    "data": {
+                      "additionalProperties": {
+                        "nullable": true,
+                      },
+                      "type": "object",
+                    },
+                    "error": {
+                      "type": "string",
+                    },
+                    "message": {
+                      "type": "string",
+                    },
+                    "type": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "code",
+                    "type",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "With \`code\` \`stored_secrets_unreadable\`, the secrets stored for the deployment can no longer be decrypted, so a retry cannot help",
+          },
           "502": {
             "content": {
               "application/json": {
@@ -15736,6 +15798,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "member_granted",
                               "member_revoked",
                               "member_updated",
+                              "organization_renamed",
                             ],
                             "type": "string",
                           },
@@ -16131,7 +16194,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Unauthorized",
           },
           "403": {
-            "description": "The caller cannot invite with this role (\`owner_role_restricted\`), the active organization is a personal one (\`personal_organization\`), or it has too many pending invitations (\`invitation_limit_reached\`)",
+            "description": "The caller cannot invite members, invites an owner or renews an expired owner invitation without being an owner (\`owner_role_restricted\`), the active organization is a personal one (\`personal_organization\`), or it has too many pending invitations (\`invitation_limit_reached\`)",
           },
           "409": {
             "description": "An address belongs to a member of the organization (\`already_member\`)",
@@ -16177,6 +16240,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "responses": {
           "204": {
             "description": "The invitation was revoked",
+          },
+          "400": {
+            "description": "The id is not a uuid",
           },
           "401": {
             "description": "Unauthorized",
@@ -16249,6 +16315,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "The invitation link",
+          },
+          "400": {
+            "description": "The id is not a uuid",
           },
           "401": {
             "description": "Unauthorized",
@@ -16399,6 +16468,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "The renewed invitation",
+          },
+          "400": {
+            "description": "The id is not a uuid",
           },
           "401": {
             "description": "Unauthorized",
@@ -16882,7 +16954,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Unauthorized",
           },
           "403": {
-            "description": "The caller is not an owner (\`owner_role_restricted\`), or the active organization is a personal one (\`personal_organization\`)",
+            "description": "The caller is not an owner (\`owner_role_restricted\` when they are an admin), or the active organization is a personal one (\`personal_organization\`)",
           },
           "404": {
             "description": "No such member in the active organization",
@@ -16964,13 +17036,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "The member's project grants",
           },
           "400": {
-            "description": "The organization header names another organization than the API key's (\`organization_mismatch\`)",
+            "description": "The id is not a uuid, or the organization header names another organization than the API key's (\`organization_mismatch\`)",
           },
           "401": {
             "description": "Unauthorized",
           },
           "403": {
-            "description": "The caller is neither an owner nor an admin",
+            "description": "The caller is neither an owner nor an admin, or uses an API key limited to a project",
           },
           "404": {
             "description": "No such member in the active organization",
@@ -17253,7 +17325,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "acknowledgedForfeitUsd",
             "required": false,
             "schema": {
-              "description": "The credits, in USD, the owner was shown and agreed to forfeit; deleting is refused while the organization holds more.",
+              "description": "The credits, in USD, the owner was shown and agreed to forfeit, compared to the cent; deleting is refused while the organization holds more, and the refusal reports the \`balanceUsd\` to send.",
               "example": 12.5,
               "type": "number",
             },
@@ -17270,7 +17342,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "The organization was deleted",
           },
           "400": {
-            "description": "The organization holds more credits than the owner acknowledged forfeiting (\`forfeit_acknowledgement_required\`)",
+            "description": "The id or the acknowledged amount is not valid, or the organization holds more credits than the owner acknowledged forfeiting (\`forfeit_acknowledgement_required\`)",
           },
           "401": {
             "description": "Unauthorized",
@@ -17417,7 +17489,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "The renamed organization",
           },
           "400": {
-            "description": "The name is empty, too long or holds a control character",
+            "description": "The id is not a uuid, or the name is empty, too long or holds a control character",
           },
           "401": {
             "description": "Unauthorized",
@@ -17469,6 +17541,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "responses": {
           "204": {
             "description": "The caller left the organization",
+          },
+          "400": {
+            "description": "The id is not a uuid",
           },
           "401": {
             "description": "Unauthorized",
@@ -18132,6 +18207,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "The budgets with this month's committed spend",
           },
+          "400": {
+            "description": "The projectId is not a uuid",
+          },
           "401": {
             "description": "Unauthorized",
           },
@@ -18333,6 +18411,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           "204": {
             "description": "The budget is removed",
           },
+          "400": {
+            "description": "The id is not a uuid",
+          },
           "401": {
             "description": "Unauthorized",
           },
@@ -18488,7 +18569,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "The updated budget",
           },
           "400": {
-            "description": "The budget settings are not valid",
+            "description": "The id is not a uuid, or the budget settings are not valid",
           },
           "401": {
             "description": "Unauthorized",
@@ -18686,6 +18767,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           "204": {
             "description": "The grant is revoked",
           },
+          "400": {
+            "description": "The id is not a uuid",
+          },
           "401": {
             "description": "Unauthorized",
           },
@@ -18825,7 +18909,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "The updated grant",
           },
           "400": {
-            "description": "The body is not valid",
+            "description": "The id is not a uuid, or the body is not valid",
           },
           "401": {
             "description": "Unauthorized",
@@ -19370,6 +19454,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           "204": {
             "description": "The project is deleted",
           },
+          "400": {
+            "description": "The id is not a uuid",
+          },
           "401": {
             "description": "Unauthorized",
           },
@@ -19484,6 +19571,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "The project",
+          },
+          "400": {
+            "description": "The id is not a uuid",
           },
           "401": {
             "description": "Unauthorized",
@@ -19627,7 +19717,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "The updated project",
           },
           "400": {
-            "description": "The name or description is not valid",
+            "description": "The id is not a uuid, or the name or description is not valid",
           },
           "401": {
             "description": "Unauthorized",
@@ -19786,6 +19876,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               },
             },
             "description": "The project's grants",
+          },
+          "400": {
+            "description": "The id is not a uuid",
           },
           "401": {
             "description": "Unauthorized",
@@ -25787,13 +25880,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Account deleted",
           },
           "400": {
-            "description": "The link is invalid or expired",
+            "description": "The link is invalid (\`invalid_deletion_token\`) or expired (\`expired_deletion_token\`)",
           },
           "404": {
             "description": "Account deletion is not available",
           },
           "409": {
-            "description": "The account has active deployments or credits nobody agreed to forfeit, or is the last owner of a team others belong to (\`last_owner\`)",
+            "description": "The account or a team deleted with it has active deployments (\`active_deployments\`) or credits nobody agreed to forfeit (\`forfeit_acknowledgement_required\`), or the account is the last owner of a team others belong to (\`last_owner\`)",
           },
         },
         "security": [],
@@ -25964,7 +26057,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Confirmation link sent",
           },
           "400": {
-            "description": "The account has credits and the forfeit was not acknowledged",
+            "description": "The account or a team deleted with it has credits and the forfeit was not acknowledged (\`forfeit_acknowledgement_required\`)",
           },
           "401": {
             "description": "Unauthorized",
@@ -25976,10 +26069,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Account deletion is not available",
           },
           "409": {
-            "description": "The account has active deployments, or is the last owner of a team others belong to (\`last_owner\`)",
+            "description": "The account or a team deleted with it has active deployments (\`active_deployments\`), or the account is the last owner of a team others belong to (\`last_owner\`)",
           },
           "429": {
-            "description": "A link was sent less than a minute ago",
+            "description": "A link was sent less than a minute ago (\`account_deletion_cooldown\`)",
           },
         },
         "security": [
@@ -26109,7 +26202,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Template saved successfully",
           },
           "400": {
-            "description": "Invalid input",
+            "description": "Invalid input, or a new template needs a project (\`project_required\`)",
           },
           "401": {
             "description": "Unauthorized",
