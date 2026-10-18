@@ -147,6 +147,9 @@ export type DeploymentStoredSecrets = {
 /** A user's stored secrets token with the deployment it is bound to, which re-sealing it under another key has to name. */
 export type DeploymentStoredSecretsOfUser = DeploymentStoredSecrets & Pick<DeploymentSettingsDbOutput, "dseq" | "organizationId">;
 
+/** A team deployment's stored secrets token with the member the row is filed under, null once they deleted their account. */
+export type DeploymentStoredSecretsOfTeam = DeploymentStoredSecrets & Pick<DeploymentSettingsDbOutput, "dseq" | "userId"> & { organizationId: string };
+
 export type StoredLeaseGpus = { readings: LeaseGpuReading[]; offers: LeaseGpuOffer[] };
 
 export type LiveManagedDeployment = {
@@ -857,6 +860,42 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       }
 
       yield batch as DeploymentStoredSecretsOfUser[];
+
+      if (batch.length < batchSize) {
+        return;
+      }
+
+      cursor = batch[batch.length - 1].id;
+    }
+  }
+
+  /** Every deployment filed in a team that still exists and holds a secret, sealed for a member or for the team, since telling the two apart needs the token's header. */
+  async *findStoredSecretsOfTeamsIteratively({ batchSize }: { batchSize: number }): AsyncGenerator<DeploymentStoredSecretsOfTeam[]> {
+    assertBatchSize(batchSize);
+
+    let cursor: string | undefined;
+
+    while (true) {
+      const batch = await this.pg
+        .select({
+          id: this.table.id,
+          dseq: this.table.dseq,
+          userId: this.table.userId,
+          organizationId: this.table.organizationId,
+          sealedSecrets: this.table.sealedSecrets,
+          updatedAt: this.table.updatedAt
+        })
+        .from(this.table)
+        .innerJoin(Organizations, and(eq(Organizations.id, this.table.organizationId), eq(Organizations.type, "team"), isNull(Organizations.deletedAt)))
+        .where(this.whereAccessibleBy(and(isNotNull(this.table.sealedSecrets), ...(cursor ? [gt(this.table.id, cursor)] : []))))
+        .orderBy(asc(this.table.id))
+        .limit(batchSize);
+
+      if (!batch.length) {
+        return;
+      }
+
+      yield batch as DeploymentStoredSecretsOfTeam[];
 
       if (batch.length < batchSize) {
         return;

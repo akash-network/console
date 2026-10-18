@@ -2920,6 +2920,46 @@ describe(DeploymentSettingRepository.name, () => {
     }
   });
 
+  describe("re-sealing the stored secrets filed in teams", () => {
+    it("pages only the live teams' deployments that hold a secret, across batches smaller than the set", async () => {
+      const { deploymentSettingRepository, teamSealedIds, passedOverIds } = await setupTeamSecrets();
+      const batchSizes: number[] = [];
+      const pagedIds: string[] = [];
+
+      for await (const batch of deploymentSettingRepository.findStoredSecretsOfTeamsIteratively({ batchSize: 1 })) {
+        batchSizes.push(batch.length);
+        pagedIds.push(...batch.map(row => row.id));
+      }
+
+      expect(batchSizes.every(size => size === 1)).toBe(true);
+      expect(new Set(pagedIds).size).toBe(pagedIds.length);
+      expect(pagedIds).toEqual(expect.arrayContaining(teamSealedIds));
+      expect(pagedIds.filter(id => passedOverIds.includes(id))).toEqual([]);
+    });
+
+    async function setupTeamSecrets() {
+      const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+      const { user, organization: team } = await seedOrganizationWithOwner();
+      const { organization: personal } = await seedOrganizationWithOwner({ type: "personal" });
+      const { organization: deletedTeam } = await seedOrganizationWithOwner({ deletedAt: new Date() });
+      const seedFiledIn = async (organizationId: string, sealedSecrets: string | null) =>
+        (await seedDeploymentSetting({ userId: user.id, organizationId, sealedSecrets })).id;
+
+      const teamSealedIds = [
+        await seedFiledIn(team.id, newSealedToken()),
+        await seedFiledIn(team.id, newSealedToken()),
+        await seedFiledIn(team.id, newSealedToken())
+      ];
+      const passedOverIds = [
+        await seedFiledIn(team.id, null),
+        await seedFiledIn(personal.id, newSealedToken()),
+        await seedFiledIn(deletedTeam.id, newSealedToken())
+      ];
+
+      return { deploymentSettingRepository, teamSealedIds, passedOverIds };
+    }
+  });
+
   describe("when a deployment is filed in a team organization", () => {
     it("funds the team deployment from the organization's wallet, never from the member's own", async () => {
       const { deploymentSettingRepository, teamWallet, personalWallet, teamDeployment } = await setupTeamDeployment();

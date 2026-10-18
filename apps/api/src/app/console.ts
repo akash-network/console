@@ -17,6 +17,7 @@ import { LeaseGpuController } from "@src/deployment/controllers/lease-gpu.contro
 import { ProviderController } from "@src/provider/controllers/provider/provider.controller";
 import { DataKeyRekeyController } from "@src/secret/controllers/data-key-rekey/data-key-rekey.controller";
 import { DataKeyRewrapController } from "@src/secret/controllers/data-key-rewrap/data-key-rewrap.controller";
+import { TeamSecretsResealController } from "@src/secret/controllers/team-secrets-reseal/team-secrets-reseal.controller";
 import { WorkloadAbuseController } from "@src/workload-abuse/controllers/workload-abuse.controller";
 import { APP_INITIALIZER, ON_APP_START } from "../core/providers/app-initializer";
 
@@ -185,6 +186,17 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(DataKeyRekeyController).rekeyUser(options);
+    });
+  });
+
+program
+  .command("reseal-team-deployment-secrets")
+  .description("Move the hidden variables members sealed for their teams onto each team's own data key, once team_data_keys is on for everyone")
+  .option("-b, --batch-size <number>", "How many team deployments are read per page", value => z.number({ coerce: true }).int().positive().parse(value))
+  .option("-d, --dry-run", "Open and count what would be re-sealed, without writing anything", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(TeamSecretsResealController).resealTeamDeployments(options);
     });
   });
 
