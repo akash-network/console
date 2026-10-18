@@ -49,3 +49,4 @@ export const RevokeAffiliateResponseSchema = z.object({
 export type ApproveAffiliateRequest = z.infer<typeof ApproveAffiliateRequestSchema>;
 export type ApproveAffiliateResponse = z.infer<typeof ApproveAffiliateResponseSchema>;
 export type RevokeAffiliateRequest = z.infer<typeof RevokeAffiliateRequestSchema>;
+export type RevokeAffiliateResponse = z.infer<typeof RevokeAffiliateResponseSchema>;
