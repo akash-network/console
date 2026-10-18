@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { centsToUsd, usdToCents } from "./currency";
+import { centsToUsd, roundUsdToCentPrecision, usdToCents } from "./currency";
 
 describe("currency", () => {
   describe("usdToCents", () => {
@@ -21,6 +21,26 @@ describe("currency", () => {
 
     it("round-trips with usdToCents", () => {
       expect(centsToUsd(usdToCents(150.5))).toBe(150.5);
+    });
+  });
+
+  describe("roundUsdToCentPrecision", () => {
+    it.each([
+      [19.999976, 20],
+      [19.995, 20],
+      [19.994999, 19.99],
+      [12.344, 12.34],
+      [1234567.891, 1234567.89],
+      [0.0049, 0]
+    ])("rounds %s to %s", (usd, rounded) => {
+      expect(roundUsdToCentPrecision(usd)).toBe(rounded);
+    });
+
+    it("rounds 1.005 up to the $1.01 the screen shows", () => {
+      const shown = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(1.005);
+
+      expect(shown).toBe("$1.01");
+      expect(roundUsdToCentPrecision(1.005)).toBe(1.01);
     });
   });
 });

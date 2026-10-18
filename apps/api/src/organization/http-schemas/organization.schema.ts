@@ -53,7 +53,8 @@ export const OrganizationParamsSchema = z.object({
 export const DeleteOrganizationQuerySchema = z.object({
   acknowledgedForfeitUsd: z.coerce.number().min(0).optional().default(0).openapi({
     type: "number",
-    description: "The credits, in USD, the owner was shown and agreed to forfeit; deleting is refused while the organization holds more.",
+    description:
+      "The credits, in USD, the owner was shown and agreed to forfeit, compared to the cent; deleting is refused while the organization holds more, and the refusal reports the `balanceUsd` to send.",
     example: 12.5
   })
 });

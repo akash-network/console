@@ -221,6 +221,25 @@ describe(TeamOrganizationDeletionService.name, () => {
     expect(organizationRepository.updateById).toHaveBeenCalledWith(team.id, { deletedAt: expect.any(Date) });
   });
 
+  it.each([19.999976, 19.995])("deletes a team whose $20.00 the owner acknowledged as the unrounded %s", async acknowledgedForfeitUsd => {
+    const { service, team, organizationRepository } = setup({ balanceUsd: 20 });
+
+    await service.delete(team.id, { acknowledgedForfeitUsd });
+
+    expect(organizationRepository.updateById).toHaveBeenCalledWith(team.id, { deletedAt: expect.any(Date) });
+  });
+
+  it.each([19.99, 19.994999])("refuses an acknowledgement of %s, which rounds to a cent short of $20.00", async acknowledgedForfeitUsd => {
+    const { service, team, organizationRepository } = setup({ balanceUsd: 20 });
+
+    await expect(service.delete(team.id, { acknowledgedForfeitUsd })).rejects.toMatchObject({
+      status: 400,
+      errorCode: FORFEIT_ACKNOWLEDGEMENT_REQUIRED_ERROR_CODE,
+      data: { balanceUsd: 20 }
+    });
+    expect(organizationRepository.updateById).not.toHaveBeenCalled();
+  });
+
   it("answers not found and writes nothing when the team was deleted in the meantime", async () => {
     const { service, team, organizationRepository, eligibilityService, jobQueueService, logger } = setup({ lockable: false });
 
