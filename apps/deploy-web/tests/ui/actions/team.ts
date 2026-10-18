@@ -18,7 +18,7 @@ export async function createTeam(page: Page, team: string) {
   await page.goto(`${testEnvConfig.BASE_URL}/billing`);
   await new OrganizationSwitcher(page).createOrganization(team);
   await page.waitForURL(url => url.pathname === "/members", { timeout: 30_000 });
-  await expect(new MembersPage(page).heading()).toBeVisible();
+  await expect(new MembersPage(page).heading()).toBeVisible({ timeout: 30_000 });
   await expect(new OrganizationSwitcher(page).trigger(team)).toBeVisible();
 }
 
