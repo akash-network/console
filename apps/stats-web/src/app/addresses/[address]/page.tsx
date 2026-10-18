@@ -12,6 +12,7 @@ import { Title } from "@/components/Title";
 import { serverEnvConfig } from "@/config/server-env.config";
 import { createLogger } from "@/lib/createLogger/createLogger";
 import { createNetworkSearchParamsSchema } from "@/lib/networkSearchParams/networkSearchParams";
+import { notFoundOnMalformedId } from "@/lib/notFoundOnMalformedId/notFoundOnMalformedId";
 import { serverFetch } from "@/lib/serverFetch";
 import { UrlService } from "@/lib/urlUtils";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
@@ -49,6 +50,8 @@ export async function generateMetadata({ params }: AddressDetailPageProps): Prom
 async function fetchAddressData(address: string, network: Network["id"]): Promise<AddressDetail | null> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await serverFetch(`${apiUrl}/v1/addresses/${address}`);
+
+  notFoundOnMalformedId(response);
 
   logger.debug({ event: "FETCHING_ADDRESS_DATA", address, network, status: response.status });
 

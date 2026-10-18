@@ -1,5 +1,6 @@
 import type { Network } from "@akashnetwork/network-store";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { ValidatorsInfo } from "./ValidatorInfo";
@@ -8,6 +9,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { Title } from "@/components/Title";
 import { serverEnvConfig } from "@/config/server-env.config";
 import { createNetworkSearchParamsSchema } from "@/lib/networkSearchParams/networkSearchParams";
+import { notFoundOnMalformedId } from "@/lib/notFoundOnMalformedId/notFoundOnMalformedId";
 import { serverFetch } from "@/lib/serverFetch";
 import { UrlService } from "@/lib/urlUtils";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
@@ -25,15 +27,17 @@ type ValidatorDetailPageProps = {
   searchParams: Promise<ParsedValidatorDetailProps["searchParams"]>;
 };
 
-export async function generateMetadata({ params, searchParams }: ValidatorDetailPageProps): Promise<Metadata> {
-  const [{ address }, { network }] = await Promise.all([params, searchParams]);
+export async function generateMetadata(props: ValidatorDetailPageProps): Promise<Metadata> {
+  const [params, searchParams] = await Promise.all([props.params, props.searchParams]);
+  const {
+    params: { address },
+    searchParams: { network }
+  } = ValidatorDetailPageSchema.parse({ params, searchParams });
   const url = `https://stats.akash.network${UrlService.validator(address)}`;
-  const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
-  const response = await serverFetch(`${apiUrl}/v1/validators/${address}`);
-  const data = (await response.json()) as ValidatorDetail;
+  const validator = await fetchValidatorData(address, network);
 
   return {
-    title: `Validator ${data.moniker}`,
+    title: `Validator ${validator.moniker}`,
     alternates: {
       canonical: url
     },
@@ -46,6 +50,12 @@ export async function generateMetadata({ params, searchParams }: ValidatorDetail
 async function fetchValidatorData(address: string, network: Network["id"]): Promise<ValidatorDetail> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await serverFetch(`${apiUrl}/v1/validators/${address}`);
+
+  notFoundOnMalformedId(response);
+
+  if (response.status === 404) {
+    notFound();
+  }
 
   if (!response.ok) {
     // This will activate the closest `error.js` Error Boundary

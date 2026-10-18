@@ -9,6 +9,7 @@ import { Title } from "@/components/Title";
 import { serverEnvConfig } from "@/config/server-env.config";
 import { createLogger } from "@/lib/createLogger/createLogger";
 import { createNetworkSearchParamsSchema } from "@/lib/networkSearchParams/networkSearchParams";
+import { notFoundOnMalformedId } from "@/lib/notFoundOnMalformedId/notFoundOnMalformedId";
 import { serverFetch } from "@/lib/serverFetch";
 import { UrlService } from "@/lib/urlUtils";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
@@ -47,6 +48,8 @@ export async function generateMetadata({ params }: DeploymentDetailPageProps): P
 async function fetchDeploymentData(address: string, dseq: string, network: Network["id"]): Promise<DeploymentDetail | null> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await serverFetch(`${apiUrl}/v1/deployment/${address}/${dseq}`);
+
+  notFoundOnMalformedId(response);
 
   if (!response.ok && response.status !== 404) {
     logger.error({ event: "DEPLOYMENT_FETCH_ERROR", address, dseq, network, status: response.status });

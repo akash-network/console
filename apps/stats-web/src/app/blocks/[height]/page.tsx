@@ -12,6 +12,7 @@ import { Title } from "@/components/Title";
 import { serverEnvConfig } from "@/config/server-env.config";
 import { createLogger } from "@/lib/createLogger/createLogger";
 import { createNetworkSearchParamsSchema } from "@/lib/networkSearchParams/networkSearchParams";
+import { notFoundOnMalformedId } from "@/lib/notFoundOnMalformedId/notFoundOnMalformedId";
 import { serverFetch } from "@/lib/serverFetch";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { BlockDetail } from "@/types";
@@ -40,6 +41,8 @@ export async function generateMetadata({ params }: BlockDetailPageProps): Promis
 async function fetchBlockData(height: string, network: Network["id"]): Promise<BlockDetail | null> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await serverFetch(`${apiUrl}/v1/blocks/${height}`);
+
+  notFoundOnMalformedId(response);
 
   if (!response.ok && response.status !== 404) {
     logger.error({ event: "BLOCK_FETCH_ERROR", height, network, status: response.status });
