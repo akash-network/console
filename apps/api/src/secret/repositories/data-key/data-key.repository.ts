@@ -66,6 +66,10 @@ export class DataKeyRepository extends BaseRepository<Table, DataKeyInput, DataK
     return owner.organizationId === undefined ? eq(this.table.userId, owner.userId) : eq(this.table.organizationId, owner.organizationId);
   }
 
+  #ownerColumnOf(owner: DataKeyOwner) {
+    return owner.organizationId === undefined ? this.table.userId : this.table.organizationId;
+  }
+
   /** The keys a re-key retired for the user and has not deleted yet, oldest first; more than one means two runs were each interrupted. */
   async findRetiredByUserId(userId: string): Promise<DataKeyOutput[]> {
     const rows = await this.cursor
@@ -93,25 +97,26 @@ export class DataKeyRepository extends BaseRepository<Table, DataKeyInput, DataK
   }
 
   /**
-   * Claims the user's single active data key slot. The partial unique index decides the winner, and the loser
+   * Claims the owner's single active data key slot. The partial unique index decides the winner, and the loser
    * discards its own wrapped key to re-read the winner's row — retrying its insert would leave the
-   * user with two active keys and half their values unreadable under each.
+   * owner with two active keys and half their values unreadable under each.
    */
-  async createUnlessExists(input: { userId: string } & Pick<DataKeyInput, "wrappedKey" | "wrappedByKid">): Promise<{ dataKey: DataKeyOutput; isNew: boolean }> {
+  async createUnlessExists(input: DataKeyOwner & Pick<DataKeyInput, "wrappedKey" | "wrappedByKid">): Promise<{ dataKey: DataKeyOutput; isNew: boolean }> {
+    const owner: DataKeyOwner = input.organizationId === undefined ? { userId: input.userId } : { organizationId: input.organizationId };
     const [created] = await this.cursor
       .insert(this.table)
       .values(input)
-      .onConflictDoNothing({ target: [this.table.userId], where: isNull(this.table.retiredAt) })
+      .onConflictDoNothing({ target: [this.#ownerColumnOf(owner)], where: isNull(this.table.retiredAt) })
       .returning();
 
     if (created) {
       return { dataKey: this.toOutput(created), isNew: true };
     }
 
-    const winner = await this.findByUserId(input.userId);
+    const winner = await this.findActiveOf(owner);
 
     if (!winner) {
-      throw new Error(`Data key not found after unique conflict resolution. userId: ${input.userId}`);
+      throw new Error(`Data key not found after unique conflict resolution. owner: ${JSON.stringify(owner)}`);
     }
 
     return { dataKey: winner, isNew: false };

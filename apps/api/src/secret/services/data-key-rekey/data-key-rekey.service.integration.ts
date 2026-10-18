@@ -8,6 +8,7 @@ import { mock } from "vitest-mock-extended";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { createSdlSecretsKmsTarget, KMS_CLIENT } from "@src/deployment/providers/kms.provider";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
@@ -190,6 +191,7 @@ describe(`${DataKeyRekeyService.name} against Cloud KMS`, () => {
       container.resolve(SdlReferenceService),
       cipher,
       container.resolve(DeploymentConfigService),
+      mock<FeatureFlagsService>(),
       createLogger
     );
     const service = new DataKeyRekeyService(
@@ -213,7 +215,7 @@ describe(`${DataKeyRekeyService.name} against Cloud KMS`, () => {
     async function seedUser(secretsByDseq: Record<string, SdlSecrets>) {
       const user = await userRepository.create({ userId: faker.string.uuid() });
       createdUserIds.push(user.id);
-      await dataKeyService.ensureDataKey(user.id);
+      await dataKeyService.ensureDataKey({ userId: user.id });
 
       for (const [dseq, secrets] of Object.entries(secretsByDseq)) {
         await sealNewDeployment(user.id, dseq, secrets);

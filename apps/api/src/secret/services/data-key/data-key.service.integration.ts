@@ -10,12 +10,14 @@ import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.re
 import { UserRepository } from "@src/user/repositories";
 import { DataKeyService } from "./data-key.service";
 
+import { seedOrganization } from "@test/seeders/db/organization.seeder";
+
 describe(DataKeyService.name, () => {
   it("creates a data key for a user that never had one", async () => {
     const { service, dataKeyRepository, createTestUser, privateKey } = setup();
     const user = await createTestUser();
 
-    const dataKey = await service.ensureDataKey(user.id);
+    const dataKey = await service.ensureDataKey({ userId: user.id });
 
     expect(dataKey).toMatchObject({ userId: user.id, wrappedByKid: "sdl-secrets.v1" });
     expect(await dataKeyRepository.count({ userId: user.id })).toBe(1);
@@ -26,8 +28,8 @@ describe(DataKeyService.name, () => {
     const { service, dataKeyRepository, createTestUser } = setup();
     const user = await createTestUser();
 
-    const first = await service.ensureDataKey(user.id);
-    const second = await service.ensureDataKey(user.id);
+    const first = await service.ensureDataKey({ userId: user.id });
+    const second = await service.ensureDataKey({ userId: user.id });
 
     expect(second).toEqual(first);
     expect(await dataKeyRepository.count({ userId: user.id })).toBe(1);
@@ -37,7 +39,7 @@ describe(DataKeyService.name, () => {
     const { service, dataKeyRepository, createTestUser, privateKey } = setup();
     const user = await createTestUser();
 
-    const [first, second] = await Promise.all([service.ensureDataKey(user.id), service.ensureDataKey(user.id)]);
+    const [first, second] = await Promise.all([service.ensureDataKey({ userId: user.id }), service.ensureDataKey({ userId: user.id })]);
 
     expect(await dataKeyRepository.count({ userId: user.id })).toBe(1);
     expect(first.id).toBe(second.id);
@@ -47,6 +49,43 @@ describe(DataKeyService.name, () => {
 
     expect(firstPlaintext).toHaveLength(32);
     expect(Buffer.from(firstPlaintext).equals(Buffer.from(secondPlaintext))).toBe(true);
+  });
+
+  describe("for a team", () => {
+    it("creates the team's own key on the first value sealed for it", async () => {
+      const { service, dataKeyRepository, privateKey } = setup();
+      const team = await seedOrganization();
+
+      const dataKey = await service.ensureDataKey({ organizationId: team.id });
+
+      expect(dataKey).toMatchObject({ organizationId: team.id, userId: null, wrappedByKid: "sdl-secrets.v1" });
+      expect(await dataKeyRepository.count({ organizationId: team.id })).toBe(1);
+      expect((await compactDecrypt(dataKey.wrappedKey, privateKey)).plaintext).toHaveLength(32);
+    });
+
+    it("leaves the team one key however many seals race to create it", async () => {
+      const { service, dataKeyRepository, privateKey } = setup();
+      const team = await seedOrganization();
+
+      const keys = await Promise.all(Array.from({ length: 8 }, () => service.ensureDataKey({ organizationId: team.id })));
+
+      expect(new Set(keys.map(key => key.id)).size).toBe(1);
+      expect(await dataKeyRepository.count({ organizationId: team.id })).toBe(1);
+      const plaintexts = await Promise.all(keys.map(async key => Buffer.from((await compactDecrypt(key.wrappedKey, privateKey)).plaintext).toString("hex")));
+      expect(new Set(plaintexts).size).toBe(1);
+    });
+
+    it("keeps a member's key and the team's key apart", async () => {
+      const { service, createTestUser } = setup();
+      const member = await createTestUser();
+      const team = await seedOrganization({ createdByUserId: member.id });
+
+      const [membersKey, teamsKey] = await Promise.all([service.ensureDataKey({ userId: member.id }), service.ensureDataKey({ organizationId: team.id })]);
+
+      expect(membersKey.id).not.toBe(teamsKey.id);
+      expect(membersKey).toMatchObject({ userId: member.id, organizationId: null });
+      expect(teamsKey).toMatchObject({ userId: null, organizationId: team.id });
+    });
   });
 
   let cleanup: () => Promise<void>;

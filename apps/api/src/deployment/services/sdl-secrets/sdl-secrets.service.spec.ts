@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CreateLogger } from "@src/core/providers/logging.provider";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { MAX_SDL_REFERENCE_NAME_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
@@ -453,7 +455,7 @@ describe(SdlSecretsService.name, () => {
 
       await service.sealForStorage({ userId: "user-1", dseq: "1420000", secrets });
 
-      expect(secretCipherService.encrypt).toHaveBeenCalledWith("user-1", JSON.stringify(secrets), { sub: "user-1", dseq: "1420000" });
+      expect(secretCipherService.encrypt).toHaveBeenCalledWith({ userId: "user-1" }, JSON.stringify(secrets), { sub: "user-1", dseq: "1420000" });
     });
 
     it("returns the token the cipher produced", async () => {
@@ -485,6 +487,42 @@ describe(SdlSecretsService.name, () => {
       await service.sealForStorage({ userId: "user-1", dseq: "1420000", secrets: { TOKEN: value } });
 
       expect(logger.info).toHaveBeenCalledWith({ event: "SDL_SECRETS_SEALED", userId: "user-1", dseq: "1420000", secretCount: 1 });
+    });
+
+    describe("a deployment on a team's wallet", () => {
+      it("seals under the team's key, bound to the team and the deployment, once team data keys are on", async () => {
+        const { service, secretCipherService } = setup({ teamDataKeys: true });
+        const secrets = { TOKEN: "one" };
+
+        await service.sealForStorage({ userId: "user-1", teamId: "team-1", dseq: "1420000", secrets });
+
+        expect(secretCipherService.encrypt).toHaveBeenCalledWith({ organizationId: "team-1" }, JSON.stringify(secrets), { org: "team-1", dseq: "1420000" });
+      });
+
+      it("keeps sealing under the filer's key while team data keys are off", async () => {
+        const { service, secretCipherService } = setup({ teamDataKeys: false });
+
+        await service.sealForStorage({ userId: "user-1", teamId: "team-1", dseq: "1420000", secrets: { TOKEN: "one" } });
+
+        expect(secretCipherService.encrypt).toHaveBeenCalledWith({ userId: "user-1" }, expect.any(String), { sub: "user-1", dseq: "1420000" });
+      });
+
+      it("opens what it sealed for the team from the team's row", async () => {
+        const { service, secretCipherService } = setup({ teamDataKeys: true, stored: { TOKEN: "one" } });
+        secretCipherService.encrypt.mockImplementation(async (_owner, _value, binding) => tokenWithHeader(binding));
+        const sealedSecrets = (await service.sealForStorage({ userId: "user-1", teamId: "team-1", dseq: "1420000", secrets: { TOKEN: "one" } }))!;
+
+        await expect(service.openStored({ userId: null, organizationId: "team-1", dseq: "1420000", sealedSecrets })).resolves.toEqual({ TOKEN: "one" });
+        expect(secretCipherService.decrypt).toHaveBeenCalledWith({ organizationId: "team-1" }, sealedSecrets, { org: "team-1", dseq: "1420000" });
+      });
+    });
+
+    it("never seals a personal deployment for a team", async () => {
+      const { service, secretCipherService } = setup({ teamDataKeys: true });
+
+      await service.sealForStorage({ userId: "user-1", teamId: null, dseq: "1420000", secrets: { TOKEN: "one" } });
+
+      expect(secretCipherService.encrypt).toHaveBeenCalledWith({ userId: "user-1" }, expect.any(String), { sub: "user-1", dseq: "1420000" });
     });
   });
 
@@ -778,7 +816,7 @@ describe(SdlSecretsService.name, () => {
     return (result as Extract<typeof result, { ok: false }>).value;
   }
 
-  function setup(input?: { supplied?: SdlSecrets; stored?: SdlSecrets; maxCount?: number; maxValueBytes?: number }) {
+  function setup(input?: { supplied?: SdlSecrets; stored?: SdlSecrets; maxCount?: number; maxValueBytes?: number; teamDataKeys?: boolean }) {
     const unsealerService = mock<SdlSecretsUnsealerService>({ open: vi.fn().mockResolvedValue(input?.supplied ?? {}) });
     const secretCipherService = mock<SecretCipherService>({
       encrypt: vi.fn().mockResolvedValue("encrypted"),
@@ -790,7 +828,10 @@ describe(SdlSecretsService.name, () => {
     });
     const logger = mock<ReturnType<CreateLogger>>();
     const sdlReferenceService = new SdlReferenceService();
-    const service = new SdlSecretsService(unsealerService, sdlReferenceService, secretCipherService, config, () => logger);
+    const featureFlagsService = mock<FeatureFlagsService>({
+      isEnabled: vi.fn(flag => flag === FeatureFlags.TEAM_DATA_KEYS && !!input?.teamDataKeys)
+    });
+    const service = new SdlSecretsService(unsealerService, sdlReferenceService, secretCipherService, config, featureFlagsService, () => logger);
 
     return { service, unsealerService, secretCipherService, logger, config };
   }

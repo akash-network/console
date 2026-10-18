@@ -1,10 +1,12 @@
 import { faker } from "@faker-js/faker";
 import type { KeyManagementServiceClient } from "@google-cloud/kms";
+import { eq } from "drizzle-orm";
 import { decodeProtectedHeader } from "jose";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TxService } from "@src/core/services/tx/tx.service";
@@ -21,6 +23,8 @@ import { DataKeyUnwrapperService } from "@src/secret/services/data-key-unwrapper
 import { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
 import { UserRepository } from "@src/user/repositories";
 import { DataKeyRewrapService } from "./data-key-rewrap.service";
+
+import { seedOrganization } from "@test/seeders/db/organization.seeder";
 
 const PROJECT = "console-dev-mock";
 const LOCATION = "global";
@@ -70,6 +74,22 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
     const afterRotation = consoleAt(newVersion);
     await expect(afterRotation.openStoredSecret(alpha)).resolves.toBe("alpha-plaintext");
     await expect(afterRotation.openStoredSecret(bravo)).resolves.toBe("bravo-plaintext");
+  });
+
+  it("re-wraps a team's key beside the users' keys, leaving what was sealed for the team opening", async () => {
+    const { oldVersion, newVersion } = await enabledRotationPair();
+    const { seedUser, seedTeam, rewrapOnto, consoleAt } = setup();
+    const alpha = await seedUser(oldVersion, "alpha-plaintext");
+    const team = await seedTeam(oldVersion, "team-plaintext");
+
+    await rewrapOnto(newVersion);
+
+    const afterRotation = consoleAt(newVersion);
+    await expect(afterRotation.openForTeam(team)).resolves.toBe("team-plaintext");
+    await expect(afterRotation.openStoredSecret(alpha)).resolves.toBe("alpha-plaintext");
+    expect(await container.resolve(DataKeyRepository).findActiveOf({ organizationId: team.organizationId })).toMatchObject({
+      wrappedByKid: `${KEY}.v${newVersion}`
+    });
   });
 
   it("leaves every stored secrets token byte-identical, and says so in its fingerprint", async () => {
@@ -267,18 +287,34 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
 
       return {
         warmSealingKey: async () => await sealingKeyService.getSealingKey(),
-        ensureDataKey: async (userId: string) => await dataKeyService.ensureDataKey(userId),
-        unwrapFor: async (userId: string) => await executionContextService.runWithContext(async () => await (await unwrapper.getDataKey(userId)).unwrap()),
+        ensureDataKey: async (userId: string) => await dataKeyService.ensureDataKey({ userId }),
+        unwrapFor: async (userId: string) => await executionContextService.runWithContext(async () => await (await unwrapper.getDataKey({ userId })).unwrap()),
         sealFor: async (userId: string, dseq: string, plaintext: string) =>
-          await executionContextService.runWithContext(async () => await cipher.encrypt(userId, plaintext, { dseq })),
+          await executionContextService.runWithContext(async () => await cipher.encrypt({ userId }, plaintext, { dseq })),
         openStoredSecret: async ({ userId, dseq }: SeededUser) =>
           await executionContextService.runWithContext(async () => {
             const setting = await deploymentSettingRepository.findOneBy({ userId, dseq });
 
             return await cipher.decrypt({ userId }, setting!.sealedSecrets!, { dseq });
-          })
+          }),
+        sealForTeam: async (organizationId: string, plaintext: string) =>
+          await executionContextService.runWithContext(async () => await cipher.encrypt({ organizationId }, plaintext, { org: organizationId })),
+        openForTeam: async ({ organizationId, sealed }: SeededTeam) =>
+          await executionContextService.runWithContext(async () => await cipher.decrypt({ organizationId }, sealed, { org: organizationId }))
       };
     };
+
+    async function seedTeam(version: string, plaintext: string): Promise<SeededTeam> {
+      const { id: organizationId } = await seedOrganization();
+      onTestFinished(async () => {
+        const organizations = resolveTable("Organizations");
+        await container.resolve<ApiPgDatabase>(POSTGRES_DB).delete(organizations).where(eq(organizations.id, organizationId));
+      });
+      const consoleApi = consoleAt(version);
+      await consoleApi.warmSealingKey();
+
+      return { organizationId, sealed: await consoleApi.sealForTeam(organizationId, plaintext) };
+    }
 
     async function seedUser(version: string, plaintext: string): Promise<SeededUser> {
       const user = await userRepository.create({});
@@ -376,6 +412,7 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
     return {
       consoleAt,
       seedUser,
+      seedTeam,
       seedUserWithoutDataKey,
       seedCorruptedDataKey,
       attemptRewrapOnto,
@@ -393,4 +430,9 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
 interface SeededUser {
   userId: string;
   dseq: string;
+}
+
+interface SeededTeam {
+  organizationId: string;
+  sealed: string;
 }

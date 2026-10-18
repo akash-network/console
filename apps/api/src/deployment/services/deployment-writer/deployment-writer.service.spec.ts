@@ -592,6 +592,7 @@ describe(DeploymentWriterService.name, () => {
 
       expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({
         userId: wallet.userId,
+        teamId: null,
         dseq: "1748400000000",
         secrets: { TOKEN: "resolved", s0_c_username: REGISTRY_USERNAME, s0_c_password: REGISTRY_PASSWORD }
       });
@@ -1246,7 +1247,7 @@ describe(DeploymentWriterService.name, () => {
 
         await service.create({ userId: "user-1", sdl: SDL_OF_A_REDEPLOY, inheritSecretsFrom: SOURCE_DSEQ });
 
-        expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({ userId: wallet.userId, dseq: "1748400000000", secrets: carried });
+        expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({ userId: wallet.userId, teamId: null, dseq: "1748400000000", secrets: carried });
       });
 
       it("looks the source up through the caller's wallet", async () => {
@@ -2587,14 +2588,14 @@ describe(DeploymentWriterService.name, () => {
       expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
     });
 
-    it("records an organization's deployment under the member who filed it", async () => {
+    it("records an organization's deployment under the member who filed it, sealed for the team its wallet belongs to", async () => {
       const { service, walletReaderService, deploymentSettingRepository, sdlSecretsService, signerService } = setup();
       walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, userId: null, organizationId: "organization-1" });
       signerService.filedUserIdOf.mockResolvedValue("filer-1");
 
       await service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" });
 
-      expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith(expect.objectContaining({ userId: "filer-1", dseq: "100" }));
+      expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith(expect.objectContaining({ userId: "filer-1", teamId: "organization-1", dseq: "100" }));
       expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ userId: "filer-1", dseq: "100" }));
     });
 
@@ -2776,6 +2777,7 @@ describe(DeploymentWriterService.name, () => {
 
       expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({
         userId: wallet.userId,
+        teamId: null,
         dseq: "100",
         secrets: { s0_e0: ENV_VALUE, s0_c_username: REGISTRY_USERNAME, s0_c_password: REGISTRY_PASSWORD }
       });
@@ -2921,6 +2923,7 @@ describe(DeploymentWriterService.name, () => {
 
         expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({
           userId: wallet.userId,
+          teamId: null,
           dseq: "100",
           secrets: { ...supplied, s0_c_username: REGISTRY_USERNAME, s0_c_password: REGISTRY_PASSWORD }
         });
@@ -4756,6 +4759,7 @@ describe(DeploymentWriterService.name, () => {
 
       expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({
         userId: "user-1",
+        teamId: null,
         dseq: "100",
         secrets: { ...supplied, s0_c_username: REGISTRY_USERNAME, s0_c_password: REGISTRY_PASSWORD }
       });

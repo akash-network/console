@@ -159,6 +159,11 @@ function organizationWalletOf(wallet: WalletInitialized): { walletId?: number } 
   return wallet.userId === null ? { walletId: wallet.id } : {};
 }
 
+/** Only a team's wallet belongs to no user, so a personal deployment never names a team to seal for. */
+function teamIdOf(wallet: WalletInitialized): string | null {
+  return wallet.userId === null ? wallet.organizationId : null;
+}
+
 function storedValuesFor(input: { sealedSecrets?: string }): StoredSdlValues {
   return input.sealedSecrets ? "only-credentials-sealed" : "every-value-sealed";
 }
@@ -356,7 +361,7 @@ export class DeploymentWriterService {
     await this.signerService.assertCanBroadcast(input.userId, [message]);
     await this.depositLedger.assertWithinBudgets(wallet.id, [message], { filingProjectId: projectId });
 
-    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: input.userId, dseq, secrets: stored });
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: input.userId, teamId: teamIdOf(wallet), dseq, secrets: stored });
 
     await this.recordDefinitionWithCompensation({
       userId: input.userId,
@@ -849,7 +854,7 @@ export class DeploymentWriterService {
     const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: supplied, isTrialing: !!wallet.isTrialing });
     const { deployment, groupSpecs } = await this.deploymentReaderService.findWithGroupSpecsByWalletAndDseq(wallet, dseq);
     this.#assertResourcesUnchanged(manifest.groupSpecs, groupSpecs);
-    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: filedUserId, dseq, secrets: stored });
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: filedUserId, teamId: teamIdOf(wallet), dseq, secrets: stored });
 
     await this.recordDefinition({ userId: filedUserId, dseq, sdl, manifestVersion, sealedSecrets, name: input.name });
 
@@ -1001,7 +1006,7 @@ export class DeploymentWriterService {
     this.#assertResourcesUnchanged(manifest.groupSpecs, groupSpecs);
 
     const recordedVersion = Buffer.from(manifestVersion).toString("base64");
-    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: filedUserId, dseq, secrets: merged });
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: filedUserId, teamId: teamIdOf(wallet), dseq, secrets: merged });
 
     return {
       definition: {
@@ -1099,7 +1104,7 @@ export class DeploymentWriterService {
     const recordedVersion = Buffer.from(manifestVersion).toString("base64");
     this.#assertIsRunningVersion(recordedVersion, runningVersion, { userId, dseq });
 
-    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: filedUserId, dseq, secrets: stored });
+    const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: filedUserId, teamId: teamIdOf(wallet), dseq, secrets: stored });
     const closed = deployment.deployment.state === "closed";
     const recorded = await this.#reportingPersistenceFailure({ userId, dseq, hasSealedSecrets: !!sealedSecrets }, () =>
       this.deploymentSettingRepository

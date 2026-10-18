@@ -52,7 +52,9 @@ describe(SecretCipherService.name, () => {
     const binding = bindingFor(user, newDseq());
     const roundTripped = await inRequest(user, async () => {
       const opened = await openSeal(await sealAs(user, clientSecrets));
-      const stored = await Promise.all(Object.entries(opened).map(async ([name, value]) => [name, await cipher.encrypt(user.id, value, binding)] as const));
+      const stored = await Promise.all(
+        Object.entries(opened).map(async ([name, value]) => [name, await cipher.encrypt({ userId: user.id }, value, binding)] as const)
+      );
 
       return Object.fromEntries(
         await Promise.all(stored.map(async ([name, encrypted]) => [name, await cipher.decrypt({ userId: user.id }, encrypted, binding)] as const))
@@ -67,7 +69,10 @@ describe(SecretCipherService.name, () => {
     const user = await createTestUser();
 
     const binding = bindingFor(user, newDseq());
-    const stored = await inRequest(user, async () => await Promise.all(["a", "b", "c"].map(async value => await cipher.encrypt(user.id, value, binding))));
+    const stored = await inRequest(
+      user,
+      async () => await Promise.all(["a", "b", "c"].map(async value => await cipher.encrypt({ userId: user.id }, value, binding)))
+    );
     const dataKey = await dataKeyRepository.findByUserId(user.id);
 
     expect(stored.map(encrypted => decodeProtectedHeader(encrypted).kid)).toEqual([dataKey!.id, dataKey!.id, dataKey!.id]);
@@ -81,7 +86,7 @@ describe(SecretCipherService.name, () => {
 
     const binding = bindingFor(user, newDseq());
     const roundTripped = await inRequest(user, async () => {
-      const stored = await Promise.all(values.map(async value => await cipher.encrypt(user.id, value, binding)));
+      const stored = await Promise.all(values.map(async value => await cipher.encrypt({ userId: user.id }, value, binding)));
 
       return await Promise.all(stored.map(async encrypted => await cipher.decrypt({ userId: user.id }, encrypted, binding)));
     });
@@ -95,7 +100,7 @@ describe(SecretCipherService.name, () => {
     const user = await createTestUser();
 
     const binding = bindingFor(user, newDseq());
-    const encrypted = await inRequest(user, async () => await cipher.encrypt(user.id, "value", binding));
+    const encrypted = await inRequest(user, async () => await cipher.encrypt({ userId: user.id }, "value", binding));
 
     await expect(inRequest(user, async () => await cipher.decrypt({ userId: user.id }, encrypted, binding))).resolves.toBe("value");
     expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(2);
@@ -106,7 +111,7 @@ describe(SecretCipherService.name, () => {
     const user = await createTestUser();
 
     const heldDuringRequest = await inRequest(user, async () => {
-      await cipher.encrypt(user.id, "value", bindingFor(user, newDseq()));
+      await cipher.encrypt({ userId: user.id }, "value", bindingFor(user, newDseq()));
 
       return executionContextService.get("HELD_DATA_KEYS");
     });
@@ -121,7 +126,7 @@ describe(SecretCipherService.name, () => {
     const [owner, other] = await Promise.all([createTestUser(), createTestUser()]);
 
     const dseq = newDseq();
-    const encryptedForOwner = await inRequest(owner, async () => await cipher.encrypt(owner.id, "owner-only", bindingFor(owner, dseq)));
+    const encryptedForOwner = await inRequest(owner, async () => await cipher.encrypt({ userId: owner.id }, "owner-only", bindingFor(owner, dseq)));
 
     await expect(inRequest(other, async () => await cipher.decrypt({ userId: other.id }, encryptedForOwner, bindingFor(other, dseq)))).rejects.toMatchObject({
       status: 500
@@ -132,8 +137,8 @@ describe(SecretCipherService.name, () => {
     const { cipher, createTestUser, inRequest, dataKeyOf } = setup();
     const [owner, other] = await Promise.all([createTestUser(), createTestUser()]);
 
-    const encryptedForOwner = await inRequest(owner, async () => await cipher.encrypt(owner.id, "owner-only", bindingFor(owner, newDseq())));
-    await inRequest(other, async () => await cipher.encrypt(other.id, "other-only", bindingFor(other, newDseq())));
+    const encryptedForOwner = await inRequest(owner, async () => await cipher.encrypt({ userId: owner.id }, "owner-only", bindingFor(owner, newDseq())));
+    await inRequest(other, async () => await cipher.encrypt({ userId: other.id }, "other-only", bindingFor(other, newDseq())));
 
     await expect(compactDecrypt(encryptedForOwner, await dataKeyOf(other))).rejects.toMatchObject({ code: "ERR_JWE_DECRYPTION_FAILED" });
     await expect(compactDecrypt(encryptedForOwner, await dataKeyOf(owner))).resolves.toMatchObject({ protectedHeader: { alg: "dir" } });
@@ -144,7 +149,7 @@ describe(SecretCipherService.name, () => {
     const user = await createTestUser();
 
     const binding = bindingFor(user, newDseq());
-    const encrypted = await inRequest(user, async () => await cipher.encrypt(user.id, "durable", binding));
+    const encrypted = await inRequest(user, async () => await cipher.encrypt({ userId: user.id }, "durable", binding));
 
     await expect(inRequest(user, async () => await buildCipher().decrypt({ userId: user.id }, encrypted, binding))).resolves.toBe("durable");
   });
@@ -154,7 +159,7 @@ describe(SecretCipherService.name, () => {
     const user = await createTestUser();
     const [source, destination] = [newDseq(), newDseq()];
 
-    const token = await inRequest(user, async () => await cipher.encrypt(user.id, "owner-only", bindingFor(user, source)));
+    const token = await inRequest(user, async () => await cipher.encrypt({ userId: user.id }, "owner-only", bindingFor(user, source)));
 
     await expect(inRequest(user, async () => await cipher.decrypt({ userId: user.id }, token, bindingFor(user, destination)))).rejects.toMatchObject({
       status: 500
@@ -166,7 +171,7 @@ describe(SecretCipherService.name, () => {
     const { cipher, createTestUser, inRequest, kmsClient } = setup();
     const user = await createTestUser();
     const [source, destination] = [newDseq(), newDseq()];
-    const token = await inRequest(user, async () => await cipher.encrypt(user.id, "owner-only", bindingFor(user, source)));
+    const token = await inRequest(user, async () => await cipher.encrypt({ userId: user.id }, "owner-only", bindingFor(user, source)));
     kmsClient.asymmetricDecrypt.mockClear();
 
     await expect(inRequest(user, async () => await cipher.decrypt({ userId: user.id }, token, bindingFor(user, destination)))).rejects.toThrow();
@@ -178,7 +183,7 @@ describe(SecretCipherService.name, () => {
     const { cipher, createTestUser, inRequest } = setup();
     const user = await createTestUser();
     const [source, destination] = [newDseq(), newDseq()];
-    const token = await inRequest(user, async () => await cipher.encrypt(user.id, "owner-only", bindingFor(user, source)));
+    const token = await inRequest(user, async () => await cipher.encrypt({ userId: user.id }, "owner-only", bindingFor(user, source)));
 
     const [header, ...rest] = token.split(".");
     const rewritten = { ...(JSON.parse(Buffer.from(header, "base64url").toString("utf8")) as object), dseq: destination };
@@ -194,7 +199,7 @@ describe(SecretCipherService.name, () => {
     const user = await createTestUser();
     const dseq = newDseq();
 
-    const token = await inRequest(user, async () => await cipher.encrypt(user.id, "value", bindingFor(user, dseq)));
+    const token = await inRequest(user, async () => await cipher.encrypt({ userId: user.id }, "value", bindingFor(user, dseq)));
     const dataKey = await dataKeyRepository.findByUserId(user.id);
 
     expect(decodeProtectedHeader(token)).toEqual({ sub: user.id, dseq, alg: "dir", enc: "A256GCM", kid: dataKey!.id });
@@ -204,14 +209,14 @@ describe(SecretCipherService.name, () => {
     const { cipher, createTestUser, inRequest, dataKeyRepository, kmsClient } = setup();
     const user = await createTestUser();
     const binding = bindingFor(user, newDseq());
-    const sealedBeforeRekey = await inRequest(user, async () => await cipher.encrypt(user.id, "old-value", binding));
+    const sealedBeforeRekey = await inRequest(user, async () => await cipher.encrypt({ userId: user.id }, "old-value", binding));
     const retired = (await dataKeyRepository.findByUserId(user.id))!;
     await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
     kmsClient.asymmetricDecrypt.mockClear();
 
     const [opened, sealedAfterRekey] = await inRequest(user, async () => [
       await cipher.decrypt({ userId: user.id }, sealedBeforeRekey, binding),
-      await cipher.encrypt(user.id, "new-value", binding)
+      await cipher.encrypt({ userId: user.id }, "new-value", binding)
     ]);
 
     expect(opened).toBe("old-value");
@@ -225,7 +230,7 @@ describe(SecretCipherService.name, () => {
     const { cipher, createTestUser, inRequest, dataKeyRepository } = setup();
     const [owner, other] = await Promise.all([createTestUser(), createTestUser()]);
     const dseq = newDseq();
-    const sealedForOwner = await inRequest(owner, async () => await cipher.encrypt(owner.id, "owner-only", bindingFor(owner, dseq)));
+    const sealedForOwner = await inRequest(owner, async () => await cipher.encrypt({ userId: owner.id }, "owner-only", bindingFor(owner, dseq)));
     const ownersKey = (await dataKeyRepository.findByUserId(owner.id))!;
     await dataKeyRepository.updateById(ownersKey.id, { retiredAt: new Date() });
 
@@ -240,7 +245,7 @@ describe(SecretCipherService.name, () => {
 
     expect(await dataKeyRepository.findByUserId(user.id)).toBeUndefined();
 
-    await inRequest(user, async () => await cipher.encrypt(user.id, "value", bindingFor(user, newDseq())));
+    await inRequest(user, async () => await cipher.encrypt({ userId: user.id }, "value", bindingFor(user, newDseq())));
 
     expect(await dataKeyRepository.findByUserId(user.id)).toMatchObject({ userId: user.id, wrappedByKid: KID });
   });
@@ -261,7 +266,7 @@ describe(SecretCipherService.name, () => {
       const dseq = newDseq();
       const sealed = await sealUnderTeamKey(team.id, "team-value", { org: team.id, dseq });
       await sealUnderTeamKey(otherTeam.id, "other-value", { org: otherTeam.id, dseq });
-      await inRequest(member, async () => await cipher.encrypt(member.id, "member-value", bindingFor(member, dseq)));
+      await inRequest(member, async () => await cipher.encrypt({ userId: member.id }, "member-value", bindingFor(member, dseq)));
 
       await expect(
         inRequest(member, async () => await cipher.decrypt({ organizationId: otherTeam.id }, sealed, { org: otherTeam.id, dseq }))

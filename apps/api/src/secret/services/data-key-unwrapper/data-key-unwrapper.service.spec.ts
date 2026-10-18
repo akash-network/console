@@ -54,7 +54,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("returns the key the user's data key row wraps", async () => {
     const { service, inRequest, keyFor } = setup();
 
-    const key = await inRequest(async () => await (await service.getDataKey(USER_A)).unwrap());
+    const key = await inRequest(async () => await (await service.getDataKey({ userId: USER_A })).unwrap());
 
     expect(key.equals(keyFor(USER_A))).toBe(true);
   });
@@ -62,7 +62,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("returns the record the key belongs to", async () => {
     const { service, inRequest, rowFor } = setup();
 
-    const dataKey = await inRequest(async () => await service.getDataKey(USER_A));
+    const dataKey = await inRequest(async () => await service.getDataKey({ userId: USER_A }));
 
     expect(dataKey.id).toBe(rowFor(USER_A).id);
   });
@@ -70,7 +70,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("records the user, the data key and the wrapping key version when it unwraps", async () => {
     const { service, inRequest, logger, rowFor } = setup();
 
-    await inRequest(async () => await (await service.getDataKey(USER_A)).unwrap());
+    await inRequest(async () => await (await service.getDataKey({ userId: USER_A })).unwrap());
 
     expect(logger.info).toHaveBeenCalledExactlyOnceWith({ event: "USER_DATA_KEY_UNWRAPPED", userId: USER_A, dataKeyId: rowFor(USER_A).id, kid: KID });
   });
@@ -78,7 +78,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("spends no key service call for the record identity alone", async () => {
     const { service, inRequest, kmsClient } = setup();
 
-    await inRequest(async () => await service.getDataKey(USER_A));
+    await inRequest(async () => await service.getDataKey({ userId: USER_A }));
 
     expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
   });
@@ -87,8 +87,8 @@ describe(DataKeyUnwrapperService.name, () => {
     const { service, inRequest, kmsClient } = setup();
 
     await inRequest(async () => {
-      await (await service.getDataKey(USER_A)).unwrap();
-      await (await service.getDataKey(USER_A)).unwrap();
+      await (await service.getDataKey({ userId: USER_A })).unwrap();
+      await (await service.getDataKey({ userId: USER_A })).unwrap();
     });
 
     expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(1);
@@ -97,7 +97,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("unwraps once for twelve concurrent unwraps in the same request", async () => {
     const { service, inRequest, kmsClient } = setup();
 
-    await inRequest(async () => await Promise.all(Array.from({ length: 12 }, async () => await (await service.getDataKey(USER_A)).unwrap())));
+    await inRequest(async () => await Promise.all(Array.from({ length: 12 }, async () => await (await service.getDataKey({ userId: USER_A })).unwrap())));
 
     expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(1);
   });
@@ -105,7 +105,9 @@ describe(DataKeyUnwrapperService.name, () => {
   it("reads the data key row once per user per request", async () => {
     const { service, inRequest, dataKeyService } = setup();
 
-    await inRequest(async () => await Promise.all([service.getDataKey(USER_A), service.getDataKey(USER_A), service.getDataKey(USER_A)]));
+    await inRequest(
+      async () => await Promise.all([service.getDataKey({ userId: USER_A }), service.getDataKey({ userId: USER_A }), service.getDataKey({ userId: USER_A })])
+    );
 
     expect(dataKeyService.ensureDataKey).toHaveBeenCalledTimes(1);
   });
@@ -113,8 +115,8 @@ describe(DataKeyUnwrapperService.name, () => {
   it("unwraps again in the request that follows the one that unwrapped it", async () => {
     const { service, inRequest, kmsClient } = setup();
 
-    await inRequest(async () => await (await service.getDataKey(USER_A)).unwrap());
-    await inRequest(async () => await (await service.getDataKey(USER_A)).unwrap());
+    await inRequest(async () => await (await service.getDataKey({ userId: USER_A })).unwrap());
+    await inRequest(async () => await (await service.getDataKey({ userId: USER_A })).unwrap());
 
     expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(2);
   });
@@ -123,8 +125,8 @@ describe(DataKeyUnwrapperService.name, () => {
     const { service, inRequest, kmsClient } = setup();
 
     await inRequest(async () => {
-      await (await service.getDataKey(USER_A)).unwrap();
-      await (await service.getDataKey(USER_B)).unwrap();
+      await (await service.getDataKey({ userId: USER_A })).unwrap();
+      await (await service.getDataKey({ userId: USER_B })).unwrap();
     });
 
     expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(2);
@@ -134,7 +136,7 @@ describe(DataKeyUnwrapperService.name, () => {
     const { service, inRequest, keyFor } = setup();
 
     const [keyOfA, keyOfB] = await inRequest(
-      async () => await Promise.all([(await service.getDataKey(USER_A)).unwrap(), (await service.getDataKey(USER_B)).unwrap()])
+      async () => await Promise.all([(await service.getDataKey({ userId: USER_A })).unwrap(), (await service.getDataKey({ userId: USER_B })).unwrap()])
     );
 
     expect(keyOfA.equals(keyFor(USER_A))).toBe(true);
@@ -146,8 +148,8 @@ describe(DataKeyUnwrapperService.name, () => {
     const { service, inRequest, unwrappedUserIds } = setup();
 
     await inRequest(async () => {
-      await (await service.getDataKey(USER_A)).unwrap();
-      await (await service.getDataKey(USER_B)).unwrap();
+      await (await service.getDataKey({ userId: USER_A })).unwrap();
+      await (await service.getDataKey({ userId: USER_B })).unwrap();
     });
 
     expect(new Set(unwrappedUserIds())).toEqual(new Set([USER_A, USER_B]));
@@ -165,7 +167,7 @@ describe(DataKeyUnwrapperService.name, () => {
     const { service, inRequest, executionContextService } = setup();
 
     const heldDuringRequest = await inRequest(async () => {
-      await (await service.getDataKey(USER_A)).unwrap();
+      await (await service.getDataKey({ userId: USER_A })).unwrap();
 
       return executionContextService.get("HELD_DATA_KEYS");
     });
@@ -178,7 +180,7 @@ describe(DataKeyUnwrapperService.name, () => {
   describe("findDataKey", () => {
     it("returns the user's active key without creating one", async () => {
       const { service, inRequest, dataKeyService, rowFor, keyFor } = setup();
-      await inRequest(async () => await service.getDataKey(USER_A));
+      await inRequest(async () => await service.getDataKey({ userId: USER_A }));
       dataKeyService.ensureDataKey.mockClear();
 
       const found = await inRequest(async () => {
@@ -194,12 +196,12 @@ describe(DataKeyUnwrapperService.name, () => {
 
     it("shares one holding with getDataKey, so a request that opens a value and seals another unwraps once", async () => {
       const { service, inRequest, kmsClient, dataKeyService } = setup();
-      await inRequest(async () => await service.getDataKey(USER_A));
+      await inRequest(async () => await service.getDataKey({ userId: USER_A }));
       dataKeyService.ensureDataKey.mockClear();
 
       await inRequest(async () => {
         await (await service.findDataKey({ userId: USER_A }))!.unwrap();
-        await (await service.getDataKey(USER_A)).unwrap();
+        await (await service.getDataKey({ userId: USER_A })).unwrap();
       });
 
       expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(1);
@@ -219,7 +221,7 @@ describe(DataKeyUnwrapperService.name, () => {
     it("still hands getDataKey a key when it joins a lookup that comes back empty", async () => {
       const { service, inRequest, dataKeyService, rowFor } = setup();
 
-      const [found, got] = await inRequest(async () => await Promise.all([service.findDataKey({ userId: USER_A }), service.getDataKey(USER_A)]));
+      const [found, got] = await inRequest(async () => await Promise.all([service.findDataKey({ userId: USER_A }), service.getDataKey({ userId: USER_A })]));
 
       expect(found).toBeUndefined();
       expect(got.id).toBe(rowFor(USER_A).id);
@@ -259,7 +261,7 @@ describe(DataKeyUnwrapperService.name, () => {
       const teamKey = await seedTeamKey(organizationId);
 
       const [memberKey, teamUnwrapped] = await inRequest(async () => [
-        await (await service.getDataKey(USER_A)).unwrap(),
+        await (await service.getDataKey({ userId: USER_A })).unwrap(),
         await (await service.findDataKey({ organizationId }))!.unwrap()
       ]);
 
@@ -345,7 +347,7 @@ describe(DataKeyUnwrapperService.name, () => {
       const retired = await seedRetiredKey(USER_A);
 
       const [active, retiredKey] = await inRequest(async () => [
-        await (await service.getDataKey(USER_A)).unwrap(),
+        await (await service.getDataKey({ userId: USER_A })).unwrap(),
         await (await service.getDataKeyById({ userId: USER_A }, retired.row.id))!.unwrap()
       ]);
 
@@ -384,7 +386,7 @@ describe(DataKeyUnwrapperService.name, () => {
       const retired = await seedRetiredKey(USER_A);
 
       await inRequest(async () => {
-        await (await service.getDataKey(USER_A)).unwrap();
+        await (await service.getDataKey({ userId: USER_A })).unwrap();
         await (await service.getDataKeyById({ userId: USER_A }, retired.row.id))!.unwrap();
       });
 
@@ -403,7 +405,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("refuses to hand out a data key outside any request at all", async () => {
     const { service, kmsClient, logger } = setup();
 
-    await expect(service.getDataKey(USER_A)).rejects.toMatchObject({ status: 500, message: SECRET_UNREADABLE_ERROR_MESSAGE });
+    await expect(service.getDataKey({ userId: USER_A })).rejects.toMatchObject({ status: 500, message: SECRET_UNREADABLE_ERROR_MESSAGE });
 
     expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "USER_DATA_KEY_OUTSIDE_REQUEST" }));
@@ -413,7 +415,7 @@ describe(DataKeyUnwrapperService.name, () => {
     const { service, inRequest, kmsClient } = setup();
 
     await inRequest(async () => {
-      const dataKey = await service.getDataKey(USER_A);
+      const dataKey = await service.getDataKey({ userId: USER_A });
       await dataKey.unwrap();
 
       await inRequest(async () => await expect(dataKey.unwrap()).rejects.toMatchObject({ status: 500 }));
@@ -427,7 +429,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("refuses to unwrap once the request that held the data key has ended", async () => {
     const { service, inRequest, kmsClient } = setup();
 
-    const escaped = await inRequest(async () => await service.getDataKey(USER_A));
+    const escaped = await inRequest(async () => await service.getDataKey({ userId: USER_A }));
 
     await expect(escaped.unwrap()).rejects.toMatchObject({ status: 500, message: SECRET_UNREADABLE_ERROR_MESSAGE });
     expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
@@ -437,7 +439,7 @@ describe(DataKeyUnwrapperService.name, () => {
     const { service, inRequest, kmsClient } = setup();
 
     const escaped = await inRequest(async () => {
-      const dataKey = await service.getDataKey(USER_A);
+      const dataKey = await service.getDataKey({ userId: USER_A });
       await dataKey.unwrap();
 
       return dataKey;
@@ -450,7 +452,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("refuses to serve one request's data key into another request", async () => {
     const { service, inRequest, kmsClient, logger } = setup();
 
-    const escaped = await inRequest(async () => await service.getDataKey(USER_A));
+    const escaped = await inRequest(async () => await service.getDataKey({ userId: USER_A }));
 
     await inRequest(async () => await expect(escaped.unwrap()).rejects.toMatchObject({ status: 500 }));
 
@@ -461,10 +463,10 @@ describe(DataKeyUnwrapperService.name, () => {
   it("refuses to serve a data key into a request that holds one of its own", async () => {
     const { service, inRequest, kmsClient } = setup();
 
-    const escaped = await inRequest(async () => await service.getDataKey(USER_A));
+    const escaped = await inRequest(async () => await service.getDataKey({ userId: USER_A }));
 
     await inRequest(async () => {
-      await (await service.getDataKey(USER_A)).unwrap();
+      await (await service.getDataKey({ userId: USER_A })).unwrap();
       await expect(escaped.unwrap()).rejects.toMatchObject({ status: 500 });
     });
 
@@ -476,7 +478,7 @@ describe(DataKeyUnwrapperService.name, () => {
     kmsClient.asymmetricDecrypt.mockRejectedValueOnce(Object.assign(new Error("14 UNAVAILABLE"), { code: grpc.status.UNAVAILABLE }));
 
     const key = await inRequest(async () => {
-      const dataKey = await service.getDataKey(USER_A);
+      const dataKey = await service.getDataKey({ userId: USER_A });
       await expect(dataKey.unwrap()).rejects.toMatchObject({ status: 503 });
 
       return await dataKey.unwrap();
@@ -489,7 +491,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("rejects with 503 when the row is wrapped under a crypto key that is not the console's", async () => {
     const { service, inRequest, kmsClient, logger } = setup({ kid: FOREIGN_KID });
 
-    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 503 }));
+    await inRequest(async () => await expect((await service.getDataKey({ userId: USER_A })).unwrap()).rejects.toMatchObject({ status: 503 }));
 
     expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
     expect(logger.error).toHaveBeenCalledWith(
@@ -500,7 +502,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("opens a row wrapped under an older enabled version after the configured version moves on", async () => {
     const { service, inRequest, kmsClient, keyFor } = setup({ kid: "sdl-secrets.v1", configuredVersion: "2" });
 
-    const key = await inRequest(async () => await (await service.getDataKey(USER_A)).unwrap());
+    const key = await inRequest(async () => await (await service.getDataKey({ userId: USER_A })).unwrap());
 
     expect(key.equals(keyFor(USER_A))).toBe(true);
     expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledWith(expect.objectContaining({ name: sdlSecretsVersionPath("1") }));
@@ -510,7 +512,7 @@ describe(DataKeyUnwrapperService.name, () => {
     const { service, inRequest, kmsClient, logger } = setup({ kid: "sdl-secrets.v9" });
     kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("5 NOT_FOUND"), { code: grpc.status.NOT_FOUND }));
 
-    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 503 }));
+    await inRequest(async () => await expect((await service.getDataKey({ userId: USER_A })).unwrap()).rejects.toMatchObject({ status: 503 }));
 
     expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledWith(expect.objectContaining({ name: sdlSecretsVersionPath("9") }));
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID", expected: KID }));
@@ -520,7 +522,7 @@ describe(DataKeyUnwrapperService.name, () => {
     const { service, inRequest, kmsClient, logger } = setup();
     kmsClient.asymmetricDecrypt.mockRejectedValue(Object.assign(new Error("9 FAILED_PRECONDITION"), { code: grpc.status.FAILED_PRECONDITION }));
 
-    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 503 }));
+    await inRequest(async () => await expect((await service.getDataKey({ userId: USER_A })).unwrap()).rejects.toMatchObject({ status: 503 }));
 
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID" }));
   });
@@ -528,7 +530,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("rejects with 503 when the key service is unreachable", async () => {
     const { service, inRequest, logger } = setup({ keyServiceStatus: grpc.status.UNAVAILABLE });
 
-    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 503 }));
+    await inRequest(async () => await expect((await service.getDataKey({ userId: USER_A })).unwrap()).rejects.toMatchObject({ status: 503 }));
 
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ event: "USER_DATA_KEY_UNWRAP_FAILED", failure: "KEY_SERVICE_UNREACHABLE", userId: USER_A })
@@ -538,7 +540,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("rejects with 503 and names the failure as refused rather than unreachable when the key service answers with an error", async () => {
     const { service, inRequest, logger } = setup({ keyServiceStatus: grpc.status.INTERNAL });
 
-    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 503 }));
+    await inRequest(async () => await expect((await service.getDataKey({ userId: USER_A })).unwrap()).rejects.toMatchObject({ status: 503 }));
 
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ event: "USER_DATA_KEY_UNWRAP_FAILED", failure: "KEY_SERVICE_REFUSED", versionName: sdlSecretsVersionPath("1"), userId: USER_A })
@@ -548,7 +550,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("blames itself rather than a caller when the key service rejects the encrypted key", async () => {
     const { service, inRequest, logger } = setup({ keyServiceStatus: grpc.status.INVALID_ARGUMENT });
 
-    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 500 }));
+    await inRequest(async () => await expect((await service.getDataKey({ userId: USER_A })).unwrap()).rejects.toMatchObject({ status: 500 }));
 
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ event: "USER_DATA_KEY_UNREADABLE", failure: "ENCRYPTED_KEY_REJECTED", userId: USER_A })
@@ -558,19 +560,19 @@ describe(DataKeyUnwrapperService.name, () => {
   it("rejects with 500 when the wrapped key is not a compact JWE", async () => {
     const { service, inRequest } = setup({ mutateWrappedKey: () => "not.a.jwe" });
 
-    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 500 }));
+    await inRequest(async () => await expect((await service.getDataKey({ userId: USER_A })).unwrap()).rejects.toMatchObject({ status: 500 }));
   });
 
   it("rejects with 500 when the wrapped key fails authentication", async () => {
     const { service, inRequest } = setup({ mutateWrappedKey: tamperAuthenticationTag });
 
-    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 500 }));
+    await inRequest(async () => await expect((await service.getDataKey({ userId: USER_A })).unwrap()).rejects.toMatchObject({ status: 500 }));
   });
 
   it("rejects with 500 when the row wraps something other than 256 bits", async () => {
     const { service, inRequest, logger } = setup({ keyBytes: 16 });
 
-    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toMatchObject({ status: 500 }));
+    await inRequest(async () => await expect((await service.getDataKey({ userId: USER_A })).unwrap()).rejects.toMatchObject({ status: 500 }));
 
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "USER_DATA_KEY_LENGTH_UNEXPECTED", keyBytes: 16 }));
   });
@@ -579,7 +581,7 @@ describe(DataKeyUnwrapperService.name, () => {
     const { service, inRequest, dataKeyService } = setup();
     dataKeyService.ensureDataKey.mockRejectedValue(new Error("no row"));
 
-    await inRequest(async () => await expect(service.getDataKey(USER_A)).rejects.toThrow("no row"));
+    await inRequest(async () => await expect(service.getDataKey({ userId: USER_A })).rejects.toThrow("no row"));
   });
 
   it("reads the row again after a read that failed earlier in the same request", async () => {
@@ -587,9 +589,9 @@ describe(DataKeyUnwrapperService.name, () => {
     dataKeyService.ensureDataKey.mockRejectedValueOnce(new Error("no row"));
 
     const key = await inRequest(async () => {
-      await expect(service.getDataKey(USER_A)).rejects.toThrow("no row");
+      await expect(service.getDataKey({ userId: USER_A })).rejects.toThrow("no row");
 
-      return await (await service.getDataKey(USER_A)).unwrap();
+      return await (await service.getDataKey({ userId: USER_A })).unwrap();
     });
 
     expect(key.equals(keyFor(USER_A))).toBe(true);
@@ -600,8 +602,8 @@ describe(DataKeyUnwrapperService.name, () => {
     const { service, inRequest, unwrapsPerRequest } = setup();
 
     await inRequest(async () => {
-      await (await service.getDataKey(USER_A)).unwrap();
-      await (await service.getDataKey(USER_A)).unwrap();
+      await (await service.getDataKey({ userId: USER_A })).unwrap();
+      await (await service.getDataKey({ userId: USER_A })).unwrap();
     });
 
     expect(unwrapsPerRequest.record).toHaveBeenCalledExactlyOnceWith(1);
@@ -611,8 +613,8 @@ describe(DataKeyUnwrapperService.name, () => {
     const { service, inRequest, unwrapsPerRequest } = setup();
 
     await inRequest(async () => {
-      await (await service.getDataKey(USER_A)).unwrap();
-      await (await service.getDataKey(USER_B)).unwrap();
+      await (await service.getDataKey({ userId: USER_A })).unwrap();
+      await (await service.getDataKey({ userId: USER_B })).unwrap();
     });
 
     expect(unwrapsPerRequest.record.mock.calls).toEqual([[1], [1]]);
@@ -621,7 +623,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("measures no unwrap for a request that asked only for the record", async () => {
     const { service, inRequest, unwrapsPerRequest } = setup();
 
-    await inRequest(async () => await service.getDataKey(USER_A));
+    await inRequest(async () => await service.getDataKey({ userId: USER_A }));
 
     expect(unwrapsPerRequest.record).toHaveBeenCalledExactlyOnceWith(0);
   });
@@ -629,7 +631,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("measures no unwrap for a user whose unwrap failed", async () => {
     const { service, inRequest, unwrapsPerRequest } = setup({ keyServiceStatus: grpc.status.UNAVAILABLE });
 
-    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toThrow());
+    await inRequest(async () => await expect((await service.getDataKey({ userId: USER_A })).unwrap()).rejects.toThrow());
 
     expect(unwrapsPerRequest.record).toHaveBeenCalledExactlyOnceWith(0);
   });
@@ -646,8 +648,8 @@ describe(DataKeyUnwrapperService.name, () => {
     const { service, inRequest, unwrapsPerRequest } = setup();
 
     await Promise.all([
-      inRequest(async () => await (await service.getDataKey(USER_A)).unwrap()),
-      inRequest(async () => await (await service.getDataKey(USER_B)).unwrap())
+      inRequest(async () => await (await service.getDataKey({ userId: USER_A })).unwrap()),
+      inRequest(async () => await (await service.getDataKey({ userId: USER_B })).unwrap())
     ]);
 
     expect(unwrapsPerRequest.record.mock.calls).toEqual([[1], [1]]);
@@ -656,7 +658,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it("logs no key material when it unwraps", async () => {
     const { service, inRequest, expectNoKeyMaterialLogged } = setup();
 
-    await inRequest(async () => await (await service.getDataKey(USER_A)).unwrap());
+    await inRequest(async () => await (await service.getDataKey({ userId: USER_A })).unwrap());
 
     expectNoKeyMaterialLogged();
   });
@@ -664,7 +666,7 @@ describe(DataKeyUnwrapperService.name, () => {
   it.each(FAILING_UNWRAPS)("logs no key material when $path", async ({ input }) => {
     const { service, inRequest, expectNoKeyMaterialLogged } = setup(input);
 
-    await inRequest(async () => await expect((await service.getDataKey(USER_A)).unwrap()).rejects.toThrow());
+    await inRequest(async () => await expect((await service.getDataKey({ userId: USER_A })).unwrap()).rejects.toThrow());
 
     expectNoKeyMaterialLogged();
   });
@@ -683,18 +685,24 @@ describe(DataKeyUnwrapperService.name, () => {
     const rows = new Map<string, DataKeyOutput>();
 
     const dataKeyService = mock<DataKeyService>();
-    dataKeyService.ensureDataKey.mockImplementation(async userId => {
-      const existing = rows.get(userId);
+    dataKeyService.ensureDataKey.mockImplementation(async owner => {
+      const ownerId = owner.organizationId === undefined ? owner.userId : owner.organizationId;
+      const existing = rows.get(ownerId);
 
       if (existing) return existing;
 
       const key = randomBytes(input?.keyBytes ?? 32);
       const wrapped = await new CompactEncrypt(key).setProtectedHeader({ alg: "RSA-OAEP-256", enc: "A256GCM", kid: wrappedKid }).encrypt(publicKey);
-      const row = createDataKey({ userId, wrappedKey: input?.mutateWrappedKey?.(wrapped) ?? wrapped, wrappedByKid: wrappedKid });
+      const row = createDataKey({
+        userId: owner.userId ?? null,
+        organizationId: owner.organizationId ?? null,
+        wrappedKey: input?.mutateWrappedKey?.(wrapped) ?? wrapped,
+        wrappedByKid: wrappedKid
+      });
 
-      keys.set(userId, key);
-      wrappedJwes.set(userId, wrapped);
-      rows.set(userId, row);
+      keys.set(ownerId, key);
+      wrappedJwes.set(ownerId, wrapped);
+      rows.set(ownerId, row);
 
       return row;
     });
