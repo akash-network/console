@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { GpuBreakdownQuerySchema } from "./gpu.schema";
 
@@ -11,15 +11,11 @@ describe("GpuBreakdownQuerySchema", () => {
   });
 
   it("computes startDate in UTC regardless of the process timezone", () => {
-    vi.stubEnv("TZ", "America/New_York");
+    expect(new Date("2024-11-15T00:00:00.000Z").getTimezoneOffset()).toBeGreaterThan(0);
 
-    try {
-      const result = GpuBreakdownQuerySchema.parse({ endDate: "2024-11-15" });
+    const result = GpuBreakdownQuerySchema.parse({ endDate: "2024-11-15" });
 
-      expect(result.startDate).toBe("2024-10-17");
-    } finally {
-      vi.unstubAllEnvs();
-    }
+    expect(result.startDate).toBe("2024-10-17");
   });
 
   it("keeps the provided dates and filters untouched", () => {
