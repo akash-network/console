@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { PaymentMethodRepository, StripeTransactionRepository, WalletSettingRepository } from "@src/billing/repositories";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import type { OrganizationActivityRepository } from "@src/organization/repositories/organization-activity/organization-activity.repository";
 import type { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 import { TeamRecordRetentionService } from "./team-record-retention.service";
 
@@ -22,6 +23,15 @@ describe(TeamRecordRetentionService.name, () => {
     expect(userTemplateRepository.detachFromTeams).toHaveBeenCalledWith(user.userId);
   });
 
+  it("takes the member's address and name out of every team's activity feed", async () => {
+    const { service, organizationActivityRepository } = setup();
+    const user = { id: faker.string.uuid(), userId: null };
+
+    await service.releaseFromTeams(user);
+
+    expect(organizationActivityRepository.redactMember).toHaveBeenCalledWith(user.id);
+  });
+
   it("looks for no template of a member without an Auth0 identity", async () => {
     const { service, deploymentSettingRepository, userTemplateRepository } = setup();
     const user = { id: faker.string.uuid(), userId: null };
@@ -38,14 +48,24 @@ describe(TeamRecordRetentionService.name, () => {
     const walletSettingRepository = mock<WalletSettingRepository>();
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     const userTemplateRepository = mock<UserTemplateRepository>();
+    const organizationActivityRepository = mock<OrganizationActivityRepository>();
     const service = new TeamRecordRetentionService(
       stripeTransactionRepository,
       paymentMethodRepository,
       walletSettingRepository,
       deploymentSettingRepository,
-      userTemplateRepository
+      userTemplateRepository,
+      organizationActivityRepository
     );
 
-    return { service, stripeTransactionRepository, paymentMethodRepository, walletSettingRepository, deploymentSettingRepository, userTemplateRepository };
+    return {
+      service,
+      stripeTransactionRepository,
+      paymentMethodRepository,
+      walletSettingRepository,
+      deploymentSettingRepository,
+      userTemplateRepository,
+      organizationActivityRepository
+    };
   }
 });

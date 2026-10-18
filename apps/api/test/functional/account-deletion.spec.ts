@@ -28,7 +28,7 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { PurgeDeletedAccount } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedOrganizationActivity, seedOrganizationInvitation, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
@@ -199,6 +199,37 @@ describe("Account deletion", () => {
       expect(settlementResponse.status).toBe(200);
       expect(await findTransaction(pending.id)).toMatchObject({ status: "succeeded", organizationId: team.id, userId: null, bonusAmount: 0 });
       expect(new Set(grantees)).toEqual(new Set([teamWallet.address]));
+    });
+
+    it("keeps the team's activity feed without the deleted member's address or name", async () => {
+      const { team, owner, member, headersOf } = await setupTeam();
+      const invitation = await seedOrganizationInvitation({ organizationId: team.id, role: "billing", status: "accepted", acceptedByUserId: member.id });
+      const invited = await seedOrganizationActivity({
+        organizationId: team.id,
+        type: "member_invited",
+        actorUserId: owner.id,
+        payload: { email: invitation.email, role: "billing" }
+      });
+      const updated = await seedOrganizationActivity({
+        organizationId: team.id,
+        type: "member_updated",
+        actorUserId: owner.id,
+        payload: { userId: member.id, username: faker.internet.userName(), role: "billing", projectAccess: "all" }
+      });
+      const { linkToken } = await issueLinkFor(member.id);
+      answerActiveDeployments([]);
+
+      expect((await confirm(linkToken)).status).toBe(204);
+
+      const feedResponse = await app.request("/v1/organization-activities", { headers: headersOf(owner) });
+      expect(feedResponse.status).toBe(200);
+      const { data } = (await feedResponse.json()) as { data: { id: string; payload: Record<string, unknown> }[] };
+      expect(data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: invited.id, payload: { role: "billing" } }),
+          expect.objectContaining({ id: updated.id, payload: { role: "billing", projectAccess: "all" } })
+        ])
+      );
     });
 
     it("refuses the last owner of the team when the link is requested and again when it is used", async () => {

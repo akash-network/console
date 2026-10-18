@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
@@ -5,9 +6,10 @@ import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput } from "@src/user/repositories";
-import { OrganizationActivityRepository, type OrganizationActivityWithActor } from "./organization-activity.repository";
+import { type OrganizationActivityOutput, OrganizationActivityRepository, type OrganizationActivityWithActor } from "./organization-activity.repository";
 
-import { seedOrganizationActivity, seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
+import { seedOrganizationActivity, seedOrganizationInvitation, seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
+import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 
 describe(OrganizationActivityRepository.name, () => {
@@ -92,6 +94,90 @@ describe(OrganizationActivityRepository.name, () => {
     });
   });
 
+  describe("redactMember", () => {
+    it("takes the address the member accepted an invitation at out of that team's invitations, whatever the account's own address", async () => {
+      const { repository, organization, owner, member, redactInOtherOrganization, payloadsOf } = await setup();
+      const accepted = await seedOrganizationInvitation({ organizationId: organization.id, status: "accepted", acceptedByUserId: member.id });
+      const invitedAt = { email: accepted.email, role: "member" };
+      const invitedEarlier = await seedOrganizationActivity({
+        organizationId: organization.id,
+        type: "member_invited",
+        actorUserId: owner.id,
+        payload: invitedAt
+      });
+      const invitedAgain = await seedOrganizationActivity({
+        organizationId: organization.id,
+        type: "member_invited",
+        actorUserId: owner.id,
+        payload: invitedAt
+      });
+      const someoneElse = await seedOrganizationInvitation({ organizationId: organization.id, status: "accepted", acceptedByUserId: owner.id });
+      const someoneElseInvited = await seedOrganizationActivity({
+        organizationId: organization.id,
+        type: "member_invited",
+        payload: { email: someoneElse.email, role: "admin" }
+      });
+      const { organization: otherTeam } = await seedOrganizationWithOwner();
+      await seedOrganizationInvitation({ organizationId: otherTeam.id, email: accepted.email });
+      const sameAddressInOtherTeam = await seedOrganizationActivity({ organizationId: otherTeam.id, type: "member_invited", payload: invitedAt });
+
+      await redactInOtherOrganization(() => repository.redactMember(member.id));
+
+      expect(await payloadsOf([invitedEarlier, invitedAgain, someoneElseInvited, sameAddressInOtherTeam])).toEqual([
+        { role: "member" },
+        { role: "member" },
+        { email: someoneElse.email, role: "admin" },
+        invitedAt
+      ]);
+    });
+
+    it("takes the member's id and name out of the access changes made to them in every team, and out of no one else's", async () => {
+      const { repository, organization, owner, member, redactInOtherOrganization, payloadsOf } = await setup();
+      const named = { userId: member.id, username: faker.internet.userName() };
+      const { organization: otherTeam } = await seedOrganizationWithOwner();
+      const granted = await seedOrganizationActivity({ organizationId: organization.id, type: "member_granted", payload: { ...named, role: "admin" } });
+      const revoked = await seedOrganizationActivity({ organizationId: otherTeam.id, type: "member_revoked", payload: named });
+      const updated = await seedOrganizationActivity({
+        organizationId: organization.id,
+        type: "member_updated",
+        payload: { ...named, role: "member", projectAccess: "all" }
+      });
+      const ownerGranted = { userId: owner.id, username: owner.username, role: "viewer" };
+      const grantedToOwner = await seedOrganizationActivity({ organizationId: organization.id, type: "member_granted", payload: ownerGranted });
+      const joined = await seedOrganizationActivity({
+        organizationId: organization.id,
+        type: "member_joined",
+        actorUserId: member.id,
+        payload: { role: "member" }
+      });
+
+      await redactInOtherOrganization(() => repository.redactMember(member.id));
+
+      expect(await payloadsOf([granted, revoked, updated, grantedToOwner, joined])).toEqual([
+        { role: "admin" },
+        {},
+        { role: "member", projectAccess: "all" },
+        ownerGranted,
+        { role: "member" }
+      ]);
+    });
+
+    it("leaves the feed as it is when run again", async () => {
+      const { repository, organization, member, payloadsOf } = await setup();
+      const accepted = await seedOrganizationInvitation({ organizationId: organization.id, status: "accepted", acceptedByUserId: member.id });
+      const activities = [
+        await seedOrganizationActivity({ organizationId: organization.id, type: "member_invited", payload: { email: accepted.email, role: "member" } }),
+        await seedOrganizationActivity({ organizationId: organization.id, type: "member_revoked", payload: { userId: member.id, username: member.username } })
+      ];
+      await repository.redactMember(member.id);
+      const redacted = await payloadsOf(activities);
+
+      await repository.redactMember(member.id);
+
+      expect(await payloadsOf(activities)).toEqual(redacted);
+    });
+  });
+
   function positionOf({ createdAt, id }: OrganizationActivityWithActor) {
     return { createdAt: createdAt.toISOString(), id };
   }
@@ -99,6 +185,7 @@ describe(OrganizationActivityRepository.name, () => {
   async function setup() {
     const repository = container.resolve(OrganizationActivityRepository);
     const { user: owner, organization } = await seedOrganizationWithOwner();
+    const member = await seedUser({ username: faker.internet.userName(), email: faker.internet.email() });
     const executionContextService = container.resolve(ExecutionContextService);
     const abilityService = container.resolve(AbilityService);
 
@@ -111,6 +198,11 @@ describe(OrganizationActivityRepository.name, () => {
         return await run(abilityService.getAbilityFor("REGULAR_USER", user));
       });
 
-    return { repository, organization, owner, runIn };
+    const redactInOtherOrganization = (redact: () => Promise<void>) => runIn({ user: member, organizationType: "personal" }, redact);
+
+    const payloadsOf = async (activities: OrganizationActivityOutput[]) =>
+      await Promise.all(activities.map(async ({ id }) => (await repository.findById(id))?.payload));
+
+    return { repository, organization, owner, member, runIn, redactInOtherOrganization, payloadsOf };
   }
 });
