@@ -7,6 +7,7 @@ import { useSnackbar } from "notistack";
 import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCreditsSnackbarContent/AddCreditsSnackbarContent";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useMarkActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { isEmptyServicesPatch } from "@src/utils/sdl/sdlServicesPatch";
@@ -31,6 +32,7 @@ export const DEPENDENCIES = {
   useBalances,
   useSnackbar,
   useQueryClient,
+  useMarkActivityOutcomes,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   sealSdlSecrets
 };
@@ -81,6 +83,7 @@ export function useDeploymentUpdateSubmit(
   const { refetch: refetchBalances } = d.useBalances(address);
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const queryClient = d.useQueryClient();
+  const { forgetEarlierOutcomes, markOutcomeHandled } = d.useMarkActivityOutcomes();
   const getSdlSecretsContext = api.v1.getSDLSecretsContext.useMutation();
   const patchDeployment = api.v1.patchDeployment.useMutation();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -102,7 +105,7 @@ export function useDeploymentUpdateSubmit(
     try {
       const sealedSecrets = await seal(update.secrets);
       const services = isEmptyServicesPatch(update.services) ? {} : { services: update.services };
-      response = await patchDeployment.mutateAsync({ dseq, data: { ...services, sealedSecrets, ifManifestVersion: manifestVersion } });
+      response = await sendPatch({ ...services, sealedSecrets, ifManifestVersion: manifestVersion });
     } catch (cause) {
       if (canResealOnce && isStaleSeal(cause)) {
         await sealAndPatch(update, false);
@@ -113,6 +116,19 @@ export function useDeploymentUpdateSubmit(
     }
 
     completeUpdate(update.values, response.data.manifestVersion);
+  }
+
+  /** Marks the outcome only once the api answered, so a seal that failed before anything was sent leaves no mark for the activity host. */
+  async function sendPatch(data: Parameters<typeof patchDeployment.mutateAsync>[0]["data"]) {
+    forgetEarlierOutcomes("deployment_update", dseq);
+    try {
+      const response = await patchDeployment.mutateAsync({ dseq, data });
+      markOutcomeHandled("deployment_update", dseq, "succeeded");
+      return response;
+    } catch (cause) {
+      markOutcomeHandled("deployment_update", dseq, "failed");
+      throw cause;
+    }
   }
 
   function completeUpdate(values: SdlBuilderFormValuesType, manifestVersion: string | undefined) {

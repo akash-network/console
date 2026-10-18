@@ -298,6 +298,67 @@ describe(ActivityHost.name, () => {
     });
   });
 
+  it.each([
+    { type: "deployment_create", status: "succeeded" },
+    { type: "lease_create", status: "succeeded" },
+    { type: "lease_create", status: "failed" },
+    { type: "deployment_update", status: "succeeded" },
+    { type: "deployment_update", status: "failed" }
+  ] as const)("announces no $type that had already $status when it first heard of it, once its page showed how it ended", ({ type, status }) => {
+    const handled = buildActivity({ type, status, meta: { dseq: "5678" } });
+    const { enqueueSnackbar, queryClient, receive, api, forgetHandledOutcome } = setup({ activities: [], handled: [handled] });
+
+    receive([handled]);
+
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+    expect(forgetHandledOutcome).toHaveBeenCalledWith(handled);
+    expect(invalidatedKeysOf(queryClient)).toEqual(expect.arrayContaining([api.v1.getDeployment.getKey({ dseq: "5678" })]));
+  });
+
+  it("announces a deploy that had already finished when it first heard of it, when no page showed how it ended", () => {
+    const { enqueueSnackbar, receive, forgetHandledOutcome } = setup({ activities: [] });
+
+    receive([buildActivity({ type: "lease_create", status: "failed", meta: { dseq: "5678" } })]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't deploy deployment 5678" }) }), {
+      variant: "error"
+    });
+    expect(forgetHandledOutcome).not.toHaveBeenCalled();
+  });
+
+  it("announces a deploy it saw running in the background, and forgets the outcome its page marked", () => {
+    const pending = buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+    const settled = { ...pending, status: "succeeded" as const };
+    const { enqueueSnackbar, receive, forgetHandledOutcome } = setup({ activities: [pending], handled: [settled] });
+
+    receive([settled]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Deployment 1234 deployed" }) }), {
+      variant: "success"
+    });
+    expect(forgetHandledOutcome).toHaveBeenCalledWith(settled);
+  });
+
+  it("announces a deploy that ended differently from what its page showed", () => {
+    const deployed = buildActivity({ type: "lease_create", status: "succeeded", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [], handled: [{ ...deployed, status: "failed" }] });
+
+    receive([deployed]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Deployment 1234 deployed" }) }), {
+      variant: "success"
+    });
+  });
+
+  it("forgets no mark for a close it announces", () => {
+    const pending = buildActivity({ status: "pending", meta: { dseq: "1234" } });
+    const { receive, forgetHandledOutcome } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "succeeded" }]);
+
+    expect(forgetHandledOutcome).not.toHaveBeenCalled();
+  });
+
   it("announces nothing while an action is still pending", () => {
     const pending = buildActivity({ status: "pending" });
     const { enqueueSnackbar, receive } = setup({ activities: [] });
@@ -571,6 +632,7 @@ describe(ActivityHost.name, () => {
         useLatestActivitiesQuery,
         useDeploymentNames,
         useCloseBatchesBeingSent: () => new Set(),
+        useHandledActivityOutcomes: () => ({ isOutcomeHandled: () => false, forgetHandledOutcome: vi.fn() }),
         useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
         useQueryClient: () => queryClient,
         useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>()
@@ -596,8 +658,13 @@ describe(ActivityHost.name, () => {
     return vi.mocked(queryClient.invalidateQueries).mock.calls.map(([filters]) => filters?.queryKey);
   }
 
-  function setup(input: { isEnabled?: boolean; isSignedIn?: boolean; activities?: Activity[]; address?: string; names?: Record<string, string> } = {}) {
+  function setup(
+    input: { isEnabled?: boolean; isSignedIn?: boolean; activities?: Activity[]; address?: string; names?: Record<string, string>; handled?: Activity[] } = {}
+  ) {
     const user = buildUser();
+    const forgetHandledOutcome = vi.fn();
+    const isOutcomeHandled = (activity: Activity) =>
+      (input.handled ?? []).some(handled => handled.type === activity.type && handled.meta.dseq === activity.meta.dseq && handled.status === activity.status);
     let activities = input.activities;
     let isLoadingNames = false;
     let closeBatchesBeingSent: ReadonlySet<string> = new Set();
@@ -625,6 +692,7 @@ describe(ActivityHost.name, () => {
       useLatestActivitiesQuery,
       useDeploymentNames,
       useCloseBatchesBeingSent: () => closeBatchesBeingSent,
+      useHandledActivityOutcomes: () => ({ isOutcomeHandled, forgetHandledOutcome }),
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar }),
       useQueryClient: () => queryClient,
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push })
@@ -649,6 +717,19 @@ describe(ActivityHost.name, () => {
       await userEvent.click(screen.getByRole("button", { name }));
     };
 
-    return { useLatestActivitiesQuery, useDeploymentNames, useFlag, enqueueSnackbar, closeSnackbar, push, queryClient, api, user, receive, followToastAction };
+    return {
+      useLatestActivitiesQuery,
+      useDeploymentNames,
+      useFlag,
+      enqueueSnackbar,
+      closeSnackbar,
+      push,
+      queryClient,
+      api,
+      user,
+      forgetHandledOutcome,
+      receive,
+      followToastAction
+    };
   }
 });
