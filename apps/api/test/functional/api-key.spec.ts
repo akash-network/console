@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { addDays } from "date-fns";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -194,8 +195,7 @@ describe("API Keys", () => {
 
     it("creates API key and returns full key once", async () => {
       const { token } = await setup();
-      const futureDate = new Date();
-      futureDate.setFullYear(futureDate.getFullYear() + 1);
+      const futureDate = addDays(new Date(), 90);
 
       const response = await app.request("/v1/api-keys", {
         method: "POST",
@@ -259,6 +259,65 @@ describe("API Keys", () => {
         code: "validation_error",
         type: "validation_error"
       });
+    });
+
+    it("rejects API key creation with an expiration date more than one year out", async () => {
+      const { token } = await setup();
+
+      const response = await app.request("/v1/api-keys", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          data: {
+            name: "Test key",
+            expiresAt: addDays(new Date(), 367).toISOString()
+          }
+        })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: "BadRequestError",
+        message: "Validation error",
+        data: [
+          {
+            code: "custom",
+            message: "Expiration date must be at most 1 year from now",
+            path: ["data", "expiresAt"]
+          }
+        ],
+        code: "validation_error",
+        type: "validation_error"
+      });
+    });
+
+    it("expires a key one year after creation when no expiration date is given", async () => {
+      const { token } = await setup();
+      const requestedAt = new Date();
+
+      const response = await app.request("/v1/api-keys", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          data: {
+            name: "Test key"
+          }
+        })
+      });
+
+      expect(response.status).toBe(201);
+      const result = (await response.json()) as { data: { id: string; expiresAt: string } };
+      const expiresAt = new Date(result.data.expiresAt);
+      expect(expiresAt.getTime()).toBeGreaterThanOrEqual(addDays(requestedAt, 365).getTime());
+      expect(expiresAt.getTime()).toBeLessThanOrEqual(addDays(new Date(), 365).getTime());
+      const storedKey = await apiKeyRepository.findOneBy({ id: result.data.id });
+      expect(storedKey?.expiresAt).toBe(result.data.expiresAt);
     });
 
     it("allows API key creation for trial users", async () => {
