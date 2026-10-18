@@ -13,15 +13,18 @@ export class MembersPage {
     return this.page.getByRole("heading", { level: 1, name: "Members" });
   }
 
-  async inviteMember(input: { organizationName: string; email: string; projectName: string }) {
+  /** Without a project, the member is invited to every project, which the dialog offers by default. */
+  async inviteMember(input: { organizationName: string; email: string; projectName?: string }) {
     await this.page.getByRole("button", { name: "Invite members" }).click();
     const dialog = this.page.getByRole("dialog", { name: `Invite to ${input.organizationName}` });
     await dialog.getByLabel("Email addresses").fill(input.email);
     await dialog.getByLabel("Email addresses").press("Enter");
     await dialog.getByRole("radio", { name: /^Member/ }).check();
-    await dialog.getByRole("radio", { name: /^Specific projects/ }).check();
-    await dialog.getByRole("combobox", { name: "Add a project" }).click();
-    await this.page.getByRole("option", { name: input.projectName, exact: true }).click();
+    if (input.projectName) {
+      await dialog.getByRole("radio", { name: /^Specific projects/ }).check();
+      await dialog.getByRole("combobox", { name: "Add a project" }).click();
+      await this.page.getByRole("option", { name: input.projectName, exact: true }).click();
+    }
     await dialog.getByRole("button", { name: "Send invite" }).click();
   }
 
