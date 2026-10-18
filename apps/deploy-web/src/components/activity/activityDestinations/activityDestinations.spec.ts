@@ -106,6 +106,24 @@ describe("activityDestinations", () => {
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
     });
 
+    it.each(["deployment_closed_alert", "deployment_reclaim_alert"] as const)(
+      "leads a %s filed in an organization to the deployment in that organization",
+      type => {
+        const activity = buildActivity({
+          type,
+          status: "info",
+          meta: {
+            alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b",
+            summary: "Deployment 1234 closed",
+            dseq: "1234",
+            organizationId: "9d3b8f0e-2c4a-4b1e-8f6d-7a5c3e1b9d2f"
+          }
+        });
+
+        expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234?org=9d3b8f0e-2c4a-4b1e-8f6d-7a5c3e1b9d2f", label: "View deployment" });
+      }
+    );
+
     it("leads an alert about no particular deployment to the deployments list", () => {
       const activity = buildActivity({
         type: "deployment_closed_alert",

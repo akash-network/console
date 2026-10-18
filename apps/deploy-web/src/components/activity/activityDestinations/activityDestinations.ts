@@ -12,8 +12,14 @@ const DEPLOYMENT_LIST: ActivityDestination = { href: UrlService.deploymentList()
 /** A create that failed left no deployment behind, so trying again means configuring a new one. */
 const NEW_DEPLOYMENT: ActivityDestination = { href: UrlService.configureDeployment(), label: "New deployment" };
 
-function alertDestinationOf({ meta: { dseq } }: Activity): ActivityDestination {
-  return dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST;
+/** The feed spans every organization the user is in, so the link opens the deployment in the one the alert is filed in. */
+function deploymentAlertDestinationOf({ meta: { dseq, organizationId } }: Activity): ActivityDestination {
+  if (!dseq) return DEPLOYMENT_LIST;
+
+  return {
+    href: `${UrlService.deploymentDetails(dseq)}${appendSearchParams({ [ACTIVE_ORGANIZATION_QUERY_PARAM]: organizationId })}`,
+    label: "View deployment"
+  };
 }
 
 /** The feed spans every organization the user is in, so the link opens billing in the one the alert is filed in. */
@@ -43,8 +49,8 @@ const DESTINATIONS: Record<Activity["type"], (activity: Activity) => ActivityDes
   },
   lease_create: ({ meta: { dseq } }) => (dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST),
   wallet_balance_alert: walletBalanceDestinationOf,
-  deployment_closed_alert: alertDestinationOf,
-  deployment_reclaim_alert: alertDestinationOf
+  deployment_closed_alert: deploymentAlertDestinationOf,
+  deployment_reclaim_alert: deploymentAlertDestinationOf
 };
 
 /** A summary of several deployments, such as a bulk close, leads to the list they all show in. */

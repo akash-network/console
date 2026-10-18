@@ -1,6 +1,7 @@
 import { activityDestinationOf, SUMMARY_DESTINATION } from "@src/components/activity/activityDestinations/activityDestinations";
 import { listOf, systemCloseOf } from "@src/components/activity/activityLabels/activityLabels";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
+import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
 /** `partial` is a bulk close that closed some of its deployments and not others. */
 export type ActivityEntryStatus = Activity["status"] | "partial";
@@ -18,12 +19,19 @@ type LabelDeployment = (dseq: string | undefined) => string;
 
 type ActionType = Exclude<Activity["type"], `${string}_alert`>;
 
+type AlertType = Extract<Activity["type"], `${string}_alert`>;
+
 const ENTRY_WORDING = {
   deployment_close: { pending: "Closing", succeeded: "Closed", failed: "Couldn't close", retry: "Try closing it again." },
   deployment_create: { pending: "Creating", succeeded: "Created", failed: "Couldn't create", retry: "Try creating it again." },
   deployment_update: { pending: "Updating", succeeded: "Updated", failed: "Couldn't update", retry: "Try updating it again." },
   lease_create: { pending: "Deploying", succeeded: "Deployed", failed: "Couldn't deploy", retry: "Choose a provider again." }
 } satisfies Record<ActionType, { pending: string; succeeded: string; failed: string; retry: string }>;
+
+const DEPLOYMENT_ALERT_WORDING: Partial<Record<AlertType, (deployment: string) => Pick<ActivityEntry, "title" | "detail">>> = {
+  deployment_closed_alert: deployment => ({ title: `${deployment} was closed` }),
+  deployment_reclaim_alert: deployment => ({ title: `${deployment} is being reclaimed by the provider`, detail: "Take action before the lease is closed." })
+};
 
 /** A bulk close reads as one entry, placed where its newest close is, so it never crowds out everything else. */
 export function activityEntriesOf(activities: Activity[], labelDeployment: LabelDeployment, limit: number): ActivityEntry[] {
@@ -52,7 +60,7 @@ export function activityEntryOf(activity: Activity, labelDeployment: LabelDeploy
   const { id, type, status, initiator, meta, createdAt } = activity;
   const { href } = activityDestinationOf(activity);
 
-  if (!isActionType(type)) return { id, status, title: meta.summary ?? "One of your alerts fired", href, createdAt };
+  if (!isActionType(type)) return { id, status, ...alertWordingOf(type, meta, labelDeployment), href, createdAt };
 
   const wording = ENTRY_WORDING[type];
   const deployment = labelDeployment(meta.dseq);
@@ -62,6 +70,13 @@ export function activityEntryOf(activity: Activity, labelDeployment: LabelDeploy
   if (status === "succeeded") return { id, status, title: `${wording.succeeded} ${deployment}`, href, createdAt };
 
   return { id, status, title: `${wording.failed} ${deployment}`, detail: meta.error?.message ?? wording.retry, href, createdAt };
+}
+
+function alertWordingOf(type: AlertType, { dseq, summary }: Activity["meta"], labelDeployment: LabelDeployment): Pick<ActivityEntry, "title" | "detail"> {
+  const deploymentWording = DEPLOYMENT_ALERT_WORDING[type];
+  if (dseq && deploymentWording) return deploymentWording(capitalizeFirstLetter(labelDeployment(dseq)));
+
+  return { title: summary ?? "One of your alerts fired" };
 }
 
 function batchEntryOf(batchId: string, batch: Activity[], labelDeployment: LabelDeployment): ActivityEntry {
