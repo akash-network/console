@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getPrettyTime, getTodayUTC, toUTC } from "./date";
+import { getPrettyTime, getTodayUTC, isSupportedTimeZone, toUTC } from "./date";
 
 describe("date helpers", () => {
   describe("getTodayUTC", () => {
@@ -43,6 +43,16 @@ describe("date helpers", () => {
       expect(getPrettyTime(60 * 60 * 1000)).toBe("1h 0m");
       expect(getPrettyTime(60 * 60 * 1000 + 60 * 1000)).toBe("1h 1m");
       expect(getPrettyTime(60 * 60 * 1000 + 60 * 1000 + 500)).toBe("1h 1m");
+    });
+  });
+
+  describe("isSupportedTimeZone", () => {
+    it.each(["America/New_York", "UTC", "Etc/UTC", "Asia/Kolkata", "Europe/Kyiv", "US/Eastern"])("accepts %s", timeZone => {
+      expect(isSupportedTimeZone(timeZone)).toBe(true);
+    });
+
+    it.each(["Invalid/Timezone", ""])("rejects %j", timeZone => {
+      expect(isSupportedTimeZone(timeZone)).toBe(false);
     });
   });
 });

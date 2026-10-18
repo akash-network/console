@@ -8,6 +8,7 @@ import type { BillingOwner } from "@src/billing/lib/billing-owner/billing-owner"
 import { StripeTransactionRepository, type StripeTransactionWithInitiator } from "@src/billing/repositories";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { TransactionCsvRow } from "@src/types/transactions";
+import { isSupportedTimeZone } from "@src/utils/date/date";
 
 /** A team's transaction whose member has deleted their account names no one. */
 export const DELETED_INITIATOR_LABEL = "Deleted account";
@@ -208,7 +209,7 @@ export class TransactionReportingService {
   }
 
   private normalizeTimeZone(tz: string): string {
-    if (Intl.supportedValuesOf("timeZone").includes(tz)) {
+    if (isSupportedTimeZone(tz)) {
       return tz;
     }
 

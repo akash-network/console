@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
+import { isSupportedTimeZone } from "@src/utils/date/date";
+
 const UIntStringSchema = z.string().regex(/^\d+$/, "Must be an unsigned integer string");
 
 const ResourceValueSchema = z.object({
@@ -114,19 +116,6 @@ const RequirementsSchema = z.object({
   attributes: z.array(AttributeSchema).default([])
 });
 
-/**
- * Accepts any IANA zone the runtime recognizes, including aliases such as `Asia/Kolkata`, `UTC`, or
- * `US/Eastern` that browsers report but `Intl.supportedValuesOf("timeZone")` omits (it lists only
- * canonical names). Mirrors what Postgres `AT TIME ZONE` accepts downstream.
- */
-function isSupportedTimeZone(timeZone: string): boolean {
-  try {
-    new Intl.DateTimeFormat(undefined, { timeZone });
-    return true;
-  } catch {
-    return false;
-  }
-}
 export const BidScreeningRequestSchema = z.object({
   requirements: RequirementsSchema.default({}),
   resources: z.array(ResourceUnitSchema).openapi({ description: "Resource units with replica counts" }),

@@ -198,6 +198,26 @@ describe(TransactionReportingService.name, () => {
       expect(fullCsv).toContain("4242");
     });
 
+    it("dates transactions in a zone alias the browser reports", async () => {
+      const { service } = setup();
+      vi.spyOn(service, "getCustomerTransactions").mockResolvedValue({ transactions: [createTestTransaction()], totalCount: 1, hasMore: false });
+
+      const fullCsv = await readCsv(service.exportTransactionsCsvStream(OWNER, { ...CSV_RANGE, timezone: "Asia/Kolkata" }));
+
+      expect(fullCsv).toContain("Date (Asia/Kolkata)");
+      expect(fullCsv).toContain("2022-01-01, 5:30:00 a.m.");
+    });
+
+    it("dates transactions in UTC when the zone is unknown", async () => {
+      const { service } = setup();
+      vi.spyOn(service, "getCustomerTransactions").mockResolvedValue({ transactions: [createTestTransaction()], totalCount: 1, hasMore: false });
+
+      const fullCsv = await readCsv(service.exportTransactionsCsvStream(OWNER, { ...CSV_RANGE, timezone: "Invalid/Timezone" }));
+
+      expect(fullCsv).toContain("Date (UTC)");
+      expect(fullCsv).toContain("2022-01-01, 12:00:00 a.m.");
+    });
+
     it("adds the member who made each transaction to a team's export", async () => {
       const { service } = setup();
       vi.spyOn(service, "getCustomerTransactions").mockResolvedValue({
