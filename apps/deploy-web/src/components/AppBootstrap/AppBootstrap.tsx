@@ -1,16 +1,20 @@
 "use client";
 import { useEffect } from "react";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useTrackInAppNavigation } from "@src/hooks/useHasInAppHistory";
 import { migrateLocalStorage } from "@src/utils/localStorage";
 import { forgetRetiredStorage } from "@src/utils/retiredStorage/retiredStorage";
+import { registerServiceWorker } from "@src/utils/serviceWorker/registerServiceWorker";
 
 export const DEPENDENCIES = {
   useTrackInAppNavigation,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   migrateLocalStorage,
   // eslint-disable-next-line akash/dependencies-component-or-hook
-  forgetRetiredStorage
+  forgetRetiredStorage,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
+  registerServiceWorker
 };
 
 type Props = {
@@ -18,16 +22,22 @@ type Props = {
 };
 
 /**
- * Mount-once app side effects that belong to no single feature: local storage migrations and the
- * route history the "go back" affordances read. Rendered as a sibling rather than a provider because
- * nothing consumes a value from it, and it must sit inside the jotai store provider.
+ * Mount-once app side effects that belong to no single feature: local storage migrations, the
+ * offline service worker, and the route history the "go back" affordances read. Rendered as a sibling
+ * rather than a provider because nothing consumes a value from it, and it must sit inside the jotai store provider.
  */
 export const AppBootstrap: React.FunctionComponent<Props> = ({ dependencies: d = DEPENDENCIES }) => {
+  const { logger } = useServices();
   d.useTrackInAppNavigation();
 
   useEffect(function applyLocalStorageMigrations() {
     d.migrateLocalStorage();
     d.forgetRetiredStorage(window.localStorage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(function startOfflineServiceWorker() {
+    d.registerServiceWorker(window.workbox, logger);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
