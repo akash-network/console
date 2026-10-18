@@ -10,7 +10,7 @@ import { SDL_SECRETS_KMS_TARGET } from "@src/deployment/providers/kms.provider";
 import type { KmsWrappedJweFailure, ParsedKmsWrappedJwe } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
 import { KmsWrappedJweError, KmsWrappedJweService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
-import type { DataKeyOutput } from "@src/secret/repositories/data-key/data-key.repository";
+import type { DataKeyOutput, DataKeyOwner } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import { DataKeyUnwrapInstrumentationService } from "./data-key-unwrap-instrumentation.service";
 
@@ -26,9 +26,14 @@ const KEY_SERVICE_FAILURES: ReadonlySet<KmsWrappedJweFailure> = new Set([
   "KEY_SERVICE_RESPONSE_CORRUPTED"
 ]);
 
-/** The active key is held under the user alone and any other key under the user and its id, so a request never confuses the two. */
-function heldKeyFor(userId: string, dataKeyId: string) {
-  return `${userId}/${dataKeyId}`;
+/** A user's key and a team's key are held apart whatever their ids. */
+function heldOwnerOf(owner: DataKeyOwner) {
+  return owner.organizationId === undefined ? `user:${owner.userId}` : `organization:${owner.organizationId}`;
+}
+
+/** The active key is held under its owner alone and any other key under the owner and its id, so a request never confuses the two. */
+function heldKeyFor(owner: DataKeyOwner, dataKeyId: string) {
+  return `${heldOwnerOf(owner)}/${dataKeyId}`;
 }
 
 /** Never holds an unwrapped key on this instance, because a resolution-scoped field would be pinned for the process lifetime by the first singleton to inject it. */
@@ -47,25 +52,32 @@ export class DataKeyUnwrapperService {
     this.#loggerService = createLogger({ context: DataKeyUnwrapperService.name });
   }
 
+  /** `findDataKey` shares this slot and may hold it with a miss, so a caller that needs the key asks again once that miss is forgotten. */
   async getDataKey(userId: string): Promise<HeldDataKey> {
-    return await this.#holdOnce(userId, userId, async () => await this.dataKeyService.ensureDataKey(userId));
+    const owner = { userId };
+    const held = await this.#holdOnce(owner, heldOwnerOf(owner), async () => await this.dataKeyService.ensureDataKey(userId));
+
+    return held ?? (await this.getDataKey(userId));
   }
 
-  /** Serves a value sealed under a key other than the active one, such as one retired while its values are re-sealed; undefined when the user owns no such key. */
-  async getDataKeyById(userId: string, dataKeyId: string): Promise<HeldDataKey | undefined> {
-    return await this.#holdOnce(userId, heldKeyFor(userId, dataKeyId), async () => await this.dataKeyService.findDataKeyById(userId, dataKeyId));
+  /** The active key without creating one, held as `getDataKey` holds it; undefined when the owner has none. */
+  async findDataKey(owner: DataKeyOwner): Promise<HeldDataKey | undefined> {
+    return await this.#holdOnce(owner, heldOwnerOf(owner), async () => await this.dataKeyService.findActiveDataKey(owner));
+  }
+
+  /** Serves a value sealed under a key other than the active one, such as one retired while its values are re-sealed; undefined when the owner holds no such key. */
+  async getDataKeyById(owner: DataKeyOwner, dataKeyId: string): Promise<HeldDataKey | undefined> {
+    return await this.#holdOnce(owner, heldKeyFor(owner, dataKeyId), async () => await this.dataKeyService.findDataKeyById(owner, dataKeyId));
   }
 
   /** Callers racing for the same key share one holding from before the row is read, so the row is read and the key unwrapped once for the request; a miss is forgotten so the next ask reads again. */
-  #holdOnce(userId: string, heldAs: string, readDataKey: () => Promise<DataKeyOutput>): Promise<HeldDataKey>;
-  #holdOnce(userId: string, heldAs: string, readDataKey: () => Promise<DataKeyOutput | undefined>): Promise<HeldDataKey | undefined>;
-  async #holdOnce(userId: string, heldAs: string, readDataKey: () => Promise<DataKeyOutput | undefined>): Promise<HeldDataKey | undefined> {
-    const heldThisRequest = this.#heldDataKeys(userId);
+  async #holdOnce(owner: DataKeyOwner, heldAs: string, readDataKey: () => Promise<DataKeyOutput | undefined>): Promise<HeldDataKey | undefined> {
+    const heldThisRequest = this.#heldDataKeys(owner);
     const held = heldThisRequest.get(heldAs);
 
     if (held) return await held;
 
-    const holding = this.#holdDataKey(userId, readDataKey, heldThisRequest)
+    const holding = this.#holdDataKey(owner, readDataKey, heldThisRequest)
       .then(dataKey => {
         if (!dataKey) heldThisRequest.delete(heldAs);
 
@@ -82,9 +94,9 @@ export class DataKeyUnwrapperService {
     return await holding;
   }
 
-  #heldDataKeys(userId: string) {
+  #heldDataKeys(owner: DataKeyOwner) {
     if (!this.executionContextService.hasContext()) {
-      throw this.#rejectUnreadable("USER_DATA_KEY_OUTSIDE_REQUEST", { userId });
+      throw this.#rejectUnreadable("USER_DATA_KEY_OUTSIDE_REQUEST", { ...owner });
     }
 
     const held = this.#currentlyHeldDataKeys();
@@ -103,25 +115,25 @@ export class DataKeyUnwrapperService {
 
   /** Neither a failed nor a refused unwrap is remembered: the first lets a recovered key service serve the next value, the second drops the only reference this process holds to the plaintext key. */
   async #holdDataKey(
-    userId: string,
+    owner: DataKeyOwner,
     readDataKey: () => Promise<DataKeyOutput | undefined>,
     heldThisRequest: Map<string, Promise<HeldDataKey | undefined>>
   ): Promise<HeldDataKey | undefined> {
     const dataKey = await readDataKey();
 
     if (!dataKey) return undefined;
-    this.unwrapInstrumentationService.beginCountingUnwraps(userId);
+    this.unwrapInstrumentationService.beginCountingUnwraps(heldOwnerOf(owner));
     let unwrapping: Promise<Buffer> | undefined;
 
     const unwrap = async () => {
       if (this.#currentlyHeldDataKeys() !== heldThisRequest) {
         unwrapping = undefined;
 
-        throw this.#rejectUnreadable("USER_DATA_KEY_ESCAPED_REQUEST", { userId, dataKeyId: dataKey.id });
+        throw this.#rejectUnreadable("USER_DATA_KEY_ESCAPED_REQUEST", { ...owner, dataKeyId: dataKey.id });
       }
 
       if (!unwrapping) {
-        unwrapping = this.#unwrapDataKey(dataKey, userId).catch(error => {
+        unwrapping = this.#unwrapDataKey(dataKey, owner).catch(error => {
           unwrapping = undefined;
 
           throw error;
@@ -134,51 +146,51 @@ export class DataKeyUnwrapperService {
     return { id: dataKey.id, unwrap };
   }
 
-  async #unwrapDataKey(dataKey: DataKeyOutput, userId: string): Promise<Buffer> {
-    const parsed = this.#parseWrappedKey(dataKey.wrappedKey, userId);
+  async #unwrapDataKey(dataKey: DataKeyOutput, owner: DataKeyOwner): Promise<Buffer> {
+    const parsed = this.#parseWrappedKey(dataKey.wrappedKey, owner);
     const versionName = this.kmsTarget.resolveVersionName(parsed.header.kid);
 
     if (!versionName) {
       throw this.#rejectUnavailable("USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID", {
-        userId,
+        ...owner,
         received: parsed.header.kid,
         expected: this.kmsTarget.kid
       });
     }
 
-    const key = await this.#openWrappedKey(parsed, versionName, userId);
+    const key = await this.#openWrappedKey(parsed, versionName, owner);
 
     if (key.length !== DATA_ENCRYPTION_KEY_BYTES) {
-      throw this.#rejectUnreadable("USER_DATA_KEY_LENGTH_UNEXPECTED", { userId, keyBytes: key.length });
+      throw this.#rejectUnreadable("USER_DATA_KEY_LENGTH_UNEXPECTED", { ...owner, keyBytes: key.length });
     }
 
-    this.unwrapInstrumentationService.countUnwrap(userId);
-    this.#loggerService.info({ event: "USER_DATA_KEY_UNWRAPPED", userId, dataKeyId: dataKey.id, kid: parsed.header.kid });
+    this.unwrapInstrumentationService.countUnwrap(heldOwnerOf(owner));
+    this.#loggerService.info({ event: "USER_DATA_KEY_UNWRAPPED", ...owner, dataKeyId: dataKey.id, kid: parsed.header.kid });
 
     return key;
   }
 
-  #parseWrappedKey(wrappedKey: string, userId: string): ParsedKmsWrappedJwe {
+  #parseWrappedKey(wrappedKey: string, owner: DataKeyOwner): ParsedKmsWrappedJwe {
     try {
       return this.wrappedJweService.parse(wrappedKey);
     } catch (error) {
-      throw this.#rejectWrappedJweFailure(error, userId);
+      throw this.#rejectWrappedJweFailure(error, owner);
     }
   }
 
-  async #openWrappedKey(parsed: ParsedKmsWrappedJwe, versionName: string, userId: string): Promise<Buffer> {
+  async #openWrappedKey(parsed: ParsedKmsWrappedJwe, versionName: string, owner: DataKeyOwner): Promise<Buffer> {
     try {
       return await this.wrappedJweService.open(parsed, versionName);
     } catch (error) {
-      throw this.#rejectWrappedJweFailure(error, userId);
+      throw this.#rejectWrappedJweFailure(error, owner);
     }
   }
 
   /** A wrapped data key is our own row, so nothing about it is ever reported as the caller's mistake. */
-  #rejectWrappedJweFailure(error: unknown, userId: string) {
+  #rejectWrappedJweFailure(error: unknown, owner: DataKeyOwner) {
     if (!(error instanceof KmsWrappedJweError)) return error;
 
-    const details = { userId, failure: error.failure, ...error.details };
+    const details = { ...owner, failure: error.failure, ...error.details };
 
     if (error.failure === "WRAPPING_VERSION_UNUSABLE") {
       return this.#rejectUnavailable("USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID", { ...details, expected: this.kmsTarget.kid });

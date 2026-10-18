@@ -275,7 +275,7 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
           await executionContextService.runWithContext(async () => {
             const setting = await deploymentSettingRepository.findOneBy({ userId, dseq });
 
-            return await cipher.decrypt(userId, setting!.sealedSecrets!, { dseq });
+            return await cipher.decrypt({ userId }, setting!.sealedSecrets!, { dseq });
           })
       };
     };
@@ -334,7 +334,7 @@ describe(`${DataKeyRewrapService.name} against Cloud KMS`, () => {
       const rows = await dataKeyRepository.find({});
 
       return rows
-        .filter(row => createdUserIds.includes(row.userId))
+        .filter(row => row.userId !== null && createdUserIds.includes(row.userId))
         .sort((left, right) => (left.id < right.id ? -1 : 1))
         .map(({ id, wrappedKey, wrappedByKid }) => ({ id, wrappedKey, wrappedByKid }));
     }

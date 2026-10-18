@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import type { protos } from "@google-cloud/kms";
 import type { Histogram, Meter } from "@opentelemetry/api";
 import crc32c from "fast-crc32c";
@@ -15,7 +16,7 @@ import type { SdlSecretsKmsClient } from "@src/deployment/providers/kms.provider
 import { KmsWrappedJweService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe.service";
 import type { KmsWrappedJweInstrumentationService } from "@src/deployment/services/kms-wrapped-jwe/kms-wrapped-jwe-instrumentation.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
-import type { DataKeyOutput } from "@src/secret/repositories/data-key/data-key.repository";
+import type { DataKeyOutput, DataKeyOwner } from "@src/secret/repositories/data-key/data-key.repository";
 import type { DataKeyService } from "@src/secret/services/data-key/data-key.service";
 import { DataKeyUnwrapInstrumentationService } from "./data-key-unwrap-instrumentation.service";
 import { DataKeyUnwrapperService } from "./data-key-unwrapper.service";
@@ -174,12 +175,116 @@ describe(DataKeyUnwrapperService.name, () => {
     expect(heldInNextRequest).toBeUndefined();
   });
 
+  describe("findDataKey", () => {
+    it("returns the user's active key without creating one", async () => {
+      const { service, inRequest, dataKeyService, rowFor, keyFor } = setup();
+      await inRequest(async () => await service.getDataKey(USER_A));
+      dataKeyService.ensureDataKey.mockClear();
+
+      const found = await inRequest(async () => {
+        const held = await service.findDataKey({ userId: USER_A });
+
+        return { id: held!.id, key: await held!.unwrap() };
+      });
+
+      expect(found.id).toBe(rowFor(USER_A).id);
+      expect(found.key.equals(keyFor(USER_A))).toBe(true);
+      expect(dataKeyService.ensureDataKey).not.toHaveBeenCalled();
+    });
+
+    it("shares one holding with getDataKey, so a request that opens a value and seals another unwraps once", async () => {
+      const { service, inRequest, kmsClient, dataKeyService } = setup();
+      await inRequest(async () => await service.getDataKey(USER_A));
+      dataKeyService.ensureDataKey.mockClear();
+
+      await inRequest(async () => {
+        await (await service.findDataKey({ userId: USER_A }))!.unwrap();
+        await (await service.getDataKey(USER_A)).unwrap();
+      });
+
+      expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(1);
+      expect(dataKeyService.ensureDataKey).not.toHaveBeenCalled();
+    });
+
+    it("returns nothing for an owner that holds no active key, and forgets the miss", async () => {
+      const { service, inRequest, dataKeyService } = setup();
+      const team = { organizationId: faker.string.uuid() };
+
+      const found = await inRequest(async () => [await service.findDataKey(team), await service.findDataKey(team)]);
+
+      expect(found).toEqual([undefined, undefined]);
+      expect(dataKeyService.findActiveDataKey).toHaveBeenCalledTimes(2);
+    });
+
+    it("still hands getDataKey a key when it joins a lookup that comes back empty", async () => {
+      const { service, inRequest, dataKeyService, rowFor } = setup();
+
+      const [found, got] = await inRequest(async () => await Promise.all([service.findDataKey({ userId: USER_A }), service.getDataKey(USER_A)]));
+
+      expect(found).toBeUndefined();
+      expect(got.id).toBe(rowFor(USER_A).id);
+      expect(dataKeyService.ensureDataKey).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("a team's data key", () => {
+    it("returns the key the team's active row wraps and names the team when it unwraps it", async () => {
+      const { service, inRequest, seedTeamKey, logger } = setup();
+      const organizationId = faker.string.uuid();
+      const teamKey = await seedTeamKey(organizationId);
+
+      const key = await inRequest(async () => await (await service.findDataKey({ organizationId }))!.unwrap());
+
+      expect(key.equals(teamKey.key)).toBe(true);
+      expect(logger.info).toHaveBeenCalledWith({ event: "USER_DATA_KEY_UNWRAPPED", organizationId, dataKeyId: teamKey.row.id, kid: KID });
+    });
+
+    it("returns a retired key of the team's by id, and none of the team's for a member asking by the same id", async () => {
+      const { service, inRequest, seedTeamKey } = setup();
+      const organizationId = faker.string.uuid();
+      const retired = await seedTeamKey(organizationId, { retired: true });
+
+      const [forTeam, forMember] = await inRequest(async () => [
+        await (await service.getDataKeyById({ organizationId }, retired.row.id))!.unwrap(),
+        await service.getDataKeyById({ userId: USER_A }, retired.row.id)
+      ]);
+
+      expect(forTeam.equals(retired.key)).toBe(true);
+      expect(forMember).toBeUndefined();
+    });
+
+    it("keeps a member's key and the team's key apart in one request, measuring each owner once", async () => {
+      const { service, inRequest, seedTeamKey, keyFor, kmsClient, unwrapsPerRequest } = setup();
+      const organizationId = faker.string.uuid();
+      const teamKey = await seedTeamKey(organizationId);
+
+      const [memberKey, teamUnwrapped] = await inRequest(async () => [
+        await (await service.getDataKey(USER_A)).unwrap(),
+        await (await service.findDataKey({ organizationId }))!.unwrap()
+      ]);
+
+      expect(memberKey.equals(keyFor(USER_A))).toBe(true);
+      expect(teamUnwrapped.equals(teamKey.key)).toBe(true);
+      expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(2);
+      expect(unwrapsPerRequest.record.mock.calls).toEqual([[1], [1]]);
+    });
+
+    it("refuses to hand out a team's key outside any request, naming the team", async () => {
+      const { service, seedTeamKey, logger } = setup();
+      const organizationId = faker.string.uuid();
+      await seedTeamKey(organizationId);
+
+      await expect(service.findDataKey({ organizationId })).rejects.toMatchObject({ status: 500, message: SECRET_UNREADABLE_ERROR_MESSAGE });
+      expect(logger.error).toHaveBeenCalledWith({ event: "USER_DATA_KEY_OUTSIDE_REQUEST", organizationId });
+    });
+  });
+
   describe("getDataKeyById", () => {
     it("returns the key a retired row of the user's wraps", async () => {
       const { service, inRequest, seedRetiredKey } = setup();
       const retired = await seedRetiredKey(USER_A);
 
-      const key = await inRequest(async () => await (await service.getDataKeyById(USER_A, retired.row.id))!.unwrap());
+      const key = await inRequest(async () => await (await service.getDataKeyById({ userId: USER_A }, retired.row.id))!.unwrap());
 
       expect(key.equals(retired.key)).toBe(true);
     });
@@ -188,7 +293,7 @@ describe(DataKeyUnwrapperService.name, () => {
       const { service, inRequest, seedRetiredKey, kmsClient } = setup();
       const retired = await seedRetiredKey(USER_B);
 
-      const held = await inRequest(async () => await service.getDataKeyById(USER_A, retired.row.id));
+      const held = await inRequest(async () => await service.getDataKeyById({ userId: USER_A }, retired.row.id));
 
       expect(held).toBeUndefined();
       expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
@@ -199,8 +304,8 @@ describe(DataKeyUnwrapperService.name, () => {
       const retired = await seedRetiredKey(USER_A);
 
       await inRequest(async () => {
-        await (await service.getDataKeyById(USER_A, retired.row.id))!.unwrap();
-        await (await service.getDataKeyById(USER_A, retired.row.id))!.unwrap();
+        await (await service.getDataKeyById({ userId: USER_A }, retired.row.id))!.unwrap();
+        await (await service.getDataKeyById({ userId: USER_A }, retired.row.id))!.unwrap();
       });
 
       expect(dataKeyService.findDataKeyById).toHaveBeenCalledTimes(1);
@@ -214,7 +319,9 @@ describe(DataKeyUnwrapperService.name, () => {
       await inRequest(
         async () =>
           await Promise.all(
-            [service.getDataKeyById(USER_A, retired.row.id), service.getDataKeyById(USER_A, retired.row.id)].map(async held => await (await held)!.unwrap())
+            [service.getDataKeyById({ userId: USER_A }, retired.row.id), service.getDataKeyById({ userId: USER_A }, retired.row.id)].map(
+              async held => await (await held)!.unwrap()
+            )
           )
       );
 
@@ -226,8 +333,8 @@ describe(DataKeyUnwrapperService.name, () => {
       const { service, inRequest, dataKeyService } = setup();
 
       await inRequest(async () => {
-        await service.getDataKeyById(USER_A, "6f2c0a2e-0000-4000-8000-000000000000");
-        await service.getDataKeyById(USER_A, "6f2c0a2e-0000-4000-8000-000000000000");
+        await service.getDataKeyById({ userId: USER_A }, "6f2c0a2e-0000-4000-8000-000000000000");
+        await service.getDataKeyById({ userId: USER_A }, "6f2c0a2e-0000-4000-8000-000000000000");
       });
 
       expect(dataKeyService.findDataKeyById).toHaveBeenCalledTimes(2);
@@ -239,7 +346,7 @@ describe(DataKeyUnwrapperService.name, () => {
 
       const [active, retiredKey] = await inRequest(async () => [
         await (await service.getDataKey(USER_A)).unwrap(),
-        await (await service.getDataKeyById(USER_A, retired.row.id))!.unwrap()
+        await (await service.getDataKeyById({ userId: USER_A }, retired.row.id))!.unwrap()
       ]);
 
       expect(active.equals(keyFor(USER_A))).toBe(true);
@@ -254,8 +361,8 @@ describe(DataKeyUnwrapperService.name, () => {
       const second = await seedRetiredKey(USER_A);
 
       const [firstKey, secondKey] = await inRequest(async () => [
-        await (await service.getDataKeyById(USER_A, first.row.id))!.unwrap(),
-        await (await service.getDataKeyById(USER_A, second.row.id))!.unwrap()
+        await (await service.getDataKeyById({ userId: USER_A }, first.row.id))!.unwrap(),
+        await (await service.getDataKeyById({ userId: USER_A }, second.row.id))!.unwrap()
       ]);
 
       expect(firstKey.equals(first.key)).toBe(true);
@@ -267,7 +374,7 @@ describe(DataKeyUnwrapperService.name, () => {
       const { service, inRequest, seedRetiredKey, logger } = setup();
       const retired = await seedRetiredKey(USER_A);
 
-      await inRequest(async () => await (await service.getDataKeyById(USER_A, retired.row.id))!.unwrap());
+      await inRequest(async () => await (await service.getDataKeyById({ userId: USER_A }, retired.row.id))!.unwrap());
 
       expect(logger.info).toHaveBeenCalledWith({ event: "USER_DATA_KEY_UNWRAPPED", userId: USER_A, dataKeyId: retired.row.id, kid: KID });
     });
@@ -278,7 +385,7 @@ describe(DataKeyUnwrapperService.name, () => {
 
       await inRequest(async () => {
         await (await service.getDataKey(USER_A)).unwrap();
-        await (await service.getDataKeyById(USER_A, retired.row.id))!.unwrap();
+        await (await service.getDataKeyById({ userId: USER_A }, retired.row.id))!.unwrap();
       });
 
       expect(unwrapsPerRequest.record).toHaveBeenCalledExactlyOnceWith(2);
@@ -288,7 +395,7 @@ describe(DataKeyUnwrapperService.name, () => {
       const { service, seedRetiredKey, logger } = setup();
       const retired = await seedRetiredKey(USER_A);
 
-      await expect(service.getDataKeyById(USER_A, retired.row.id)).rejects.toMatchObject({ status: 500, message: SECRET_UNREADABLE_ERROR_MESSAGE });
+      await expect(service.getDataKeyById({ userId: USER_A }, retired.row.id)).rejects.toMatchObject({ status: 500, message: SECRET_UNREADABLE_ERROR_MESSAGE });
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "USER_DATA_KEY_OUTSIDE_REQUEST" }));
     });
   });
@@ -592,20 +699,40 @@ describe(DataKeyUnwrapperService.name, () => {
       return row;
     });
 
+    const isHeldBy = (row: DataKeyOutput, owner: DataKeyOwner) =>
+      owner.organizationId === undefined ? row.userId === owner.userId : row.organizationId === owner.organizationId;
+
     const retiredRows = new Map<string, { row: DataKeyOutput; key: Buffer }>();
-    dataKeyService.findDataKeyById.mockImplementation(async (userId, id) => {
+    dataKeyService.findDataKeyById.mockImplementation(async (owner, id) => {
       const retired = retiredRows.get(id);
 
-      return retired?.row.userId === userId ? retired.row : undefined;
+      return retired && isHeldBy(retired.row, owner) ? retired.row : undefined;
     });
 
-    const seedRetiredKey = async (userId: string) => {
+    const teamRows = new Map<string, { row: DataKeyOutput; key: Buffer }>();
+    dataKeyService.findActiveDataKey.mockImplementation(async owner =>
+      owner.organizationId === undefined ? rows.get(owner.userId) : teamRows.get(owner.organizationId)?.row
+    );
+
+    const wrappedRow = async (owned: Pick<DataKeyOutput, "userId" | "organizationId" | "retiredAt">) => {
       const key = randomBytes(32);
       const wrapped = await new CompactEncrypt(key).setProtectedHeader({ alg: "RSA-OAEP-256", enc: "A256GCM", kid: wrappedKid }).encrypt(publicKey);
-      const row = createDataKey({ userId, wrappedKey: wrapped, wrappedByKid: wrappedKid, retiredAt: new Date() });
-      retiredRows.set(row.id, { row, key });
 
-      return { row, key };
+      return { row: createDataKey({ ...owned, wrappedKey: wrapped, wrappedByKid: wrappedKid }), key };
+    };
+
+    const seedRetiredKey = async (userId: string) => {
+      const retired = await wrappedRow({ userId, organizationId: null, retiredAt: new Date() });
+      retiredRows.set(retired.row.id, retired);
+
+      return retired;
+    };
+
+    const seedTeamKey = async (organizationId: string, { retired = false }: { retired?: boolean } = {}) => {
+      const teamKey = await wrappedRow({ userId: null, organizationId, retiredAt: retired ? new Date() : null });
+      (retired ? retiredRows : teamRows).set(retired ? teamKey.row.id : organizationId, teamKey);
+
+      return teamKey;
     };
 
     const kmsClient = mock<SdlSecretsKmsClient>();
@@ -686,6 +813,7 @@ describe(DataKeyUnwrapperService.name, () => {
       keyFor,
       rowFor,
       seedRetiredKey,
+      seedTeamKey,
       unwrappedUserIds,
       expectNoKeyMaterialLogged
     };

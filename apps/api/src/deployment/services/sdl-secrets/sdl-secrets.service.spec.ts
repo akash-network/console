@@ -493,7 +493,7 @@ describe(SdlSecretsService.name, () => {
 
       await service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL });
 
-      expect(secretCipherService.decrypt).toHaveBeenCalledWith("user-1", SEAL, { sub: "user-1", dseq: "1420000" });
+      expect(secretCipherService.decrypt).toHaveBeenCalledWith({ userId: "user-1" }, SEAL, { sub: "user-1", dseq: "1420000" });
     });
 
     it("returns every value the token carries", async () => {

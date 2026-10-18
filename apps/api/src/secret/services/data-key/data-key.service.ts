@@ -7,7 +7,7 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.p
 import { SDL_SECRETS_CONTENT_ENCRYPTION, SDL_SECRETS_SEAL_ALGORITHM, SDL_SECRETS_UNAVAILABLE_ERROR_MESSAGE } from "@src/deployment/config/sdl-secrets.config";
 import type { SdlSecretsSealingKey } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
-import type { DataKeyInput, DataKeyOutput } from "@src/secret/repositories/data-key/data-key.repository";
+import type { DataKeyInput, DataKeyOutput, DataKeyOwner } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 
 /** AES-256 content encryption, so the data encryption key is 256 bits. */
@@ -54,12 +54,17 @@ export class DataKeyService {
     return dataKey;
   }
 
-  /** A key of the user's other than the active one: retired while its values are re-sealed, or made active after the caller read the row. */
-  async findDataKeyById(userId: string, id: string): Promise<DataKeyOutput | undefined> {
-    return await this.dataKeyRepository.findOwnedById(userId, id);
+  /** Reading never creates a key: a value can only have been sealed under one that already exists. */
+  async findActiveDataKey(owner: DataKeyOwner): Promise<DataKeyOutput | undefined> {
+    return await this.dataKeyRepository.findActiveOf(owner);
   }
 
-  private async wrapNewDataKey(userId: string): Promise<Pick<DataKeyInput, "userId" | "wrappedKey" | "wrappedByKid">> {
+  /** A key of the owner's other than the active one: retired while its values are re-sealed, or made active after the caller read the row. */
+  async findDataKeyById(owner: DataKeyOwner, id: string): Promise<DataKeyOutput | undefined> {
+    return await this.dataKeyRepository.findOwnedById(owner, id);
+  }
+
+  private async wrapNewDataKey(userId: string): Promise<{ userId: string } & Pick<DataKeyInput, "wrappedKey" | "wrappedByKid">> {
     const sealingKey = this.sealingKeyService.peekSealingKey();
 
     if (!sealingKey) {

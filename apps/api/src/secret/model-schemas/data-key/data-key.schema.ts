@@ -1,13 +1,15 @@
 import { relations, sql } from "drizzle-orm";
-import { index, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { check, index, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
+import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
 
 /**
- * One active data encryption key per user, held only in the form Cloud KMS wrapped it in. Rotation re-wraps
- * this one small row instead of rewriting every value the key protects, and deleting the user
- * crypto-shreds their secrets because no backup of a value is readable without this row. A re-key retires
- * the row and adds a replacement; the retired row stays until every value sealed under it has moved.
+ * One active data encryption key per owner, a user or a team organization, held only in the form Cloud KMS
+ * wrapped it in. Rotation re-wraps this one small row instead of rewriting every value the key protects,
+ * and deleting the owner crypto-shreds their secrets because no backup of a value is readable without this
+ * row. A re-key retires the row and adds a replacement; the retired row stays until every value sealed
+ * under it has moved.
  */
 export const DataKeys = pgTable(
   "data_keys",
@@ -16,9 +18,8 @@ export const DataKeys = pgTable(
       .primaryKey()
       .notNull()
       .default(sql`uuid_generate_v4()`),
-    userId: uuid("user_id")
-      .references(() => Users.id, { onDelete: "cascade" })
-      .notNull(),
+    userId: uuid("user_id").references(() => Users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").references(() => Organizations.id, { onDelete: "cascade" }),
     wrappedKey: text("wrapped_key").notNull(),
     /**
      * Alias of the KMS key version that wrapped this key. The same alias is inside the wrapped blob,
@@ -36,7 +37,14 @@ export const DataKeys = pgTable(
     activeUserIdUnique: uniqueIndex("data_keys_active_user_id_idx")
       .on(table.userId)
       .where(sql`${table.retiredAt} IS NULL`),
-    wrappedByKidIdx: index("data_keys_wrapped_by_kid_idx").on(table.wrappedByKid)
+    activeOrganizationIdUnique: uniqueIndex("data_keys_active_organization_id_idx")
+      .on(table.organizationId)
+      .where(sql`${table.retiredAt} IS NULL`),
+    organizationIdIdx: index("data_keys_organization_id_idx")
+      .on(table.organizationId)
+      .where(sql`${table.organizationId} IS NOT NULL`),
+    wrappedByKidIdx: index("data_keys_wrapped_by_kid_idx").on(table.wrappedByKid),
+    oneOwner: check("data_keys_one_owner", sql`num_nonnulls(${table.userId}, ${table.organizationId}) = 1`)
   })
 );
 
@@ -44,5 +52,9 @@ export const DataKeysRelations = relations(DataKeys, ({ one }) => ({
   user: one(Users, {
     fields: [DataKeys.userId],
     references: [Users.id]
+  }),
+  organization: one(Organizations, {
+    fields: [DataKeys.organizationId],
+    references: [Organizations.id]
   })
 }));

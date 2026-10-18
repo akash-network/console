@@ -199,11 +199,11 @@ describe(BaseRepository.name, () => {
     });
 
     it("stays quiet about rows both rule sets allow", async () => {
-      const dataKey = createDataKey();
+      const userId = faker.string.uuid();
       const { dataKeyRepository, respondWith, logger } = setupWithRows();
-      respondWith(dataKey);
+      respondWith(createDataKey({ userId }));
 
-      await dataKeyRepository.accessibleBy(shadowedAbilityOver(dataKey.userId, dataKey.userId, logger), "read").find();
+      await dataKeyRepository.accessibleBy(shadowedAbilityOver(userId, userId, logger), "read").find();
 
       expect(logger.warn).not.toHaveBeenCalled();
     });
@@ -256,6 +256,7 @@ describe(BaseRepository.name, () => {
     return {
       id: faker.string.uuid(),
       userId: faker.string.uuid(),
+      organizationId: null,
       wrappedKey: faker.string.alphanumeric(32),
       wrappedByKid: "kms-v1",
       retiredAt: null,

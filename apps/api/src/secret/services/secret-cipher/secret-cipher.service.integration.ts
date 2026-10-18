@@ -15,7 +15,7 @@ import type { KmsWrappedJweInstrumentationService } from "@src/deployment/servic
 import type { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import { SdlSecretsUnsealerService } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
-import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
+import { DataKeyService, wrapDataKey } from "@src/secret/services/data-key/data-key.service";
 import type { DataKeyUnwrapInstrumentationService } from "@src/secret/services/data-key-unwrapper/data-key-unwrap-instrumentation.service";
 import { DataKeyUnwrapperService } from "@src/secret/services/data-key-unwrapper/data-key-unwrapper.service";
 import type { UserOutput } from "@src/user/repositories";
@@ -23,6 +23,7 @@ import { UserRepository } from "@src/user/repositories";
 import { SecretCipherService } from "./secret-cipher.service";
 
 import { createTestSdlSecretsKmsTarget } from "@test/mocks/sdl-secrets-kms.mock";
+import { seedOrganization } from "@test/seeders/db/organization.seeder";
 
 const KID = "sdl-secrets.v1";
 const SDL = 'version: "2.0"\nservices:\n  web:\n    image: nginx\n';
@@ -53,7 +54,9 @@ describe(SecretCipherService.name, () => {
       const opened = await openSeal(await sealAs(user, clientSecrets));
       const stored = await Promise.all(Object.entries(opened).map(async ([name, value]) => [name, await cipher.encrypt(user.id, value, binding)] as const));
 
-      return Object.fromEntries(await Promise.all(stored.map(async ([name, encrypted]) => [name, await cipher.decrypt(user.id, encrypted, binding)] as const)));
+      return Object.fromEntries(
+        await Promise.all(stored.map(async ([name, encrypted]) => [name, await cipher.decrypt({ userId: user.id }, encrypted, binding)] as const))
+      );
     });
 
     expect(roundTripped).toEqual(clientSecrets);
@@ -80,7 +83,7 @@ describe(SecretCipherService.name, () => {
     const roundTripped = await inRequest(user, async () => {
       const stored = await Promise.all(values.map(async value => await cipher.encrypt(user.id, value, binding)));
 
-      return await Promise.all(stored.map(async encrypted => await cipher.decrypt(user.id, encrypted, binding)));
+      return await Promise.all(stored.map(async encrypted => await cipher.decrypt({ userId: user.id }, encrypted, binding)));
     });
 
     expect(roundTripped).toEqual(values);
@@ -94,7 +97,7 @@ describe(SecretCipherService.name, () => {
     const binding = bindingFor(user, newDseq());
     const encrypted = await inRequest(user, async () => await cipher.encrypt(user.id, "value", binding));
 
-    await expect(inRequest(user, async () => await cipher.decrypt(user.id, encrypted, binding))).resolves.toBe("value");
+    await expect(inRequest(user, async () => await cipher.decrypt({ userId: user.id }, encrypted, binding))).resolves.toBe("value");
     expect(kmsClient.asymmetricDecrypt).toHaveBeenCalledTimes(2);
   });
 
@@ -120,7 +123,7 @@ describe(SecretCipherService.name, () => {
     const dseq = newDseq();
     const encryptedForOwner = await inRequest(owner, async () => await cipher.encrypt(owner.id, "owner-only", bindingFor(owner, dseq)));
 
-    await expect(inRequest(other, async () => await cipher.decrypt(other.id, encryptedForOwner, bindingFor(other, dseq)))).rejects.toMatchObject({
+    await expect(inRequest(other, async () => await cipher.decrypt({ userId: other.id }, encryptedForOwner, bindingFor(other, dseq)))).rejects.toMatchObject({
       status: 500
     });
   });
@@ -143,7 +146,7 @@ describe(SecretCipherService.name, () => {
     const binding = bindingFor(user, newDseq());
     const encrypted = await inRequest(user, async () => await cipher.encrypt(user.id, "durable", binding));
 
-    await expect(inRequest(user, async () => await buildCipher().decrypt(user.id, encrypted, binding))).resolves.toBe("durable");
+    await expect(inRequest(user, async () => await buildCipher().decrypt({ userId: user.id }, encrypted, binding))).resolves.toBe("durable");
   });
 
   it("refuses to open a token moved to another deployment of the same user", async () => {
@@ -153,10 +156,10 @@ describe(SecretCipherService.name, () => {
 
     const token = await inRequest(user, async () => await cipher.encrypt(user.id, "owner-only", bindingFor(user, source)));
 
-    await expect(inRequest(user, async () => await cipher.decrypt(user.id, token, bindingFor(user, destination)))).rejects.toMatchObject({
+    await expect(inRequest(user, async () => await cipher.decrypt({ userId: user.id }, token, bindingFor(user, destination)))).rejects.toMatchObject({
       status: 500
     });
-    await expect(inRequest(user, async () => await cipher.decrypt(user.id, token, bindingFor(user, source)))).resolves.toBe("owner-only");
+    await expect(inRequest(user, async () => await cipher.decrypt({ userId: user.id }, token, bindingFor(user, source)))).resolves.toBe("owner-only");
   });
 
   it("spends no key-service call on a token moved to another deployment of the same user", async () => {
@@ -166,7 +169,7 @@ describe(SecretCipherService.name, () => {
     const token = await inRequest(user, async () => await cipher.encrypt(user.id, "owner-only", bindingFor(user, source)));
     kmsClient.asymmetricDecrypt.mockClear();
 
-    await expect(inRequest(user, async () => await cipher.decrypt(user.id, token, bindingFor(user, destination)))).rejects.toThrow();
+    await expect(inRequest(user, async () => await cipher.decrypt({ userId: user.id }, token, bindingFor(user, destination)))).rejects.toThrow();
 
     expect(kmsClient.asymmetricDecrypt).not.toHaveBeenCalled();
   });
@@ -181,7 +184,7 @@ describe(SecretCipherService.name, () => {
     const rewritten = { ...(JSON.parse(Buffer.from(header, "base64url").toString("utf8")) as object), dseq: destination };
     const forged = [Buffer.from(JSON.stringify(rewritten)).toString("base64url"), ...rest].join(".");
 
-    await expect(inRequest(user, async () => await cipher.decrypt(user.id, forged, bindingFor(user, destination)))).rejects.toMatchObject({
+    await expect(inRequest(user, async () => await cipher.decrypt({ userId: user.id }, forged, bindingFor(user, destination)))).rejects.toMatchObject({
       status: 500
     });
   });
@@ -207,7 +210,7 @@ describe(SecretCipherService.name, () => {
     kmsClient.asymmetricDecrypt.mockClear();
 
     const [opened, sealedAfterRekey] = await inRequest(user, async () => [
-      await cipher.decrypt(user.id, sealedBeforeRekey, binding),
+      await cipher.decrypt({ userId: user.id }, sealedBeforeRekey, binding),
       await cipher.encrypt(user.id, "new-value", binding)
     ]);
 
@@ -226,7 +229,7 @@ describe(SecretCipherService.name, () => {
     const ownersKey = (await dataKeyRepository.findByUserId(owner.id))!;
     await dataKeyRepository.updateById(ownersKey.id, { retiredAt: new Date() });
 
-    await expect(inRequest(other, async () => await cipher.decrypt(other.id, sealedForOwner, bindingFor(other, dseq)))).rejects.toMatchObject({
+    await expect(inRequest(other, async () => await cipher.decrypt({ userId: other.id }, sealedForOwner, bindingFor(other, dseq)))).rejects.toMatchObject({
       status: 500
     });
   });
@@ -240,6 +243,55 @@ describe(SecretCipherService.name, () => {
     await inRequest(user, async () => await cipher.encrypt(user.id, "value", bindingFor(user, newDseq())));
 
     expect(await dataKeyRepository.findByUserId(user.id)).toMatchObject({ userId: user.id, wrappedByKid: KID });
+  });
+
+  describe("a value sealed under a team's data key", () => {
+    it("opens for the team that holds the key", async () => {
+      const { cipher, createTestUser, inRequest, sealUnderTeamKey } = setup();
+      const [member, team] = await Promise.all([createTestUser(), seedOrganization()]);
+      const binding = { org: team.id, dseq: newDseq() };
+      const sealed = await sealUnderTeamKey(team.id, "team-value", binding);
+
+      await expect(inRequest(member, async () => await cipher.decrypt({ organizationId: team.id }, sealed, binding))).resolves.toBe("team-value");
+    });
+
+    it("opens for no other team and for no member's own key", async () => {
+      const { cipher, createTestUser, inRequest, sealUnderTeamKey } = setup();
+      const [member, team, otherTeam] = await Promise.all([createTestUser(), seedOrganization(), seedOrganization()]);
+      const dseq = newDseq();
+      const sealed = await sealUnderTeamKey(team.id, "team-value", { org: team.id, dseq });
+      await sealUnderTeamKey(otherTeam.id, "other-value", { org: otherTeam.id, dseq });
+      await inRequest(member, async () => await cipher.encrypt(member.id, "member-value", bindingFor(member, dseq)));
+
+      await expect(
+        inRequest(member, async () => await cipher.decrypt({ organizationId: otherTeam.id }, sealed, { org: otherTeam.id, dseq }))
+      ).rejects.toMatchObject({ status: 500 });
+      await expect(inRequest(member, async () => await cipher.decrypt({ userId: member.id }, sealed, { org: team.id, dseq }))).rejects.toMatchObject({
+        status: 500
+      });
+    });
+
+    it("opens under a team key retired since", async () => {
+      const { cipher, createTestUser, inRequest, sealUnderTeamKey, dataKeyRepository } = setup();
+      const [member, team] = await Promise.all([createTestUser(), seedOrganization()]);
+      const binding = { org: team.id, dseq: newDseq() };
+      const sealed = await sealUnderTeamKey(team.id, "team-value", binding);
+      await dataKeyRepository.updateById(decodeProtectedHeader(sealed).kid as string, { retiredAt: new Date() });
+
+      await expect(inRequest(member, async () => await cipher.decrypt({ organizationId: team.id }, sealed, binding))).resolves.toBe("team-value");
+    });
+
+    it("creates no key for a team while opening one of its values", async () => {
+      const { cipher, createTestUser, inRequest, sealUnderTeamKey, dataKeyRepository } = setup();
+      const [member, team, keylessTeam] = await Promise.all([createTestUser(), seedOrganization(), seedOrganization()]);
+      const dseq = newDseq();
+      const sealed = await sealUnderTeamKey(team.id, "team-value", { org: team.id, dseq });
+
+      await expect(
+        inRequest(member, async () => await cipher.decrypt({ organizationId: keylessTeam.id }, sealed, { org: keylessTeam.id, dseq }))
+      ).rejects.toMatchObject({ status: 500 });
+      expect(await dataKeyRepository.findActiveOf({ organizationId: keylessTeam.id })).toBeUndefined();
+    });
   });
 
   const pendingCleanups: Array<() => Promise<void>> = [];
@@ -324,6 +376,15 @@ describe(SecretCipherService.name, () => {
       return Buffer.from((await compactDecrypt(dataKey!.wrappedKey, privateKey)).plaintext);
     };
 
+    const sealUnderTeamKey = async (organizationId: string, value: string, binding: Record<string, string>) => {
+      const teamKey = await dataKeyRepository.create({ organizationId, ...(await wrapDataKey(sealingKeyService.peekSealingKey()!)) });
+      const key = (await compactDecrypt(teamKey.wrappedKey, privateKey)).plaintext;
+
+      return await new CompactEncrypt(new TextEncoder().encode(value))
+        .setProtectedHeader({ ...binding, alg: "dir", enc: "A256GCM", kid: teamKey.id })
+        .encrypt(key);
+    };
+
     return {
       cipher: buildCipher(),
       buildCipher,
@@ -334,7 +395,8 @@ describe(SecretCipherService.name, () => {
       kmsClient,
       executionContextService,
       dataKeyRepository,
-      dataKeyOf
+      dataKeyOf,
+      sealUnderTeamKey
     };
   }
 });

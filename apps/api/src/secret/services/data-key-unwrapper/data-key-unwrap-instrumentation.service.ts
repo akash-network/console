@@ -4,7 +4,7 @@ import { singleton } from "tsyringe";
 import { MetricsService } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 
-/** One observation per user touched rather than one per request, so a request serving two users stays distinguishable from the one-user-two-secrets regression this exists to catch. */
+/** One observation per key owner touched rather than one per request, so a request serving two owners stays distinguishable from the one-user-two-secrets regression this exists to catch. */
 @singleton()
 export class DataKeyUnwrapInstrumentationService {
   private readonly unwrapsPerRequest: Histogram;
@@ -22,19 +22,19 @@ export class DataKeyUnwrapInstrumentationService {
     this.executionContextService.onContextEnd(() => this.recordUnwrapsThisRequest());
   }
 
-  /** A user whose key was held but never unwrapped is worth an observation of zero, because the cheap path is the one a regression stops taking. */
-  beginCountingUnwraps(userId: string): void {
+  /** An owner whose key was held but never unwrapped is worth an observation of zero, because the cheap path is the one a regression stops taking. */
+  beginCountingUnwraps(owner: string): void {
     const counts = this.countsThisRequest();
 
-    if (counts && !counts.has(userId)) {
-      counts.set(userId, 0);
+    if (counts && !counts.has(owner)) {
+      counts.set(owner, 0);
     }
   }
 
-  countUnwrap(userId: string): void {
+  countUnwrap(owner: string): void {
     const counts = this.countsThisRequest();
 
-    counts?.set(userId, (counts.get(userId) ?? 0) + 1);
+    counts?.set(owner, (counts.get(owner) ?? 0) + 1);
   }
 
   private recordUnwrapsThisRequest() {

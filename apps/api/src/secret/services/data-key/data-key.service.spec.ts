@@ -120,22 +120,36 @@ describe(DataKeyService.name, () => {
   });
 
   describe("findDataKeyById", () => {
-    it("answers with the key the user owns under that id, retired or not", async () => {
+    it("answers with the key the owner holds under that id, retired or not", async () => {
       const { service, dataKeyRepository } = setup();
-      const retired = createDataKey({ retiredAt: new Date() });
+      const owner = { organizationId: faker.string.uuid() };
+      const retired = createDataKey({ userId: null, ...owner, retiredAt: new Date() });
       dataKeyRepository.findOwnedById.mockResolvedValue(retired);
 
-      const found = await service.findDataKeyById(retired.userId, retired.id);
+      const found = await service.findDataKeyById(owner, retired.id);
 
       expect(found).toBe(retired);
-      expect(dataKeyRepository.findOwnedById).toHaveBeenCalledWith(retired.userId, retired.id);
+      expect(dataKeyRepository.findOwnedById).toHaveBeenCalledWith(owner, retired.id);
     });
 
-    it("answers with nothing for a key the user does not own", async () => {
+    it("answers with nothing for a key the owner does not hold", async () => {
       const { service, dataKeyRepository } = setup();
       dataKeyRepository.findOwnedById.mockResolvedValue(undefined);
 
-      await expect(service.findDataKeyById(faker.string.uuid(), faker.string.uuid())).resolves.toBeUndefined();
+      await expect(service.findDataKeyById({ userId: faker.string.uuid() }, faker.string.uuid())).resolves.toBeUndefined();
+    });
+  });
+
+  describe("findActiveDataKey", () => {
+    it("answers with the owner's active key without creating one", async () => {
+      const { service, dataKeyRepository } = setup();
+      const owner = { organizationId: faker.string.uuid() };
+      const active = createDataKey({ userId: null, ...owner });
+      dataKeyRepository.findActiveOf.mockResolvedValue(active);
+
+      await expect(service.findActiveDataKey(owner)).resolves.toBe(active);
+      expect(dataKeyRepository.findActiveOf).toHaveBeenCalledWith(owner);
+      expect(dataKeyRepository.createUnlessExists).not.toHaveBeenCalled();
     });
   });
 
@@ -165,7 +179,14 @@ describe(DataKeyService.name, () => {
 
       if (existing) return { dataKey: existing, isNew: false };
 
-      const dataKey: DataKeyOutput = { id: faker.string.uuid(), retiredAt: null, createdAt: new Date(), updatedAt: new Date(), ...record };
+      const dataKey: DataKeyOutput = {
+        id: faker.string.uuid(),
+        organizationId: null,
+        retiredAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...record
+      };
       storedByUserId.set(record.userId, dataKey);
 
       return { dataKey, isNew: true };

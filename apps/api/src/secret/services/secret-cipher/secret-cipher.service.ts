@@ -10,6 +10,7 @@ import {
   SECRET_UNREADABLE_ERROR_CODE,
   SECRET_UNREADABLE_ERROR_MESSAGE
 } from "@src/secret/config/secret-at-rest.config";
+import type { DataKeyOwner } from "@src/secret/repositories/data-key/data-key.repository";
 import { DataKeyUnwrapperService } from "@src/secret/services/data-key-unwrapper/data-key-unwrapper.service";
 
 const textEncoder = new TextEncoder();
@@ -45,60 +46,60 @@ export class SecretCipherService {
   }
 
   /** The header decides whether the value belongs here before it costs a data key lookup or a key-service call. */
-  async decrypt(userId: string, encrypted: string, binding: SecretBinding): Promise<string> {
-    const { kid } = this.#readBoundHeader(encrypted, userId, binding);
-    const dataKey = await this.#dataKeyNamedBy(kid, userId);
+  async decrypt(owner: DataKeyOwner, encrypted: string, binding: SecretBinding): Promise<string> {
+    const { kid } = this.#readBoundHeader(encrypted, owner, binding);
+    const dataKey = await this.#dataKeyNamedBy(kid, owner);
 
-    return textDecoder.decode(await this.#open(encrypted, await dataKey.unwrap(), userId));
+    return textDecoder.decode(await this.#open(encrypted, await dataKey.unwrap(), owner));
   }
 
-  /** The active key is asked for first, so the common case still costs one lookup; a value naming another key of the user's, retired mid re-key, opens under that one. */
-  async #dataKeyNamedBy(kid: unknown, userId: string): Promise<HeldDataKey> {
-    const active = await this.dataKeyUnwrapperService.getDataKey(userId);
+  /** The active key is asked for first, so the common case still costs one lookup; a value naming another key of the owner's, retired mid re-key, opens under that one. */
+  async #dataKeyNamedBy(kid: unknown, owner: DataKeyOwner): Promise<HeldDataKey> {
+    const active = await this.dataKeyUnwrapperService.findDataKey(owner);
 
-    if (kid === active.id) return active;
+    if (active && kid === active.id) return active;
 
-    const named = typeof kid === "string" ? await this.dataKeyUnwrapperService.getDataKeyById(userId, kid) : undefined;
+    const named = typeof kid === "string" ? await this.dataKeyUnwrapperService.getDataKeyById(owner, kid) : undefined;
 
     if (!named) {
-      throw this.#rejectUnreadable("SECRET_VALUE_DATA_KEY_MISMATCH", { userId, received: kid, expected: active.id });
+      throw this.#rejectUnreadable("SECRET_VALUE_DATA_KEY_MISMATCH", { ...owner, received: kid, expected: active?.id });
     }
 
     return named;
   }
 
   /** The claim sets have to match exactly, because accepting a subset would let a caller drop a binding by omission. */
-  #readBoundHeader(encrypted: string, userId: string, binding: SecretBinding) {
-    const header = this.#decodeHeader(encrypted, userId);
+  #readBoundHeader(encrypted: string, owner: DataKeyOwner, binding: SecretBinding) {
+    const header = this.#decodeHeader(encrypted, owner);
 
     if (header.alg !== SECRET_AT_REST_KEY_MANAGEMENT || header.enc !== SECRET_AT_REST_CONTENT_ENCRYPTION) {
-      throw this.#rejectUnreadable("SECRET_VALUE_ALGORITHM_UNSUPPORTED", { userId, alg: header.alg, enc: header.enc });
+      throw this.#rejectUnreadable("SECRET_VALUE_ALGORITHM_UNSUPPORTED", { ...owner, alg: header.alg, enc: header.enc });
     }
 
     const bound = Object.keys(header).filter(claim => !ENCRYPTION_HEADER_CLAIMS.has(claim));
 
     if (bound.length !== Object.keys(binding).length || bound.some(claim => !Object.hasOwn(binding, claim))) {
-      throw this.#rejectUnreadable("SECRET_VALUE_BINDING_UNACCOUNTED", { userId, bound, named: Object.keys(binding) });
+      throw this.#rejectUnreadable("SECRET_VALUE_BINDING_UNACCOUNTED", { ...owner, bound, named: Object.keys(binding) });
     }
 
     for (const [claim, expected] of Object.entries(binding)) {
       if (header[claim] !== expected) {
-        throw this.#rejectUnreadable("SECRET_VALUE_BINDING_MISMATCH", { userId, claim, received: header[claim], expected });
+        throw this.#rejectUnreadable("SECRET_VALUE_BINDING_MISMATCH", { ...owner, claim, received: header[claim], expected });
       }
     }
 
     return header;
   }
 
-  #decodeHeader(encrypted: string, userId: string) {
+  #decodeHeader(encrypted: string, owner: DataKeyOwner) {
     try {
       return decodeProtectedHeader(encrypted);
     } catch {
-      throw this.#rejectUnreadable("SECRET_VALUE_HEADER_UNREADABLE", { userId });
+      throw this.#rejectUnreadable("SECRET_VALUE_HEADER_UNREADABLE", { ...owner });
     }
   }
 
-  async #open(encrypted: string, key: Buffer, userId: string): Promise<Uint8Array> {
+  async #open(encrypted: string, key: Buffer, owner: DataKeyOwner): Promise<Uint8Array> {
     try {
       const { plaintext } = await compactDecrypt(encrypted, key, {
         keyManagementAlgorithms: [SECRET_AT_REST_KEY_MANAGEMENT],
@@ -107,7 +108,7 @@ export class SecretCipherService {
 
       return plaintext;
     } catch (error) {
-      throw this.#rejectUnreadable("SECRET_VALUE_UNREADABLE", { userId, error });
+      throw this.#rejectUnreadable("SECRET_VALUE_UNREADABLE", { ...owner, error });
     }
   }
 
