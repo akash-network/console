@@ -8,8 +8,9 @@ import { useConfigureDeployTarget } from "@src/components/projects/DeployTargetG
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useMarkActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
+import { useHoldCreateEvent } from "@src/hooks/useHeldCreateEvents/useHeldCreateEvents";
 import { QueryKeys } from "@src/queries/queryKeys";
-import { useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
+import { PENDING_ACTIVITY_POLL_MS, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import { settingsIdAtom } from "@src/store/settingsStore";
@@ -63,6 +64,8 @@ export interface DeploymentFlowState {
   error?: FlowError;
   /** The cancelled deployment closing in the background. Orthogonal to `phase`: the form stays editable throughout. */
   pendingClose: PendingClose | null;
+  /** True once the api has accepted the create and finishes it in the background, so leaving the page no longer loses the deployment. */
+  isCreatingInBackground: boolean;
 }
 
 export interface RequestQuotesOptions {
@@ -167,6 +170,7 @@ export const DEPENDENCIES = {
   useLatestActivitiesQuery,
   useConfigureDeployTarget,
   useMarkActivityOutcomes,
+  useHoldCreateEvent,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   manifestFromSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -190,9 +194,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const settingsId = useAtomValue(settingsIdAtom);
   /** Read by hook-level mutation callbacks, which still run once the page is gone and its own callbacks no longer do. */
   const discardedRef = useRef(false);
-  const isClosingInBackground = dependencies.useFlag("notifications_activity_center");
+  const isRunningInBackground = dependencies.useFlag("notifications_activity_center");
   /** Only the per-call callbacks mark an outcome handled, since they run only while this page is still there to show it. */
-  const { forgetEarlierOutcomes, markOutcomeHandled } = dependencies.useMarkActivityOutcomes();
+  const { forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing } = dependencies.useMarkActivityOutcomes();
+  const holdCreateEvent = dependencies.useHoldCreateEvent();
   const deployTarget = dependencies.useConfigureDeployTarget();
   const deployTargetProjectId = deployTarget.project?.id;
   const forgetProject = deployTarget.forgetProject;
@@ -200,7 +205,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     ...walletProvisioningRetry,
     meta: SKIP_REPORTING_REFUSED_CREATE,
     onSuccess: function closeWhatADiscardedCreateOpened(result) {
-      if (discardedRef.current) closeDeployment.mutate(closeRequestFor(result.data.dseq, isClosingInBackground));
+      if (discardedRef.current && !acceptedActivityIdOf(result.data)) closeDeployment.mutate(closeRequestFor(result.data.dseq, isRunningInBackground));
     }
   });
   const closeDeployment = api.v1.closeDeployment.useMutation({
@@ -230,6 +235,31 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   /** A close the api took on in the background, followed through the activity feed until it settles; `token` is the close that started it. */
   const [backgroundClose, setBackgroundClose] = useState<{ dseq: string; token: number; activityId: string } | null>(null);
   const { data: activities } = dependencies.useLatestActivitiesQuery({ enabled: backgroundClose !== null });
+
+  /** A create the api took on in the background, followed by its activity's id until it settles; `attempt` is the request that sent it. */
+  const [backgroundCreate, setBackgroundCreate] = useState<{ dseq: string; activityId: string; attempt: number } | null>(null);
+
+  /** Read on unmount: a create still unsettled when the page goes is the activity host's to announce. */
+  const followedCreateIdRef = useRef<string | null>(null);
+  followedCreateIdRef.current = backgroundCreate?.activityId ?? null;
+
+  useEffect(
+    function handTheFollowedCreateToTheHost() {
+      return function stopFollowingTheCreate() {
+        if (followedCreateIdRef.current) stopFollowing(followedCreateIdRef.current);
+      };
+    },
+    [stopFollowing]
+  );
+
+  /** Read by id rather than from the feed, whose latest page a burst of other actions can push the create out of before it settles. */
+  const { data: backgroundCreateActivity } = api.v1.getActivity.useQuery(
+    { id: backgroundCreate?.activityId ?? "" },
+    { enabled: backgroundCreate !== null, refetchInterval: PENDING_ACTIVITY_POLL_MS }
+  );
+
+  /** The deployment once the chain has it: one still being created in the background is not there to close yet. */
+  const createdDseq = dseq === backgroundCreate?.dseq ? null : dseq;
 
   const intentRef = useRef(intent);
   intentRef.current = intent;
@@ -430,7 +460,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       closingDseqRef.current = dseqToClose;
       setBackgroundClose(null);
       setPendingClose({ dseq: dseqToClose, failed: false });
-      const inBackground = timing === "in-background" && isClosingInBackground;
+      const inBackground = timing === "in-background" && isRunningInBackground;
 
       function followInBackground(activityId: string) {
         if (token !== closeTokenRef.current) return;
@@ -454,7 +484,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         }
       });
     },
-    [closeDeployment, settleClose, verifyCloseOutcome, isClosingInBackground, queryClient, api]
+    [closeDeployment, settleClose, verifyCloseOutcome, isRunningInBackground, queryClient, api]
   );
 
   useEffect(
@@ -468,6 +498,48 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       settleClose(backgroundClose.dseq, backgroundClose.token, verifiedClosed, activity.meta.error?.message);
     },
     [activities, backgroundClose, settleClose, analyticsService]
+  );
+
+  const runQueuedCreate = useCallback(function runQueuedCreate() {
+    const queuedCreate = queuedCreateRef.current;
+    queuedCreateRef.current = null;
+    queuedCreate?.();
+  }, []);
+
+  /** A create from a superseded attempt still opened a deployment, which is closed at once when a newer create waits on it. */
+  const closeSupersededCreate = useCallback(
+    function closeSupersededCreate(openedDseq: string) {
+      if (discardedRef.current) return;
+      startClose(openedDseq, queuedCreateRef.current ? "now" : "in-background");
+    },
+    [startClose]
+  );
+
+  useEffect(
+    function settleBackgroundCreate() {
+      const activity = backgroundCreateActivity?.data;
+      if (!backgroundCreate || !activity || activity.status === "pending") return;
+      setBackgroundCreate(null);
+      createInFlightRef.current = false;
+      const isCreated = activity.status === "succeeded";
+
+      if (backgroundCreate.attempt !== createAttemptRef.current) {
+        if (isCreated) closeSupersededCreate(backgroundCreate.dseq);
+        else runQueuedCreate();
+        return;
+      }
+
+      if (isCreated) {
+        setPhase("quoting");
+        return;
+      }
+
+      router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategyRef.current), undefined, { shallow: true });
+      clearDeploymentState();
+      setError({ message: activity.meta.error?.message, kind: "create" });
+      setPhase("error");
+    },
+    [backgroundCreateActivity, backgroundCreate, closeSupersededCreate, runQueuedCreate, clearDeploymentState, router]
   );
 
   /** A deployment this session opened that is known to be still open with no close in flight: the next create closes it first. */
@@ -501,34 +573,45 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         return attempt === createAttemptRef.current;
       }
 
-      function runQueuedCreate() {
-        const queuedCreate = queuedCreateRef.current;
-        queuedCreateRef.current = null;
-        queuedCreate?.();
-      }
-
-      function onCreated(result: { data: { dseq: string; manifest: string } }) {
-        createInFlightRef.current = false;
-        markOutcomeHandled("deployment_create", result.data.dseq, "succeeded");
-        if (!isCurrentAttempt()) {
-          if (discardedRef.current) return;
-          startClose(result.data.dseq, queuedCreateRef.current ? "now" : "in-background");
-          return;
-        }
-        setDseq(result.data.dseq);
-        setManifest(result.data.manifest);
+      function adoptDeployment({ dseq: newDseq, manifest }: { dseq: string; manifest: string }) {
+        setDseq(newDseq);
+        setManifest(manifest);
         setCreatedSdl(sdl);
         setSelections({});
         setDeployError(undefined);
         setDeploySucceeded(false);
+        router.replace(buildConfigureUrl(intentRef.current, newDseq, bidStrategyRef.current), undefined, { shallow: true });
+      }
+
+      function createdEventOf(newDseq: string) {
+        return { category: "deployments" as const, label: "Create deployment in wizard", dseq: newDseq, secretCount: Object.keys(secrets).length };
+      }
+
+      /** Only a create still current takes the page over and holds its analytics until the feed reports it created. */
+      function followInBackground(result: { dseq: string; manifest: string }, activityId: string) {
+        setBackgroundCreate({ dseq: result.dseq, activityId, attempt });
+        followUntilSettled(activityId);
+        queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
+        if (!isCurrentAttempt()) return;
+        adoptDeployment(result);
+        holdCreateEvent(activityId, createdEventOf(result.dseq));
+      }
+
+      function onCreated(result: { data: { dseq: string; manifest: string } }) {
+        const activityId = acceptedActivityIdOf(result.data);
+        if (activityId) {
+          followInBackground(result.data, activityId);
+          return;
+        }
+        createInFlightRef.current = false;
+        markOutcomeHandled("deployment_create", result.data.dseq, "succeeded");
+        if (!isCurrentAttempt()) {
+          closeSupersededCreate(result.data.dseq);
+          return;
+        }
+        adoptDeployment(result.data);
         setPhase("quoting");
-        analyticsService.track("create_deployment", {
-          category: "deployments",
-          label: "Create deployment in wizard",
-          dseq: result.data.dseq,
-          secretCount: Object.keys(secrets).length
-        });
-        router.replace(buildConfigureUrl(intentRef.current, result.data.dseq, bidStrategyRef.current), undefined, { shallow: true });
+        analyticsService.track("create_deployment", createdEventOf(result.data.dseq));
       }
 
       function onCreateFailed(cause: unknown) {
@@ -542,7 +625,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       function submitCreate(sealed: { sealedSecrets?: string }, canResealOnce: boolean) {
         createInFlightRef.current = true;
         createDeployment.mutate(
-          { data: { sdl, ...namePayload(options.name), ...projectPayload(deployTargetProjectId), ...sealed, ...inheritance, deposit: DEFAULT_DEPOSIT } },
+          {
+            data: { sdl, ...namePayload(options.name), ...projectPayload(deployTargetProjectId), ...sealed, ...inheritance, deposit: DEFAULT_DEPOSIT },
+            ...backgroundQueryFor(isRunningInBackground)
+          },
           {
             onSuccess: onCreated,
             onError: function retryOrFail(cause: unknown) {
@@ -586,7 +672,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         void sealAndSubmit(true);
       }
 
-      const openDseq = dseq ?? strandedDseq ?? backgroundClose?.dseq;
+      const openDseq = createdDseq ?? strandedDseq ?? backgroundClose?.dseq;
       if (openDseq) {
         setPhase("creating");
         setDseq(null);
@@ -597,6 +683,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       if (closingDseqRef.current || createInFlightRef.current) {
         setPhase("creating");
+        setDseq(null);
         queuedCreateRef.current = create;
         return;
       }
@@ -606,12 +693,19 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     [
       createDeployment,
       sealSecrets,
-      dseq,
+      createdDseq,
       strandedDseq,
       backgroundClose,
       router,
       analyticsService,
       startClose,
+      closeSupersededCreate,
+      runQueuedCreate,
+      isRunningInBackground,
+      holdCreateEvent,
+      followUntilSettled,
+      queryClient,
+      api,
       deployTargetProjectId,
       forgetProject,
       markOutcomeHandled
@@ -628,12 +722,12 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       createAttemptRef.current += 1;
       const isCreateOutstanding = phase === "creating" && !queuedCreateRef.current;
       queuedCreateRef.current = null;
-      const dseqToClose = dseq ?? strandedDseq;
+      const dseqToClose = createdDseq ?? strandedDseq;
       if (!dseqToClose && isCreateOutstanding) analyticsService.track("cancel_during_create", { category: "deployments" });
       resetToConfiguring();
       if (dseqToClose) startClose(dseqToClose, "in-background");
     },
-    [dseq, strandedDseq, phase, router, bidStrategy, analyticsService, resetToConfiguring, startClose]
+    [createdDseq, strandedDseq, phase, router, bidStrategy, analyticsService, resetToConfiguring, startClose]
   );
   /**
    * Lands in `error`, never `configuring`: the auto flow creates a fresh deployment the instant it reads `configuring`.
@@ -645,13 +739,13 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       createAttemptRef.current += 1;
       queuedCreateRef.current = null;
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategyRef.current), undefined, { shallow: true });
-      const dseqToClose = dseq ?? strandedDseq;
+      const dseqToClose = createdDseq ?? strandedDseq;
       clearDeploymentState();
       setError({ message, kind: "no-match" });
       setPhase("error");
       if (dseqToClose) startClose(dseqToClose, "in-background");
     },
-    [dseq, strandedDseq, router, clearDeploymentState, startClose]
+    [createdDseq, strandedDseq, router, clearDeploymentState, startClose]
   );
 
   const retryClose = useCallback(
@@ -668,10 +762,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       discardedRef.current = true;
       createAttemptRef.current += 1;
       queuedCreateRef.current = null;
-      const dseqToClose = dseq ?? strandedDseq;
+      const dseqToClose = createdDseq ?? strandedDseq;
       if (dseqToClose && closingDseqRef.current !== dseqToClose) startClose(dseqToClose, "in-background");
     },
-    [dseq, strandedDseq, startClose]
+    [createdDseq, strandedDseq, startClose]
   );
 
   const setBidStrategy = useCallback(
@@ -877,19 +971,24 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     deployError,
     error,
     pendingClose,
+    isCreatingInBackground: backgroundCreate?.dseq === dseq,
     actions: { requestQuotes, cancelAndEdit, closeAndFail, retryClose, discard, setBidStrategy, refreshQuotes, retry, selectProvider, clearSelection, deploy }
   };
 }
 
+function backgroundQueryFor(inBackground: boolean): { async?: "true" } {
+  return inBackground ? { async: "true" } : {};
+}
+
 function closeRequestFor(dseq: string, inBackground: boolean): { dseq: string; async?: "true" } {
-  return inBackground ? { dseq, async: "true" } : { dseq };
+  return { dseq, ...backgroundQueryFor(inBackground) };
 }
 
 function shownOutcomeOf(error: unknown): "succeeded" | "failed" {
   return error ? "failed" : "succeeded";
 }
 
-/** The activity the api answered a background close with; a close it already made during the request answers without one. */
+/** The activity the api answered a background close or create with; one it finished during the request answers without one. */
 function acceptedActivityIdOf(data: object): string | undefined {
   return "activityId" in data && typeof data.activityId === "string" ? data.activityId : undefined;
 }

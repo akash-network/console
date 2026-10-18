@@ -15,6 +15,7 @@ import { useCloseBatchesBeingSent } from "@src/hooks/useCloseBatches/useCloseBat
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useFlag } from "@src/hooks/useFlag";
 import { useHandledActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
+import { useTakeHeldCreateEvent } from "@src/hooks/useHeldCreateEvents/useHeldCreateEvents";
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { type Activity, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
@@ -27,6 +28,7 @@ export const DEPENDENCIES = {
   useDeploymentNames,
   useCloseBatchesBeingSent,
   useHandledActivityOutcomes,
+  useTakeHeldCreateEvent,
   useSnackbar,
   useQueryClient,
   useRouter
@@ -99,14 +101,15 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   const isEnabled = d.useFlag("notifications_activity_center");
   const { user } = d.useUser();
   const { address } = d.useWallet();
-  const { api } = useServices();
+  const { api, analyticsService } = useServices();
   const queryClient = d.useQueryClient();
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const router = d.useRouter();
   const { data: activities } = d.useLatestActivitiesQuery({ enabled: isEnabled && !!user?.userId });
   const { getDeploymentName, isLoading: isLoadingDeploymentNames } = d.useDeploymentNames(activities?.map(activity => activity.meta.dseq) ?? []);
   const closeBatchesBeingSent = d.useCloseBatchesBeingSent();
-  const { isOutcomeHandled, forgetHandledOutcome } = d.useHandledActivityOutcomes();
+  const { isOutcomeHandled, isFollowedOnItsPage, forgetHandledOutcome } = d.useHandledActivityOutcomes();
+  const takeHeldCreateEvent = d.useTakeHeldCreateEvent();
   const lastSeenStatuses = useRef<Map<string, Activity["status"]>>();
   const batchesToSumUp = useRef(new Set<string>());
 
@@ -122,15 +125,17 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         for (const queryKey of queryKeysChangedBy(activity)) {
           queryClient.invalidateQueries({ queryKey });
         }
+        trackHeldCreateEvent(activity);
 
         if (activity.meta.batchId) {
           batchesToSumUp.current.add(activity.meta.batchId);
           continue;
         }
 
-        const isShownOnItsPage = isOutcomeHandled(activity);
+        const isFollowedToItsEnd = isFollowedOnItsPage(activity);
+        const isShownOnItsPage = isFollowedToItsEnd || isOutcomeHandled(activity);
         if (isShownOnItsPage) forgetHandledOutcome(activity);
-        if (!isShownOnItsPage || lastSeen.has(activity.id)) announceActivity(activity);
+        if (!isShownOnItsPage || (!isFollowedToItsEnd && lastSeen.has(activity.id))) announceActivity(activity);
       }
 
       for (const batchId of batchesToSumUp.current) {
@@ -164,6 +169,11 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         closeSnackbar(key);
       }
 
+      function trackHeldCreateEvent({ id, status }: FinishedActivity) {
+        const createdEvent = takeHeldCreateEvent(id);
+        if (createdEvent && status === "succeeded") analyticsService.track("create_deployment", createdEvent);
+      }
+
       function labelDeployment(dseq: string | undefined) {
         return deploymentLabelOf(getDeploymentName(dseq), dseq);
       }
@@ -186,9 +196,12 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
       getDeploymentName,
       closeBatchesBeingSent,
       isOutcomeHandled,
+      isFollowedOnItsPage,
       forgetHandledOutcome,
+      takeHeldCreateEvent,
       address,
       api,
+      analyticsService,
       enqueueSnackbar,
       closeSnackbar,
       router,

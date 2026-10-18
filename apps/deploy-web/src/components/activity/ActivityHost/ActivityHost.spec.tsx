@@ -6,6 +6,7 @@ import { mock, mockDeep } from "vitest-mock-extended";
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
 import { QueryKeys } from "@src/queries/queryKeys";
 import type { Activity, ActivityOfAnyType } from "@src/queries/useLatestActivitiesQuery";
+import type { AnalyticsService, EventProperties } from "@src/services/analytics/analytics.service";
 import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 import { ActivityHost, DEPENDENCIES } from "./ActivityHost";
 
@@ -128,6 +129,59 @@ describe(ActivityHost.name, () => {
       }),
       { variant: "success" }
     );
+  });
+
+  it("leads a created deployment to choosing a provider for it from its toast", async () => {
+    const pending = buildActivity({ type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+    const { receive, followToastAction, push } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "succeeded" }]);
+    await followToastAction("Choose a provider");
+
+    expect(push).toHaveBeenCalledWith("/new-deployment/configure/1234");
+  });
+
+  it("leads a failed create back to configuring a new deployment from its toast", async () => {
+    const pending = buildActivity({ type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+    const { receive, followToastAction, push } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "failed" }]);
+    await followToastAction("New deployment");
+
+    expect(push).toHaveBeenCalledWith("/new-deployment/configure");
+  });
+
+  describe("with the create_deployment event a page held for a background create", () => {
+    it("tracks it once the create succeeds", () => {
+      const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+      const createdEvent = { category: "deployments" as const, dseq: "1234", secretCount: 0 };
+      const { receive, analyticsService, takeHeldCreateEvent } = setup({ activities: [pending], heldCreateEvents: { "activity-1": createdEvent } });
+
+      receive([{ ...pending, status: "succeeded" }]);
+
+      expect(takeHeldCreateEvent).toHaveBeenCalledWith("activity-1");
+      expect(analyticsService.track).toHaveBeenCalledTimes(1);
+      expect(analyticsService.track).toHaveBeenCalledWith("create_deployment", createdEvent);
+    });
+
+    it("drops it without tracking once the create fails", () => {
+      const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+      const { receive, analyticsService, takeHeldCreateEvent } = setup({ activities: [pending], heldCreateEvents: { "activity-1": { dseq: "1234" } } });
+
+      receive([{ ...pending, status: "failed" }]);
+
+      expect(takeHeldCreateEvent).toHaveBeenCalledWith("activity-1");
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("tracks nothing for a create no page here held an event for", () => {
+      const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+      const { receive, analyticsService } = setup({ activities: [pending] });
+
+      receive([{ ...pending, status: "succeeded" }]);
+
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
   });
 
   it.each([
@@ -337,6 +391,33 @@ describe(ActivityHost.name, () => {
       variant: "success"
     });
     expect(forgetHandledOutcome).toHaveBeenCalledWith(settled);
+  });
+
+  it.each(["succeeded", "failed"] as const)(
+    "announces no create it saw pending that %s while its page followed it until it settled, and forgets the mark",
+    status => {
+      const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+      const settled = { ...pending, status };
+      const { enqueueSnackbar, queryClient, receive, api, forgetHandledOutcome } = setup({ activities: [pending], followed: ["activity-1"] });
+
+      receive([settled]);
+
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+      expect(forgetHandledOutcome).toHaveBeenCalledWith(settled);
+      expect(invalidatedKeysOf(queryClient)).toEqual(expect.arrayContaining([api.v1.getDeployment.getKey({ dseq: "1234" })]));
+    }
+  );
+
+  it("announces a create once no page follows it any more", () => {
+    const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive, forgetHandledOutcome } = setup({ activities: [pending], followed: ["activity-2"] });
+
+    receive([{ ...pending, status: "succeeded" }]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Deployment 1234 created" }) }), {
+      variant: "success"
+    });
+    expect(forgetHandledOutcome).not.toHaveBeenCalled();
   });
 
   it("announces a deploy that ended differently from what its page showed", () => {
@@ -692,7 +773,8 @@ describe(ActivityHost.name, () => {
         useLatestActivitiesQuery,
         useDeploymentNames,
         useCloseBatchesBeingSent: () => new Set(),
-        useHandledActivityOutcomes: () => ({ isOutcomeHandled: () => false, forgetHandledOutcome: vi.fn() }),
+        useHandledActivityOutcomes: () => ({ isOutcomeHandled: () => false, isFollowedOnItsPage: () => false, forgetHandledOutcome: vi.fn() }),
+        useTakeHeldCreateEvent: () => vi.fn(),
         useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
         useQueryClient: () => queryClient,
         useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>()
@@ -719,12 +801,22 @@ describe(ActivityHost.name, () => {
   }
 
   function setup(
-    input: { isEnabled?: boolean; isSignedIn?: boolean; activities?: Activity[]; address?: string; names?: Record<string, string>; handled?: Activity[] } = {}
+    input: {
+      isEnabled?: boolean;
+      isSignedIn?: boolean;
+      activities?: Activity[];
+      address?: string;
+      names?: Record<string, string>;
+      heldCreateEvents?: Record<string, EventProperties>;
+      handled?: Activity[];
+      followed?: string[];
+    } = {}
   ) {
     const user = buildUser();
     const forgetHandledOutcome = vi.fn();
     const isOutcomeHandled = (activity: Activity) =>
       (input.handled ?? []).some(handled => handled.type === activity.type && handled.meta.dseq === activity.meta.dseq && handled.status === activity.status);
+    const isFollowedOnItsPage = (activity: Activity) => (input.followed ?? []).includes(activity.id);
     let activities = input.activities;
     let isLoadingNames = false;
     let closeBatchesBeingSent: ReadonlySet<string> = new Set();
@@ -739,6 +831,8 @@ describe(ActivityHost.name, () => {
     const enqueueSnackbar = vi.fn().mockReturnValue(TOAST_KEY);
     const closeSnackbar = vi.fn();
     const push = vi.fn();
+    const takeHeldCreateEvent = vi.fn((activityId: string) => input.heldCreateEvents?.[activityId]);
+    const analyticsService = mock<AnalyticsService>();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const api = mockDeep<AppDIContainer["api"]>();
     api.v1.listDeployments.getKey.mockReturnValue(["listDeployments"]);
@@ -752,14 +846,15 @@ describe(ActivityHost.name, () => {
       useLatestActivitiesQuery,
       useDeploymentNames,
       useCloseBatchesBeingSent: () => closeBatchesBeingSent,
-      useHandledActivityOutcomes: () => ({ isOutcomeHandled, forgetHandledOutcome }),
+      useHandledActivityOutcomes: () => ({ isOutcomeHandled, isFollowedOnItsPage, forgetHandledOutcome }),
+      useTakeHeldCreateEvent: () => takeHeldCreateEvent,
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar }),
       useQueryClient: () => queryClient,
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push })
     };
 
     const host = () => (
-      <TestContainerProvider services={{ api: () => api }}>
+      <TestContainerProvider services={{ api: () => api, analyticsService: () => analyticsService }}>
         <ActivityHost dependencies={dependencies} />
       </TestContainerProvider>
     );
@@ -789,7 +884,9 @@ describe(ActivityHost.name, () => {
       user,
       forgetHandledOutcome,
       receive,
-      followToastAction
+      followToastAction,
+      analyticsService,
+      takeHeldCreateEvent
     };
   }
 });

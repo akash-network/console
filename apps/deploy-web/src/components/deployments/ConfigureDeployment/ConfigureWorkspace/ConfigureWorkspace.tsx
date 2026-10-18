@@ -202,7 +202,7 @@ export const ConfigureWorkspace: FC<Props> = ({
           backButton={
             <d.LeaveConfigureButton
               intent={intent}
-              needsConfirmation={!isEditable || !!flow.pendingClose}
+              needsConfirmation={(!isEditable && !flow.isCreatingInBackground) || !!flow.pendingClose}
               deploymentName={deploymentName}
               serviceCount={services.filter(service => !isLogCollectorService(service)).length}
               placementCount={placements.length}

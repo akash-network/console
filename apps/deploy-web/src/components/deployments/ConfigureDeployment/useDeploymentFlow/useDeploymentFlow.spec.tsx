@@ -452,8 +452,9 @@ describe(useDeploymentFlow.name, () => {
         servicesPatchBetween,
         useFlag: () => false,
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
-        useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes: vi.fn(), markOutcomeHandled: vi.fn() }),
-        useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
+        useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
+        useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
+        useHoldCreateEvent: () => vi.fn()
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       act(() => vi.advanceTimersByTime(60_000));
@@ -564,8 +565,9 @@ describe(useDeploymentFlow.name, () => {
         servicesPatchBetween,
         useFlag: () => false,
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
-        useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes: vi.fn(), markOutcomeHandled: vi.fn() }),
-        useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
+        useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
+        useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
+        useHoldCreateEvent: () => vi.fn()
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       expect(result.current.phase).toBe("quoting");
@@ -1824,13 +1826,14 @@ describe(useDeploymentFlow.name, () => {
       expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "999" });
     });
 
-    it("closes a create in flight only once when the page is still there to see it resolve", () => {
+    it("closes a create in flight only once when the page is still there to see it resolve", async () => {
       let resolveCreate: ((result: { data: { dseq: string; manifest: string } }) => void) | undefined;
       const createMutate = vi.fn((_args, options) => {
         resolveCreate = options.onSuccess;
       });
       const { result, services, closeDeployment } = setup({ createMutate });
       act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
       act(() => result.current.actions.discard());
 
       act(() => {
@@ -1838,6 +1841,7 @@ describe(useDeploymentFlow.name, () => {
         resolveCreate?.({ data: { dseq: "999", manifest: "m" } });
       });
 
+      expect(createMutate).toHaveBeenCalledTimes(1);
       expect(closeDeployment.mutate).toHaveBeenCalledTimes(1);
       expect(result.current.dseq).toBeNull();
     });
@@ -2259,7 +2263,7 @@ describe(useDeploymentFlow.name, () => {
   describe("closing in the background", () => {
     it("closes a cancelled deployment in the background while the activity center is on", () => {
       const closeMutate = vi.fn();
-      const { result, useFlag } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, isClosingInBackground: true });
+      const { result, useFlag } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, isRunningInBackground: true });
 
       act(() => result.current.actions.cancelAndEdit());
 
@@ -2281,7 +2285,7 @@ describe(useDeploymentFlow.name, () => {
       { action: "discard", act: (actions: DeploymentFlowActions) => actions.discard() }
     ])("closes in the background when $action gives the deployment up", ({ act: giveUp }) => {
       const closeMutate = vi.fn();
-      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, isClosingInBackground: true });
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, isRunningInBackground: true });
 
       act(() => giveUp(result.current.actions));
 
@@ -2295,7 +2299,7 @@ describe(useDeploymentFlow.name, () => {
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
         closeMutate,
         getDeploymentMutate,
-        isClosingInBackground: true
+        isRunningInBackground: true
       });
       act(() => result.current.actions.cancelAndEdit());
 
@@ -2309,7 +2313,7 @@ describe(useDeploymentFlow.name, () => {
       const { result, queryClient, useLatestActivitiesQuery } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
         closeMutate,
-        isClosingInBackground: true
+        isRunningInBackground: true
       });
 
       act(() => result.current.actions.cancelAndEdit());
@@ -2321,7 +2325,7 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("leaves the feed alone while no close is running in the background", () => {
-      const { useLatestActivitiesQuery } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, isClosingInBackground: true });
+      const { useLatestActivitiesQuery } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, isRunningInBackground: true });
 
       expect(useLatestActivitiesQuery).toHaveBeenLastCalledWith({ enabled: false });
     });
@@ -2331,7 +2335,7 @@ describe(useDeploymentFlow.name, () => {
       const { result, feed, rerender } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
         closeMutate,
-        isClosingInBackground: true
+        isRunningInBackground: true
       });
       act(() => result.current.actions.cancelAndEdit());
 
@@ -2346,7 +2350,7 @@ describe(useDeploymentFlow.name, () => {
       const { result, feed, rerender, queryClient, useLatestActivitiesQuery } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
         closeMutate,
-        isClosingInBackground: true
+        isRunningInBackground: true
       });
       act(() => result.current.actions.cancelAndEdit());
 
@@ -2363,7 +2367,7 @@ describe(useDeploymentFlow.name, () => {
       const { result, feed, rerender } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
         closeMutate,
-        isClosingInBackground: true
+        isRunningInBackground: true
       });
       act(() => result.current.actions.cancelAndEdit());
 
@@ -2385,7 +2389,7 @@ describe(useDeploymentFlow.name, () => {
       const { result, feed, rerender, analyticsService } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
         closeMutate,
-        isClosingInBackground: true
+        isRunningInBackground: true
       });
       act(() => result.current.actions.cancelAndEdit());
 
@@ -2400,7 +2404,7 @@ describe(useDeploymentFlow.name, () => {
       const { result, feed, rerender, analyticsService } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
         closeMutate,
-        isClosingInBackground: true
+        isRunningInBackground: true
       });
       act(() => result.current.actions.cancelAndEdit());
 
@@ -2417,7 +2421,7 @@ describe(useDeploymentFlow.name, () => {
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
         closeMutate,
         getDeploymentMutate,
-        isClosingInBackground: true
+        isRunningInBackground: true
       });
 
       act(() => result.current.actions.cancelAndEdit());
@@ -2428,7 +2432,7 @@ describe(useDeploymentFlow.name, () => {
 
     it("clears the close at once when the api closed the deployment during the request", () => {
       const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { success: true } }));
-      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, isClosingInBackground: true });
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, isRunningInBackground: true });
 
       act(() => result.current.actions.cancelAndEdit());
 
@@ -2439,7 +2443,7 @@ describe(useDeploymentFlow.name, () => {
       const closeCalls: Array<{ args: unknown; options: { onSuccess?: (result: unknown) => void } }> = [];
       const closeMutate = vi.fn((args, options) => closeCalls.push({ args, options }));
       const createMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
-      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate, isClosingInBackground: true });
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate, isRunningInBackground: true });
       act(() => result.current.actions.cancelAndEdit());
       act(() => closeCalls[0].options.onSuccess?.({ data: { activityId: "activity-1" } }));
 
@@ -2458,7 +2462,7 @@ describe(useDeploymentFlow.name, () => {
       const closeCalls: Array<{ args: unknown; options: { onSuccess?: (result: unknown) => void } }> = [];
       const closeMutate = vi.fn((args, options) => closeCalls.push({ args, options }));
       const createMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
-      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate, isClosingInBackground: true });
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate, isRunningInBackground: true });
       act(() => result.current.actions.cancelAndEdit());
       act(() => result.current.actions.requestQuotes("sdl"));
 
@@ -2478,7 +2482,7 @@ describe(useDeploymentFlow.name, () => {
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
         closeMutate,
         createMutate,
-        isClosingInBackground: true
+        isRunningInBackground: true
       });
       act(() => result.current.actions.cancelAndEdit());
       act(() => closeCalls[0].options.onSuccess?.({ data: { activityId: "activity-1" } }));
@@ -2529,7 +2533,7 @@ describe(useDeploymentFlow.name, () => {
     it("closes its deployment in the background with the activity center on", async () => {
       const creates = deferredMutate();
       const closeMutate = vi.fn();
-      const { result } = setup({ createMutate: creates.mutate, closeMutate, isClosingInBackground: true });
+      const { result } = setup({ createMutate: creates.mutate, closeMutate, isRunningInBackground: true });
       act(() => result.current.actions.requestQuotes("sdl"));
       await settleSeal();
       act(() => result.current.actions.cancelAndEdit());
@@ -2556,7 +2560,7 @@ describe(useDeploymentFlow.name, () => {
     it("closes its deployment during the request before the held create runs, so two are never open at once", async () => {
       const creates = deferredMutate();
       const closes = deferredMutate();
-      const { result } = setup({ createMutate: creates.mutate, closeMutate: closes.mutate, isClosingInBackground: true });
+      const { result } = setup({ createMutate: creates.mutate, closeMutate: closes.mutate, isRunningInBackground: true });
       act(() => result.current.actions.requestQuotes("sdl"));
       await settleSeal();
       act(() => result.current.actions.cancelAndEdit());
@@ -2570,7 +2574,7 @@ describe(useDeploymentFlow.name, () => {
       await settleSeal();
 
       expect(creates.mutate).toHaveBeenCalledTimes(2);
-      expect(creates.calls[1].args).toEqual({ data: expect.objectContaining({ sdl: "sdl-2" }) });
+      expect(creates.calls[1].args).toEqual({ data: expect.objectContaining({ sdl: "sdl-2" }), async: "true" });
     });
 
     it("runs the held create once it fails without opening a deployment, and reports nothing about it", async () => {
@@ -2655,13 +2659,241 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("closes in the background what it opens once the page is gone, with the activity center on", () => {
-      const { result, services, closeDeployment } = setup({ createMutate: vi.fn(), isClosingInBackground: true });
+      const { result, services, closeDeployment } = setup({ createMutate: vi.fn(), isRunningInBackground: true });
       act(() => result.current.actions.requestQuotes("sdl"));
 
       act(() => result.current.actions.discard());
       act(() => hookOptionsOf(services.api.v1.createDeployment.useMutation).onSuccess?.({ data: { dseq: "999", manifest: "m" } }));
 
       expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "999", async: "true" });
+    });
+  });
+
+  describe("creating in the background", () => {
+    it("asks the api to finish the create in the background while the activity center is on", async () => {
+      const { createMutate } = await setupBackgroundCreate({});
+
+      expect(createMutate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ sdl: "sdl" }), async: "true" }), expect.any(Object));
+    });
+
+    it("creates during the request while the activity center is off", async () => {
+      const createMutate = vi.fn();
+      const { result } = setup({ createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+
+      expect(createMutate.mock.calls[0][0]).not.toHaveProperty("async");
+    });
+
+    it("shows the create as in progress once the api accepts it, with the deployment in the URL and the page free to leave", async () => {
+      const replace = vi.fn();
+      const { result, queryClient, useLatestActivitiesQuery, services, accept } = await setupBackgroundCreate({ replace });
+
+      act(() => accept());
+
+      expect(result.current).toMatchObject({ phase: "creating", dseq: "1000", isCreatingInBackground: true });
+      expect(replace).toHaveBeenLastCalledWith(UrlService.configureDeployment({ dseq: "1000", bidStrategy: "select" }), undefined, { shallow: true });
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listActivities"] });
+      expect(services.api.v1.getActivity.useQuery).toHaveBeenLastCalledWith({ id: "activity-1" }, { enabled: true, refetchInterval: 5_000 });
+      expect(useLatestActivitiesQuery).toHaveBeenLastCalledWith({ enabled: false });
+    });
+
+    it("holds the create_deployment event for the create's activity rather than tracking it when the create is accepted", async () => {
+      const { holdCreateEvent, analyticsService, accept } = await setupBackgroundCreate({});
+
+      act(() => accept());
+
+      expect(holdCreateEvent).toHaveBeenCalledWith("activity-1", {
+        category: "deployments",
+        label: "Create deployment in wizard",
+        dseq: "1000",
+        secretCount: 0
+      });
+      expect(analyticsService.track).not.toHaveBeenCalledWith("create_deployment", expect.anything());
+    });
+
+    it("keeps the create in progress while its activity still reports it running", async () => {
+      const { result, api, rerender, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+
+      api.activities = [buildActivity({ id: "activity-2", status: "succeeded" }), createActivity("pending")];
+      rerender();
+
+      expect(result.current).toMatchObject({ phase: "creating", isCreatingInBackground: true });
+    });
+
+    it("moves on to choosing a provider once its activity reports the deployment created", async () => {
+      const { result, api, rerender, services, analyticsService, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+
+      api.activities = [createActivity("succeeded")];
+      rerender();
+
+      expect(result.current).toMatchObject({ phase: "quoting", dseq: "1000", isCreatingInBackground: false });
+      expect(services.api.v1.getActivity.useQuery).toHaveBeenLastCalledWith({ id: "" }, { enabled: false, refetchInterval: 5_000 });
+      expect(analyticsService.track).not.toHaveBeenCalledWith("create_deployment", expect.anything());
+    });
+
+    it.each([
+      { meta: { dseq: "1000", error: { code: "create_incomplete", message: "The deployment was not created." } }, message: "The deployment was not created." },
+      { meta: { dseq: "1000" }, message: undefined }
+    ])("hands the form back with its activity's reason ($message) once the create fails, dropping the deployment", async ({ meta, message }) => {
+      const replace = vi.fn();
+      const { result, api, rerender, accept } = await setupBackgroundCreate({ replace });
+      act(() => accept());
+
+      api.activities = [buildActivity({ id: "activity-1", type: "deployment_create", status: "failed", meta })];
+      rerender();
+
+      expect(result.current).toMatchObject({ phase: "error", dseq: null, error: { message, kind: "create" }, isCreatingInBackground: false });
+      expect(replace).toHaveBeenLastCalledWith(UrlService.configureDeployment({ bidStrategy: "select" }), undefined, { shallow: true });
+    });
+
+    it("creates again at once after a background create failed", async () => {
+      const { result, api, rerender, createMutate, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+      api.activities = [createActivity("failed")];
+      rerender();
+
+      act(() => result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+
+      expect(createMutate).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps today's flow when the api answers a create made during the request", async () => {
+      const { result, holdCreateEvent, analyticsService, createCalls } = await setupBackgroundCreate({});
+
+      act(() => createCalls[0].options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
+
+      expect(result.current).toMatchObject({ phase: "quoting", dseq: "1000", isCreatingInBackground: false });
+      expect(analyticsService.track).toHaveBeenCalledWith("create_deployment", expect.objectContaining({ dseq: "1000" }));
+      expect(holdCreateEvent).not.toHaveBeenCalled();
+    });
+
+    it("marks a create the api answered during the request as shown on its page, rather than following it", async () => {
+      const { markOutcomeHandled, followUntilSettled, createCalls } = await setupBackgroundCreate({});
+
+      act(() => createCalls[0].options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
+
+      expect(markOutcomeHandled).toHaveBeenCalledWith("deployment_create", "1000", "succeeded");
+      expect(followUntilSettled).not.toHaveBeenCalled();
+    });
+
+    it("tells the activity host it follows a create the api took on in the background, so the host leaves its outcome to the page", async () => {
+      const { followUntilSettled, markOutcomeHandled, accept } = await setupBackgroundCreate({});
+
+      act(() => accept());
+
+      expect(followUntilSettled).toHaveBeenCalledWith("activity-1");
+      expect(markOutcomeHandled).not.toHaveBeenCalled();
+    });
+
+    it.each(["succeeded", "failed"] as const)("keeps the host off a create that %s while the page stayed, even once the page is gone", async status => {
+      const { api, rerender, unmount, stopFollowing, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+
+      api.activities = [createActivity(status)];
+      rerender();
+      unmount();
+
+      expect(stopFollowing).not.toHaveBeenCalled();
+    });
+
+    it("hands a create still being created back to the activity host when the page goes, so its toast brings the user back", async () => {
+      const { api, rerender, unmount, stopFollowing, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+
+      api.activities = [createActivity("pending")];
+      rerender();
+      unmount();
+
+      expect(stopFollowing).toHaveBeenCalledWith("activity-1");
+    });
+
+    it("waits until a cancelled background create exists before closing it", async () => {
+      const { result, api, rerender, closeMutate, analyticsService, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+
+      act(() => result.current.actions.cancelAndEdit());
+      const closedBeforeCreated = closeMutate.mock.calls.length;
+      api.activities = [createActivity("succeeded")];
+      rerender();
+
+      expect(closedBeforeCreated).toBe(0);
+      expect(analyticsService.track).toHaveBeenCalledWith("cancel_during_create", { category: "deployments" });
+      expect(result.current).toMatchObject({ phase: "configuring", dseq: null });
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "1000", async: "true" }, expect.any(Object));
+    });
+
+    it("closes nothing when a cancelled background create fails", async () => {
+      const { result, api, rerender, closeMutate, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+      act(() => result.current.actions.cancelAndEdit());
+
+      api.activities = [createActivity("failed")];
+      rerender();
+
+      expect(closeMutate).not.toHaveBeenCalled();
+      expect(result.current).toMatchObject({ phase: "configuring", error: undefined });
+    });
+
+    it("follows a create the api accepts only after it was cancelled, closing it once it exists", async () => {
+      const replace = vi.fn();
+      const { result, api, rerender, closeMutate, holdCreateEvent, createCalls } = await setupBackgroundCreate({ replace });
+      act(() => result.current.actions.cancelAndEdit());
+
+      act(() => createCalls[0].options.onSuccess?.({ data: { dseq: "1000", manifest: "m", activityId: "activity-1" } }));
+      api.activities = [createActivity("succeeded")];
+      rerender();
+
+      expect(holdCreateEvent).not.toHaveBeenCalled();
+      expect(replace.mock.calls.every(([url]) => !String(url).includes("/configure/1000"))).toBe(true);
+      expect(result.current).toMatchObject({ phase: "configuring", dseq: null, isCreatingInBackground: false });
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "1000", async: "true" }, expect.any(Object));
+    });
+
+    it("queues a new create behind one still being created, closing that one first once it exists", async () => {
+      const { result, api, rerender, closeMutate, createMutate, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+
+      act(() => result.current.actions.requestQuotes("sdl-2"));
+      await settleSeal();
+      const stateWhileQueued = { ...result.current };
+      api.activities = [createActivity("succeeded")];
+      rerender();
+      act(() => closeMutate.mock.calls[0][1].onSuccess?.({ data: { success: true } }));
+      await settleSeal();
+
+      expect(stateWhileQueued).toMatchObject({ phase: "creating", dseq: null, isCreatingInBackground: false });
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "1000" }, expect.any(Object));
+      expect(createMutate).toHaveBeenCalledTimes(2);
+      expect(createMutate).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ sdl: "sdl-2" }) }), expect.any(Object));
+    });
+
+    it("sends a create queued behind a background create that fails without closing anything", async () => {
+      const { result, api, rerender, closeMutate, createMutate, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+      act(() => result.current.actions.requestQuotes("sdl-2"));
+      await settleSeal();
+
+      api.activities = [createActivity("failed")];
+      rerender();
+      await settleSeal();
+
+      expect(closeMutate).not.toHaveBeenCalled();
+      expect(createMutate).toHaveBeenCalledTimes(2);
+    });
+
+    it("leaves a background create alone when the page is discarded", async () => {
+      const { result, closeMutate, services, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+
+      act(() => result.current.actions.discard());
+      act(() => hookOptionsOf(services.api.v1.createDeployment.useMutation).onSuccess?.({ data: { dseq: "1000", manifest: "m", activityId: "activity-1" } }));
+
+      expect(closeMutate).not.toHaveBeenCalled();
     });
   });
 
@@ -2673,15 +2905,16 @@ describe(useDeploymentFlow.name, () => {
     getDeploymentMutate?: ReturnType<typeof vi.fn>;
     sealSdlSecrets?: typeof DEPENDENCIES.sealSdlSecrets;
     sealContextMutateAsync?: ReturnType<typeof vi.fn>;
-    isClosingInBackground?: boolean;
+    isRunningInBackground?: boolean;
     deployTargetProjectId?: string;
   }) {
     const forgetProject = vi.fn();
     const intent = { vm: false, ...(input.intent ?? { sdlStrategy: "edit" as const, bidStrategy: "select" as const, dseq: undefined }) };
     const feed: { activities?: Activity[] } = {};
-    const useFlag = vi.fn((_flag: string) => input.isClosingInBackground ?? false);
+    const api: { activities: Activity[] } = { activities: [] };
+    const useFlag = vi.fn((_flag: string) => input.isRunningInBackground ?? false);
     const useLatestActivitiesQuery = vi.fn((_options: { enabled: boolean }) =>
-      mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: feed.activities })
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), { data: feed.activities })
     );
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const createDeployment = mockMutation(input.createMutate);
@@ -2691,7 +2924,14 @@ describe(useDeploymentFlow.name, () => {
     const sealSdlSecrets = vi.fn(input.sealSdlSecrets ?? (async () => "SEALED"));
     const markOutcomeHandled = vi.fn();
     const forgetEarlierOutcomes = vi.fn();
+    const followUntilSettled = vi.fn();
+    const stopFollowing = vi.fn();
+    const holdCreateEvent = vi.fn();
     const services = mockServices({ createDeployment, closeDeployment, getDeployment, getSdlSecretsContext });
+    services.api.v1.getActivity.useQuery.mockImplementation(({ id }) => {
+      const activity = api.activities.find(candidate => candidate.id === id);
+      return mock<ReturnType<typeof services.api.v1.getActivity.useQuery>>({ data: activity && { data: activity } });
+    });
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
       useListBids: (() => ({ data: { data: [] }, isLoading: false, isError: false })) as never,
@@ -2703,17 +2943,20 @@ describe(useDeploymentFlow.name, () => {
       servicesPatchBetween,
       useFlag,
       useLatestActivitiesQuery,
-      useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes, markOutcomeHandled }),
+      useMarkActivityOutcomes: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>({ forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing }),
       useConfigureDeployTarget: () =>
         mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({
           project: input.deployTargetProjectId ? mock<Project>({ id: input.deployTargetProjectId }) : undefined,
           forgetProject
-        })
+        }),
+      useHoldCreateEvent: () => holdCreateEvent
     };
     return {
       services,
       ...renderDeploymentFlow(intent, dependencies),
       feed,
+      api,
       useFlag,
       useLatestActivitiesQuery,
       analyticsService: services.analyticsService,
@@ -2725,7 +2968,10 @@ describe(useDeploymentFlow.name, () => {
       sealSdlSecrets,
       forgetProject,
       markOutcomeHandled,
-      forgetEarlierOutcomes
+      forgetEarlierOutcomes,
+      followUntilSettled,
+      stopFollowing,
+      holdCreateEvent
     };
   }
 
@@ -2760,6 +3006,8 @@ describe(useDeploymentFlow.name, () => {
     const sealSdlSecrets = vi.fn(input?.sealSdlSecrets ?? (async () => "SEALED"));
     const markOutcomeHandled = vi.fn();
     const forgetEarlierOutcomes = vi.fn();
+    const followUntilSettled = vi.fn();
+    const stopFollowing = vi.fn();
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
       useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
@@ -2771,8 +3019,10 @@ describe(useDeploymentFlow.name, () => {
       servicesPatchBetween: input?.servicesPatchBetween ?? servicesPatchBetween,
       useFlag: () => false,
       useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
-      useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes, markOutcomeHandled }),
-      useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
+      useMarkActivityOutcomes: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>({ forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing }),
+      useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
+      useHoldCreateEvent: () => vi.fn()
     };
     const utils = renderDeploymentFlow(intent, dependencies, input?.settingsId);
     return {
@@ -2802,13 +3052,28 @@ describe(useDeploymentFlow.name, () => {
       servicesPatchBetween,
       useFlag: () => false,
       useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
-      useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes: vi.fn(), markOutcomeHandled: vi.fn() }),
-      useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
+      useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
+      useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
+      useHoldCreateEvent: () => vi.fn()
     };
     return {
       ...renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies),
       analyticsService: services.analyticsService
     };
+  }
+
+  async function setupBackgroundCreate(input: { replace?: ReturnType<typeof vi.fn> }) {
+    const { mutate: createMutate, calls: createCalls } = deferredMutate();
+    const closeMutate = vi.fn();
+    const view = setup({ replace: input.replace, createMutate, closeMutate, isRunningInBackground: true });
+    act(() => view.result.current.actions.requestQuotes("sdl"));
+    await settleSeal();
+    const accept = () => createCalls[0].options.onSuccess?.({ data: { dseq: "1000", manifest: "m", activityId: "activity-1" } });
+    return { ...view, createMutate, createCalls, closeMutate, accept };
+  }
+
+  function createActivity(status: Activity["status"]) {
+    return buildActivity({ id: "activity-1", type: "deployment_create", status, meta: { dseq: "1000" } });
   }
 
   async function settleSeal() {
@@ -2851,6 +3116,7 @@ describe(useDeploymentFlow.name, () => {
     services.api.v1.listDeployments.getKey.mockReturnValue(["v1", "listDeployments"]);
     services.api.v1.listActivities.getKey.mockReturnValue(["v1", "listActivities"]);
     services.api.v1.getSpendRate.getKey.mockReturnValue(["v1", "getSpendRate"]);
+    services.api.v1.getActivity.useQuery.mockReturnValue(mock<ReturnType<typeof services.api.v1.getActivity.useQuery>>({ data: undefined }));
     return services;
   }
 

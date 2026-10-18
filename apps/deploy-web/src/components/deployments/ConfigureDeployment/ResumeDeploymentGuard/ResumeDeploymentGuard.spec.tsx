@@ -3,6 +3,7 @@ import { ApiError } from "@akashnetwork/openapi-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import { buildConfigureUrl } from "../useDeploymentFlow/useDeploymentFlow";
@@ -10,6 +11,7 @@ import type { DEPENDENCIES, ResumeResolution } from "./ResumeDeploymentGuard";
 import { ResumeDeploymentGuard } from "./ResumeDeploymentGuard";
 
 import { render, screen } from "@testing-library/react";
+import { buildActivity } from "@tests/seeders/activity";
 
 const PROVIDER = "akash1provider";
 
@@ -154,6 +156,148 @@ describe(ResumeDeploymentGuard.name, () => {
     expect(screen.queryByTestId("child")).not.toBeInTheDocument();
   });
 
+  describe("when the activity center is on", () => {
+    it("shows a deployment the feed reports still being created as in progress rather than missing", () => {
+      const { replace, enqueueSnackbar } = setup({
+        intent: intentFor("555"),
+        isFollowingFeed: true,
+        query: notFound(),
+        feed: { activities: [createOf("777", "failed"), createOf("555", "pending")] }
+      });
+
+      expect(screen.getByRole("heading", { name: "Creating your deployment" })).toBeInTheDocument();
+      expect(screen.getByText("You can leave this page. We'll let you know when it's ready.")).toBeInTheDocument();
+      expect(screen.queryByTestId("child")).not.toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+    });
+
+    it("reads the deployment again until the chain has the one being created", () => {
+      const { useGetDeployment } = setup({
+        intent: intentFor("555"),
+        isFollowingFeed: true,
+        query: notFound(),
+        feed: { activities: [createOf("555", "pending")] }
+      });
+
+      expect(useGetDeployment).toHaveBeenLastCalledWith("555", { isAwaitingCreate: true });
+    });
+
+    it("resumes choosing a provider once the chain has the created deployment, and stops reading it again", () => {
+      const { respond, getResume, useGetDeployment } = setup({
+        intent: intentFor("555"),
+        isFollowingFeed: true,
+        query: notFound(),
+        feed: { activities: [createOf("555", "pending")] }
+      });
+
+      respond({ query: deployment({ state: "active" }), feed: { activities: [createOf("555", "succeeded")] } });
+
+      expect(getResume()).toEqual({ activeLeases: [] });
+      expect(screen.queryByRole("heading", { name: "Creating your deployment" })).not.toBeInTheDocument();
+      expect(useGetDeployment).toHaveBeenLastCalledWith("555", { isAwaitingCreate: false });
+    });
+
+    it("keeps waiting on a create the feed reports done while the chain does not show it yet", () => {
+      const { replace } = setup({ intent: intentFor("555"), isFollowingFeed: true, query: notFound(), feed: { activities: [createOf("555", "succeeded")] } });
+
+      expect(screen.getByRole("heading", { name: "Creating your deployment" })).toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { case: "whose create failed", activities: [createOf("555", "failed")] },
+      {
+        case: "the feed holds no create for",
+        activities: [createOf("777", "pending"), buildActivity({ type: "deployment_close", status: "pending", meta: { dseq: "555" } })]
+      }
+    ])("treats a missing deployment $case as gone", ({ activities }) => {
+      const intent = intentFor("555");
+      const { replace, enqueueSnackbar } = setup({ intent, isFollowingFeed: true, query: notFound(), feed: { activities } });
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "warning" }));
+      expect(replace).toHaveBeenCalledWith(buildConfigureUrl(intent, undefined, intent.bidStrategy));
+    });
+
+    it("keeps the create in progress when a later read of the feed fails", () => {
+      const pending = createOf("555", "pending");
+      const { replace, enqueueSnackbar, respond } = setup({
+        intent: intentFor("555"),
+        isFollowingFeed: true,
+        query: notFound(),
+        feed: { activities: [pending] }
+      });
+
+      respond({ feed: { activities: [pending], isError: true } });
+
+      expect(screen.getByRole("heading", { name: "Creating your deployment" })).toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+    });
+
+    it("keeps saying the deployment is being created, and keeps following the feed, while the deployment is read again", () => {
+      const { useActivityFeedQuery, useGetDeployment, respond } = setup({
+        intent: intentFor("555"),
+        isFollowingFeed: true,
+        query: notFound(),
+        feed: { activities: [createOf("555", "pending")] }
+      });
+
+      respond({ query: { isLoading: true } });
+
+      expect(screen.getByRole("heading", { name: "Creating your deployment" })).toBeInTheDocument();
+      expect(useActivityFeedQuery).toHaveBeenLastCalledWith({ enabled: true });
+      expect(useGetDeployment).toHaveBeenLastCalledWith("555", { isAwaitingCreate: true });
+    });
+
+    it("treats a missing deployment as gone when the feed cannot be read", () => {
+      const { replace } = setup({ intent: intentFor("555"), isFollowingFeed: true, query: notFound(), feed: { isError: true } });
+
+      expect(replace).toHaveBeenCalled();
+    });
+
+    it("waits for the feed before deciding a missing deployment is gone", () => {
+      const { replace, useGetDeployment } = setup({ intent: intentFor("555"), isFollowingFeed: true, query: notFound(), feed: {} });
+
+      expect(screen.getByRole("status")).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Creating your deployment" })).not.toBeInTheDocument();
+      expect(useGetDeployment).toHaveBeenLastCalledWith("555", { isAwaitingCreate: false });
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("reads the feed only while a missing deployment is unresolved", () => {
+      const { useActivityFeedQuery, useFlag, respond } = setup({ intent: intentFor("555"), isFollowingFeed: true, query: notFound(), feed: {} });
+      const enabledWhileMissing = useActivityFeedQuery.mock.lastCall?.[0];
+
+      respond({ query: deployment({ state: "active" }) });
+
+      expect(useFlag).toHaveBeenCalledWith("notifications_activity_center");
+      expect(enabledWhileMissing).toEqual({ enabled: true });
+      expect(useActivityFeedQuery).toHaveBeenLastCalledWith({ enabled: false });
+    });
+
+    it("does not read the feed for a deployment the chain has", () => {
+      const { useActivityFeedQuery } = setup({ intent: intentFor("555"), isFollowingFeed: true, query: { isLoading: true } });
+
+      expect(useActivityFeedQuery).toHaveBeenLastCalledWith({ enabled: false });
+    });
+  });
+
+  it("neither reads the feed nor waits on it for a missing deployment while the activity center is off", () => {
+    const { useActivityFeedQuery, replace } = setup({ intent: intentFor("555"), query: notFound(), feed: { activities: [createOf("555", "pending")] } });
+
+    expect(useActivityFeedQuery).toHaveBeenLastCalledWith({ enabled: false });
+    expect(replace).toHaveBeenCalled();
+  });
+
+  function notFound() {
+    return { error: new ApiError(404, { message: "Deployment not found" }, "GET → 404") };
+  }
+
+  function createOf(dseq: string, status: Activity["status"]) {
+    return buildActivity({ type: "deployment_create", status, meta: { dseq } });
+  }
+
   function intentFor(dseq: string | undefined): DeploymentIntent {
     return { sdlStrategy: "edit", bidStrategy: "select", dseq, vm: false };
   }
@@ -181,29 +325,42 @@ describe(ResumeDeploymentGuard.name, () => {
     intent: DeploymentIntent;
     canResume?: boolean;
     query?: { isLoading?: boolean; isError?: boolean; error?: unknown; data?: unknown };
+    isFollowingFeed?: boolean;
+    feed?: { activities?: Activity[]; isError?: boolean };
   }) {
     const replace = vi.fn();
     const enqueueSnackbar = vi.fn();
     let resume: ResumeResolution | undefined;
+    const current = { query: input.query, feed: input.feed };
 
     // react-query's result is a discriminated union on isError/isSuccess that a plain mock<T> partial can't express,
     // so the hand-built result is cast rather than fighting the union.
     const useGetDeployment = vi.fn(
-      () =>
+      (_dseq: string | undefined, _options: { isAwaitingCreate: boolean }) =>
         ({
-          data: input.query?.data,
-          isLoading: input.query?.isLoading ?? false,
-          isError: input.query?.error !== undefined,
-          error: input.query?.error
+          data: current.query?.data,
+          isLoading: current.query?.isLoading ?? false,
+          isError: current.query?.error !== undefined,
+          error: current.query?.error
         }) as unknown as ReturnType<typeof DEPENDENCIES.useGetDeployment>
     );
+    const useFlag = vi.fn((_flag: string) => input.isFollowingFeed ?? false);
+    const useActivityFeedQuery = vi.fn((_options: { enabled: boolean }) => {
+      const activities = current.feed?.activities;
+      return Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), {
+        data: activities && { activities, unseenCount: 0, newestCreatedAt: activities[0]?.createdAt },
+        isError: current.feed?.isError ?? false
+      });
+    });
 
     const dependencies: typeof DEPENDENCIES = {
       Layout: vi.fn(({ children }: { children: ReactNode }) => <div data-testid="layout-mock">{children}</div>) as never,
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace })) as never,
       useSnackbar: (() => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })) as never,
       Snackbar: vi.fn(() => null) as never,
-      useGetDeployment: useGetDeployment as never
+      useGetDeployment: useGetDeployment as never,
+      useFlag,
+      useActivityFeedQuery
     };
 
     const renderChild = (r: ResumeResolution) => {
@@ -217,16 +374,26 @@ describe(ResumeDeploymentGuard.name, () => {
       </ResumeDeploymentGuard>
     );
 
+    const rerender = (intent: DeploymentIntent) =>
+      view.rerender(
+        <ResumeDeploymentGuard intent={intent} canResume={input.canResume ?? false} dependencies={dependencies}>
+          {renderChild}
+        </ResumeDeploymentGuard>
+      );
+
     return {
       replace,
       enqueueSnackbar,
+      useGetDeployment,
+      useFlag,
+      useActivityFeedQuery,
       getResume: () => resume,
-      rerender: (intent: DeploymentIntent) =>
-        view.rerender(
-          <ResumeDeploymentGuard intent={intent} canResume={input.canResume ?? false} dependencies={dependencies}>
-            {renderChild}
-          </ResumeDeploymentGuard>
-        )
+      rerender,
+      respond: (next: { query?: typeof current.query; feed?: typeof current.feed }) => {
+        current.query = next.query ?? current.query;
+        current.feed = next.feed ?? current.feed;
+        rerender(input.intent);
+      }
     };
   }
 });
