@@ -13,6 +13,8 @@ import type { ApiPgDatabase, JobPermissions } from "@src/core";
 import { JOB_NAME, JobQueueService, POSTGRES_DB, resolveTable, TxService } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { ApplyDeploymentUpdateHandler } from "@src/deployment/services/apply-deployment-update/apply-deployment-update.handler";
 import {
@@ -31,6 +33,7 @@ import { RecordDeploymentSetting, RecordDeploymentSettingHandler } from "@src/de
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
+import { TeamRecordRetentionService } from "@src/user/services/team-record-retention/team-record-retention.service";
 import { type AcceptedDeploymentCreate, DeploymentWriterService, type SavedPatch } from "./deployment-writer.service";
 
 import { registerFakeSdlSecretsKms, warmSealingKeyAsBootWould } from "@test/mocks/sdl-secrets-kms.mock";
@@ -287,6 +290,36 @@ describe(DeploymentWriterService.name, () => {
         expect(pushManifest).not.toHaveBeenCalled();
       });
 
+      describe("after the member who set the hidden variables deleted their account", () => {
+        it("applies a teammate's patch with the values sealed for the team", async () => {
+          const { wallet, saved, secretValue, applyAsBackgroundJob, pushManifest, deleteFilersAccount } = await setup({
+            owner: "organization",
+            sealedFor: "team"
+          });
+          await deleteFilersAccount();
+
+          await applyAsBackgroundJob(saved, organizationRulesFor({ walletId: wallet.id, organizationId: wallet.organizationId as string }));
+
+          expect(pushManifest).toHaveBeenCalledWith(
+            expect.objectContaining({ provider: LEASE_PROVIDER, dseq: saved.dseq, manifest: expect.stringContaining(`API_TOKEN=${secretValue}`) })
+          );
+        });
+
+        it("refuses a teammate's patch whose values were sealed under that member's own key", async () => {
+          const { wallet, saved, applyAsBackgroundJob, broadcast, pushManifest, deleteFilersAccount } = await setup({
+            owner: "organization",
+            sealedFor: "member"
+          });
+          await deleteFilersAccount();
+
+          await expect(
+            applyAsBackgroundJob(saved, organizationRulesFor({ walletId: wallet.id, organizationId: wallet.organizationId as string }))
+          ).rejects.toMatchObject({ status: 409 });
+          expect(broadcast).not.toHaveBeenCalled();
+          expect(pushManifest).not.toHaveBeenCalled();
+        });
+      });
+
       it("cannot sign with the organization's wallet when the job's rules name another wallet", async () => {
         const { wallet, saved, applyAsBackgroundJob, broadcast, pushManifest } = await setup({ owner: "organization" });
 
@@ -315,15 +348,21 @@ describe(DeploymentWriterService.name, () => {
       ];
     }
 
-    async function setup(input: { owner?: "user" | "organization" } = {}) {
+    async function setup(input: { owner?: "user" | "organization"; sealedFor?: "member" | "team" } = {}) {
       await jobWorkers();
       await warmSealingKeyAsBootWould();
 
-      const { filer, member, wallet, filedIn, walletOfPatch } = input.owner === "organization" ? await seedOrganizationWallet() : await seedPersonalWallet();
+      const { filer, member, wallet, filedIn, teamId, walletOfPatch } =
+        input.owner === "organization" ? await seedOrganizationWallet() : await seedPersonalWallet();
       const dseq = createDseq();
       const secretValue = faker.string.alphanumeric(24);
       const secrets = { API_TOKEN: secretValue };
-      const sealedSecrets = await runAsUser(filer, () => container.resolve(SdlSecretsService).sealForStorage({ userId: filer.id, dseq, secrets }));
+      const featureFlagsService = container.resolve(FeatureFlagsService);
+      const isEnabled = featureFlagsService.isEnabled.bind(featureFlagsService);
+      vi.spyOn(featureFlagsService, "isEnabled").mockImplementation((flag, context) =>
+        flag === FeatureFlags.TEAM_DATA_KEYS ? input.sealedFor === "team" : isEnabled(flag, context)
+      );
+      const sealedSecrets = await runAsUser(filer, () => container.resolve(SdlSecretsService).sealForStorage({ userId: filer.id, teamId, dseq, secrets }));
       const manifestVersion = await savedVersionOf(SAVED_SDL, secrets);
       await seedDeploymentSetting({ userId: filer.id, ...filedIn, dseq, sdl: SAVED_SDL, manifestVersion, sealedSecrets, autoTopUpEnabled: false });
 
@@ -348,12 +387,21 @@ describe(DeploymentWriterService.name, () => {
         });
       }
 
+      async function deleteFilersAccount() {
+        await container.resolve(TeamRecordRetentionService).releaseFromTeams(filer);
+        await container
+          .resolve<ApiPgDatabase>(POSTGRES_DB)
+          .delete(resolveTable("Users"))
+          .where(eq(resolveTable("Users").id, filer.id));
+      }
+
       return {
         member,
         wallet,
         saved: { userId: member.id, dseq, manifestVersion, ...walletOfPatch },
         secretValue,
         applyAsBackgroundJob,
+        deleteFilersAccount,
         broadcast,
         pushManifest
       };
@@ -362,7 +410,7 @@ describe(DeploymentWriterService.name, () => {
     async function seedPersonalWallet() {
       const { user, wallet } = await seedUserWithWallet();
 
-      return { filer: user, member: user, wallet, filedIn: {}, walletOfPatch: {} };
+      return { filer: user, member: user, wallet, filedIn: {}, teamId: null, walletOfPatch: {} };
     }
 
     async function seedOrganizationWallet() {
@@ -375,7 +423,14 @@ describe(DeploymentWriterService.name, () => {
         .values({ userId: null, organizationId: organization.id, createdByUserId: filer.id, address: createAkashAddress(), isTrialing: false })
         .returning();
 
-      return { filer, member, wallet, filedIn: { organizationId: organization.id, projectId: project.id }, walletOfPatch: { walletId: wallet.id } };
+      return {
+        filer,
+        member,
+        wallet,
+        filedIn: { organizationId: organization.id, projectId: project.id },
+        teamId: organization.id,
+        walletOfPatch: { walletId: wallet.id }
+      };
     }
   });
 

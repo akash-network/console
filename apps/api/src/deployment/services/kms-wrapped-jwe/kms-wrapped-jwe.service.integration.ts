@@ -78,7 +78,7 @@ describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
 
     const beforeRotation = consoleAt(oldVersion);
     await beforeRotation.warmSealingKey();
-    const row = await beforeRotation.dataKeyService.ensureDataKey(user.id);
+    const row = await beforeRotation.dataKeyService.ensureDataKey({ userId: user.id });
     const keyBeforeRotation = await beforeRotation.unwrapFor(user.id);
 
     const keyAfterRotation = await consoleAt(newVersion).unwrapFor(user.id);
@@ -95,7 +95,7 @@ describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
 
     const afterRotation = consoleAt(newVersion);
     await afterRotation.warmSealingKey();
-    const row = await afterRotation.dataKeyService.ensureDataKey(user.id);
+    const row = await afterRotation.dataKeyService.ensureDataKey({ userId: user.id });
 
     expect(row.wrappedByKid).toBe(`${KEY}.v${newVersion}`);
     expect(decodeProtectedHeader(row.wrappedKey).kid).toBe(`${KEY}.v${newVersion}`);
@@ -131,7 +131,7 @@ describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
 
     const beforeRotation = consoleAt(oldVersion);
     await beforeRotation.warmSealingKey();
-    const row = await beforeRotation.dataKeyService.ensureDataKey(user.id);
+    const row = await beforeRotation.dataKeyService.ensureDataKey({ userId: user.id });
 
     const openedUnderTheWrongVersion = beforeRotation.wrappedJwe.open(beforeRotation.wrappedJwe.parse(row.wrappedKey), versionPath(newVersion));
 
@@ -145,7 +145,7 @@ describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
 
     const beforeRotation = consoleAt(oldVersion);
     await beforeRotation.warmSealingKey();
-    const row = await beforeRotation.dataKeyService.ensureDataKey(user.id);
+    const row = await beforeRotation.dataKeyService.ensureDataKey({ userId: user.id });
 
     const openedUnderTheWrongVersion = beforeRotation.wrappedJwe.open(beforeRotation.wrappedJwe.parse(row.wrappedKey), versionPath(newVersion));
 
@@ -159,7 +159,7 @@ describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
 
     const consoleApi = consoleAt(retiredVersion);
     await consoleApi.warmSealingKey();
-    await consoleApi.dataKeyService.ensureDataKey(user.id);
+    await consoleApi.dataKeyService.ensureDataKey({ userId: user.id });
     await expect(consoleApi.unwrapFor(user.id)).resolves.toHaveLength(32);
 
     await disableVersion(retiredVersion);
@@ -207,7 +207,7 @@ describe(`${KmsWrappedJweService.name} against Cloud KMS`, () => {
         wrappedJwe,
         dataKeyService,
         warmSealingKey: async () => await sealingKeyService.getSealingKey(),
-        unwrapFor: async (userId: string) => await executionContextService.runWithContext(async () => await (await unwrapper.getDataKey(userId)).unwrap()),
+        unwrapFor: async (userId: string) => await executionContextService.runWithContext(async () => await (await unwrapper.getDataKey({ userId })).unwrap()),
         openSeal: async (user: UserOutput, seal: string) =>
           await executionContextService.runWithContext(async () => {
             authService.currentUser = user;

@@ -53,11 +53,10 @@ export class DataKeyUnwrapperService {
   }
 
   /** `findDataKey` shares this slot and may hold it with a miss, so a caller that needs the key asks again once that miss is forgotten. */
-  async getDataKey(userId: string): Promise<HeldDataKey> {
-    const owner = { userId };
-    const held = await this.#holdOnce(owner, heldOwnerOf(owner), async () => await this.dataKeyService.ensureDataKey(userId));
+  async getDataKey(owner: DataKeyOwner): Promise<HeldDataKey> {
+    const held = await this.#holdOnce(owner, heldOwnerOf(owner), async () => await this.dataKeyService.ensureDataKey(owner));
 
-    return held ?? (await this.getDataKey(userId));
+    return held ?? (await this.getDataKey(owner));
   }
 
   /** The active key without creating one, held as `getDataKey` holds it; undefined when the owner has none. */

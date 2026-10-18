@@ -145,7 +145,7 @@ export class UserService {
    * this error log is the only signal of that.
    */
   private async ensureDataKeyBestEffort(userId: string) {
-    await this.dataKeyService.ensureDataKey(userId).catch(error => {
+    await this.dataKeyService.ensureDataKey({ userId }).catch(error => {
       this.logger.error({ event: "FAILED_TO_ENSURE_USER_DATA_KEY", id: userId, error });
     });
   }

@@ -37,8 +37,8 @@ export class SecretCipherService {
   }
 
   /** The encryption claims are spread last so they still win over a binding that reached here past the type forbidding them. */
-  async encrypt(userId: string, value: string, binding: SecretBinding): Promise<string> {
-    const dataKey = await this.dataKeyUnwrapperService.getDataKey(userId);
+  async encrypt(owner: DataKeyOwner, value: string, binding: SecretBinding): Promise<string> {
+    const dataKey = await this.dataKeyUnwrapperService.getDataKey(owner);
 
     return await new CompactEncrypt(textEncoder.encode(value))
       .setProtectedHeader({ ...binding, alg: SECRET_AT_REST_KEY_MANAGEMENT, enc: SECRET_AT_REST_CONTENT_ENCRYPTION, kid: dataKey.id })

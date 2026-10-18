@@ -150,7 +150,7 @@ describe(UserService.name, () => {
 
       await service.registerUser(createRegisterInput({ emailVerified: true }));
 
-      expect(dataKeyService.ensureDataKey).toHaveBeenCalledWith(user.id);
+      expect(dataKeyService.ensureDataKey).toHaveBeenCalledWith({ userId: user.id });
     });
 
     it("logs error but does not throw when data key creation fails", async () => {

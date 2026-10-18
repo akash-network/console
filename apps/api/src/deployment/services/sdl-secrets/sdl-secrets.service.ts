@@ -4,6 +4,8 @@ import { decodeProtectedHeader } from "jose";
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { jsonEncodedBytes } from "@src/deployment/config/sdl-secrets.config";
 import type { SdlReferenceDeclaration } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import {
@@ -82,7 +84,18 @@ export function isSealedForOrganization(sealedSecrets: string): boolean {
 /** A stored token with the row it was read from; `userId` is the member the row is filed under, null once they deleted their account. */
 export type StoredSecretsOfDeployment = { userId: string | null; organizationId: string | null; dseq: string; sealedSecrets: string };
 
+/** `userId` is the member the row is filed under; `teamId` names the team whose wallet the deployment runs on, absent for a personal one. */
+export type SecretsToSeal = { userId: string; teamId?: string | null; dseq: string; secrets: SdlSecrets };
+
 type Sealer = { owner: DataKeyOwner; binding: SecretBinding };
+
+function sealerOfUser(userId: string, dseq: string): Sealer {
+  return { owner: { userId }, binding: { sub: userId, dseq } };
+}
+
+function sealerOfOrganization(organizationId: string, dseq: string): Sealer {
+  return { owner: { organizationId }, binding: { [ORGANIZATION_CLAIM]: organizationId, dseq } };
+}
 
 export function unreferencedNameError(name: string): ValidationError {
   const echoed = name.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
@@ -106,6 +119,7 @@ export class SdlSecretsService {
     private readonly sdlReferenceService: SdlReferenceService,
     private readonly secretCipherService: SecretCipherService,
     private readonly config: DeploymentConfigService,
+    private readonly featureFlagsService: FeatureFlagsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#loggerService = createLogger({ context: SdlSecretsService.name });
@@ -148,16 +162,32 @@ export class SdlSecretsService {
   }
 
   /** Returns null when nothing was supplied, so a create always has a value to write and a retry cannot inherit an abandoned attempt's token. */
-  async sealForStorage(input: { userId: string; dseq: string; secrets: SdlSecrets }): Promise<string | null> {
+  async sealForStorage(input: SecretsToSeal): Promise<string | null> {
     const names = Object.keys(input.secrets);
 
     if (names.length === 0) return null;
 
-    const sealed = await this.secretCipherService.encrypt(input.userId, JSON.stringify(input.secrets), { sub: input.userId, dseq: input.dseq });
+    const { owner, binding } = this.#sealerFor(input);
+    const sealed = await this.secretCipherService.encrypt(owner, JSON.stringify(input.secrets), binding);
 
-    this.#loggerService.info({ event: "SDL_SECRETS_SEALED", userId: input.userId, dseq: input.dseq, secretCount: names.length });
+    this.#loggerService.info({
+      event: "SDL_SECRETS_SEALED",
+      userId: input.userId,
+      organizationId: owner.organizationId,
+      dseq: input.dseq,
+      secretCount: names.length
+    });
 
     return sealed;
+  }
+
+  /** With `team_data_keys` off every value stays under the filer's key, as it did before teams held keys. */
+  #sealerFor({ userId, teamId, dseq }: SecretsToSeal): Sealer {
+    if (teamId && this.featureFlagsService.isEnabled(FeatureFlags.TEAM_DATA_KEYS)) {
+      return sealerOfOrganization(teamId, dseq);
+    }
+
+    return sealerOfUser(userId, dseq);
   }
 
   /** Opens a client's seal without holding it to what the SDL declares, because a patch supplies only what changed and the rest resolves from what is stored. */
@@ -192,9 +222,7 @@ export class SdlSecretsService {
       return this.#organizationSealerOf(input);
     }
 
-    const userId = this.#assertSealedForFiler(input);
-
-    return { owner: { userId }, binding: { sub: userId, dseq: input.dseq } };
+    return sealerOfUser(this.#assertSealedForFiler(input), input.dseq);
   }
 
   #organizationSealerOf({ userId, organizationId, dseq }: StoredSecretsOfDeployment): Sealer {
@@ -204,7 +232,7 @@ export class SdlSecretsService {
       throw createError(500, SECRET_UNREADABLE_ERROR_MESSAGE, { errorCode: SECRET_UNREADABLE_ERROR_CODE });
     }
 
-    return { owner: { organizationId }, binding: { [ORGANIZATION_CLAIM]: organizationId, dseq } };
+    return sealerOfOrganization(organizationId, dseq);
   }
 
   /** A team deployment taken over from a member who deleted their account may still hold a token bound to that member, whose data key went with the account. */

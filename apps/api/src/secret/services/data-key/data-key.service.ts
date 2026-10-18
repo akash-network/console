@@ -23,10 +23,10 @@ export async function wrapDataKey({ kid, publicKey }: SdlSecretsSealingKey): Pro
 }
 
 /**
- * Hands out a user's data encryption key, creating it on first need. Wrapping uses only the public
+ * Hands out a user's or a team's data encryption key, creating it on first need. Wrapping uses only the public
  * half of the KMS key, and only the copy already held in memory, so signup neither calls the key
  * service nor waits on its availability — and users who registered before data keys existed get one
- * lazily instead of through a backfill.
+ * lazily instead of through a backfill, as does a team on the first value sealed for it.
  */
 @singleton()
 export class DataKeyService {
@@ -40,15 +40,16 @@ export class DataKeyService {
     this.logger = createLogger({ context: DataKeyService.name });
   }
 
-  async ensureDataKey(userId: string): Promise<DataKeyOutput> {
-    const existing = await this.dataKeyRepository.findByUserId(userId);
+  async ensureDataKey(owner: DataKeyOwner): Promise<DataKeyOutput> {
+    const existing = await this.dataKeyRepository.findActiveOf(owner);
 
     if (existing) return existing;
 
-    const { dataKey, isNew } = await this.dataKeyRepository.createUnlessExists(await this.wrapNewDataKey(userId));
+    const { dataKey, isNew } = await this.dataKeyRepository.createUnlessExists({ ...owner, ...(await this.wrapNewDataKey(owner)) });
 
     if (isNew) {
-      this.logger.info({ event: "USER_DATA_KEY_CREATED", userId, wrappedByKid: dataKey.wrappedByKid });
+      const event = owner.organizationId === undefined ? "USER_DATA_KEY_CREATED" : "ORGANIZATION_DATA_KEY_CREATED";
+      this.logger.info({ event, ...owner, wrappedByKid: dataKey.wrappedByKid });
     }
 
     return dataKey;
@@ -64,15 +65,15 @@ export class DataKeyService {
     return await this.dataKeyRepository.findOwnedById(owner, id);
   }
 
-  private async wrapNewDataKey(userId: string): Promise<{ userId: string } & Pick<DataKeyInput, "wrappedKey" | "wrappedByKid">> {
+  private async wrapNewDataKey(owner: DataKeyOwner): Promise<Pick<DataKeyInput, "wrappedKey" | "wrappedByKid">> {
     const sealingKey = this.sealingKeyService.peekSealingKey();
 
     if (!sealingKey) {
-      this.logger.error({ event: "USER_DATA_KEY_SEALING_KEY_NOT_HELD", userId });
+      this.logger.error({ event: "USER_DATA_KEY_SEALING_KEY_NOT_HELD", ...owner });
 
       throw createError(503, SDL_SECRETS_UNAVAILABLE_ERROR_MESSAGE);
     }
 
-    return { userId, ...(await wrapDataKey(sealingKey)) };
+    return await wrapDataKey(sealingKey);
   }
 }
