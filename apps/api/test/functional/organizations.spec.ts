@@ -1,7 +1,8 @@
 import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { AuthService } from "@src/auth/services/auth.service";
@@ -17,6 +18,10 @@ import { seedOrganizationMember, seedOrganizationWithOwner, seedProject } from "
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe("Organizations", () => {
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
+
   const userRepository = container.resolve(UserRepository);
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
 
