@@ -3,6 +3,7 @@ import { Trace } from "@akashnetwork/instrumentation";
 import { singleton } from "tsyringe";
 
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
+import { roundUsdToCents } from "@src/billing/lib/currency/currency";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
@@ -12,12 +13,6 @@ import { averageBlockTime } from "@src/utils/constants";
 
 @singleton()
 export class BalancesService {
-  #currencyFormatter = new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-    useGrouping: false
-  });
-
   constructor(
     @InjectBillingConfig() private readonly config: BillingConfig,
     private readonly userWalletRepository: UserWalletRepository,
@@ -139,6 +134,6 @@ export class BalancesService {
   }
 
   ensure2floatingDigits(amount: number) {
-    return Number(this.#currencyFormatter.format(amount));
+    return roundUsdToCents(amount);
   }
 }

@@ -142,6 +142,18 @@ describe("Organization deletion", () => {
       expect(await rowsOf("Organizations", team.id)).toEqual([expect.objectContaining({ deletedAt: expect.any(Date) })]);
     });
 
+    it("deletes once the owner acknowledges the unrounded balance it reports to the cent, while refusing a cent less", async () => {
+      const { team, owner, deleteTeam } = await setup({ balanceUakt: "19999976" });
+
+      const centShort = await deleteTeam(owner, { acknowledgedForfeitUsd: "19.99" });
+      const unrounded = await deleteTeam(owner, { acknowledgedForfeitUsd: "19.999976" });
+
+      expect(centShort.status).toBe(400);
+      expect(await centShort.json()).toMatchObject({ code: "forfeit_acknowledgement_required", data: { balanceUsd: 20 } });
+      expect(unrounded.status).toBe(204);
+      expect(await rowsOf("Organizations", team.id)).toEqual([expect.objectContaining({ deletedAt: expect.any(Date) })]);
+    });
+
     it("waits for a card payment settling into the team's wallet, then refuses to forfeit the credits it added", async () => {
       const { team, owner, wallet, chain, deleteTeam } = await setup({ balanceUakt: "12500000" });
       const settlement = holdTransaction(async () => {

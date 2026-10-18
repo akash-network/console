@@ -3,6 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { AuthService } from "@src/auth/services/auth.service";
+import { roundUsdToCents } from "@src/billing/lib/currency/currency";
 import { PaymentMethodRepository, type UserWalletOutput, UserWalletRepository, WalletSettingRepository } from "@src/billing/repositories";
 import { DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
 import { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
@@ -106,7 +107,7 @@ export class TeamOrganizationDeletionService {
       });
     }
 
-    if (forfeitableBalanceUsd > acknowledgedForfeitUsd) {
+    if (roundUsdToCents(acknowledgedForfeitUsd) < forfeitableBalanceUsd) {
       this.#reportBlocked(userId, id, "balance_without_forfeit");
       throw createError(400, "Deleting this organization forfeits its remaining credits. Acknowledge the forfeit to continue.", {
         errorCode: FORFEIT_ACKNOWLEDGEMENT_REQUIRED_ERROR_CODE,
