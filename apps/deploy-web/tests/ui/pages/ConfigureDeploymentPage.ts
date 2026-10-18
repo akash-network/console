@@ -3,7 +3,8 @@ import type { Download, Page } from "@playwright/test";
 import { testEnvConfig } from "../fixture/test-env.config";
 import { AppNav } from "./AppNav";
 
-type ActivityFeedBody = { data?: { activities?: Array<{ type: string; status: string; meta: { dseq?: string } }> } };
+type FeedActivity = { type: string; status: string; meta: { dseq?: string; error?: { message?: string } } };
+type ActivityFeedBody = { data?: { activities?: FeedActivity[] } };
 
 /**
  * Drives the "Configure your deployment" screen and its quoting lifecycle: configure a spec, request
@@ -201,7 +202,7 @@ export class ConfigureDeploymentPage {
   /**
    * Confirms the deploy and ends up on the deployment's page. The page goes there on its own when the lease is created
    * during the request; when the lease finishes in the background it leaves the user on the deployments list, so this
-   * waits for the activity feed to report the deploy done before opening the deployment.
+   * waits for the activity feed to report the deploy done before opening the deployment, and throws its reason if it failed.
    */
   async confirmAndOpenDeployment(dseq: string) {
     const deploymentPath = `/deployments/${dseq}`;
@@ -209,19 +210,30 @@ export class ConfigureDeploymentPage {
     await this.page.waitForURL(url => url.pathname === deploymentPath || url.pathname === "/deployments", { timeout: 180_000 });
     if (new URL(this.page.url()).pathname === deploymentPath) return;
 
-    await this.waitForDeployToFinish(dseq);
+    const finishedDeploy = await this.waitForDeployToFinish(dseq);
+    if (finishedDeploy?.status !== "succeeded") {
+      throw new Error(`The deploy of ${dseq} ${finishedDeploy?.status}: ${finishedDeploy?.meta.error?.message ?? "no reason given"}`);
+    }
+
     await this.page.goto(`${testEnvConfig.BASE_URL}${deploymentPath}`);
   }
 
   /** The list keeps polling the feed, which lists a finished deploy on every later answer, so a deploy that finished before the wait began is still seen. */
-  private waitForDeployToFinish(dseq: string) {
-    return this.page.waitForResponse(
+  private async waitForDeployToFinish(dseq: string) {
+    let finishedDeploy: FeedActivity | undefined;
+    await this.page.waitForResponse(
       async response => {
         if (!/\/api\/proxy\/v1\/activities(\?|$)/.test(response.url())) return false;
         const body: ActivityFeedBody | null = await response.json().catch(() => null);
-        return !!body?.data?.activities?.some(activity => activity.type === "lease_create" && activity.meta.dseq === dseq && activity.status !== "pending");
+        const deploy = body?.data?.activities?.find(
+          activity => activity.type === "lease_create" && activity.meta.dseq === dseq && activity.status !== "pending"
+        );
+        if (deploy) finishedDeploy = deploy;
+        return !!deploy;
       },
       { timeout: 180_000 }
     );
+
+    return finishedDeploy;
   }
 }

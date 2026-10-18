@@ -8,7 +8,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import type { DEPENDENCIES } from "./DeploymentReadyHost";
 import { DeploymentReadyHost } from "./DeploymentReadyHost";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { buildActivity } from "@tests/seeders/activity";
 import { buildUser } from "@tests/seeders/user";
 
@@ -171,15 +171,30 @@ describe(DeploymentReadyHost.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
   });
 
-  it("stops checking on a deploy whose half hour runs out while the feed stays the same", () => {
-    const { enqueueSnackbar, receive, watchedDseqs } = setup({ activities: [deploy("1", "succeeded", minutesAgo(29))] });
+  it("stops checking on a deploy the moment its half hour runs out, even while neither the feed nor its readiness changes", () => {
+    const { enqueueSnackbar, receive, watchedDseqs } = setup({ activities: [] });
+    receive({ "1": "starting" }, [deploy("1", "succeeded", minutesAgo(29))]);
 
-    receive({ "1": "starting" });
-    vi.setSystemTime(new Date(NOW.getTime() + 2 * 60 * 1000));
-    receive({ "1": "starting" });
+    act(() => vi.advanceTimersToNextTimer());
 
+    expect(Date.now()).toBe(NOW.getTime() + 60 * 1000);
     expect(watchedDseqs()).toEqual([]);
     expect(enqueueSnackbar).not.toHaveBeenCalled();
+  });
+
+  it("keeps checking on a deploy still underway however long it takes, with no timer to end its watch", () => {
+    const { watchedDseqs } = setup({ activities: [deploy("1", "pending", minutesAgo(31))] });
+
+    expect(watchedDseqs()).toEqual(["1"]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("stops the half hour timers once unmounted", () => {
+    const { unmount } = setup({ activities: [deploy("1", "succeeded", minutesAgo(29))] });
+
+    unmount();
+
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("checks on a deployment again when it is deployed again after it was ready", () => {
@@ -203,7 +218,7 @@ describe(DeploymentReadyHost.name, () => {
   }
 
   function setup(input: { isEnabled?: boolean; isSignedIn?: boolean; isFeedLoading?: boolean; activities?: Activity[]; names?: Record<string, string> }) {
-    vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+    vi.useFakeTimers({ now: NOW, toFake: ["Date", "setTimeout", "clearTimeout"] });
     let readinessByDseq: Record<string, DeploymentReadiness | undefined> = {};
     let activities = input.activities ?? [];
     const useFlag = vi.fn((() => input.isEnabled ?? true) as typeof DEPENDENCIES.useFlag);
@@ -229,7 +244,7 @@ describe(DeploymentReadyHost.name, () => {
       useRouter: () => router
     };
 
-    const { rerender } = render(<DeploymentReadyHost dependencies={dependencies} />);
+    const { rerender, unmount } = render(<DeploymentReadyHost dependencies={dependencies} />);
 
     const receive = (next: Record<string, DeploymentReadiness | undefined>, nextActivities = activities) => {
       readinessByDseq = next;
@@ -238,6 +253,6 @@ describe(DeploymentReadyHost.name, () => {
     };
     const watchedDseqs = () => useDeploymentsReadiness.mock.calls.at(-1)?.[0];
 
-    return { useFlag, useActivityFeedQuery, useDeploymentsReadiness, enqueueSnackbar, closeSnackbar, queryClient, router, receive, watchedDseqs };
+    return { useFlag, useActivityFeedQuery, useDeploymentsReadiness, enqueueSnackbar, closeSnackbar, queryClient, router, receive, watchedDseqs, unmount };
   }
 });

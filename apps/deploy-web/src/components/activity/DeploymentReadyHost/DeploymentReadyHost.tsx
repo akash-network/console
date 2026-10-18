@@ -31,9 +31,10 @@ export function DeploymentReadyHost({ dependencies: d = DEPENDENCIES }: { depend
   const { data: feed } = d.useActivityFeedQuery({ enabled: isFollowingFeed });
   const activities = isFollowingFeed ? feed?.activities : undefined;
   const [settledDeployIds, setSettledDeployIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [now, setNow] = useState(Date.now);
   const watchedDeploys = useMemo(
-    () => newestDeploysOf(activities ?? []).filter(deploy => isWithinWatch(deploy) && !settledDeployIds.has(deploy.id)),
-    [activities, settledDeployIds]
+    () => newestDeploysOf(activities ?? []).filter(deploy => isWithinWatchAt(now, deploy) && !settledDeployIds.has(deploy.id)),
+    [activities, settledDeployIds, now]
   );
   const launches = d.useDeploymentsReadiness(watchedDeploys.map(deploy => deploy.meta.dseq));
   const activityIdsAtFirstRead = useRef<ReadonlySet<string>>();
@@ -65,7 +66,7 @@ export function DeploymentReadyHost({ dependencies: d = DEPENDENCIES }: { depend
 
         if (readiness === "starting") spinningUpDeployIds.current.add(deploy.id);
         if (readiness === "ready" && spinningUpDeployIds.current.has(deploy.id)) announceReady(dseq, name);
-        if (readiness === "ready" || readiness === "stopped" || !isWithinWatch(deploy)) settledIds.push(deploy.id);
+        if (readiness === "ready" || readiness === "stopped") settledIds.push(deploy.id);
       }
 
       if (settledIds.length > 0) setSettledDeployIds(current => new Set([...current, ...settledIds]));
@@ -90,6 +91,19 @@ export function DeploymentReadyHost({ dependencies: d = DEPENDENCIES }: { depend
     [launches, watchedDeploys, enqueueSnackbar, closeSnackbar, queryClient, router]
   );
 
+  useEffect(
+    function recheckTheWatchWhenADeployWindowEnds() {
+      const timers = watchedDeploys
+        .filter(deploy => deploy.status === "succeeded")
+        .map(deploy => setTimeout(() => setNow(Date.now()), watchEndOf(deploy) - Date.now()));
+
+      return function cancelWatchEnds() {
+        for (const timer of timers) clearTimeout(timer);
+      };
+    },
+    [watchedDeploys]
+  );
+
   return null;
 }
 
@@ -107,7 +121,10 @@ function isDeploy(activity: Activity): activity is Deploy {
   return activity.type === "lease_create" && !!activity.meta.dseq;
 }
 
-/** Read on every check rather than only when the feed changes, since an idle feed keeps the same data while the window runs out. */
-function isWithinWatch({ status, updatedAt }: Deploy): boolean {
-  return status === "pending" || (status === "succeeded" && Date.now() - Date.parse(updatedAt) < READY_WATCH_WINDOW_MS);
+function isWithinWatchAt(now: number, deploy: Deploy): boolean {
+  return deploy.status === "pending" || (deploy.status === "succeeded" && now < watchEndOf(deploy));
+}
+
+function watchEndOf({ updatedAt }: Deploy): number {
+  return Date.parse(updatedAt) + READY_WATCH_WINDOW_MS;
 }
