@@ -27,6 +27,7 @@ export class AddCreditsSheetPage {
     await this.getDialog().getByLabel("custom-amount").fill(amount);
   }
 
+  /** Stripe sometimes drops the name typed while its element is still loading, so the name is filled again when it did not stick. */
   async fillStripeAddress(input: { name: string; line1: string; city: string; state: string; zip: string }) {
     const addressFrame = this.getAddressFrame();
 
@@ -50,6 +51,10 @@ export class AddCreditsSheetPage {
     await cityInput.pressSequentially(input.city);
 
     await addressFrame.getByLabel("State").selectOption(input.state);
+
+    if ((await nameInput.inputValue()) !== input.name) {
+      await nameInput.fill(input.name);
+    }
   }
 
   /** Stripe may open the payment element on another method's tab, such as a pay-by-bank promotion, which shows no card fields until Card is picked. */
