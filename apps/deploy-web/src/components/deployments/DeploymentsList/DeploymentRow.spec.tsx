@@ -125,6 +125,18 @@ describe("DeploymentRow", () => {
     });
   });
 
+  it("shows the deployment as updating while its update is applied in the background", () => {
+    const { DeploymentStatusBadge } = setup({ deployment: { dseq: "100" }, isUpdating: true });
+
+    expect(DeploymentStatusBadge).toHaveBeenCalledWith(expect.objectContaining({ isUpdating: true }), expect.anything());
+  });
+
+  it("shows the deployment as it is while no update is being applied to it", () => {
+    const { DeploymentStatusBadge } = setup({ deployment: { dseq: "100" } });
+
+    expect(DeploymentStatusBadge).toHaveBeenCalledWith(expect.objectContaining({ isUpdating: false }), expect.anything());
+  });
+
   it("keeps the endpoints out of the row until they are asked for", () => {
     const { DeploymentEndpointsPanel } = setup({ deployment: { dseq: "100" }, endpoints: [endpoint("api.acmecorp.com")] });
 
@@ -200,6 +212,7 @@ describe("DeploymentRow", () => {
     isSelectable?: boolean;
     isSelected?: boolean;
     isClosing?: boolean;
+    isUpdating?: boolean;
     endpoints?: VisitEndpoint[];
     canManage?: boolean;
     leases?: LeaseDto[];
@@ -240,6 +253,7 @@ describe("DeploymentRow", () => {
             isSelectable={input.isSelectable}
             isSelected={input.isSelected}
             isClosing={input.isClosing}
+            isUpdating={input.isUpdating}
             canManage={input.canManage}
             onSelect={onSelect}
             dependencies={MockComponents(DEPENDENCIES, {

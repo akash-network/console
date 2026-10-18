@@ -5,6 +5,7 @@ import yaml from "js-yaml";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useNewestDeploymentUpdate } from "@src/hooks/useFollowedActivities/useFollowedActivities";
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { deploymentData } from "@src/utils/deploymentData";
@@ -71,6 +72,7 @@ export const DEPENDENCIES = {
   useWallet,
   useResolvedDeploymentName,
   useManifestVersionOf,
+  useNewestDeploymentUpdate,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   now: () => new Date()
 };
@@ -116,6 +118,11 @@ export function useDeploymentDefinition(
    */
   const chainManifestVersion = query.data?.deployment?.hash;
   const isApiCopyOnChain = !!recordedManifestVersion && recordedManifestVersion === chainManifestVersion;
+  const newestUpdate = dependencies.useNewestDeploymentUpdate(dseq);
+  /** The api saves an update before applying it, so the console's own update still pending, or failed, leaves its copy ahead of the chain rather than superseded. */
+  const isSavedAheadOfChain = newestUpdate?.status !== "succeeded" && newestUpdate?.meta.manifestVersion === recordedManifestVersion;
+  const currentManifestVersion = isSavedAheadOfChain ? recordedManifestVersion : chainManifestVersion;
+  const isApiCopyCurrent = !!recordedManifestVersion && recordedManifestVersion === currentManifestVersion;
   const localSdl = deploymentLocalStorage.get(address, dseq)?.manifest;
   const isRecordedByConsole = query.data ? !!consoleSettings : undefined;
   const name = dependencies.useResolvedDeploymentName(dseq);
@@ -128,15 +135,15 @@ export function useDeploymentDefinition(
   const browserCopyVersion = dependencies.useManifestVersionOf(mayRestoreFromBrowser ? localSdl : undefined);
   const isReadingBrowserCopy = mayRestoreFromBrowser && browserCopyVersion.isReading;
   const isBrowserCopyOnChain = mayRestoreFromBrowser && browserCopyVersion.version === chainManifestVersion;
-  const mustHashApiCopy = useMemo(() => isApiCopyOnChain && !!apiSdl && mayHaveEnvValuesBlankedAway(apiSdl), [isApiCopyOnChain, apiSdl]);
+  const mustHashApiCopy = useMemo(() => isApiCopyCurrent && !!apiSdl && mayHaveEnvValuesBlankedAway(apiSdl), [isApiCopyCurrent, apiSdl]);
   const apiCopyVersion = dependencies.useManifestVersionOf(mustHashApiCopy ? apiSdl : undefined);
   const isReadingApiCopy = mustHashApiCopy && apiCopyVersion.isReading;
-  const isApiCopyHashedOnChain = mustHashApiCopy && apiCopyVersion.version === chainManifestVersion;
+  const isApiCopyHashedAsCurrent = mustHashApiCopy && apiCopyVersion.version === currentManifestVersion;
 
   return useMemo(() => {
     const isApiCopyUsable = acceptReferences ? isStoredSdlRedeployable : isStoredSdlSelfContained;
     if (isResolving || isReadingBrowserCopy || isReadingApiCopy) return { sdl: undefined, name, source: "resolving" };
-    if (apiSdl && isApiCopyOnChain && (isApiCopyHashedOnChain || isApiCopyUsable(apiSdl))) {
+    if (apiSdl && isApiCopyCurrent && (isApiCopyHashedAsCurrent || isApiCopyUsable(apiSdl))) {
       const restoredSdl = isBrowserCopyOnChain && localSdl ? withEnvValuesFrom(localSdl, apiSdl) : undefined;
       return { sdl: apiSdl, name, source: "api", manifestVersion: recordedManifestVersion, isRecordedByConsole, ...(restoredSdl ? { restoredSdl } : {}) };
     }
@@ -147,10 +154,10 @@ export function useDeploymentDefinition(
     isReadingBrowserCopy,
     isBrowserCopyOnChain,
     isReadingApiCopy,
-    isApiCopyHashedOnChain,
+    isApiCopyHashedAsCurrent,
     apiSdl,
     recordedManifestVersion,
-    isApiCopyOnChain,
+    isApiCopyCurrent,
     acceptReferences,
     localSdl,
     name,

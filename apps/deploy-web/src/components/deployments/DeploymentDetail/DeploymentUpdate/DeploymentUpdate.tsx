@@ -9,6 +9,8 @@ import { Info } from "lucide-react";
 import { importDeploymentState } from "@src/components/deployments/ConfigureDeployment/importDeploymentState/importDeploymentState";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { useFailedDeploymentUpdate } from "@src/hooks/useFailedDeploymentUpdate/useFailedDeploymentUpdate";
+import { useUpdatingDeployments } from "@src/hooks/useUpdatingDeployments/useUpdatingDeployments";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { DeploymentDto, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
@@ -21,7 +23,7 @@ import { ProtectedVariablesNotice } from "./ProtectedVariablesNotice";
 import { UpdatePlacementCard } from "./UpdatePlacementCard";
 import { useDeploymentUpdateSubmit } from "./useDeploymentUpdateSubmit";
 
-export const DEPENDENCIES = { useDeploymentUpdateSubmit, DefinitionImport };
+export const DEPENDENCIES = { useDeploymentUpdateSubmit, useUpdatingDeployments, useFailedDeploymentUpdate, DefinitionImport };
 
 const UNAVAILABLE_NOTICE =
   "The console has no up-to-date copy of this deployment's configuration, so it can only be updated as raw SDL here. Once it holds one, this tab shows each service's settings instead.";
@@ -29,6 +31,9 @@ const UNREADABLE_NOTICE = "The configuration the console stored could not be rea
 const CLOSED_NOTICE = "This deployment is closed, so its configuration can only be reused in a new deployment.";
 const SECRETS_UNREADABLE_NOTICE =
   "The console can no longer read this deployment's stored secrets, so this deployment can't be updated. Redeploy it and enter the secret values again. The current deployment keeps running until you close it.";
+const APPLYING_NOTICE = "An update is being applied to this deployment. You'll get a notification when it's done.";
+const NOT_APPLIED_NOTICE = "The last update didn't go through, so the deployment isn't running this configuration yet.";
+const NOT_APPLIED_FALLBACK_REASON = "Try updating it again.";
 
 type DeploymentUpdateSeed =
   | { kind: "resolving" }
@@ -95,6 +100,8 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
     resolver
   });
   const { isDirty } = form.formState;
+  const isApplyingInBackground = d.useUpdatingDeployments().has(deployment.dseq);
+  const failedUpdate = d.useFailedDeploymentUpdate(deployment.dseq);
   const { submit, isUpdating, sdlRefusal, secretsUnreadable } = d.useDeploymentUpdateSubmit({
     dseq: deployment.dseq,
     manifestVersion: baseline?.manifestVersion,
@@ -162,10 +169,12 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
     .map((service, serviceIndex) => ({ service, serviceIndex }))
     .filter(({ service }) => !isLogCollectorService(service));
   const placementCount = baseline.values.placements.length;
+  const isBusy = isUpdating || isApplyingInBackground;
+  const isRetryable = !!failedUpdate && failedUpdate.meta.manifestVersion === baseline.manifestVersion;
 
   return (
     <FormProvider {...form}>
-      <form className="flex flex-col gap-4" onSubmit={form.handleSubmit(values => submit(baseline.values, values))}>
+      <form className="flex flex-col gap-4" onSubmit={form.handleSubmit(values => submit(baseline.values, values, { isRetry: isRetryable }))}>
         <DeploymentTabHeader
           title="Placements"
           actions={
@@ -178,7 +187,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
 
         <LockedFieldsNotice />
 
-        {!isClosed && <ProtectedVariablesNotice restoredSdl={definition.restoredSdl} locked={isUpdating || isReloading} />}
+        {!isClosed && <ProtectedVariablesNotice restoredSdl={definition.restoredSdl} locked={isBusy || isReloading} />}
 
         {baseline.values.placements.map((placement, position) => {
           const lease = leases?.find((candidate, index) => getPlacementName(candidate.group, index) === placement.name);
@@ -192,11 +201,17 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
               services={visibleServices
                 .filter(({ service }) => service.placementId === placement.id)
                 .map(({ service, serviceIndex }) => ({ serviceIndex, title: service.title }))}
-              locked={isClosed || isUpdating || isReloading}
+              locked={isClosed || isBusy || isReloading}
               isLoadingLeaseGpus={isLoadingLeaseGpus}
             />
           );
         })}
+
+        {isRetryable && !isClosed && (
+          <Alert variant="destructive">
+            {NOT_APPLIED_NOTICE} {failedUpdate.meta.error?.message ?? NOT_APPLIED_FALLBACK_REASON}
+          </Alert>
+        )}
 
         {sdlRefusal && <Alert variant="destructive">{sdlRefusal}</Alert>}
 
@@ -223,11 +238,12 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
             </>
           ) : (
             <>
-              <Button type="button" variant="outline" disabled={!isDirty || isUpdating || isReloading} onClick={() => form.reset(baseline.values)}>
+              {isApplyingInBackground && <p className="mr-auto text-sm text-muted-foreground">{APPLYING_NOTICE}</p>}
+              <Button type="button" variant="outline" disabled={!isDirty || isBusy || isReloading} onClick={() => form.reset(baseline.values)}>
                 Discard changes
               </Button>
-              <Button type="submit" disabled={!isDirty || isUpdating || isReloading || secretsUnreadable}>
-                {isUpdating ? "Updating…" : "Update deployment"}
+              <Button type="submit" disabled={!(isDirty || isRetryable) || isBusy || isReloading || secretsUnreadable}>
+                {isBusy ? "Updating…" : "Update deployment"}
               </Button>
             </>
           )}

@@ -51,6 +51,24 @@ describe("DeploymentStatusBadge", () => {
     expect(screen.getByText("Closed")).toBeInTheDocument();
   });
 
+  it("reports a deployment whose update is being applied in the background as updating", () => {
+    setup({ state: "active", leases: [mock<LeaseDto>({ state: "active" })], isUpdating: true });
+
+    expect(screen.getByText("Updating")).toBeInTheDocument();
+  });
+
+  it("reports a deployment that is closing as closing, even with an update still being applied", () => {
+    setup({ state: "active", leases: [mock<LeaseDto>({ state: "active" })], isClosing: true, isUpdating: true });
+
+    expect(screen.getByText("Closing")).toBeInTheDocument();
+  });
+
+  it("reports a deployment as closed once it is, even with an update still being applied", () => {
+    setup({ state: "closed", isUpdating: true });
+
+    expect(screen.getByText("Closed")).toBeInTheDocument();
+  });
+
   it("keeps reporting 'Running' while a lease is still live", () => {
     setup({ state: "active", leases: [mock<LeaseDto>({ state: "active" })] });
 
@@ -213,7 +231,7 @@ describe("DeploymentStatusBadge", () => {
     });
   });
 
-  function setup(input: { state: string; leases?: LeaseDto[]; isSummarized?: boolean; isClosing?: boolean; workload?: WorkloadStatus }) {
+  function setup(input: { state: string; leases?: LeaseDto[]; isSummarized?: boolean; isClosing?: boolean; isUpdating?: boolean; workload?: WorkloadStatus }) {
     const CustomTooltip = vi.fn<typeof DEPENDENCIES.CustomTooltip>(({ title, children }) => (
       <>
         {title}
@@ -227,6 +245,7 @@ describe("DeploymentStatusBadge", () => {
         leases={input.leases}
         isSummarized={input.isSummarized}
         isClosing={input.isClosing}
+        isUpdating={input.isUpdating}
         workload={input.workload}
         dependencies={{ ...DEPENDENCIES, CustomTooltip }}
       />

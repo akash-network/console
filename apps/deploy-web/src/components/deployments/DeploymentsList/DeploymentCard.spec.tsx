@@ -193,6 +193,18 @@ describe("DeploymentCard", () => {
     });
   });
 
+  it("shows the deployment as updating while its update is applied in the background", () => {
+    const { DeploymentStatusBadge } = setup({ deployment: { dseq: "100" }, isUpdating: true });
+
+    expect(DeploymentStatusBadge).toHaveBeenCalledWith(expect.objectContaining({ isUpdating: true }), expect.anything());
+  });
+
+  it("shows the deployment as it is while no update is being applied to it", () => {
+    const { DeploymentStatusBadge } = setup({ deployment: { dseq: "100" } });
+
+    expect(DeploymentStatusBadge).toHaveBeenCalledWith(expect.objectContaining({ isUpdating: false }), expect.anything());
+  });
+
   it("offers no selection when the collection cannot be acted on in bulk", () => {
     setup({ deployment: { dseq: "100" } });
 
@@ -213,6 +225,7 @@ describe("DeploymentCard", () => {
     isSelectable?: boolean;
     isSelected?: boolean;
     isClosing?: boolean;
+    isUpdating?: boolean;
     onDeploymentClosed?: () => void;
     canManage?: boolean;
     isRenderingStatus?: boolean;
@@ -251,6 +264,7 @@ describe("DeploymentCard", () => {
         isSelectable={input.isSelectable}
         isSelected={input.isSelected}
         isClosing={input.isClosing}
+        isUpdating={input.isUpdating}
         canManage={input.canManage}
         onSelect={onSelect}
         onDeploymentClosed={input.onDeploymentClosed}

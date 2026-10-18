@@ -7,6 +7,7 @@ import { useSnackbar } from "notistack";
 import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCreditsSnackbarContent/AddCreditsSnackbarContent";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useMarkActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import type { SdlBuilderFormValuesType } from "@src/types";
@@ -33,6 +34,7 @@ export const DEPENDENCIES = {
   useSnackbar,
   useQueryClient,
   useMarkActivityOutcomes,
+  useFlag,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   sealSdlSecrets
 };
@@ -84,6 +86,7 @@ export function useDeploymentUpdateSubmit(
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const queryClient = d.useQueryClient();
   const { forgetEarlierOutcomes, markOutcomeHandled } = d.useMarkActivityOutcomes();
+  const isUpdatingInBackground = d.useFlag("notifications_activity_center");
   const getSdlSecretsContext = api.v1.getSDLSecretsContext.useMutation();
   const patchDeployment = api.v1.patchDeployment.useMutation();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -115,15 +118,30 @@ export function useDeploymentUpdateSubmit(
       return;
     }
 
-    completeUpdate(update.values, response.data.manifestVersion);
+    const { data } = response;
+    if ("activityId" in data) {
+      await followTheUpdateInTheBackground(update.values, data.manifestVersion);
+      return;
+    }
+
+    completeUpdate(update.values, data.manifestVersion);
   }
 
-  /** Marks the outcome only once the api answered, so a seal that failed before anything was sent leaves no mark for the activity host. */
+  /** Waits for the feed to list the pending update, so the tab goes straight from sending the update to showing it being applied. */
+  async function followTheUpdateInTheBackground(values: SdlBuilderFormValuesType, manifestVersion: string | undefined) {
+    await queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
+    setIsUpdating(false);
+    refetchDefinition();
+    analyticsService.track("update_deployment", { category: "deployments", label: "Update deployment" });
+    onUpdated({ values, manifestVersion });
+  }
+
+  /** Marks the outcome only once the api answered, so a seal that failed before anything was sent leaves no mark for the activity host, and an update left to the background is announced when it settles. */
   async function sendPatch(data: Parameters<typeof patchDeployment.mutateAsync>[0]["data"]) {
     forgetEarlierOutcomes("deployment_update", dseq);
     try {
-      const response = await patchDeployment.mutateAsync({ dseq, data });
-      markOutcomeHandled("deployment_update", dseq, "succeeded");
+      const response = await patchDeployment.mutateAsync({ dseq, async: isUpdatingInBackground ? "true" : undefined, data });
+      if (!("activityId" in response.data)) markOutcomeHandled("deployment_update", dseq, "succeeded");
       return response;
     } catch (cause) {
       markOutcomeHandled("deployment_update", dseq, "failed");
@@ -224,9 +242,9 @@ export function useDeploymentUpdateSubmit(
     );
   }
 
-  function submit(seed: SdlBuilderFormValuesType, current: DeploymentUpdateFormValues) {
+  function submit(seed: SdlBuilderFormValuesType, current: DeploymentUpdateFormValues, { isRetry = false }: { isRetry?: boolean } = {}) {
     const update = sealedUpdateOf(seed, current);
-    if (isEmptyServicesPatch(update.services) && Object.keys(update.secrets).length === 0) {
+    if (!isRetry && isEmptyServicesPatch(update.services) && Object.keys(update.secrets).length === 0) {
       enqueueSnackbar(<d.Snackbar title="Nothing to update" subTitle={NOTHING_TO_UPDATE_MESSAGE} iconVariant="info" />, { variant: "info" });
       return;
     }

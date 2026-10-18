@@ -86,6 +86,19 @@ describe(DeploymentDetailHeader.name, () => {
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
   });
 
+  it("shows the deployment as updating while its update is applied in the background", () => {
+    setup({ updatingDseqs: ["1786440078202"] });
+
+    expect(screen.getByText("Updating")).toBeInTheDocument();
+    expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
+  it("keeps showing the deployment as running while only other deployments are updating", () => {
+    setup({ updatingDseqs: ["42"] });
+
+    expect(screen.getByText("Running")).toBeInTheDocument();
+  });
+
   it("keeps showing the deployment as running while only other deployments are closing", () => {
     setup({ closingDseqs: ["42"] });
 
@@ -404,6 +417,7 @@ describe(DeploymentDetailHeader.name, () => {
     groups?: DeploymentGroup[];
     isLoadingLeaseGpus?: boolean;
     closingDseqs?: string[];
+    updatingDseqs?: string[];
     availableReplicasByService?: Record<string, number> | null;
     tokenMode?: ProviderTokenMode;
     statusError?: unknown;
@@ -483,6 +497,7 @@ describe(DeploymentDetailHeader.name, () => {
       useLeaseStatuses,
       useProviderCredentials: () => mock<UseProviderCredentialsResult>({ tokenMode: input.tokenMode ?? "shared" }),
       useClosingDeployments: () => new Set(input.closingDseqs ?? []),
+      useUpdatingDeployments: () => new Set(input.updatingDseqs ?? []),
       useCanManageDeployment: () => ({ canManage: true, isLoading: false, isError: false, retry: vi.fn() }),
       ...input.dependencies
     });
