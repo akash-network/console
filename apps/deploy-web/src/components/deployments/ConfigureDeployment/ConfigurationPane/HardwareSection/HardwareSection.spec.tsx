@@ -178,6 +178,32 @@ describe(HardwareSection.name, () => {
     expect(AddCreditsSheet).toHaveBeenLastCalledWith(expect.objectContaining({ open: true }), expect.anything());
   });
 
+  it("states the trial size cap with an unlock handler while the pane is editable", () => {
+    const TrialResourceLimitHint = vi.fn(() => null);
+
+    setup({ dependencies: { TrialResourceLimitHint } });
+
+    expect(TrialResourceLimitHint).toHaveBeenCalledWith({ onUnlock: expect.any(Function) }, expect.anything());
+  });
+
+  it("leaves the trial size cap out of the read-only quote view", () => {
+    const TrialResourceLimitHint = vi.fn(() => null);
+
+    setup({ locked: true, dependencies: { TrialResourceLimitHint } });
+
+    expect(TrialResourceLimitHint).not.toHaveBeenCalled();
+  });
+
+  it("opens the AddCreditsSheet when the trial size cap requests unlock", () => {
+    const AddCreditsSheet = vi.fn(() => <div />);
+    const TrialResourceLimitHint = vi.fn<typeof DEPENDENCIES.TrialResourceLimitHint>(() => null);
+
+    setup({ dependencies: { AddCreditsSheet, TrialResourceLimitHint } });
+    act(() => TrialResourceLimitHint.mock.calls.at(-1)![0].onUnlock?.());
+
+    expect(AddCreditsSheet).toHaveBeenLastCalledWith(expect.objectContaining({ open: true }), expect.anything());
+  });
+
   function setup(input: { serviceIndex?: number; locked?: boolean; dependencies?: Partial<typeof DEPENDENCIES> }) {
     const dependencies = MockComponents(DEPENDENCIES, {
       useTrialGate: () => ({ isRestricted: false, isWalletReady: false }),

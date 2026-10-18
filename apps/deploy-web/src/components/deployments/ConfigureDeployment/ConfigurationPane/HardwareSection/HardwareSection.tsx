@@ -13,6 +13,7 @@ import { PersistentStorageCard } from "../PersistentStorageCard/PersistentStorag
 import { PresetsCard } from "../PresetsCard/PresetsCard";
 import { RamStorageCard } from "../RamStorageCard/RamStorageCard";
 import { SecurityCard } from "../SecurityCard/SecurityCard";
+import { TrialResourceLimitHint } from "../TrialResourceLimitHint/TrialResourceLimitHint";
 import { useTrialGate } from "./useTrialGate/useTrialGate";
 
 type StorageVolume = { name?: string; mount?: string };
@@ -34,6 +35,7 @@ export const DEPENDENCIES = {
   RamStorageCard,
   PersistentStorageCard,
   SecurityCard,
+  TrialResourceLimitHint,
   AddCreditsSheet,
   useRevalidateUniqueness,
   useTrialGate
@@ -75,6 +77,7 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
   return (
     <div className="flex flex-col gap-2 px-4">
       <p className="font-mono text-xs uppercase text-muted-foreground">Hardware</p>
+      {!locked && <d.TrialResourceLimitHint onUnlock={openUnlock} />}
       <div className="flex flex-col gap-4">
         <d.CollapsibleCard locked={locked} title="Presets" icon={<PackageOpenIcon className="h-4 w-4" />} infoTooltip={presetsTooltip}>
           <d.PresetsCard serviceIndex={serviceIndex} locked={locked} isBlockedModel={isBlockedModel} onUnlock={openUnlock} />

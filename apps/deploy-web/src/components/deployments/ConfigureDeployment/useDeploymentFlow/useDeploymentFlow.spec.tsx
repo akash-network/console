@@ -1866,6 +1866,44 @@ describe(useDeploymentFlow.name, () => {
       });
     });
 
+    it.each([
+      { cause: new ApiError(400, { message: "Invalid SDL: too big" }, "POST /v1/deployments → 400"), event: { kind: "create", status: 400 } },
+      {
+        cause: new ApiError(402, { message: "Add funds", code: "payment_required" }, "POST /v1/deployments → 402"),
+        event: { kind: "needs-funds", status: 402 }
+      },
+      { cause: new Error("network down"), event: { kind: "create" } }
+    ])("tracks create_deployment_failed with the refusal's kind and status ($event.kind, $event.status)", async ({ cause, event }) => {
+      const createMutate = vi.fn((_args, { onError }) => onError(cause));
+      const { result, analyticsService } = setup({ createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content"));
+
+      await waitFor(() => expect(result.current.phase).toBe("error"));
+      expect(analyticsService.track).toHaveBeenCalledWith("create_deployment_failed", { category: "deployments", ...event });
+    });
+
+    it("tracks create_deployment_failed when the source a redeploy inherits secrets from can't be read", async () => {
+      const refusal = new ApiError(409, { message: "unreadable", code: "inherited_secrets_unreadable" }, "POST /v1/deployments → 409");
+      const createMutate = vi.fn((_args, { onError }) => onError(refusal));
+      const { result, analyticsService } = setup({ createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content", { inheritSecretsFrom: "123" }));
+
+      await waitFor(() => expect(result.current.phase).toBe("error"));
+      expect(analyticsService.track).toHaveBeenCalledWith("create_deployment_failed", { category: "deployments", kind: "inherited-unreadable", status: 409 });
+    });
+
+    it("does not track create_deployment_failed when the deployment is created", async () => {
+      const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+      const { result, analyticsService } = setup({ createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content"));
+      await settleSeal();
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("create_deployment_failed", expect.anything());
+    });
+
     it("tracks bids_received with the bid count the first time bids arrive", () => {
       const openBid = { bid: { state: "open", price: { amount: "1", denom: "uakt" }, id: { provider: "p", dseq: "777", gseq: 1, oseq: 1 } } };
       const { analyticsService } = renderFlow({ intent: { dseq: "777" }, listBids: [openBid] });
@@ -2939,6 +2977,26 @@ describe(useDeploymentFlow.name, () => {
 
       expect(result.current).toMatchObject({ phase: "error", dseq: null, error: { message, kind: "create" }, isCreatingInBackground: false });
       expect(replace).toHaveBeenLastCalledWith(UrlService.configureDeployment({ bidStrategy: "select" }), undefined, { shallow: true });
+    });
+
+    it("tracks create_deployment_failed once its activity reports the create failed", async () => {
+      const { api, rerender, analyticsService, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+
+      api.activities = [createActivity("failed")];
+      rerender();
+
+      expect(analyticsService.track).toHaveBeenCalledWith("create_deployment_failed", { category: "deployments", kind: "create", inBackground: true });
+    });
+
+    it("does not track create_deployment_failed once its activity reports the deployment created", async () => {
+      const { api, rerender, analyticsService, accept } = await setupBackgroundCreate({});
+      act(() => accept());
+
+      api.activities = [createActivity("succeeded")];
+      rerender();
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("create_deployment_failed", expect.anything());
     });
 
     it("creates again at once after a background create failed", async () => {

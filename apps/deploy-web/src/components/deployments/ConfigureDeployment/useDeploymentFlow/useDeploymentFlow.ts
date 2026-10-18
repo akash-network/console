@@ -541,10 +541,11 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategyRef.current), undefined, { shallow: true });
       clearDeploymentState();
+      analyticsService.track("create_deployment_failed", { category: "deployments", kind: "create", inBackground: true });
       setError({ message: activity.meta.error?.message, kind: "create" });
       setPhase("error");
     },
-    [backgroundCreateActivity, backgroundCreate, closeSupersededCreate, runQueuedCreate, clearDeploymentState, router]
+    [backgroundCreateActivity, backgroundCreate, closeSupersededCreate, runQueuedCreate, clearDeploymentState, router, analyticsService]
   );
 
   /** A deployment this session opened that is known to be still open with no close in flight: the next create closes it first. */
@@ -619,10 +620,15 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         analyticsService.track("create_deployment", createdEventOf(result.data.dseq));
       }
 
+      function failCreate(flowError: FlowError, cause: unknown) {
+        analyticsService.track("create_deployment_failed", createFailedEventOf(flowError, cause));
+        setError(flowError);
+        setPhase("error");
+      }
+
       function onCreateFailed(cause: unknown) {
         if (!isCurrentAttempt()) return;
-        setError(describeCreateFailure(cause, deployTargetProjectId));
-        setPhase("error");
+        failCreate(describeCreateFailure(cause, deployTargetProjectId), cause);
       }
 
       const inheritance = options.inheritSecretsFrom ? { inheritSecretsFrom: options.inheritSecretsFrom } : {};
@@ -643,8 +649,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
                 return;
               }
               if (isInheritedSecretsUnreadable(cause)) {
-                setError({ message: extractApiErrorMessage(cause) ?? undefined, kind: "inherited-unreadable" });
-                setPhase("error");
+                failCreate({ message: extractApiErrorMessage(cause) ?? undefined, kind: "inherited-unreadable" }, cause);
                 return;
               }
               if (canResealOnce && isStaleSealingKey(cause)) {
@@ -1067,6 +1072,11 @@ function describeCreateFailure(cause: unknown, deployTargetProjectId: string | u
   if (isBalanceTopUpPending(cause)) return { message, kind: "top-up-pending" };
   if (isPaymentRequired(cause)) return { message, kind: "needs-funds", shortfall: extractDepositShortfall(cause) };
   return { message, kind: "create" };
+}
+
+/** Carries the status rather than the api's message, which can quote names from the user's spec. */
+function createFailedEventOf(flowError: FlowError, cause: unknown) {
+  return { category: "deployments" as const, kind: flowError.kind, ...(isApiError(cause) ? { status: cause.status } : {}) };
 }
 
 /** A seal made against a retired key comes back as a bare 409; a wallet still provisioning answers 409 too and has its own retry. */

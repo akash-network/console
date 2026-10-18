@@ -131,6 +131,8 @@ export type AnalyticsEvent =
   | "configure_sdl_copied"
   | "configure_reset_confirmed"
   | "configure_choose_provider_clicked"
+  | "configure_choose_provider_blocked"
+  | "create_deployment_failed"
   | "configure_request_compute_clicked"
   | "configure_edit_clicked"
   | "configure_leave_discarded"
