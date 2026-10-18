@@ -12936,6 +12936,11 @@ export interface operations {
                   alertId?: string;
                   /** @description The alert's summary as the user wrote it, filled in for this firing, on an alert. */
                   summary?: string;
+                  /**
+                   * Format: uuid
+                   * @description The organization the alert is filed in, on an alert set in one.
+                   */
+                  organizationId?: string;
                 };
                 /**
                  * Format: date-time
@@ -13052,6 +13057,11 @@ export interface operations {
                 alertId?: string;
                 /** @description The alert's summary as the user wrote it, filled in for this firing, on an alert. */
                 summary?: string;
+                /**
+                 * Format: uuid
+                 * @description The organization the alert is filed in, on an alert set in one.
+                 */
+                organizationId?: string;
               };
               /**
                * Format: date-time

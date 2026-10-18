@@ -24365,6 +24365,11 @@
                                   "summary": {
                                     "type": "string",
                                     "description": "The alert's summary as the user wrote it, filled in for this firing, on an alert."
+                                  },
+                                  "organizationId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "description": "The organization the alert is filed in, on an alert set in one."
                                   }
                                 }
                               },
@@ -24585,6 +24590,11 @@
                             "summary": {
                               "type": "string",
                               "description": "The alert's summary as the user wrote it, filled in for this firing, on an alert."
+                            },
+                            "organizationId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "description": "The organization the alert is filed in, on an alert set in one."
                             }
                           }
                         },

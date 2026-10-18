@@ -48,8 +48,8 @@ describe("POST /internal/activities", () => {
     expect(await activityRepository.find({ userId: user.id })).toEqual([]);
   });
 
-  it("adds an alert of the user's personal organization to their feed as an unseen info entry written by Console", async () => {
-    const { user, alertFor } = await setup();
+  it("adds an alert of the user's personal organization to their feed as an unseen info entry written by Console, filed in that organization", async () => {
+    const { user, organization, alertFor } = await setup();
     const alert = alertFor({ type: "deployment_reclaim_alert", meta: { dseq: "4242" } });
 
     const response = await addAlert(alert);
@@ -60,20 +60,21 @@ describe("POST /internal/activities", () => {
         type: "deployment_reclaim_alert",
         status: "info",
         initiator: "system",
-        meta: { alertId: alert.meta.alertId, summary: alert.meta.summary, dseq: "4242" },
+        meta: { alertId: alert.meta.alertId, summary: alert.meta.summary, dseq: "4242", organizationId: organization.id },
         dedupeKey: alert.dedupeKey,
         seenAt: null
       })
     ]);
   });
 
-  it("adds an alert set before organizations to the user's feed", async () => {
+  it("adds an alert set before organizations to the user's feed, filed in no organization", async () => {
     const { user, alertFor } = await setup();
+    const alert = alertFor({ organizationId: null, projectId: null });
 
-    const response = await addAlert(alertFor({ organizationId: null, projectId: null }));
+    const response = await addAlert(alert);
 
     expect(response.status).toBe(204);
-    expect(await activityRepository.find({ userId: user.id })).toHaveLength(1);
+    expect(await activityRepository.find({ userId: user.id })).toEqual([expect.objectContaining({ meta: { alertId: alert.meta.alertId, summary: alert.meta.summary } })]);
   });
 
   it("adds a team alert to the feed of the member who set it while they can see its project", async () => {
@@ -88,13 +89,15 @@ describe("POST /internal/activities", () => {
     ]);
   });
 
-  it("adds a team alert in no project to the feed of the owner who set it", async () => {
-    const { owner, alertFor } = await setupTeam();
+  it("adds a team wallet's alert in no project to the feed of the owner who set it, filed in the team", async () => {
+    const { owner, team, alertFor } = await setupTeam();
 
     const response = await addAlert(alertFor(owner.id, { projectId: null }));
 
     expect(response.status).toBe(204);
-    expect(await activityRepository.find({ userId: owner.id })).toHaveLength(1);
+    expect(await activityRepository.find({ userId: owner.id })).toEqual([
+      expect.objectContaining({ type: "wallet_balance_alert", meta: expect.objectContaining({ organizationId: team.id }) })
+    ]);
   });
 
   it("writes nothing for a member who left the team", async () => {
@@ -273,6 +276,7 @@ describe("POST /internal/activities", () => {
 
     return {
       user,
+      organization,
       alertFor: (overrides: AlertOverrides = {}) => alertOf(user.id, { organizationId: organization.id, projectId: project.id }, overrides)
     };
   }

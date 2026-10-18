@@ -138,6 +138,23 @@ describe(ActivityService.name, () => {
       expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledWith(expect.objectContaining({ userId: user.id, dedupeKey: alert.dedupeKey }));
     });
 
+    it("keeps the organization an alert is filed in on its entry, so the entry can lead to that organization", async () => {
+      const { service, activityRepository, user } = setup({ access: { kind: "all" } });
+      const alert = createNewAlertActivity({ userId: user.id, projectId: null });
+      activityRepository.createUnlessDuplicate.mockResolvedValue(createActivity());
+
+      await service.addAlert(alert);
+
+      expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledWith({
+        userId: user.id,
+        type: "wallet_balance_alert",
+        status: "info",
+        initiator: "system",
+        meta: { ...alert.meta, organizationId: alert.organizationId },
+        dedupeKey: alert.dedupeKey
+      });
+    });
+
     it("adds the alert of a project the member can still see", async () => {
       const projectId = faker.string.uuid();
       const { service, activityRepository } = setup({ access: projectScopeOf([faker.string.uuid(), projectId]) });
