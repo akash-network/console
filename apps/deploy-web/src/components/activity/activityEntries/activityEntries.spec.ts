@@ -108,8 +108,27 @@ describe(activityEntriesOf.name, () => {
     ]);
   });
 
+  it("describes a team wallet's balance alert by its summary, never as a close Console made, linking to billing in that team", () => {
+    const activity = buildActivity({
+      type: "wallet_balance_alert",
+      status: "info",
+      initiator: "system",
+      meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Wallet balance is below 10 AKT", organizationId: "9d3b8f0e-2c4a-4b1e-8f6d-7a5c3e1b9d2f" }
+    });
+
+    expect(entriesOf([activity])).toEqual([
+      {
+        id: activity.id,
+        status: "info",
+        title: "Wallet balance is below 10 AKT",
+        href: "/billing?org=9d3b8f0e-2c4a-4b1e-8f6d-7a5c3e1b9d2f",
+        createdAt: activity.createdAt
+      }
+    ]);
+  });
+
   it("says one of the user's alerts fired when the alert carries no summary", () => {
-    const [entry] = entriesOf([buildActivity({ type: "wallet_balance_alert", status: "info", initiator: "system", meta: {} })]);
+    const [entry] = entriesOf([buildActivity({ type: "deployment_closed_alert", status: "info", initiator: "system", meta: {} })]);
 
     expect(entry).toMatchObject({ status: "info", title: "One of your alerts fired", href: "/deployments" });
   });

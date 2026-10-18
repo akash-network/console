@@ -1671,6 +1671,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     "description": "The base64 manifest version an update saved.",
                                     "type": "string",
                                   },
+                                  "organizationId": {
+                                    "description": "The organization the alert is filed in, on an alert set in one.",
+                                    "format": "uuid",
+                                    "type": "string",
+                                  },
                                   "providers": {
                                     "description": "The providers a lease was created with, each named once.",
                                     "items": {
@@ -2000,6 +2005,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             },
                             "manifestVersion": {
                               "description": "The base64 manifest version an update saved.",
+                              "type": "string",
+                            },
+                            "organizationId": {
+                              "description": "The organization the alert is filed in, on an alert set in one.",
+                              "format": "uuid",
                               "type": "string",
                             },
                             "providers": {

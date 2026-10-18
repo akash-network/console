@@ -77,7 +77,11 @@ export class ActivityService {
     }
 
     try {
-      const added = await this.activityRepository.createUnlessDuplicate({ ...alert, initiator: "system" });
+      const added = await this.activityRepository.createUnlessDuplicate({
+        ...alert,
+        meta: organizationId ? { ...alert.meta, organizationId } : alert.meta,
+        initiator: "system"
+      });
       if (added) this.activityInstrumentation.trackRecorded(added);
       else this.#logger.info({ event: "ACTIVITY_ALERT_DEDUPED", userId: alert.userId, type: alert.type, dedupeKey: alert.dedupeKey });
     } catch (error) {

@@ -1,5 +1,6 @@
+import { ACTIVE_ORGANIZATION_QUERY_PARAM } from "@src/lib/active-organization/active-organization-deep-link";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
-import { UrlService } from "@src/utils/urlUtils";
+import { appendSearchParams, UrlService } from "@src/utils/urlUtils";
 
 export interface ActivityDestination {
   href: string;
@@ -10,6 +11,11 @@ const DEPLOYMENT_LIST: ActivityDestination = { href: UrlService.deploymentList()
 
 function alertDestinationOf({ meta: { dseq } }: Activity): ActivityDestination {
   return dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST;
+}
+
+/** The feed spans every organization the user is in, so the link opens billing in the one the alert is filed in. */
+function walletBalanceDestinationOf({ meta: { organizationId } }: Activity): ActivityDestination {
+  return { href: `${UrlService.billing()}${appendSearchParams({ [ACTIVE_ORGANIZATION_QUERY_PARAM]: organizationId })}`, label: "View billing" };
 }
 
 /** A failed action leads to where the user can try it again, never to a link that tries it again on its own. */
@@ -28,7 +34,7 @@ const DESTINATIONS: Record<Activity["type"], (activity: Activity) => ActivityDes
     return { href: UrlService.deploymentDetails(dseq), label: "View deployment" };
   },
   lease_create: ({ meta: { dseq } }) => (dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST),
-  wallet_balance_alert: alertDestinationOf,
+  wallet_balance_alert: walletBalanceDestinationOf,
   deployment_closed_alert: alertDestinationOf,
   deployment_reclaim_alert: alertDestinationOf
 };

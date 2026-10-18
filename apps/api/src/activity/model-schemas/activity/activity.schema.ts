@@ -34,6 +34,7 @@ export type ActivityMeta = {
   reason?: SystemCloseReason;
   alertId?: string;
   summary?: string;
+  organizationId?: string;
 };
 
 export type NewActivity = {

@@ -133,15 +133,16 @@ describe("Activities", () => {
       ]);
     });
 
-    it("shows an alert that fired for the caller as an unseen info entry with its summary", async () => {
+    it("shows an alert that fired for the caller as an unseen info entry with its summary and the organization it is filed in", async () => {
       const { user, token } = await setup();
       const alertId = faker.string.uuid();
+      const organizationId = faker.string.uuid();
       const alert = await activityRepository.create({
         userId: user.id,
         type: "deployment_reclaim_alert",
         status: "info",
         initiator: "system",
-        meta: { alertId, summary: "Deployment 1004 is being reclaimed by the provider", dseq: "1004" },
+        meta: { alertId, summary: "Deployment 1004 is being reclaimed by the provider", dseq: "1004", organizationId },
         dedupeKey: `deployment_reclaim_alert.${alertId}`,
         createdAt: new Date("2026-10-05T13:00:00.000Z")
       });
@@ -155,7 +156,7 @@ describe("Activities", () => {
           type: "deployment_reclaim_alert",
           status: "info",
           initiator: "system",
-          meta: { alertId, summary: "Deployment 1004 is being reclaimed by the provider", dseq: "1004" },
+          meta: { alertId, summary: "Deployment 1004 is being reclaimed by the provider", dseq: "1004", organizationId },
           seenAt: null,
           createdAt: "2026-10-05T13:00:00.000Z",
           updatedAt: alert.updatedAt

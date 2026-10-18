@@ -33,7 +33,8 @@ export const ActivitySchema = z.object({
         "Why Console closed the deployment, on a close it made on the user's behalf: `runtime_limit_reached` (the runtime limit set for it ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit)."
     }),
     alertId: z.string().uuid().optional().openapi({ description: "The alert that fired, on an alert." }),
-    summary: z.string().optional().openapi({ description: "The alert's summary as the user wrote it, filled in for this firing, on an alert." })
+    summary: z.string().optional().openapi({ description: "The alert's summary as the user wrote it, filled in for this firing, on an alert." }),
+    organizationId: z.string().uuid().optional().openapi({ description: "The organization the alert is filed in, on an alert set in one." })
   }),
   seenAt: z.string().datetime().nullable().openapi({ description: "When the user first marked the activity seen." }),
   createdAt: z.string().datetime(),

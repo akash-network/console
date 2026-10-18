@@ -98,12 +98,32 @@ describe("activityDestinations", () => {
 
     it("leads an alert about no particular deployment to the deployments list", () => {
       const activity = buildActivity({
-        type: "wallet_balance_alert",
+        type: "deployment_closed_alert",
         status: "info",
-        meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Low balance" }
+        meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "A deployment closed" }
       });
 
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments", label: "View deployments" });
+    });
+
+    it("leads a wallet balance alert to billing in the organization it is filed in, where its wallet can be topped up", () => {
+      const activity = buildActivity({
+        type: "wallet_balance_alert",
+        status: "info",
+        meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Wallet balance is below 10 AKT", organizationId: "9d3b8f0e-2c4a-4b1e-8f6d-7a5c3e1b9d2f" }
+      });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/billing?org=9d3b8f0e-2c4a-4b1e-8f6d-7a5c3e1b9d2f", label: "View billing" });
+    });
+
+    it("leads a wallet balance alert filed in no organization to billing in the active one", () => {
+      const activity = buildActivity({
+        type: "wallet_balance_alert",
+        status: "info",
+        meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Wallet balance is below 10 AKT" }
+      });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/billing", label: "View billing" });
     });
   });
 
