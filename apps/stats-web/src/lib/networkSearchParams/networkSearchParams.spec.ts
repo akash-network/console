@@ -15,9 +15,15 @@ describe(createNetworkSearchParamsSchema.name, () => {
     expect(schema.parse({ network: "testnet" })).toEqual({ network: "testnet" });
   });
 
-  it("rejects a network the app does not serve", () => {
+  it("falls back to the default network when the url names one the app does not serve", () => {
+    const schema = createNetworkSearchParamsSchema("sandbox");
+
+    expect(schema.parse({ network: "623452506" })).toEqual({ network: "sandbox" });
+  });
+
+  it("falls back to the default network when the url repeats the network param", () => {
     const schema = createNetworkSearchParamsSchema("mainnet");
 
-    expect(() => schema.parse({ network: "devnet" })).toThrow();
+    expect(schema.parse({ network: ["testnet", "sandbox"] })).toEqual({ network: "mainnet" });
   });
 });

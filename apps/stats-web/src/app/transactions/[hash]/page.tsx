@@ -12,6 +12,7 @@ import { serverEnvConfig } from "@/config/server-env.config";
 import { getSplitText } from "@/hooks/useShortText";
 import { createLogger } from "@/lib/createLogger/createLogger";
 import { createNetworkSearchParamsSchema } from "@/lib/networkSearchParams/networkSearchParams";
+import { notFoundOnMalformedId } from "@/lib/notFoundOnMalformedId/notFoundOnMalformedId";
 import { serverFetch } from "@/lib/serverFetch";
 import { serverApiUrlService } from "@/services/api-url/server-api-url.service";
 import type { TransactionDetail } from "@/types";
@@ -41,6 +42,8 @@ export async function generateMetadata({ params }: TransactionDetailPageProps): 
 async function fetchTransactionData(hash: string, network: Network["id"]): Promise<TransactionDetail | null> {
   const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
   const response = await serverFetch(`${apiUrl}/v1/transactions/${hash}`);
+
+  notFoundOnMalformedId(response);
 
   if (!response.ok && response.status !== 404) {
     logger.error({ event: "TRANSACTION_FETCH_ERROR", hash, network, status: response.status });
