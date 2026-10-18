@@ -15,6 +15,7 @@ import { useCustomUser } from "@src/hooks/useCustomUser";
 import { getShortText } from "@src/hooks/useShortText";
 import { useDeleteTemplate } from "@src/queries/useTemplateQuery";
 import type { ITemplate } from "@src/types";
+import { DELETED_ACCOUNT_LABEL } from "@src/utils/deletedAccount";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { bytesToShrink } from "@src/utils/unitUtils";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -119,7 +120,7 @@ export const UserTemplate: React.FunctionComponent<Props> = ({ id, template, dep
         <Title className="m-0">{template.title}</Title>
         &nbsp;&nbsp;by&nbsp;
         {template.userId === null ? (
-          <span className="text-muted-foreground">Deleted account</span>
+          <span className="text-muted-foreground">{DELETED_ACCOUNT_LABEL}</span>
         ) : (
           <span
             onClick={() => {
