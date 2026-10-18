@@ -124,7 +124,7 @@ export class TeamOrganizationDeletionService {
 
     await this.organizationRepository.updateById(organizationId, { deletedAt });
     const dataKeyCount = await this.dataKeyRepository.deleteAllOfOrganization(organizationId);
-    this.#logger.info({ event: "TEAM_ORGANIZATION_DATA_KEYS_DESTROYED", organizationId, dataKeyCount });
+    this.txService.afterCommit(() => this.#logger.info({ event: "TEAM_ORGANIZATION_DATA_KEYS_DESTROYED", organizationId, dataKeyCount }));
     await this.invitationRepository
       .unscoped("organization-deletion")
       .updateBy({ organizationId, status: "pending" }, { status: "revoked", revokedAt: deletedAt });
