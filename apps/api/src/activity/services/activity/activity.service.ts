@@ -13,7 +13,7 @@ import {
 import { ActivityInstrumentationService } from "@src/activity/services/activity-instrumentation/activity-instrumentation.service";
 import { PurgeExpiredActivities, purgeExpiredActivitiesOptionsFor } from "@src/activity/services/purge-expired-activities/purge-expired-activities.job";
 import { AuthService } from "@src/auth/services/auth.service";
-import { type CreateLogger, JobQueueService, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, JobQueueService, LOGGER_FACTORY, TxService } from "@src/core";
 import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
 import { isProjectInScope, readableProjectIdsOf } from "@src/organization/lib/project-scope/project-scope";
 import { OrganizationContextResolver } from "@src/organization/services/organization-context/organization-context.resolver";
@@ -23,7 +23,7 @@ import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 export type ActivityPage = { activities: ActivityOutput[]; hasMore: boolean; nextCursor: string | null };
 
-type ActivityOutcome = Pick<NewActivity, "status" | "meta" | "dedupeKey">;
+type ActivityOutcome = Pick<NewActivity, "userId" | "status" | "meta" | "dedupeKey">;
 
 export type NewAlertActivity = Pick<NewActivity, "userId" | "meta"> & {
   organizationId: string | null;
@@ -44,6 +44,7 @@ export class ActivityService {
     private readonly activityInstrumentation: ActivityInstrumentationService,
     private readonly organizationContextResolver: OrganizationContextResolver,
     private readonly userRepository: UserRepository,
+    private readonly txService: TxService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: ActivityService.name });
@@ -52,7 +53,7 @@ export class ActivityService {
   /** The action has already happened by the time it is recorded, so a failed write is logged rather than failing the request that performed it. */
   async record(activity: NewActivity): Promise<void> {
     try {
-      const recorded = await this.activityRepository.createUnlessDuplicate(activity);
+      const recorded = await this.#replacingClosedAlert(activity, async () => await this.activityRepository.createUnlessDuplicate(activity));
       if (recorded) this.activityInstrumentation.trackRecorded(recorded);
       else this.#logger.info({ event: "ACTIVITY_RECORD_DEDUPED", userId: activity.userId, type: activity.type, dedupeKey: activity.dedupeKey });
     } catch (error) {
@@ -147,20 +148,42 @@ export class ActivityService {
     return await this.activityRepository.findOneBy({ userId, dedupeKey });
   }
 
-  /** Guarded on `pending` unless told otherwise, so a late or repeated settle never overwrites an outcome already recorded; when another row already holds the dedupe key, the row still settles without it. */
+  /** Guarded on `pending` unless told otherwise, so a late or repeated settle never overwrites an outcome already recorded nor deletes an alert for nothing; when another close already holds the dedupe key, the row still settles without it. */
   async settle(id: string, outcome: ActivityOutcome, { from = ["pending"] }: { from?: ActivityStatus[] } = {}): Promise<void> {
     const settled = await this.#writeOutcome(id, outcome, from);
     if (settled) this.activityInstrumentation.trackSettled(settled);
   }
 
-  async #writeOutcome(id: string, { status, meta, dedupeKey }: ActivityOutcome, from: ActivityStatus[]): Promise<ActivityOutput | undefined> {
+  async #writeOutcome(id: string, { userId, status, meta, dedupeKey }: ActivityOutcome, from: ActivityStatus[]): Promise<ActivityOutput | undefined> {
+    const writeHolding = async (heldKey: string | null) => await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta, dedupeKey: heldKey });
+
     try {
-      return await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta, dedupeKey });
+      return await this.#retriedOverClosedAlert({ userId, dedupeKey }, async () => await writeHolding(dedupeKey));
     } catch (error) {
       if (!isDedupeKeyTaken(error)) throw error;
       this.#logger.info({ event: "ACTIVITY_SETTLE_DEDUPED", activityId: id, status, dedupeKey });
-      return await this.activityRepository.updateByIdIfStatusIn(id, from, { status, meta, dedupeKey: null });
+      return await writeHolding(null);
     }
+  }
+
+  /** Only a write the dedupe key refused is retried over the alert, because a write that no longer applies must leave the alert in place. */
+  async #retriedOverClosedAlert<T>(key: Pick<NewActivity, "userId" | "dedupeKey">, write: () => Promise<T>): Promise<T> {
+    try {
+      return await write();
+    } catch (error) {
+      if (!isDedupeKeyTaken(error)) throw error;
+      return await this.#replacingClosedAlert(key, write);
+    }
+  }
+
+  /** A close takes the dedupe key from the deployment-closed alert that reported it first, because only the close says who closed the deployment and why. */
+  async #replacingClosedAlert<T>({ userId, dedupeKey }: Pick<NewActivity, "userId" | "dedupeKey">, write: () => Promise<T>): Promise<T> {
+    if (!dedupeKey) return await write();
+
+    return await this.txService.transaction(async () => {
+      await this.activityRepository.deleteBy({ userId, dedupeKey, type: "deployment_closed_alert" });
+      return await write();
+    });
   }
 
   async list({ limit, cursor, status, type }: { limit: number; cursor?: string; status?: ActivityStatus; type?: ActivityType }): Promise<ActivityPage> {
