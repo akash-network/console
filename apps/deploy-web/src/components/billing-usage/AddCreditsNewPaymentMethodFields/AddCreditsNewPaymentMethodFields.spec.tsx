@@ -73,8 +73,10 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     expect(result).toEqual({ paymentMethodId: "pm_late" });
   });
 
-  it("renders the confirmSetup error inline and returns null", async () => {
-    const confirmSetup = vi.fn().mockResolvedValue({ error: { message: "Your card was declined." } });
+  it("renders the confirmSetup error inline and returns its codes without the message", async () => {
+    const confirmSetup = vi.fn().mockResolvedValue({
+      error: { type: "card_error", code: "card_declined", decline_code: "generic_decline", message: "Your card was declined." }
+    });
     const { ref } = setup({
       isLoading: false,
       clientSecret: "seti_secret",
@@ -83,11 +85,25 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
 
     const result = await act(async () => ref.current!.addPaymentMethod());
 
-    expect(result).toBeNull();
+    expect(result).toEqual({ failure: { errorType: "card_error", errorCode: "card_declined", declineCode: "generic_decline" } });
     expect(await screen.findByText("Your card was declined.")).toBeInTheDocument();
   });
 
-  it("returns null and shows a generic error when no payment method id comes back", async () => {
+  it("returns the code of a failed 3D Secure challenge during setup", async () => {
+    const confirmSetup = vi.fn().mockResolvedValue({ error: { type: "invalid_request_error", code: "setup_intent_authentication_failure" } });
+    const { ref } = setup({
+      isLoading: false,
+      clientSecret: "seti_secret",
+      dependencies: { useStripe: () => ({ confirmSetup }) as unknown as ReturnType<typeof DEPENDENCIES.useStripe> }
+    });
+
+    const result = await act(async () => ref.current!.addPaymentMethod());
+
+    expect(result).toEqual({ failure: { errorType: "invalid_request_error", errorCode: "setup_intent_authentication_failure" } });
+    expect(screen.getByRole("alert", { name: /payment error/i })).toHaveTextContent("Couldn't save your card. Please try again.");
+  });
+
+  it("reports a missing payment method and shows a generic error when no payment method id comes back", async () => {
     const confirmSetup = vi.fn().mockResolvedValue({ setupIntent: { payment_method: null } });
     const { ref } = setup({
       isLoading: false,
@@ -97,7 +113,7 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
 
     const result = await act(async () => ref.current!.addPaymentMethod());
 
-    expect(result).toBeNull();
+    expect(result).toEqual({ failure: { errorType: "missing_payment_method" } });
     expect(await screen.findByText(/couldn't save your card/i)).toBeInTheDocument();
   });
 
@@ -113,7 +129,7 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     });
     const fields = screen.getByTestId("payment-element");
 
-    expect(await act(async () => ref.current!.addPaymentMethod())).toBeNull();
+    expect(await act(async () => ref.current!.addPaymentMethod())).toEqual({ failure: { errorType: "setup_request_failed" } });
     expect(screen.getByRole("alert", { name: /payment error/i })).toHaveTextContent(/couldn't save your payment method/i);
     expect(screen.getByTestId("payment-element")).toBe(fields);
     expect(await act(async () => ref.current!.addPaymentMethod())).toEqual({ paymentMethodId: "pm_retry" });
@@ -147,6 +163,14 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     expect(() => fireEvent.click(screen.getByRole("button", { name: /choose card/i }))).not.toThrow();
   });
 
+  it("reports when the payment element has loaded", () => {
+    const onReady = vi.fn();
+    const PaymentElement = vi.fn<typeof DEPENDENCIES.PaymentElement>(() => null);
+    setup({ isLoading: false, clientSecret: "seti_secret", onReady, dependencies: { PaymentElement } });
+
+    expect(PaymentElement).toHaveBeenCalledWith(expect.objectContaining({ onReady }), expect.anything());
+  });
+
   it("keeps the Stripe fields mounted while disabling and re-enabling interaction", () => {
     const { rerender } = setup({ isLoading: false, clientSecret: "seti_secret" });
     const elements = screen.getByTestId("stripe-elements");
@@ -174,7 +198,7 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
   it("shows a retryable inline error while Stripe is still loading", async () => {
     const { ref } = setup({ isLoading: false, clientSecret: "seti_secret", dependencies: { useStripe: () => null } });
 
-    expect(await act(async () => ref.current!.addPaymentMethod())).toBeNull();
+    expect(await act(async () => ref.current!.addPaymentMethod())).toEqual({ failure: { errorType: "form_not_ready" } });
 
     expect(screen.getByRole("alert", { name: /payment error/i })).toHaveTextContent("The payment form is still loading. Please try again in a moment.");
     expect(screen.getByTestId("payment-element")).toBeInTheDocument();
@@ -184,6 +208,7 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     isLoading: boolean;
     clientSecret?: string;
     onPaymentTypeChange?: (type: string) => void;
+    onReady?: () => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const Elements = (({ children }: { children?: React.ReactNode }) => (
@@ -211,6 +236,7 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
         isLoading={input.isLoading}
         disabled={disabled}
         onPaymentTypeChange={input.onPaymentTypeChange}
+        onReady={input.onReady}
         dependencies={{
           Elements,
           useServices,
