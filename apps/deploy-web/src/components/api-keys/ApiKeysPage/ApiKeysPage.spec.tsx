@@ -37,6 +37,27 @@ describe(ApiKeysPage.name, () => {
     expect(ApiKeyList.mock.lastCall?.[0].isError).toBe(true);
   });
 
+  it("states that keys expire after one year at most and when owners are emailed", () => {
+    setup({ apiKeys: [buildApiKey()] });
+
+    expect(
+      screen.getByText("Keys expire after one year at most. We email you 30, 7 and 1 day before a key expires, so you can replace it before it stops working.")
+    ).toBeInTheDocument();
+  });
+
+  it("warns that keys without an expiration will be given one", () => {
+    setup({ apiKeys: [buildApiKey(), buildApiKey({ expiresAt: null })] });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Some of your keys have no expiration");
+    expect(screen.getByRole("alert")).toHaveTextContent("Keys created before the one-year limit will be given an expiration date a year away.");
+  });
+
+  it("does not warn when every key has an expiration", () => {
+    setup({ apiKeys: [buildApiKey(), buildApiKey()] });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("links to the API reference in a new tab", () => {
     setup();
 
@@ -258,8 +279,9 @@ describe(ApiKeysPage.name, () => {
 
     const Layout = vi.fn<typeof DEPENDENCIES.Layout>(({ children }) => <>{children}</>);
     const NextSeo = vi.fn<typeof DEPENDENCIES.NextSeo>(() => <></>);
-    const SettingsLayout = vi.fn<typeof DEPENDENCIES.SettingsLayout>(({ headerActions, children }) => (
+    const SettingsLayout = vi.fn<typeof DEPENDENCIES.SettingsLayout>(({ description, headerActions, children }) => (
       <>
+        {description}
         {headerActions}
         {children}
       </>
