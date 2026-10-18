@@ -38,7 +38,10 @@ export class ProviderRepository {
         deletedHeight: null,
         ...(addresses && { owner: { [Op.in]: addresses } })
       },
-      order: [["createdHeight", "ASC"]],
+      order: [
+        ["createdHeight", "ASC"],
+        ["owner", "ASC"]
+      ],
       limit,
       offset,
       include: [
@@ -69,6 +72,7 @@ export class ProviderRepository {
         deletedHeight: null,
         ...(addresses && { owner: { [Op.in]: addresses } })
       },
+      order: [["owner", "ASC"]],
       limit,
       offset,
       include: [
