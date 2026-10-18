@@ -8,6 +8,8 @@ const defaultCache = require("next-pwa/cache");
 const withPWA = require("next-pwa")({
   dest: "public",
   disable: isDev,
+  /** AppBootstrap registers the worker instead, because next-pwa's own register call leaves a browser's refusal unhandled. */
+  register: false,
   /**
    * next-pwa registers a start-url route ahead of every other rule, handled by a plugin that rewrites an
    * opaqueredirect into a fake empty 200 -- so the "/" -> "/login" redirect gets stored as a blank document and
