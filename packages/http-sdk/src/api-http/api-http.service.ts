@@ -12,15 +12,15 @@ export class ApiHttpService extends HttpService {
   }
 
   post<T = any, R = AxiosResponse<ApiOutput<T>>, D = any>(url: string, data?: D, config?: AxiosRequestConfig<D>): Promise<R> {
-    return super.post(url, data, config);
+    return super.post<ApiOutput<T>, R, D>(url, data, config) as Promise<R>;
   }
 
   patch<T = any, R = AxiosResponse<ApiOutput<T>>, D = any>(url: string, data?: D, config?: AxiosRequestConfig<D>): Promise<R> {
-    return super.patch(url, data, config);
+    return super.patch<ApiOutput<T>, R, D>(url, data, config) as Promise<R>;
   }
 
   get<T = any, R = AxiosResponse<ApiOutput<T>>, D = any>(url: string, config?: AxiosRequestConfig<D>): Promise<R> {
-    return super.get(url, config);
+    return super.get<ApiOutput<T>, R, D>(url, config) as Promise<R>;
   }
 
   protected extractApiData<T = unknown>(response: AxiosResponse<ApiOutput<T>>): ApiOutput<T>["data"] {
