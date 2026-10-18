@@ -43,7 +43,7 @@ export const BidCollectingGlobe: FC<Props> = ({ providers, bidderId, seed, depen
     canvas.width = Math.round(GLOBE_SIZE_PX * pixelRatio);
     canvas.height = Math.round(GLOBE_SIZE_PX * pixelRatio);
     const paint = createBidGlobePainter(context);
-    const startedAt = performance.now();
+    let firstFrameAt: number | null = null;
     let scene: BidGlobeScene | null = null;
     let bidAt: number | null = null;
     let landShownAt: number | null = null;
@@ -51,6 +51,7 @@ export const BidCollectingGlobe: FC<Props> = ({ providers, bidderId, seed, depen
     let stillFrameTimer: ReturnType<typeof setTimeout> | undefined;
 
     const renderFrame = (now: number) => {
+      firstFrameAt ??= now;
       const live = liveRef.current;
       if (scene?.field.key !== live.field.key) scene = createBidGlobeScene(live.field);
       scene.field = live.field;
@@ -58,7 +59,7 @@ export const BidCollectingGlobe: FC<Props> = ({ providers, bidderId, seed, depen
       landShownAt = live.landShape === null ? null : (landShownAt ?? now);
 
       const frame = {
-        seconds: live.isStill ? STILL_FRAME_SECONDS : (now - startedAt) / 1000,
+        seconds: live.isStill ? STILL_FRAME_SECONDS : (now - firstFrameAt) / 1000,
         bid:
           live.bidderId === null || bidAt === null
             ? null
