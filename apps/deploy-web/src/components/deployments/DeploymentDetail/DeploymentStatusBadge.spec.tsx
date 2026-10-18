@@ -117,10 +117,10 @@ describe("DeploymentStatusBadge", () => {
     expect(screen.getByText("Running")).toBeInTheDocument();
   });
 
-  it("reports a live deployment as starting until its provider reports a ready replica for every service", () => {
+  it("reports a live deployment as spinning up until its provider reports a ready replica for every service", () => {
     setup({ state: "active", leases: [mock<LeaseDto>({ state: "active" })], workload: "starting" });
 
-    expect(screen.getByText("Starting")).toBeInTheDocument();
+    expect(screen.getByText("Spinning up")).toBeInTheDocument();
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
   });
 
@@ -202,7 +202,6 @@ describe("DeploymentStatusBadge", () => {
     });
 
     it.each([
-      { workload: "starting", label: "Starting", tone: "pending" },
       { workload: "loading", label: "Loading", tone: "loading" },
       { workload: "unreachable", label: "Provider not responding", tone: "warning" },
       { workload: "running", label: "Running", tone: "running" }
@@ -210,6 +209,12 @@ describe("DeploymentStatusBadge", () => {
       const status = getDeploymentStatus("active", [mock<LeaseDto>({ state: "active" })], false, workload);
 
       expect(status).toEqual({ label, summaryLabel: label, tone });
+    });
+
+    it("reports a live lease whose services are still starting as spinning up", () => {
+      const status = getDeploymentStatus("active", [mock<LeaseDto>({ state: "active" })], false, "starting");
+
+      expect(status).toEqual({ label: "Spinning up", summaryLabel: "Spinning up", tone: "loading", isSpinningUp: true });
     });
 
     it("reports a lease being reclaimed over what its workload is doing", () => {
@@ -222,6 +227,12 @@ describe("DeploymentStatusBadge", () => {
       const status = getDeploymentStatus("active", [mock<LeaseDto>({ state: "active" })], true, "starting");
 
       expect(status.label).toBe("Closing");
+    });
+
+    it("reports an update applied in the background over services still starting", () => {
+      const status = getDeploymentStatus("active", [mock<LeaseDto>({ state: "active" })], false, "starting", true);
+
+      expect(status).toEqual({ label: "Updating", summaryLabel: "Updating", tone: "loading" });
     });
 
     it("ignores the workload of a deployment that is closed", () => {
@@ -241,12 +252,9 @@ describe("DeploymentStatusBadge", () => {
 
     render(
       <DeploymentStatusBadge
-        state={input.state}
+        status={getDeploymentStatus(input.state, input.leases, input.isClosing, input.workload, input.isUpdating)}
         leases={input.leases}
         isSummarized={input.isSummarized}
-        isClosing={input.isClosing}
-        isUpdating={input.isUpdating}
-        workload={input.workload}
         dependencies={{ ...DEPENDENCIES, CustomTooltip }}
       />
     );

@@ -42,25 +42,34 @@ export const DEPLOYMENT_STATUS_DOT_CLASSES: Record<StatusTone, string> = {
   closed: "bg-muted-foreground"
 };
 
+export interface DeploymentStatusView {
+  label: string;
+  summaryLabel: string;
+  tone: StatusTone;
+  isSpinningUp?: boolean;
+}
+
 export interface DeploymentStatusBadgeProps {
-  state: string;
+  status: DeploymentStatusView;
   leases?: LeaseDto[] | null;
   isSummarized?: boolean;
-  isClosing?: boolean;
-  isUpdating?: boolean;
-  workload?: WorkloadStatus;
   className?: string;
   dependencies?: typeof DEPENDENCIES;
 }
 
-const CLOSING_STATUS = { label: "Closing", summaryLabel: "Closing", tone: "loading" } as const;
+const CLOSING_STATUS: DeploymentStatusView = { label: "Closing", summaryLabel: "Closing", tone: "loading" };
 
-const UPDATING_STATUS = { label: "Updating", summaryLabel: "Updating", tone: "loading" } as const;
+const UPDATING_STATUS: DeploymentStatusView = { label: "Updating", summaryLabel: "Updating", tone: "loading" };
 
-const WORKLOAD_STATUSES: Partial<Record<WorkloadStatus, { label: string; tone: StatusTone }>> = {
-  starting: { label: "Starting", tone: "pending" },
-  loading: { label: "Loading", tone: "loading" },
-  unreachable: { label: "Provider not responding", tone: "warning" }
+const RECLAIMING_STATUS: DeploymentStatusView = { label: "Reclaiming", summaryLabel: "Reclaiming", tone: "warning" };
+
+/** One name from the moment a lease is requested until every service has a ready replica, whichever part of that the deployment is in. */
+export const SPINNING_UP_STATUS: DeploymentStatusView = { label: "Spinning up", summaryLabel: "Spinning up", tone: "loading", isSpinningUp: true };
+
+const WORKLOAD_STATUSES: Partial<Record<WorkloadStatus, DeploymentStatusView>> = {
+  starting: SPINNING_UP_STATUS,
+  loading: { label: "Loading", summaryLabel: "Loading", tone: "loading" },
+  unreachable: { label: "Provider not responding", summaryLabel: "Provider not responding", tone: "warning" }
 };
 
 /**
@@ -79,7 +88,7 @@ export function getDeploymentStatus(
   isClosing = false,
   workload?: WorkloadStatus,
   isUpdating = false
-): { label: string; summaryLabel: string; tone: StatusTone } {
+): DeploymentStatusView {
   if (isClosing && state === "active") return CLOSING_STATUS;
   if (isUpdating && state === "active") return UPDATING_STATUS;
 
@@ -87,9 +96,9 @@ export function getDeploymentStatus(
   const deadLease = leases?.length && !leases.some(isLeaseLive) ? selectLeaseToReportOn(leases) : undefined;
 
   if (!deadLease) {
-    if (leases?.some(isReclaiming)) return { label: "Reclaiming", summaryLabel: "Reclaiming", tone: "warning" };
+    if (leases?.some(isReclaiming)) return RECLAIMING_STATUS;
     const workloadStatus = state === "active" && workload ? WORKLOAD_STATUSES[workload] : undefined;
-    if (workloadStatus) return { ...workloadStatus, summaryLabel: workloadStatus.label };
+    if (workloadStatus) return workloadStatus;
     const label = STATUS_LABELS[state] ?? state;
     return { label, summaryLabel: label, tone: deploymentTone };
   }
@@ -135,19 +144,10 @@ export const StatusBadge: FC<StatusBadgeProps> = ({ label, tone, className }) =>
   </span>
 );
 
-export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({
-  state,
-  leases,
-  isSummarized,
-  isClosing,
-  isUpdating,
-  workload,
-  className,
-  dependencies: d = DEPENDENCIES
-}) => {
-  const { label, summaryLabel, tone } = getDeploymentStatus(state, leases, isClosing, workload, isUpdating);
+export const DeploymentStatusBadge: FC<DeploymentStatusBadgeProps> = ({ status, leases, isSummarized, className, dependencies: d = DEPENDENCIES }) => {
+  const { label, summaryLabel, tone } = status;
   const isShortened = !!isSummarized && summaryLabel !== label;
-  const isBeingReclaimed = !isClosing && !!leases?.some(isReclaiming);
+  const isBeingReclaimed = label === RECLAIMING_STATUS.label;
 
   if (!isShortened && !isBeingReclaimed) return <StatusBadge label={label} tone={tone} className={className} />;
 

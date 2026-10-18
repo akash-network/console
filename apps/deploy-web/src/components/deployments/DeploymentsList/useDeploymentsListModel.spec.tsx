@@ -320,12 +320,6 @@ describe(useDeploymentsListModel.name, () => {
     });
   });
 
-  it("reports which deployments have an update being applied in the background", () => {
-    const { result } = setup({ active: [deployment("100"), deployment("101")], updatingDseqs: ["101"] });
-
-    expect(result.current.updatingDseqs).toEqual(new Set(["101"]));
-  });
-
   describe("while a deployment's close runs in the background", () => {
     it("reports which deployments are closing", () => {
       const { result } = setup({ active: [deployment("100"), deployment("101")], closingDseqs: ["101"] });
@@ -885,7 +879,6 @@ describe(useDeploymentsListModel.name, () => {
     providers?: ApiProviderList[];
     closingDseqs?: string[];
     readOnlyProjectId?: string;
-    updatingDseqs?: string[];
   };
 
   function setup(input: Input) {
@@ -942,7 +935,6 @@ describe(useDeploymentsListModel.name, () => {
         mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({ canManageDeployments: projectId => projectId !== current.readOnlyProjectId }),
       useDeploymentsListSource,
       useClosingDeployments: () => new Set(current.closingDseqs ?? []),
-      useUpdatingDeployments: () => new Set(current.updatingDseqs ?? []),
       useCloseDeployments: () => closeDeployments
     };
 
