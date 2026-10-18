@@ -1,4 +1,4 @@
-import { and, desc, eq, lt, or } from "drizzle-orm";
+import { and, desc, eq, exists, inArray, lt, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import type { ActivityPosition } from "@src/activity/lib/activity-cursor/activity-cursor";
@@ -6,6 +6,7 @@ import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { OrganizationInvitations } from "@src/organization/model-schemas/organization-invitation/organization-invitation.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
 
 type Table = ApiPgTables["OrganizationActivities"];
@@ -39,6 +40,41 @@ export class OrganizationActivityRepository extends OrgScopedRepository<Table, O
       .limit(limit);
 
     return rows.map(({ activity, actor }) => ({ ...this.toOutput(activity), actor }));
+  }
+
+  /** Matches invited addresses through the invitations the member accepted, which deleting the user row unlinks, so it must run first. */
+  async redactMember(userId: string): Promise<void> {
+    await this.#redactInvitedAddressesOf(userId);
+    await this.#redactAccessChangesOf(userId);
+  }
+
+  async #redactInvitedAddressesOf(userId: string): Promise<void> {
+    const acceptedInvitationToSameAddress = this.cursor
+      .select({ id: OrganizationInvitations.id })
+      .from(OrganizationInvitations)
+      .where(
+        and(
+          eq(OrganizationInvitations.acceptedByUserId, userId),
+          eq(OrganizationInvitations.organizationId, this.table.organizationId),
+          eq(OrganizationInvitations.email, sql`${this.table.payload} ->> 'email'`)
+        )
+      );
+
+    await this.cursor
+      .update(this.table)
+      .set({ payload: sql`${this.table.payload} - 'email'` })
+      .where(this.unscoped("account-deletion").whereAccessibleBy(and(eq(this.table.type, "member_invited"), exists(acceptedInvitationToSameAddress))));
+  }
+
+  async #redactAccessChangesOf(userId: string): Promise<void> {
+    await this.cursor
+      .update(this.table)
+      .set({ payload: sql`${this.table.payload} - 'userId' - 'username'` })
+      .where(
+        this.unscoped("account-deletion").whereAccessibleBy(
+          and(inArray(this.table.type, ["member_granted", "member_revoked", "member_updated"]), sql`${this.table.payload} ->> 'userId' = ${userId}`)
+        )
+      );
   }
 
   #isOlderThan({ createdAt, id }: ActivityPosition) {

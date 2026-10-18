@@ -2,6 +2,7 @@ import { singleton } from "tsyringe";
 
 import { PaymentMethodRepository, StripeTransactionRepository, WalletSettingRepository } from "@src/billing/repositories";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { OrganizationActivityRepository } from "@src/organization/repositories/organization-activity/organization-activity.repository";
 import type { UserOutput } from "@src/user/repositories/user/user.repository";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 
@@ -13,7 +14,8 @@ export class TeamRecordRetentionService {
     private readonly paymentMethodRepository: PaymentMethodRepository,
     private readonly walletSettingRepository: WalletSettingRepository,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
-    private readonly userTemplateRepository: UserTemplateRepository
+    private readonly userTemplateRepository: UserTemplateRepository,
+    private readonly organizationActivityRepository: OrganizationActivityRepository
   ) {}
 
   /** Run it in the transaction that deletes the user row and the user's templates, before either removes whatever still names the member. */
@@ -22,6 +24,7 @@ export class TeamRecordRetentionService {
     await this.paymentMethodRepository.detachFromTeams(user.id);
     await this.walletSettingRepository.detachFromTeams(user.id);
     await this.deploymentSettingRepository.detachFromTeams(user.id);
+    await this.organizationActivityRepository.redactMember(user.id);
     if (user.userId) await this.userTemplateRepository.detachFromTeams(user.userId);
   }
 }

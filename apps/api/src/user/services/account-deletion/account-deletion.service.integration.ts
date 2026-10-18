@@ -15,6 +15,7 @@ import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { OrganizationActivityRepository } from "@src/organization/repositories/organization-activity/organization-activity.repository";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import {
   StopTeamAlertsToDepartedMember,
@@ -34,7 +35,7 @@ import { AccountDeletionService } from "./account-deletion.service";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { findDeploymentDeposit, seedDeploymentDeposit } from "@test/seeders/db/deployment-deposit.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
-import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedOrganizationActivity, seedOrganizationInvitation, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
@@ -199,6 +200,36 @@ describe(AccountDeletionService.name, () => {
       expect.objectContaining({ id: teammateTemplate.id, userId: team.owner.userId })
     ]);
     expect(await templateRepository.isFavorite(teamTemplate.id, team.owner.userId!)).toBe(true);
+  });
+
+  it("keeps the team's activity feed without the address the account was invited at or its name", async () => {
+    const { service, account, token, answerActiveDeployments, joinTeam } = await setup();
+    answerActiveDeployments([]);
+    const team = await joinTeam("member");
+    const organizationId = team.organization.id;
+    const invitation = await seedOrganizationInvitation({ organizationId, status: "accepted", acceptedByUserId: account.user.id });
+    const activities = [
+      await seedOrganizationActivity({
+        organizationId,
+        type: "member_invited",
+        actorUserId: team.owner.id,
+        payload: { email: invitation.email, role: "member" }
+      }),
+      await seedOrganizationActivity({
+        organizationId,
+        type: "member_granted",
+        actorUserId: team.owner.id,
+        payload: { userId: account.user.id, username: faker.internet.userName(), role: "viewer" }
+      })
+    ];
+
+    await service.confirm({ token });
+
+    const activityRepository = container.resolve(OrganizationActivityRepository);
+    expect(await Promise.all(activities.map(async ({ id }) => (await activityRepository.findById(id))?.payload))).toEqual([
+      { role: "member" },
+      { role: "viewer" }
+    ]);
   });
 
   it("erases every row the account wrote for its personal organization rather than keeping it unnamed", async () => {
