@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { readFile } from "fs/promises";
 
 import { testEnvConfig } from "../fixture/test-env.config";
 import { AddCreditsSheetPage } from "./AddCreditsSheetPage";
@@ -20,6 +21,20 @@ export class BillingPage {
 
   getAvailableBalance() {
     return this.page.locator('[aria-label="Available balance"]');
+  }
+
+  /** A card payment is listed under the card's brand and last four digits. */
+  cardPayment(cardLast4: string) {
+    return this.page
+      .getByRole("table", { name: "Payment history" })
+      .getByRole("row")
+      .filter({ hasText: `**** ${cardLast4}` });
+  }
+
+  async exportPaymentHistoryCsv(): Promise<string> {
+    const [download] = await Promise.all([this.page.waitForEvent("download"), this.page.getByRole("button", { name: "Export as CSV" }).click()]);
+
+    return await readFile(await download.path(), "utf8");
   }
 
   async submitPayment(amount: string) {
