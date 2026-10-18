@@ -1,7 +1,9 @@
 import { expect, test } from "./fixture/base-test";
-import { ConfigureDeploymentPage } from "./pages/ConfigureDeploymentPage";
+import { ConfigureDeploymentPage, type DeployLanding } from "./pages/ConfigureDeploymentPage";
 
 const DETAIL_TABS = ["Details", "Logs", "Events", "Shell", "Update", "Settings"];
+
+const TAB_OPENED_AFTER_LANDING = { deployment: "Events", deploymentsList: "Details" } satisfies Record<DeployLanding, string>;
 
 /**
  * RUNTIME LIMIT is left out because it only renders on a runtime-limited deployment, which this test does not create.
@@ -17,6 +19,7 @@ test.describe("Deployment detail", () => {
 
     const configure = new ConfigureDeploymentPage(page);
     let dseq: string;
+    let landing: DeployLanding;
 
     await test.step("deploy a container through the configure flow", async () => {
       await configure.open();
@@ -30,7 +33,7 @@ test.describe("Deployment detail", () => {
 
       await configure.selectFirstAvailableProvider();
       await expect(configure.reviewDialog()).toBeVisible({ timeout: 30_000 });
-      await configure.confirmAndOpenDeployment(dseq);
+      landing = await configure.confirmAndOpenDeployment(dseq);
     });
 
     await test.step("renders the summary header and full tab bar", async () => {
@@ -45,8 +48,8 @@ test.describe("Deployment detail", () => {
       }
     });
 
-    await test.step("lands on the Events tab so the workload's first events are in view", async () => {
-      await expect(page.getByRole("tab", { name: "Events" })).toHaveAttribute("aria-selected", "true");
+    await test.step("opens on Events after a deploy that redirected to it, or on Details after one opened from the list", async () => {
+      await expect(page.getByRole("tab", { name: TAB_OPENED_AFTER_LANDING[landing] })).toHaveAttribute("aria-selected", "true");
     });
 
     await test.step("shows the placements & services overview on the Details tab", async () => {
