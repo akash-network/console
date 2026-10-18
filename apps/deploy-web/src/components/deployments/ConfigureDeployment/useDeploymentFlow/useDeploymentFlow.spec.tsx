@@ -452,7 +452,7 @@ describe(useDeploymentFlow.name, () => {
         servicesPatchBetween,
         useFlag: () => false,
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
-        useMarkActivityOutcomeHandled: () => vi.fn(),
+        useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes: vi.fn(), markOutcomeHandled: vi.fn() }),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
@@ -564,7 +564,7 @@ describe(useDeploymentFlow.name, () => {
         servicesPatchBetween,
         useFlag: () => false,
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
-        useMarkActivityOutcomeHandled: () => vi.fn(),
+        useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes: vi.fn(), markOutcomeHandled: vi.fn() }),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
@@ -774,19 +774,19 @@ describe(useDeploymentFlow.name, () => {
     act(() => result.current.actions.requestQuotes("sdl"));
     await settleSeal();
 
-    expect(markOutcomeHandled).toHaveBeenCalledWith("deployment_create", "555");
+    expect(markOutcomeHandled).toHaveBeenCalledWith("deployment_create", "555", "succeeded");
   });
 
   it.each([
-    { outcome: "succeeds", settle: (o: LeaseCallbacks) => o.onSuccess(deployedResult("akash1owner")) },
-    { outcome: "fails", settle: (o: LeaseCallbacks) => o.onError(new Error("boom")) }
-  ])("marks a deploy it showed as handled once the lease request $outcome", async ({ settle }) => {
+    { outcome: "succeeded", settle: (o: LeaseCallbacks) => o.onSuccess(deployedResult("akash1owner")), error: null },
+    { outcome: "failed", settle: (o: LeaseCallbacks) => o.onError(new Error("boom")), error: new Error("boom") }
+  ])("marks a deploy whose lease request $outcome as handled with that outcome", async ({ outcome, settle, error }) => {
     const createDeployment = mockMutation();
     createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
     const createLease = mockMutation();
     createLease.mutate.mockImplementation((_i, o: LeaseCallbacks) => {
       settle(o);
-      o.onSettled();
+      o.onSettled(undefined, error);
     });
     const { result, markOutcomeHandled } = renderFlow({ createDeployment, createLease });
 
@@ -795,20 +795,23 @@ describe(useDeploymentFlow.name, () => {
     act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
     act(() => result.current.actions.deploy("sdl"));
 
-    expect(markOutcomeHandled).toHaveBeenCalledWith("lease_create", "555");
+    expect(markOutcomeHandled).toHaveBeenCalledWith("lease_create", "555", outcome);
   });
 
-  it("leaves a deploy unmarked while its lease request has not answered", async () => {
+  it("drops what an earlier deploy marked before it sends the lease request, and marks nothing until it answers", async () => {
     const createDeployment = mockMutation();
     createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
-    const { result, markOutcomeHandled } = renderFlow({ createDeployment });
+    const createLease = mockMutation();
+    const { result, markOutcomeHandled, forgetEarlierOutcomes } = renderFlow({ createDeployment, createLease });
 
     act(() => result.current.actions.requestQuotes("sdl"));
     await settleSeal();
     act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
     act(() => result.current.actions.deploy("sdl"));
 
-    expect(markOutcomeHandled).not.toHaveBeenCalledWith("lease_create", "555");
+    expect(forgetEarlierOutcomes).toHaveBeenCalledWith("lease_create", "555");
+    expect(forgetEarlierOutcomes.mock.invocationCallOrder[0]).toBeLessThan(createLease.mutate.mock.invocationCallOrder[0]);
+    expect(markOutcomeHandled).not.toHaveBeenCalledWith("lease_create", "555", expect.anything());
   });
 
   it("stops with an actionable error rather than leasing a secret reference nothing holds a value for", async () => {
@@ -1366,15 +1369,18 @@ describe(useDeploymentFlow.name, () => {
       expect(updateDeployment.mutate).not.toHaveBeenCalled();
     });
 
-    it("marks the update it sent on the way to the lease as handled once the patch answers", async () => {
+    it.each([
+      { outcome: "succeeded", settle: (o: LeaseCallbacks) => o.onSuccess({}), error: null },
+      { outcome: "failed", settle: (o: LeaseCallbacks) => o.onError(new Error("boom")), error: new Error("boom") }
+    ])("marks the update it sent on the way to the lease as handled once the patch has $outcome", async ({ outcome, settle, error }) => {
       const createDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M1" } })));
       const patchDeployment = mockMutation(
-        vi.fn((_i, o) => {
-          o.onSuccess({});
-          o.onSettled();
+        vi.fn((_i, o: LeaseCallbacks) => {
+          settle(o);
+          o.onSettled(undefined, error);
         })
       );
-      const { result, markOutcomeHandled } = renderFlow({
+      const { result, markOutcomeHandled, forgetEarlierOutcomes } = renderFlow({
         createDeployment,
         patchDeployment,
         manifestFromSdl: () => "M2",
@@ -1386,7 +1392,9 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
       act(() => result.current.actions.deploy("sdl-b"));
 
-      await waitFor(() => expect(markOutcomeHandled).toHaveBeenCalledWith("deployment_update", "555"));
+      await waitFor(() => expect(markOutcomeHandled).toHaveBeenCalledWith("deployment_update", "555", outcome));
+      expect(forgetEarlierOutcomes).toHaveBeenCalledWith("deployment_update", "555");
+      expect(forgetEarlierOutcomes.mock.invocationCallOrder[0]).toBeLessThan(patchDeployment.mutate.mock.invocationCallOrder[0]);
     });
 
     it("seals an empty set beside an edit that types no secret, so the api keeps the plain variables it writes readable", async () => {
@@ -2682,6 +2690,7 @@ describe(useDeploymentFlow.name, () => {
     const getSdlSecretsContext = mockSealContextMutation(input.sealContextMutateAsync);
     const sealSdlSecrets = vi.fn(input.sealSdlSecrets ?? (async () => "SEALED"));
     const markOutcomeHandled = vi.fn();
+    const forgetEarlierOutcomes = vi.fn();
     const services = mockServices({ createDeployment, closeDeployment, getDeployment, getSdlSecretsContext });
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
@@ -2694,7 +2703,7 @@ describe(useDeploymentFlow.name, () => {
       servicesPatchBetween,
       useFlag,
       useLatestActivitiesQuery,
-      useMarkActivityOutcomeHandled: () => markOutcomeHandled,
+      useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes, markOutcomeHandled }),
       useConfigureDeployTarget: () =>
         mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({
           project: input.deployTargetProjectId ? mock<Project>({ id: input.deployTargetProjectId }) : undefined,
@@ -2715,7 +2724,8 @@ describe(useDeploymentFlow.name, () => {
       getSdlSecretsContext,
       sealSdlSecrets,
       forgetProject,
-      markOutcomeHandled
+      markOutcomeHandled,
+      forgetEarlierOutcomes
     };
   }
 
@@ -2749,6 +2759,7 @@ describe(useDeploymentFlow.name, () => {
     });
     const sealSdlSecrets = vi.fn(input?.sealSdlSecrets ?? (async () => "SEALED"));
     const markOutcomeHandled = vi.fn();
+    const forgetEarlierOutcomes = vi.fn();
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
       useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
@@ -2760,7 +2771,7 @@ describe(useDeploymentFlow.name, () => {
       servicesPatchBetween: input?.servicesPatchBetween ?? servicesPatchBetween,
       useFlag: () => false,
       useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
-      useMarkActivityOutcomeHandled: () => markOutcomeHandled,
+      useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes, markOutcomeHandled }),
       useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
     };
     const utils = renderDeploymentFlow(intent, dependencies, input?.settingsId);
@@ -2773,7 +2784,8 @@ describe(useDeploymentFlow.name, () => {
       getSdlSecretsContext,
       deploymentLocalStorage: services.deploymentLocalStorage,
       analyticsService: services.analyticsService,
-      markOutcomeHandled
+      markOutcomeHandled,
+      forgetEarlierOutcomes
     };
   }
 
@@ -2790,7 +2802,7 @@ describe(useDeploymentFlow.name, () => {
       servicesPatchBetween,
       useFlag: () => false,
       useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
-      useMarkActivityOutcomeHandled: () => vi.fn(),
+      useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes: vi.fn(), markOutcomeHandled: vi.fn() }),
       useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
     };
     return {
@@ -2859,7 +2871,7 @@ describe(useDeploymentFlow.name, () => {
     };
   }
 
-  type LeaseCallbacks = { onSuccess: (result: unknown) => void; onError: (cause: unknown) => void; onSettled: () => void };
+  type LeaseCallbacks = { onSuccess: (result: unknown) => void; onError: (cause: unknown) => void; onSettled: (result: unknown, error: unknown) => void };
 
   /** The create-lease success payload shape the flow reads the owner from. */
   function deployedResult(owner: string) {

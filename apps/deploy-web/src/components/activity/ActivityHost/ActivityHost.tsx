@@ -118,9 +118,14 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
           queryClient.invalidateQueries({ queryKey });
         }
 
-        if (activity.meta.batchId) batchesToSumUp.current.add(activity.meta.batchId);
-        else if (!lastSeen.has(activity.id) && isOutcomeHandled(activity)) forgetHandledOutcome(activity);
-        else announceActivity(activity);
+        if (activity.meta.batchId) {
+          batchesToSumUp.current.add(activity.meta.batchId);
+          continue;
+        }
+
+        const isShownOnItsPage = isOutcomeHandled(activity);
+        if (isShownOnItsPage) forgetHandledOutcome(activity);
+        if (!isShownOnItsPage || lastSeen.has(activity.id)) announceActivity(activity);
       }
 
       for (const batchId of batchesToSumUp.current) {

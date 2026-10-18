@@ -7,7 +7,7 @@ import { useRouter } from "next/router";
 import { useConfigureDeployTarget } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
-import { useMarkActivityOutcomeHandled } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
+import { useMarkActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
@@ -166,7 +166,7 @@ export const DEPENDENCIES = {
   useFlag,
   useLatestActivitiesQuery,
   useConfigureDeployTarget,
-  useMarkActivityOutcomeHandled,
+  useMarkActivityOutcomes,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   manifestFromSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -192,7 +192,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const discardedRef = useRef(false);
   const isClosingInBackground = dependencies.useFlag("notifications_activity_center");
   /** Only the per-call callbacks mark an outcome handled, since they run only while this page is still there to show it. */
-  const markOutcomeHandled = dependencies.useMarkActivityOutcomeHandled();
+  const { forgetEarlierOutcomes, markOutcomeHandled } = dependencies.useMarkActivityOutcomes();
   const deployTarget = dependencies.useConfigureDeployTarget();
   const deployTargetProjectId = deployTarget.project?.id;
   const forgetProject = deployTarget.forgetProject;
@@ -509,7 +509,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       function onCreated(result: { data: { dseq: string; manifest: string } }) {
         createInFlightRef.current = false;
-        markOutcomeHandled("deployment_create", result.data.dseq);
+        markOutcomeHandled("deployment_create", result.data.dseq, "succeeded");
         if (!isCurrentAttempt()) {
           if (discardedRef.current) return;
           startClose(result.data.dseq, queuedCreateRef.current ? "now" : "in-background");
@@ -775,10 +775,11 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       /** A manifest hashed from references would ship them to the provider as literal values, so the api's own derivation is left as the only source. */
       function sendManifestAndLease() {
         const lease = keepsStoredReference ? { leases } : { manifest: activeManifest, leases };
+        forgetEarlierOutcomes("lease_create", activeDseq);
         createLease.mutate(lease, {
           onSuccess: completeDeploy,
           onError: failDeploy,
-          onSettled: () => markOutcomeHandled("lease_create", activeDseq)
+          onSettled: (_result, error) => markOutcomeHandled("lease_create", activeDseq, shownOutcomeOf(error))
         });
       }
 
@@ -787,6 +788,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       }
 
       function submitPatch(services: ServicesPatch | undefined, sealedSecrets: string, canResealOnce: boolean) {
+        forgetEarlierOutcomes("deployment_update", activeDseq);
         patchDeployment.mutate(
           { dseq: activeDseq, data: { ...(services === undefined ? {} : { services }), sealedSecrets } },
           {
@@ -798,7 +800,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
               }
               failDeploy(cause);
             },
-            onSettled: () => markOutcomeHandled("deployment_update", activeDseq)
+            onSettled: (_result, error) => markOutcomeHandled("deployment_update", activeDseq, shownOutcomeOf(error))
           }
         );
       }
@@ -859,6 +861,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       dependencies,
       queryClient,
       analyticsService,
+      forgetEarlierOutcomes,
       markOutcomeHandled
     ]
   );
@@ -880,6 +883,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
 function closeRequestFor(dseq: string, inBackground: boolean): { dseq: string; async?: "true" } {
   return inBackground ? { dseq, async: "true" } : { dseq };
+}
+
+function shownOutcomeOf(error: unknown): "succeeded" | "failed" {
+  return error ? "failed" : "succeeded";
 }
 
 /** The activity the api answered a background close with; a close it already made during the request answers without one. */

@@ -326,7 +326,7 @@ describe(ActivityHost.name, () => {
     expect(forgetHandledOutcome).not.toHaveBeenCalled();
   });
 
-  it("announces a deploy it saw running in the background even though its page showed how the request ended", () => {
+  it("announces a deploy it saw running in the background, and forgets the outcome its page marked", () => {
     const pending = buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } });
     const settled = { ...pending, status: "succeeded" as const };
     const { enqueueSnackbar, receive, forgetHandledOutcome } = setup({ activities: [pending], handled: [settled] });
@@ -336,6 +336,26 @@ describe(ActivityHost.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Deployment 1234 deployed" }) }), {
       variant: "success"
     });
+    expect(forgetHandledOutcome).toHaveBeenCalledWith(settled);
+  });
+
+  it("announces a deploy that ended differently from what its page showed", () => {
+    const deployed = buildActivity({ type: "lease_create", status: "succeeded", meta: { dseq: "1234" } });
+    const { enqueueSnackbar, receive } = setup({ activities: [], handled: [{ ...deployed, status: "failed" }] });
+
+    receive([deployed]);
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Deployment 1234 deployed" }) }), {
+      variant: "success"
+    });
+  });
+
+  it("forgets no mark for a close it announces", () => {
+    const pending = buildActivity({ status: "pending", meta: { dseq: "1234" } });
+    const { receive, forgetHandledOutcome } = setup({ activities: [pending] });
+
+    receive([{ ...pending, status: "succeeded" }]);
+
     expect(forgetHandledOutcome).not.toHaveBeenCalled();
   });
 
@@ -644,7 +664,7 @@ describe(ActivityHost.name, () => {
     const user = buildUser();
     const forgetHandledOutcome = vi.fn();
     const isOutcomeHandled = (activity: Activity) =>
-      (input.handled ?? []).some(handled => handled.type === activity.type && handled.meta.dseq === activity.meta.dseq);
+      (input.handled ?? []).some(handled => handled.type === activity.type && handled.meta.dseq === activity.meta.dseq && handled.status === activity.status);
     let activities = input.activities;
     let isLoadingNames = false;
     let closeBatchesBeingSent: ReadonlySet<string> = new Set();

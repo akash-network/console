@@ -182,23 +182,39 @@ describe(useDeploymentUpdateSubmit.name, () => {
   });
 
   it.each([
-    { outcome: "lands", patchOutcome: "success" as const },
-    { outcome: "fails", patchOutcome: SERVER_FAILURE }
-  ])("marks an update it reported as handled once it $outcome, so the activity host doesn't announce it again", async ({ patchOutcome }) => {
-    const { result, markOutcomeHandled, seed } = setup({ patchOutcome });
+    { outcome: "succeeded", patchOutcome: "success" as const },
+    { outcome: "failed", patchOutcome: SERVER_FAILURE }
+  ])(
+    "marks an update it reported as handled once the api says it $outcome, so the activity host doesn't announce it again",
+    async ({ outcome, patchOutcome }) => {
+      const { result, markOutcomeHandled, seed } = setup({ patchOutcome });
 
-    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+      act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
 
-    await waitFor(() => expect(markOutcomeHandled).toHaveBeenCalledWith("deployment_update", DSEQ));
-  });
+      await waitFor(() => expect(markOutcomeHandled).toHaveBeenCalledWith("deployment_update", DSEQ, outcome));
+      expect(markOutcomeHandled).toHaveBeenCalledTimes(1);
+    }
+  );
 
-  it("leaves an update unmarked while the api has not answered", async () => {
-    const { result, patchMutate, markOutcomeHandled, seed } = setup({ patchOutcome: "pending" });
+  it("drops what an earlier update marked before it sends the patch, and marks nothing until the api answers", async () => {
+    const { result, patchMutate, markOutcomeHandled, forgetEarlierOutcomes, seed } = setup({ patchOutcome: "pending" });
 
     act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
 
     await waitFor(() => expect(patchMutate).toHaveBeenCalled());
+    expect(forgetEarlierOutcomes).toHaveBeenCalledWith("deployment_update", DSEQ);
+    expect(forgetEarlierOutcomes.mock.invocationCallOrder[0]).toBeLessThan(patchMutate.mock.invocationCallOrder[0]);
     expect(markOutcomeHandled).not.toHaveBeenCalled();
+  });
+
+  it("marks nothing when the secrets could not be sealed, since no update was sent", async () => {
+    const { result, enqueueSnackbar, markOutcomeHandled, forgetEarlierOutcomes, seed } = setup({ sealFailure: new Error("seal failed") });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
+    expect(markOutcomeHandled).not.toHaveBeenCalled();
+    expect(forgetEarlierOutcomes).not.toHaveBeenCalled();
   });
 
   it("reports the update as running until the api answers", async () => {
@@ -547,8 +563,9 @@ describe(useDeploymentUpdateSubmit.name, () => {
     const onDefinitionChanged = vi.fn();
     const onDefinitionReloadFailed = vi.fn();
     const markOutcomeHandled = vi.fn();
+    const forgetEarlierOutcomes = vi.fn();
     const dependencies = MockComponents(DEPENDENCIES, {
-      useMarkActivityOutcomeHandled: () => markOutcomeHandled,
+      useMarkActivityOutcomes: () => ({ forgetEarlierOutcomes, markOutcomeHandled }),
       useWallet: () => buildWallet({ address: "akash1owner" }),
       useBalances: () => mock<ReturnType<typeof DEPENDENCIES.useBalances>>({ refetch: refetchBalances as never }),
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar }),
@@ -578,7 +595,8 @@ describe(useDeploymentUpdateSubmit.name, () => {
       onUpdated,
       onDefinitionChanged,
       onDefinitionReloadFailed,
-      markOutcomeHandled
+      markOutcomeHandled,
+      forgetEarlierOutcomes
     };
   }
 });
