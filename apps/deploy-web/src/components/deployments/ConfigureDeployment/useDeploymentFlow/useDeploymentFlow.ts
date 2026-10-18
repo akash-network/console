@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import { useConfigureDeployTarget } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
+import { useMarkActivityOutcomeHandled } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
@@ -165,6 +166,7 @@ export const DEPENDENCIES = {
   useFlag,
   useLatestActivitiesQuery,
   useConfigureDeployTarget,
+  useMarkActivityOutcomeHandled,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   manifestFromSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -189,6 +191,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   /** Read by hook-level mutation callbacks, which still run once the page is gone and its own callbacks no longer do. */
   const discardedRef = useRef(false);
   const isClosingInBackground = dependencies.useFlag("notifications_activity_center");
+  /** Only the per-call callbacks mark an outcome handled, since they run only while this page is still there to show it. */
+  const markOutcomeHandled = dependencies.useMarkActivityOutcomeHandled();
   const deployTarget = dependencies.useConfigureDeployTarget();
   const deployTargetProjectId = deployTarget.project?.id;
   const forgetProject = deployTarget.forgetProject;
@@ -505,6 +509,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       function onCreated(result: { data: { dseq: string; manifest: string } }) {
         createInFlightRef.current = false;
+        markOutcomeHandled("deployment_create", result.data.dseq);
         if (!isCurrentAttempt()) {
           if (discardedRef.current) return;
           startClose(result.data.dseq, queuedCreateRef.current ? "now" : "in-background");
@@ -598,7 +603,19 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       create();
     },
-    [createDeployment, sealSecrets, dseq, strandedDseq, backgroundClose, router, analyticsService, startClose, deployTargetProjectId, forgetProject]
+    [
+      createDeployment,
+      sealSecrets,
+      dseq,
+      strandedDseq,
+      backgroundClose,
+      router,
+      analyticsService,
+      startClose,
+      deployTargetProjectId,
+      forgetProject,
+      markOutcomeHandled
+    ]
   );
 
   /**
@@ -758,7 +775,11 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       /** A manifest hashed from references would ship them to the provider as literal values, so the api's own derivation is left as the only source. */
       function sendManifestAndLease() {
         const lease = keepsStoredReference ? { leases } : { manifest: activeManifest, leases };
-        createLease.mutate(lease, { onSuccess: completeDeploy, onError: failDeploy });
+        createLease.mutate(lease, {
+          onSuccess: completeDeploy,
+          onError: failDeploy,
+          onSettled: () => markOutcomeHandled("lease_create", activeDseq)
+        });
       }
 
       function updateWholeSdlAndLease() {
@@ -776,7 +797,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
                 return;
               }
               failDeploy(cause);
-            }
+            },
+            onSettled: () => markOutcomeHandled("deployment_update", activeDseq)
           }
         );
       }
@@ -836,7 +858,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       router,
       dependencies,
       queryClient,
-      analyticsService
+      analyticsService,
+      markOutcomeHandled
     ]
   );
 

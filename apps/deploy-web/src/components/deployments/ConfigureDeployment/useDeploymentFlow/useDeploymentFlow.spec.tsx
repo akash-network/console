@@ -452,6 +452,7 @@ describe(useDeploymentFlow.name, () => {
         servicesPatchBetween,
         useFlag: () => false,
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
+        useMarkActivityOutcomeHandled: () => vi.fn(),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
@@ -563,6 +564,7 @@ describe(useDeploymentFlow.name, () => {
         servicesPatchBetween,
         useFlag: () => false,
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
+        useMarkActivityOutcomeHandled: () => vi.fn(),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
@@ -762,6 +764,51 @@ describe(useDeploymentFlow.name, () => {
 
     expect(result.current.phase).toBe("quoting");
     expect(result.current.deployError).toBeDefined();
+  });
+
+  it("marks the create it showed as handled, so the activity host doesn't announce it again", async () => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+    const { result, markOutcomeHandled } = renderFlow({ createDeployment });
+
+    act(() => result.current.actions.requestQuotes("sdl"));
+    await settleSeal();
+
+    expect(markOutcomeHandled).toHaveBeenCalledWith("deployment_create", "555");
+  });
+
+  it.each([
+    { outcome: "succeeds", settle: (o: LeaseCallbacks) => o.onSuccess(deployedResult("akash1owner")) },
+    { outcome: "fails", settle: (o: LeaseCallbacks) => o.onError(new Error("boom")) }
+  ])("marks a deploy it showed as handled once the lease request $outcome", async ({ settle }) => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+    const createLease = mockMutation();
+    createLease.mutate.mockImplementation((_i, o: LeaseCallbacks) => {
+      settle(o);
+      o.onSettled();
+    });
+    const { result, markOutcomeHandled } = renderFlow({ createDeployment, createLease });
+
+    act(() => result.current.actions.requestQuotes("sdl"));
+    await settleSeal();
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+    act(() => result.current.actions.deploy("sdl"));
+
+    expect(markOutcomeHandled).toHaveBeenCalledWith("lease_create", "555");
+  });
+
+  it("leaves a deploy unmarked while its lease request has not answered", async () => {
+    const createDeployment = mockMutation();
+    createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
+    const { result, markOutcomeHandled } = renderFlow({ createDeployment });
+
+    act(() => result.current.actions.requestQuotes("sdl"));
+    await settleSeal();
+    act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+    act(() => result.current.actions.deploy("sdl"));
+
+    expect(markOutcomeHandled).not.toHaveBeenCalledWith("lease_create", "555");
   });
 
   it("stops with an actionable error rather than leasing a secret reference nothing holds a value for", async () => {
@@ -1317,6 +1364,29 @@ describe(useDeploymentFlow.name, () => {
         expect.anything()
       );
       expect(updateDeployment.mutate).not.toHaveBeenCalled();
+    });
+
+    it("marks the update it sent on the way to the lease as handled once the patch answers", async () => {
+      const createDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M1" } })));
+      const patchDeployment = mockMutation(
+        vi.fn((_i, o) => {
+          o.onSuccess({});
+          o.onSettled();
+        })
+      );
+      const { result, markOutcomeHandled } = renderFlow({
+        createDeployment,
+        patchDeployment,
+        manifestFromSdl: () => "M2",
+        servicesPatchBetween: () => ({ web: { env: { FOO: "bar" } } })
+      });
+
+      act(() => result.current.actions.requestQuotes("sdl-a"));
+      await waitFor(() => expect(result.current.phase).toBe("quoting"));
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.deploy("sdl-b"));
+
+      await waitFor(() => expect(markOutcomeHandled).toHaveBeenCalledWith("deployment_update", "555"));
     });
 
     it("seals an empty set beside an edit that types no secret, so the api keeps the plain variables it writes readable", async () => {
@@ -2611,6 +2681,7 @@ describe(useDeploymentFlow.name, () => {
     const getDeployment = mockMutation(input.getDeploymentMutate);
     const getSdlSecretsContext = mockSealContextMutation(input.sealContextMutateAsync);
     const sealSdlSecrets = vi.fn(input.sealSdlSecrets ?? (async () => "SEALED"));
+    const markOutcomeHandled = vi.fn();
     const services = mockServices({ createDeployment, closeDeployment, getDeployment, getSdlSecretsContext });
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
@@ -2623,6 +2694,7 @@ describe(useDeploymentFlow.name, () => {
       servicesPatchBetween,
       useFlag,
       useLatestActivitiesQuery,
+      useMarkActivityOutcomeHandled: () => markOutcomeHandled,
       useConfigureDeployTarget: () =>
         mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({
           project: input.deployTargetProjectId ? mock<Project>({ id: input.deployTargetProjectId }) : undefined,
@@ -2642,7 +2714,8 @@ describe(useDeploymentFlow.name, () => {
       getDeployment,
       getSdlSecretsContext,
       sealSdlSecrets,
-      forgetProject
+      forgetProject,
+      markOutcomeHandled
     };
   }
 
@@ -2675,6 +2748,7 @@ describe(useDeploymentFlow.name, () => {
       getSdlSecretsContext
     });
     const sealSdlSecrets = vi.fn(input?.sealSdlSecrets ?? (async () => "SEALED"));
+    const markOutcomeHandled = vi.fn();
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
       useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
@@ -2686,6 +2760,7 @@ describe(useDeploymentFlow.name, () => {
       servicesPatchBetween: input?.servicesPatchBetween ?? servicesPatchBetween,
       useFlag: () => false,
       useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
+      useMarkActivityOutcomeHandled: () => markOutcomeHandled,
       useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
     };
     const utils = renderDeploymentFlow(intent, dependencies, input?.settingsId);
@@ -2697,7 +2772,8 @@ describe(useDeploymentFlow.name, () => {
       sealSdlSecrets,
       getSdlSecretsContext,
       deploymentLocalStorage: services.deploymentLocalStorage,
-      analyticsService: services.analyticsService
+      analyticsService: services.analyticsService,
+      markOutcomeHandled
     };
   }
 
@@ -2714,6 +2790,7 @@ describe(useDeploymentFlow.name, () => {
       servicesPatchBetween,
       useFlag: () => false,
       useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
+      useMarkActivityOutcomeHandled: () => vi.fn(),
       useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined })
     };
     return {
@@ -2781,6 +2858,8 @@ describe(useDeploymentFlow.name, () => {
       meta?: Record<string, unknown>;
     };
   }
+
+  type LeaseCallbacks = { onSuccess: (result: unknown) => void; onError: (cause: unknown) => void; onSettled: () => void };
 
   /** The create-lease success payload shape the flow reads the owner from. */
   function deployedResult(owner: string) {

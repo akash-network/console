@@ -14,6 +14,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useCloseBatchesBeingSent } from "@src/hooks/useCloseBatches/useCloseBatches";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useFlag } from "@src/hooks/useFlag";
+import { useHandledActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { type Activity, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
@@ -25,6 +26,7 @@ export const DEPENDENCIES = {
   useLatestActivitiesQuery,
   useDeploymentNames,
   useCloseBatchesBeingSent,
+  useHandledActivityOutcomes,
   useSnackbar,
   useQueryClient,
   useRouter
@@ -99,6 +101,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   const { data: activities } = d.useLatestActivitiesQuery({ enabled: isEnabled && !!user?.userId });
   const { getDeploymentName, isLoading: isLoadingDeploymentNames } = d.useDeploymentNames(activities?.map(activity => activity.meta.dseq) ?? []);
   const closeBatchesBeingSent = d.useCloseBatchesBeingSent();
+  const { isOutcomeHandled, forgetHandledOutcome } = d.useHandledActivityOutcomes();
   const lastSeenStatuses = useRef<Map<string, Activity["status"]>>();
   const batchesToSumUp = useRef(new Set<string>());
 
@@ -106,15 +109,17 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
     function announceFinishedActivities() {
       if (!activities || isLoadingDeploymentNames) return;
 
-      const finished = lastSeenStatuses.current ? findFinishedSince(lastSeenStatuses.current, activities) : [];
+      const lastSeen = lastSeenStatuses.current;
       lastSeenStatuses.current = new Map(activities.map(activity => [activity.id, activity.status]));
+      if (!lastSeen) return;
 
-      for (const activity of finished) {
+      for (const activity of findFinishedSince(lastSeen, activities)) {
         for (const queryKey of queryKeysChangedBy(activity)) {
           queryClient.invalidateQueries({ queryKey });
         }
 
         if (activity.meta.batchId) batchesToSumUp.current.add(activity.meta.batchId);
+        else if (!lastSeen.has(activity.id) && isOutcomeHandled(activity)) forgetHandledOutcome(activity);
         else announceActivity(activity);
       }
 
@@ -170,6 +175,8 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
       isLoadingDeploymentNames,
       getDeploymentName,
       closeBatchesBeingSent,
+      isOutcomeHandled,
+      forgetHandledOutcome,
       address,
       api,
       enqueueSnackbar,
@@ -212,7 +219,7 @@ function ActivityToast({
   );
 }
 
-/** An action never seen before counts too, so one that started and finished between two checks is still announced. */
+/** An action never seen before counts too, so one that started and finished between two checks is still announced, unless the page that sent it already showed how it ended. */
 function findFinishedSince(lastSeenStatuses: Map<string, Activity["status"]>, activities: Activity[]): FinishedActivity[] {
   return activities.filter((activity): activity is FinishedActivity => isFinished(activity) && lastSeenStatuses.get(activity.id) !== activity.status);
 }
