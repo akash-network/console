@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { Network } from "@akashnetwork/network-store";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -27,6 +28,25 @@ type ValidatorDetailPageProps = {
   searchParams: Promise<ParsedValidatorDetailProps["searchParams"]>;
 };
 
+/** serverFetch passes an abort signal, which opts it out of Next's fetch memoization, so metadata and page share this cache instead. */
+const fetchValidatorData = cache(async (address: string, network: Network["id"]): Promise<ValidatorDetail> => {
+  const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
+  const response = await serverFetch(`${apiUrl}/v1/validators/${address}`);
+
+  notFoundOnMalformedId(response);
+
+  if (response.status === 404) {
+    notFound();
+  }
+
+  if (!response.ok) {
+    // This will activate the closest `error.js` Error Boundary
+    throw new Error("Error fetching validator data");
+  }
+
+  return response.json();
+});
+
 export async function generateMetadata(props: ValidatorDetailPageProps): Promise<Metadata> {
   const [params, searchParams] = await Promise.all([props.params, props.searchParams]);
   const {
@@ -45,24 +65,6 @@ export async function generateMetadata(props: ValidatorDetailPageProps): Promise
       url
     }
   };
-}
-
-async function fetchValidatorData(address: string, network: Network["id"]): Promise<ValidatorDetail> {
-  const apiUrl = serverApiUrlService.getBaseApiUrlFor(network);
-  const response = await serverFetch(`${apiUrl}/v1/validators/${address}`);
-
-  notFoundOnMalformedId(response);
-
-  if (response.status === 404) {
-    notFound();
-  }
-
-  if (!response.ok) {
-    // This will activate the closest `error.js` Error Boundary
-    throw new Error("Error fetching validator data");
-  }
-
-  return response.json();
 }
 
 export default async function ValidatorDetailPage(props: ValidatorDetailPageProps) {
