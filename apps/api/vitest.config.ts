@@ -6,6 +6,9 @@ import isolatedUnitTests from "./test/isolated-unit-tests.json";
 import { localConfig } from "./test/services/local.config";
 import tsconfig from "./tsconfig.build.json";
 
+/** Set when a fork starts, so date specs run behind UTC and across DST without switching the process zone inside a timed test. */
+const UNIT_TEST_TIMEZONE = "America/New_York";
+
 export default defineConfig({
   /** unplugin-swc turns Vite's TypeScript transform off with `esbuild: false`, which Vite 8 ignores, so Oxc would transpile every file SWC already did. */
   oxc: false,
@@ -69,6 +72,7 @@ export default defineConfig({
           isolate: false,
           include: ["src/**/*.spec.ts"],
           exclude: isolatedUnitTests,
+          env: { TZ: UNIT_TEST_TIMEZONE },
           setupFiles: ["./test/setup-unit-env.ts", "./test/setup-shared-unit-tests.ts"]
         }
       },
@@ -77,6 +81,7 @@ export default defineConfig({
         test: {
           name: "unit-isolated",
           include: isolatedUnitTests,
+          env: { TZ: UNIT_TEST_TIMEZONE },
           setupFiles: ["./test/setup-unit-env.ts", "./test/setup-unit-tests.ts"]
         }
       },
