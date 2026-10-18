@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { centsToUsd, roundUsdToCents, usdToCents } from "./currency";
+import { centsToUsd, roundUsdToCentPrecision, usdToCents } from "./currency";
 
 describe("currency", () => {
   describe("usdToCents", () => {
@@ -24,7 +24,7 @@ describe("currency", () => {
     });
   });
 
-  describe("roundUsdToCents", () => {
+  describe("roundUsdToCentPrecision", () => {
     it.each([
       [19.999976, 20],
       [19.995, 20],
@@ -33,14 +33,14 @@ describe("currency", () => {
       [1234567.891, 1234567.89],
       [0.0049, 0]
     ])("rounds %s to %s", (usd, rounded) => {
-      expect(roundUsdToCents(usd)).toBe(rounded);
+      expect(roundUsdToCentPrecision(usd)).toBe(rounded);
     });
 
     it("rounds 1.005 up to the $1.01 the screen shows", () => {
       const shown = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(1.005);
 
       expect(shown).toBe("$1.01");
-      expect(roundUsdToCents(1.005)).toBe(1.01);
+      expect(roundUsdToCentPrecision(1.005)).toBe(1.01);
     });
   });
 });

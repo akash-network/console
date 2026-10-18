@@ -3,7 +3,7 @@ import { Trace } from "@akashnetwork/instrumentation";
 import { singleton } from "tsyringe";
 
 import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
-import { roundUsdToCents } from "@src/billing/lib/currency/currency";
+import { roundUsdToCentPrecision } from "@src/billing/lib/currency/currency";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
@@ -134,6 +134,6 @@ export class BalancesService {
   }
 
   ensure2floatingDigits(amount: number) {
-    return roundUsdToCents(amount);
+    return roundUsdToCentPrecision(amount);
   }
 }

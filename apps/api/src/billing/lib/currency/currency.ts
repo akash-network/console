@@ -12,6 +12,6 @@ export function centsToUsd(cents: number): number {
 }
 
 /** Rounds like Intl shows USD on screen, which `usdToCents` does not: it takes 1.005 to 1.00 where the screen shows $1.01. */
-export function roundUsdToCents(usd: number): number {
+export function roundUsdToCentPrecision(usd: number): number {
   return Number(CENT_FORMAT.format(usd));
 }
