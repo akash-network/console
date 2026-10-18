@@ -8,7 +8,7 @@ import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { DeploymentStoredSecretsOfUser } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import { isSealedForOrganization, SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { DataKeyOutput } from "@src/secret/repositories/data-key/data-key.repository";
@@ -36,6 +36,7 @@ export interface DataKeyRekeyReport {
   secretsResealed: number;
   deploymentsAlreadyUnderActiveKey: number;
   deploymentsMovedByAnotherWriter: number;
+  deploymentsSealedForOrganization: number;
   deploymentsUnderUnknownKey: string[];
   retiredDataKeyDeleted: boolean;
   retiredDataKeyDeletableAfter: Date | null;
@@ -55,6 +56,7 @@ interface ResealPass {
   secretsResealed: number;
   deploymentsAlreadyUnderActiveKey: number;
   deploymentsMovedByAnotherWriter: number;
+  deploymentsSealedForOrganization: number;
   deploymentsUnderUnknownKey: string[];
   errors: unknown[];
 }
@@ -105,6 +107,7 @@ export class DataKeyRekeyService {
       secretsResealed: pass.secretsResealed,
       deploymentsAlreadyUnderActiveKey: pass.deploymentsAlreadyUnderActiveKey,
       deploymentsMovedByAnotherWriter: pass.deploymentsMovedByAnotherWriter,
+      deploymentsSealedForOrganization: pass.deploymentsSealedForOrganization,
       deploymentsUnderUnknownKey: pass.deploymentsUnderUnknownKey,
       retiredDataKeyDeleted: retirement.deleted,
       retiredDataKeyDeletableAfter: retirement.deletableAfter,
@@ -183,6 +186,7 @@ export class DataKeyRekeyService {
       secretsResealed: 0,
       deploymentsAlreadyUnderActiveKey: 0,
       deploymentsMovedByAnotherWriter: 0,
+      deploymentsSealedForOrganization: 0,
       deploymentsUnderUnknownKey: [],
       errors: []
     };
@@ -199,6 +203,12 @@ export class DataKeyRekeyService {
   }
 
   async #resealDeployment(userId: string, row: DeploymentStoredSecretsOfUser, keys: RekeyKeys, pass: ResealPass, dryRun: boolean) {
+    if (isSealedForOrganization(row.sealedSecrets)) {
+      pass.deploymentsSealedForOrganization += 1;
+
+      return;
+    }
+
     const kid = kidOf(row.sealedSecrets);
 
     if (kid !== undefined && kid === keys.targetId) {
@@ -225,7 +235,7 @@ export class DataKeyRekeyService {
 
   /** Opened and sealed through the same paths a deployment uses, so the new token carries exactly the owner and deployment claims the old one did. */
   async #reseal(userId: string, row: DeploymentStoredSecretsOfUser, pass: ResealPass, dryRun: boolean) {
-    const secrets = await this.sdlSecretsService.openStored({ userId, dseq: row.dseq, sealedSecrets: row.sealedSecrets });
+    const secrets = await this.sdlSecretsService.openStored({ userId, organizationId: row.organizationId, dseq: row.dseq, sealedSecrets: row.sealedSecrets });
 
     if (dryRun || (await this.#writeResealed(userId, row, secrets))) {
       pass.deploymentsResealed += 1;

@@ -3310,7 +3310,12 @@ describe(DeploymentWriterService.name, () => {
 
       await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "nginx:1.27" } } }, ability);
 
-      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: "user-1", dseq: "1234", sealedSecrets: STORED_TOKEN });
+      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({
+        userId: "user-1",
+        organizationId: "personal-organization-1",
+        dseq: "1234",
+        sealedSecrets: STORED_TOKEN
+      });
     });
 
     it("opens the client's seal against the sdl the console stored, which is what it was sealed to", async () => {
@@ -4404,7 +4409,12 @@ describe(DeploymentWriterService.name, () => {
 
       await service.applySavedPatch(savedPatch, ability);
 
-      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: "user-1", dseq: "100", sealedSecrets: "stored.token.aaa.bbb.ccc" });
+      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({
+        userId: "user-1",
+        organizationId: "organization-of-the-row",
+        dseq: "100",
+        sealedSecrets: "stored.token.aaa.bbb.ccc"
+      });
     });
 
     it("rebuilds the manifest from the saved sdl and the values its token holds", async () => {
@@ -4603,7 +4613,12 @@ describe(DeploymentWriterService.name, () => {
 
         expect(signerService.filedUserIdOf).toHaveBeenCalledWith(organizationWallet, "user-1", "100");
         expect(scopedSettingRepository.findOneBy).toHaveBeenCalledWith({ userId: "filer-1", dseq: "100" });
-        expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: "filer-1", dseq: "100", sealedSecrets: "stored.token.aaa.bbb.ccc" });
+        expect(sdlSecretsService.openStored).toHaveBeenCalledWith({
+          userId: "filer-1",
+          organizationId: "organization-of-the-row",
+          dseq: "100",
+          sealedSecrets: "stored.token.aaa.bbb.ccc"
+        });
       });
 
       it("updates the chain and pushes the manifest with the organization's wallet, for the member who saved the patch", async () => {
@@ -4951,6 +4966,7 @@ describe(DeploymentWriterService.name, () => {
             sdl: input?.storedSdl ?? SDL_OF_A_REDEPLOY,
             runtimeLimitHours: input?.storedRuntimeLimitHours ?? null,
             sealedSecrets: "stored.token.aaa.bbb.ccc",
+            organizationId: "organization-of-the-row",
             manifestVersion: input?.storedManifestVersion ?? savedVersion
           })
     );

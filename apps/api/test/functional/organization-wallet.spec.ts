@@ -296,7 +296,7 @@ describe("Organization wallet", () => {
 
       const response = await createInheriting("123", { authorization: `Bearer ${token}`, "x-organization-id": team.id });
 
-      expect(openStored).toHaveBeenCalledWith({ userId: team.createdByUserId, dseq: "123", sealedSecrets: "sealed.token" });
+      expect(openStored).toHaveBeenCalledWith({ userId: team.createdByUserId, organizationId: team.id, dseq: "123", sealedSecrets: "sealed.token" });
       expect(response.status).toBe(402);
     });
   });

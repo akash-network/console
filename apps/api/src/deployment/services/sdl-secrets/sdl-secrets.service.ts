@@ -15,7 +15,9 @@ import {
 } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { parseSdlSecrets, SdlSecretsUnsealerService } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
-import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
+import { SECRET_UNREADABLE_ERROR_CODE, SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
+import type { DataKeyOwner } from "@src/secret/repositories/data-key/data-key.repository";
+import type { SecretBinding } from "@src/secret/services/secret-cipher/secret-cipher.service";
 import { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
 import { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 
@@ -66,6 +68,21 @@ function claimsOf(sealedSecrets: string): Record<string, unknown> | undefined {
     return undefined;
   }
 }
+
+/** Names the team a token was sealed for under the team's data key, where a token sealed under a member's key names the member as `sub`. */
+const ORGANIZATION_CLAIM = "org";
+
+/** Says only which kind of key a token claims to be sealed under; opening it still holds the claim to the row it was read from. */
+export function isSealedForOrganization(sealedSecrets: string): boolean {
+  const claims = claimsOf(sealedSecrets);
+
+  return claims !== undefined && Object.hasOwn(claims, ORGANIZATION_CLAIM);
+}
+
+/** A stored token with the row it was read from; `userId` is the member the row is filed under, null once they deleted their account. */
+export type StoredSecretsOfDeployment = { userId: string | null; organizationId: string | null; dseq: string; sealedSecrets: string };
+
+type Sealer = { owner: DataKeyOwner; binding: SecretBinding };
 
 export function unreferencedNameError(name: string): ValidationError {
   const echoed = name.slice(0, MAX_ECHOED_REFERENCE_LENGTH);
@@ -153,10 +170,9 @@ export class SdlSecretsService {
     return supplied;
   }
 
-  /** Opens what `sealForStorage` wrote under the same binding, so a token moved to another deployment's row or another user's fails to open rather than resolving into it. */
-  async openStored(input: { userId: string; dseq: string; sealedSecrets: string }): Promise<SdlSecrets> {
-    this.#assertSealedForFiler(input);
-    const opened = await this.#decryptStored(input);
+  /** Opens what `sealForStorage` wrote under the same binding, so a token moved to another deployment's row, another user's or another organization's fails to open rather than resolving into it. */
+  async openStored(input: StoredSecretsOfDeployment): Promise<SdlSecrets> {
+    const opened = await this.#decryptStored(input, this.#sealerOf(input));
     const secrets = parseSdlSecrets(opened);
 
     if (!secrets) {
@@ -170,21 +186,42 @@ export class SdlSecretsService {
     return secrets;
   }
 
-  /** A team deployment taken over from a member who deleted their account still holds a token bound to that member, whose data key went with the account. */
-  #assertSealedForFiler({ userId, dseq, sealedSecrets }: { userId: string; dseq: string; sealedSecrets: string }): void {
+  /** The key and binding come from the row rather than the token, whose header only says which kind of owner sealed it and is authenticated by the decrypt that follows. */
+  #sealerOf(input: StoredSecretsOfDeployment): Sealer {
+    if (isSealedForOrganization(input.sealedSecrets)) {
+      return this.#organizationSealerOf(input);
+    }
+
+    const userId = this.#assertSealedForFiler(input);
+
+    return { owner: { userId }, binding: { sub: userId, dseq: input.dseq } };
+  }
+
+  #organizationSealerOf({ userId, organizationId, dseq }: StoredSecretsOfDeployment): Sealer {
+    if (!organizationId) {
+      this.#loggerService.error({ event: "SDL_SECRETS_SEALED_FOR_ORGANIZATION_OUTSIDE_ONE", userId, dseq });
+
+      throw createError(500, SECRET_UNREADABLE_ERROR_MESSAGE, { errorCode: SECRET_UNREADABLE_ERROR_CODE });
+    }
+
+    return { owner: { organizationId }, binding: { [ORGANIZATION_CLAIM]: organizationId, dseq } };
+  }
+
+  /** A team deployment taken over from a member who deleted their account may still hold a token bound to that member, whose data key went with the account. */
+  #assertSealedForFiler({ userId, dseq, sealedSecrets }: StoredSecretsOfDeployment): string {
     const sealedFor = claimsOf(sealedSecrets)?.sub;
 
-    if (sealedFor === undefined || sealedFor === userId) return;
+    if (userId !== null && (sealedFor === undefined || sealedFor === userId)) return userId;
 
     this.#loggerService.warn({ event: "SDL_SECRETS_SEALED_FOR_ANOTHER_USER", userId, dseq });
 
     throw createError(409, STORED_SECRETS_UNAVAILABLE_MESSAGE, { errorCode: STORED_SECRETS_UNAVAILABLE_ERROR_CODE });
   }
 
-  /** Records only a permanent failure, and only the header's claims, which name the data key, the user and the deployment and carry none of the ciphertext. */
-  async #decryptStored(input: { userId: string; dseq: string; sealedSecrets: string }): Promise<string> {
+  /** Records only a permanent failure, and only the header's claims, which name the data key, the owner and the deployment and carry none of the ciphertext. */
+  async #decryptStored(input: StoredSecretsOfDeployment, { owner, binding }: Sealer): Promise<string> {
     try {
-      return await this.secretCipherService.decrypt({ userId: input.userId }, input.sealedSecrets, { sub: input.userId, dseq: input.dseq });
+      return await this.secretCipherService.decrypt(owner, input.sealedSecrets, binding);
     } catch (error) {
       if (!isRetryable(error)) {
         this.#loggerService.error({

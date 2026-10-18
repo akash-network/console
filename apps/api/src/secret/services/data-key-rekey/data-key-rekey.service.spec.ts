@@ -29,8 +29,14 @@ function tokenUnder(kid: string, nonce: string = randomUUID()) {
   return `${header}..iv.${Buffer.from(nonce).toString("base64url")}.tag`;
 }
 
+function tokenSealedForTeam(organizationId: string) {
+  const header = Buffer.from(JSON.stringify({ org: organizationId, dseq: "888", alg: "dir", enc: "A256GCM", kid: FOREIGN_KEY_ID })).toString("base64url");
+
+  return `${header}..iv.ciphertext.tag`;
+}
+
 function deploymentSealedUnder(kid: string, dseq = String(1000 + Math.floor(Math.random() * 9000))): DeploymentStoredSecretsOfUser {
-  return { id: randomUUID(), dseq, sealedSecrets: tokenUnder(kid), updatedAt: new Date() };
+  return { id: randomUUID(), dseq, organizationId: null, sealedSecrets: tokenUnder(kid), updatedAt: new Date() };
 }
 
 describe(DataKeyRekeyService.name, () => {
@@ -88,7 +94,7 @@ describe(DataKeyRekeyService.name, () => {
 
       const report = (await service.rekeyUser({ userId: USER_ID, dryRun: false })).unwrap();
 
-      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: USER_ID, dseq: "100", sealedSecrets: first.sealedSecrets });
+      expect(sdlSecretsService.openStored).toHaveBeenCalledWith({ userId: USER_ID, organizationId: null, dseq: "100", sealedSecrets: first.sealedSecrets });
       expect(sdlSecretsService.sealForStorage).toHaveBeenCalledWith({ userId: USER_ID, dseq: "100", secrets: TWO_SECRETS });
       expect(deploymentSettingRepository.resealIfUnchanged).toHaveBeenCalledWith(first.id, first.sealedSecrets, resealedTokens()[0]);
       expect(report).toMatchObject({ deploymentsResealed: 2, secretsResealed: 4, activeDataKeyId: REPLACEMENT_KEY_ID, retiredDataKeyId: ACTIVE_KEY_ID });
@@ -205,6 +211,22 @@ describe(DataKeyRekeyService.name, () => {
       expect(dataKeyRepository.deleteRetired).not.toHaveBeenCalled();
     });
 
+    it("leaves a deployment sealed under its team's key to the team, counting it apart and still deleting the retired key", async () => {
+      const teamSealed = { ...deploymentSealedUnder(FOREIGN_KEY_ID, "888"), organizationId: "team-1", sealedSecrets: tokenSealedForTeam("team-1") };
+      const { service, dataKeyRepository, sdlSecretsService } = setup({ deployments: [teamSealed], retireAgeMs: MIN_RETIREMENT_AGE_BEFORE_DELETE_MS * 2 });
+
+      const report = (await service.rekeyUser({ userId: USER_ID, dryRun: false })).unwrap();
+
+      expect(report).toMatchObject({
+        deploymentsResealed: 0,
+        deploymentsSealedForOrganization: 1,
+        deploymentsUnderUnknownKey: [],
+        retiredDataKeyDeleted: true
+      });
+      expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
+      expect(dataKeyRepository.deleteRetired).toHaveBeenCalled();
+    });
+
     it("records a value that would not open, steps over it and fails the run at the end", async () => {
       const unreadable = deploymentSealedUnder(ACTIVE_KEY_ID, "300");
       const readable = deploymentSealedUnder(ACTIVE_KEY_ID, "400");
@@ -259,7 +281,13 @@ describe(DataKeyRekeyService.name, () => {
     });
 
     it("names a deployment whose token has no readable data key instead of counting it as already moved", async () => {
-      const unreadable: DeploymentStoredSecretsOfUser = { id: randomUUID(), dseq: "555", sealedSecrets: "not-a-token", updatedAt: new Date() };
+      const unreadable: DeploymentStoredSecretsOfUser = {
+        id: randomUUID(),
+        dseq: "555",
+        organizationId: null,
+        sealedSecrets: "not-a-token",
+        updatedAt: new Date()
+      };
       const { service, logger } = setup({ deployments: [unreadable, deploymentSealedUnder(ACTIVE_KEY_ID)] });
 
       const result = await service.rekeyUser({ userId: USER_ID, dryRun: true });

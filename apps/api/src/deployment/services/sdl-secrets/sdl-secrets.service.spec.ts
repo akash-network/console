@@ -9,8 +9,9 @@ import type { DeploymentConfigService } from "@src/deployment/services/deploymen
 import { MAX_SDL_REFERENCE_NAME_LENGTH, SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import type { SdlSecretsUnsealerService } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
+import { SECRET_UNREADABLE_ERROR_CODE } from "@src/secret/config/secret-at-rest.config";
 import type { SecretCipherService } from "@src/secret/services/secret-cipher/secret-cipher.service";
-import { SdlSecretsService, STORED_SECRETS_UNAVAILABLE_ERROR_CODE } from "./sdl-secrets.service";
+import { isSealedForOrganization, SdlSecretsService, STORED_SECRETS_UNAVAILABLE_ERROR_CODE } from "./sdl-secrets.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
@@ -491,7 +492,7 @@ describe(SdlSecretsService.name, () => {
     it("opens the token under the binding the seal was written with", async () => {
       const { service, secretCipherService } = setup({ stored: { TOKEN: "one" } });
 
-      await service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL });
+      await service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: SEAL });
 
       expect(secretCipherService.decrypt).toHaveBeenCalledWith({ userId: "user-1" }, SEAL, { sub: "user-1", dseq: "1420000" });
     });
@@ -500,14 +501,14 @@ describe(SdlSecretsService.name, () => {
       const secrets = { TOKEN: faker.string.alphanumeric(32), DATABASE_URL: `postgres://app:${faker.string.alphanumeric(16)}@db/app` };
       const { service } = setup({ stored: secrets });
 
-      await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).resolves.toEqual(secrets);
+      await expect(service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: SEAL })).resolves.toEqual(secrets);
     });
 
     it("says nothing about a value in what it logs", async () => {
       const value = faker.string.alphanumeric(32);
       const { service, logger } = setup({ stored: { TOKEN: value } });
 
-      await service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL });
+      await service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: SEAL });
 
       expect(logger.info).toHaveBeenCalledWith({ event: "SDL_SECRETS_STORED_OPENED", userId: "user-1", dseq: "1420000", secretCount: 1 });
     });
@@ -516,21 +517,21 @@ describe(SdlSecretsService.name, () => {
       const { service, secretCipherService } = setup();
       secretCipherService.decrypt.mockResolvedValue(JSON.stringify({ TOKEN: { nested: "one" } }));
 
-      await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).rejects.toMatchObject({ status: 500 });
+      await expect(service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: SEAL })).rejects.toMatchObject({ status: 500 });
     });
 
     it("refuses a payload that is not json at all", async () => {
       const { service, secretCipherService } = setup();
       secretCipherService.decrypt.mockResolvedValue("not-json");
 
-      await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).rejects.toMatchObject({ status: 500 });
+      await expect(service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: SEAL })).rejects.toMatchObject({ status: 500 });
     });
 
     it("logs a payload it cannot read as the fault of the console that wrote it", async () => {
       const { service, secretCipherService, logger } = setup();
       secretCipherService.decrypt.mockResolvedValue("[]");
 
-      await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).rejects.toThrow();
+      await expect(service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: SEAL })).rejects.toThrow();
       expect(logger.error).toHaveBeenCalledWith({ event: "SDL_SECRETS_STORED_PAYLOAD_INVALID", userId: "user-1", dseq: "1420000" });
     });
 
@@ -539,14 +540,14 @@ describe(SdlSecretsService.name, () => {
       const { service, secretCipherService } = setup();
       secretCipherService.decrypt.mockRejectedValue(refusal);
 
-      await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).rejects.toBe(refusal);
+      await expect(service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: SEAL })).rejects.toBe(refusal);
     });
 
     describe("a token sealed for another member than the one the row is filed under", () => {
       it("answers that the stored secrets can no longer be opened and that a full update stores them again", async () => {
         const { service } = setup();
 
-        await expect(service.openStored({ userId: "user-2", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toMatchObject({
+        await expect(service.openStored({ userId: "user-2", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toMatchObject({
           status: 409,
           errorCode: STORED_SECRETS_UNAVAILABLE_ERROR_CODE,
           message: expect.stringContaining("Update the deployment with its full SDL")
@@ -556,7 +557,7 @@ describe(SdlSecretsService.name, () => {
       it("spends no key-service call on it and logs who it was opened for", async () => {
         const { service, secretCipherService, logger } = setup();
 
-        await expect(service.openStored({ userId: "user-2", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
+        await expect(service.openStored({ userId: "user-2", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
 
         expect(secretCipherService.decrypt).not.toHaveBeenCalled();
         expect(logger.warn).toHaveBeenCalledWith({ event: "SDL_SECRETS_SEALED_FOR_ANOTHER_USER", userId: "user-2", dseq: "1420000" });
@@ -565,8 +566,58 @@ describe(SdlSecretsService.name, () => {
       it("opens a token sealed for the member the row is filed under", async () => {
         const { service, secretCipherService } = setup({ stored: { TOKEN: "one" } });
 
-        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).resolves.toEqual({ TOKEN: "one" });
+        await expect(service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() })).resolves.toEqual({
+          TOKEN: "one"
+        });
         expect(secretCipherService.decrypt).toHaveBeenCalled();
+      });
+
+      it("answers the same for a row whose member has deleted their account, spending no key-service call", async () => {
+        const { service, secretCipherService } = setup();
+
+        await expect(service.openStored({ userId: null, organizationId: "team-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toMatchObject({
+          status: 409,
+          errorCode: STORED_SECRETS_UNAVAILABLE_ERROR_CODE
+        });
+        expect(secretCipherService.decrypt).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("a token sealed under a team's key", () => {
+      it("opens it under the key of the team the row is filed in, bound to that team and the deployment", async () => {
+        const { service, secretCipherService } = setup({ stored: { TOKEN: "one" } });
+        const sealedSecrets = tokenWithHeader({ org: "team-1", dseq: "1420000" });
+
+        await expect(service.openStored({ userId: "user-2", organizationId: "team-1", dseq: "1420000", sealedSecrets })).resolves.toEqual({ TOKEN: "one" });
+        expect(secretCipherService.decrypt).toHaveBeenCalledExactlyOnceWith({ organizationId: "team-1" }, sealedSecrets, { org: "team-1", dseq: "1420000" });
+      });
+
+      it("opens it for a row whose member has deleted their account", async () => {
+        const { service } = setup({ stored: { TOKEN: "one" } });
+        const sealedSecrets = tokenWithHeader({ org: "team-1", dseq: "1420000" });
+
+        await expect(service.openStored({ userId: null, organizationId: "team-1", dseq: "1420000", sealedSecrets })).resolves.toEqual({ TOKEN: "one" });
+      });
+
+      it("binds it to the row's team rather than to the one its header names", async () => {
+        const { service, secretCipherService } = setup({ stored: { TOKEN: "one" } });
+        const sealedSecrets = tokenWithHeader({ org: "team-2", dseq: "1420000" });
+
+        await service.openStored({ userId: "user-1", organizationId: "team-1", dseq: "1420000", sealedSecrets });
+
+        expect(secretCipherService.decrypt).toHaveBeenCalledExactlyOnceWith({ organizationId: "team-1" }, sealedSecrets, { org: "team-1", dseq: "1420000" });
+      });
+
+      it("refuses it on a row filed in no organization, as a token beyond any key, without a key-service call", async () => {
+        const { service, secretCipherService, logger } = setup();
+        const sealedSecrets = tokenWithHeader({ org: "team-1", dseq: "1420000" });
+
+        await expect(service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets })).rejects.toMatchObject({
+          status: 500,
+          errorCode: SECRET_UNREADABLE_ERROR_CODE
+        });
+        expect(secretCipherService.decrypt).not.toHaveBeenCalled();
+        expect(logger.error).toHaveBeenCalledWith({ event: "SDL_SECRETS_SEALED_FOR_ORGANIZATION_OUTSIDE_ONE", userId: "user-1", dseq: "1420000" });
       });
     });
 
@@ -575,7 +626,7 @@ describe(SdlSecretsService.name, () => {
         const { service, secretCipherService, logger } = setup();
         secretCipherService.decrypt.mockRejectedValue(createError(500, "Unable to read stored secrets"));
 
-        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
+        await expect(service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
 
         expect(logger.error).toHaveBeenCalledWith({
           event: "SECRET_DECRYPT_FAILED",
@@ -590,7 +641,7 @@ describe(SdlSecretsService.name, () => {
         const sealedSecrets = tokenWithHeader();
         secretCipherService.decrypt.mockRejectedValue(createError(500, "Unable to read stored secrets"));
 
-        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets })).rejects.toThrow();
+        await expect(service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets })).rejects.toThrow();
 
         const [[recorded]] = vi.mocked(logger.error).mock.calls;
         expect(JSON.stringify(recorded)).not.toContain(sealedSecrets.split(".")[3]);
@@ -600,7 +651,7 @@ describe(SdlSecretsService.name, () => {
         const { service, secretCipherService, logger } = setup();
         secretCipherService.decrypt.mockRejectedValue(createError(500, "Unable to read stored secrets"));
 
-        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: SEAL })).rejects.toThrow();
+        await expect(service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: SEAL })).rejects.toThrow();
 
         expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_DECRYPT_FAILED", claims: undefined }));
       });
@@ -609,14 +660,16 @@ describe(SdlSecretsService.name, () => {
         const { service, secretCipherService } = setup();
         secretCipherService.decrypt.mockRejectedValue(createError(503, "Service temporarily unavailable"));
 
-        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toMatchObject({ status: 503 });
+        await expect(service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toMatchObject({
+          status: 503
+        });
       });
 
       it("records nothing for a key service that is merely unreachable, which is no evidence of tampering", async () => {
         const { service, secretCipherService, logger } = setup();
         secretCipherService.decrypt.mockRejectedValue(createError(503, "Service temporarily unavailable"));
 
-        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
+        await expect(service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
 
         expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_DECRYPT_FAILED" }));
       });
@@ -625,7 +678,7 @@ describe(SdlSecretsService.name, () => {
         const { service, secretCipherService, logger } = setup();
         secretCipherService.decrypt.mockRejectedValue(new Error("boom"));
 
-        await expect(service.openStored({ userId: "user-1", dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
+        await expect(service.openStored({ userId: "user-1", organizationId: null, dseq: "1420000", sealedSecrets: tokenWithHeader() })).rejects.toThrow();
 
         expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "SECRET_DECRYPT_FAILED" }));
       });
@@ -711,8 +764,8 @@ describe(SdlSecretsService.name, () => {
     });
   });
 
-  function tokenWithHeader() {
-    const header = Buffer.from(JSON.stringify({ alg: "dir", enc: "A256GCM", kid: "data-key-1", sub: "user-1", dseq: "1420000" })).toString("base64url");
+  function tokenWithHeader(claims: Record<string, string> = { sub: "user-1", dseq: "1420000" }) {
+    const header = Buffer.from(JSON.stringify({ alg: "dir", enc: "A256GCM", kid: "data-key-1", ...claims })).toString("base64url");
 
     return [header, "", "aXY", "Y2lwaGVydGV4dA", "dGFn"].join(".");
   }
@@ -740,5 +793,25 @@ describe(SdlSecretsService.name, () => {
     const service = new SdlSecretsService(unsealerService, sdlReferenceService, secretCipherService, config, () => logger);
 
     return { service, unsealerService, secretCipherService, logger, config };
+  }
+});
+
+describe(isSealedForOrganization.name, () => {
+  it("recognizes a token naming a team", () => {
+    expect(isSealedForOrganization(sealedWith({ org: "team-1", dseq: "1420000" }))).toBe(true);
+  });
+
+  it("recognizes a token naming a member as not sealed for a team", () => {
+    expect(isSealedForOrganization(sealedWith({ sub: "user-1", dseq: "1420000" }))).toBe(false);
+  });
+
+  it("treats a token whose header cannot be read as not sealed for a team", () => {
+    expect(isSealedForOrganization("not-a-token")).toBe(false);
+  });
+
+  function sealedWith(claims: Record<string, string>) {
+    return [Buffer.from(JSON.stringify({ alg: "dir", enc: "A256GCM", kid: "data-key-1", ...claims })).toString("base64url"), "", "aXY", "Y3Q", "dGFn"].join(
+      "."
+    );
   }
 });

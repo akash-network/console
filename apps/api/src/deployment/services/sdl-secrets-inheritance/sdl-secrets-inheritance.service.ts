@@ -3,8 +3,17 @@ import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { DeploymentSettingRepository, type DeploymentWallet } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import { SdlSecretsService, STORED_SECRETS_UNAVAILABLE_ERROR_CODE } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
+import {
+  DeploymentSettingRepository,
+  type DeploymentSettingsOutput,
+  type DeploymentWallet
+} from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import {
+  isSealedForOrganization,
+  SdlSecretsService,
+  STORED_SECRETS_UNAVAILABLE_ERROR_CODE,
+  type StoredSecretsOfDeployment
+} from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { SECRET_UNREADABLE_ERROR_CODE } from "@src/secret/config/secret-at-rest.config";
 
@@ -31,6 +40,11 @@ function isTokenUnreadable(error: unknown): boolean {
   return isHttpError(error) && (error.errorCode === SECRET_UNREADABLE_ERROR_CODE || isSealedForAnotherMember(error));
 }
 
+/** A filer who deleted their account took their data key along, so without them only a token sealed under the team's key still opens. */
+function outlivesItsFiler(setting: Pick<DeploymentSettingsOutput, "userId" | "sealedSecrets">): boolean {
+  return setting.userId !== null || (setting.sealedSecrets !== null && isSealedForOrganization(setting.sealedSecrets));
+}
+
 /**
  * Opens the token another deployment of the same owner holds, so a redeploy can carry its values forward.
  * Reads nothing but the token: the source's SDL is never consulted, and its `closed` state is deliberately
@@ -50,11 +64,11 @@ export class SdlSecretsInheritanceService {
     this.#loggerService = createLogger({ context: SdlSecretsInheritanceService.name });
   }
 
-  /** The source is found through the wallet that owns it and must be writable under the caller's ability, so one the caller may not change, or whose filer's account is deleted, is unreachable rather than merely refused. */
+  /** The source is found through the wallet that owns it and must be writable under the caller's ability, so one the caller may not change, or whose secrets left with its filer's deleted account, is unreachable rather than merely refused. */
   async open({ wallet, dseq }: { wallet: DeploymentWallet; dseq: string }): Promise<SdlSecrets> {
     const setting = await this.deploymentSettingRepository.accessibleBy(this.authService.ability, "update").findOneOfWallet(wallet, dseq);
 
-    if (!setting?.userId) {
+    if (!setting || !outlivesItsFiler(setting)) {
       this.#loggerService.warn({ event: "SDL_SECRETS_INHERIT_SOURCE_NOT_FOUND", userId: wallet.userId, organizationId: wallet.organizationId, dseq });
 
       throw createError(404, SOURCE_NOT_FOUND_MESSAGE);
@@ -68,7 +82,7 @@ export class SdlSecretsInheritanceService {
       return {};
     }
 
-    const inherited = await this.#openStored(setting.sealedSecrets, key);
+    const inherited = await this.#openStored({ ...key, organizationId: setting.organizationId, sealedSecrets: setting.sealedSecrets });
 
     this.#loggerService.info({ event: "SDL_SECRETS_INHERITED", ...key, inheritedCount: Object.keys(inherited).length });
 
@@ -76,18 +90,18 @@ export class SdlSecretsInheritanceService {
   }
 
   /** Only the cipher's own permanent answer is rewritten: a 503 stays retryable, and a failure from anywhere else must not masquerade as secrets that are gone. */
-  async #openStored(sealedSecrets: string, key: { userId: string; dseq: string }): Promise<SdlSecrets> {
+  async #openStored(stored: StoredSecretsOfDeployment): Promise<SdlSecrets> {
     try {
-      return await this.sdlSecretsService.openStored({ ...key, sealedSecrets });
+      return await this.sdlSecretsService.openStored(stored);
     } catch (error) {
       if (!isPermanentlyUnreadable(error)) throw error;
 
-      throw this.#rejectUnreadable(error, key);
+      throw this.#rejectUnreadable(error, { userId: stored.userId, dseq: stored.dseq });
     }
   }
 
   /** Carries the cause into both the log and the error, because the message a caller receives says only that the secrets will not open and never why. */
-  #rejectUnreadable(error: unknown, key: { userId: string; dseq: string }) {
+  #rejectUnreadable(error: unknown, key: { userId: string | null; dseq: string }) {
     const event = isTokenUnreadable(error) ? "SDL_SECRETS_INHERIT_TOKEN_UNREADABLE" : "SDL_SECRETS_INHERIT_STATE_UNREADABLE";
     this.#loggerService.error({ event, ...key, error });
 
