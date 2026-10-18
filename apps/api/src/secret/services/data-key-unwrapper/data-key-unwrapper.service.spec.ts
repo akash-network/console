@@ -215,6 +215,16 @@ describe(DataKeyUnwrapperService.name, () => {
       expect(found).toEqual([undefined, undefined]);
       expect(dataKeyService.findActiveDataKey).toHaveBeenCalledTimes(2);
     });
+
+    it("still hands getDataKey a key when it joins a lookup that comes back empty", async () => {
+      const { service, inRequest, dataKeyService, rowFor } = setup();
+
+      const [found, got] = await inRequest(async () => await Promise.all([service.findDataKey({ userId: USER_A }), service.getDataKey(USER_A)]));
+
+      expect(found).toBeUndefined();
+      expect(got.id).toBe(rowFor(USER_A).id);
+      expect(dataKeyService.ensureDataKey).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("a team's data key", () => {

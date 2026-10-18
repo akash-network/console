@@ -52,10 +52,12 @@ export class DataKeyUnwrapperService {
     this.#loggerService = createLogger({ context: DataKeyUnwrapperService.name });
   }
 
+  /** `findDataKey` shares this slot and may hold it with a miss, so a caller that needs the key asks again once that miss is forgotten. */
   async getDataKey(userId: string): Promise<HeldDataKey> {
     const owner = { userId };
+    const held = await this.#holdOnce(owner, heldOwnerOf(owner), async () => await this.dataKeyService.ensureDataKey(userId));
 
-    return await this.#holdOnce(owner, heldOwnerOf(owner), async () => await this.dataKeyService.ensureDataKey(userId));
+    return held ?? (await this.getDataKey(userId));
   }
 
   /** The active key without creating one, held as `getDataKey` holds it; undefined when the owner has none. */
@@ -69,8 +71,6 @@ export class DataKeyUnwrapperService {
   }
 
   /** Callers racing for the same key share one holding from before the row is read, so the row is read and the key unwrapped once for the request; a miss is forgotten so the next ask reads again. */
-  #holdOnce(owner: DataKeyOwner, heldAs: string, readDataKey: () => Promise<DataKeyOutput>): Promise<HeldDataKey>;
-  #holdOnce(owner: DataKeyOwner, heldAs: string, readDataKey: () => Promise<DataKeyOutput | undefined>): Promise<HeldDataKey | undefined>;
   async #holdOnce(owner: DataKeyOwner, heldAs: string, readDataKey: () => Promise<DataKeyOutput | undefined>): Promise<HeldDataKey | undefined> {
     const heldThisRequest = this.#heldDataKeys(owner);
     const held = heldThisRequest.get(heldAs);

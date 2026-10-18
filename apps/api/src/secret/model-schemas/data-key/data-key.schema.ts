@@ -40,6 +40,9 @@ export const DataKeys = pgTable(
     activeOrganizationIdUnique: uniqueIndex("data_keys_active_organization_id_idx")
       .on(table.organizationId)
       .where(sql`${table.retiredAt} IS NULL`),
+    organizationIdIdx: index("data_keys_organization_id_idx")
+      .on(table.organizationId)
+      .where(sql`${table.organizationId} IS NOT NULL`),
     wrappedByKidIdx: index("data_keys_wrapped_by_kid_idx").on(table.wrappedByKid),
     oneOwner: check("data_keys_one_owner", sql`num_nonnulls(${table.userId}, ${table.organizationId}) = 1`)
   })

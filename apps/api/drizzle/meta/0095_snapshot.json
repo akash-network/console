@@ -2555,6 +2555,22 @@
           "method": "btree",
           "with": {}
         },
+        "data_keys_organization_id_idx": {
+          "name": "data_keys_organization_id_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"data_keys\".\"organization_id\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "data_keys_wrapped_by_kid_idx": {
           "name": "data_keys_wrapped_by_kid_idx",
           "columns": [
