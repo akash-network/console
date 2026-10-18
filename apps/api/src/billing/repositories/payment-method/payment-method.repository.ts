@@ -1,4 +1,4 @@
-import { and, count, eq, ne, sql } from "drizzle-orm";
+import { and, count, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 import { uuidv4 } from "unleash-client/lib/uuidv4";
@@ -10,6 +10,7 @@ import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repositor
 import { type ApiTransaction, TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { writtenForTeamBy } from "@src/organization/lib/team-records/team-records";
+import { OrganizationMembers } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 
 type Table = ApiPgTables["PaymentMethods"];
 export type PaymentMethodInput = ApiPgTables["PaymentMethods"]["$inferInsert"];
@@ -80,13 +81,21 @@ export class PaymentMethodRepository extends OrgScopedRepository<Table, PaymentM
     return result?.count ?? 0;
   }
 
-  async hasSharedFingerprint(userId: string, otherUserId: string): Promise<boolean> {
+  /** Looks across every organization the other user belongs to, so a card shared through any team still counts as theirs. */
+  async hasSharedFingerprint(payer: { userId: string; organizationId: string | null }, otherUserId: string): Promise<boolean> {
     const otherPaymentMethod = alias(this.table, "other_payment_method");
+    const otherUserOrganizations = this.cursor
+      .select({ organizationId: OrganizationMembers.organizationId })
+      .from(OrganizationMembers)
+      .where(eq(OrganizationMembers.userId, otherUserId));
+    const payerCards = or(eq(this.table.userId, payer.userId), payer.organizationId ? eq(this.table.organizationId, payer.organizationId) : undefined);
+    const otherUserCards = or(eq(otherPaymentMethod.userId, otherUserId), inArray(otherPaymentMethod.organizationId, otherUserOrganizations));
+
     const [match] = await this.cursor
       .select({ id: this.table.id })
       .from(this.table)
       .innerJoin(otherPaymentMethod, eq(otherPaymentMethod.fingerprint, this.table.fingerprint))
-      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), eq(otherPaymentMethod.userId, otherUserId))))
+      .where(this.whereAccessibleBy(and(payerCards, otherUserCards)))
       .limit(1);
 
     return !!match;
