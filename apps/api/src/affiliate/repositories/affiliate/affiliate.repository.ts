@@ -1,3 +1,4 @@
+import { and, eq, isNotNull } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -34,6 +35,20 @@ export class AffiliateRepository extends BaseRepository<Table, AffiliateInput, A
 
   async findByUserId(userId: string): Promise<AffiliateOutput | undefined> {
     return this.findOneBy({ userId } as Partial<AffiliateOutput>);
+  }
+
+  async revokeIfActive(id: string, revocation: { revokedAt: Date; revokedBy: string }): Promise<AffiliateOutput | undefined> {
+    return this.updateBy({ id, revokedAt: null } as Partial<AffiliateOutput>, revocation, { returning: true });
+  }
+
+  async reapproveIfRevoked(id: string, approval: { code: string; approvedAt: Date; approvedBy: string }): Promise<AffiliateOutput | undefined> {
+    const [row] = await this.updateWhere(
+      this.whereAccessibleBy(and(eq(this.table.id, id), isNotNull(this.table.revokedAt))),
+      { ...approval, revokedAt: null, revokedBy: null },
+      { returning: true }
+    );
+
+    return row && this.toOutput(row);
   }
 
   protected toOutput(payload: AffiliateDbOutput): AffiliateOutput {
