@@ -6,6 +6,8 @@ import { AppNav } from "./AppNav";
 type FeedActivity = { type: string; status: string; meta: { dseq?: string; error?: { message?: string } } };
 type ActivityFeedBody = { data?: { activities?: FeedActivity[] } };
 
+export type DeployLanding = "deployment" | "deploymentsList";
+
 /**
  * Drives the "Configure your deployment" screen and its quoting lifecycle: configure a spec, request
  * quotes (creates the deployment), then cancel-and-edit (closes it). Interactions only, assertions live
@@ -203,12 +205,13 @@ export class ConfigureDeploymentPage {
    * Confirms the deploy and ends up on the deployment's page. The page goes there on its own when the lease is created
    * during the request; when the lease finishes in the background it leaves the user on the deployments list, so this
    * waits for the activity feed to report the deploy done before opening the deployment, and throws its reason if it failed.
+   * Resolves to where the deploy first landed the user.
    */
-  async confirmAndOpenDeployment(dseq: string) {
+  async confirmAndOpenDeployment(dseq: string): Promise<DeployLanding> {
     const deploymentPath = `/deployments/${dseq}`;
     await this.confirmAndDeploy();
     await this.page.waitForURL(url => url.pathname === deploymentPath || url.pathname === "/deployments", { timeout: 180_000 });
-    if (new URL(this.page.url()).pathname === deploymentPath) return;
+    if (new URL(this.page.url()).pathname === deploymentPath) return "deployment";
 
     const finishedDeploy = await this.waitForDeployToFinish(dseq);
     if (finishedDeploy?.status !== "succeeded") {
@@ -216,6 +219,7 @@ export class ConfigureDeploymentPage {
     }
 
     await this.page.goto(`${testEnvConfig.BASE_URL}${deploymentPath}`);
+    return "deploymentsList";
   }
 
   /** The list keeps polling the feed, which lists a finished deploy on every later answer, so a deploy that finished before the wait began is still seen. */
