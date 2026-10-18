@@ -170,10 +170,10 @@ What to look at first: the event carries `userId`, `dseq` and the token's header
 ### 5.2 Many distinct users unwrapped in a short window
 
 ```logql
-count(count by (userId) (count_over_time({namespace="prod", service_name=~"console-api-mainnet.*"} | json log=`log` | line_format "{{.log}}" | json | event="USER_DATA_KEY_UNWRAPPED" [5m]))) > 40
+count(count by (userId, organizationId) (count_over_time({namespace="prod", service_name=~"console-api-mainnet.*"} | json log=`log` | line_format "{{.log}}" | json | event="USER_DATA_KEY_UNWRAPPED" [5m]))) > 40
 ```
 
-What it means: a normal deploy unwraps one user's key. Something opening many users' secrets inside minutes looks like nothing a user does.
+What it means: a normal deploy unwraps one user's key. Something opening many users' secrets inside minutes looks like nothing a user does. An unwrap of a team's key logs `organizationId` instead of `userId`, so the query counts each user and each team once; grouping by `userId` alone would fold every team into a single series.
 
 How the threshold was set, so the next person can tighten it rather than guess. It began at 75, estimated from Amplitude deploy counts while none of this was live yet. Production traffic has since made the real population measurable, by running the query above without its threshold:
 
@@ -191,7 +191,7 @@ The distinct-user rows come from 3,544 evaluations over seven days rather than a
 
 Counting deployers ran about four times high, so 75 would have let a sweep of sixty accounts pass in silence. The threshold is 40, twice the observed peak, which still clears every normal day by a wide margin while a sweep across hundreds of users crosses it in seconds. Repeat the measurement every few months, in Grafana Explore over the last 30 days, and move the threshold back to about twice the maximum. Tighten it when the measured peak stays well under for a month; raise it only after a legitimate spike, such as a hackathon, and record the date and reason in the table above.
 
-What to look at first: the `userId` values behind the count, and whether they correspond to deploy traffic in Amplitude for the same minutes. Legitimate spikes come with `create_deployment` events from the web app; a sweep comes from an API consumer (`userAgent: "node"`, `referrer: "about:client"`) or from nothing at all. For a sweep: revoke the API keys involved, then re-key every user on the list (section 3), since their data keys were unwrapped by something that should not have.
+What to look at first: the `userId` and `organizationId` values behind the count, and whether they correspond to deploy traffic in Amplitude for the same minutes. Legitimate spikes come with `create_deployment` events from the web app; a sweep comes from an API consumer (`userAgent: "node"`, `referrer: "about:client"`) or from nothing at all. For a sweep: revoke the API keys involved, then re-key every user on the list (section 3), since their data keys were unwrapped by something that should not have.
 
 ### 5.3 Wiring them
 
