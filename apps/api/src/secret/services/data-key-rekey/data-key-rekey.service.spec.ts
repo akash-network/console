@@ -213,7 +213,10 @@ describe(DataKeyRekeyService.name, () => {
 
     it("leaves a deployment sealed under its team's key to the team, counting it apart and still deleting the retired key", async () => {
       const teamSealed = { ...deploymentSealedUnder(FOREIGN_KEY_ID, "888"), organizationId: "team-1", sealedSecrets: tokenSealedForTeam("team-1") };
-      const { service, dataKeyRepository, sdlSecretsService } = setup({ deployments: [teamSealed], retireAgeMs: MIN_RETIREMENT_AGE_BEFORE_DELETE_MS * 2 });
+      const { service, dataKeyRepository, sdlSecretsService, logger } = setup({
+        deployments: [teamSealed],
+        retireAgeMs: MIN_RETIREMENT_AGE_BEFORE_DELETE_MS * 2
+      });
 
       const report = (await service.rekeyUser({ userId: USER_ID, dryRun: false })).unwrap();
 
@@ -223,6 +226,7 @@ describe(DataKeyRekeyService.name, () => {
         deploymentsUnderUnknownKey: [],
         retiredDataKeyDeleted: true
       });
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DATA_KEY_REKEY_BATCH", sealedForOrganization: 1, resealed: 0 }));
       expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
       expect(dataKeyRepository.deleteRetired).toHaveBeenCalled();
     });

@@ -117,7 +117,7 @@ DEPLOYMENT_ENV=staging NETWORK=sandbox doppler run -p console-api -c staging-san
    node --require ./dist/instrumentation.js ./dist/console.js rekey-user-data-key --user-id <uuid>
    ```
 
-   The run retires the user's active key and inserts its replacement in one transaction, then re-seals each of the user's tokens under the new key. Both keys stay openable throughout and the user keeps deploying. The report states `deploymentsResealed`, `secretsResealed`, `deploymentsAlreadyUnderActiveKey`, `deploymentsMovedByAnotherWriter`, `deploymentsUnderUnknownKey`, `retiredDataKeyDeleted` and `retiredDataKeyDeletableAfter`.
+   The run retires the user's active key and inserts its replacement in one transaction, then re-seals each of the user's tokens under the new key. Both keys stay openable throughout and the user keeps deploying. The report states `deploymentsResealed`, `secretsResealed`, `deploymentsAlreadyUnderActiveKey`, `deploymentsMovedByAnotherWriter`, `deploymentsSealedForOrganization`, `deploymentsUnderUnknownKey`, `retiredDataKeyDeleted` and `retiredDataKeyDeletableAfter`. `deploymentsSealedForOrganization` counts the user's team deployments whose token is sealed under the team's own data key; the user's key never sealed them, so the re-key leaves them where they are and they do not hold back the retired key's deletion.
 
 3. The first run always keeps the retired key and reports `retiredDataKeyDeleted: false`, because a request that read the old key just before it was retired may still be writing a value under it. Run the command again at or after `retiredDataKeyDeletableAfter`, a minute after the retirement. That run re-seals any straggler, checks that nothing is still sealed under the retired key, and deletes it. Only then is the leaked key useless.
 
@@ -165,7 +165,7 @@ There is no threshold to tune: a healthy system produces none. The event is writ
 
 What it means: a token's ciphertext or header was altered, or it names a data key the user does not hold. Both are wrong in a way a bug is not.
 
-What to look at first: the event carries `userId`, `dseq` and the token's header `claims`. Compare `claims.kid` with that user's `data_keys` rows. If a `DATA_KEY_REKEY_*` run for that user is in progress or just finished, and the kid is the key it retired, a request opened a token during the window; re-run the re-key. Otherwise treat it as tampering: snapshot the database, page security, and do not repair the row.
+What to look at first: the event carries `userId`, `dseq` and the token's header `claims`. A token sealed under a team's data key has an `org` claim instead of `sub`: compare its `claims.kid` with that organization's `data_keys` rows (`organization_id = claims.org`), not the user's. A re-key only ever moves a user's own tokens, so a team token whose kid the team does not hold is tampering. For a user's token, compare `claims.kid` with that user's `data_keys` rows. If a `DATA_KEY_REKEY_*` run for that user is in progress or just finished, and the kid is the key it retired, a request opened a token during the window; re-run the re-key. Otherwise treat it as tampering: snapshot the database, page security, and do not repair the row.
 
 ### 5.2 Many distinct users unwrapped in a short window
 
@@ -328,16 +328,16 @@ The same property is what makes section 2 step 5 load-bearing: destroying a KMS 
 
 ## 8. Events and metrics
 
-| Name                                              | Kind         | Meaning                                                                                                                               |
-| ------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `USER_DATA_KEY_UNWRAPPED`                         | event, info  | A request unwrapped a user's data key. Carries `userId`, `dataKeyId`, `kid`. The only per-user record of secret access.               |
-| `USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID`         | event, error | A data key names a KMS version the console cannot resolve or the service refuses (disabled, destroyed, unknown). The user gets a 503. |
-| `USER_DATA_KEY_UNWRAP_FAILED`                     | event, error | The key service was unreachable, answered with an error, or answered nonsense; `failure` says which. The user gets a 503.             |
-| `USER_DATA_KEY_UNREADABLE`                        | event, error | The wrapped key itself is corrupt. Permanent.                                                                                         |
-| `SECRET_DECRYPT_FAILED`                           | event, error | A stored token would not open. Section 5.1.                                                                                           |
-| `SDL_SECRETS_SEALED`, `SDL_SECRETS_STORED_OPENED` | event, info  | A token was written or read for a deployment.                                                                                         |
-| `DATA_KEY_REWRAP_*`                               | events       | The scheduled rotation's start, batches, refusals, failures and end report.                                                           |
-| `DATA_KEY_REKEY_*`                                | events       | The per-user re-key's start, retirement, batches, kept or deleted retired key, and end report.                                        |
-| `kms_key_service_calls_total{status,failure}`     | counter      | Key-service unwraps by outcome.                                                                                                       |
-| `kms_key_service_call_duration_ms`                | histogram    | Key-service latency.                                                                                                                  |
-| `user_data_key_unwraps_per_request`               | histogram    | Unwraps a request spent on one user's key. Expected 1; 2 during that user's re-key window.                                            |
+| Name                                              | Kind         | Meaning                                                                                                                                                         |
+| ------------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `USER_DATA_KEY_UNWRAPPED`                         | event, info  | A request unwrapped a data key. Carries `userId`, or `organizationId` for a team's key, plus `dataKeyId` and `kid`. The only per-owner record of secret access. |
+| `USER_DATA_KEY_WRAPPED_UNDER_UNKNOWN_KID`         | event, error | A data key names a KMS version the console cannot resolve or the service refuses (disabled, destroyed, unknown). The user gets a 503.                           |
+| `USER_DATA_KEY_UNWRAP_FAILED`                     | event, error | The key service was unreachable, answered with an error, or answered nonsense; `failure` says which. The user gets a 503.                                       |
+| `USER_DATA_KEY_UNREADABLE`                        | event, error | The wrapped key itself is corrupt. Permanent.                                                                                                                   |
+| `SECRET_DECRYPT_FAILED`                           | event, error | A stored token would not open. Section 5.1.                                                                                                                     |
+| `SDL_SECRETS_SEALED`, `SDL_SECRETS_STORED_OPENED` | event, info  | A token was written or read for a deployment.                                                                                                                   |
+| `DATA_KEY_REWRAP_*`                               | events       | The scheduled rotation's start, batches, refusals, failures and end report.                                                                                     |
+| `DATA_KEY_REKEY_*`                                | events       | The per-user re-key's start, retirement, batches, kept or deleted retired key, and end report.                                                                  |
+| `kms_key_service_calls_total{status,failure}`     | counter      | Key-service unwraps by outcome.                                                                                                                                 |
+| `kms_key_service_call_duration_ms`                | histogram    | Key-service latency.                                                                                                                                            |
+| `user_data_key_unwraps_per_request`               | histogram    | Unwraps a request spent on one user's key. Expected 1; 2 during that user's re-key window.                                                                      |

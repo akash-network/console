@@ -311,6 +311,7 @@ export class DataKeyRekeyService {
       resealed: pass.deploymentsResealed,
       alreadyUnderActiveKey: pass.deploymentsAlreadyUnderActiveKey,
       movedByAnotherWriter: pass.deploymentsMovedByAnotherWriter,
+      sealedForOrganization: pass.deploymentsSealedForOrganization,
       underUnknownKey: pass.deploymentsUnderUnknownKey.length,
       failed: pass.errors.length
     };
