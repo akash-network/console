@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
-import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES, DeploymentFlowContext } from "./DeploymentFlowProvider";
-import { DeploymentFlowProvider, useIsDeploymentCreating } from "./DeploymentFlowProvider";
+import { DeploymentFlowProvider, useDeploymentLeaveGuard, useIsDeploymentCreating } from "./DeploymentFlowProvider";
 
-import { render, renderHook, screen } from "@testing-library/react";
+import { fireEvent, render, renderHook, screen } from "@testing-library/react";
 
 describe(DeploymentFlowProvider.name, () => {
   it("passes the given intent into the deployment flow", () => {
@@ -67,6 +67,46 @@ describe(DeploymentFlowProvider.name, () => {
     expect(screen.getByTestId("creating")).toHaveTextContent("false");
   });
 
+  it.each([
+    ["quoting", { phase: "quoting" }, true],
+    ["leasing", { phase: "deploying" }, true],
+    ["leased", { phase: "deploying", deploySucceeded: true }, false],
+    ["quoting a deployment the api created in the background", { phase: "quoting", isCreatingInBackground: true }, false],
+    ["configuring", { phase: "configuring" }, false],
+    ["creating", { phase: "creating" }, false],
+    ["in error", { phase: "error" }, false]
+  ] as const)("tells its descendants whether a deployment without a lease is held while %s", (_, state, holdsUnleasedDeployment) => {
+    setup({ flow: flowIn(state) });
+
+    expect(screen.getByTestId("holds-unleased-deployment")).toHaveTextContent(String(holdsUnleasedDeployment));
+  });
+
+  it("tells its descendants once the deployment they guarded got its lease", () => {
+    const { rerenderWith } = setup({ flow: flowIn({ phase: "deploying" }) });
+
+    rerenderWith(flowIn({ phase: "deploying", deploySucceeded: true }));
+
+    expect(screen.getByTestId("holds-unleased-deployment")).toHaveTextContent("false");
+  });
+
+  it("lets its descendants discard the deployment through the flow", () => {
+    const flow = flowIn({ phase: "quoting" });
+    setup({ flow });
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+
+    expect(flow.actions.discard).toHaveBeenCalled();
+  });
+
+  describe(useDeploymentLeaveGuard.name, () => {
+    it("guards nothing outside the provider", () => {
+      const { result } = renderHook(() => useDeploymentLeaveGuard());
+
+      expect(result.current).toMatchObject({ isCreating: false, holdsUnleasedDeployment: false });
+      expect(() => result.current.discard()).not.toThrow();
+    });
+  });
+
   describe(useIsDeploymentCreating.name, () => {
     it("reports no deployment being created outside the provider", () => {
       const { result } = renderHook(() => useIsDeploymentCreating());
@@ -79,8 +119,12 @@ describe(DeploymentFlowProvider.name, () => {
     return { sdlStrategy: "default", bidStrategy: "auto", dseq, vm: false };
   }
 
+  function flowIn(state: Partial<Pick<DeploymentFlow, "phase" | "deploySucceeded" | "isCreatingInBackground">>): DeploymentFlow {
+    return mock<DeploymentFlow>({ isCreatingInBackground: false, deploySucceeded: false, actions: mock<DeploymentFlowActions>(), ...state });
+  }
+
   function setup(input: { intent?: DeploymentIntent; flow?: DeploymentFlow; useDeploymentFlow?: typeof DEPENDENCIES.useDeploymentFlow }) {
-    const flow = input.flow ?? mock<DeploymentFlow>();
+    let flow = input.flow ?? mock<DeploymentFlow>();
     const useDeploymentFlow = input.useDeploymentFlow ?? vi.fn(() => flow);
     const useWarnBeforeUnload = vi.fn();
 
@@ -90,11 +134,12 @@ describe(DeploymentFlowProvider.name, () => {
       return (
         <div data-testid="child">
           <CreatingProbe />
+          <LeaveGuardProbe />
         </div>
       );
     };
 
-    render(
+    const provider = () => (
       <DeploymentFlowProvider
         intent={input.intent ?? intentFor(undefined)}
         dependencies={{ useDeploymentFlow: useDeploymentFlow as never, useWarnBeforeUnload }}
@@ -102,11 +147,28 @@ describe(DeploymentFlowProvider.name, () => {
         {renderChild}
       </DeploymentFlowProvider>
     );
+    const { rerender } = render(provider());
+    const rerenderWith = (nextFlow: DeploymentFlow) => {
+      flow = nextFlow;
+      rerender(provider());
+    };
 
-    return { getContext: () => context, useWarnBeforeUnload };
+    return { getContext: () => context, useWarnBeforeUnload, rerenderWith };
   }
 
   function CreatingProbe() {
     return <span data-testid="creating">{String(useIsDeploymentCreating())}</span>;
+  }
+
+  function LeaveGuardProbe() {
+    const { holdsUnleasedDeployment, discard } = useDeploymentLeaveGuard();
+    return (
+      <>
+        <span data-testid="holds-unleased-deployment">{String(holdsUnleasedDeployment)}</span>
+        <button type="button" onClick={discard}>
+          Discard
+        </button>
+      </>
+    );
   }
 });

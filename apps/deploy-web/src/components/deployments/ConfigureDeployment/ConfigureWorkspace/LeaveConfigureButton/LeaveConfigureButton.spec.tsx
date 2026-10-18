@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { UrlService } from "@src/utils/urlUtils";
 import type { DEPENDENCIES } from "./LeaveConfigureButton";
 import { LeaveConfigureButton } from "./LeaveConfigureButton";
@@ -125,6 +126,75 @@ describe(LeaveConfigureButton.name, () => {
     expect(router.replace).toHaveBeenCalledWith(UrlService.templateDetails("akash-network-awesome-akash-comfyui"));
   });
 
+  it("keeps an onboarded user's discard out of the onboarding analytics", async () => {
+    const { analyticsService, clickAndReportPrevented } = setup({ needsConfirmation: true, isOnboarded: true });
+
+    clickAndReportPrevented(screen.getByRole("link", { name: "Back to deployment types" }));
+    await userEvent.click(screen.getByRole("button", { name: "Discard and leave" }));
+
+    expect(analyticsService.track).not.toHaveBeenCalled();
+  });
+
+  it("keeps an onboarded user's plain leave out of the onboarding analytics", () => {
+    const { analyticsService, clickAndReportPrevented } = setup({ needsConfirmation: false, isOnboarded: true });
+
+    clickAndReportPrevented(screen.getByRole("link", { name: "Back to deployment types" }));
+
+    expect(analyticsService.track).not.toHaveBeenCalled();
+  });
+
+  describe("when the user has not onboarded yet", () => {
+    it.each([
+      ["a custom deployment", {}],
+      ["hello world", { templateId: "hello-world" }],
+      ["a gallery template", { templateId: "akash-network-awesome-akash-comfyui" }],
+      ["a user template", { userTemplateId: "user-template-1" }]
+    ])("returns to onboarding from %s, which the onboarding gate would otherwise bounce them to", (_, intent) => {
+      setup({ needsConfirmation: false, isOnboarded: false, intent });
+
+      expect(screen.getByRole("link", { name: "Back to onboarding" })).toHaveAttribute("href", UrlService.onboardingPicker());
+    });
+
+    it("tracks leaving onboarding through the back link when nothing needed discarding", () => {
+      const { analyticsService, clickAndReportPrevented } = setup({ needsConfirmation: false, isOnboarded: false });
+
+      const wasPrevented = clickAndReportPrevented(screen.getByRole("link", { name: "Back to onboarding" }));
+
+      expect(wasPrevented).toBe(false);
+      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", { category: "onboarding", control: "back_link", discardedDeployment: false });
+    });
+
+    it("asks before discarding a pending deployment, then replaces the page with onboarding and tracks the discard", async () => {
+      const { router, onDiscard, analyticsService, clickAndReportPrevented } = setup({ needsConfirmation: true, isOnboarded: false });
+
+      const wasPrevented = clickAndReportPrevented(screen.getByRole("link", { name: "Back to onboarding" }));
+      expect(wasPrevented).toBe(true);
+      expect(analyticsService.track).not.toHaveBeenCalled();
+      await userEvent.click(screen.getByRole("button", { name: "Discard and leave" }));
+
+      expect(onDiscard).toHaveBeenCalled();
+      expect(router.replace).toHaveBeenCalledWith(UrlService.onboardingPicker());
+      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", { category: "onboarding", control: "back_link", discardedDeployment: true });
+    });
+
+    it("tracks nothing when the discard is declined", async () => {
+      const { analyticsService, clickAndReportPrevented } = setup({ needsConfirmation: true, isOnboarded: false });
+
+      clickAndReportPrevented(screen.getByRole("link", { name: "Back to onboarding" }));
+      await userEvent.click(screen.getByRole("button", { name: "Keep configuring" }));
+
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+
+    it("tracks nothing when the link opens elsewhere, since the user is still here", () => {
+      const { analyticsService, clickAndReportPrevented } = setup({ needsConfirmation: false, isOnboarded: false });
+
+      clickAndReportPrevented(screen.getByRole("link", { name: "Back to onboarding" }), { metaKey: true });
+
+      expect(analyticsService.track).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(input: {
     intent?: ComponentProps<typeof LeaveConfigureButton>["intent"];
     needsConfirmation: boolean;
@@ -133,10 +203,17 @@ describe(LeaveConfigureButton.name, () => {
     placementCount?: number;
     hasBids?: boolean;
     canEditInstead?: boolean;
+    isOnboarded?: boolean;
   }) {
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
     const onDiscard = vi.fn();
-    const dependencies: typeof DEPENDENCIES = { useRouter: () => router, UrlService };
+    const analyticsService = mock<AnalyticsService>();
+    const dependencies: typeof DEPENDENCIES = {
+      useRouter: () => router,
+      useIsOnboarded: () => input.isOnboarded ?? true,
+      useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),
+      UrlService
+    };
 
     const { container } = render(
       <LeaveConfigureButton
@@ -164,6 +241,6 @@ describe(LeaveConfigureButton.name, () => {
       return wasPrevented;
     };
 
-    return { router, onDiscard, clickAndReportPrevented };
+    return { router, onDiscard, analyticsService, clickAndReportPrevented };
   }
 });

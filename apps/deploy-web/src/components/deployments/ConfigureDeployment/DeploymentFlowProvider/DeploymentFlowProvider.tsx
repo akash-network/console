@@ -1,6 +1,6 @@
 "use client";
 import type { FC, ReactNode } from "react";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useMemo } from "react";
 
 import { useWarnBeforeUnload } from "@src/hooks/useWarnBeforeUnload/useWarnBeforeUnload";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
@@ -14,6 +14,13 @@ export type DeploymentFlowContext = {
   flow: DeploymentFlow;
 };
 
+export type DeploymentLeaveGuard = {
+  isCreating: boolean;
+  /** An open deployment no lease holds yet keeps its deposit locked once the page is gone, so leaving has to discard it first. */
+  holdsUnleasedDeployment: boolean;
+  discard: () => void;
+};
+
 interface Props {
   /** The resolved configure intent whose dseq (already settled by the `ResumeDeploymentGuard`) seeds the flow. */
   intent: DeploymentIntent;
@@ -21,11 +28,17 @@ interface Props {
   dependencies?: typeof DEPENDENCIES;
 }
 
-const DeploymentCreatingContext = createContext(false);
+const NOTHING_TO_GUARD: DeploymentLeaveGuard = { isCreating: false, holdsUnleasedDeployment: false, discard: () => {} };
+
+const DeploymentLeaveGuardContext = createContext<DeploymentLeaveGuard>(NOTHING_TO_GUARD);
 
 /** A create's response only reaches the page that sent it, so chrome that navigates away (the onboarding skip, Back) steps aside until it lands, unless the api finishes it in the background. */
 export function useIsDeploymentCreating(): boolean {
-  return useContext(DeploymentCreatingContext);
+  return useContext(DeploymentLeaveGuardContext).isCreating;
+}
+
+export function useDeploymentLeaveGuard(): DeploymentLeaveGuard {
+  return useContext(DeploymentLeaveGuardContext);
 }
 
 /**
@@ -40,7 +53,14 @@ export function useIsDeploymentCreating(): boolean {
 export const DeploymentFlowProvider: FC<Props> = ({ intent, children, dependencies: d = DEPENDENCIES }) => {
   const flow = d.useDeploymentFlow({ intent });
   const isCreating = flow.phase === "creating" && !flow.isCreatingInBackground;
+  const holdsUnleasedDeployment = isAwaitingLease(flow) && !flow.isCreatingInBackground;
+  const { discard } = flow.actions;
   d.useWarnBeforeUnload(isCreating);
+  const leaveGuard = useMemo(() => ({ isCreating, holdsUnleasedDeployment, discard }), [isCreating, holdsUnleasedDeployment, discard]);
 
-  return <DeploymentCreatingContext.Provider value={isCreating}>{children({ flow })}</DeploymentCreatingContext.Provider>;
+  return <DeploymentLeaveGuardContext.Provider value={leaveGuard}>{children({ flow })}</DeploymentLeaveGuardContext.Provider>;
 };
+
+function isAwaitingLease({ phase, deploySucceeded }: DeploymentFlow): boolean {
+  return phase === "quoting" || (phase === "deploying" && !deploySucceeded);
+}
