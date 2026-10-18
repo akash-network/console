@@ -218,7 +218,7 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
       // treats as terminal (the auto flow has no manual "pick another provider" step). Together they fire deploy exactly
       // once per attempt, so no separate one-shot ref is needed.
       if (autopilotStopped || flow.phase !== "quoting" || !allGroupsSelected || flow.deployError) return;
-      flow.actions.deploy(sdlRef.current);
+      flow.actions.deploy(sdlRef.current, { isAutoDeploy: true });
     },
     [flow.phase, allGroupsSelected, flow.deployError, autopilotStopped]
   );
