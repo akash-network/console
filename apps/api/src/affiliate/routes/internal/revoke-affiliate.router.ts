@@ -1,7 +1,7 @@
 import { container } from "tsyringe";
 
+import { AffiliateController } from "@src/affiliate/controllers/affiliate/affiliate.controller";
 import { RevokeAffiliateParamsSchema, RevokeAffiliateRequestSchema, RevokeAffiliateResponseSchema } from "@src/affiliate/http-schemas/affiliate-admin.schema";
-import { AffiliateService } from "@src/affiliate/services/affiliate/affiliate.service";
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
@@ -41,9 +41,9 @@ const route = createRoute({
 export default new OpenApiHonoHandler().openapi(route, async function routePostRevokeAffiliate(c) {
   const { code } = c.req.valid("param");
   const { data } = c.req.valid("json");
-  const affiliate = await container.resolve(AffiliateService).revoke({ code, actor: data.actor });
+  const response = await container.resolve(AffiliateController).revoke(code, data);
 
   c.header("Cache-Control", "no-store");
 
-  return c.json({ data: { id: affiliate.id, code: affiliate.code, revokedAt: affiliate.revokedAt! } }, 200);
+  return c.json(response, 200);
 });
