@@ -69,12 +69,15 @@ const getDrizzleOptions = (config: Pick<CoreConfig, "SQL_LOG_FORMAT">) => ({
   schema
 });
 
-export async function migratePG(): Promise<void> {
-  const config = container.resolve(CORE_CONFIG);
+/** Mainnet, sandbox and every CLI command migrate this one database on boot, so whoever comes second must wait rather than re-apply. */
+const MIGRATION_ADVISORY_LOCK_KEY = 5_377_032_119;
+
+export async function migratePG(config: CoreConfig = container.resolve(CORE_CONFIG)): Promise<void> {
   const migrationClient = postgres(config.POSTGRES_DB_URI, { max: 1, onnotice: logger.info.bind(logger) });
   const pgMigrationDatabase = drizzle(migrationClient, getDrizzleOptions(config));
 
   try {
+    await migrationClient`SELECT pg_advisory_lock(${MIGRATION_ADVISORY_LOCK_KEY})`;
     await migrate(pgMigrationDatabase, { migrationsFolder: config.DRIZZLE_MIGRATIONS_FOLDER });
   } finally {
     await migrationClient.end();

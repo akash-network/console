@@ -159,11 +159,35 @@ describe("startServer", () => {
     expect(container.dispose).toHaveBeenCalled();
   });
 
+  it("exits with a failure code when `beforeStart` throws an error", async () => {
+    const { start, processEvents } = setup({ beforeStart: vi.fn().mockRejectedValue(new Error("Failed to migrate")) });
+
+    await start();
+
+    expect(processEvents.exitCode).toBe(1);
+  });
+
+  it("exits with a failure code when `APP_INITIALIZER` throws an error", async () => {
+    const { start, processEvents } = setup({ initializers: [{ [ON_APP_START]: vi.fn().mockRejectedValue(new Error("Failed to start server")) }] });
+
+    await start();
+
+    expect(processEvents.exitCode).toBe(1);
+  });
+
+  it("leaves the exit code unset when the server starts", async () => {
+    const { start, processEvents } = setup();
+
+    await start();
+
+    expect(processEvents.exitCode).toBeUndefined();
+  });
+
   let startedServer: ServerType | undefined;
   function setup(input?: { beforeStart?: () => Promise<void>; port?: number; initializers?: Array<{ [ON_APP_START]: () => Promise<void> }> }) {
     const app = mock<Hono<any>>();
     const logger = mock<LoggerService>();
-    const processEvents = new EventEmitter();
+    const processEvents: EventEmitter & Pick<NodeJS.Process, "exitCode"> = Object.assign(new EventEmitter(), { exitCode: undefined });
     const container = mock<DependencyContainer>({
       resolveAll: vi.fn().mockReturnValue(input?.initializers ?? [])
     });

@@ -18,7 +18,7 @@ import { shutdownServer } from "../shutdown-server/shutdown-server";
 export async function startServer(
   app: Hono<any>,
   logger: LoggerService,
-  processEvents: EventEmitter,
+  processEvents: EventEmitter & Pick<NodeJS.Process, "exitCode">,
   options: {
     port: number;
     beforeStart?: () => Promise<void>;
@@ -66,6 +66,7 @@ export async function startServer(
     return server;
   } catch (error) {
     logger.error({ event: "SERVER_START_ERROR", error });
+    processEvents.exitCode = 1;
     await shutdown("SERVER_START_ERROR");
   }
 }
