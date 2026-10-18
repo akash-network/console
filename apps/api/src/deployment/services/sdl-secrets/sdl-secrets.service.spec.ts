@@ -517,6 +517,23 @@ describe(SdlSecretsService.name, () => {
       });
     });
 
+    describe("sealForTeam", () => {
+      it("seals under the team's key even while team data keys are off", async () => {
+        const { service, secretCipherService } = setup({ teamDataKeys: false });
+        const secrets = { TOKEN: "one" };
+
+        await expect(service.sealForTeam({ teamId: "team-1", dseq: "1420000", secrets })).resolves.toBe("encrypted");
+        expect(secretCipherService.encrypt).toHaveBeenCalledWith({ organizationId: "team-1" }, JSON.stringify(secrets), { org: "team-1", dseq: "1420000" });
+      });
+
+      it("writes no token for a deployment that holds nothing", async () => {
+        const { service, secretCipherService } = setup();
+
+        await expect(service.sealForTeam({ teamId: "team-1", dseq: "1420000", secrets: {} })).resolves.toBeNull();
+        expect(secretCipherService.encrypt).not.toHaveBeenCalled();
+      });
+    });
+
     it("never seals a personal deployment for a team", async () => {
       const { service, secretCipherService } = setup({ teamDataKeys: true });
 

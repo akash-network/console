@@ -163,11 +163,19 @@ export class SdlSecretsService {
 
   /** Returns null when nothing was supplied, so a create always has a value to write and a retry cannot inherit an abandoned attempt's token. */
   async sealForStorage(input: SecretsToSeal): Promise<string | null> {
+    return await this.#seal(input, this.#sealerFor(input));
+  }
+
+  /** Seals for the team whatever `team_data_keys` says, which is how a value a member sealed moves onto the team's key. */
+  async sealForTeam(input: { teamId: string; dseq: string; secrets: SdlSecrets }): Promise<string | null> {
+    return await this.#seal(input, sealerOfOrganization(input.teamId, input.dseq));
+  }
+
+  async #seal(input: { userId?: string; dseq: string; secrets: SdlSecrets }, { owner, binding }: Sealer): Promise<string | null> {
     const names = Object.keys(input.secrets);
 
     if (names.length === 0) return null;
 
-    const { owner, binding } = this.#sealerFor(input);
     const sealed = await this.secretCipherService.encrypt(owner, JSON.stringify(input.secrets), binding);
 
     this.#loggerService.info({
