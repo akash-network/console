@@ -11,6 +11,7 @@ import { AnalyticsService } from "@src/core/services/analytics/analytics.service
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { TxService } from "@src/core/services/tx/tx.service";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 
 type SkipReason = "not_referred" | "program_disabled" | "affiliate_revoked" | "commission_window_ended" | "below_one_cent" | "shared_payment_method";
 
@@ -22,6 +23,7 @@ export class AffiliateCommissionService {
     private readonly stripeTransactionRepository: StripeTransactionRepository,
     private readonly referralRepository: ReferralRepository,
     private readonly paymentMethodRepository: PaymentMethodRepository,
+    private readonly organizationRepository: OrganizationRepository,
     private readonly refillService: RefillService,
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly analyticsService: AnalyticsService,
@@ -45,18 +47,22 @@ export class AffiliateCommissionService {
   }
 
   async #grant(payment: StripeTransactionOutput): Promise<void> {
-    const attribution = await this.referralRepository.findWithAffiliateByReferredUserId(payment.userId);
+    const referredUserId = await this.#findReferredUserId(payment);
+    if (!referredUserId) return this.#skip(payment, "not_referred");
+
+    const attribution = await this.referralRepository.findWithAffiliateByReferredUserId(referredUserId);
     if (!attribution) return this.#skip(payment, "not_referred");
 
     const { affiliate } = attribution;
     const amount = Math.floor((payment.amount * AFFILIATE_COMMISSION_PERCENT) / 100);
-    const skipReason = await this.#findSkipReason(payment, attribution, amount);
+    const skipReason = await this.#findSkipReason(payment, { referredUserId, ...attribution }, amount);
     if (skipReason) return this.#skip(payment, skipReason);
 
-    const commission = await this.#recordCommission({ userId: affiliate.userId, amount, sourceTransactionId: payment.id });
+    const affiliateAccount = { userId: affiliate.userId, organizationId: await this.#findPersonalOrganizationId(affiliate.userId) };
+    const commission = await this.#recordCommission({ ...affiliateAccount, amount, sourceTransactionId: payment.id });
     if (!commission) return;
 
-    await this.refillService.topUpWallet(amount, affiliate.userId, {
+    await this.refillService.topUpWallet(amount, affiliateAccount, {
       endTrial: false,
       liftAbuseLock: false,
       payment: { source: "affiliate_commission", transactionId: commission.id, currency: "usd" }
@@ -65,7 +71,7 @@ export class AffiliateCommissionService {
     this.analyticsService.track(affiliate.userId, "affiliate_commission_granted", {
       amount_cents: amount,
       source_transaction_id: payment.id,
-      referred_user_id: payment.userId
+      referred_user_id: referredUserId
     });
     this.#logger.info({
       event: "AFFILIATE_COMMISSION_GRANTED",
@@ -76,18 +82,42 @@ export class AffiliateCommissionService {
     });
   }
 
-  async #findSkipReason(payment: StripeTransactionOutput, { referral, affiliate }: ReferralWithAffiliate, amount: number): Promise<SkipReason | undefined> {
+  /** A team's card payments count for the referred user who created the team, whichever member paid. */
+  async #findReferredUserId(payment: StripeTransactionOutput): Promise<string | null> {
+    if (!payment.organizationId) return payment.userId;
+
+    const organization = await this.organizationRepository.findById(payment.organizationId);
+    return organization?.createdByUserId ?? null;
+  }
+
+  async #findPersonalOrganizationId(userId: string): Promise<string | null> {
+    const organization = await this.organizationRepository.findPersonalByUserId(userId);
+    return organization?.id ?? null;
+  }
+
+  async #findSkipReason(
+    payment: StripeTransactionOutput,
+    { referredUserId, referral, affiliate }: ReferralWithAffiliate & { referredUserId: string },
+    amount: number
+  ): Promise<SkipReason | undefined> {
     if (!this.featureFlagsService.isEnabled(FeatureFlags.AFFILIATE_PROGRAM, { userId: affiliate.userId })) return "program_disabled";
     if (affiliate.revokedAt) return "affiliate_revoked";
     if (isAfter(payment.createdAt, addMonths(new Date(referral.createdAt), AFFILIATE_COMMISSION_MONTHS))) return "commission_window_ended";
     if (amount <= 0) return "below_one_cent";
-    if (await this.paymentMethodRepository.hasSharedFingerprint(payment.userId, affiliate.userId)) return "shared_payment_method";
+
+    const payer = { userId: referredUserId, organizationId: payment.organizationId };
+    if (await this.paymentMethodRepository.hasSharedFingerprint(payer, affiliate.userId)) return "shared_payment_method";
 
     return undefined;
   }
 
   /** The payment row lock already serializes syncs, so a unique violation here means a commission landed outside that lock and must not be credited twice. */
-  async #recordCommission(input: { userId: string; amount: number; sourceTransactionId: string }): Promise<StripeTransactionOutput | undefined> {
+  async #recordCommission(input: {
+    userId: string;
+    organizationId: string | null;
+    amount: number;
+    sourceTransactionId: string;
+  }): Promise<StripeTransactionOutput | undefined> {
     try {
       return await this.stripeTransactionRepository.createAffiliateCommission(input);
     } catch (error) {

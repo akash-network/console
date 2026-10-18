@@ -183,7 +183,7 @@ describe(RefillService.name, () => {
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
       userWalletRepository.clearAbuseLock.mockResolvedValue(true);
 
-      await service.topUpWallet(amountUsd, userId, { liftAbuseLock: false });
+      await service.topUpWallet(amountUsd, { userId }, { liftAbuseLock: false });
 
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalled();
       expect(userWalletRepository.clearAbuseLock).not.toHaveBeenCalled();

@@ -1,4 +1,5 @@
 import type { CreateLogger } from "@akashnetwork/logging";
+import { faker } from "@faker-js/faker";
 import { PostgresError } from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -11,31 +12,39 @@ import type { AnalyticsService } from "@src/core/services/analytics/analytics.se
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
+import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { AffiliateCommissionService } from "./affiliate-commission.service";
 
 import { createAffiliate } from "@test/seeders/affiliate.seeder";
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
+import { createOrganization } from "@test/seeders/organization.seeder";
 import { createReferral } from "@test/seeders/referral.seeder";
 
 describe(AffiliateCommissionService.name, () => {
   describe("syncCommission", () => {
-    it("credits the affiliate 5% of a referred user's card payment", async () => {
-      const { service, payment, affiliate, commission, stripeTransactionRepository, refillService, analyticsService, logger } = setup({
-        paymentAmount: 10000
-      });
+    it("credits the affiliate's personal organization 5% of a referred user's card payment", async () => {
+      const { service, payment, affiliate, affiliatePersonalOrganization, commission, stripeTransactionRepository, refillService, analyticsService, logger } =
+        setup({
+          paymentAmount: 10000
+        });
 
       await service.syncCommission(payment.id);
 
       expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith({
         userId: affiliate.userId,
+        organizationId: affiliatePersonalOrganization.id,
         amount: 500,
         sourceTransactionId: payment.id
       });
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(500, affiliate.userId, {
-        endTrial: false,
-        liftAbuseLock: false,
-        payment: { source: "affiliate_commission", transactionId: commission.id, currency: "usd" }
-      });
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(
+        500,
+        { userId: affiliate.userId, organizationId: affiliatePersonalOrganization.id },
+        {
+          endTrial: false,
+          liftAbuseLock: false,
+          payment: { source: "affiliate_commission", transactionId: commission.id, currency: "usd" }
+        }
+      );
       expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_granted", {
         amount_cents: 500,
         source_transaction_id: payment.id,
@@ -97,7 +106,7 @@ describe(AffiliateCommissionService.name, () => {
 
       await service.syncCommission(payment.id);
 
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(commissionAmount, affiliate.userId, expect.anything());
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(commissionAmount, expect.objectContaining({ userId: affiliate.userId }), expect.anything());
     });
 
     it("grants nothing when 5% of the payment rounds down to zero cents", async () => {
@@ -184,10 +193,62 @@ describe(AffiliateCommissionService.name, () => {
 
       await service.syncCommission(payment.id);
 
-      expect(paymentMethodRepository.hasSharedFingerprint).toHaveBeenCalledWith(payment.userId, affiliate.userId);
+      expect(paymentMethodRepository.hasSharedFingerprint).toHaveBeenCalledWith({ userId: payment.userId, organizationId: null }, affiliate.userId);
       expect(stripeTransactionRepository.createAffiliateCommission).not.toHaveBeenCalled();
       expect(refillService.topUpWallet).not.toHaveBeenCalled();
       expect(logger.debug).toHaveBeenCalledWith({ event: "AFFILIATE_COMMISSION_SKIPPED", transactionId: payment.id, reason: "shared_payment_method" });
+    });
+
+    it("credits a payment by a team the referred user created, whichever member paid", async () => {
+      const referredUserId = faker.string.uuid();
+      const team = createOrganization({ type: "team", createdByUserId: referredUserId });
+      const { service, payment, affiliate, referralRepository, paymentMethodRepository, refillService, analyticsService } = setup({
+        paymentOrganization: team
+      });
+
+      await service.syncCommission(payment.id);
+
+      expect(referralRepository.findWithAffiliateByReferredUserId).toHaveBeenCalledWith(referredUserId);
+      expect(paymentMethodRepository.hasSharedFingerprint).toHaveBeenCalledWith({ userId: referredUserId, organizationId: team.id }, affiliate.userId);
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), expect.anything());
+      expect(analyticsService.track).toHaveBeenCalledWith(
+        affiliate.userId,
+        "affiliate_commission_granted",
+        expect.objectContaining({ referred_user_id: referredUserId })
+      );
+    });
+
+    it("counts a personal organization's payment for the user it belongs to", async () => {
+      const owner = faker.string.uuid();
+      const personal = createOrganization({ type: "personal", createdByUserId: owner });
+      const { service, payment, referralRepository, organizationRepository } = setup({ paymentOrganization: personal });
+
+      await service.syncCommission(payment.id);
+
+      expect(organizationRepository.findById).toHaveBeenCalledWith(personal.id);
+      expect(referralRepository.findWithAffiliateByReferredUserId).toHaveBeenCalledWith(owner);
+    });
+
+    it.each([
+      { case: "whose creator deleted their account", paymentOrganization: createOrganization({ type: "team", createdByUserId: null }) },
+      { case: "that no longer exists", paymentOrganization: createOrganization({ type: "team" }), isOrganizationGone: true }
+    ])("grants nothing for a payment by an organization $case", async ({ paymentOrganization, isOrganizationGone }) => {
+      const { service, payment, referralRepository, refillService, logger } = setup({ paymentOrganization, isOrganizationGone });
+
+      await service.syncCommission(payment.id);
+
+      expect(referralRepository.findWithAffiliateByReferredUserId).not.toHaveBeenCalled();
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+      expect(logger.debug).toHaveBeenCalledWith({ event: "AFFILIATE_COMMISSION_SKIPPED", transactionId: payment.id, reason: "not_referred" });
+    });
+
+    it("records and credits the commission with no organization for an affiliate who has no personal organization yet", async () => {
+      const { service, payment, affiliate, stripeTransactionRepository, refillService } = setup({ affiliateHasPersonalOrganization: false });
+
+      await service.syncCommission(payment.id);
+
+      expect(stripeTransactionRepository.createAffiliateCommission).toHaveBeenCalledWith(expect.objectContaining({ organizationId: null }));
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(500, { userId: affiliate.userId, organizationId: null }, expect.anything());
     });
 
     it("does nothing when the payment already earned its commission", async () => {
@@ -206,7 +267,7 @@ describe(AffiliateCommissionService.name, () => {
 
       await service.syncCommission(payment.id);
 
-      expect(refillService.topUpWallet).toHaveBeenCalledWith(500, affiliate.userId, expect.anything());
+      expect(refillService.topUpWallet).toHaveBeenCalledWith(500, expect.objectContaining({ userId: affiliate.userId }), expect.anything());
     });
 
     it.each(["created", "pending", "requires_action", "failed", "canceled"] as const)("does nothing for a %s payment", async paymentStatus => {
@@ -281,16 +342,22 @@ describe(AffiliateCommissionService.name, () => {
       isProgramEnabled?: boolean;
       sharesPaymentMethod?: boolean;
       hasCommission?: boolean;
+      paymentOrganization?: OrganizationOutput;
+      isOrganizationGone?: boolean;
+      affiliateHasPersonalOrganization?: boolean;
     } = {}
   ) {
     const affiliate = createAffiliate({ revokedAt: input.affiliateRevokedAt ?? null });
+    const affiliatePersonalOrganization = createOrganization({ type: "personal", createdByUserId: affiliate.userId });
     const payment = generateDatabaseStripeTransaction({
       type: input.paymentType ?? "payment_intent",
       status: input.paymentStatus ?? "succeeded",
       amount: input.paymentAmount ?? 10000,
-      createdAt: input.paymentCreatedAt ?? new Date()
+      createdAt: input.paymentCreatedAt ?? new Date(),
+      organizationId: input.paymentOrganization?.id ?? null
     });
-    const referral = createReferral({ referredUserId: payment.userId, affiliateId: affiliate.id, createdAt: input.referredAt ?? new Date().toISOString() });
+    const referredUserId = input.paymentOrganization?.createdByUserId ?? payment.userId!;
+    const referral = createReferral({ referredUserId, affiliateId: affiliate.id, createdAt: input.referredAt ?? new Date().toISOString() });
     const commission = generateDatabaseStripeTransaction({
       userId: affiliate.userId,
       type: "affiliate_commission",
@@ -308,6 +375,10 @@ describe(AffiliateCommissionService.name, () => {
 
     const paymentMethodRepository = mock<PaymentMethodRepository>();
     paymentMethodRepository.hasSharedFingerprint.mockResolvedValue(input.sharesPaymentMethod ?? false);
+
+    const organizationRepository = mock<OrganizationRepository>();
+    organizationRepository.findById.mockResolvedValue(input.isOrganizationGone ? undefined : input.paymentOrganization);
+    organizationRepository.findPersonalByUserId.mockResolvedValue(input.affiliateHasPersonalOrganization === false ? undefined : affiliatePersonalOrganization);
 
     const refillService = mock<RefillService>();
     refillService.topUpWallet.mockResolvedValue({ walletId: 1, address: "akash1affiliate" });
@@ -327,6 +398,7 @@ describe(AffiliateCommissionService.name, () => {
       stripeTransactionRepository,
       referralRepository,
       paymentMethodRepository,
+      organizationRepository,
       refillService,
       featureFlagsService,
       analyticsService,
@@ -338,11 +410,13 @@ describe(AffiliateCommissionService.name, () => {
       service,
       payment,
       affiliate,
+      affiliatePersonalOrganization,
       referral,
       commission,
       stripeTransactionRepository,
       referralRepository,
       paymentMethodRepository,
+      organizationRepository,
       refillService,
       featureFlagsService,
       analyticsService,
