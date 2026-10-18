@@ -7,6 +7,7 @@ import { Err } from "ts-results";
 import { container } from "tsyringe";
 import { z } from "zod";
 
+import { ApiKeyExpiryBackfillService } from "@src/auth/services/api-key-expiry-backfill/api-key-expiry-backfill.service";
 import { Auth0AccountLinkerService } from "@src/auth/services/auth0-account-linker/auth0-account-linker.service";
 import { MasterWalletMintController } from "@src/billing/controllers/master-wallet-mint/master-wallet-mint.controller";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
@@ -197,6 +198,16 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(TeamSecretsResealController).resealTeamDeployments(options);
+    });
+  });
+
+program
+  .command("assign-api-key-expiry")
+  .description("Give every API key without an expiration one a year out, schedule its expiry reminders and email each owner the date")
+  .option("-a, --apply", "Write the expirations, schedule the reminders and queue the emails; without it, only count the keys", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      await container.resolve(ApiKeyExpiryBackfillService).backfill(options);
     });
   });
 
