@@ -38,7 +38,10 @@ export class ProviderRepository {
         deletedHeight: null,
         ...(addresses && { owner: { [Op.in]: addresses } })
       },
-      order: [["createdHeight", "ASC"]],
+      order: [
+        ["createdHeight", "ASC"],
+        ["owner", "ASC"]
+      ],
       limit,
       offset,
       include: [
@@ -63,12 +66,23 @@ export class ProviderRepository {
   }
 
   async getProviderWithNodes({ addresses, limit, offset }: { addresses?: string[]; limit?: number; offset?: number } = {}) {
+    const lastSuccessfulSnapshot = { model: ProviderSnapshot, as: "lastSuccessfulSnapshot" };
+    const nodes = { model: ProviderSnapshotNode, as: "nodes" };
+    const gpus = { model: ProviderSnapshotNodeGPU, as: "gpus" };
+
     return await Provider.findAll({
       attributes: ["owner"],
       where: {
         deletedHeight: null,
         ...(addresses && { owner: { [Op.in]: addresses } })
       },
+      order: [
+        ["owner", "ASC"],
+        [lastSuccessfulSnapshot, nodes, "name", "ASC"],
+        [lastSuccessfulSnapshot, nodes, "id", "ASC"],
+        [lastSuccessfulSnapshot, nodes, gpus, "name", "ASC"],
+        [lastSuccessfulSnapshot, nodes, gpus, "id", "ASC"]
+      ],
       limit,
       offset,
       include: [
