@@ -53,7 +53,8 @@ export class ActivityService {
   /** The action has already happened by the time it is recorded, so a failed write is logged rather than failing the request that performed it. */
   async record(activity: NewActivity): Promise<void> {
     try {
-      const recorded = await this.#replacingClosedAlert(activity, async () => await this.activityRepository.createUnlessDuplicate(activity));
+      const create = async () => await this.activityRepository.createUnlessDuplicate(activity);
+      const recorded = (await create()) ?? (activity.dedupeKey ? await this.#replacingClosedAlert(activity, create) : undefined);
       if (recorded) this.activityInstrumentation.trackRecorded(recorded);
       else this.#logger.info({ event: "ACTIVITY_RECORD_DEDUPED", userId: activity.userId, type: activity.type, dedupeKey: activity.dedupeKey });
     } catch (error) {

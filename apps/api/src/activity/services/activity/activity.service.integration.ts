@@ -85,6 +85,7 @@ describe(ActivityService.name, () => {
       const { service, createUser, closedAlertOf, findActivities } = setup();
       const userId = await createUser();
       const strangerId = await createUser();
+      await service.addAlert(closedAlertOf(userId, "1001"));
       await service.addAlert(closedAlertOf(userId, "2002"));
       await service.addAlert(closedAlertOf(strangerId, "1001"));
       await service.addAlert({

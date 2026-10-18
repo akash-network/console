@@ -47,11 +47,22 @@ describe(ActivityService.name, () => {
       expect(txService.transaction).not.toHaveBeenCalled();
     });
 
+    it("stores a close whose dedupe key is free without touching any alert", async () => {
+      const { service, activityRepository, txService } = setup();
+      activityRepository.createUnlessDuplicate.mockResolvedValue(createActivity());
+
+      await service.record(createNewActivity({ dedupeKey: "deployment_close.akash1owner.1234" }));
+
+      expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledTimes(1);
+      expect(activityRepository.deleteBy).not.toHaveBeenCalled();
+      expect(txService.transaction).not.toHaveBeenCalled();
+    });
+
     it("replaces the deployment-closed alert holding the close's dedupe key with the close, in one transaction", async () => {
       const { service, activityRepository, activityInstrumentation, txService } = setup();
       const activity = createNewActivity({ dedupeKey: "deployment_close.akash1owner.1234" });
       const recorded = createActivity();
-      activityRepository.createUnlessDuplicate.mockResolvedValue(recorded);
+      activityRepository.createUnlessDuplicate.mockResolvedValueOnce(undefined).mockResolvedValueOnce(recorded);
 
       await service.record(activity);
 
@@ -61,20 +72,22 @@ describe(ActivityService.name, () => {
         dedupeKey: "deployment_close.akash1owner.1234",
         type: "deployment_closed_alert"
       });
-      expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledWith(activity);
-      expect(activityRepository.deleteBy.mock.invocationCallOrder[0]).toBeLessThan(activityRepository.createUnlessDuplicate.mock.invocationCallOrder[0]);
+      expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledTimes(2);
+      expect(activityRepository.createUnlessDuplicate).toHaveBeenLastCalledWith(activity);
+      expect(activityRepository.deleteBy.mock.invocationCallOrder[0]).toBeLessThan(activityRepository.createUnlessDuplicate.mock.invocationCallOrder[1]);
       expect(activityInstrumentation.trackRecorded).toHaveBeenCalledWith(recorded);
     });
 
     it("logs a failed replacement instead of failing the action that already happened", async () => {
       const { service, activityRepository, logger } = setup();
       const error = new Error("connection reset");
+      activityRepository.createUnlessDuplicate.mockResolvedValue(undefined);
       activityRepository.deleteBy.mockRejectedValue(error);
       const activity = createNewActivity({ dedupeKey: "deployment_close.akash1owner.1234" });
 
       await expect(service.record(activity)).resolves.toBeUndefined();
 
-      expect(activityRepository.createUnlessDuplicate).not.toHaveBeenCalled();
+      expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledTimes(1);
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "ACTIVITY_RECORD_FAILED", error }));
     });
 
