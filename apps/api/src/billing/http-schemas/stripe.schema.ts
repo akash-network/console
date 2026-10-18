@@ -1,6 +1,8 @@
 import { z } from "@hono/zod-openapi";
 import { differenceInDays } from "date-fns";
 
+import { isSupportedTimeZone } from "@src/utils/date/date";
+
 export const SetupIntentQuerySchema = z.object({
   cardOnly: z
     .enum(["true", "false"])
@@ -238,13 +240,10 @@ export const CustomerTransactionsQuerySchema = z
 
 export const CustomerTransactionsCsvExportQuerySchema = z
   .object({
-    timezone: z
-      .string()
-      .refine(tz => Intl.supportedValuesOf("timeZone").includes(tz), { message: "Invalid IANA timezone" })
-      .openapi({
-        description: "Timezone for date formatting in the CSV",
-        example: "America/New_York"
-      }),
+    timezone: z.string().refine(isSupportedTimeZone, { message: "Invalid IANA timezone" }).openapi({
+      description: "Timezone for date formatting in the CSV",
+      example: "America/New_York"
+    }),
     ...dateRangeSchema
   })
   .refine(dateRangeCheck, {

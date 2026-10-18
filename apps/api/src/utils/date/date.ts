@@ -13,6 +13,16 @@ export function toUTC(date: Date) {
   return new Date(now_utc);
 }
 
+/** `Intl.supportedValuesOf("timeZone")` omits zones browsers report, such as `UTC` and `Asia/Kolkata`. */
+export function isSupportedTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat(undefined, { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function getPrettyTime(timeMs: number): string {
   if (timeMs < 10) {
     return `${round(timeMs, 2)}ms`;

@@ -107,6 +107,12 @@ describe("Stripe Schema", () => {
       expect(out).toEqual({ timezone: "America/New_York", startDate: "2023-01-01T00:00:00Z", endDate: "2023-01-02T00:00:00Z" });
     });
 
+    it.each(["UTC", "Asia/Kolkata", "Europe/Kyiv"])("accepts the %s zone a browser can report", timezone => {
+      const out = CustomerTransactionsCsvExportQuerySchema.parse({ timezone, startDate: "2023-01-01T00:00:00Z", endDate: "2023-01-02T00:00:00Z" });
+
+      expect(out.timezone).toBe(timezone);
+    });
+
     it("rejects missing timezone", () => {
       expect(() => CustomerTransactionsCsvExportQuerySchema.parse({})).toThrow("Required");
     });
