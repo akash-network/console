@@ -86,6 +86,13 @@ export class DataKeyRepository extends BaseRepository<Table, DataKeyInput, DataK
     return await this.updateBy({ id, retiredAt: null }, { retiredAt: new Date() }, { returning: true });
   }
 
+  /** Crypto-shreds everything sealed for a team: every key it holds, retired or not, goes in the caller's transaction. */
+  async deleteAllOfOrganization(organizationId: string): Promise<number> {
+    const deleted = await this.cursor.delete(this.table).where(eq(this.table.organizationId, organizationId)).returning({ id: this.table.id });
+
+    return deleted.length;
+  }
+
   /** Deletes only a retired row, so no caller can remove the key new values are being sealed under. */
   async deleteRetired(id: DataKeyOutput["id"]): Promise<boolean> {
     const [deleted] = await this.cursor

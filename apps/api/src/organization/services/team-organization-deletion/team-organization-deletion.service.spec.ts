@@ -19,6 +19,7 @@ import {
   TeamOrganizationDeleted
 } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
+import type { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import type {
   AccountDeletionEligibility,
   AccountDeletionEligibilityService
@@ -55,6 +56,7 @@ describe(TeamOrganizationDeletionService.name, () => {
       "assessWallet",
       "findPendingDeposits",
       "markDeleted",
+      "destroyDataKeys",
       "revokeInvitations",
       "deleteApiKeys",
       "deletePaymentMethods",
@@ -82,6 +84,15 @@ describe(TeamOrganizationDeletionService.name, () => {
     ]) {
       expect(repository.unscoped).toHaveBeenCalledWith("organization-deletion");
     }
+  });
+
+  it("destroys every data key the team holds, so nothing sealed for the team opens again", async () => {
+    const { service, team, dataKeyRepository, logger } = setup();
+
+    await service.delete(team.id, { acknowledgedForfeitUsd: 0 });
+
+    expect(dataKeyRepository.deleteAllOfOrganization).toHaveBeenCalledWith(team.id);
+    expect(logger.info).toHaveBeenCalledWith({ event: "TEAM_ORGANIZATION_DATA_KEYS_DESTROYED", organizationId: team.id, dataKeyCount: 2 });
   });
 
   it("cancels the reload and credits-low checks still queued for the team's wallet", async () => {
@@ -337,6 +348,8 @@ describe(TeamOrganizationDeletionService.name, () => {
     const depositRepository = mock<DeploymentDepositRepository>();
     depositRepository.unscoped.mockReturnValue(depositRepository);
     depositRepository.findPendingDseqsOf.mockImplementation(track("findPendingDeposits", input.pendingDseqs ?? []));
+    const dataKeyRepository = mock<DataKeyRepository>();
+    dataKeyRepository.deleteAllOfOrganization.mockImplementation(track("destroyDataKeys", 2));
     const walletReloadJobService = mock<WalletReloadJobService>();
     walletReloadJobService.cancelReloadCheck.mockImplementation(track("cancelReloadCheck"));
     walletReloadJobService.cancelCreditsLowCheck.mockImplementation(track("cancelCreditsLowCheck"));
@@ -363,6 +376,7 @@ describe(TeamOrganizationDeletionService.name, () => {
       walletSettingRepository,
       paymentMethodRepository,
       depositRepository,
+      dataKeyRepository,
       walletReloadJobService,
       jobQueueService,
       txService,
@@ -383,6 +397,7 @@ describe(TeamOrganizationDeletionService.name, () => {
       walletSettingRepository,
       paymentMethodRepository,
       depositRepository,
+      dataKeyRepository,
       walletReloadJobService,
       jobQueueService,
       txService,

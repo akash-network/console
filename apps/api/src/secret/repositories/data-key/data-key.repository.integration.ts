@@ -401,6 +401,22 @@ describe(DataKeyRepository.name, () => {
 
       expect(await dataKeyRepository.findById(teamKey.id)).toBeUndefined();
     });
+
+    it("deletes every key a team holds, retired or not, and nobody else's", async () => {
+      const { dataKeyRepository, createTestUser } = setup();
+      const [team, otherTeam, member] = await Promise.all([seedOrganization(), seedOrganization(), createTestUser()]);
+      const retired = await dataKeyRepository.create({ organizationId: team.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      await dataKeyRepository.updateById(retired.id, { retiredAt: new Date() });
+      await dataKeyRepository.create({ organizationId: team.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      const othersKey = await dataKeyRepository.create({ organizationId: otherTeam.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+      const membersKey = await dataKeyRepository.create({ userId: member.id, wrappedKey: wrappedKeyBlob(), wrappedByKid: keyVersionAlias() });
+
+      expect(await dataKeyRepository.deleteAllOfOrganization(team.id)).toBe(2);
+
+      expect(await dataKeyRepository.count({ organizationId: team.id })).toBe(0);
+      expect(await dataKeyRepository.findById(othersKey.id)).toMatchObject({ id: othersKey.id });
+      expect(await dataKeyRepository.findById(membersKey.id)).toMatchObject({ id: membersKey.id });
+    });
   });
 
   let cleanup: () => Promise<void>;

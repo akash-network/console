@@ -19,6 +19,7 @@ import { createInvitationToken, hashInvitationToken } from "@src/organization/li
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { TeamOrganizationDeleted } from "@src/organization/services/team-organization-deleted/team-organization-deleted.handler";
 import { app } from "@src/rest-app";
+import { DataKeyRepository } from "@src/secret/repositories/data-key/data-key.repository";
 import type { UserOutput } from "@src/user/repositories";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -66,6 +67,19 @@ describe("Organization deletion", () => {
       expect(await findJobRows(TeamOrganizationDeleted[JOB_NAME], { data: { organizationId: team.id } })).toEqual([
         expect.objectContaining({ data: expect.objectContaining({ organizationId: team.id, deletedByUserId: owner.id }) })
       ]);
+    });
+
+    it("destroys the team's data keys, so nothing sealed for the team opens again, and leaves its members' own keys", async () => {
+      const { team, owner, member, deleteTeam } = await setup();
+      const dataKeyRepository = container.resolve(DataKeyRepository);
+      const teamKey = await dataKeyRepository.create({ organizationId: team.id, wrappedKey: "wrapped-team-key", wrappedByKid: "sdl-secrets.v1" });
+      const membersKey = await dataKeyRepository.create({ userId: member.id, wrappedKey: "wrapped-member-key", wrappedByKid: "sdl-secrets.v1" });
+
+      const response = await deleteTeam(owner);
+
+      expect(response.status).toBe(204);
+      expect(await dataKeyRepository.findById(teamKey.id)).toBeUndefined();
+      expect(await dataKeyRepository.findById(membersKey.id)).toMatchObject({ id: membersKey.id });
     });
 
     it("takes the team away from its members right away, landing a member who last used it on their personal organization", async () => {
