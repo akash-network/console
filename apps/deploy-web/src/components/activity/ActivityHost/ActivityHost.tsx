@@ -14,6 +14,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useCloseBatchesBeingSent } from "@src/hooks/useCloseBatches/useCloseBatches";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { useFlag } from "@src/hooks/useFlag";
+import { useHandledActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { type Activity, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
@@ -25,6 +26,7 @@ export const DEPENDENCIES = {
   useLatestActivitiesQuery,
   useDeploymentNames,
   useCloseBatchesBeingSent,
+  useHandledActivityOutcomes,
   useSnackbar,
   useQueryClient,
   useRouter
@@ -99,6 +101,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   const { data: activities } = d.useLatestActivitiesQuery({ enabled: isEnabled && !!user?.userId });
   const { getDeploymentName, isLoading: isLoadingDeploymentNames } = d.useDeploymentNames(activities?.map(activity => activity.meta.dseq) ?? []);
   const closeBatchesBeingSent = d.useCloseBatchesBeingSent();
+  const { isOutcomeHandled, forgetHandledOutcome } = d.useHandledActivityOutcomes();
   const lastSeenStatuses = useRef<Map<string, Activity["status"]>>();
   const batchesToSumUp = useRef(new Set<string>());
 
@@ -116,7 +119,8 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         }
 
         if (activity.meta.batchId) batchesToSumUp.current.add(activity.meta.batchId);
-        else if (isWorthAnnouncing(activity, lastSeen)) announceActivity(activity);
+        else if (!lastSeen.has(activity.id) && isOutcomeHandled(activity)) forgetHandledOutcome(activity);
+        else announceActivity(activity);
       }
 
       for (const batchId of batchesToSumUp.current) {
@@ -171,6 +175,8 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
       isLoadingDeploymentNames,
       getDeploymentName,
       closeBatchesBeingSent,
+      isOutcomeHandled,
+      forgetHandledOutcome,
       address,
       api,
       enqueueSnackbar,
@@ -213,16 +219,9 @@ function ActivityToast({
   );
 }
 
-/** An action never seen before counts too, so one that started and finished between two checks still refreshes what it changed. */
+/** An action never seen before counts too, so one that started and finished between two checks is still announced, unless the page that sent it already showed how it ended. */
 function findFinishedSince(lastSeenStatuses: Map<string, Activity["status"]>, activities: Activity[]): FinishedActivity[] {
   return activities.filter((activity): activity is FinishedActivity => isFinished(activity) && lastSeenStatuses.get(activity.id) !== activity.status);
-}
-
-/** The page that sends one of these waits for its answer and shows how it ended, so one first heard of already finished needs no toast. */
-const FOREGROUND_ACTION_TYPES: ReadonlySet<Activity["type"]> = new Set(["deployment_create", "deployment_update", "lease_create"]);
-
-function isWorthAnnouncing(activity: FinishedActivity, lastSeenStatuses: Map<string, Activity["status"]>): boolean {
-  return !FOREGROUND_ACTION_TYPES.has(activity.type) || lastSeenStatuses.has(activity.id);
 }
 
 /** Undefined while any action of the batch is still pending. */

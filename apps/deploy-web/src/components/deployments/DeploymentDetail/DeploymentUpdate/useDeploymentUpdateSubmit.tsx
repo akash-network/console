@@ -7,6 +7,7 @@ import { useSnackbar } from "notistack";
 import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCreditsSnackbarContent/AddCreditsSnackbarContent";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useMarkActivityOutcomeHandled } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { isEmptyServicesPatch } from "@src/utils/sdl/sdlServicesPatch";
@@ -31,6 +32,7 @@ export const DEPENDENCIES = {
   useBalances,
   useSnackbar,
   useQueryClient,
+  useMarkActivityOutcomeHandled,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   sealSdlSecrets
 };
@@ -81,6 +83,7 @@ export function useDeploymentUpdateSubmit(
   const { refetch: refetchBalances } = d.useBalances(address);
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const queryClient = d.useQueryClient();
+  const markOutcomeHandled = d.useMarkActivityOutcomeHandled();
   const getSdlSecretsContext = api.v1.getSDLSecretsContext.useMutation();
   const patchDeployment = api.v1.patchDeployment.useMutation();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -108,10 +111,12 @@ export function useDeploymentUpdateSubmit(
         await sealAndPatch(update, false);
         return;
       }
+      markOutcomeHandled("deployment_update", dseq);
       reportFailure(cause);
       return;
     }
 
+    markOutcomeHandled("deployment_update", dseq);
     completeUpdate(update.values, response.data.manifestVersion);
   }
 

@@ -181,6 +181,26 @@ describe(useDeploymentUpdateSubmit.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledWith(snackbarTitled("Deployment updated"), expect.objectContaining({ variant: "success" }));
   });
 
+  it.each([
+    { outcome: "lands", patchOutcome: "success" as const },
+    { outcome: "fails", patchOutcome: SERVER_FAILURE }
+  ])("marks an update it reported as handled once it $outcome, so the activity host doesn't announce it again", async ({ patchOutcome }) => {
+    const { result, markOutcomeHandled, seed } = setup({ patchOutcome });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() => expect(markOutcomeHandled).toHaveBeenCalledWith("deployment_update", DSEQ));
+  });
+
+  it("leaves an update unmarked while the api has not answered", async () => {
+    const { result, patchMutate, markOutcomeHandled, seed } = setup({ patchOutcome: "pending" });
+
+    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
+
+    await waitFor(() => expect(patchMutate).toHaveBeenCalled());
+    expect(markOutcomeHandled).not.toHaveBeenCalled();
+  });
+
   it("reports the update as running until the api answers", async () => {
     const { result, patchMutate, seed } = setup({ patchOutcome: "pending" });
 
@@ -526,7 +546,9 @@ describe(useDeploymentUpdateSubmit.name, () => {
     const onUpdated = vi.fn();
     const onDefinitionChanged = vi.fn();
     const onDefinitionReloadFailed = vi.fn();
+    const markOutcomeHandled = vi.fn();
     const dependencies = MockComponents(DEPENDENCIES, {
+      useMarkActivityOutcomeHandled: () => markOutcomeHandled,
       useWallet: () => buildWallet({ address: "akash1owner" }),
       useBalances: () => mock<ReturnType<typeof DEPENDENCIES.useBalances>>({ refetch: refetchBalances as never }),
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar }),
@@ -555,7 +577,8 @@ describe(useDeploymentUpdateSubmit.name, () => {
       analyticsService,
       onUpdated,
       onDefinitionChanged,
-      onDefinitionReloadFailed
+      onDefinitionReloadFailed,
+      markOutcomeHandled
     };
   }
 });
