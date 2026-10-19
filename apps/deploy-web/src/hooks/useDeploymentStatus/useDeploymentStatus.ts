@@ -63,7 +63,7 @@ function standingLeaseCreationOf(aboutDeployment: Activity[]): Activity | undefi
   return isDeliveredSince ? undefined : leaseCreation;
 }
 
-/** The one status a deployment's card, row and page all show, so none of them can disagree with another. */
+/** The one status a deployment's card, row and page all show, except that only the page loads the settings that say Console closed it. */
 export function useDeploymentStatus({
   dseq,
   state,
