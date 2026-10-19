@@ -197,10 +197,10 @@ What to look at first: the `userId` and `organizationId` values behind the count
 
 Grafana is the alerting engine, and both rules are live in the production Grafana as of 2026-09-16:
 
-| Rule title                                               | UID              | Fires when                    |
-| -------------------------------------------------------- | ---------------- | ----------------------------- |
-| Deployment secret failed to decrypt                      | `efyg0cuoyiy9se` | 5.1 sees anything at all      |
-| Many distinct users' data keys unwrapped in five minutes | `afyg0cw74to8we` | 5.2 counts more than 40 users |
+| Rule title                                               | UID              | Fires when                              |
+| -------------------------------------------------------- | ---------------- | --------------------------------------- |
+| Deployment secret failed to decrypt                      | `efyg0cuoyiy9se` | 5.1 sees anything at all                |
+| Many distinct users' data keys unwrapped in five minutes | `afyg0cw74to8we` | 5.2 counts more than 40 users and teams |
 
 Both live in the same folder and the same `1m` rule group as every other console alert. They evaluate every 60 seconds over the last five minutes, fire on the first evaluation that crosses (`for: 0s`), treat an empty result as OK rather than as a failure, and notify `Slack Console Alerts (mention here)`. They were created through `POST /api/v1/provisioning/alert-rules` with the header `X-Disable-Provenance: true`, which leaves them editable in the UI; recreating them elsewhere means the same call with `notification_settings.receiver` set to that environment's contact point.
 
