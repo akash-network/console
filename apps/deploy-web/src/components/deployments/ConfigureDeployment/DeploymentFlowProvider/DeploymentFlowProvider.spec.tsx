@@ -75,7 +75,10 @@ describe(DeploymentFlowProvider.name, () => {
     ["configuring", { phase: "configuring" }, false],
     ["creating", { phase: "creating" }, false],
     ["in error", { phase: "error" }, false],
-    ["in error with its deployment still open", { phase: "error", dseq: "1234" }, true]
+    ["in error with its deployment still open", { phase: "error", dseq: "1234" }, true],
+    ["in error after a close failed", { phase: "error", pendingClose: { dseq: "1234", failed: true } }, true],
+    ["configuring after a close failed", { phase: "configuring", pendingClose: { dseq: "1234", failed: true } }, true],
+    ["configuring while a close settles", { phase: "configuring", pendingClose: { dseq: "1234", failed: false } }, false]
   ] as const)("tells its descendants whether a deployment without a lease is held while %s", (_, state, holdsUnleasedDeployment) => {
     setup({ flow: flowIn(state) });
 
@@ -120,8 +123,15 @@ describe(DeploymentFlowProvider.name, () => {
     return { sdlStrategy: "default", bidStrategy: "auto", dseq, vm: false };
   }
 
-  function flowIn(state: Partial<Pick<DeploymentFlow, "phase" | "deploySucceeded" | "isCreatingInBackground" | "dseq">>): DeploymentFlow {
-    return mock<DeploymentFlow>({ isCreatingInBackground: false, deploySucceeded: false, dseq: null, actions: mock<DeploymentFlowActions>(), ...state });
+  function flowIn(state: Partial<Pick<DeploymentFlow, "phase" | "deploySucceeded" | "isCreatingInBackground" | "dseq" | "pendingClose">>): DeploymentFlow {
+    return mock<DeploymentFlow>({
+      isCreatingInBackground: false,
+      deploySucceeded: false,
+      dseq: null,
+      pendingClose: null,
+      actions: mock<DeploymentFlowActions>(),
+      ...state
+    });
   }
 
   function setup(input: { intent?: DeploymentIntent; flow?: DeploymentFlow; useDeploymentFlow?: typeof DEPENDENCIES.useDeploymentFlow }) {
