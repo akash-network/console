@@ -1,4 +1,4 @@
-import { eq, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { eq, gt, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { and } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
@@ -91,10 +91,19 @@ export class ApiKeyRepository extends OrgScopedRepository<Table, ApiKeyInput, Ap
       .orderBy(this.table.userId);
   }
 
+  async findExpiringAfter(date: Date): Promise<ApiKeyOutput[]> {
+    const items = await this.cursor
+      .select()
+      .from(this.table)
+      .where(this.whereAccessibleBy(gt(this.table.expiresAt, date)));
+
+    return this.toOutputList(items);
+  }
+
   async assignExpiryToKeysWithoutOne(userId: ApiKeyOutput["userId"], expiresAt: Date): Promise<ApiKeyOutput[]> {
     const items = await this.cursor
       .update(this.table)
-      .set({ expiresAt })
+      .set({ expiresAt, updatedAt: new Date() })
       .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), isNull(this.table.expiresAt))))
       .returning();
 
