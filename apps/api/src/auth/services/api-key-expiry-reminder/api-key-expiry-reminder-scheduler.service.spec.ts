@@ -50,9 +50,31 @@ describe(ApiKeyExpiryReminderScheduler.name, () => {
   it("schedules nothing for a key without an expiry", async () => {
     const { scheduler, jobQueueService } = setup();
 
-    await scheduler.schedule({ id: faker.string.uuid(), expiresAt: null });
+    const scheduled = await scheduler.schedule({ id: faker.string.uuid(), expiresAt: null });
 
+    expect(scheduled).toBe(0);
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("skips the reminders already scheduled and counts the ones it schedules", async () => {
+    const { scheduler, jobQueueService } = setup();
+    const apiKey = { id: faker.string.uuid(), expiresAt: "2027-10-18T12:00:00.000Z" };
+
+    const scheduled = await scheduler.schedule(apiKey, { alreadyScheduled: new Set([`apiKeyExpiryReminder.${apiKey.id}.${apiKey.expiresAt}.30`]) });
+
+    expect(scheduled).toBe(2);
+    expect(jobQueueService.enqueue.mock.calls.map(([job]) => job.data.daysBeforeExpiry)).toEqual([7, 1]);
+  });
+
+  it("finds the reminders still waiting to be sent", async () => {
+    const { scheduler, jobQueueService } = setup();
+    const pending = new Set([`apiKeyExpiryReminder.${faker.string.uuid()}.2027-10-18T12:00:00.000Z.7`]);
+    jobQueueService.findPendingSingletonKeys.mockResolvedValue(pending);
+
+    const result = await scheduler.findScheduledReminders();
+
+    expect(result).toBe(pending);
+    expect(jobQueueService.findPendingSingletonKeys).toHaveBeenCalledWith("ApiKeyExpiryReminderJob");
   });
 
   function setup() {

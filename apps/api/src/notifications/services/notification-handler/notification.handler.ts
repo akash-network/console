@@ -11,6 +11,7 @@ import {
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { CreateNotificationInput, NotificationService } from "../notification/notification.service";
 import { afterTrialEndsNotification } from "../notification-templates/after-trial-ends-notification";
+import { apiKeysExpiryAssignedNotification } from "../notification-templates/api-keys-expiry-assigned-notification";
 import { beforeCloseTrialDeploymentNotification } from "../notification-templates/before-close-trial-deployment";
 import { beforeTrialEndsNotification } from "../notification-templates/before-trial-ends-notification";
 import { firstPurchaseBonusGrantedNotification } from "../notification-templates/first-purchase-bonus-granted-notification";
@@ -29,7 +30,8 @@ const notificationTemplates = {
   trialDeploymentClosed: trialDeploymentClosedNotification,
   trialFirstDeploymentLeaseCreated: trialFirstDeploymentLeaseCreatedNotification,
   firstPurchaseBonusGranted: firstPurchaseBonusGrantedNotification,
-  providerUnreachableClosed: providerUnreachableClosedNotification
+  providerUnreachableClosed: providerUnreachableClosedNotification,
+  apiKeysExpiryAssigned: apiKeysExpiryAssignedNotification
 };
 
 type NotificationTemplates = typeof notificationTemplates;
