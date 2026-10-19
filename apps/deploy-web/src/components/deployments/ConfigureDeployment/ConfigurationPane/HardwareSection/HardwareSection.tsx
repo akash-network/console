@@ -45,6 +45,8 @@ type Props = {
   serviceIndex: number;
   /** While locked the hardware controls are disabled (cards stay expandable for viewing). */
   locked?: boolean;
+  /** The trial size cap covers the whole deployment, so a view showing several services' hardware shows it once. */
+  showsDeploymentLimit?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -59,7 +61,7 @@ type Props = {
  * the "must be unique" error in sync across every conflicting row, not just the
  * edited one.
  */
-export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
+export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, showsDeploymentLimit = true, dependencies: d = DEPENDENCIES }) => {
   d.useRevalidateUniqueness(`services.${serviceIndex}.profile.storage`, storageUniquenessKey);
   const { isRestricted } = d.useTrialGate();
   const [isUnlockOpen, setIsUnlockOpen] = useState(false);
@@ -77,7 +79,7 @@ export const HardwareSection: FC<Props> = ({ serviceIndex, locked = false, depen
   return (
     <div className="flex flex-col gap-2 px-4">
       <p className="font-mono text-xs uppercase text-muted-foreground">Hardware</p>
-      {!locked && <d.TrialResourceLimitHint onUnlock={openUnlock} />}
+      {!locked && showsDeploymentLimit && <d.TrialResourceLimitHint onUnlock={openUnlock} />}
       <div className="flex flex-col gap-4">
         <d.CollapsibleCard locked={locked} title="Presets" icon={<PackageOpenIcon className="h-4 w-4" />} infoTooltip={presetsTooltip}>
           <d.PresetsCard serviceIndex={serviceIndex} locked={locked} isBlockedModel={isBlockedModel} onUnlock={openUnlock} />

@@ -19,6 +19,12 @@ describe(ServiceStack.name, () => {
     expect(cardProps("api")).toMatchObject({ serviceIndex: 2 });
   });
 
+  it("marks only the selected service's card as selected", () => {
+    const { cardProps } = setup({ selectedServiceId: "api" });
+
+    expect([cardProps("web").isSelected, cardProps("api").isSelected]).toEqual([false, true]);
+  });
+
   it("expands the first service's card by default", () => {
     const { cardProps } = setup({ selectedServiceId: "api" });
 

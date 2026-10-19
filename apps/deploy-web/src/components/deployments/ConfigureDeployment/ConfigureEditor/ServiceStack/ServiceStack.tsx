@@ -75,6 +75,7 @@ export const ServiceStack: FC<Props> = ({
           service={service}
           serviceIndex={index}
           isExpanded={expandedIds.has(service.id)}
+          isSelected={service.id === selectedServiceId}
           onExpandedChange={expanded => changeExpanded(service.id as string, expanded)}
           canRemove={canRemoveService}
           onRemove={() => onRemoveService(service.id as string)}

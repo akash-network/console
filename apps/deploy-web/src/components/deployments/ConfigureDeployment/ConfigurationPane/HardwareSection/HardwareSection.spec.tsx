@@ -194,6 +194,14 @@ describe(HardwareSection.name, () => {
     expect(TrialResourceLimitHint).not.toHaveBeenCalled();
   });
 
+  it("leaves the trial size cap to another view of the deployment", () => {
+    const TrialResourceLimitHint = vi.fn(() => null);
+
+    setup({ showsDeploymentLimit: false, dependencies: { TrialResourceLimitHint } });
+
+    expect(TrialResourceLimitHint).not.toHaveBeenCalled();
+  });
+
   it("opens the AddCreditsSheet when the trial size cap requests unlock", () => {
     const AddCreditsSheet = vi.fn(() => <div />);
     const TrialResourceLimitHint = vi.fn<typeof DEPENDENCIES.TrialResourceLimitHint>(() => null);
@@ -204,11 +212,18 @@ describe(HardwareSection.name, () => {
     expect(AddCreditsSheet).toHaveBeenLastCalledWith(expect.objectContaining({ open: true }), expect.anything());
   });
 
-  function setup(input: { serviceIndex?: number; locked?: boolean; dependencies?: Partial<typeof DEPENDENCIES> }) {
+  function setup(input: { serviceIndex?: number; locked?: boolean; showsDeploymentLimit?: boolean; dependencies?: Partial<typeof DEPENDENCIES> }) {
     const dependencies = MockComponents(DEPENDENCIES, {
       useTrialGate: () => ({ isRestricted: false, isWalletReady: false }),
       ...input.dependencies
     });
-    render(<HardwareSection serviceIndex={input.serviceIndex ?? 0} locked={input.locked} dependencies={dependencies} />);
+    render(
+      <HardwareSection
+        serviceIndex={input.serviceIndex ?? 0}
+        locked={input.locked}
+        showsDeploymentLimit={input.showsDeploymentLimit}
+        dependencies={dependencies}
+      />
+    );
   }
 });
