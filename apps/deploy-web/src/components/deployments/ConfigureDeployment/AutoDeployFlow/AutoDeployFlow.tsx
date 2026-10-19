@@ -42,8 +42,8 @@ type Props = {
 /**
  * The auto-deploy experience of the bid-screening view: when the configure intent is `sdl-strategy=default` +
  * `bid-strategy=auto`, the screen skips the manual form and drives the deployment automatically through the
- * globe + phased progress panel (create deployment → matching providers → preparing), then redirects to the
- * deployment details. The base flow comes from the `DeploymentFlowProvider` (shared with the manual branch), so this
+ * globe + phased progress panel (create deployment → matching providers → preparing), then lands on the deployments
+ * list once the api takes the lease on, or on the deployment when the lease is created during the request. The base flow comes from the `DeploymentFlowProvider` (shared with the manual branch), so this
  * component only autopilots over it. Spend-readiness is enforced server-side: a create against a still-provisioning
  * trial wallet gets a retriable 409, which the create mutation retries until activation lands.
  *

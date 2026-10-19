@@ -20,7 +20,9 @@ test.describe("Onboarding journey — new user's first deployment", () => {
 
   test("picks a template and the app auto-deploys it", async ({ page }) => {
     const picker = new OnboardingPickerPage(page);
+    const configure = new ConfigureDeploymentPage(page);
     const deploymentDetail = new DeploymentDetailPage(page);
+    let dseq: string | undefined;
 
     await test.step("a brand-new user opening the app is guided to onboarding", async () => {
       await visit(page, "/");
@@ -31,10 +33,14 @@ test.describe("Onboarding journey — new user's first deployment", () => {
     await test.step("picking the Hello world template starts an automatic deployment", async () => {
       await picker.deploy("Hello world");
       await expect(page.getByRole("heading", { name: /Deploying Hello world/i })).toBeVisible({ timeout: 30_000 });
+      await page.waitForURL(/\/new-deployment\/configure\/\d+/, { timeout: 180_000 });
+      dseq = new URL(page.url()).pathname.match(/\/new-deployment\/configure\/(\d+)/)?.[1];
+      expect(dseq).toBeTruthy();
     });
 
-    await test.step("the deployment goes live on its own and lands on the details page", async () => {
-      await page.waitForURL(new RegExp(`${testEnvConfig.BASE_URL}/deployments/\\d+`), { timeout: 6 * 60 * 1000 });
+    await test.step("the deployment goes live on its own and opens on the details page", async () => {
+      await configure.openDeploymentOnceDeployed(dseq!, { timeout: 6 * 60 * 1000 });
+      await page.waitForURL(new RegExp(`/deployments/${dseq}(?:[/?]|$)`), { timeout: 30_000 });
       await deploymentDetail.expectRunning();
     });
 

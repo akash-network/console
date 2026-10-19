@@ -95,8 +95,6 @@ export interface DeployOptions {
   secrets?: SdlSecretValues;
   /** Secrets the SDL references that nothing holds a value for, which the api could not resolve once the manifest is sent. */
   unresolvedSecrets?: UnresolvedSdlSecret[];
-  /** Lets the lease finish in the background while the activity center is on; the auto flow leaves it out, as its progress scene follows the lease to the end. */
-  inBackground?: boolean;
   /** Set by the onboarding autopilot, so a failed deploy's analytics tell its failures apart from a provider the user picked. */
   isAutoDeploy?: boolean;
 }
@@ -861,8 +859,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     function deploy(sdl: string, options: DeployOptions = {}) {
       if (!dseq || discardedRef.current) return;
       const activeDseq = dseq;
-      const inBackground = !!options.inBackground && isRunningInBackground;
-      const attempt: DeployAttempt = { dseq: activeDseq, isAutoDeploy: !!options.isAutoDeploy, inBackground };
+      const attempt: DeployAttempt = { dseq: activeDseq, isAutoDeploy: !!options.isAutoDeploy, inBackground: isRunningInBackground };
 
       function trackDeployFailed(stage: DeployFailureStage, cause?: unknown) {
         const { event, properties } = deployFailedEventOf(stage, attempt, cause);
@@ -897,7 +894,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       const deployEvents = deployEventsOf(activeDseq, dependencies.deploymentResourcesFromSdl(sdl));
       setDeployError(undefined);
       setDeploySucceeded(false);
-      setShowsDeployProgress(!inBackground);
+      setShowsDeployProgress(!isRunningInBackground);
       setPhase("deploying");
 
       /**
@@ -946,9 +943,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       function sendManifestAndLease() {
         const lease = keepsStoredReference ? { leases } : { manifest: activeManifest, leases };
         forgetEarlierOutcomes("lease_create", activeDseq);
-        setIsAwaitingLeaseHandoff(inBackground);
+        setIsAwaitingLeaseHandoff(isRunningInBackground);
         createLease.mutate(
-          { ...lease, ...backgroundQueryFor(inBackground) },
+          { ...lease, ...backgroundQueryFor(isRunningInBackground) },
           {
             onSuccess: function completeOrFollowDeploy(result) {
               setIsAwaitingLeaseHandoff(false);

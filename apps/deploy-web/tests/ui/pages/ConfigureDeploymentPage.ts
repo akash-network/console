@@ -201,16 +201,21 @@ export class ConfigureDeploymentPage {
       .click();
   }
 
-  /**
-   * Confirms the deploy and ends up on the deployment's page. The page goes there on its own when the lease is created
-   * during the request; when the lease finishes in the background it leaves the user on the deployments list, so this
-   * waits for the activity feed to report the deploy done before opening the deployment, and throws its reason if it failed.
-   * Resolves to where the deploy first landed the user.
-   */
+  /** Confirms the deploy and ends up on the deployment's page, as {@link openDeploymentOnceDeployed} does. */
   async confirmAndOpenDeployment(dseq: string): Promise<DeployLanding> {
-    const deploymentPath = `/deployments/${dseq}`;
     await this.confirmAndDeploy();
-    await this.page.waitForURL(url => url.pathname === deploymentPath || url.pathname === "/deployments", { timeout: 180_000 });
+    return this.openDeploymentOnceDeployed(dseq);
+  }
+
+  /**
+   * Ends up on the deployment's page once a deploy that is underway finishes. The page goes there on its own when the lease
+   * is created during the request; when the lease finishes in the background it leaves the user on the deployments list,
+   * so this waits for the activity feed to report the deploy done before opening the deployment, and throws its reason if
+   * it failed. Resolves to where the deploy first landed the user.
+   */
+  async openDeploymentOnceDeployed(dseq: string, { timeout = 180_000 }: { timeout?: number } = {}): Promise<DeployLanding> {
+    const deploymentPath = `/deployments/${dseq}`;
+    await this.page.waitForURL(url => url.pathname === deploymentPath || url.pathname === "/deployments", { timeout });
     if (new URL(this.page.url()).pathname === deploymentPath) return "deployment";
 
     const finishedDeploy = await this.waitForDeployToFinish(dseq);

@@ -1,13 +1,15 @@
 "use client";
 import type { FC, ReactNode } from "react";
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo } from "react";
+import { Snackbar } from "@akashnetwork/ui/components";
+import { useSnackbar } from "notistack";
 
 import { useWarnBeforeUnload } from "@src/hooks/useWarnBeforeUnload/useWarnBeforeUnload";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import { useDeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
-export const DEPENDENCIES = { useDeploymentFlow, useWarnBeforeUnload };
+export const DEPENDENCIES = { useDeploymentFlow, useWarnBeforeUnload, useSnackbar, Snackbar };
 
 /** The shared flow state machine both configure branches need. */
 export type DeploymentFlowContext = {
@@ -57,6 +59,17 @@ export const DeploymentFlowProvider: FC<Props> = ({ intent, children, dependenci
   const { discard } = flow.actions;
   d.useWarnBeforeUnload(isCreating);
   const leaveGuard = useMemo(() => ({ isCreating, holdsUnleasedDeployment, discard }), [isCreating, holdsUnleasedDeployment, discard]);
+  const { enqueueSnackbar } = d.useSnackbar();
+
+  useEffect(
+    function announceDeployFinishingInBackground() {
+      if (!flow.isDeployedInBackground) return;
+      enqueueSnackbar(<d.Snackbar title="Deployment created" subTitle="It's spinning up. We'll let you know when it's ready." iconVariant="success" />, {
+        variant: "success"
+      });
+    },
+    [flow.isDeployedInBackground, enqueueSnackbar, d]
+  );
 
   return <DeploymentLeaveGuardContext.Provider value={leaveGuard}>{children({ flow })}</DeploymentLeaveGuardContext.Provider>;
 };

@@ -424,20 +424,8 @@ describe(ConfigureDeploymentForm.name, () => {
   });
 
   describe("while deploying", () => {
-    it("says the deployment was created once the api has taken its lease on in the background", () => {
+    it("leaves telling the user about a deployment created in the background to the flow provider", () => {
       const { enqueueSnackbar } = setup({ initialSdl: undefined, phase: "deploying", isDeployedInBackground: true, deploySucceeded: true });
-
-      expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
-      expect(enqueueSnackbar).toHaveBeenCalledWith(
-        expect.objectContaining({
-          props: { title: "Deployment created", subTitle: "It's spinning up. We'll let you know when it's ready.", iconVariant: "success" }
-        }),
-        { variant: "success" }
-      );
-    });
-
-    it("says nothing about a created deployment whose lease was created during the request", () => {
-      const { enqueueSnackbar } = setup({ initialSdl: undefined, phase: "deploying", isDeployedInBackground: false, deploySucceeded: true });
 
       expect(enqueueSnackbar).not.toHaveBeenCalled();
     });
@@ -791,7 +779,7 @@ describe(ConfigureDeploymentForm.name, () => {
     await userEvent.click(screen.getByRole("button", { name: "confirm and deploy" }));
 
     const previewed = lastPanesProps(ConfigureDeploymentPanes).sdl;
-    expect(flow.actions.deploy).toHaveBeenCalledWith(previewed, { secrets: {}, unresolvedSecrets: [], inBackground: true });
+    expect(flow.actions.deploy).toHaveBeenCalledWith(previewed, { secrets: {}, unresolvedSecrets: [] });
   });
 
   it("hands a secret typed in the form to the deploy and leaves only its reference in the sdl", async () => {
@@ -803,8 +791,7 @@ describe(ConfigureDeploymentForm.name, () => {
 
     expect(flow.actions.deploy).toHaveBeenCalledWith(expect.stringContaining("API_KEY=ac-secret://API_KEY"), {
       secrets: { API_KEY: "hunter2" },
-      unresolvedSecrets: [],
-      inBackground: true
+      unresolvedSecrets: []
     });
   });
 
