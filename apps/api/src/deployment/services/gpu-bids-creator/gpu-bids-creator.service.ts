@@ -1,30 +1,41 @@
-import type { SDLInput } from "@akashnetwork/chain-sdk";
-import { generateManifest, generateManifestVersion, yaml as sdlYaml } from "@akashnetwork/chain-sdk";
+import { generateManifest, generateManifestVersion } from "@akashnetwork/chain-sdk";
 import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import type { Bid } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
-import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
-import { calculateFee, SigningStargateClient } from "@cosmjs/stargate";
-import assert from "http-assert";
-import { setTimeout as sleep } from "timers/promises";
+import type { EncodeObject } from "@cosmjs/proto-signing";
+import { calculateFee, type SigningStargateClient } from "@cosmjs/stargate";
+import chunk from "lodash/chunk";
 import { inject, singleton } from "tsyringe";
 
-import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { CHAIN_SDK, type ChainSDK } from "@src/chain/providers/chain-sdk.provider";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config/config.provider";
 import { type GpuModel, PlacementOptionsHttpService } from "@src/deployment/services/placement-options-http/placement-options-http.service";
-import { sdlTemplate } from "./sdl-templates";
+import { GpuBotSigningClientFactory } from "./gpu-bot-signing-client.factory";
+import { buildGpuCheckSdl, toPlacementName } from "./gpu-check-sdl";
 
 /** Close settlement gas grows with bids placed between simulation and inclusion; matches tx-signer GAS_DEFAULT_MULTIPLIER (PR #3501). */
 const GAS_MULTIPLIER = 2;
 
 /** The chain SDK's SDL schema accepts no other gpu vendor, so a deployment for any other would fail validation and stop the run. */
-const SDL_GPU_VENDORS = new Set(["nvidia"]);
+const SDL_GPU_VENDOR = "nvidia";
 
 /** Model names come from what providers report, so anything an SDL attribute key cannot carry is skipped rather than written into the SDL. */
 const SDL_GPU_MODEL_NAME = /^[\w.-]+$/;
+
+/** The chain refuses a deployment with more placement groups than this. */
+const MAX_GROUPS_PER_DEPLOYMENT = 20;
+
+const DEPOSIT_UACT = "500000";
+
+const BIDS_PAGE_SIZE = 1000n;
+
+interface GpuCheckBatchResult {
+  dseq: string;
+  bidCount: number;
+}
 
 @singleton()
 export class GpuBidsCreatorService {
@@ -36,7 +47,7 @@ export class GpuBidsCreatorService {
     private readonly config: BillingConfigService,
     @inject(CHAIN_SDK) chainSdk: ChainSDK,
     private readonly placementOptionsHttpService: PlacementOptionsHttpService,
-    @InjectTypeRegistry() private readonly typeRegistry: Registry,
+    private readonly signingClientFactory: GpuBotSigningClientFactory,
     @inject(DEPLOYMENT_CONFIG) deploymentConfig: DeploymentConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -49,45 +60,122 @@ export class GpuBidsCreatorService {
     if (!this.#deploymentConfig.GPU_BOT_WALLET_MNEMONIC) throw new Error("The env variable GPU_BOT_WALLET_MNEMONIC is not set.");
     if (!this.config.get("RPC_NODE_ENDPOINT")) throw new Error("The env variable RPC_NODE_ENDPOINT is not set.");
 
-    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(this.#deploymentConfig.GPU_BOT_WALLET_MNEMONIC, { prefix: "akash" });
-    const [account] = await wallet.getAccounts();
+    const { address, client } = await this.signingClientFactory.connect(this.#deploymentConfig.GPU_BOT_WALLET_MNEMONIC);
+    const feeBalanceBefore = await this.#getFeeBalance(client, address);
+    this.#logger.info({ event: "CREATING_GPU_BIDS", address, feeBalance: feeBalanceBefore / 1_000_000 });
 
-    this.#logger.info({ event: "CREATING_GPU_BIDS", address: account.address });
+    const models = await this.#findCheckableModels();
+    const batches = chunk(models, MAX_GROUPS_PER_DEPLOYMENT);
+    const results: GpuCheckBatchResult[] = [];
+    const failures: unknown[] = [];
 
-    const client = await SigningStargateClient.connectWithSigner(this.config.get("RPC_NODE_ENDPOINT"), wallet, {
-      registry: this.typeRegistry,
-      broadcastTimeoutMs: 30_000
-    });
-    const balanceBefore = await client.getBalance(account.address, "uact");
-    const balanceBeforeUAct = parseFloat(balanceBefore.amount);
-    const act = Math.round((balanceBeforeUAct / 1_000_000) * 100) / 100;
-    this.#logger.info({ event: "CLIENT_CONNECTED", balance: act });
-
-    const availableGpuModels = await this.placementOptionsHttpService.findAvailableGpuModels();
-    const gpuModels = availableGpuModels.filter(isExpressibleInSdl);
-
-    if (gpuModels.length < availableGpuModels.length) {
-      this.#logger.info({ event: "SKIPPING_UNSUPPORTED_GPU_MODELS", models: availableGpuModels.filter(model => !isExpressibleInSdl(model)) });
+    for (const batch of batches) {
+      try {
+        results.push(await this.#checkBatch(batch, client, address));
+      } catch (error) {
+        failures.push(error);
+        this.#logger.error({ event: "GPU_CHECK_BATCH_FAILED", models: batch, error });
+      }
     }
 
-    await this.createBidsForAllModels(gpuModels, client, account.address);
+    const feeBalanceAfter = await this.#getFeeBalance(client, address);
+    this.#logger.info({
+      event: "GPU_BIDS_CREATED",
+      gpuCount: models.length,
+      deploymentCount: results.length,
+      failedDeploymentCount: failures.length,
+      bidCount: results.reduce((total, { bidCount }) => total + bidCount, 0),
+      feeAkt: (feeBalanceBefore - feeBalanceAfter) / 1_000_000
+    });
 
-    const balanceAfter = await client.getBalance(account.address, "uact");
-    const balanceAfterUAct = parseFloat(balanceAfter.amount);
-    const diff = balanceBeforeUAct - balanceAfterUAct;
-
-    this.#logger.info({ event: "GPU_BIDS_CREATED", cost: diff / 1_000_000 });
+    if (failures.length > 0) {
+      throw new AggregateError(failures, `${failures.length} of ${batches.length} gpu check deployments failed`);
+    }
   }
 
-  private async signAndBroadcast(address: string, client: SigningStargateClient, messages: readonly EncodeObject[]) {
+  async #findCheckableModels(): Promise<string[]> {
+    const availableModels = await this.placementOptionsHttpService.findAvailableGpuModels();
+    const checkableModels = availableModels.filter(isExpressibleInSdl);
+
+    if (checkableModels.length < availableModels.length) {
+      this.#logger.info({ event: "SKIPPING_UNSUPPORTED_GPU_MODELS", models: availableModels.filter(model => !isExpressibleInSdl(model)) });
+    }
+
+    return checkableModels.map(({ model }) => model);
+  }
+
+  async #checkBatch(models: string[], client: SigningStargateClient, owner: string): Promise<GpuCheckBatchResult> {
+    const dseq = Date.now().toString();
+    const groupModels = await this.#createDeployment(client, owner, dseq, models);
+    this.#logger.info({ event: "GPU_CHECK_DEPLOYMENT_CREATED", dseq, models });
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, this.#deploymentConfig.GPU_BOT_BID_WINDOW_SECONDS * 1000));
+      const bids = await this.#findBids(owner, dseq);
+      this.#logger.info({
+        event: "GPU_CHECK_BIDS_RECEIVED",
+        dseq,
+        bids: groupModels.map((model, index) => ({ model, bidCount: bids.filter(bid => bid.id?.gseq === index + 1).length }))
+      });
+
+      return { dseq, bidCount: bids.length };
+    } finally {
+      await this.#closeDeployment(client, owner, dseq);
+      this.#logger.info({ event: "GPU_CHECK_DEPLOYMENT_CLOSED", dseq });
+    }
+  }
+
+  /** Resolves to the model each group checks, in group sequence order, which is how the chain numbers the orders it opens. */
+  async #createDeployment(client: SigningStargateClient, owner: string, dseq: string, models: string[]): Promise<string[]> {
+    const placementModels = new Map(models.map((model, index) => [toPlacementName(index), model]));
+    const manifest = generateManifest(buildGpuCheckSdl(models));
+
+    if (!manifest.ok) {
+      throw new Error(`Invalid gpu check SDL: ${manifest.value.map(error => error.message).join(", ")}`);
+    }
+
+    const message = {
+      typeUrl: `/${MsgCreateDeployment.$type}`,
+      value: MsgCreateDeployment.fromPartial({
+        id: { owner, dseq },
+        groups: manifest.value.groupSpecs,
+        hash: await generateManifestVersion(manifest.value.groups),
+        deposit: { amount: { denom: "uact", amount: DEPOSIT_UACT }, sources: [Source.balance] }
+      })
+    };
+
+    await this.#signAndBroadcast(owner, client, [message]);
+
+    return manifest.value.groupSpecs.map(({ name }) => placementModels.get(name) ?? name);
+  }
+
+  async #findBids(owner: string, dseq: string): Promise<Bid[]> {
+    const bids: Bid[] = [];
+    let key: Uint8Array | undefined;
+
+    do {
+      const response = await this.#chainSdk.akash.market.v1beta5.getBids({ filters: { owner, dseq }, pagination: { key, limit: BIDS_PAGE_SIZE } });
+      bids.push(...response.bids.flatMap(({ bid }) => (bid ? [bid] : [])));
+      key = response.pagination?.nextKey.length ? response.pagination.nextKey : undefined;
+    } while (key);
+
+    return bids;
+  }
+
+  async #closeDeployment(client: SigningStargateClient, owner: string, dseq: string) {
+    const message = {
+      typeUrl: `/${MsgCloseDeployment.$type}`,
+      value: MsgCloseDeployment.fromPartial({ id: { owner, dseq } })
+    };
+
+    await this.#signAndBroadcast(owner, client, [message]);
+  }
+
+  async #signAndBroadcast(address: string, client: SigningStargateClient, messages: readonly EncodeObject[]) {
     const simulation = await client.simulate(address, messages, "");
-
     const fee = calculateFee(Math.round(simulation * GAS_MULTIPLIER), `${this.config.get("AVERAGE_GAS_PRICE")}uakt`);
-
     const txRaw = await client.sign(address, messages, fee, "");
-
-    const txRawBytes = Uint8Array.from(TxRaw.encode(txRaw).finish());
-    const txResult = await client.broadcastTx(txRawBytes);
+    const txResult = await client.broadcastTx(Uint8Array.from(TxRaw.encode(txRaw).finish()));
 
     if (txResult.code !== 0) {
       this.#logger.error(txResult);
@@ -97,82 +185,13 @@ export class GpuBidsCreatorService {
     return txResult;
   }
 
-  private async createBidsForAllModels(gpuModels: GpuModel[], client: SigningStargateClient, walletAddress: string) {
-    this.#logger.info({ event: "CREATING_BIDS", modelCount: gpuModels.length });
-
-    for (const gpuModel of gpuModels) {
-      const dseq = Date.now().toString();
-      this.#logger.info({ event: "CREATING_DEPLOYMENT", ...gpuModel });
-
-      await this.createDeployment(client, this.getModelSdl(gpuModel), walletAddress, dseq);
-      this.#logger.info({ event: "DEPLOYMENT_CREATED" });
-
-      await sleep(30_000);
-
-      const bids = await this.#chainSdk.akash.market.v1beta5.getBids({
-        filters: {
-          owner: walletAddress,
-          dseq
-        }
-      });
-
-      this.#logger.info({ event: "DEPLOYMENT_CLOSING", bidsCount: bids?.bids.length });
-      await this.closeDeployment(client, walletAddress, dseq);
-      this.#logger.info({ event: "DEPLOYMENT_CLOSED" });
-
-      await sleep(10_000);
-    }
-
-    this.#logger.info({ event: "BIDS_CREATED" });
-  }
-
-  private async createDeployment(client: SigningStargateClient, sdlStr: string, owner: string, dseq: string) {
-    const sdlInput = sdlYaml.template<SDLInput>(sdlStr);
-    const manifest = generateManifest(sdlInput);
-    assert(manifest.ok, 400, `Invalid SDL: ${manifest.ok === false ? manifest.value.map(e => e.message).join(", ") : ""}`);
-
-    const manifestVersion = await generateManifestVersion(manifest.value.groups);
-    const message = {
-      typeUrl: `/${MsgCreateDeployment.$type}`,
-      value: MsgCreateDeployment.fromPartial({
-        id: {
-          owner: owner,
-          dseq: dseq
-        },
-        groups: manifest.value.groupSpecs,
-        hash: manifestVersion,
-        deposit: {
-          amount: {
-            denom: "uact",
-            amount: "500000" // 0.5 ACT
-          },
-          sources: [Source.balance]
-        }
-      })
-    };
-
-    await this.signAndBroadcast(owner, client, [message]);
-  }
-
-  private async closeDeployment(client: SigningStargateClient, owner: string, dseq: string) {
-    const message = {
-      typeUrl: `/${MsgCloseDeployment.$type}`,
-      value: MsgCloseDeployment.fromPartial({
-        id: {
-          owner: owner,
-          dseq: dseq
-        }
-      })
-    };
-
-    await this.signAndBroadcast(owner, client, [message]);
-  }
-
-  private getModelSdl({ vendor, model }: GpuModel) {
-    return sdlTemplate.replace("<VENDOR>", vendor).replace("<MODEL>", model);
+  /** Fees are paid in uakt while the deposit is in uact and comes back on close, so the uakt balance is what a run costs. */
+  async #getFeeBalance(client: SigningStargateClient, address: string): Promise<number> {
+    const { amount } = await client.getBalance(address, "uakt");
+    return parseFloat(amount);
   }
 }
 
 function isExpressibleInSdl({ vendor, model }: GpuModel): boolean {
-  return SDL_GPU_VENDORS.has(vendor) && SDL_GPU_MODEL_NAME.test(model);
+  return vendor === SDL_GPU_VENDOR && SDL_GPU_MODEL_NAME.test(model);
 }

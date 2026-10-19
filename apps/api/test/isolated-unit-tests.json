@@ -18,7 +18,6 @@
   "src/core/lib/disposable-registry/disposable-registry.spec.ts",
   "src/core/services/start-server/start-server.spec.ts",
   "src/deployment/controllers/deployment-setting/deployment-setting.controller.spec.ts",
-  "src/deployment/services/gpu-bids-creator/gpu-bids-creator.service.spec.ts",
   "src/deployment/services/initial-deployment-funding/initial-deployment-funding-instrumentation.service.spec.ts",
   "src/deployment/services/top-up-managed-deployments/fund-draining-deployments-instrumentation.service.spec.ts",
   "src/gpu/services/gpu-price/gpu-price.service.spec.ts",
