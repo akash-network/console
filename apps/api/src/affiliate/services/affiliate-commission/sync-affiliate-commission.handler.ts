@@ -14,7 +14,7 @@ export class SyncAffiliateCommissionHandler implements JobHandler<SyncAffiliateC
     return [];
   }
 
-  async handle({ transactionId }: JobPayload<SyncAffiliateCommission>): Promise<void> {
-    await this.affiliateCommissionService.syncCommission(transactionId);
+  async handle({ transactionId, trigger }: JobPayload<SyncAffiliateCommission>): Promise<void> {
+    await this.affiliateCommissionService.syncCommission(transactionId, trigger);
   }
 }
