@@ -58,6 +58,7 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const isLoading = isLoadingApiKeys || isLoadingProjects;
   const listedProjects = showsProjects ? projects : undefined;
   const projectChoices = isProjectsUiEnabled && activeOrganization?.role !== "billing" ? projects : undefined;
+  const teamName = isProjectsUiEnabled ? activeOrganization?.name : undefined;
   const { mutate: deleteApiKey, isPending: isRevoking } = d.useDeleteApiKey(apiKeyToRevoke?.id ?? "", () => {
     enqueueSnackbar(<Snackbar title={`“${apiKeyToRevoke?.name}” revoked`} iconVariant="success" />, { variant: "success" });
     setApiKeyToRevoke(null);
@@ -98,11 +99,11 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           </div>
         }
       >
-        <d.ApiKeyList apiKeys={apiKeys} isLoading={isLoading} isError={isError} onRevoke={setApiKeyToRevoke} projects={listedProjects} />
+        <d.ApiKeyList apiKeys={apiKeys} isLoading={isLoading} isError={isError} onRevoke={setApiKeyToRevoke} projects={listedProjects} teamName={teamName} />
         <d.ApiKeyUsageGuide />
       </d.SettingsLayout>
 
-      {isCreatingKey && <d.CreateApiKeyDialog projects={projectChoices} onClose={() => setIsCreatingKey(false)} />}
+      {isCreatingKey && <d.CreateApiKeyDialog projects={projectChoices} teamName={teamName} onClose={() => setIsCreatingKey(false)} />}
       {apiKeyToRevoke && (
         <d.RevokeApiKeyDialog apiKey={apiKeyToRevoke} isRevoking={isRevoking} onConfirm={revokeApiKey} onCancel={() => setApiKeyToRevoke(null)} />
       )}

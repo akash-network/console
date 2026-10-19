@@ -203,6 +203,29 @@ describe(ApiKeysPage.name, () => {
       expect(CreateApiKeyDialog.mock.lastCall?.[0].projects).toBeUndefined();
       expect(ApiKeyList.mock.lastCall?.[0].projects).toEqual(projects);
     });
+
+    it("names the team to the list and to a new key", async () => {
+      const { user, ApiKeyList, CreateApiKeyDialog } = setup({
+        isOrganizationsEnabled: true,
+        isProjectsUiEnabled: true,
+        role: "member",
+        organizationName: "Acme"
+      });
+
+      await user.click(screen.getByRole("button", { name: "Create new key" }));
+
+      expect(ApiKeyList.mock.lastCall?.[0].teamName).toBe("Acme");
+      expect(CreateApiKeyDialog.mock.lastCall?.[0].teamName).toBe("Acme");
+    });
+
+    it("names no team while the active organization is still unknown", async () => {
+      const { user, ApiKeyList, CreateApiKeyDialog } = setup({ isOrganizationsEnabled: true, isProjectsUiEnabled: true });
+
+      await user.click(screen.getByRole("button", { name: "Create new key" }));
+
+      expect(ApiKeyList.mock.lastCall?.[0].teamName).toBeUndefined();
+      expect(CreateApiKeyDialog.mock.lastCall?.[0].teamName).toBeUndefined();
+    });
   });
 
   describe("when the active organization hides projects", () => {
@@ -244,6 +267,15 @@ describe(ApiKeysPage.name, () => {
 
       expect(CreateApiKeyDialog.mock.lastCall?.[0].projects).toBeUndefined();
     });
+
+    it("names no team to the list or to a new key", async () => {
+      const { user, ApiKeyList, CreateApiKeyDialog } = setup({ isOrganizationsEnabled: true, role: "owner", organizationName: "Personal" });
+
+      await user.click(screen.getByRole("button", { name: "Create new key" }));
+
+      expect(ApiKeyList.mock.lastCall?.[0].teamName).toBeUndefined();
+      expect(CreateApiKeyDialog.mock.lastCall?.[0].teamName).toBeUndefined();
+    });
   });
 
   function setup(
@@ -257,6 +289,7 @@ describe(ApiKeysPage.name, () => {
       projects?: ProjectOutput[];
       isLoadingProjects?: boolean;
       role?: OrganizationRole;
+      organizationName?: string;
     } = {}
   ) {
     const user = userEvent.setup();
@@ -294,7 +327,7 @@ describe(ApiKeysPage.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({ isEnabled: input.isProjectsUiEnabled ?? false });
     const useActiveOrganization: typeof DEPENDENCIES.useActiveOrganization = () =>
       mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
-        activeOrganization: input.role ? mock<OrganizationOutput>({ role: input.role }) : undefined
+        activeOrganization: input.role ? mock<OrganizationOutput>({ role: input.role, name: input.organizationName }) : undefined
       });
     const useProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectsQuery>(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>(), {

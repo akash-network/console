@@ -167,6 +167,15 @@ describe("CreateApiKeyDialog", () => {
     expect(screen.getByText(/to your Console account, including deployments, leases and billing/)).toBeInTheDocument();
   });
 
+  it("warns that a key for a team can do what the user's role allows in that team", () => {
+    setup({ teamName: "Acme" });
+
+    expect(screen.getByText(/This key can do what your role allows in/)).toHaveTextContent(
+      "This key can do what your role allows in Acme. Treat it like a password."
+    );
+    expect(screen.queryByText(/Console account/)).not.toBeInTheDocument();
+  });
+
   it("blocks a second submit while the key is being created", () => {
     setup({ isPending: true });
 
@@ -320,6 +329,27 @@ describe("CreateApiKeyDialog", () => {
       expect(screen.queryByText(/This key only works on the/)).not.toBeInTheDocument();
     });
 
+    it("says a key for a project of a team only works on that project", async () => {
+      const { user } = setup({ projects: [buildProject({ name: "storefront" })], teamName: "Acme" });
+
+      await pickProject(user, "storefront");
+
+      expect(screen.getByText(/This key only works on the/)).toHaveTextContent("This key only works on the storefront project. Treat it like a password.");
+      expect(screen.queryByText(/This key can do what your role allows in/)).not.toBeInTheDocument();
+    });
+
+    it("warns about the role's access in the team again when all projects is picked back", async () => {
+      const { user } = setup({ projects: [buildProject({ name: "storefront" })], teamName: "Acme" });
+
+      await pickProject(user, "storefront");
+      await pickProject(user, ALL_PROJECTS_LABEL);
+
+      expect(screen.getByText(/This key can do what your role allows in/)).toHaveTextContent(
+        "This key can do what your role allows in Acme. Treat it like a password."
+      );
+      expect(screen.queryByText(/This key only works on the/)).not.toBeInTheDocument();
+    });
+
     it("clears the project error once another project is picked", async () => {
       const { user, createApiKey } = setup({ projects: [buildProject({ name: "storefront" }), buildProject({ name: "checkout" })] });
       createApiKey.mockImplementation((newApiKey, options) => options?.onError?.(buildHttpError(404), newApiKey, undefined));
@@ -458,7 +488,7 @@ describe("CreateApiKeyDialog", () => {
     await user.click(await screen.findByRole("option", { name: "Custom date" }));
   }
 
-  function setup(input: { createdApiKey?: ApiKeyResponse; isPending?: boolean; now?: Date; projects?: ProjectOutput[] } = {}) {
+  function setup(input: { createdApiKey?: ApiKeyResponse; isPending?: boolean; now?: Date; projects?: ProjectOutput[]; teamName?: string } = {}) {
     if (input.now) {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(input.now);
@@ -485,7 +515,7 @@ describe("CreateApiKeyDialog", () => {
 
     render(
       <TestContainerProvider services={{ analyticsService: () => analyticsService, queryClient: () => queryClient }}>
-        <CreateApiKeyDialog onClose={onClose} projects={input.projects} dependencies={{ useCreateApiKey, useSnackbar }} />
+        <CreateApiKeyDialog onClose={onClose} projects={input.projects} teamName={input.teamName} dependencies={{ useCreateApiKey, useSnackbar }} />
       </TestContainerProvider>
     );
 
