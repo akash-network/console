@@ -17,6 +17,15 @@ const AlertFeedEntrySchema = z
   .optional()
   .catch(undefined);
 
+export const EmailUnsubscribeSchema = z
+  .object({
+    url: z.string().url().startsWith("https://").describe("https URL of the unsubscribe page linked from the email footer"),
+    oneClickUrl: z.string().url().startsWith("https://").describe("https URL of the endpoint that takes the RFC 8058 one-click unsubscribe POST")
+  })
+  .describe("Marks the email as promotional: it gets an unsubscribe footer, the postal address and one-click unsubscribe headers");
+
+export type EmailUnsubscribe = z.infer<typeof EmailUnsubscribeSchema>;
+
 const NotificationCommandSchema = z.object({
   notificationChannelId: z.string(),
   notificationId: z.string().optional(),
@@ -33,7 +42,8 @@ const NotificationCommandSchema = z.object({
       )
       .optional(),
     feedEntry: AlertFeedEntrySchema
-  })
+  }),
+  unsubscribe: EmailUnsubscribeSchema.optional()
 });
 
 export type AlertFeedEntry = NonNullable<z.infer<typeof AlertFeedEntrySchema>>;

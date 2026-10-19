@@ -3,10 +3,10 @@ import type { ChainBlockCreatedDto } from "@src/modules/alert/dto/chain-block-cr
 import type { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
 import type { EventLeaseClosedDto } from "@src/modules/alert/dto/event-lease-closed.dto";
 import type { EventLeaseReclaimStartedDto } from "@src/modules/alert/dto/event-lease-reclaim-started.dto";
-import type { AlertMessage } from "@src/modules/alert/types/message-callback.type";
+import type { NotificationCommandDto } from "@src/modules/notifications/dto/NotificationCommand.dto";
 
 export type EventToPayload = {
-  [eventKeyRegistry.createNotification]: AlertMessage;
+  [eventKeyRegistry.createNotification]: NotificationCommandDto;
   [eventKeyRegistry.blockCreated]: ChainBlockCreatedDto;
   [eventKeyRegistry.eventCloseDeployment]: EventClosedDeploymentDto;
   [eventKeyRegistry.eventLeaseReclaimStarted]: EventLeaseReclaimStartedDto;

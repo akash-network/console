@@ -6,6 +6,7 @@ import sanitizeHtml from "sanitize-html";
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { Namespaced } from "@src/lib/types/namespaced-config.type";
 import { NotificationEnvConfig } from "@src/modules/notifications/config/env.config";
+import type { EmailUnsubscribe } from "@src/modules/notifications/dto/NotificationCommand.dto";
 import { type EmailAction, renderEmailLayout } from "./email-layout";
 
 type EmailSendOptions = {
@@ -16,7 +17,15 @@ type EmailSendOptions = {
   notificationId?: string;
   actions?: EmailAction[];
   code?: string;
+  unsubscribe?: EmailUnsubscribe;
 };
+
+function oneClickUnsubscribeHeaders({ oneClickUrl }: EmailUnsubscribe) {
+  return {
+    "List-Unsubscribe": `<${oneClickUrl}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+  };
+}
 
 @Injectable()
 export class EmailSenderService {
@@ -28,7 +37,7 @@ export class EmailSenderService {
     this.loggerService.setContext(EmailSenderService.name);
   }
 
-  async send({ addresses, userId, subject, content, notificationId, actions, code }: EmailSendOptions): Promise<void> {
+  async send({ addresses, userId, subject, content, notificationId, actions, code, unsubscribe }: EmailSendOptions): Promise<void> {
     await this.novu.trigger({
       workflowId: this.configService.getOrThrow("notifications.NOVU_MAILER_WORKFLOW_ID"),
       to: {
@@ -41,6 +50,8 @@ export class EmailSenderService {
           subject,
           actions,
           code,
+          unsubscribe,
+          postalAddress: this.configService.get("notifications.PROMOTIONAL_EMAIL_POSTAL_ADDRESS"),
           content: sanitizeHtml(content, {
             allowedTags: ["a", "strong", "p", "br"],
             allowedAttributes: {
@@ -51,7 +62,8 @@ export class EmailSenderService {
       },
       overrides: {
         email: {
-          to: addresses
+          to: addresses,
+          ...(unsubscribe && { headers: oneClickUnsubscribeHeaders(unsubscribe) })
         }
       }
     });

@@ -87,6 +87,19 @@ export interface components {
           url: string;
         }[];
       };
+      /** @description Marks the email as promotional: it gets an unsubscribe footer, the postal address and one-click unsubscribe headers */
+      unsubscribe?: {
+        /**
+         * Format: uri
+         * @description https URL of the unsubscribe page linked from the email footer
+         */
+        url: string;
+        /**
+         * Format: uri
+         * @description https URL of the endpoint that takes the RFC 8058 one-click unsubscribe POST
+         */
+        oneClickUrl: string;
+      };
     };
     DepartedMemberInput: {
       data: {

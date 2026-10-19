@@ -11,6 +11,11 @@ const FEED_ENTRY = {
   dedupeKey: "wallet_balance_alert.4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b.1"
 };
 
+const UNSUBSCRIBE = {
+  url: "https://console.akash.network/unsubscribe?token=abc",
+  oneClickUrl: "https://console-api.akash.network/v1/product-update-unsubscriptions?token=abc"
+};
+
 describe(NotificationCommandDto.name, () => {
   it("keeps the actions the email layout renders as buttons", () => {
     const actions = [
@@ -76,6 +81,44 @@ describe(NotificationCommandDto.name, () => {
       code: "418902",
       feedEntry: undefined
     });
+  });
+
+  it("keeps the unsubscribe links of a promotional email", () => {
+    const result = NotificationCommandDto.schema.parse({ ...command({}), unsubscribe: UNSUBSCRIBE });
+
+    expect(result.unsubscribe).toEqual(UNSUBSCRIBE);
+  });
+
+  it("accepts a command without unsubscribe links", () => {
+    const result = NotificationCommandDto.schema.parse(command({}));
+
+    expect(result.unsubscribe).toBeUndefined();
+  });
+
+  it("rejects an unsubscribe page that is not a url", () => {
+    const result = NotificationCommandDto.schema.safeParse({ ...command({}), unsubscribe: { ...UNSUBSCRIBE, url: "unsubscribe" } });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toContainEqual(expect.objectContaining({ path: ["unsubscribe", "url"], validation: "url" }));
+  });
+
+  it("rejects a one-click unsubscribe endpoint that is not a url", () => {
+    const result = NotificationCommandDto.schema.safeParse({ ...command({}), unsubscribe: { ...UNSUBSCRIBE, oneClickUrl: "product-update-unsubscriptions" } });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toContainEqual(expect.objectContaining({ path: ["unsubscribe", "oneClickUrl"], validation: "url" }));
+  });
+
+  it("rejects unsubscribe links that are not https", () => {
+    const result = NotificationCommandDto.schema.safeParse({
+      ...command({}),
+      unsubscribe: {
+        url: "http://console.akash.network/unsubscribe?token=abc",
+        oneClickUrl: "http://console-api.akash.network/v1/product-update-unsubscriptions?token=abc"
+      }
+    });
+
+    expect(result.error?.issues.map(issue => issue.path.join("."))).toEqual(["unsubscribe.url", "unsubscribe.oneClickUrl"]);
   });
 
   function command(payload: { actions?: { label: string; url: string }[]; code?: string; feedEntry?: Record<string, string | null | undefined> }) {

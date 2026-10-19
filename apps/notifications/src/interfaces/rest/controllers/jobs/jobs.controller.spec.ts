@@ -118,6 +118,40 @@ describe(JobsController.name, () => {
       );
     });
 
+    it("publishes the unsubscribe links of a promotional notification with its job", async () => {
+      const channel = { ...generateMock(notificationChannelOutputSchema), organizationId: null };
+      const module = await setup({ findDefault: vi.fn(async () => channel) });
+      const unsubscribe = {
+        url: "https://console.akash.network/unsubscribe?token=abc",
+        oneClickUrl: "https://console-api.akash.network/v1/product-update-unsubscriptions?token=abc"
+      };
+
+      await module.get(JobsController).createNotification({
+        notificationId: "firstPurchaseBonusWindowOpened",
+        payload: {
+          description: "test",
+          summary: "test"
+        },
+        unsubscribe
+      });
+
+      expect(module.get(BrokerService).publish).toHaveBeenCalledWith(
+        eventKeyRegistry.createNotification,
+        {
+          notificationChannelId: channel.id,
+          notificationId: "firstPurchaseBonusWindowOpened",
+          payload: {
+            description: "test",
+            summary: "test"
+          },
+          unsubscribe
+        },
+        {
+          singletonKey: "firstPurchaseBonusWindowOpened"
+        }
+      );
+    });
+
     it("publishes a notification job which startsAfter specified time and expires in 24 hours", async () => {
       const channel = { ...generateMock(notificationChannelOutputSchema), organizationId: null };
       const findDefault = vi.fn(async () => channel);

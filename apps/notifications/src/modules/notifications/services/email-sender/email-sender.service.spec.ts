@@ -11,6 +11,11 @@ import { EmailSenderService } from "./email-sender.service";
 
 import { MockProvider } from "@test/mocks/provider.mock";
 
+const UNSUBSCRIBE = {
+  url: "https://console.akash.network/unsubscribe?token=abc",
+  oneClickUrl: "https://console-api.akash.network/v1/product-update-unsubscriptions?token=abc"
+};
+
 describe(EmailSenderService.name, () => {
   it("should be defined", async () => {
     const { service } = await setup();
@@ -149,18 +154,86 @@ describe(EmailSenderService.name, () => {
       expect(sentContent).toContain('<p>keep</p><strong>keep</strong><a href="https://akash.network">link</a>');
       expect(sentContent).not.toContain("<script>");
     });
+
+    describe("when the email carries unsubscribe links", () => {
+      it("asks the mailer for one-click unsubscribe headers pointing at the one-click endpoint", async () => {
+        const { service, novu } = await setup();
+        const addresses = [faker.internet.email()];
+
+        await service.send({
+          addresses,
+          subject: faker.lorem.sentence(),
+          content: faker.lorem.paragraph(),
+          userId: faker.string.uuid(),
+          unsubscribe: UNSUBSCRIBE
+        });
+
+        expect(novu.trigger).toHaveBeenCalledWith(
+          expect.objectContaining({
+            overrides: {
+              email: {
+                to: addresses,
+                headers: {
+                  "List-Unsubscribe": `<${UNSUBSCRIBE.oneClickUrl}>`,
+                  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+                }
+              }
+            }
+          })
+        );
+      });
+
+      it("links the unsubscribe page and shows the configured postal address in the footer", async () => {
+        const { service, novu } = await setup({ postalAddress: "1 Market St, San Francisco, CA 94105" });
+
+        await service.send({
+          addresses: [faker.internet.email()],
+          subject: faker.lorem.sentence(),
+          content: faker.lorem.paragraph(),
+          userId: faker.string.uuid(),
+          unsubscribe: UNSUBSCRIBE
+        });
+
+        const sentContent = novu.trigger.mock.calls[0][0].payload?.content as string;
+        expect(sentContent).toContain(`<a href="${UNSUBSCRIBE.url}" style="color:inherit;text-decoration:underline;">Unsubscribe</a>`);
+        expect(sentContent).toContain(">1 Market St, San Francisco, CA 94105</p>");
+      });
+    });
+
+    it("sends no unsubscribe headers nor unsubscribe footer for an email without unsubscribe links", async () => {
+      const { service, novu } = await setup({ postalAddress: "1 Market St, San Francisco, CA 94105" });
+      const addresses = [faker.internet.email()];
+
+      await service.send({
+        addresses,
+        subject: faker.lorem.sentence(),
+        content: faker.lorem.paragraph(),
+        userId: faker.string.uuid()
+      });
+
+      const trigger = novu.trigger.mock.calls[0][0];
+      expect(trigger.overrides).toEqual({ email: { to: addresses } });
+      expect(trigger.payload?.content).not.toContain(">Unsubscribe</a>");
+      expect(trigger.payload?.content).not.toContain("1 Market St");
+    });
   });
 
-  async function setup() {
+  async function setup(input?: { postalAddress?: string }) {
     const module: TestingModule = await Test.createTestingModule({
       providers: [EmailSenderService, MockProvider(Novu), MockProvider(ConfigService), MockProvider(LoggerService)]
     }).compile();
 
     const novuWorkflowId = faker.lorem.word();
+    const configService = module.get<MockProxy<ConfigService>>(ConfigService);
 
-    module.get<MockProxy<ConfigService>>(ConfigService).getOrThrow.mockImplementation((key: string) => {
+    configService.getOrThrow.mockImplementation((key: string) => {
       if (key === "notifications.NOVU_MAILER_WORKFLOW_ID") {
         return novuWorkflowId;
+      }
+    });
+    configService.get.mockImplementation((key: string) => {
+      if (key === "notifications.PROMOTIONAL_EMAIL_POSTAL_ADDRESS") {
+        return input?.postalAddress;
       }
     });
 

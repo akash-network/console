@@ -65,8 +65,41 @@ function renderCode(code?: string): string {
           </div>`;
 }
 
+const FOOTER_TEXT_STYLE = "font-size:13px;line-height:1.6;color:#71717a;";
+
+/** CAN-SPAM requires a promotional email to say how to opt out and to carry the sender's postal address. */
+function renderFooterNotice({ unsubscribe, postalAddress }: { unsubscribe?: { url: string }; postalAddress?: string }): string {
+  if (!unsubscribe) {
+    return `<p class="footer-text" style="margin:0;${FOOTER_TEXT_STYLE}">Sent by Akash Console. You're receiving this because you have an Akash Console account.</p>`;
+  }
+
+  const unsubscribeLink = `<a href="${escape(unsubscribe.url)}" style="color:inherit;text-decoration:underline;">Unsubscribe</a>`;
+  const notice = `<p class="footer-text" style="margin:0;${FOOTER_TEXT_STYLE}">You're receiving this because you're subscribed to product updates from Akash Console. ${unsubscribeLink}</p>`;
+
+  if (!postalAddress) {
+    return notice;
+  }
+
+  return `${notice}
+          <p class="footer-text" style="margin:8px 0 0 0;${FOOTER_TEXT_STYLE}">${escape(postalAddress)}</p>`;
+}
+
 /** The subject is user-controlled for alert emails, so it is escaped; content must already be sanitized by the caller. */
-export function renderEmailLayout({ subject, content, actions, code }: { subject: string; content: string; actions?: EmailAction[]; code?: string }): string {
+export function renderEmailLayout({
+  subject,
+  content,
+  actions,
+  code,
+  unsubscribe,
+  postalAddress
+}: {
+  subject: string;
+  content: string;
+  actions?: EmailAction[];
+  code?: string;
+  unsubscribe?: { url: string };
+  postalAddress?: string;
+}): string {
   const escapedSubject = escape(subject);
 
   return `<!DOCTYPE html>
@@ -119,7 +152,7 @@ export function renderEmailLayout({ subject, content, actions, code }: { subject
         </td></tr>
         <tr><td class="card-footer" style="padding:24px 40px;background-color:#fafafa;border-top:1px solid #f0f0f1;">
           <p class="muted" style="margin:0 0 12px 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#a1a1aa;font-family:'SF Mono',Menlo,Consolas,monospace;">Akash &middot; The Open Compute Marketplace</p>
-          <p class="footer-text" style="margin:0;font-size:13px;line-height:1.6;color:#71717a;">Sent by Akash Console. You're receiving this because you have an Akash Console account.</p>
+          ${renderFooterNotice({ unsubscribe, postalAddress })}
         </td></tr>
       </table>
     </td></tr>

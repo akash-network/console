@@ -34,7 +34,8 @@ export class NotificationRouterService {
         content: notificationCommand.payload.description,
         actions: notificationCommand.payload.actions,
         code: notificationCommand.payload.code,
-        notificationId: notificationCommand.notificationId
+        notificationId: notificationCommand.notificationId,
+        unsubscribe: notificationCommand.unsubscribe
       });
     } else {
       return Err(new RichError("NotificationChannel type not implemented", "UNSUPPORTED_NOTIFICATION_CHANNEL_TYPE", { notificationChannel }));
