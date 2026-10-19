@@ -42,6 +42,8 @@ export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds" 
 
 export type FlowError = { message?: string; kind?: FlowErrorKind; shortfall?: DepositShortfall; projectId?: string };
 
+export type AbandonedAttemptKind = Extract<FlowErrorKind, "no-match" | "no-providers">;
+
 /** The live bids the flow polls while quoting (react-query-backed). Element shape derived from the shared `listBids` query. */
 export type DeploymentBids = NonNullable<ReturnType<typeof useListBids>["data"]>["data"];
 
@@ -103,7 +105,7 @@ export interface DeploymentFlowActions {
   requestQuotes: (sdl: string, options?: RequestQuotesOptions) => void;
   cancelAndEdit: () => void;
   /** Ends the attempt in `error` and closes the deployment so its deposit is released; a human uses `cancelAndEdit`. */
-  closeAndFail: (message: string) => void;
+  closeAndFail: (message: string, kind?: AbandonedAttemptKind) => void;
   /** Re-closes a deployment a background close left open. No-op while a close is in flight. */
   retryClose: () => void;
   /** Gives the attempt up for good before leaving the page: the phase stays put so nothing flashes while the page navigates away. */
@@ -140,13 +142,10 @@ const INHERITED_SECRETS_UNREADABLE_CODE = "inherited_secrets_unreadable";
 /** Hold after a successful lease so the deploy overlay's progress bar can fill to 100% and its final step turn green before redirecting. */
 const DEPLOY_SUCCESS_DWELL_MS = 1200;
 
-/**
- * Wait this long for a first bid before failing fast — some specs never draw one (niche resources, tight filters, a
- * quiet marketplace), and the full ~5-minute quote window only makes sense once bids exist. Resets when any bid lands.
- */
-const NO_BIDS_TIMEOUT_MS = 60 * 1000;
+/** How long a first bid may take before the user is told none came yet; the deployment stays open, since a late bid can still land. */
+export const NO_BIDS_TIMEOUT_MS = 60 * 1000;
 
-/** Error surfaced when a deployment draws no provider bids at all within {@link NO_BIDS_TIMEOUT_MS}. */
+/** Error surfaced when a deployment draws no provider bid at all. */
 export const NO_PROVIDERS_MESSAGE = "No providers are available for this deployment right now. Try adjusting your deployment and requesting new bids.";
 
 /** An `active` bid is one this deployment already holds the lease on — exactly what a resumed selection points at. */
@@ -327,6 +326,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   const bidsReceivedTrackedRef = useRef(false);
 
+  /** When this attempt's wait for a first bid ran out, so a bid landing later can report how late it came. */
+  const noBidsReportedAtRef = useRef<number | null>(null);
+
   /** Null on a resumed deployment, whose request this session never saw. */
   const screeningRef = useRef<ScreeningSummary | null>(null);
 
@@ -336,6 +338,16 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       if (!currentBids || currentBids.length === 0 || bidsReceivedTrackedRef.current) return;
       bidsReceivedTrackedRef.current = true;
       analyticsService.track("bids_received", { category: "deployments", numberOfBids: currentBids.length, dseq });
+      if (noBidsReportedAtRef.current === null) return;
+      analyticsService.track("bids_received_after_timeout", {
+        category: "deployments",
+        dseq,
+        bidStrategy: bidStrategyRef.current,
+        secondsAfterTimeout: Math.round((Date.now() - noBidsReportedAtRef.current) / 1000),
+        placementCount: screeningRef.current?.placementCount,
+        screenedProviderCount: screeningRef.current?.providerCount,
+        isAutoDeploy: intentRef.current.sdlStrategy === "default" && bidStrategyRef.current === "auto"
+      });
     },
     [bidsQuery.data, dseq, analyticsService]
   );
@@ -347,30 +359,19 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         setNoBidsReceived(false);
       }
       if (phase !== "quoting" || providersEverBidRef.current || !hasReadBidList) return;
-      const timer = setTimeout(
-        /**
-         * The auto flow autopilots over this shared flow and reads its error scene off `phase === "error"`, so it must
-         * halt there; the manual flow keeps the deployment open, since a late bid can still land.
-         */
-        function timeOutWithoutProviders() {
-          if (discardedRef.current) return;
-          analyticsService.track("bids_not_received", {
-            category: "deployments",
-            dseq,
-            bidStrategy: bidStrategyRef.current,
-            waitedSeconds: NO_BIDS_TIMEOUT_MS / 1000,
-            placementCount: screeningRef.current?.placementCount,
-            screenedProviderCount: screeningRef.current?.providerCount
-          });
-          if (intentRef.current.sdlStrategy === "default" && bidStrategyRef.current === "auto") {
-            setError({ message: NO_PROVIDERS_MESSAGE, kind: "no-providers" });
-            setPhase("error");
-            return;
-          }
-          setNoBidsReceived(true);
-        },
-        NO_BIDS_TIMEOUT_MS
-      );
+      const timer = setTimeout(function timeOutWithoutProviders() {
+        if (discardedRef.current) return;
+        analyticsService.track("bids_not_received", {
+          category: "deployments",
+          dseq,
+          bidStrategy: bidStrategyRef.current,
+          waitedSeconds: NO_BIDS_TIMEOUT_MS / 1000,
+          placementCount: screeningRef.current?.placementCount,
+          screenedProviderCount: screeningRef.current?.providerCount
+        });
+        noBidsReportedAtRef.current = Date.now();
+        setNoBidsReceived(true);
+      }, NO_BIDS_TIMEOUT_MS);
       return function cancelNoProvidersTimeout() {
         clearTimeout(timer);
       };
@@ -571,6 +572,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       const attempt = ++createAttemptRef.current;
       providersEverBidRef.current = false;
       bidsReceivedTrackedRef.current = false;
+      noBidsReportedAtRef.current = null;
       screeningRef.current = options.screening ?? null;
       setError(undefined);
       setNoBidsReceived(false);
@@ -742,13 +744,13 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    * other close path falls back to `strandedDseq`, which only names a deployment whose close already came back open.
    */
   const closeAndFail = useCallback(
-    function closeAndFail(message: string) {
+    function closeAndFail(message: string, kind: AbandonedAttemptKind = "no-match") {
       createAttemptRef.current += 1;
       queuedCreateRef.current = null;
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategyRef.current), undefined, { shallow: true });
       const dseqToClose = createdDseq ?? strandedDseq;
       clearDeploymentState();
-      setError({ message, kind: "no-match" });
+      setError({ message, kind });
       setPhase("error");
       if (dseqToClose) startClose(dseqToClose, "in-background");
     },

@@ -85,6 +85,7 @@ export type AnalyticsEvent =
   | "bid_selected"
   | "bids_received"
   | "bids_not_received"
+  | "bids_received_after_timeout"
   | "filtered_by_favorite_providers"
   | "filtered_by_audited_providers"
   | "close_deployment_btn_clk"

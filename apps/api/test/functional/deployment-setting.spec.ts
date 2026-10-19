@@ -140,10 +140,24 @@ describe("Deployment Settings", () => {
           topUpFrequencyMs: expect.any(Number),
           runtimeLimitHours: null,
           runtimeEndsAt: null,
+          consoleCloseReason: null,
           closed: false
         }
       });
       expect(leaseRepository.findOneByDseqAndOwner).toHaveBeenCalledWith(dseq, wallet.address);
+    });
+  });
+
+  describe("GET /v2/deployment-settings/{dseq}", () => {
+    it("says why Console closed a deployment it closed on its own", async () => {
+      const { token, user } = await setup();
+      const dseq = faker.number.int({ min: 1, max: 1000000 }).toString();
+      await deploymentSettingRepository.create({ userId: user.id, dseq, autoTopUpEnabled: false, closed: true, consoleCloseReason: "runtime_limit_reached" });
+
+      const response = await app.request(`/v2/deployment-settings/${dseq}`, { headers: { authorization: `Bearer ${token}` } });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ data: expect.objectContaining({ dseq, closed: true, consoleCloseReason: "runtime_limit_reached" }) });
     });
   });
 

@@ -1,11 +1,20 @@
 "use client";
 import type { FC } from "react";
+import type { ConsoleCloseReason } from "@akashnetwork/http-sdk";
 import { CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 
+import { systemCloseReasonOf } from "@src/components/activity/activityLabels/activityLabels";
 import type { LeaseDto } from "@src/types/deployment";
 import { isLeaseLive } from "@src/utils/leaseUtils";
-import { classifyLeaseCloseReason, getClosedLeaseLabel, getClosedLeaseSummaryLabel, isProviderReclaimed, isReclaiming } from "@src/utils/reclamationUtils";
+import {
+  classifyLeaseCloseReason,
+  getClosedLeaseLabel,
+  getClosedLeaseSummaryLabel,
+  isClosedByOwner,
+  isProviderReclaimed,
+  isReclaiming
+} from "@src/utils/reclamationUtils";
 import type { WorkloadStatus } from "./DeploymentPlacements/placementModel";
 import { ReclamationCountdown } from "./ReclamationCountdown";
 
@@ -47,6 +56,8 @@ export interface DeploymentStatusView {
   summaryLabel: string;
   tone: StatusTone;
   isSpinningUp?: boolean;
+  /** Why Console closed the deployment, which its label alone cannot say. */
+  reason?: string;
 }
 
 export interface DeploymentStatusBadgeProps {
@@ -62,6 +73,8 @@ const CLOSING_STATUS: DeploymentStatusView = { label: "Closing", summaryLabel: "
 const UPDATING_STATUS: DeploymentStatusView = { label: "Updating", summaryLabel: "Updating", tone: "loading" };
 
 const RECLAIMING_STATUS: DeploymentStatusView = { label: "Reclaiming", summaryLabel: "Reclaiming", tone: "warning" };
+
+const CLOSED_BY_CONSOLE_LABEL = "Closed by Console";
 
 /** One name from the moment a lease is requested until every service has a ready replica, whichever part of that the deployment is in. */
 export const SPINNING_UP_STATUS: DeploymentStatusView = { label: "Spinning up", summaryLabel: "Spinning up", tone: "loading", isSpinningUp: true };
@@ -87,7 +100,8 @@ export function getDeploymentStatus(
   leases?: LeaseDto[] | null,
   isClosing = false,
   workload?: WorkloadStatus,
-  isUpdating = false
+  isUpdating = false,
+  consoleCloseReason?: ConsoleCloseReason | null
 ): DeploymentStatusView {
   if (isClosing && state === "active") return CLOSING_STATUS;
   if (isUpdating && state === "active") return UPDATING_STATUS;
@@ -99,15 +113,24 @@ export function getDeploymentStatus(
     if (leases?.some(isReclaiming)) return RECLAIMING_STATUS;
     const workloadStatus = state === "active" && workload ? WORKLOAD_STATUSES[workload] : undefined;
     if (workloadStatus) return workloadStatus;
+    if (consoleCloseReason && state === "closed" && !leases?.length) return closedByConsoleStatusOf(consoleCloseReason, deploymentTone);
     const label = STATUS_LABELS[state] ?? state;
     return { label, summaryLabel: label, tone: deploymentTone };
   }
 
+  const tone = deploymentTone === "closed" ? "closed" : "warning";
+  if (consoleCloseReason && isClosedByOwner(deadLease)) return closedByConsoleStatusOf(consoleCloseReason, tone);
+
   return {
     label: getClosedLeaseLabel(deadLease),
     summaryLabel: getClosedLeaseSummaryLabel(deadLease),
-    tone: deploymentTone === "closed" ? "closed" : "warning"
+    tone
   };
+}
+
+/** Console closes with the owner's wallet, so a close that reads as the owner's, or a closed deployment with no lease to read, is Console's once the api says why. */
+function closedByConsoleStatusOf(consoleCloseReason: ConsoleCloseReason, tone: StatusTone): DeploymentStatusView {
+  return { label: CLOSED_BY_CONSOLE_LABEL, summaryLabel: CLOSED_BY_CONSOLE_LABEL, tone, reason: systemCloseReasonOf(consoleCloseReason) };
 }
 
 /**

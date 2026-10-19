@@ -20,14 +20,16 @@ export function useResendOrganizationInvitationMutation() {
   });
 }
 
-/** An expired invitation gets a fresh expiry along with its new link, so the pending list is refetched too. */
+/** An expired invitation gets a fresh expiry along with its new link, so the pending list is refetched too, without holding the link back until it reloads. */
 export function useCreateOrganizationInvitationLinkMutation() {
   const { api } = useServices();
   const queryClient = useQueryClient();
 
   return api.v1.createOrganizationInvitationLink.useMutation({
     meta: SKIP_REPORTING_REFUSED_INPUT,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: api.v1.listOrganizationInvitations.getKey() })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: api.v1.listOrganizationInvitations.getKey() });
+    }
   });
 }
 

@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
+import { isWithinMaxApiKeyLifetime, MAX_API_KEY_LIFETIME_DAYS } from "@src/auth/lib/api-key-lifetime/api-key-lifetime";
+
 export const ApiKeyHiddenSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
@@ -8,13 +10,9 @@ export const ApiKeyHiddenSchema = z.object({
   updatedAt: z.string().datetime(),
   lastUsedAt: z.string().datetime().nullable(),
   keyFormat: z.string(),
-  organizationId: z
-    .string()
-    .uuid()
-    .nullable()
-    .openapi({
-      description: "The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization."
-    }),
+  organizationId: z.string().uuid().nullable().openapi({
+    description: "The organization the key acts in. Null for a key created before organizations, which acts in its owner's personal organization."
+  }),
   projectId: z.string().uuid().nullable().openapi({ description: "The only project the key reaches, or null when it reaches every project its owner can." })
 });
 
@@ -31,7 +29,13 @@ export const CreateApiKeySchema = z.object({
     .refine(date => date > new Date(), {
       message: "Expiration date must be in the future"
     })
-    .optional(),
+    .refine(date => isWithinMaxApiKeyLifetime(date, new Date()), {
+      message: "Expiration date must be at most 1 year from now"
+    })
+    .optional()
+    .openapi({
+      description: `When the key stops working, at most ${MAX_API_KEY_LIFETIME_DAYS} days from now. Defaults to ${MAX_API_KEY_LIFETIME_DAYS} days from creation.`
+    }),
   projectId: z.string().uuid().optional().openapi({ description: "Limits the key to one project of the organization it is created in." })
 });
 

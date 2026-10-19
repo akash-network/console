@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { DeploymentFlow, DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import { NO_BIDS_TIMEOUT_MS, NO_PROVIDERS_MESSAGE } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { useQuoteExpiry } from "@src/components/deployments/ConfigureDeployment/useQuoteExpiry/useQuoteExpiry";
 import { useServices } from "@src/context/ServicesProvider";
 import type { DeployFailure, DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
@@ -57,6 +58,8 @@ const MATCH_DEADLINE_MS = 90 * 1000;
 
 const MATCH_FAILED_MESSAGE = "We couldn't match this deployment with a provider in time. Try again, or contact support if it keeps happening.";
 
+const FIRST_BID_CEILING_MS = 5 * 60 * 1000;
+
 /** The four coordinates that identify a lease/bid. */
 type LeaseId = { dseq: string; gseq: number; oseq: number; provider: string };
 
@@ -82,7 +85,9 @@ export const DEPENDENCIES = {
   // eslint-disable-next-line akash/dependencies-component-or-hook
   getRequiredGseqs,
   // eslint-disable-next-line akash/dependencies-component-or-hook
-  matchDeadlineMs: MATCH_DEADLINE_MS
+  matchDeadlineMs: MATCH_DEADLINE_MS,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
+  lateBidWaitMs: FIRST_BID_CEILING_MS - NO_BIDS_TIMEOUT_MS
 };
 
 /**
@@ -273,6 +278,23 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     [isAutopilotPending, hasBids, quotesExpired]
   );
 
+  /** The flow keeps a deployment no provider has bid on open for a late bid, so when to stop waiting is the autopilot's call. */
+  const isWaitingForLateBids = isAutopilotPending && flow.noBidsReceived;
+
+  useEffect(
+    function failWhenNoProviderEverBids() {
+      if (!isWaitingForLateBids) return;
+      const timer = setTimeout(function giveUpOnLateBids() {
+        analyticsService.track("onboarding_match_failed", { category: "onboarding", reason: "no_bids", dseq });
+        closeAndFailRef.current(NO_PROVIDERS_MESSAGE, "no-providers");
+      }, dependencies.lateBidWaitMs);
+      return function cancelLateBidWait() {
+        clearTimeout(timer);
+      };
+    },
+    [isWaitingForLateBids, dependencies.lateBidWaitMs, analyticsService, dseq]
+  );
+
   const projected = projectPhase(flow.phase, flow.deploySucceeded, !!flow.deployError);
 
   const phaseIndex = getPhaseIndex(projected);
@@ -295,7 +317,7 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   }
 
   return {
-    state: projected === "error" ? { kind: "error", ...failureOf(flow) } : { kind: projected },
+    state: projected === "error" ? { kind: "error", ...failureOf(flow) } : { kind: projected, isWaitingForLateBids },
     progressPercent,
     phases,
     matchedProviderAddress,

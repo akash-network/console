@@ -9,6 +9,7 @@ import {
   getLeaseCloseReasonLabel,
   getNearestReclamationDeadline,
   getReclamationDeadline,
+  isClosedByOwner,
   isProviderReclaimed,
   isReclaiming,
   parseReclamationWindowSeconds
@@ -91,6 +92,26 @@ describe("reclamationUtils", () => {
         group: mock<DeploymentGroup>({ state: overrides.groupState ?? "open" })
       });
     }
+  });
+
+  describe(isClosedByOwner.name, () => {
+    it.each([
+      { reason: "lease_closed_owner", case: "by name" },
+      { reason: "1", case: "by number" }
+    ])("reads a lease whose close reason names its owner $case as closed by its owner", ({ reason }) => {
+      expect(isClosedByOwner({ state: "closed", reason })).toBe(true);
+    });
+
+    it("reads the reclamation's reason when the lease carries none of its own", () => {
+      expect(isClosedByOwner({ state: "closed", reclamation: { reason: "lease_closed_owner" } })).toBe(true);
+    });
+
+    it.each(["lease_closed_reason_unstable", "lease_closed_reason_insufficient_funds", "9999", undefined])(
+      "does not read a lease closed for %s as closed by its owner",
+      reason => {
+        expect(isClosedByOwner({ state: "closed", reason })).toBe(false);
+      }
+    );
   });
 
   describe("getClosedLeaseSummaryLabel", () => {

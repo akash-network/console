@@ -4,6 +4,7 @@ import { BEHAVIOURAL_SIGNALS, type BehaviouralFinding, type BehaviouralSignalPar
 type EstablishedConnection = ProbeEvidenceNetShape["connections"][number];
 
 const MAX_NON_RELAY_ENDPOINTS = 1;
+const IPV6_LOOPBACK = "0000:0000:0000:0000:0000:0000:0000:0001";
 
 export function evaluateNetworkIsolation(snapshot: ProbeEvidenceSnapshot, params: BehaviouralSignalParams): BehaviouralFinding | null {
   const netShape = snapshot.netShape;
@@ -11,16 +12,23 @@ export function evaluateNetworkIsolation(snapshot: ProbeEvidenceSnapshot, params
   if (!netShape) return null;
 
   const listenPorts = new Set(netShape.listenPorts);
-  const inbound = netShape.connections.filter(connection => listenPorts.has(connection.localPort));
+  const externalConnections = netShape.connections.filter(connection => !isLoopback(connection));
+  const inbound = externalConnections.filter(connection => listenPorts.has(connection.localPort));
 
   if (inbound.length > 0) return null;
 
-  const relayOutbound = netShape.connections.filter(connection => isRelayEndpoint(connection, params.relayEndpoints));
-  const nonRelayOutbound = netShape.connections.filter(connection => !isRelayEndpoint(connection, params.relayEndpoints));
+  const relayOutbound = externalConnections.filter(connection => isRelayEndpoint(connection, params.relayEndpoints));
+  const nonRelayOutbound = externalConnections.filter(connection => !isRelayEndpoint(connection, params.relayEndpoints));
 
   if (countDistinctEndpoints(nonRelayOutbound) > MAX_NON_RELAY_ENDPOINTS) return null;
 
   return { signal: BEHAVIOURAL_SIGNALS.networkIsolated, detail: { excludedRelay: relayOutbound.length, listenPorts: netShape.listenPorts.length } };
+}
+
+function isLoopback(connection: EstablishedConnection): boolean {
+  const host = normalizeHost(connection.remoteIp);
+
+  return host.startsWith("127.") || host === IPV6_LOOPBACK;
 }
 
 function countDistinctEndpoints(connections: EstablishedConnection[]): number {

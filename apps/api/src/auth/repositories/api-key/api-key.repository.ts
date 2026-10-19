@@ -60,6 +60,28 @@ export class ApiKeyRepository extends OrgScopedRepository<Table, ApiKeyInput, Ap
       .where(this.unscoped("api-key-authentication").whereAccessibleBy(and(eq(this.table.id, id), ne(this.table.hashedKey, hashedKey))));
   }
 
+  async findExpiringTogether({
+    userId,
+    organizationId,
+    expiresAt
+  }: Pick<ApiKeyOutput, "userId" | "organizationId"> & { expiresAt: string }): Promise<ApiKeyOutput[]> {
+    const items = await this.cursor
+      .select()
+      .from(this.table)
+      .where(
+        this.whereAccessibleBy(
+          and(
+            eq(this.table.userId, userId),
+            organizationId ? eq(this.table.organizationId, organizationId) : isNull(this.table.organizationId),
+            eq(this.table.expiresAt, new Date(expiresAt))
+          )
+        )
+      )
+      .orderBy(this.table.id);
+
+    return this.toOutputList(items);
+  }
+
   protected toOutput(payload: ApiKeyDbOutput): ApiKeyOutput {
     return {
       ...payload,

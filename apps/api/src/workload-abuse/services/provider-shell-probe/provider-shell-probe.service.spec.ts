@@ -265,7 +265,7 @@ describe(ProviderShellProbeService.name, () => {
     it("reports the boot time and the parent, start time and name of each process it finds", () => {
       const reported = runProcorigCollector([{ pid: "9000001", comm: "node", ppid: 1, starttimeTicks: 100, cmdline: ["node", "app.js"] }]);
 
-      expect(reported).toEqual(["--procorig", "btime=1740000000", "9000001 ppid=1 starttime=100 comm=node"]);
+      expect(reported).toEqual(["--procorig", "btime=1740000000", "9000001 ppid=1 starttime=100 accel=0 comm=node"]);
     });
 
     it("leaves out a process with no command line, so kernel threads do not crowd out the workload", () => {
@@ -274,7 +274,42 @@ describe(ProviderShellProbeService.name, () => {
         { pid: "9000002", comm: "node", ppid: 1, starttimeTicks: 200, cmdline: ["node", "app.js"] }
       ]);
 
-      expect(reported).toEqual(["--procorig", "btime=1740000000", "9000002 ppid=1 starttime=200 comm=node"]);
+      expect(reported).toEqual(["--procorig", "btime=1740000000", "9000002 ppid=1 starttime=200 accel=0 comm=node"]);
+    });
+
+    it("marks a process that holds an accelerator device open", () => {
+      const reported = runProcorigCollector([
+        { pid: "9000001", comm: "sshd", ppid: 1, starttimeTicks: 100, cmdline: ["sshd"], openFiles: ["/dev/null", "/dev/pts/0"] },
+        { pid: "9000002", comm: "worker", ppid: 1, starttimeTicks: 200, cmdline: ["worker"], openFiles: ["/dev/nvidiactl", "/dev/nvidia-uvm", "/dev/nvidia3"] }
+      ]);
+
+      expect(reported).toEqual([
+        "--procorig",
+        "btime=1740000000",
+        "9000001 ppid=1 starttime=100 accel=0 comm=sshd",
+        "9000002 ppid=1 starttime=200 accel=1 comm=worker"
+      ]);
+    });
+
+    it("does not count the driver control nodes alone as holding an accelerator", () => {
+      const reported = runProcorigCollector([
+        {
+          pid: "9000001",
+          comm: "monitor",
+          ppid: 1,
+          starttimeTicks: 100,
+          cmdline: ["monitor"],
+          openFiles: ["/dev/nvidiactl", "/dev/nvidia-uvm", "/dev/nvidia-caps/nvidia-cap1"]
+        }
+      ]);
+
+      expect(reported).toEqual(["--procorig", "btime=1740000000", "9000001 ppid=1 starttime=100 accel=0 comm=monitor"]);
+    });
+
+    it("keeps a process with no command line when it holds an accelerator device open", () => {
+      const reported = runProcorigCollector([{ pid: "9000001", comm: "worker", ppid: 1, starttimeTicks: 100, cmdline: [], openFiles: ["/dev/nvidia0"] }]);
+
+      expect(reported).toEqual(["--procorig", "btime=1740000000", "9000001 ppid=1 starttime=100 accel=1 comm=worker"]);
     });
   });
 
@@ -411,7 +446,7 @@ describe(ProviderShellProbeService.name, () => {
     );
   }
 
-  function runProcorigCollector(processes: { pid: string; comm: string; ppid: number; starttimeTicks: number; cmdline: string[] }[]) {
+  function runProcorigCollector(processes: { pid: string; comm: string; ppid: number; starttimeTicks: number; cmdline: string[]; openFiles?: string[] }[]) {
     const directory = mkdtempSync(join(tmpdir(), "shell-probe-procorig-"));
     writeFileSync(join(directory, "stat"), "btime 1740000000\n");
 
@@ -420,9 +455,10 @@ describe(ProviderShellProbeService.name, () => {
       fieldsAfterComm[0] = "S";
       fieldsAfterComm[1] = fixture.ppid;
       fieldsAfterComm[19] = fixture.starttimeTicks;
-      mkdirSync(join(directory, fixture.pid));
+      mkdirSync(join(directory, fixture.pid, "fd"), { recursive: true });
       writeFileSync(join(directory, fixture.pid, "stat"), `${fixture.pid} (${fixture.comm}) ${fieldsAfterComm.join(" ")}\n`);
       writeFileSync(join(directory, fixture.pid, "cmdline"), fixture.cmdline.map(argument => `${argument}\0`).join(""));
+      (fixture.openFiles ?? []).forEach((target, descriptor) => symlinkSync(target, join(directory, fixture.pid, "fd", String(descriptor + 3))));
     }
 
     return runCollector("--procorig", collector => collector.replaceAll("/proc/", `${directory}/`));

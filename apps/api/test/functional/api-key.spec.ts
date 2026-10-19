@@ -1,21 +1,30 @@
 import { faker } from "@faker-js/faker";
+import { addDays } from "date-fns";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
+import { ApiKeyExpiryReminderJob } from "@src/auth/services/api-key-expiry-reminder/api-key-expiry-reminder.handler";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
+import { JOB_NAME } from "@src/core";
 import type { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { createApiKey } from "@test/seeders/api-key.seeder";
+import { findJobRows } from "@test/services/job-queue-harness";
 
 const OBFUSCATED_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{6}\*{3}[A-Za-z0-9]{6}$/;
 const FULL_API_KEY_PATTERN = /^ac\.sk\.test\.[A-Za-z0-9]{64}$/;
 
 describe("API Keys", () => {
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
+
   const apiKeyRepository = container.resolve(ApiKeyRepository);
   const userRepository = container.resolve(UserRepository);
   const userAuthTokenService = container.resolve(UserAuthTokenService);
@@ -194,8 +203,7 @@ describe("API Keys", () => {
 
     it("creates API key and returns full key once", async () => {
       const { token } = await setup();
-      const futureDate = new Date();
-      futureDate.setFullYear(futureDate.getFullYear() + 1);
+      const futureDate = addDays(new Date(), 90);
 
       const response = await app.request("/v1/api-keys", {
         method: "POST",
@@ -259,6 +267,92 @@ describe("API Keys", () => {
         code: "validation_error",
         type: "validation_error"
       });
+    });
+
+    it("rejects API key creation with an expiration date more than one year out", async () => {
+      const { token } = await setup();
+
+      const response = await app.request("/v1/api-keys", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          data: {
+            name: "Test key",
+            expiresAt: addDays(new Date(), 400).toISOString()
+          }
+        })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({
+        error: "BadRequestError",
+        message: "Validation error",
+        data: [
+          {
+            code: "custom",
+            message: "Expiration date must be at most 1 year from now",
+            path: ["data", "expiresAt"]
+          }
+        ],
+        code: "validation_error",
+        type: "validation_error"
+      });
+    });
+
+    it("expires a key one year after creation when no expiration date is given", async () => {
+      const { token } = await setup();
+      const requestedAt = new Date();
+
+      const response = await app.request("/v1/api-keys", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          data: {
+            name: "Test key"
+          }
+        })
+      });
+
+      expect(response.status).toBe(201);
+      const result = (await response.json()) as { data: { id: string; expiresAt: string } };
+      const expiresAt = new Date(result.data.expiresAt);
+      expect(expiresAt.getTime()).toBeGreaterThanOrEqual(addDays(requestedAt, 365).getTime());
+      expect(expiresAt.getTime()).toBeLessThanOrEqual(addDays(new Date(), 365).getTime());
+      const storedKey = await apiKeyRepository.findOneBy({ id: result.data.id });
+      expect(storedKey?.expiresAt).toBe(result.data.expiresAt);
+    });
+
+    it("schedules reminders 30, 7 and 1 day before the new key expires", async () => {
+      const { token } = await setup();
+      const expiresAt = addDays(new Date(), 90).toISOString();
+
+      const response = await app.request("/v1/api-keys", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          data: {
+            name: "Test key",
+            expiresAt
+          }
+        })
+      });
+
+      expect(response.status).toBe(201);
+      const result = (await response.json()) as { data: { id: string } };
+      const reminders = await findJobRows<ApiKeyExpiryReminderJob["data"]>(ApiKeyExpiryReminderJob[JOB_NAME], { data: { apiKeyId: result.data.id } });
+      const scheduled = reminders.map(({ state, data }) => ({ state, daysBeforeExpiry: data.daysBeforeExpiry, expiresAt: data.expiresAt }));
+      expect(scheduled.sort((a, b) => b.daysBeforeExpiry - a.daysBeforeExpiry)).toEqual(
+        [30, 7, 1].map(daysBeforeExpiry => ({ state: "created", daysBeforeExpiry, expiresAt }))
+      );
     });
 
     it("allows API key creation for trial users", async () => {

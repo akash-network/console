@@ -2,7 +2,8 @@ import type {
   ProbeEvidenceAccelerator,
   ProbeEvidenceArtifact,
   ProbeEvidenceBehaviouralFinding,
-  ProbeEvidenceNetShape
+  ProbeEvidenceNetShape,
+  ProbeEvidenceProcessOrigin
 } from "@src/workload-abuse/model-schemas";
 
 export const BEHAVIOURAL_SIGNALS = {
@@ -22,6 +23,7 @@ export type ProbeEvidenceSnapshot = {
   shellStatus: string;
   accelerator: ProbeEvidenceAccelerator[] | null;
   artifacts: ProbeEvidenceArtifact[] | null;
+  processOrigins: ProbeEvidenceProcessOrigin[] | null;
   netShape: ProbeEvidenceNetShape | null;
 };
 

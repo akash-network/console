@@ -7,6 +7,7 @@ export function evaluateAccelWithoutArtifacts(snapshot: ProbeEvidenceSnapshot, p
   const heaviestVramMb = findHeaviestVramMb(snapshot);
 
   if (heaviestVramMb < params.accelMinVramMb) return null;
+  if (!isAcceleratorHeldInContainer(snapshot)) return null;
   if (!snapshot.artifacts) return null;
 
   const largestArtifactMb = findLargestArtifactMb(snapshot);
@@ -19,6 +20,11 @@ export function evaluateAccelWithoutArtifacts(snapshot: ProbeEvidenceSnapshot, p
 function findHeaviestVramMb(snapshot: ProbeEvidenceSnapshot): number {
   const vramPerProcess = (snapshot.accelerator ?? []).flatMap(accelerator => accelerator.processes.map(process => process.vramMb));
   return vramPerProcess.reduce((heaviest, vramMb) => Math.max(heaviest, vramMb), 0);
+}
+
+/** The accelerator lists every process using the card, so its memory only counts when a process in this container holds the device. */
+function isAcceleratorHeldInContainer(snapshot: ProbeEvidenceSnapshot): boolean {
+  return snapshot.processOrigins?.some(origin => origin.holdsAccelerator) ?? false;
 }
 
 function findLargestArtifactMb(snapshot: ProbeEvidenceSnapshot): number {

@@ -20,6 +20,8 @@ import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 
 export const API_REFERENCE_URL = "https://akash.network/docs/api-documentation/console-api/getting-started/";
 
+const EXPIRY_POLICY = "Keys expire after one year at most. We email you ahead of each expiry, so you can replace a key before it stops working.";
+
 export const DEPENDENCIES = {
   Layout,
   SettingsLayout,
@@ -80,6 +82,7 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
 
       <d.SettingsLayout
         title="API keys"
+        description={EXPIRY_POLICY}
         headerActions={
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm" className="gap-2">

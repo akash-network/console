@@ -573,6 +573,14 @@ describe(ActivityHost.name, () => {
     );
   });
 
+  it("refreshes the settings of a deployment Console closed, so its page can say why", () => {
+    const { queryClient, receive } = setup({ activities: [] });
+
+    receive([buildActivity({ status: "succeeded", initiator: "system", meta: { dseq: "1234", reason: "runtime_limit_reached" } })]);
+
+    expect(invalidatedKeysOf(queryClient)).toContainEqual(QueryKeys.getDeploymentSettingKey("1234"));
+  });
+
   it("opens the deployment Console closed from its toast", async () => {
     const { receive, followToastAction, push } = setup({ activities: [] });
 
@@ -635,6 +643,7 @@ describe(ActivityHost.name, () => {
       QueryKeys.getWeeklyDeploymentCostKey(),
       api.v1.getSpendRate.getKey(),
       api.v1.getDeployment.getKey({ dseq: "1234" }),
+      QueryKeys.getDeploymentSettingKey("1234"),
       QueryKeys.getManagedWalletKey(user.id)
     ]);
   });

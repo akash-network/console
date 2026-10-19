@@ -101,7 +101,7 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
     const filingUserId = wallet.userId ?? setting?.userId;
 
     if (filingUserId) {
-      await this.#recordAndNotify(deployment, { id: wallet.id, userId: filingUserId, organizationId: wallet.organizationId });
+      await this.#recordAndNotify(deployment, { id: wallet.id, userId: filingUserId, organizationId: wallet.organizationId }, { closedByUs });
     } else {
       this.logger.warn({ event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_UNNOTIFIED", reason: "NO_FILING_USER", dseq, owner });
     }
@@ -120,9 +120,18 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
   }
 
   /** One transaction, so a deployment is never recorded as closed without the email explaining it queued alongside, and never told twice; the feed entry stays out of it, because a failed feed write must neither roll back nor retry a close that happened. */
-  async #recordAndNotify(deployment: DarkDeployment, wallet: { id: number; userId: string; organizationId: string | null }): Promise<void> {
+  async #recordAndNotify(
+    deployment: DarkDeployment,
+    wallet: { id: number; userId: string; organizationId: string | null },
+    { closedByUs }: { closedByUs: boolean }
+  ): Promise<void> {
     await this.txService.transaction(async () => {
-      await this.deploymentSettingRepository.markClosed({ userId: wallet.userId, dseq: deployment.dseq, organizationId: wallet.organizationId });
+      await this.deploymentSettingRepository.markClosed({
+        userId: wallet.userId,
+        dseq: deployment.dseq,
+        organizationId: wallet.organizationId,
+        consoleCloseReason: closedByUs ? "provider_unreachable" : undefined
+      });
 
       await this.jobQueueService.enqueue(
         new NotificationJob({

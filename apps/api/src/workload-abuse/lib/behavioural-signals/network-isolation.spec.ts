@@ -148,6 +148,77 @@ describe("evaluateNetworkIsolation", () => {
     expect(evaluateNetworkIsolation(snapshot, params)).toBeNull();
   });
 
+  it("fires when the only other traffic runs between processes over IPv4 loopback", () => {
+    const { snapshot, params } = setup({
+      netShape: {
+        listenPorts: [22, 37_855],
+        connections: [
+          { localPort: 47_248, remoteIp: "127.0.0.1", remotePort: 37_855, count: 1, state: "established" },
+          { localPort: 37_855, remoteIp: "127.0.0.1", remotePort: 47_248, count: 1, state: "established" },
+          { localPort: 41_234, remoteIp: "198.51.100.4", remotePort: 443, count: 1, state: "established" }
+        ]
+      }
+    });
+
+    expect(evaluateNetworkIsolation(snapshot, params)).toEqual({
+      signal: "network_isolated",
+      detail: { excludedRelay: 0, listenPorts: 2 }
+    });
+  });
+
+  it("ignores loopback traffic anywhere in 127.0.0.0/8", () => {
+    const { snapshot, params } = setup({
+      netShape: {
+        listenPorts: [5_353],
+        connections: [
+          { localPort: 5_353, remoteIp: "127.0.0.53", remotePort: 40_100, count: 1, state: "established" },
+          { localPort: 40_100, remoteIp: "127.0.0.53", remotePort: 5_353, count: 1, state: "established" }
+        ]
+      }
+    });
+
+    expect(evaluateNetworkIsolation(snapshot, params)).not.toBeNull();
+  });
+
+  it("ignores traffic between processes over IPv6 loopback", () => {
+    const { snapshot, params } = setup({
+      netShape: {
+        listenPorts: [9_000],
+        connections: [
+          { localPort: 9_000, remoteIp: "0000:0000:0000:0000:0000:0000:0000:0001", remotePort: 52_000, count: 1, state: "established" },
+          { localPort: 52_000, remoteIp: "0000:0000:0000:0000:0000:0000:0000:0001", remotePort: 9_000, count: 1, state: "established" }
+        ]
+      }
+    });
+
+    expect(evaluateNetworkIsolation(snapshot, params)).not.toBeNull();
+  });
+
+  it("stays silent when a listening port also serves a client outside the container", () => {
+    const { snapshot, params } = setup({
+      netShape: {
+        listenPorts: [8_080],
+        connections: [
+          { localPort: 8_080, remoteIp: "127.0.0.1", remotePort: 50_000, count: 1, state: "established" },
+          { localPort: 8_080, remoteIp: "203.0.113.9", remotePort: 51_000, count: 1, state: "established" }
+        ]
+      }
+    });
+
+    expect(evaluateNetworkIsolation(snapshot, params)).toBeNull();
+  });
+
+  it("does not mistake an address that only starts like loopback for it", () => {
+    const { snapshot, params } = setup({
+      netShape: {
+        listenPorts: [8_080],
+        connections: [{ localPort: 8_080, remoteIp: "1.127.0.1", remotePort: 51_000, count: 1, state: "established" }]
+      }
+    });
+
+    expect(evaluateNetworkIsolation(snapshot, params)).toBeNull();
+  });
+
   it("stays silent when the probe collected no socket section", () => {
     const { snapshot, params } = setup({ netShape: null });
 
@@ -155,7 +226,7 @@ describe("evaluateNetworkIsolation", () => {
   });
 
   function setup(input: { netShape: ProbeEvidenceNetShape | null; relayEndpoints?: string[] }) {
-    const snapshot: ProbeEvidenceSnapshot = { shellStatus: "completed", accelerator: null, artifacts: null, netShape: input.netShape };
+    const snapshot: ProbeEvidenceSnapshot = { shellStatus: "completed", accelerator: null, artifacts: null, processOrigins: null, netShape: input.netShape };
     const params: BehaviouralSignalParams = { accelMinVramMb: 1_024, artifactMinMb: 256, relayEndpoints: input.relayEndpoints ?? [] };
 
     return { snapshot, params };
