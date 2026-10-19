@@ -3193,7 +3193,10 @@ export interface paths {
           "application/json": {
             data: {
               name: string;
-              /** Format: date-time */
+              /**
+               * Format: date-time
+               * @description When the key stops working, at most 365 days from now. Defaults to 365 days from creation.
+               */
               expiresAt?: string;
               /**
                * Format: uuid
