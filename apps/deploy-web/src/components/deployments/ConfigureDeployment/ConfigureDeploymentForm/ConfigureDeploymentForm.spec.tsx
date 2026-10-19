@@ -441,6 +441,27 @@ describe(ConfigureDeploymentForm.name, () => {
 
       expect(enqueueSnackbar).not.toHaveBeenCalled();
     });
+
+    it("keeps the review up with its deploy pending, and no progress screen, while the deploy is handed to the api", () => {
+      const { ReviewAndDeployModal, DeployProgressOverlay } = setup({ initialSdl: undefined, phase: "deploying", showsDeployProgress: false });
+
+      expect(ReviewAndDeployModal).toHaveBeenLastCalledWith(expect.objectContaining({ open: true, isDeploying: true }), expect.anything());
+      expect(DeployProgressOverlay).not.toHaveBeenCalled();
+    });
+
+    it("closes the review and shows the progress screen once the deploy shows its progress", () => {
+      const { ReviewAndDeployModal, DeployProgressOverlay } = setup({ initialSdl: undefined, phase: "deploying", showsDeployProgress: true });
+
+      expect(ReviewAndDeployModal).toHaveBeenLastCalledWith(expect.objectContaining({ open: false, isDeploying: false }), expect.anything());
+      expect(DeployProgressOverlay).toHaveBeenCalledWith(expect.objectContaining({ activePhase: "preparing" }), expect.anything());
+    });
+
+    it.each([true, false])("shows neither the progress screen nor a pending review once the deploy is over (progress shown: %s)", showsDeployProgress => {
+      const { ReviewAndDeployModal, DeployProgressOverlay } = setup({ initialSdl: undefined, phase: "quoting", showsDeployProgress });
+
+      expect(ReviewAndDeployModal).toHaveBeenLastCalledWith(expect.objectContaining({ open: false, isDeploying: false }), expect.anything());
+      expect(DeployProgressOverlay).not.toHaveBeenCalled();
+    });
   });
 
   it("seeds the deployment name from initialName", () => {
@@ -1118,6 +1139,7 @@ describe(ConfigureDeploymentForm.name, () => {
     persistedPlacementRegions?: Record<string, string[]>;
     deploySucceeded?: boolean;
     isDeployedInBackground?: boolean;
+    showsDeployProgress?: boolean;
     flowError?: FlowError;
     noBidsReceived?: boolean;
     vm?: boolean;
@@ -1144,6 +1166,7 @@ describe(ConfigureDeploymentForm.name, () => {
     const dropInheritance = vi.fn<() => void>();
     const requestQuotes = vi.fn();
     const setDeploymentName = vi.fn();
+    const DeployProgressOverlay = vi.fn(() => null);
     const ReviewAndDeployModal = vi.fn((props: { open: boolean; onBack: () => void; onConfirm: () => void }) =>
       props.open ? (
         <div>
@@ -1185,6 +1208,7 @@ describe(ConfigureDeploymentForm.name, () => {
         selections: {},
         deploySucceeded: input.deploySucceeded ?? false,
         isDeployedInBackground: input.isDeployedInBackground ?? false,
+        showsDeployProgress: input.showsDeployProgress ?? false,
         noBidsReceived: input.noBidsReceived ?? false,
         pendingClose: input.pendingClose ?? null,
         actions: mock<DeploymentFlow["actions"]>({ requestQuotes })
@@ -1208,7 +1232,7 @@ describe(ConfigureDeploymentForm.name, () => {
       useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),
       Snackbar: Snackbar as never,
       ReviewAndDeployModal: ReviewAndDeployModal as never,
-      DeployProgressOverlay: () => null,
+      DeployProgressOverlay,
       SdlImportExport: SdlImportExport as never,
       SdlImportChangesBanner,
       usePlacementsWithBids: () => new Set<string>(),
@@ -1237,6 +1261,7 @@ describe(ConfigureDeploymentForm.name, () => {
       ConfigureDeploymentHeader,
       ConfigureDeployTargetChip: vi.fn(() => <div data-testid="deploy-target-chip-mock" />),
       ReviewAndDeployModal,
+      DeployProgressOverlay,
       SdlImportExport,
       flow,
       enqueueSnackbar,

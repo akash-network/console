@@ -13,7 +13,7 @@ import {
   Snackbar,
   Spinner
 } from "@akashnetwork/ui/components";
-import { ArrowRight, Rocket } from "lucide-react";
+import { ArrowRight, LoaderCircle, Rocket } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
@@ -45,6 +45,7 @@ export const DEPENDENCIES = {
 
 interface Props {
   open: boolean;
+  isDeploying: boolean;
   dseq: string | null;
   placements: PlacementType[];
   selections: Record<string, string>;
@@ -62,6 +63,7 @@ interface Props {
  */
 export const ReviewAndDeployModal: FC<Props> = ({
   open,
+  isDeploying,
   dseq,
   placements,
   selections,
@@ -225,13 +227,20 @@ export const ReviewAndDeployModal: FC<Props> = ({
         </DialogV2Body>
 
         <DialogV2Footer>
-          <Button variant="ghost" onClick={onBack} disabled={updateSetting.isPending}>
+          <Button variant="ghost" onClick={onBack} disabled={updateSetting.isPending || isDeploying}>
             Back to marketplace
           </Button>
-          <Button onClick={confirmAndDeploy} className="gap-2" disabled={!canConfirm || updateSetting.isPending}>
-            Confirm and deploy
-            {updateSetting.isPending || isStoredRuntimeLimitLoading ? <Spinner size="small" /> : <Rocket className="h-4 w-4" />}
-          </Button>
+          {isDeploying ? (
+            <Button className="gap-2" disabled>
+              Deploying…
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+            </Button>
+          ) : (
+            <Button onClick={confirmAndDeploy} className="gap-2" disabled={!canConfirm || updateSetting.isPending}>
+              Confirm and deploy
+              {updateSetting.isPending || isStoredRuntimeLimitLoading ? <Spinner size="small" /> : <Rocket className="h-4 w-4" />}
+            </Button>
+          )}
         </DialogV2Footer>
       </DialogV2Content>
     </DialogV2>

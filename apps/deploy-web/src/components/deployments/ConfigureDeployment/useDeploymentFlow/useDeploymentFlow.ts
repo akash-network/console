@@ -62,6 +62,8 @@ export interface DeploymentFlowState {
   deploySucceeded: boolean;
   /** True once the api has taken the lease on to finish in the background, so the page tells the user before they land on the deployments list. */
   isDeployedInBackground: boolean;
+  /** Whether the deploy progress screen shows while deploying; held back while the api may still take the lease on in the background. */
+  showsDeployProgress: boolean;
   /** True once the wait for a first bid ran out with none; cleared when a bid lands or the deployment goes away. */
   noBidsReceived: boolean;
   deployError?: { message?: string };
@@ -143,6 +145,9 @@ const INHERITED_SECRETS_UNREADABLE_CODE = "inherited_secrets_unreadable";
 
 /** Hold after a successful lease so the deploy overlay's progress bar can fill to 100% and its final step turn green before redirecting. */
 const DEPLOY_SUCCESS_DWELL_MS = 1200;
+
+/** Must stay above the second or so the api takes to hand a lease to the background, and below the 5 s or more it needs to create one during the request. */
+const BACKGROUND_HANDOFF_WAIT_MS = 3000;
 
 /** How long a first bid may take before the user is told none came yet; the deployment stays open, since a late bid can still land. */
 export const NO_BIDS_TIMEOUT_MS = 60 * 1000;
@@ -237,6 +242,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const [deployError, setDeployError] = useState<{ message?: string } | undefined>(undefined);
   const [deploySucceeded, setDeploySucceeded] = useState(false);
   const [isDeployedInBackground, setIsDeployedInBackground] = useState(false);
+  const [showsDeployProgress, setShowsDeployProgress] = useState(false);
+  /** The api answers a lease it takes on with a 202 and one it creates during the request with a 200, and the page can't tell which beforehand. */
+  const [isAwaitingLeaseHandoff, setIsAwaitingLeaseHandoff] = useState(false);
   const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
   const [noBidsReceived, setNoBidsReceived] = useState(false);
 
@@ -305,6 +313,17 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
     };
   }, []);
+
+  useEffect(
+    function showProgressOfALeaseCreatedDuringTheRequest() {
+      if (!isAwaitingLeaseHandoff) return;
+      const timer = setTimeout(() => setShowsDeployProgress(true), BACKGROUND_HANDOFF_WAIT_MS);
+      return function stopWaitingOnTheHandoff() {
+        clearTimeout(timer);
+      };
+    },
+    [isAwaitingLeaseHandoff]
+  );
 
   useEffect(
     function pruneStaleSelections() {
@@ -873,6 +892,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       const deployEvents = deployEventsOf(activeDseq, dependencies.deploymentResourcesFromSdl(sdl));
       setDeployError(undefined);
       setDeploySucceeded(false);
+      setShowsDeployProgress(!inBackground);
       setPhase("deploying");
 
       /**
@@ -921,10 +941,12 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       function sendManifestAndLease() {
         const lease = keepsStoredReference ? { leases } : { manifest: activeManifest, leases };
         forgetEarlierOutcomes("lease_create", activeDseq);
+        setIsAwaitingLeaseHandoff(inBackground);
         createLease.mutate(
           { ...lease, ...backgroundQueryFor(inBackground) },
           {
             onSuccess: function completeOrFollowDeploy(result) {
+              setIsAwaitingLeaseHandoff(false);
               const activityId = acceptedActivityIdOf(result.data);
               if (activityId) {
                 void followDeployInBackground(activityId);
@@ -934,6 +956,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
               completeDeploy(result.data.deployment.id.owner);
             },
             onError: function markAndFailDeploy(cause: unknown) {
+              setIsAwaitingLeaseHandoff(false);
               markOutcomeHandled("lease_create", activeDseq, "failed");
               failDeploy("lease_create", cause);
             }
@@ -1036,6 +1059,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     bids: bidsQuery.data?.data ?? [],
     deploySucceeded,
     isDeployedInBackground,
+    showsDeployProgress,
     noBidsReceived,
     deployError,
     error,

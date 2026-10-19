@@ -37,6 +37,13 @@ export const WorkspaceCtaButton: FC<Props> = ({ state, onDeploy, onRetry, onClos
           Deploy
         </Button>
       );
+    case "deploying":
+      return (
+        <Button type="button" disabled className={CTA_CLASSES}>
+          <LoaderCircleIcon className="h-4 w-4 animate-spin" aria-hidden="true" />
+          Deploying…
+        </Button>
+      );
     case "retry":
       return (
         <Button type="button" onClick={onRetry} className={CTA_CLASSES}>
