@@ -170,10 +170,10 @@ What to look at first: the event carries `userId`, `dseq` and the token's header
 ### 5.2 Many distinct users unwrapped in a short window
 
 ```logql
-count(count by (userId) (count_over_time({namespace="prod", service_name=~"console-api-mainnet.*"} | json log=`log` | line_format "{{.log}}" | json | event="USER_DATA_KEY_UNWRAPPED" [5m]))) > 40
+count(count by (userId, organizationId) (count_over_time({namespace="prod", service_name=~"console-api-mainnet.*"} | json log=`log` | line_format "{{.log}}" | json | event="USER_DATA_KEY_UNWRAPPED" [5m]))) > 40
 ```
 
-What it means: a normal deploy unwraps one user's key. Something opening many users' secrets inside minutes looks like nothing a user does.
+What it means: a normal deploy unwraps one user's key. Something opening many users' secrets inside minutes looks like nothing a user does. An unwrap of a team's key logs `organizationId` instead of `userId`, so the query counts each user and each team once; grouping by `userId` alone would fold every team into a single series.
 
 How the threshold was set, so the next person can tighten it rather than guess. It began at 75, estimated from Amplitude deploy counts while none of this was live yet. Production traffic has since made the real population measurable, by running the query above without its threshold:
 
@@ -187,20 +187,20 @@ How the threshold was set, so the next person can tighten it rather than guess. 
 | `SDL_SECRETS_STORED_OPENED`, busiest hour         | 1877  | 2026-09-16 |
 | `SECRET_DECRYPT_FAILED`, 30 days, every service   | 0     | 2026-09-17 |
 
-The distinct-user rows come from 3,544 evaluations over seven days rather than a spot check, and not one of them reached 40.
+The distinct-user rows come from 3,544 evaluations over seven days rather than a spot check, and not one of them reached 40. They predate team keys, so every unwrap then carried a `userId` and no `organizationId`, and the query above returns the same counts on that data; teams add at most one series each, so re-measure once team keys have run in production for a month.
 
 Counting deployers ran about four times high, so 75 would have let a sweep of sixty accounts pass in silence. The threshold is 40, twice the observed peak, which still clears every normal day by a wide margin while a sweep across hundreds of users crosses it in seconds. Repeat the measurement every few months, in Grafana Explore over the last 30 days, and move the threshold back to about twice the maximum. Tighten it when the measured peak stays well under for a month; raise it only after a legitimate spike, such as a hackathon, and record the date and reason in the table above.
 
-What to look at first: the `userId` values behind the count, and whether they correspond to deploy traffic in Amplitude for the same minutes. Legitimate spikes come with `create_deployment` events from the web app; a sweep comes from an API consumer (`userAgent: "node"`, `referrer: "about:client"`) or from nothing at all. For a sweep: revoke the API keys involved, then re-key every user on the list (section 3), since their data keys were unwrapped by something that should not have.
+What to look at first: the `userId` and `organizationId` values behind the count, and whether they correspond to deploy traffic in Amplitude for the same minutes. Legitimate spikes come with `create_deployment` events from the web app; a sweep comes from an API consumer (`userAgent: "node"`, `referrer: "about:client"`) or from nothing at all. For a sweep: revoke the API keys involved, then re-key every user on the list (section 3), since their data keys were unwrapped by something that should not have.
 
 ### 5.3 Wiring them
 
 Grafana is the alerting engine, and both rules are live in the production Grafana as of 2026-09-16:
 
-| Rule title                                               | UID              | Fires when                    |
-| -------------------------------------------------------- | ---------------- | ----------------------------- |
-| Deployment secret failed to decrypt                      | `efyg0cuoyiy9se` | 5.1 sees anything at all      |
-| Many distinct users' data keys unwrapped in five minutes | `afyg0cw74to8we` | 5.2 counts more than 40 users |
+| Rule title                                               | UID              | Fires when                              |
+| -------------------------------------------------------- | ---------------- | --------------------------------------- |
+| Deployment secret failed to decrypt                      | `efyg0cuoyiy9se` | 5.1 sees anything at all                |
+| Many distinct users' data keys unwrapped in five minutes | `afyg0cw74to8we` | 5.2 counts more than 40 users and teams |
 
 Both live in the same folder and the same `1m` rule group as every other console alert. They evaluate every 60 seconds over the last five minutes, fire on the first evaluation that crosses (`for: 0s`), treat an empty result as OK rather than as a failure, and notify `Slack Console Alerts (mention here)`. They were created through `POST /api/v1/provisioning/alert-rules` with the header `X-Disable-Provenance: true`, which leaves them editable in the UI; recreating them elsewhere means the same call with `notification_settings.receiver` set to that environment's contact point.
 
