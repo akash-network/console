@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { FormattedNumber } from "react-intl";
+import { FormattedDate, FormattedNumber } from "react-intl";
 import { Alert, Progress } from "@akashnetwork/ui/components";
 import { GiftIcon } from "lucide-react";
 
@@ -28,10 +28,10 @@ export function FirstPurchaseBonusAlert({ amount, dependencies: d = DEPENDENCIES
 
   if (!isSuccess || !data.eligible) return null;
 
-  return <FirstPurchaseBonusOffer amount={amount} />;
+  return <FirstPurchaseBonusOffer amount={amount} endsAt={data.endsAt ?? null} />;
 }
 
-function FirstPurchaseBonusOffer({ amount }: { amount: number }) {
+function FirstPurchaseBonusOffer({ amount, endsAt }: { amount: number; endsAt: string | null }) {
   const bonus = Math.min(Math.floor(amount * BONUS_PERCENT) / 100, MAX_BONUS);
   const qualifies = amount >= MIN_QUALIFYING_AMOUNT;
   const missingAmount = MIN_QUALIFYING_AMOUNT - amount;
@@ -82,13 +82,16 @@ function FirstPurchaseBonusOffer({ amount }: { amount: number }) {
               )}
             </p>
           </div>
+
+          <OfferEndsNotice endsAt={endsAt} />
         </div>
       ) : (
         <div className="space-y-3">
           <div>
             <p className="text-sm font-medium">First-purchase bonus</p>
             <p className="text-xs text-muted-foreground">
-              Get {BONUS_PERCENT}% in bonus credits on your first purchase, up to <FormattedNumber value={MAX_BONUS} style="currency" currency="USD" />.
+              Get {BONUS_PERCENT}% in bonus credits on your {endsAt ? "next" : "first"} purchase, up to{" "}
+              <FormattedNumber value={MAX_BONUS} style="currency" currency="USD" />.
             </p>
           </div>
 
@@ -106,8 +109,20 @@ function FirstPurchaseBonusOffer({ amount }: { amount: number }) {
               )}
             </p>
           </div>
+
+          <OfferEndsNotice endsAt={endsAt} />
         </div>
       )}
     </Alert>
+  );
+}
+
+function OfferEndsNotice({ endsAt }: { endsAt: string | null }) {
+  if (!endsAt) return null;
+
+  return (
+    <p className="text-xs text-muted-foreground">
+      Offer ends <FormattedDate value={endsAt} month="long" day="numeric" year="numeric" hour="numeric" minute="2-digit" timeZoneName="short" />.
+    </p>
   );
 }
