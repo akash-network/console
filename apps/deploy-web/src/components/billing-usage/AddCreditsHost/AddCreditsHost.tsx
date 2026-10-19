@@ -18,7 +18,7 @@ export function AddCreditsHost({ dependencies: d = DEPENDENCIES }: { dependencie
 
   const closeSheet = () => setRequest(null);
 
-  const closeSheetWithCreditsAdded = () => {
+  const closeSheetAfterPurchase = () => {
     closeSheet();
     request?.onCreditsAdded?.();
   };
@@ -31,8 +31,8 @@ export function AddCreditsHost({ dependencies: d = DEPENDENCIES }: { dependencie
       description={request?.description ?? DEFAULT_DESCRIPTION}
       context={request?.context}
       nextStepLabel={request?.nextStepLabel}
-      onDone={closeSheetWithCreditsAdded}
-      onRedeemed={closeSheetWithCreditsAdded}
+      onDone={closeSheetAfterPurchase}
+      onRedeemed={closeSheet}
     />
   );
 }

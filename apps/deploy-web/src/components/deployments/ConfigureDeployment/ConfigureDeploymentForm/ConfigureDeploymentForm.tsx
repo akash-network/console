@@ -225,7 +225,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   const requestQuotesAgainAfterCredits = useResumeAfterCredits({
     isRefusedForFunds: flow.phase === "error" && flow.error?.kind === "needs-funds",
-    requestInputs: [typedDeploymentName, liveSdl],
+    snapshotRequest: () => JSON.stringify([typedDeploymentName, form.getValues()]),
     resume: () => {
       analyticsService.track("add_credits_resumed_deploy", { category: "billing", context: NEEDS_FUNDS_CONTEXT });
       flow.actions.requestQuotesAgain();

@@ -77,14 +77,14 @@ describe("AddCreditsHost", () => {
     expect(onCreditsAdded).toHaveBeenCalledTimes(1);
   });
 
-  it("lets the call site pick up where the user left off once a coupon adds credits", () => {
+  it("leaves the call site alone after a coupon, whose credits can still be settling when the sheet closes", () => {
     const { open } = setup();
     const onCreditsAdded = vi.fn();
     open({ initialTab: "coupon", onCreditsAdded });
 
     act(() => screen.getByRole("button", { name: "redeemed" }).click());
 
-    expect(onCreditsAdded).toHaveBeenCalledTimes(1);
+    expect(onCreditsAdded).not.toHaveBeenCalled();
   });
 
   it("leaves the call site alone when the sheet is dismissed without adding credits", () => {

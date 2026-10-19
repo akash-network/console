@@ -679,6 +679,19 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(flow.actions.requestQuotesAgain).not.toHaveBeenCalled();
   });
 
+  it("leaves the refused request alone when credits land after the user retyped a secret, which the SDL only references", async () => {
+    const { enqueueSnackbar, flow, rerenderWith } = setup({ initialSdl: undefined, Panes: SecretRetypingProbePanes });
+    await userEvent.click(screen.getByRole("button", { name: "type a secret" }));
+    flow.phase = "error";
+    flow.error = { message: "Not enough balance", kind: "needs-funds" };
+    rerenderWith({});
+
+    await userEvent.click(screen.getByRole("button", { name: "retype the secret" }));
+    needsFundsToastOf(enqueueSnackbar).props.subTitle.props.onCreditsAdded?.();
+
+    expect(flow.actions.requestQuotesAgain).not.toHaveBeenCalled();
+  });
+
   it("leaves a different failure alone when credits land", () => {
     const { enqueueSnackbar, flow, rerenderWith } = setup({
       initialSdl: undefined,
@@ -1383,6 +1396,20 @@ function FieldRegisteringSection({ serviceIndex }: { serviceIndex: number }) {
 }
 
 /** Panes stand-in that types a secret into the first service before offering the provider pick. */
+function SecretRetypingProbePanes() {
+  const { setValue } = useFormContext<SdlBuilderFormValuesType>();
+  return (
+    <div>
+      <button type="button" onClick={() => setValue("services.0.env", [{ id: "api-key", key: "API_KEY", value: "hunter2", isSecret: true }])}>
+        type a secret
+      </button>
+      <button type="button" onClick={() => setValue("services.0.env.0.value", "hunter3")}>
+        retype the secret
+      </button>
+    </div>
+  );
+}
+
 function SecretTypingProbePanes(props: ProbePanesProps) {
   const { setValue } = useFormContext<SdlBuilderFormValuesType>();
   return (

@@ -52,42 +52,47 @@ describe(useResumeAfterCredits.name, () => {
     expect(result.current).toBe(firstCallback);
   });
 
-  it("resumes a request whose inputs are as they were at the refusal", () => {
-    const { result, resume, rerender } = setup({ isRefusedForFunds: true, requestInputs: ["my-app", "sdl"] });
+  it("resumes a request left as it was at the refusal", () => {
+    const { result, resume } = setup({ isRefusedForFunds: true, request: "sdl" });
 
-    rerender({ isRefusedForFunds: true, requestInputs: ["my-app", "sdl"], resume });
     result.current();
 
     expect(resume).toHaveBeenCalledTimes(1);
   });
 
-  it("leaves a request alone once the user has edited what it was built from", () => {
-    const { result, resume, rerender } = setup({ isRefusedForFunds: true, requestInputs: ["my-app", "sdl"] });
+  it("leaves a request alone once the user has edited it since the refusal", () => {
+    const { result, resume, editRequest } = setup({ isRefusedForFunds: true, request: "sdl" });
 
-    rerender({ isRefusedForFunds: true, requestInputs: ["my-app", "edited sdl"], resume });
+    editRequest("edited sdl");
     result.current();
 
     expect(resume).not.toHaveBeenCalled();
   });
 
-  it("compares against the inputs of the latest refusal", () => {
-    const { result, resume, rerender } = setup({ isRefusedForFunds: true, requestInputs: ["my-app", "sdl"] });
+  it("compares against the request as it stood at the latest refusal", () => {
+    const { result, resume, rerender, editRequest, snapshotRequest } = setup({ isRefusedForFunds: true, request: "sdl" });
 
-    rerender({ isRefusedForFunds: false, requestInputs: ["my-app", "edited sdl"], resume });
-    rerender({ isRefusedForFunds: true, requestInputs: ["my-app", "edited sdl"], resume });
+    rerender({ isRefusedForFunds: false, snapshotRequest, resume });
+    editRequest("edited sdl");
+    rerender({ isRefusedForFunds: true, snapshotRequest, resume });
     result.current();
 
     expect(resume).toHaveBeenCalledTimes(1);
   });
 
-  function setup(input: { isRefusedForFunds: boolean; requestInputs?: readonly unknown[] }) {
+  function setup(input: { isRefusedForFunds: boolean; request?: string }) {
     const resume = vi.fn();
-    const initialProps: Parameters<typeof useResumeAfterCredits>[0] = {
-      isRefusedForFunds: input.isRefusedForFunds,
-      requestInputs: input.requestInputs,
-      resume
-    };
+    let currentRequest = input.request;
+    const snapshotRequest = input.request === undefined ? undefined : () => currentRequest ?? "";
+    const initialProps: Parameters<typeof useResumeAfterCredits>[0] = { isRefusedForFunds: input.isRefusedForFunds, snapshotRequest, resume };
     const hook = renderHook(props => useResumeAfterCredits(props), { initialProps });
-    return { ...hook, resume };
+    return {
+      ...hook,
+      resume,
+      snapshotRequest,
+      editRequest: (request: string) => {
+        currentRequest = request;
+      }
+    };
   }
 });
