@@ -183,10 +183,37 @@ describe(ApiKeyList.name, () => {
     });
   });
 
-  function setup(input: { apiKeys: ApiKeyResponse[] | undefined; isLoading?: boolean; isError?: boolean; projects?: ProjectOutput[] }) {
+  describe("when the keys belong to a team", () => {
+    it("reminds that a key without a project can do what the user's role allows in the team", () => {
+      setup({ apiKeys: [], projects: [buildProject({ name: "storefront" })], teamName: "Acme" });
+
+      expect(
+        screen.getByText(
+          /A key without a project can do what your role allows in Acme, and a key for a project only works on that project\. Treat keys like passwords\./
+        )
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Console account/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the team reminder while the team's projects can't load", () => {
+      setup({ apiKeys: [], teamName: "Acme" });
+
+      expect(screen.getByText(/A key without a project can do what your role allows in Acme/)).toBeInTheDocument();
+      expect(screen.queryByText(/Console account/)).not.toBeInTheDocument();
+    });
+  });
+
+  function setup(input: { apiKeys: ApiKeyResponse[] | undefined; isLoading?: boolean; isError?: boolean; projects?: ProjectOutput[]; teamName?: string }) {
     const onRevoke = vi.fn();
     render(
-      <ApiKeyList apiKeys={input.apiKeys} isLoading={input.isLoading ?? false} isError={input.isError ?? false} onRevoke={onRevoke} projects={input.projects} />
+      <ApiKeyList
+        apiKeys={input.apiKeys}
+        isLoading={input.isLoading ?? false}
+        isError={input.isError ?? false}
+        onRevoke={onRevoke}
+        projects={input.projects}
+        teamName={input.teamName}
+      />
     );
     return { onRevoke };
   }

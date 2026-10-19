@@ -85,10 +85,11 @@ type NewApiKeyValues = z.infer<typeof newApiKeySchema>;
 type Props = {
   onClose: () => void;
   projects?: ProjectOutput[];
+  teamName?: string;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const CreateApiKeyDialog: FC<Props> = ({ onClose, projects, dependencies: d = DEPENDENCIES }) => {
+export const CreateApiKeyDialog: FC<Props> = ({ onClose, projects, teamName, dependencies: d = DEPENDENCIES }) => {
   const { analyticsService } = useServices();
   const { enqueueSnackbar } = d.useSnackbar();
   const { mutate: createApiKey, data: createdApiKey, isPending } = d.useCreateApiKey();
@@ -134,7 +135,7 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, projects, dependencies:
         {createdApiKey?.apiKey ? (
           <ApiKeySecretStep name={createdApiKey.name} secret={createdApiKey.apiKey} onCopy={copySecret} onDone={onClose} />
         ) : (
-          <NewApiKeyStep isCreating={isPending} projects={projects} onCreate={createKey} onCancel={onClose} />
+          <NewApiKeyStep isCreating={isPending} projects={projects} teamName={teamName} onCreate={createKey} onCancel={onClose} />
         )}
       </DialogV2Content>
     </DialogV2>
@@ -144,11 +145,12 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, projects, dependencies:
 type NewApiKeyStepProps = {
   isCreating: boolean;
   projects: ProjectOutput[] | undefined;
+  teamName: string | undefined;
   onCreate: (values: NewApiKeyValues, refuseProject: () => void) => void;
   onCancel: () => void;
 };
 
-const NewApiKeyStep: FC<NewApiKeyStepProps> = ({ isCreating, projects, onCreate, onCancel }) => {
+const NewApiKeyStep: FC<NewApiKeyStepProps> = ({ isCreating, projects, teamName, onCreate, onCancel }) => {
   const formId = useId();
   const form = useForm<NewApiKeyValues>({
     defaultValues: {
@@ -255,16 +257,7 @@ const NewApiKeyStep: FC<NewApiKeyStepProps> = ({ isCreating, projects, onCreate,
 
             <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5 text-[12.5px] leading-[18px] text-muted-foreground">
               <TriangleAlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
-              {chosenProject ? (
-                <span>
-                  This key only works on the <span className="font-semibold text-foreground">{chosenProject.name}</span> project. Treat it like a password.
-                </span>
-              ) : (
-                <span>
-                  This key has <span className="font-semibold text-foreground">full access</span> to your Console account, including deployments, leases and
-                  billing. Treat it like a password.
-                </span>
-              )}
+              <KeyAccessWarning projectName={chosenProject?.name} teamName={teamName} />
             </div>
           </form>
         </Form>
@@ -280,6 +273,31 @@ const NewApiKeyStep: FC<NewApiKeyStepProps> = ({ isCreating, projects, onCreate,
         </LoadingButton>
       </DialogV2Footer>
     </>
+  );
+};
+
+const KeyAccessWarning: FC<{ projectName: string | undefined; teamName: string | undefined }> = ({ projectName, teamName }) => {
+  if (projectName) {
+    return (
+      <span>
+        This key only works on the <span className="font-semibold text-foreground">{projectName}</span> project. Treat it like a password.
+      </span>
+    );
+  }
+
+  if (teamName) {
+    return (
+      <span>
+        This key can do what your role allows in <span className="font-semibold text-foreground">{teamName}</span>. Treat it like a password.
+      </span>
+    );
+  }
+
+  return (
+    <span>
+      This key has <span className="font-semibold text-foreground">full access</span> to your Console account, including deployments, leases and billing. Treat
+      it like a password.
+    </span>
   );
 };
 
