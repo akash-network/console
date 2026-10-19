@@ -103,7 +103,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
   const statuses = d.useLeaseStatuses(liveLeaseItems, { refetchInterval: 30_000 });
   const { tokenMode } = d.useProviderCredentials();
   const workload = summarizeWorkloadStatusUnlessWithheld(statuses, isLeaseStatusWithheld(tokenMode, statuses));
-  const status = d.useDeploymentStatus({ dseq: deployment.dseq, state: deployment.state, leases, workload });
+  const status = d.useDeploymentStatus({ dseq: deployment.dseq, state: deployment.state, leases, workload, consoleCloseReason: settings?.consoleCloseReason });
   const costPerBlockUDenom = liveLeases.reduce((sum, lease) => sum + parseFloat(lease.price.amount), 0);
   const liveGpuCount = liveLeases.reduce((sum, lease) => sum + (lease.gpuAmount ?? 0), 0);
 
@@ -129,6 +129,7 @@ export const DeploymentDetailHeader: FC<DeploymentDetailHeaderProps> = ({
         <d.DeploymentProjectBreadcrumb dseq={deployment.dseq} />
         <div className="flex flex-wrap items-center gap-2">
           <DeploymentStatusBadge status={status} leases={leases} />
+          {status.reason && <span className="text-sm text-muted-foreground">{status.reason}</span>}
           <d.ConfidentialComputeBadge teeTypes={teeTypes} />
           <d.GpuInterconnectBadge interconnect={interconnect} />
         </div>
