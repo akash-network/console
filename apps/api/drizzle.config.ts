@@ -9,7 +9,7 @@ if (!POSTGRES_DB_URI) {
 }
 
 export default defineConfig({
-  schema: ["billing", "user", "deployment", "auth", "secret", "workload-abuse", "hardware-request", "activity", "organization"].map(
+  schema: ["billing", "user", "deployment", "auth", "secret", "workload-abuse", "hardware-request", "activity", "organization", "affiliate"].map(
     schema => `./src/${schema}/model-schemas`
   ),
   out: "./drizzle",

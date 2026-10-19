@@ -1,0 +1,2 @@
+export { default as approveAffiliateRouter } from "./routes/internal/approve-affiliate.router";
+export { default as revokeAffiliateRouter } from "./routes/internal/revoke-affiliate.router";
