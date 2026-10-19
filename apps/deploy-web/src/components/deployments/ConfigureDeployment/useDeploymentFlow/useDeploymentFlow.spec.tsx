@@ -283,7 +283,7 @@ describe(useDeploymentFlow.name, () => {
     }
   });
 
-  it("halts in error without closing the deployment when no providers bid in the auto flow", () => {
+  it("keeps the auto flow's deployment open and quoting once the wait for a first bid runs out, since a late bid can still land", () => {
     vi.useFakeTimers();
     try {
       const closeMutate = vi.fn();
@@ -292,8 +292,10 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => vi.advanceTimersByTime(60_000));
 
-      expect(result.current.phase).toBe("error");
-      expect(result.current.error?.message).toContain("No providers");
+      expect(result.current.noBidsReceived).toBe(true);
+      expect(result.current.phase).toBe("quoting");
+      expect(result.current.dseq).toBe("777");
+      expect(result.current.error).toBeUndefined();
       expect(closeMutate).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
@@ -314,20 +316,6 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.dseq).toBe("777");
       expect(result.current.error).toBeUndefined();
       expect(closeMutate).not.toHaveBeenCalled();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("does not report missing bids in the auto flow, which halts in its error scene instead", () => {
-    vi.useFakeTimers();
-    try {
-      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" } });
-
-      act(() => vi.advanceTimersByTime(60_000));
-
-      expect(result.current.noBidsReceived).toBe(false);
-      expect(result.current.error?.kind).toBe("no-providers");
     } finally {
       vi.useRealTimers();
     }
@@ -468,6 +456,136 @@ describe(useDeploymentFlow.name, () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("reports no missing bids for a deployment discarded before the wait ran out", () => {
+    vi.useFakeTimers();
+    try {
+      const { result, analyticsService } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate: vi.fn() });
+      act(() => result.current.actions.discard());
+
+      act(() => vi.advanceTimersByTime(60_000));
+
+      expect(result.current.noBidsReceived).toBe(false);
+      expect(analyticsService.track).not.toHaveBeenCalledWith("bids_not_received", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  describe("when the first bid lands after the wait for one ran out", () => {
+    it("reports how late it came, with what screening promised", async () => {
+      vi.useFakeTimers();
+      try {
+        const bidList: { bids: Array<ReturnType<typeof openBidOn>> } = { bids: [] };
+        const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+        const { result, rerender, analyticsService } = setup({ createMutate, closeMutate: vi.fn(), bidList });
+        act(() => result.current.actions.requestQuotes("sdl-content", { screening: { placementCount: 2, providerCount: 28 } }));
+        await settleSeal();
+        act(() => vi.advanceTimersByTime(67_000));
+
+        bidList.bids = [openBidOn("999")];
+        rerender();
+
+        expect(analyticsService.track).toHaveBeenCalledWith("bids_received_after_timeout", {
+          category: "deployments",
+          dseq: "999",
+          bidStrategy: "select",
+          secondsAfterTimeout: 7,
+          placementCount: 2,
+          screenedProviderCount: 28,
+          isAutoDeploy: false
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("marks it as one the auto starter picks up", () => {
+      vi.useFakeTimers();
+      try {
+        const bidList: { bids: Array<ReturnType<typeof openBidOn>> } = { bids: [] };
+        const { rerender, analyticsService } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, bidList });
+        act(() => vi.advanceTimersByTime(61_000));
+
+        bidList.bids = [openBidOn("777")];
+        rerender();
+
+        expect(analyticsService.track).toHaveBeenCalledWith("bids_received_after_timeout", {
+          category: "deployments",
+          dseq: "777",
+          bidStrategy: "auto",
+          secondsAfterTimeout: 1,
+          placementCount: undefined,
+          screenedProviderCount: undefined,
+          isAutoDeploy: true
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it.each<{ sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select" }>([
+      { sdlStrategy: "edit", bidStrategy: "auto" },
+      { sdlStrategy: "default", bidStrategy: "select" }
+    ])("does not count it as the auto starter's for a $sdlStrategy SDL with $bidStrategy bids", intent => {
+      vi.useFakeTimers();
+      try {
+        const bidList: { bids: Array<ReturnType<typeof openBidOn>> } = { bids: [] };
+        const { rerender, analyticsService } = setup({ intent: { ...intent, dseq: "777" }, closeMutate: vi.fn(), bidList });
+        act(() => vi.advanceTimersByTime(61_000));
+
+        bidList.bids = [openBidOn("777")];
+        rerender();
+
+        expect(analyticsService.track).toHaveBeenCalledWith("bids_received_after_timeout", expect.objectContaining({ isAutoDeploy: false }));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("reports nothing late for a bid that lands before the wait runs out", () => {
+      vi.useFakeTimers();
+      try {
+        const bidList: { bids: Array<ReturnType<typeof openBidOn>> } = { bids: [] };
+        const { rerender, analyticsService } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate: vi.fn(), bidList });
+        act(() => vi.advanceTimersByTime(59_999));
+
+        bidList.bids = [openBidOn("777")];
+        rerender();
+        act(() => vi.advanceTimersByTime(60_000));
+
+        expect(analyticsService.track).toHaveBeenCalledWith("bids_received", expect.anything());
+        expect(analyticsService.track).not.toHaveBeenCalledWith("bids_received_after_timeout", expect.anything());
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("forgets an earlier attempt's late wait once bids are requested again", async () => {
+      vi.useFakeTimers();
+      try {
+        let nextDseq = 999;
+        const bidList: { bids: Array<ReturnType<typeof openBidOn>> } = { bids: [] };
+        const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: String(nextDseq++), manifest: "m" } }));
+        const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({}));
+        const { result, rerender, analyticsService } = setup({ createMutate, closeMutate, bidList });
+        act(() => result.current.actions.requestQuotes("sdl-content"));
+        await settleSeal();
+        act(() => vi.advanceTimersByTime(60_000));
+        act(() => result.current.actions.cancelAndEdit());
+        act(() => result.current.actions.requestQuotes("sdl-content"));
+        await settleSeal();
+
+        bidList.bids = [openBidOn("1000")];
+        rerender();
+
+        expect(analyticsService.track).toHaveBeenCalledWith("bids_received", expect.objectContaining({ dseq: "1000" }));
+        expect(analyticsService.track).not.toHaveBeenCalledWith("bids_received_after_timeout", expect.anything());
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   it("does not time out once a provider has bid", () => {
@@ -983,6 +1101,14 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.phase).toBe("error");
       expect(result.current.error).toEqual({ message: "no match", kind: "no-match" });
       expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
+    });
+
+    it("ends on the kind of abandonment the caller names", () => {
+      const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate: vi.fn() });
+
+      act(() => result.current.actions.closeAndFail("No providers", "no-providers"));
+
+      expect(result.current.error).toEqual({ message: "No providers", kind: "no-providers" });
     });
 
     it("halts in error before the close resolves, so the caller stops driving immediately", () => {
@@ -3098,6 +3224,7 @@ describe(useDeploymentFlow.name, () => {
     sealContextMutateAsync?: ReturnType<typeof vi.fn>;
     isRunningInBackground?: boolean;
     deployTargetProjectId?: string;
+    bidList?: { bids: Array<{ bid: { state: string; id: { provider: string; dseq: string; gseq: number; oseq: number } } }> };
   }) {
     const forgetProject = vi.fn();
     const intent = { vm: false, ...(input.intent ?? { sdlStrategy: "edit" as const, bidStrategy: "select" as const, dseq: undefined }) };
@@ -3125,7 +3252,7 @@ describe(useDeploymentFlow.name, () => {
     });
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
-      useListBids: (() => ({ data: { data: [] }, isLoading: false, isError: false })) as never,
+      useListBids: (() => ({ data: { data: input.bidList?.bids ?? [] }, isLoading: false, isError: false })) as never,
       useRouter: (() => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: (input.replace ?? vi.fn()) as never })) as never,
       useQueryClient: (() => queryClient) as never,
       manifestFromSdl: () => "manifest",
@@ -3275,6 +3402,10 @@ describe(useDeploymentFlow.name, () => {
 
   async function settleSeal() {
     await act(async () => {});
+  }
+
+  function openBidOn(dseq: string) {
+    return { bid: { state: "open", id: { provider: "akash1provider", dseq, gseq: 1, oseq: 1 } } };
   }
 
   function deferredMutate() {
