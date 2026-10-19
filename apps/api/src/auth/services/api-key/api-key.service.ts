@@ -1,6 +1,7 @@
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
+import { getDefaultApiKeyExpiry } from "@src/auth/lib/api-key-lifetime/api-key-lifetime";
 import { ApiKeyInput, ApiKeyOutput, ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { AuthService } from "@src/auth/services/auth.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
@@ -44,7 +45,7 @@ export class ApiKeyService {
       projectId,
       hashedKey,
       keyFormat: obfuscatedKey,
-      expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
+      expiresAt: input.expiresAt ? new Date(input.expiresAt) : getDefaultApiKeyExpiry(new Date()),
       lastUsedAt: null
     });
 

@@ -1,6 +1,6 @@
 import { createMongoAbility } from "@casl/ability";
 import { faker } from "@faker-js/faker";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
@@ -52,8 +52,9 @@ describe(ApiKeyService.name, () => {
       const { service, apiKeyRepository, projectRepository, ability, user, apiKeyGenerator } = setup();
       const created = createApiKey({ userId: user.id });
       apiKeyRepository.create.mockResolvedValue(created);
+      const expiresAt = faker.date.soon({ days: 365 });
 
-      const result = await service.create({ name: "ci" });
+      const result = await service.create({ name: "ci", expiresAt });
 
       expect(result).toEqual({ ...created, apiKey: apiKeyGenerator.generateApiKey() });
       expect(apiKeyRepository.accessibleBy).toHaveBeenCalledWith(ability, "create");
@@ -63,10 +64,22 @@ describe(ApiKeyService.name, () => {
         projectId: null,
         hashedKey: "hashed-key",
         keyFormat: "obfuscated-key",
-        expiresAt: undefined,
+        expiresAt,
         lastUsedAt: null
       });
       expect(projectRepository.findOneBy).not.toHaveBeenCalled();
+    });
+
+    it("expires a key 365 days after creation when no expiry is requested", async () => {
+      vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-18T12:00:00.000Z") });
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+      const { service, apiKeyRepository } = setup();
+
+      await service.create({ name: "ci" });
+
+      expect(apiKeyRepository.create).toHaveBeenCalledWith(expect.objectContaining({ expiresAt: new Date("2027-10-18T12:00:00.000Z") }));
     });
 
     it("binds the key to a reachable project of the active organization", async () => {
@@ -128,15 +141,6 @@ describe(ApiKeyService.name, () => {
       await expect(service.create({ name: "ci", projectId: project.id })).rejects.toMatchObject({ status: 404 });
       expect(featureFlagsService.isEnabled).not.toHaveBeenCalled();
       expect(apiKeyRepository.create).not.toHaveBeenCalled();
-    });
-
-    it("stores the requested expiry", async () => {
-      const { service, apiKeyRepository } = setup();
-      const expiresAt = faker.date.future();
-
-      await service.create({ name: "ci", expiresAt });
-
-      expect(apiKeyRepository.create).toHaveBeenCalledWith(expect.objectContaining({ expiresAt }));
     });
   });
 

@@ -13740,7 +13740,8 @@
                       },
                       "expiresAt": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date-time",
+                        "description": "When the key stops working, at most 365 days from now. Defaults to 365 days from creation."
                       },
                       "projectId": {
                         "type": "string",

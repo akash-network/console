@@ -2855,6 +2855,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "expiresAt": {
+                        "description": "When the key stops working, at most 365 days from now. Defaults to 365 days from creation.",
                         "format": "date-time",
                         "type": "string",
                       },
