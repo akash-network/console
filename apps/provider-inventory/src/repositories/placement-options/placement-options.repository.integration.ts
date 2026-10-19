@@ -211,6 +211,22 @@ describe(PlacementOptionsRepository.name, () => {
 
       expect(await repository.findAvailableGpus()).toEqual([]);
     });
+
+    it("includes gpus of a provider the Console auditor has not audited when asked to", async () => {
+      await seed({ owner: "akash1audited", maxNodeFreeGpu: 4n, nodes: [node({ info: [gpuInfo({ name: "h100" })] })] });
+      await seed({ owner: "akash1unaudited", auditedBy: [], maxNodeFreeGpu: 4n, nodes: [node({ info: [gpuInfo({ name: "a100" })] })] });
+
+      expect((await repository.findAvailableGpus({ includeUnaudited: true })).map(gpu => [gpu.owner, gpu.model])).toEqual([
+        ["akash1unaudited", "a100"],
+        ["akash1audited", "h100"]
+      ]);
+    });
+
+    it("still leaves out gpus of an offline provider when unaudited providers are included", async () => {
+      await seed({ owner: "akash1offline", auditedBy: [], isOnline: false, maxNodeFreeGpu: 4n, nodes: [node({ info: [gpuInfo({ name: "a100" })] })] });
+
+      expect(await repository.findAvailableGpus({ includeUnaudited: true })).toEqual([]);
+    });
   });
 
   function gpuInfo(input: Partial<GpuInfo>): GpuInfo {

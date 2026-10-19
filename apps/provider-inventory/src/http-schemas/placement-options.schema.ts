@@ -1,5 +1,14 @@
 import { z } from "@hono/zod-openapi";
 
+export const PlacementOptionsRequestSchema = z.object({
+  includeUnaudited: z
+    .enum(["true", "false"])
+    .optional()
+    .transform(value => value === "true")
+    .openapi({ description: "With `true`, GPUs also count providers the Console auditor has not audited. Regions stay audited only." })
+});
+export type PlacementOptionsRequest = z.infer<typeof PlacementOptionsRequestSchema>;
+
 const availableUnits = z
   .number()
   .int()

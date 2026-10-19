@@ -8,9 +8,9 @@ import type { BillingConfigService } from "@src/billing/services/billing-config/
 import type { ChainSDK } from "@src/chain/providers/chain-sdk.provider";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentConfig } from "@src/deployment/config/config.provider";
-import type { GpuService } from "@src/gpu/services/gpu.service";
+import type { PlacementOptionsHttpService } from "@src/deployment/services/placement-options-http/placement-options-http.service";
 import { GpuBidsCreatorService } from "./gpu-bids-creator.service";
-import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templates";
+import { sdlTemplate } from "./sdl-templates";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
@@ -45,49 +45,21 @@ vi.mock("@cosmjs/stargate", async importOriginal => {
 
 describe(GpuBidsCreatorService.name, () => {
   describe("getModelSdl", () => {
-    it("generates SDL with ram only when no interface provided", () => {
+    it("pins only the vendor and the model, as the configure page does", () => {
       const { service } = setup();
 
-      const result = service["getModelSdl"]("nvidia", "a100", "80Gi");
+      const result = service["getModelSdl"]({ vendor: "nvidia", model: "a100" });
 
-      const expected = sdlTemplateWithRam.replace("<VENDOR>", "nvidia").replace("<MODEL>", "a100").replace("<RAM>", "80Gi");
-      expect(result).toBe(expected);
-    });
-
-    it("generates SDL with ram and interface when interface provided", () => {
-      const { service } = setup();
-
-      const result = service["getModelSdl"]("nvidia", "a100", "80Gi", "pcie");
-
-      const expected = sdlTemplateWithRamAndInterface
-        .replace("<VENDOR>", "nvidia")
-        .replace("<MODEL>", "a100")
-        .replace("<RAM>", "80Gi")
-        .replace("<INTERFACE>", "pcie");
-      expect(result).toBe(expected);
-    });
-
-    it("lowercases interface", () => {
-      const { service } = setup();
-
-      const result = service["getModelSdl"]("nvidia", "a100", "80Gi", "PCIe");
-
-      expect(result).toContain("interface: pcie");
-    });
-
-    it("normalizes SXM interface variants to sxm", () => {
-      const { service } = setup();
-
-      const result = service["getModelSdl"]("nvidia", "a100", "80Gi", "SXM4");
-
-      expect(result).toContain("interface: sxm");
+      expect(result).toBe(sdlTemplate.replace("<VENDOR>", "nvidia").replace("<MODEL>", "a100"));
+      expect(result).not.toContain("ram:");
+      expect(result).not.toContain("interface:");
     });
   });
 
   describe("createDeployment", () => {
     it("creates deployment with valid SDL", async () => {
       const { service, signingClient } = setup();
-      const sdlStr = sdlTemplateWithRam.replace("<VENDOR>", "nvidia").replace("<MODEL>", "a100").replace("<RAM>", "80Gi");
+      const sdlStr = sdlTemplate.replace("<VENDOR>", "nvidia").replace("<MODEL>", "a100");
 
       await service["createDeployment"](signingClient, sdlStr, "akash1owner", "12345");
       expect(signingClient.simulate).toHaveBeenCalled();
@@ -116,11 +88,12 @@ describe(GpuBidsCreatorService.name, () => {
       await expect(service.createGpuBids()).rejects.toThrow("RPC_NODE_ENDPOINT");
     });
 
-    it("fetches balances with uact denom and creates bids for all models", async () => {
-      const { service, gpuService } = setup();
-      gpuService.getGpuList.mockResolvedValue({
-        gpus: { total: { allocatable: 1, allocated: 0 }, details: {} }
-      } as any);
+    it("fetches balances with uact denom and checks every available gpu model once", async () => {
+      const { service, placementOptionsHttpService, chainSdk, logger } = setup();
+      placementOptionsHttpService.findAvailableGpuModels.mockResolvedValue([
+        { vendor: "nvidia", model: "a100" },
+        { vendor: "nvidia", model: "h100" }
+      ]);
       mockSigningClient.getBalance.mockResolvedValue({ amount: "1000000", denom: "uact" });
       mockSigningClient.simulate.mockResolvedValue(100000);
       mockSigningClient.sign.mockResolvedValue({ authInfoBytes: new Uint8Array(), bodyBytes: new Uint8Array(), signatures: [] } as any);
@@ -130,80 +103,72 @@ describe(GpuBidsCreatorService.name, () => {
 
       expect(mockSigningClient.getBalance).toHaveBeenCalledWith("akash1testaddr", "uact");
       expect(mockSigningClient.getBalance).toHaveBeenCalledTimes(2);
+      expect(chainSdk.akash.market.v1beta5.getBids).toHaveBeenCalledTimes(2);
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "SKIPPING_UNSUPPORTED_GPU_MODELS" }));
     });
+
+    it("skips models of a vendor the SDL cannot express", async () => {
+      const { service, placementOptionsHttpService, chainSdk, logger } = setup();
+      placementOptionsHttpService.findAvailableGpuModels.mockResolvedValue([
+        { vendor: "amd", model: "mi300x" },
+        { vendor: "nvidia", model: "h100" }
+      ]);
+      mockSigningClient.getBalance.mockResolvedValue({ amount: "1000000", denom: "uact" });
+      mockSigningClient.simulate.mockResolvedValue(100000);
+      mockSigningClient.sign.mockResolvedValue({ authInfoBytes: new Uint8Array(), bodyBytes: new Uint8Array(), signatures: [] } as any);
+      mockSigningClient.broadcastTx.mockResolvedValue({ code: 0, rawLog: "" } as any);
+
+      await service.createGpuBids();
+
+      expect(chainSdk.akash.market.v1beta5.getBids).toHaveBeenCalledTimes(1);
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "SKIPPING_UNSUPPORTED_GPU_MODELS" }));
+    });
+
+    it.each(["h100\n          ram: 80Gi", "h100: true", "a100/ram/80Gi", ""])(
+      "skips a reported model name an SDL attribute key cannot carry: %j",
+      async model => {
+        const { service, placementOptionsHttpService, chainSdk } = setup();
+        placementOptionsHttpService.findAvailableGpuModels.mockResolvedValue([
+          { vendor: "nvidia", model },
+          { vendor: "nvidia", model: "rtx-4090_d.v2" }
+        ]);
+        mockSigningClient.getBalance.mockResolvedValue({ amount: "1000000", denom: "uact" });
+        mockSigningClient.simulate.mockResolvedValue(100000);
+        mockSigningClient.sign.mockResolvedValue({ authInfoBytes: new Uint8Array(), bodyBytes: new Uint8Array(), signatures: [] } as any);
+        mockSigningClient.broadcastTx.mockResolvedValue({ code: 0, rawLog: "" } as any);
+
+        await service.createGpuBids();
+
+        expect(chainSdk.akash.market.v1beta5.getBids).toHaveBeenCalledTimes(1);
+      }
+    );
   });
 
   describe("createBidsForAllModels", () => {
-    it("creates deployments for each GPU model, waits for bids, and closes", async () => {
+    it("creates one deployment per gpu model, reads its bids, and closes it", async () => {
       const { service, signingClient, chainSdk } = setup();
-      const gpuModels = {
-        gpus: {
-          total: { allocatable: 10, allocated: 5 },
-          details: {
-            nvidia: [{ model: "a100", ram: "80Gi", interface: "pcie", allocatable: 5, allocated: 2 }]
-          }
-        }
-      };
 
-      await service["createBidsForAllModels"](gpuModels as any, signingClient, "akash1owner", false);
+      await service["createBidsForAllModels"](
+        [
+          { vendor: "nvidia", model: "a100" },
+          { vendor: "nvidia", model: "h100" }
+        ],
+        signingClient,
+        "akash1owner"
+      );
 
-      expect(signingClient.simulate).toHaveBeenCalledTimes(2);
+      expect(signingClient.simulate).toHaveBeenCalledTimes(4);
+      expect(chainSdk.akash.market.v1beta5.getBids).toHaveBeenCalledTimes(2);
       expect(chainSdk.akash.market.v1beta5.getBids).toHaveBeenCalledWith({ filters: { owner: "akash1owner", dseq: expect.any(String) } });
     });
 
-    it("skips duplicate model+ram combos when includeInterface is false", async () => {
-      const { service, signingClient } = setup();
-      const gpuModels = {
-        gpus: {
-          total: { allocatable: 10, allocated: 5 },
-          details: {
-            nvidia: [
-              { model: "a100", ram: "80Gi", interface: "pcie", allocatable: 3, allocated: 1 },
-              { model: "a100", ram: "80Gi", interface: "sxm", allocatable: 2, allocated: 1 }
-            ]
-          }
-        }
-      };
+    it("creates no deployment when no gpu is available", async () => {
+      const { service, signingClient, chainSdk } = setup();
 
-      await service["createBidsForAllModels"](gpuModels as any, signingClient, "akash1owner", false);
+      await service["createBidsForAllModels"]([], signingClient, "akash1owner");
 
-      expect(signingClient.simulate).toHaveBeenCalledTimes(2);
-    });
-
-    it("does not skip duplicate model+ram combos when includeInterface is true", async () => {
-      const { service, signingClient } = setup();
-      const gpuModels = {
-        gpus: {
-          total: { allocatable: 10, allocated: 5 },
-          details: {
-            nvidia: [
-              { model: "a100", ram: "80Gi", interface: "pcie", allocatable: 3, allocated: 1 },
-              { model: "a100", ram: "80Gi", interface: "sxm", allocatable: 2, allocated: 1 }
-            ]
-          }
-        }
-      };
-
-      await service["createBidsForAllModels"](gpuModels as any, signingClient, "akash1owner", true);
-
-      expect(signingClient.simulate).toHaveBeenCalledTimes(4);
-    });
-
-    it("filters out UNKNOWN vendor", async () => {
-      const { service, signingClient } = setup();
-      const gpuModels = {
-        gpus: {
-          total: { allocatable: 10, allocated: 5 },
-          details: {
-            "<UNKNOWN>": [{ model: "unknown", ram: "8Gi", interface: "pcie", allocatable: 1, allocated: 0 }],
-            nvidia: [{ model: "a100", ram: "80Gi", interface: "pcie", allocatable: 5, allocated: 2 }]
-          }
-        }
-      };
-
-      await service["createBidsForAllModels"](gpuModels as any, signingClient, "akash1owner", false);
-
-      expect(signingClient.simulate).toHaveBeenCalledTimes(2);
+      expect(signingClient.simulate).not.toHaveBeenCalled();
+      expect(chainSdk.akash.market.v1beta5.getBids).not.toHaveBeenCalled();
     });
   });
 
@@ -243,10 +208,8 @@ describe(GpuBidsCreatorService.name, () => {
     const chainSdk = mockDeep<ChainSDK>();
     chainSdk.akash.market.v1beta5.getBids.mockResolvedValue(mock<QueryBidsResponse>({ bids: [] }));
 
-    const gpuService = mock<GpuService>();
-    gpuService.getGpuList.mockResolvedValue({
-      gpus: { total: { allocatable: 0, allocated: 0 }, details: {} }
-    } as any);
+    const placementOptionsHttpService = mock<PlacementOptionsHttpService>();
+    placementOptionsHttpService.findAvailableGpuModels.mockResolvedValue([]);
 
     const typeRegistry = mock<Registry>();
 
@@ -264,13 +227,13 @@ describe(GpuBidsCreatorService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger: CreateLogger = () => logger;
 
-    const service = new GpuBidsCreatorService(config, chainSdk, gpuService, typeRegistry, deploymentConfig, createLogger);
+    const service = new GpuBidsCreatorService(config, chainSdk, placementOptionsHttpService, typeRegistry, deploymentConfig, createLogger);
 
     return {
       service,
       config,
       chainSdk,
-      gpuService,
+      placementOptionsHttpService,
       typeRegistry,
       deploymentConfig,
       signingClient,

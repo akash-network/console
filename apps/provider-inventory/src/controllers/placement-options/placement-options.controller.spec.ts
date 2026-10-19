@@ -56,6 +56,22 @@ describe(PlacementOptionsController.name, () => {
     ]);
   });
 
+  it("counts gpus on audited providers only by default", async () => {
+    const { controller, placementOptionsRepository } = setup();
+
+    await controller.getPlacementOptions();
+
+    expect(placementOptionsRepository.findAvailableGpus).toHaveBeenCalledWith({ includeUnaudited: false });
+  });
+
+  it("counts gpus on unaudited providers too when asked to", async () => {
+    const { controller, placementOptionsRepository } = setup();
+
+    await controller.getPlacementOptions({ includeUnaudited: true });
+
+    expect(placementOptionsRepository.findAvailableGpus).toHaveBeenCalledWith({ includeUnaudited: true });
+  });
+
   it("answers with no options when no provider is online", async () => {
     const { controller } = setup();
 
