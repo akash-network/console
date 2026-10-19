@@ -28,6 +28,22 @@
           "sizeBytes": 4294967296
         }
       ],
+      "processOrigins": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "init",
+          "startedAtEpochMs": 1760000000000,
+          "holdsAccelerator": false
+        },
+        {
+          "pid": 2001,
+          "ppid": 1,
+          "comm": "worker",
+          "startedAtEpochMs": 1760000005000,
+          "holdsAccelerator": true
+        }
+      ],
       "netShape": {
         "listenPorts": [
           8080
@@ -64,6 +80,22 @@
         {
           "path": "/models/a.bin",
           "sizeBytes": 8589934592
+        }
+      ],
+      "processOrigins": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "init",
+          "startedAtEpochMs": 1760000000000,
+          "holdsAccelerator": false
+        },
+        {
+          "pid": 2001,
+          "ppid": 1,
+          "comm": "worker",
+          "startedAtEpochMs": 1760000005000,
+          "holdsAccelerator": true
         }
       ],
       "netShape": {

@@ -170,6 +170,7 @@ describe(ProbeEvidenceService.name, () => {
       shellStatus: "completed",
       accelerator: [{ name: "accelerator-0", utilPct: 99, memUsedMb: 20_480, memTotalMb: 24_576, processes: [{ pid: 1234, name: "worker", vramMb: 18_000 }] }],
       artifacts: [{ path: "/opt/worker", sizeBytes: 4_194_304 }],
+      processOrigins: [{ pid: 1234, ppid: 1, comm: "worker", startedAtEpochMs: 1_000, holdsAccelerator: true }],
       netShape: { listenPorts: [22], connections: [] },
       ...overrides
     });

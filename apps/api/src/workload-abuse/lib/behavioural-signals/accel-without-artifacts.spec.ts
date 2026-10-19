@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ProbeEvidenceAccelerator, ProbeEvidenceArtifact } from "@src/workload-abuse/model-schemas";
+import type { ProbeEvidenceAccelerator, ProbeEvidenceArtifact, ProbeEvidenceProcessOrigin } from "@src/workload-abuse/model-schemas";
 import { evaluateAccelWithoutArtifacts } from "./accel-without-artifacts";
 import type { BehaviouralSignalParams, ProbeEvidenceSnapshot } from "./types";
 
@@ -70,10 +70,53 @@ describe("evaluateAccelWithoutArtifacts", () => {
     expect(evaluateAccelWithoutArtifacts(snapshot, params)).toBeNull();
   });
 
+  it("fires when one of several processes in the container holds the accelerator", () => {
+    const { snapshot, params } = setup({
+      vramMb: 18_000,
+      artifacts: [],
+      processOrigins: [
+        { pid: 1, ppid: 0, comm: "init", startedAtEpochMs: 1_000, holdsAccelerator: false },
+        { pid: 40, ppid: 1, comm: "worker", startedAtEpochMs: 2_000, holdsAccelerator: true }
+      ]
+    });
+
+    expect(evaluateAccelWithoutArtifacts(snapshot, params)).not.toBeNull();
+  });
+
+  it("stays silent when no process in the container holds the accelerator", () => {
+    const { snapshot, params } = setup({
+      vramMb: 18_000,
+      artifacts: [],
+      processOrigins: [
+        { pid: 1, ppid: 0, comm: "init", startedAtEpochMs: 1_000, holdsAccelerator: false },
+        { pid: 54, ppid: 1, comm: "sshd", startedAtEpochMs: 1_500, holdsAccelerator: false }
+      ]
+    });
+
+    expect(evaluateAccelWithoutArtifacts(snapshot, params)).toBeNull();
+  });
+
+  it("stays silent when the probe collected no process section", () => {
+    const { snapshot, params } = setup({ vramMb: 18_000, artifacts: [], processOrigins: null });
+
+    expect(evaluateAccelWithoutArtifacts(snapshot, params)).toBeNull();
+  });
+
+  it("stays silent on evidence recorded before processes reported their device handles", () => {
+    const { snapshot, params } = setup({
+      vramMb: 18_000,
+      artifacts: [],
+      processOrigins: [{ pid: 40, ppid: 1, comm: "worker", startedAtEpochMs: 2_000 }]
+    });
+
+    expect(evaluateAccelWithoutArtifacts(snapshot, params)).toBeNull();
+  });
+
   function setup(input: {
     vramMb?: number;
     accelerator?: ProbeEvidenceAccelerator[] | null;
     artifacts?: ProbeEvidenceArtifact[] | null;
+    processOrigins?: ProbeEvidenceProcessOrigin[] | null;
     accelMinVramMb?: number;
     artifactMinMb?: number;
   }) {
@@ -89,7 +132,9 @@ describe("evaluateAccelWithoutArtifacts", () => {
               processes: [{ pid: 1234, name: "worker", vramMb: input.vramMb ?? 18_000 }]
             }
           ];
-    const snapshot: ProbeEvidenceSnapshot = { shellStatus: "completed", accelerator, artifacts: input.artifacts ?? null, netShape: null };
+    const processOrigins =
+      input.processOrigins !== undefined ? input.processOrigins : [{ pid: 1234, ppid: 1, comm: "worker", startedAtEpochMs: 1_000, holdsAccelerator: true }];
+    const snapshot: ProbeEvidenceSnapshot = { shellStatus: "completed", accelerator, artifacts: input.artifacts ?? null, processOrigins, netShape: null };
     const params: BehaviouralSignalParams = {
       accelMinVramMb: input.accelMinVramMb ?? 1_024,
       artifactMinMb: input.artifactMinMb ?? 256,

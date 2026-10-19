@@ -56,6 +56,7 @@ describe("evaluateBehaviouralSignals", () => {
         { name: "accelerator-0", utilPct: 97, memUsedMb: 20_480, memTotalMb: 24_576, processes: [{ pid: 1234, name: "worker", vramMb: input.vramMb }] }
       ],
       artifacts: [{ path: "/opt/payload", sizeBytes: input.artifactBytes }],
+      processOrigins: [{ pid: 1234, ppid: 1, comm: "worker", startedAtEpochMs: 1_000, holdsAccelerator: true }],
       netShape: { listenPorts: [8_080], connections: input.connections }
     };
     const params: BehaviouralSignalParams = { accelMinVramMb: 1_024, artifactMinMb: 256, relayEndpoints: [] };

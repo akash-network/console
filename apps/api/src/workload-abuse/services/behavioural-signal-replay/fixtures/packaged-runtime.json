@@ -24,6 +24,22 @@
           "sizeBytes": 3221225472
         }
       ],
+      "processOrigins": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "init",
+          "startedAtEpochMs": 1760000000000,
+          "holdsAccelerator": false
+        },
+        {
+          "pid": 3100,
+          "ppid": 1,
+          "comm": "worker",
+          "startedAtEpochMs": 1760000005000,
+          "holdsAccelerator": true
+        }
+      ],
       "netShape": {
         "listenPorts": [
           22
@@ -52,6 +68,22 @@
         {
           "path": "/usr/lib/runtime/packages",
           "sizeBytes": 3221225472
+        }
+      ],
+      "processOrigins": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "init",
+          "startedAtEpochMs": 1760000000000,
+          "holdsAccelerator": false
+        },
+        {
+          "pid": 3100,
+          "ppid": 1,
+          "comm": "worker",
+          "startedAtEpochMs": 1760000005000,
+          "holdsAccelerator": true
         }
       ],
       "netShape": {
