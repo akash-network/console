@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
-import { Alert, AlertDescription, AlertTitle, Button, Snackbar } from "@akashnetwork/ui/components";
-import { BookOpenIcon, PlusIcon, TriangleAlertIcon } from "lucide-react";
+import { Button, Snackbar } from "@akashnetwork/ui/components";
+import { BookOpenIcon, PlusIcon } from "lucide-react";
 import { NextSeo } from "next-seo";
 import { useSnackbar } from "notistack";
 
@@ -53,7 +53,6 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const { activeOrganization } = d.useActiveOrganization();
   const { data: apiKeys, isLoading: isLoadingApiKeys, isError } = d.useUserApiKeys();
   const hasProjectBoundKey = !!apiKeys?.some(apiKey => apiKey.projectId);
-  const hasKeyWithoutExpiry = !!apiKeys?.some(apiKey => !apiKey.expiresAt);
   const showsProjects = isProjectsUiEnabled || (isOrganizationsEnabled && hasProjectBoundKey);
   const { data: projects, isLoading: isLoadingProjects } = d.useProjectsQuery({ enabled: showsProjects });
   const isLoading = isLoadingApiKeys || isLoadingProjects;
@@ -99,16 +98,6 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           </div>
         }
       >
-        {hasKeyWithoutExpiry && (
-          <Alert variant="warning" className="p-4">
-            <TriangleAlertIcon className="h-4 w-4" aria-hidden />
-            <AlertTitle>Some of your keys have no expiration</AlertTitle>
-            <AlertDescription className="text-foreground">
-              Keys created before the one-year limit will be given an expiration date a year away. We&apos;ll email you that date when it&apos;s set, and remind
-              you again before they expire.
-            </AlertDescription>
-          </Alert>
-        )}
         <d.ApiKeyList apiKeys={apiKeys} isLoading={isLoading} isError={isError} onRevoke={setApiKeyToRevoke} projects={listedProjects} />
         <d.ApiKeyUsageGuide />
       </d.SettingsLayout>
