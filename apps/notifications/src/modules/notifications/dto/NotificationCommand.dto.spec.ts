@@ -121,6 +121,15 @@ describe(NotificationCommandDto.name, () => {
     expect(result.error?.issues.map(issue => issue.path.join("."))).toEqual(["unsubscribe.url", "unsubscribe.oneClickUrl"]);
   });
 
+  it.each([
+    { case: "a line break", oneClickUrl: "https://console-api.akash.network/v1/product-update-unsubscriptions?token=abc\r\nBcc: someone@example.com" },
+    { case: "a space", oneClickUrl: "https://console-api.akash.network/v1/product-update-unsubscriptions?token=a bc" }
+  ])("rejects a one-click unsubscribe endpoint with $case, since it goes into an email header", ({ oneClickUrl }) => {
+    const result = NotificationCommandDto.schema.safeParse({ ...command({}), unsubscribe: { ...UNSUBSCRIBE, oneClickUrl } });
+
+    expect(result.error?.issues.map(issue => issue.path.join("."))).toEqual(["unsubscribe.oneClickUrl"]);
+  });
+
   function command(payload: { actions?: { label: string; url: string }[]; code?: string; feedEntry?: Record<string, string | null | undefined> }) {
     return {
       notificationChannelId: "channel-1",

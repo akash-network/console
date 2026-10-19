@@ -190,12 +190,14 @@
               "url": {
                 "description": "https URL of the unsubscribe page linked from the email footer",
                 "type": "string",
-                "format": "uri"
+                "format": "uri",
+                "pattern": "^[\\x21-\\x7e]+$"
               },
               "oneClickUrl": {
                 "description": "https URL of the endpoint that takes the RFC 8058 one-click unsubscribe POST",
                 "type": "string",
-                "format": "uri"
+                "format": "uri",
+                "pattern": "^[\\x21-\\x7e]+$"
               }
             },
             "required": [

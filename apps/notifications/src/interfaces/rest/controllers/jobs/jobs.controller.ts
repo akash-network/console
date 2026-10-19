@@ -1,6 +1,6 @@
-import { BadRequestException, Body, Controller, HttpCode, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, HttpCode, Post, UsePipes } from "@nestjs/common";
 import { ApiNoContentResponse } from "@nestjs/swagger";
-import { createZodDto } from "nestjs-zod";
+import { createZodDto, ZodValidationPipe } from "nestjs-zod";
 import { Err, Ok, Result } from "ts-results";
 import { z } from "zod";
 
@@ -44,6 +44,7 @@ export class JobsController {
 
   @Post("notification")
   @HttpCode(204)
+  @UsePipes(ZodValidationPipe)
   @ApiNoContentResponse({ description: "Creates a notification job" })
   async createNotification(@Body() job: NotificationJobDto): Promise<Result<void, BadRequestException>> {
     const notificationChannelRepository = this.notificationChannelRepository.accessibleBy(this.authService.ability, "read");
