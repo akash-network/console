@@ -263,6 +263,84 @@ describe(UserService.name, () => {
         expect.objectContaining({ event: "FAILED_TO_ADOPT_USER_ROWS", id: user.id, organizationId: organization.id, error: adoptionError })
       );
     });
+    describe("when the browser reports a timezone", () => {
+      it("remembers it on an account that has none yet", async () => {
+        const user = createUser({ timezone: null, timezonePickedAt: null });
+        const { service, userRepository } = setup();
+        userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+        userRepository.updateBy.mockImplementation(vi.fn().mockResolvedValue({ ...user, timezone: "Europe/Paris" }));
+
+        const result = await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Europe/Paris" }));
+
+        expect(userRepository.updateBy).toHaveBeenCalledWith({ id: user.id, timezonePickedAt: null }, { timezone: "Europe/Paris" }, { returning: true });
+        expect(result.timezone).toBe("Europe/Paris");
+      });
+
+      it("stores the canonical name of a timezone alias", async () => {
+        const user = createUser({ timezone: null, timezonePickedAt: null });
+        const { service, userRepository } = setup();
+        userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+
+        await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Etc/UTC" }));
+
+        expect(userRepository.updateBy).toHaveBeenCalledWith({ id: user.id, timezonePickedAt: null }, { timezone: "UTC" }, { returning: true });
+      });
+
+      it("refreshes a detected timezone when the user signs in from another zone", async () => {
+        const user = createUser({ timezone: "America/New_York", timezonePickedAt: null });
+        const { service, userRepository } = setup();
+        userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
+        userRepository.updateBy.mockImplementation(vi.fn().mockResolvedValue({ ...user, timezone: "Asia/Tokyo" }));
+
+        const result = await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Asia/Tokyo" }));
+
+        expect(userRepository.updateBy).toHaveBeenCalledWith({ id: user.id, timezonePickedAt: null }, { timezone: "Asia/Tokyo" }, { returning: true });
+        expect(result.timezone).toBe("Asia/Tokyo");
+      });
+
+      it("never overwrites a timezone the user picked in their profile", async () => {
+        const user = createUser({ timezone: "Europe/Paris", timezonePickedAt: faker.date.past() });
+        const { service, userRepository } = setup();
+        userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
+
+        const result = await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Asia/Tokyo" }));
+
+        expect(userRepository.updateBy).not.toHaveBeenCalled();
+        expect(result.timezone).toBe("Europe/Paris");
+      });
+
+      it("writes nothing when the timezone has not changed", async () => {
+        const user = createUser({ timezone: "Europe/Paris", timezonePickedAt: null });
+        const { service, userRepository } = setup();
+        userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
+
+        await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Europe/Paris" }));
+
+        expect(userRepository.updateBy).not.toHaveBeenCalled();
+      });
+
+      it.each(["Mars/Olympus", "+05:00"])("ignores %s, which names no timezone", async timezone => {
+        const user = createUser({ timezone: "Europe/Paris", timezonePickedAt: null });
+        const { service, userRepository } = setup();
+        userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
+
+        const result = await service.registerUser(createRegisterInput({ emailVerified: true, timezone }));
+
+        expect(userRepository.updateBy).not.toHaveBeenCalled();
+        expect(result.timezone).toBe("Europe/Paris");
+      });
+
+      it("keeps the stored timezone when the user picks one while the sign-in is under way", async () => {
+        const user = createUser({ timezone: null, timezonePickedAt: null });
+        const { service, userRepository } = setup();
+        userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
+        userRepository.updateBy.mockImplementation(vi.fn().mockResolvedValue(undefined));
+
+        const result = await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Europe/Paris" }));
+
+        expect(result.timezone).toBeNull();
+      });
+    });
   });
 
   describe("updateUserDetails", () => {
@@ -295,6 +373,16 @@ describe(UserService.name, () => {
       await service.updateUserDetails(user.id, { subscribedToProductUpdates: true });
 
       expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { productUpdatesUnsubscribedAt: null });
+    });
+
+    it("records a picked timezone along with when it was picked", async () => {
+      const user = createUser({ timezone: "America/New_York", timezonePickedAt: null });
+      const { service, userRepository } = setup();
+      userRepository.findById.mockResolvedValue(user);
+
+      await service.updateUserDetails(user.id, { timezone: "Europe/Paris" });
+
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { timezone: "Europe/Paris", timezonePickedAt: expect.any(Date) });
     });
 
     it("leaves the opt-out untouched when the product updates preference is not sent", async () => {
@@ -341,7 +429,7 @@ describe(UserService.name, () => {
     const analyticsService = mock<AnalyticsService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
-    const notificationService = mock<NotificationService>();
+    const notificationService = mock<NotificationService>({ createDefaultChannel: vi.fn().mockResolvedValue(undefined) });
     const auth0Service = mock<Auth0Service>();
     const emailVerificationCodeService = mock<EmailVerificationCodeService>();
     const walletInitializerService = mock<WalletInitializerService>({

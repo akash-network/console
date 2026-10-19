@@ -5,8 +5,20 @@ import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { UserController } from "@src/user/controllers/user/user.controller";
+import { toIanaTimeZone } from "@src/utils/date/date";
 
 export const userSettingsRouter = new OpenApiHonoHandler();
+
+const pickedTimeZoneSchema = z
+  .string()
+  .transform((timeZone, context) => {
+    const ianaTimeZone = toIanaTimeZone(timeZone);
+    if (ianaTimeZone) return ianaTimeZone;
+
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "Timezone must be an IANA name such as Europe/Paris" });
+    return z.NEVER;
+  })
+  .openapi({ type: "string", description: "IANA timezone the user picked for the dates in their emails", example: "Europe/Paris" });
 
 const getUserByUsernameRoute = createRoute({
   method: "get",
@@ -60,7 +72,8 @@ const updateSettingsRoute = createRoute({
             youtubeUsername: z.string().max(200).nullable().optional(),
             twitterUsername: z.string().max(200).nullable().optional(),
             githubUsername: z.string().max(200).nullable().optional(),
-            subscribedToProductUpdates: z.boolean().optional()
+            subscribedToProductUpdates: z.boolean().optional(),
+            timezone: pickedTimeZoneSchema.optional()
           })
         }
       }

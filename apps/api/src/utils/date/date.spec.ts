@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getPrettyTime, getTodayUTC, isSupportedTimeZone, toUTC } from "./date";
+import { getPrettyTime, getTodayUTC, isSupportedTimeZone, toIanaTimeZone, toUTC } from "./date";
 
 describe("date helpers", () => {
   describe("getTodayUTC", () => {
@@ -53,6 +53,21 @@ describe("date helpers", () => {
 
     it.each(["Invalid/Timezone", ""])("rejects %j", timeZone => {
       expect(isSupportedTimeZone(timeZone)).toBe(false);
+    });
+  });
+
+  describe("toIanaTimeZone", () => {
+    it.each([
+      ["Europe/Paris", "Europe/Paris"],
+      ["Etc/GMT+5", "Etc/GMT+5"],
+      ["Etc/UTC", "UTC"],
+      ["europe/paris", "Europe/Paris"]
+    ])("names %s as %s", (timeZone, ianaTimeZone) => {
+      expect(toIanaTimeZone(timeZone)).toBe(ianaTimeZone);
+    });
+
+    it.each(["+05:00", "-0300", "Mars/Olympus", ""])("names no zone for %j", timeZone => {
+      expect(toIanaTimeZone(timeZone)).toBeUndefined();
     });
   });
 });

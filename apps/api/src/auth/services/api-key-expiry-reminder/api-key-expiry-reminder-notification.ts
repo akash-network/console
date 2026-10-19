@@ -1,20 +1,19 @@
 import escapeHtml from "lodash/escape";
 
+import { formatEmailDateTime } from "@src/notifications/lib/email-date-time/email-date-time";
 import type { CreateNotificationInput } from "@src/notifications/services/notification/notification.service";
-
-const EXPIRY_FORMAT = new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" });
 
 type ExpiringKey = { name: string; keyFormat: string };
 
 type Expiry = { expiresIn: string; expiresOn: string };
 
 export function apiKeyExpiryReminderNotification(
-  user: { id: string; email: string | null },
+  user: { id: string; email: string | null; timezone: string | null },
   vars: { apiKeyId: string; keys: ExpiringKey[]; expiresAt: string; daysBeforeExpiry: number; apiKeysUrl: string }
 ): CreateNotificationInput {
   const expiry = {
     expiresIn: vars.daysBeforeExpiry === 1 ? "tomorrow" : `in ${vars.daysBeforeExpiry} days`,
-    expiresOn: `<strong>${EXPIRY_FORMAT.format(new Date(vars.expiresAt))} UTC</strong>`
+    expiresOn: `<strong>${formatEmailDateTime(new Date(vars.expiresAt), user.timezone, { dateStyle: "long", timeStyle: "short" })}</strong>`
   };
 
   return {

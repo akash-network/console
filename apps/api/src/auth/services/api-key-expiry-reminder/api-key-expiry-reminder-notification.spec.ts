@@ -5,7 +5,7 @@ import { apiKeyExpiryReminderNotification } from "./api-key-expiry-reminder-noti
 describe(apiKeyExpiryReminderNotification.name, () => {
   it("tells the owner which key expires when and links to the API keys page", () => {
     const result = apiKeyExpiryReminderNotification(
-      { id: "user-123", email: "owner@example.com" },
+      { id: "user-123", email: "owner@example.com", timezone: null },
       {
         apiKeyId: "key-456",
         keys: [{ name: "ci", keyFormat: "ac.sk.prod.abcdef***uvwxyz" }],
@@ -31,7 +31,7 @@ describe(apiKeyExpiryReminderNotification.name, () => {
 
   it("lists every key in one reminder when several expire at the same time", () => {
     const result = apiKeyExpiryReminderNotification(
-      { id: "user-123", email: "owner@example.com" },
+      { id: "user-123", email: "owner@example.com", timezone: null },
       {
         apiKeyId: "key-456",
         keys: [
@@ -54,9 +54,25 @@ describe(apiKeyExpiryReminderNotification.name, () => {
     });
   });
 
+  it("shows the expiry in the owner's timezone and names it", () => {
+    const result = apiKeyExpiryReminderNotification(
+      { id: "user-123", email: "owner@example.com", timezone: "America/Los_Angeles" },
+      {
+        apiKeyId: "key-456",
+        keys: [{ name: "ci", keyFormat: "ac.sk.prod.abcdef***uvwxyz" }],
+        expiresAt: "2027-10-18T14:30:00.000Z",
+        daysBeforeExpiry: 30,
+        apiKeysUrl: "https://console.akash.network/user/api-keys"
+      }
+    );
+
+    expect(result.payload.description).toContain("expires on <strong>October 18, 2027 at 7:30 AM Pacific Daylight Time</strong>");
+    expect(result.user).toEqual({ id: "user-123", email: "owner@example.com" });
+  });
+
   it("says the key expires tomorrow on the last reminder", () => {
     const result = apiKeyExpiryReminderNotification(
-      { id: "user-123", email: "owner@example.com" },
+      { id: "user-123", email: "owner@example.com", timezone: null },
       {
         apiKeyId: "key-456",
         keys: [{ name: "ci", keyFormat: "ac.sk.prod.abcdef***uvwxyz" }],
@@ -71,7 +87,7 @@ describe(apiKeyExpiryReminderNotification.name, () => {
 
   it("escapes key names and formats in the email body", () => {
     const result = apiKeyExpiryReminderNotification(
-      { id: "user-123", email: "owner@example.com" },
+      { id: "user-123", email: "owner@example.com", timezone: null },
       {
         apiKeyId: "key-456",
         keys: [

@@ -23,6 +23,16 @@ export function isSupportedTimeZone(timeZone: string): boolean {
   }
 }
 
+/** Intl also accepts UTC offsets such as `+05:00`, which name no zone. */
+const UTC_OFFSET = /^[+-]/;
+
+/** The canonical IANA name of a timezone, such as `UTC` for `Etc/UTC`, or `undefined` when it names no zone the runtime knows. */
+export function toIanaTimeZone(timeZone: string): string | undefined {
+  if (UTC_OFFSET.test(timeZone) || !isSupportedTimeZone(timeZone)) return undefined;
+
+  return new Intl.DateTimeFormat(undefined, { timeZone }).resolvedOptions().timeZone;
+}
+
 export function getPrettyTime(timeMs: number): string {
   if (timeMs < 10) {
     return `${round(timeMs, 2)}ms`;

@@ -32,6 +32,9 @@ export const Users = pgTable("userSetting", {
   onboardingSkippedAt: timestamp("onboardingSkippedAt"),
   fairUsePolicyAcceptedAt: timestamp("fair_use_policy_accepted_at", { withTimezone: true }),
   productUpdatesUnsubscribedAt: timestamp("product_updates_unsubscribed_at", { withTimezone: true }),
+  timezone: varchar("timezone", { length: 64 }),
+  /** Set once the user picks a timezone in their profile, after which sign-in detection leaves it alone. */
+  timezonePickedAt: timestamp("timezone_picked_at", { withTimezone: true }),
   lastUsedOrganizationId: uuid("last_used_organization_id").references((): AnyPgColumn => Organizations.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow()
 });

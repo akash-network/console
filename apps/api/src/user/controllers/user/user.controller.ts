@@ -32,6 +32,7 @@ export class UserController {
       email: data.email,
       emailVerified: data.emailVerified,
       subscribedToNewsletter: !!data.subscribedToNewsletter,
+      timezone: data.timezone,
       ip: httpVars.clientInfo?.ip,
       userAgent: httpVars.clientInfo?.userAgent,
       fingerprint: httpVars.clientInfo?.fingerprint
@@ -61,6 +62,7 @@ export class UserController {
     twitterUsername?: string | null;
     githubUsername?: string | null;
     subscribedToProductUpdates?: boolean;
+    timezone?: string;
   }): Promise<void> {
     assert(this.authService.currentUser?.id, 401);
 

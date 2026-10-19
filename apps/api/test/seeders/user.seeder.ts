@@ -21,6 +21,8 @@ export function createUser({
   onboardingSkippedAt = null,
   fairUsePolicyAcceptedAt = faker.date.recent(),
   productUpdatesUnsubscribedAt = null,
+  timezone = null,
+  timezonePickedAt = null,
   lastUsedOrganizationId = null,
   createdAt = faker.date.recent(),
   trial = false
@@ -44,6 +46,8 @@ export function createUser({
     onboardingSkippedAt,
     fairUsePolicyAcceptedAt,
     productUpdatesUnsubscribedAt,
+    timezone,
+    timezonePickedAt,
     lastUsedOrganizationId,
     createdAt,
     trial
