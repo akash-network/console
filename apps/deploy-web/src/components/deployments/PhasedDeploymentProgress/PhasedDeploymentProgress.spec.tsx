@@ -7,6 +7,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 type Props = Parameters<typeof PhasedDeploymentProgress>[0];
 type Phases = Props["phases"];
 
+const TYPICAL_DEPLOY_MESSAGE =
+  "We'll pick the best host for you. Typical deploys take 15–30 seconds. When your deployment is ready, we'll automatically redirect you.";
+
+const WAITING_FOR_LATE_BIDS_MESSAGE =
+  "Providers are busy right now, so this is taking longer than usual. We'll keep waiting and pick a provider as soon as one bids.";
+
 const PHASES: Phases = [
   { id: "creating", label: "Creating", status: "completed" },
   { id: "matching", label: "Matching", status: "active" },
@@ -165,6 +171,19 @@ describe(PhasedDeploymentProgress.name, () => {
       expect(screen.getByText("Creating")).toBeInTheDocument();
       expect(screen.getByText("Matching")).toBeInTheDocument();
       expect(screen.getByText("Preparing")).toBeInTheDocument();
+    });
+
+    it("tells the user how long a deploy usually takes", () => {
+      setup({ state: { kind: "matching" } });
+
+      expect(screen.getByText(TYPICAL_DEPLOY_MESSAGE)).toBeInTheDocument();
+    });
+
+    it("tells the user providers are busy while it keeps waiting for a late bid", () => {
+      setup({ state: { kind: "matching", isWaitingForLateBids: true } });
+
+      expect(screen.getByText(WAITING_FOR_LATE_BIDS_MESSAGE)).toBeInTheDocument();
+      expect(screen.queryByText(TYPICAL_DEPLOY_MESSAGE)).not.toBeInTheDocument();
     });
   });
 
