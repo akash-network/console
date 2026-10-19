@@ -27,6 +27,7 @@ import { useFlag } from "@src/hooks/useFlag";
 import { useSettingsNavLinks } from "@src/hooks/useSettingsNavLinks";
 import useCookieTheme from "@src/hooks/useTheme";
 import { useUser } from "@src/hooks/useUser";
+import { useAffiliateProfileQuery } from "@src/queries/useAffiliateProfileQuery";
 import { isRouteActive } from "@src/utils/isRouteActive";
 import { UrlService } from "@src/utils/urlUtils";
 import { AkashLogo } from "../AkashLogo";
@@ -41,6 +42,7 @@ export const DEPENDENCIES = {
   useCookieTheme,
   useFlag,
   useActiveOrganization,
+  useAffiliateProfileQuery,
   TopBanner,
   HackathonCouponNavEntry,
   CommandMenu,
@@ -89,7 +91,12 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   ];
 
   const settingsLinks = useSettingsNavLinks({
-    dependencies: { usePathname: d.usePathname, useFlag: d.useFlag, useActiveOrganization: d.useActiveOrganization }
+    dependencies: {
+      usePathname: d.usePathname,
+      useFlag: d.useFlag,
+      useActiveOrganization: d.useActiveOrganization,
+      useAffiliateProfileQuery: d.useAffiliateProfileQuery
+    }
   });
   const isSettingsActive = settingsLinks.some(link => link.isActive);
   const showNavLinks = isAuthenticated && !minimal;

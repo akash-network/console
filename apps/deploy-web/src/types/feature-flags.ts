@@ -14,4 +14,5 @@ export type FeatureFlag =
   | "notifications_activity_center"
   | "ui_command_menu"
   | "organizations"
-  | "invoices";
+  | "invoices"
+  | "affiliate_program";

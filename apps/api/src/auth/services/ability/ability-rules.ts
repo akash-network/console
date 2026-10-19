@@ -167,7 +167,8 @@ function userKeyedRules(user: RuleUser): AbilityRule[] {
     { action: "create", subject: "HardwareRequest", conditions: { userId: user.id } },
     { action: ["read", "update"], subject: "Activity", conditions: { userId: user.id } },
     { action: "manage", subject: "FavoriteProvider", conditions: { userId: user.id } },
-    { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } }
+    { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } },
+    { action: "read", subject: "Affiliate", conditions: { userId: user.id } }
   ];
 }
 
