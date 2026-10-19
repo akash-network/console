@@ -1,4 +1,4 @@
-import { addDays, addHours } from "date-fns";
+import { addDays, addHours, addYears } from "date-fns";
 
 export const MAX_API_KEY_LIFETIME_DAYS = 365;
 
@@ -10,5 +10,5 @@ export function getDefaultApiKeyExpiry(now: Date) {
 }
 
 export function isWithinMaxApiKeyLifetime(expiresAt: Date, now: Date) {
-  return expiresAt <= addHours(getDefaultApiKeyExpiry(now), CLIENT_CLOCK_SKEW_ALLOWANCE_HOURS);
+  return expiresAt <= addHours(addYears(now, 1), CLIENT_CLOCK_SKEW_ALLOWANCE_HOURS);
 }

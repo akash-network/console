@@ -273,7 +273,7 @@ describe("API Keys", () => {
         body: JSON.stringify({
           data: {
             name: "Test key",
-            expiresAt: addDays(new Date(), 367).toISOString()
+            expiresAt: addDays(new Date(), 400).toISOString()
           }
         })
       });

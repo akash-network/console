@@ -23,5 +23,12 @@ describe("api key lifetime", () => {
     it("rejects an expiry past the one-year cap and its clock allowance", () => {
       expect(isWithinMaxApiKeyLifetime(new Date("2027-10-19T12:00:00.001Z"), now)).toBe(false);
     });
+
+    it("accepts one calendar year from a client a little ahead when the year spans a leap day", () => {
+      const beforeLeapDay = new Date("2027-06-01T12:00:00.000Z");
+
+      expect(isWithinMaxApiKeyLifetime(new Date("2028-06-02T12:00:00.000Z"), beforeLeapDay)).toBe(true);
+      expect(isWithinMaxApiKeyLifetime(new Date("2028-06-02T12:00:00.001Z"), beforeLeapDay)).toBe(false);
+    });
   });
 });

@@ -142,7 +142,6 @@ describe(ApiKeyService.name, () => {
       expect(featureFlagsService.isEnabled).not.toHaveBeenCalled();
       expect(apiKeyRepository.create).not.toHaveBeenCalled();
     });
-
   });
 
   describe("update", () => {
