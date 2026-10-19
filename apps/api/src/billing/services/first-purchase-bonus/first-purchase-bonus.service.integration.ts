@@ -145,6 +145,16 @@ describe(FirstPurchaseBonusService.name, () => {
         await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: 0, window: null });
       });
 
+      it("grants nothing to a personal purchase begun before the win-back opened, settled after", async () => {
+        const { smallFirstPurchase, pendingPurchase, eligibleBonus, openWinBack } = setup();
+        const person = await seedUser();
+        await smallFirstPurchase(person.id, null);
+        await openWinBack(person.id, new Date("2026-03-08T00:00:00.000Z"));
+        const purchase = await pendingPurchase(person.id, null, new Date("2026-02-28T23:00:00.000Z"));
+
+        await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: 0, window: null });
+      });
+
       it("grants nothing on a win-back without a deadline once the account has paid", async () => {
         const { smallFirstPurchase, pendingPurchase, eligibleBonus, openWinBack } = setup();
         const person = await seedUser();

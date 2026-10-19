@@ -19,6 +19,8 @@ const WINDOW_CLOSES_AT = new Date("2026-01-12T12:00:00.000Z");
 const INSIDE_WINDOW = new Date("2026-01-12T11:00:00.000Z");
 const ONE_MS_BEFORE_WINDOW_CLOSES = new Date("2026-01-12T11:59:59.999Z");
 const AFTER_WINDOW = new Date("2026-01-12T13:00:00.000Z");
+const WIN_BACK_OPENED_AT = new Date("2026-02-03T12:00:00.000Z");
+const ONE_MS_BEFORE_WIN_BACK_OPENS = new Date("2026-02-03T11:59:59.999Z");
 const WIN_BACK_CLOSES_AT = new Date("2026-02-10T12:00:00.000Z");
 const INSIDE_WIN_BACK = new Date("2026-02-09T12:00:00.000Z");
 const ONE_MS_BEFORE_WIN_BACK_CLOSES = new Date("2026-02-10T11:59:59.999Z");
@@ -275,6 +277,17 @@ describe(FirstPurchaseBonusService.name, () => {
       const eligibility = await service.evaluate({ userId: "user-1" }, "user-1", WIN_BACK_CLOSES_AT);
 
       expect(eligibility).toEqual({ eligible: false, endsAt: null, window: null });
+    });
+
+    it.each([
+      { case: "begun the moment it opened", at: WIN_BACK_OPENED_AT, expected: { eligible: true, endsAt: WIN_BACK_CLOSES_AT, window: "gpu_win_back" } },
+      { case: "begun before it opened", at: ONE_MS_BEFORE_WIN_BACK_OPENS, expected: { eligible: false, endsAt: null, window: null } }
+    ])("counts the person's gpu win-back only for a purchase $case", async ({ at, expected }) => {
+      const { service } = setup({ firstPaymentAt: FIRST_PAYMENT_AT, winBackOpenedAt: WIN_BACK_OPENED_AT, winBackClosesAt: WIN_BACK_CLOSES_AT });
+
+      const eligibility = await service.evaluate({ userId: "user-1" }, "user-1", at);
+
+      expect(eligibility).toEqual(expected);
     });
 
     it("never extends eligibility with a win-back that has no deadline", async () => {
@@ -575,6 +588,7 @@ describe(FirstPurchaseBonusService.name, () => {
     userLockable?: boolean;
     organization?: OrganizationOutput;
     bonusRecordable?: boolean;
+    winBackOpenedAt?: Date;
     winBackClosesAt?: Date | null;
   }) {
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
@@ -594,7 +608,9 @@ describe(FirstPurchaseBonusService.name, () => {
 
     const winBackRepository = mock<FirstPurchaseBonusWinBackRepository>();
     winBackRepository.findByUserId.mockResolvedValue(
-      input?.winBackClosesAt === undefined ? undefined : { userId: "user-1", openedAt: FIRST_PAYMENT_AT, closesAt: input.winBackClosesAt }
+      input?.winBackClosesAt === undefined
+        ? undefined
+        : { userId: "user-1", openedAt: input.winBackOpenedAt ?? FIRST_PAYMENT_AT, closesAt: input.winBackClosesAt }
     );
 
     const logger = mock<LoggerService>();
