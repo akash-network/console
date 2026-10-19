@@ -18,9 +18,21 @@ describe("InviteMembersDialog", () => {
     expect(screen.getByText("Invitations expire after 7 days.")).toBeInTheDocument();
     expect(screen.getByText("Separate multiple addresses with commas or spaces.")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Member/ })).toBeChecked();
-    expect(screen.getByText("Deploys in the projects they can access, but can't create projects.")).toBeInTheDocument();
-    expect(screen.getByText("Creates projects, manages members and sees billing and usage.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send invite" })).toBeDisabled();
+  });
+
+  it("offers every role below owner, each with what it may do", () => {
+    setup({});
+
+    expect(screen.getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual(["member", "viewer", "billing", "admin"]);
+    expect(screen.getByRole("radio", { name: /^Member/ })).toHaveAccessibleName(/Deploys in the projects they can access, but can't create projects\.$/);
+    expect(screen.getByRole("radio", { name: /^Viewer/ })).toHaveAccessibleName(
+      /Sees deployments and logs in the projects they can access, but can't change them\.$/
+    );
+    expect(screen.getByRole("radio", { name: /^Billing/ })).toHaveAccessibleName(
+      /Adds credits, manages payment methods and sees usage, but not deployments\.$/
+    );
+    expect(screen.getByRole("radio", { name: /^Admin/ })).toHaveAccessibleName(/Creates projects, manages members and sees billing and usage\.$/);
   });
 
   it("sends the invitations with the chosen role and confirms them", async () => {
@@ -54,16 +66,33 @@ describe("InviteMembersDialog", () => {
     expect(ProjectAccessField.mock.lastCall?.[0].projects.map(project => project.id)).toEqual(["storefront"]);
   });
 
-  it("sends the specific projects chosen for a member", async () => {
+  it.each([
+    ["Member", "member"],
+    ["Viewer", "viewer"]
+  ])("sends the specific projects chosen for a %s", async (label, role) => {
     const { user, createInvitations } = setup({});
 
     await user.type(screen.getByLabelText("Email addresses"), "carol@acme.io{Enter}");
+    await user.click(screen.getByRole("radio", { name: new RegExp(`^${label}`) }));
     await user.click(screen.getByRole("button", { name: "grant storefront" }));
     await user.click(screen.getByRole("button", { name: "Send invite" }));
 
     expect(createInvitations.mock.lastCall?.[0]).toEqual({
-      data: { emails: ["carol@acme.io"], role: "member", projectAccess: "selected", projectGrants: [{ projectId: "storefront", role: "viewer" }] }
+      data: { emails: ["carol@acme.io"], role, projectAccess: "selected", projectGrants: [{ projectId: "storefront", role: "viewer" }] }
     });
+  });
+
+  it("asks for the project access of a viewer and sends every project by default", async () => {
+    const { user, createInvitations, ProjectAccessField } = setup({});
+
+    await user.type(screen.getByLabelText("Email addresses"), "carol@acme.io{Enter}");
+    await user.click(screen.getByRole("radio", { name: /^Viewer/ }));
+
+    expect(ProjectAccessField.mock.lastCall?.[0]).toMatchObject({ organizationName: "Acme Corp", value: { access: "all", grants: [] } });
+
+    await user.click(screen.getByRole("button", { name: "Send invite" }));
+
+    expect(createInvitations.mock.lastCall?.[0]).toEqual({ data: { emails: ["carol@acme.io"], role: "viewer", projectAccess: "all" } });
   });
 
   it("holds the invite back while a member has specific projects and none is picked", async () => {
@@ -78,18 +107,21 @@ describe("InviteMembersDialog", () => {
     expect(createInvitations).not.toHaveBeenCalled();
   });
 
-  it("offers no project access to an admin, who opens every project, and sends none picked before", async () => {
+  it.each([
+    ["Admin", "admin"],
+    ["Billing", "billing"]
+  ])("offers no project access to a %s and sends none picked before", async (label, role) => {
     const { user, createInvitations } = setup({});
 
     await user.type(screen.getByLabelText("Email addresses"), "carol@acme.io{Enter}");
     await user.click(screen.getByRole("button", { name: "pick no project" }));
-    await user.click(screen.getByRole("radio", { name: /Admin/ }));
+    await user.click(screen.getByRole("radio", { name: new RegExp(`^${label}`) }));
 
     expect(screen.queryByRole("button", { name: "grant storefront" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Send invite" }));
 
-    expect(createInvitations.mock.lastCall?.[0]).toEqual({ data: { emails: ["carol@acme.io"], role: "admin" } });
+    expect(createInvitations.mock.lastCall?.[0]).toEqual({ data: { emails: ["carol@acme.io"], role } });
   });
 
   it.each([

@@ -19,8 +19,8 @@ import { useSnackbar } from "notistack";
 
 import { getMembershipErrorMessage } from "@src/components/organizations/membershipErrorMessages";
 import { ORGANIZATION_ROLE_LABELS } from "@src/components/organizations/organizationAccess";
-import type { EditableRole } from "@src/components/organizations/organizationRoles";
-import { EDITABLE_ROLE_DESCRIPTIONS, getEditableRolesFor, getMemberDisplayName } from "@src/components/organizations/organizationRoles";
+import type { AssignableRole } from "@src/components/organizations/organizationRoles";
+import { ASSIGNABLE_ROLE_DESCRIPTIONS, ASSIGNABLE_ROLES, getMemberDisplayName } from "@src/components/organizations/organizationRoles";
 import type { ProjectAccessValue } from "@src/components/organizations/ProjectAccessField/ProjectAccessField";
 import {
   hasProjectAccess,
@@ -37,7 +37,7 @@ import type { OrganizationMemberOutput } from "@src/types/organizationMembership
 export const DEPENDENCIES = { useSnackbar, useUpdateOrganizationMemberMutation, useOrganizationMemberProjectGrantsQuery, useProjectsQuery, ProjectAccessField };
 
 type Props = {
-  member: OrganizationMemberOutput & { role: EditableRole };
+  member: OrganizationMemberOutput & { role: AssignableRole };
   organizationName: string;
   onClose: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -52,7 +52,7 @@ export function EditMemberDialog({ member, organizationName, onClose, dependenci
   const holdsGrantsToday = holdsProjectGrants(member.role);
   const grantsQuery = d.useOrganizationMemberProjectGrantsQuery(member.id, { enabled: holdsGrantsToday });
   const { data: projects = [] } = d.useProjectsQuery();
-  const [role, setRole] = useState<EditableRole>(member.role);
+  const [role, setRole] = useState<AssignableRole>(member.role);
   const [editedAccess, setEditedAccess] = useState<ProjectAccessValue>();
   const storedAccess: ProjectAccessValue = {
     access: holdsGrantsToday && member.projectAccess === "selected" ? "selected" : "all",
@@ -98,16 +98,16 @@ export function EditMemberDialog({ member, organizationName, onClose, dependenci
               <RadioGroup
                 aria-labelledby={`${formId}-role`}
                 value={role}
-                onValueChange={value => setRole(value as EditableRole)}
+                onValueChange={value => setRole(value as AssignableRole)}
                 className="grid grid-cols-1 gap-2 sm:grid-cols-2"
               >
-                {getEditableRolesFor(member.role).map(option => (
+                {ASSIGNABLE_ROLES.map(option => (
                   <RadioCard
                     key={option}
                     id={`${formId}-role-${option}`}
                     value={option}
                     label={ORGANIZATION_ROLE_LABELS[option]}
-                    description={EDITABLE_ROLE_DESCRIPTIONS[option]}
+                    description={ASSIGNABLE_ROLE_DESCRIPTIONS[option]}
                   />
                 ))}
               </RadioGroup>
