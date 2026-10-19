@@ -89,7 +89,17 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
   const badge = STATE_BADGES[impact.state];
   const actions: StateActions = {
     addCredits: (
-      <Button size="sm" onClick={() => openAddCredits({ initialTab: "purchase", description: ADD_CREDITS_DESCRIPTION, context: "review_funding_impact" })}>
+      <Button
+        size="sm"
+        onClick={() =>
+          openAddCredits({
+            initialTab: "purchase",
+            description: ADD_CREDITS_DESCRIPTION,
+            context: "review_funding_impact",
+            deploymentDailyCostUsd: impact.dailyCostUsd
+          })
+        }
+      >
         Add Credits
       </Button>
     ),

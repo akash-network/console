@@ -20,7 +20,9 @@ export class AddCreditsSheetPage {
   }
 
   async pickPredefinedAmount(amount: "100" | "500" | "1000") {
-    await this.getDialog().getByRole("radio", { name: amount, exact: true }).click();
+    await this.getDialog()
+      .getByRole("radio", { name: new RegExp(`^${amount}\\b`) })
+      .click();
   }
 
   async enterCustomAmount(amount: string) {

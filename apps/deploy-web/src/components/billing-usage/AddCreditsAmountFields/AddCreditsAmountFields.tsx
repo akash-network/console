@@ -2,7 +2,9 @@
 
 import type { ChangeEventHandler } from "react";
 import React, { useCallback } from "react";
-import { Field, FieldContent, FieldError, FieldLabel, FieldTitle, Input, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
+import { Field, FieldContent, FieldDescription, FieldError, FieldLabel, FieldTitle, Input, RadioGroup, RadioGroupItem } from "@akashnetwork/ui/components";
+
+import { deploymentRunwayOf, PRESET_AMOUNTS_USD } from "./presetAmounts";
 
 export interface AddCreditsAmountValue {
   predefinedAmount?: string;
@@ -16,9 +18,10 @@ interface AddCreditsAmountFieldsProps {
   error?: string;
   /** Fired when the user commits an amount — a preset pick or a blurred custom amount — for analytics. */
   onAmountCommit?: (amount: number, isCustom: boolean) => void;
+  deploymentDailyCostUsd?: number;
 }
 
-export function AddCreditsAmountFields({ value, onChange, minAmount, error, onAmountCommit }: AddCreditsAmountFieldsProps) {
+export function AddCreditsAmountFields({ value, onChange, minAmount, error, onAmountCommit, deploymentDailyCostUsd }: AddCreditsAmountFieldsProps) {
   const changePredefinedAmount = useCallback(
     (predefinedAmount: string) => {
       onChange({ predefinedAmount, customAmount: "" });
@@ -48,30 +51,17 @@ export function AddCreditsAmountFields({ value, onChange, minAmount, error, onAm
       <div className="space-y-1">
         <h3 className="text-sm font-medium leading-snug">Choose your amount</h3>
         <RadioGroup value={value.predefinedAmount} className="grid-cols-3" onValueChange={changePredefinedAmount}>
-          <FieldLabel htmlFor="plus-plan">
-            <Field orientation="horizontal" className="cursor-pointer p-2">
-              <RadioGroupItem value="100" id="plus-plan" className="self-center" />
-              <FieldContent>
-                <FieldTitle className="font-medium">100</FieldTitle>
-              </FieldContent>
-            </Field>
-          </FieldLabel>
-          <FieldLabel htmlFor="pro-plan">
-            <Field orientation="horizontal" className="cursor-pointer p-2">
-              <RadioGroupItem value="500" id="pro-plan" className="self-center" />
-              <FieldContent>
-                <FieldTitle>500</FieldTitle>
-              </FieldContent>
-            </Field>
-          </FieldLabel>
-          <FieldLabel htmlFor="enterprise-plan">
-            <Field orientation="horizontal" className="cursor-pointer p-2">
-              <RadioGroupItem value="1000" id="enterprise-plan" className="self-center" />
-              <FieldContent>
-                <FieldTitle>1000</FieldTitle>
-              </FieldContent>
-            </Field>
-          </FieldLabel>
+          {PRESET_AMOUNTS_USD.map(amountUsd => (
+            <FieldLabel key={amountUsd} htmlFor={`preset-amount-${amountUsd}`}>
+              <Field orientation="horizontal" className="cursor-pointer p-2">
+                <RadioGroupItem value={String(amountUsd)} id={`preset-amount-${amountUsd}`} className="self-center" />
+                <FieldContent>
+                  <FieldTitle>{amountUsd}</FieldTitle>
+                  {!!deploymentDailyCostUsd && <FieldDescription className="text-xs">{deploymentRunwayOf(amountUsd, deploymentDailyCostUsd)}</FieldDescription>}
+                </FieldContent>
+              </Field>
+            </FieldLabel>
+          ))}
         </RadioGroup>
       </div>
 

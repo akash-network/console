@@ -52,6 +52,14 @@ describe(AddCreditsTabs.name, () => {
     expect(AddCreditsForm.mock.calls[0][0]).toEqual(expect.objectContaining({ context: "auto_deploy_needs_funds" }));
   });
 
+  it("forwards the daily cost of the deployment the credits are for to the purchase form", () => {
+    const AddCreditsForm = vi.fn((_props: Parameters<typeof DEPENDENCIES.AddCreditsForm>[0]) => <div>purchase-form</div>);
+
+    setup({ deploymentDailyCostUsd: 12, dependencies: { AddCreditsForm } });
+
+    expect(AddCreditsForm.mock.calls[0][0]).toEqual(expect.objectContaining({ deploymentDailyCostUsd: 12 }));
+  });
+
   it("forwards aggregated processing state to the parent", () => {
     const onProcessingChange = vi.fn();
 
@@ -77,6 +85,7 @@ describe(AddCreditsTabs.name, () => {
   function setup(input: {
     initialTab?: "purchase" | "coupon";
     context?: string;
+    deploymentDailyCostUsd?: number;
     onDone?: (amount: number, bonusAmount?: number) => void;
     onRedeemed?: () => void;
     onProcessingChange?: (isProcessing: boolean) => void;
@@ -86,6 +95,7 @@ describe(AddCreditsTabs.name, () => {
       <AddCreditsTabs
         initialTab={input.initialTab}
         context={input.context}
+        deploymentDailyCostUsd={input.deploymentDailyCostUsd}
         onDone={input.onDone ?? vi.fn()}
         onRedeemed={input.onRedeemed}
         onProcessingChange={input.onProcessingChange}

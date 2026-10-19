@@ -56,6 +56,12 @@ describe(useFundingImpact.name, () => {
     });
   });
 
+  it("prices a day of the reviewed deployment from its bids, whatever the runtime limit", () => {
+    const { result } = setup({ rows: [pricedRow("0.005"), pricedRow("0.0025")], runtimeLimitHours: 2 });
+
+    expect(result.current).toMatchObject({ dailyCostUsd: 108 });
+  });
+
   it("floors the escrow at the bootstrap deposit for a deployment cheaper than the target runway", () => {
     const { result } = setup({ rows: [pricedRow("0.00001")] });
 

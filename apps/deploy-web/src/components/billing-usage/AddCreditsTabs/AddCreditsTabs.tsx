@@ -20,6 +20,7 @@ export const DEPENDENCIES = {
 interface AddCreditsTabsProps {
   initialTab?: AddCreditsTab;
   context?: string;
+  deploymentDailyCostUsd?: number;
   onDone: (amount: number, bonusAmount?: number) => void;
   onRedeemed?: () => void;
   onProcessingChange?: (isProcessing: boolean) => void;
@@ -38,6 +39,7 @@ interface AddCreditsTabsProps {
 export function AddCreditsTabs({
   initialTab = "purchase",
   context,
+  deploymentDailyCostUsd,
   onDone,
   onRedeemed,
   onProcessingChange,
@@ -74,7 +76,7 @@ export function AddCreditsTabs({
       </d.TabsList>
 
       <d.TabsContent value="purchase">
-        <d.AddCreditsForm context={context} onDone={onDone} onProcessingChange={setIsProcessing} />
+        <d.AddCreditsForm context={context} deploymentDailyCostUsd={deploymentDailyCostUsd} onDone={onDone} onProcessingChange={setIsProcessing} />
       </d.TabsContent>
 
       <d.TabsContent value="coupon">

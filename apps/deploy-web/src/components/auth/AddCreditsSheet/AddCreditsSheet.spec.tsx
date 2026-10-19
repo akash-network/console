@@ -199,6 +199,12 @@ describe(AddCreditsSheet.name, () => {
     expect(dependencies.AddCreditsTabs).toHaveBeenCalledWith(expect.objectContaining({ context: "skip-trial" }), expect.anything());
   });
 
+  it("threads the daily cost of the deployment the credits are for to the tabs", () => {
+    const { dependencies } = setup({ open: true, deploymentDailyCostUsd: 12 });
+
+    expect(dependencies.AddCreditsTabs).toHaveBeenCalledWith(expect.objectContaining({ deploymentDailyCostUsd: 12 }), expect.anything());
+  });
+
   it("blocks closing while the tabs report a payment in progress", () => {
     const onOpenChange = vi.fn();
     const { dependencies } = setup({ open: true, onOpenChange, dependencies: { AddCreditsTabs: reportingTabs(true) } });
@@ -239,6 +245,7 @@ describe(AddCreditsSheet.name, () => {
     description?: React.ReactNode;
     context?: string;
     nextStepLabel?: string;
+    deploymentDailyCostUsd?: number;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const analyticsService = mock<AnalyticsService>();
@@ -260,6 +267,7 @@ describe(AddCreditsSheet.name, () => {
         description={input.description}
         context={input.context}
         nextStepLabel={input.nextStepLabel}
+        deploymentDailyCostUsd={input.deploymentDailyCostUsd}
         dependencies={dependencies}
       />
     );

@@ -67,6 +67,15 @@ describe("AddCreditsHost", () => {
     expect(screen.getByTestId("add-credits-sheet")).toHaveAttribute("data-open", "false");
   });
 
+  it("sizes the sheet's amounts to the deployment the credits are for", () => {
+    const AddCreditsSheet = vi.fn((_props: Parameters<typeof DEPENDENCIES.AddCreditsSheet>[0]) => <></>);
+    const { open } = setup({ AddCreditsSheet });
+
+    open({ deploymentDailyCostUsd: 12 });
+
+    expect(AddCreditsSheet.mock.lastCall?.[0]).toMatchObject({ open: true, deploymentDailyCostUsd: 12 });
+  });
+
   it("lets the call site pick up where the user left off once a purchase is confirmed", () => {
     const { open } = setup();
     const onCreditsAdded = vi.fn();
@@ -105,7 +114,7 @@ describe("AddCreditsHost", () => {
     expect(screen.getByTestId("add-credits-sheet")).toHaveAttribute("data-next-step", "Continue to deploy");
   });
 
-  function setup() {
+  function setup(input?: { AddCreditsSheet?: typeof DEPENDENCIES.AddCreditsSheet }) {
     const store = createStore();
     const AddCreditsSheet: typeof DEPENDENCIES.AddCreditsSheet = ({
       open,
@@ -127,7 +136,7 @@ describe("AddCreditsHost", () => {
 
     render(
       <JotaiProvider store={store}>
-        <AddCreditsHost dependencies={{ AddCreditsSheet }} />
+        <AddCreditsHost dependencies={{ AddCreditsSheet: input?.AddCreditsSheet ?? AddCreditsSheet }} />
       </JotaiProvider>
     );
 
