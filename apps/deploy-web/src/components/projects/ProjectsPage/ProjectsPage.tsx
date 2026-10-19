@@ -21,7 +21,6 @@ import { UrlService } from "@src/utils/urlUtils";
 import { NewProjectModal } from "../NewProjectModal/NewProjectModal";
 import { ProjectFolder } from "../ProjectFolder/ProjectFolder";
 import { ProjectFolderMenu } from "../ProjectFolderMenu/ProjectFolderMenu";
-import { isProjectListed } from "../projectSummary";
 import { RecentActivityFeed } from "../RecentActivityFeed/RecentActivityFeed";
 import { SectionLabel } from "../SectionLabel/SectionLabel";
 import styles from "./ProjectsPage.module.css";
@@ -66,9 +65,8 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
 
   const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
   const canManage = !!activeOrganization && canManageProjects(activeOrganization.role);
-  const listedProjects = useMemo(() => (canManage ? projects.filter(isProjectListed) : projects), [canManage, projects]);
   const organizationName = activeOrganization?.name ?? "";
-  const hasProjects = listedProjects.length > 0;
+  const hasProjects = projects.length > 0;
   const canDeployAnywhere = projects.some(project => project.access.canDeploy);
   const projectNames = projects.map(project => project.name.toLowerCase());
 
@@ -119,7 +117,7 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
                 <section aria-label="All projects">
                   <SectionLabel
                     rightSlot={
-                      hasProjects && <span className="whitespace-nowrap text-xs text-muted-foreground">{pluralize(listedProjects.length, "project")}</span>
+                      hasProjects && <span className="whitespace-nowrap text-xs text-muted-foreground">{pluralize(projects.length, "project")}</span>
                     }
                   >
                     All projects
@@ -135,7 +133,7 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
                     </div>
                   ) : hasProjects ? (
                     <div className={styles.folderGrid}>
-                      {listedProjects.map(project => (
+                      {projects.map(project => (
                         <d.ProjectFolder
                           key={project.id}
                           project={project}
