@@ -142,6 +142,22 @@ describe(GpuBidsCreatorService.name, () => {
         expect(chainSdk.akash.market.v1beta5.getBids).toHaveBeenCalledTimes(1);
       }
     );
+
+    it.each(["4090", "1.5", "true", "null"])("checks a model whose name yaml would otherwise read as another type: %j", async model => {
+      const { service, placementOptionsHttpService, chainSdk } = setup();
+      placementOptionsHttpService.findAvailableGpuModels.mockResolvedValue([
+        { vendor: "nvidia", model },
+        { vendor: "nvidia", model: "h100" }
+      ]);
+      mockSigningClient.getBalance.mockResolvedValue({ amount: "1000000", denom: "uact" });
+      mockSigningClient.simulate.mockResolvedValue(100000);
+      mockSigningClient.sign.mockResolvedValue({ authInfoBytes: new Uint8Array(), bodyBytes: new Uint8Array(), signatures: [] } as any);
+      mockSigningClient.broadcastTx.mockResolvedValue({ code: 0, rawLog: "" } as any);
+
+      await service.createGpuBids();
+
+      expect(chainSdk.akash.market.v1beta5.getBids).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe("createBidsForAllModels", () => {

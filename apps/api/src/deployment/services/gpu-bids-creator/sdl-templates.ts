@@ -28,7 +28,7 @@ profiles:
           attributes:
             vendor:
               <VENDOR>:
-                - model: <MODEL>
+                - model: "<MODEL>"
         storage:
           size: 256Mi
   placement:
