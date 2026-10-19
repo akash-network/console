@@ -187,7 +187,7 @@ How the threshold was set, so the next person can tighten it rather than guess. 
 | `SDL_SECRETS_STORED_OPENED`, busiest hour         | 1877  | 2026-09-16 |
 | `SECRET_DECRYPT_FAILED`, 30 days, every service   | 0     | 2026-09-17 |
 
-The distinct-user rows come from 3,544 evaluations over seven days rather than a spot check, and not one of them reached 40.
+The distinct-user rows come from 3,544 evaluations over seven days rather than a spot check, and not one of them reached 40. They predate team keys, so every unwrap then carried a `userId` and no `organizationId`, and the query above returns the same counts on that data; teams add at most one series each, so re-measure once team keys have run in production for a month.
 
 Counting deployers ran about four times high, so 75 would have let a sweep of sixty accounts pass in silence. The threshold is 40, twice the observed peak, which still clears every normal day by a wide margin while a sweep across hundreds of users crosses it in seconds. Repeat the measurement every few months, in Grafana Explore over the last 30 days, and move the threshold back to about twice the maximum. Tighten it when the measured peak stays well under for a month; raise it only after a legitimate spike, such as a hackathon, and record the date and reason in the table above.
 
