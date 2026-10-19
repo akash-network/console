@@ -1,4 +1,4 @@
-import { eq, gt, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { and } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
@@ -78,34 +78,6 @@ export class ApiKeyRepository extends OrgScopedRepository<Table, ApiKeyInput, Ap
         )
       )
       .orderBy(this.table.id);
-
-    return this.toOutputList(items);
-  }
-
-  async countKeysWithoutExpiryByOwner(): Promise<{ userId: string; keys: number }[]> {
-    return await this.cursor
-      .select({ userId: this.table.userId, keys: sql<number>`count(*)::int` })
-      .from(this.table)
-      .where(this.whereAccessibleBy(isNull(this.table.expiresAt)))
-      .groupBy(this.table.userId)
-      .orderBy(this.table.userId);
-  }
-
-  async findExpiringAfter(date: Date): Promise<ApiKeyOutput[]> {
-    const items = await this.cursor
-      .select()
-      .from(this.table)
-      .where(this.whereAccessibleBy(gt(this.table.expiresAt, date)));
-
-    return this.toOutputList(items);
-  }
-
-  async assignExpiryToKeysWithoutOne(userId: ApiKeyOutput["userId"], expiresAt: Date): Promise<ApiKeyOutput[]> {
-    const items = await this.cursor
-      .update(this.table)
-      .set({ expiresAt, updatedAt: new Date() })
-      .where(this.whereAccessibleBy(and(eq(this.table.userId, userId), isNull(this.table.expiresAt))))
-      .returning();
 
     return this.toOutputList(items);
   }

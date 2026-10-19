@@ -45,19 +45,6 @@ describe(ApiKeysPage.name, () => {
     ).toBeInTheDocument();
   });
 
-  it("warns that keys without an expiration will be given one", () => {
-    setup({ apiKeys: [buildApiKey(), buildApiKey({ expiresAt: null })] });
-
-    expect(screen.getByRole("alert")).toHaveTextContent("Some of your keys have no expiration");
-    expect(screen.getByRole("alert")).toHaveTextContent("Keys created before the one-year limit will be given an expiration date a year away.");
-  });
-
-  it("does not warn when every key has an expiration", () => {
-    setup({ apiKeys: [buildApiKey(), buildApiKey()] });
-
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
-
   it("links to the API reference in a new tab", () => {
     setup();
 
