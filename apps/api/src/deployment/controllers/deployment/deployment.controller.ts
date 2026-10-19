@@ -6,6 +6,7 @@ import { z } from "zod";
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { AuthMethod } from "@src/core/types/app-context";
 import type {
   CloseDeploymentAcceptedResponse,
   CloseDeploymentQuery,
@@ -69,17 +70,20 @@ export class DeploymentController {
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
+  /** Only the Console web signs in with a session, so a bearer create is one made from its configure page. */
   async create(
     input: CreateDeploymentRequest["data"],
-    query: CreateDeploymentQuery = { async: false }
+    query: CreateDeploymentQuery = { async: false },
+    origin: { authMethod?: AuthMethod } = {}
   ): Promise<CreateDeploymentResponse | CreateDeploymentAcceptedResponse> {
     const userId = this.authService.currentUser.id;
+    const recordGpuBids = origin.authMethod === "bearer";
 
     if (query.async && this.featureFlagsService.isEnabled(FeatureFlags.BACKGROUND_DEPLOYMENT_CREATE, { userId })) {
-      return { data: await this.deploymentWriterService.createInBackground({ ...input, userId }) };
+      return { data: await this.deploymentWriterService.createInBackground({ ...input, userId, recordGpuBids }) };
     }
 
-    return { data: await this.deploymentWriterService.create({ ...input, userId }) };
+    return { data: await this.deploymentWriterService.create({ ...input, userId, recordGpuBids }) };
   }
 
   /** The flag is read here rather than in the worker, because inside a job every user evaluates as the background-job user. */

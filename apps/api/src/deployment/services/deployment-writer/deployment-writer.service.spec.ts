@@ -51,6 +51,7 @@ import type { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import type { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
+import type { UserGpuBidCheckService } from "@src/deployment/services/user-gpu-bid-check/user-gpu-bid-check.service";
 import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { createdActivityOf, creatingActivityOf, failedCreateActivityOf } from "@src/deployment/utils/create-activity/create-activity";
@@ -269,6 +270,32 @@ describe(DeploymentWriterService.name, () => {
   });
 
   describe("create", () => {
+    it("schedules the gpu bid checks of a configure page create once it reaches the chain", async () => {
+      const { service, userGpuBidCheckService } = setup();
+      vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, recordGpuBids: true });
+
+      expect(userGpuBidCheckService.scheduleFor).toHaveBeenCalledWith(expect.objectContaining({ dseq: ACCEPTED_DSEQ, message: expect.any(String) }));
+    });
+
+    it("schedules no gpu bid check for a create made elsewhere than the configure page", async () => {
+      const { service, userGpuBidCheckService } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS });
+
+      expect(userGpuBidCheckService.scheduleFor).not.toHaveBeenCalled();
+    });
+
+    it("schedules no gpu bid check for a create the chain refuses", async () => {
+      const { service, signerService, userGpuBidCheckService } = setup();
+      signerService.executeDecodedTxByUserWallet.mockRejectedValue(createError(402, "Not enough balance to cover the deployment deposit."));
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, recordGpuBids: true })).rejects.toMatchObject({ status: 402 });
+
+      expect(userGpuBidCheckService.scheduleFor).not.toHaveBeenCalled();
+    });
+
     it("records the create as succeeded in the caller's activity feed once it reaches the chain", async () => {
       const { service, activityService } = setup();
       vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
@@ -1792,6 +1819,24 @@ describe(DeploymentWriterService.name, () => {
   });
 
   describe("createInBackground", () => {
+    it("schedules the gpu bid checks of a configure page create once the create is queued", async () => {
+      const { service, txService, userGpuBidCheckService } = setup();
+      vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
+
+      await service.createInBackground({ userId: "user-1", sdl: SDL_WITH_SECRETS, recordGpuBids: true });
+
+      expect(userGpuBidCheckService.scheduleFor).toHaveBeenCalledWith(expect.objectContaining({ dseq: ACCEPTED_DSEQ, message: expect.any(String) }));
+      expect(userGpuBidCheckService.scheduleFor.mock.invocationCallOrder[0]).toBeGreaterThan(txService.transaction.mock.invocationCallOrder.at(-1)!);
+    });
+
+    it("schedules no gpu bid check for a background create made elsewhere than the configure page", async () => {
+      const { service, userGpuBidCheckService } = setup();
+
+      await service.createInBackground({ userId: "user-1", sdl: SDL_WITH_SECRETS });
+
+      expect(userGpuBidCheckService.scheduleFor).not.toHaveBeenCalled();
+    });
+
     it("answers with the new deployment, the manifest a create made during the request answers with and the activity to follow, sending nothing to the chain", async () => {
       const { service, signerService, activityService } = setup();
       vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
@@ -4331,7 +4376,8 @@ describe(DeploymentWriterService.name, () => {
         mock<DeploymentDepositLedgerService>(),
         mock<DeploymentHttpService>(),
         mock<ChainErrorService>(),
-        mock<DeploymentPresenceService>()
+        mock<DeploymentPresenceService>(),
+        mock<UserGpuBidCheckService>()
       );
 
       function sealedFor() {
@@ -4989,6 +5035,7 @@ describe(DeploymentWriterService.name, () => {
     );
     const chainErrorService = new ChainErrorService(mock<BalanceHttpService>(), billingConfig, mock<TxManagerService>());
     const deploymentPresenceService = mock<DeploymentPresenceService>();
+    const userGpuBidCheckService = mock<UserGpuBidCheckService>();
     deploymentPresenceService.isOnChain.mockResolvedValue(!!input?.onChainVersion);
     const accepted: AcceptedDeploymentCreate = {
       userId: "user-1",
@@ -5086,7 +5133,8 @@ describe(DeploymentWriterService.name, () => {
       depositLedger,
       deploymentHttpService,
       chainErrorService,
-      deploymentPresenceService
+      deploymentPresenceService,
+      userGpuBidCheckService
     );
 
     function storedSecrets() {
@@ -5120,6 +5168,7 @@ describe(DeploymentWriterService.name, () => {
       depositLedger,
       deploymentHttpService,
       deploymentPresenceService,
+      userGpuBidCheckService,
       accepted,
       ability: mock<AnyAbility>(),
       storedSecrets

@@ -219,7 +219,7 @@ const postRoute = createRoute({
 });
 deploymentsRouter.openapi(postRoute, async function routeCreateDeployment(c) {
   const { data } = c.req.valid("json");
-  const result = await container.resolve(DeploymentController).create(data, c.req.valid("query"));
+  const result = await container.resolve(DeploymentController).create(data, c.req.valid("query"), { authMethod: c.get("authMethod") });
   return "activityId" in result.data ? c.json({ data: result.data }, 202) : c.json({ data: result.data }, 201);
 });
 

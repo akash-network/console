@@ -26,6 +26,8 @@ import { ReconcileLeaseCreateHandler } from "@src/deployment/services/reconcile-
 import { ReconcileManagedTxHandler } from "@src/deployment/services/reconcile-managed-tx/reconcile-managed-tx.handler";
 import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { RecordLeaseGpuOffersHandler } from "@src/deployment/services/record-lease-gpu-offers/record-lease-gpu-offers.handler";
+import { RecordUserGpuBidsHandler } from "@src/deployment/services/record-user-gpu-bids/record-user-gpu-bids.handler";
+import { ScreenUserGpuDeploymentHandler } from "@src/deployment/services/screen-user-gpu-deployment/screen-user-gpu-deployment.handler";
 import { HardwareRequestEmailHandler } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertHandler } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
@@ -104,7 +106,9 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(MoveDeploymentAlertsHandler),
     container.resolve(StopTeamAlertsToDepartedMemberHandler),
     container.resolve(PurgeExpiredActivitiesHandler),
-    container.resolve(ApiKeyExpiryReminderHandler)
+    container.resolve(ApiKeyExpiryReminderHandler),
+    container.resolve(ScreenUserGpuDeploymentHandler),
+    container.resolve(RecordUserGpuBidsHandler)
   ]);
 }
 
