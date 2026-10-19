@@ -150,6 +150,61 @@ describe(PaymentMethodRepository.name, () => {
     });
   });
 
+  describe("hasSharedFingerprint", () => {
+    it("matches a card the payer saved against one the other user saved for themselves", async () => {
+      const { repository } = await setup();
+      const payer = await seedUser();
+      const other = await seedUser();
+      const shared = card();
+      await repository.create({ userId: payer.id, ...card() });
+      await repository.create({ userId: payer.id, ...shared });
+      await repository.create({ userId: other.id, ...shared, paymentMethodId: card().paymentMethodId });
+
+      expect(await repository.hasSharedFingerprint({ userId: payer.id, organizationId: null }, other.id)).toBe(true);
+    });
+
+    it("matches a card any member saved in a team the other user belongs to", async () => {
+      const { repository, team, owner, member } = await setup();
+      const payer = await seedUser();
+      const shared = card();
+      await repository.create({ userId: payer.id, ...shared });
+      await repository.create({ userId: owner.id, organizationId: team.id, ...shared, paymentMethodId: card().paymentMethodId });
+
+      expect(await repository.hasSharedFingerprint({ userId: payer.id, organizationId: null }, member.id)).toBe(true);
+    });
+
+    it("matches a card another member saved for the paying organization", async () => {
+      const { repository, team, owner, member } = await setup();
+      const other = await seedUser();
+      const shared = card();
+      await repository.create({ userId: owner.id, organizationId: team.id, ...shared });
+      await repository.create({ userId: other.id, ...shared, paymentMethodId: card().paymentMethodId });
+
+      expect(await repository.hasSharedFingerprint({ userId: member.id, organizationId: team.id }, other.id)).toBe(true);
+    });
+
+    it("ignores a fingerprint shared only with a team the other user is not part of", async () => {
+      const { repository, team, owner } = await setup();
+      const payer = await seedUser();
+      const other = await seedUser();
+      const shared = card();
+      await repository.create({ userId: payer.id, ...shared });
+      await repository.create({ userId: owner.id, organizationId: team.id, ...shared, paymentMethodId: card().paymentMethodId });
+      await repository.create({ userId: other.id, ...card() });
+
+      expect(await repository.hasSharedFingerprint({ userId: payer.id, organizationId: null }, other.id)).toBe(false);
+    });
+
+    it("finds no match when the other user saved no card", async () => {
+      const { repository } = await setup();
+      const payer = await seedUser();
+      const other = await seedUser();
+      await repository.create({ userId: payer.id, ...card() });
+
+      expect(await repository.hasSharedFingerprint({ userId: payer.id, organizationId: null }, other.id)).toBe(false);
+    });
+  });
+
   function card() {
     return { fingerprint: `fp_${faker.string.alphanumeric(16)}`, paymentMethodId: `pm_${faker.string.alphanumeric(24)}` };
   }

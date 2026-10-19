@@ -334,9 +334,15 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
   }
 
   /** Stores the commission as a `stripe_transactions` row so billing history and CSV export pick it up unchanged. */
-  async createAffiliateCommission(input: { userId: string; amount: number; sourceTransactionId: string }): Promise<StripeTransactionOutput> {
+  async createAffiliateCommission(input: {
+    userId: string;
+    organizationId?: string | null;
+    amount: number;
+    sourceTransactionId: string;
+  }): Promise<StripeTransactionOutput> {
     return this.create({
       userId: input.userId,
+      organizationId: input.organizationId,
       type: "affiliate_commission",
       status: "succeeded",
       currency: "usd",

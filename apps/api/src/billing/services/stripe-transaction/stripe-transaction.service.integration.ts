@@ -5,6 +5,7 @@ import { container } from "tsyringe";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { SyncAffiliateCommission } from "@src/affiliate/services/affiliate-commission/sync-affiliate-commission.job";
 import type { AuthService } from "@src/auth/services/auth.service";
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import { IssueCardPaymentInvoiceCommand } from "@src/billing/commands/issue-card-payment-invoice.command";
@@ -17,6 +18,7 @@ import type { DomainEventsService } from "@src/core/services/domain-events/domai
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -138,6 +140,70 @@ describe(StripeTransactionService.name, () => {
       );
 
       expect(domainEventsService.publish).not.toHaveBeenCalledWith(expect.any(IssueCardPaymentInvoiceCommand));
+    });
+
+    it("queues the affiliate commission sync of the settled card payment", async () => {
+      const { service, userRepository, stripeTransactionRepository, jobQueueService } = setup();
+      const mockUser = createTestUser();
+      const internalTransaction = generateDatabaseStripeTransaction({ type: "payment_intent", status: "created" });
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+
+      await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_123",
+          customer: mockUser.stripeCustomerId,
+          amount: internalTransaction.amount,
+          metadata: { internal_transaction_id: internalTransaction.id }
+        })
+      );
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new SyncAffiliateCommission({ transactionId: internalTransaction.id }));
+    });
+
+    it("credits nothing when the affiliate commission sync cannot be queued, so the retried webhook credits the payer only once", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService, jobQueueService } = setup();
+      const mockUser = createTestUser();
+      const internalTransaction = generateDatabaseStripeTransaction({ type: "payment_intent", status: "created" });
+      const error = new Error("Queue SyncAffiliateCommission does not exist");
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+      jobQueueService.enqueue.mockRejectedValue(error);
+
+      await expect(
+        service.settlePaymentIntent(
+          createPaymentIntentSucceededEvent({
+            id: "pi_123",
+            customer: mockUser.stripeCustomerId,
+            amount: internalTransaction.amount,
+            metadata: { internal_transaction_id: internalTransaction.id }
+          })
+        )
+      ).rejects.toBe(error);
+
+      expect(refillService.topUpWallet).not.toHaveBeenCalled();
+    });
+
+    it.each(["succeeded", "refunded"] as const)("does not queue another affiliate commission sync for a payment already %s", async status => {
+      const { service, userRepository, stripeTransactionRepository, jobQueueService } = setup();
+      const mockUser = createTestUser();
+      const settledTransaction = generateDatabaseStripeTransaction({ type: "payment_intent", status });
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(settledTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(settledTransaction);
+
+      await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_123",
+          customer: mockUser.stripeCustomerId,
+          amount: settledTransaction.amount,
+          metadata: { internal_transaction_id: settledTransaction.id }
+        })
+      );
+
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
     it("returns early when customer ID is missing", async () => {
@@ -569,6 +635,21 @@ describe(StripeTransactionService.name, () => {
         stripeCustomerId: mockUser.stripeCustomerId,
         stripeInvoiceId: invoiceId
       });
+    });
+
+    it.each(["coupon_claim", "manual_credit"] as const)("does not queue an affiliate commission sync for a %s invoice", async type => {
+      const { service, userRepository, stripeTransactionRepository, refillService, jobQueueService } = setup();
+      const mockUser = createTestUser();
+      const invoiceId = `in_${type}`;
+      const transaction = generateDatabaseStripeTransaction({ type, status: "pending", stripeInvoiceId: invoiceId });
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findByInvoiceId.mockResolvedValue(transaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
+
+      await service.settleInvoice(createInvoicePaidEvent({ id: invoiceId, customer: mockUser.stripeCustomerId, amount_paid: 0 }));
+
+      expect(refillService.topUpWallet).toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
     it("tops up wallet using transaction amount (not invoice amount_paid which may be 0 for discounted invoices)", async () => {
@@ -1426,6 +1507,7 @@ describe(StripeTransactionService.name, () => {
     const organizationRepository = mock<OrganizationRepository>();
     const payerService = new PayerService(mock<AuthService>(), mock<ExecutionContextService>(), organizationRepository, userRepository);
     const domainEventsService = mock<DomainEventsService>();
+    const jobQueueService = mock<JobQueueService>();
     const analyticsService = mock<AnalyticsService>();
     const featureFlagsService = mock<FeatureFlagsService>();
     featureFlagsService.isEnabled.mockReturnValue(false);
@@ -1445,6 +1527,7 @@ describe(StripeTransactionService.name, () => {
       mock<TimerService>(),
       payerService,
       domainEventsService,
+      jobQueueService,
       analyticsService,
       organizationRepository,
       featureFlagsService,
@@ -1462,6 +1545,7 @@ describe(StripeTransactionService.name, () => {
       userRepository,
       organizationRepository,
       domainEventsService,
+      jobQueueService,
       analyticsService,
       featureFlagsService,
       logger,
