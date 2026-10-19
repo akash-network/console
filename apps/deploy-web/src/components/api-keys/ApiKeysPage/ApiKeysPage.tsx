@@ -20,7 +20,7 @@ import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 
 export const API_REFERENCE_URL = "https://akash.network/docs/api-documentation/console-api/getting-started/";
 
-const EXPIRY_POLICY = "Keys expire after one year at most. We email you 30, 7 and 1 day before a key expires, so you can replace it before it stops working.";
+const EXPIRY_POLICY = "Keys expire after one year at most. We email you ahead of each expiry, so you can replace a key before it stops working.";
 
 export const DEPENDENCIES = {
   Layout,

@@ -37,11 +37,11 @@ describe(ApiKeysPage.name, () => {
     expect(ApiKeyList.mock.lastCall?.[0].isError).toBe(true);
   });
 
-  it("states that keys expire after one year at most and when owners are emailed", () => {
+  it("states that keys expire after one year at most and that owners are emailed ahead of it", () => {
     setup({ apiKeys: [buildApiKey()] });
 
     expect(
-      screen.getByText("Keys expire after one year at most. We email you 30, 7 and 1 day before a key expires, so you can replace it before it stops working.")
+      screen.getByText("Keys expire after one year at most. We email you ahead of each expiry, so you can replace a key before it stops working.")
     ).toBeInTheDocument();
   });
 
