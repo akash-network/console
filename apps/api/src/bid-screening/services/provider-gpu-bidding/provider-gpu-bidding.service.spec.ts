@@ -200,15 +200,43 @@ describe(findRequestedGpuModels.name, () => {
     expect(findRequestedGpuModels(aRequest([{ gpuUnits: 0, gpuKeys: ["vendor/nvidia/model/h100"] }, { gpuUnits: 1 }]))).toEqual([]);
   });
 
-  function aRequest(resources: Array<{ gpuUnits: number; gpuKeys?: string[] }>): BidScreeningRequest {
+  it("reads no model from an attribute that does not ask for it, as provider inventory screens", () => {
+    const request = aRequest([
+      {
+        gpuUnits: 1,
+        gpuAttributes: [
+          { key: "vendor/nvidia/model/h100", value: "false" },
+          { key: "vendor/nvidia/model/a100", value: "true" }
+        ]
+      }
+    ]);
+
+    expect(findRequestedGpuModels(request)).toEqual([A100]);
+  });
+
+  it.each([["vendor/nvidia/model/h100*"], ["vendor/nvidia"]])("reads no model when a gpu also takes models no check covers: %s", openKey => {
+    expect(findRequestedGpuModels(aRequest([{ gpuUnits: 1, gpuKeys: [openKey, "vendor/nvidia/model/a100"] }]))).toEqual([]);
+  });
+
+  it("reads the models of a gpu pinned to them while another gpu of the request takes any model", () => {
+    const request = aRequest([
+      { gpuUnits: 1, gpuKeys: ["vendor/nvidia/model/a100"] },
+      { gpuUnits: 1, gpuKeys: ["vendor/nvidia/model/h100*"] },
+      { gpuUnits: 1 }
+    ]);
+
+    expect(findRequestedGpuModels(request)).toEqual([A100]);
+  });
+
+  function aRequest(resources: Array<{ gpuUnits: number; gpuKeys?: string[]; gpuAttributes?: Array<{ key: string; value: string }> }>): BidScreeningRequest {
     return BidScreeningRequestSchema.parse({
       timezone: "UTC",
-      resources: resources.map(({ gpuUnits, gpuKeys }, index) => ({
+      resources: resources.map(({ gpuUnits, gpuKeys, gpuAttributes }, index) => ({
         resource: {
           id: index + 1,
           cpu: { units: { val: "1000" } },
           memory: { quantity: { val: "1073741824" } },
-          gpu: { units: { val: String(gpuUnits) }, attributes: gpuKeys?.map(key => ({ key, value: "true" })) },
+          gpu: { units: { val: String(gpuUnits) }, attributes: gpuAttributes ?? gpuKeys?.map(key => ({ key, value: "true" })) },
           storage: []
         },
         count: 1,

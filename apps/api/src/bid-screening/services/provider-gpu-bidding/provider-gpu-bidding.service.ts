@@ -64,15 +64,21 @@ export class ProviderGpuBiddingService {
 }
 
 export function findRequestedGpuModels({ resources }: BidScreeningRequest): CheckedGpuModel[] {
-  const models = resources
-    .filter(({ resource }) => resource.gpu.units.val > 0n)
-    .flatMap(({ resource }) => resource.gpu.attributes ?? [])
-    .flatMap(({ key }) => {
-      const match = GPU_MODEL_ATTRIBUTE_KEY.exec(key);
-      return match && match[2] !== "*" ? [{ vendor: match[1], model: match[2] }] : [];
-    });
+  const models = resources.filter(({ resource }) => resource.gpu.units.val > 0n).flatMap(({ resource }) => findPinnedGpuModels(resource.gpu.attributes ?? []));
 
   return uniqBy(models, ({ vendor, model }) => `${vendor}/${model}`);
+}
+
+/** A gpu open to any model, or to a wildcard name, can be served with models no check covers, so it names none to flag on. */
+function findPinnedGpuModels(attributes: Array<{ key: string; value: string }>): CheckedGpuModel[] {
+  const models = attributes.filter(({ value }) => value === "true").map(({ key }) => toCheckedGpuModel(key));
+  const pinned = models.filter(model => model !== null);
+  return pinned.length === models.length ? pinned : [];
+}
+
+function toCheckedGpuModel(key: string): CheckedGpuModel | null {
+  const match = GPU_MODEL_ATTRIBUTE_KEY.exec(key);
+  return match && !match[2].includes("*") ? { vendor: match[1], model: match[2] } : null;
 }
 
 /** A bid on any requested model keeps the provider unflagged, since it can serve the request with that one. */
