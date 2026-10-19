@@ -13,6 +13,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { PhasedDeployProgressScene } from "../DeployProgressOverlay/PhasedDeployProgressScene";
 import type { ResumeResolution } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import { useResumeAfterCredits } from "../useResumeAfterCredits/useResumeAfterCredits";
 
 export const DEPENDENCIES = {
   Layout,
@@ -23,6 +24,8 @@ export const DEPENDENCIES = {
   useActiveOrganization,
   useRouter
 };
+
+const NEEDS_FUNDS_CONTEXT = "auto_deploy_needs_funds";
 
 type Props = {
   /** Display name shown in the progress panel ("Deploying {templateName}"). */
@@ -61,6 +64,13 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
   });
   const refusingProjectId = budgetRefusingProjectIdOf(state);
   const canOpenProjectBudget = projectsEnabled && budgetAccessFor(activeOrganization?.role, undefined).canManage;
+  const tryAgainAfterCredits = useResumeAfterCredits({
+    isRefusedForFunds: state.kind === "error" && state.reason === "needs-funds",
+    resume: () => {
+      analyticsService.track("add_credits_resumed_deploy", { category: "billing", context: NEEDS_FUNDS_CONTEXT });
+      tryAgain();
+    }
+  });
 
   return (
     <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
@@ -72,7 +82,13 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
         focusedProviderAddress={matchedProviderAddress}
         onTryAgain={tryAgain}
         onAddFunds={() => {
-          openAddCredits({ initialTab: "purchase", description: `Add credits to your balance to deploy ${templateName}.`, context: "auto_deploy_needs_funds" });
+          openAddCredits({
+            initialTab: "purchase",
+            description: `Add credits to your balance to deploy ${templateName}.`,
+            context: NEEDS_FUNDS_CONTEXT,
+            nextStepLabel: "Continue to deploy",
+            onCreditsAdded: tryAgainAfterCredits
+          });
         }}
         onViewProject={refusingProjectId && canOpenProjectBudget ? () => router.push(UrlService.project(refusingProjectId)) : undefined}
         onContactSupport={() => {

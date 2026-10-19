@@ -44,6 +44,7 @@ import type { DeploymentFlow, FlowErrorKind } from "../useDeploymentFlow/useDepl
 import { NO_PROVIDERS_MESSAGE } from "../useDeploymentFlow/useDeploymentFlow";
 import { useDeploymentName } from "../useDeploymentName/useDeploymentName";
 import { useForceSshForVmServices } from "../useForceSshForVmServices/useForceSshForVmServices";
+import { useResumeAfterCredits } from "../useResumeAfterCredits/useResumeAfterCredits";
 import { useSyncLogCollectors } from "../useSyncLogCollectors/useSyncLogCollectors";
 
 export const DEPENDENCIES = {
@@ -71,6 +72,8 @@ export const DEPENDENCIES = {
 
 /** Long enough to read the reason and click Add Funds; the default duration dismisses before either. */
 const NEEDS_FUNDS_TOAST_DURATION_MS = 10000;
+
+const NEEDS_FUNDS_CONTEXT = "configure_quotes_needs_funds";
 
 /** Delay between a form edit and updating the debounced SDL preview. */
 const SDL_SYNC_DEBOUNCE_MS = 300;
@@ -220,6 +223,15 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     [flow.isDeployedInBackground, enqueueSnackbar, d]
   );
 
+  const requestQuotesAgainAfterCredits = useResumeAfterCredits({
+    isRefusedForFunds: flow.phase === "error" && flow.error?.kind === "needs-funds",
+    snapshotRequest: () => JSON.stringify([typedDeploymentName, form.getValues()]),
+    resume: () => {
+      analyticsService.track("add_credits_resumed_deploy", { category: "billing", context: NEEDS_FUNDS_CONTEXT });
+      flow.actions.requestQuotesAgain();
+    }
+  });
+
   useEffect(
     function toastFlowError() {
       if (flow.error && flow.error !== lastToastedFlowError.current) {
@@ -228,7 +240,15 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
           const key = enqueueSnackbar(
             <d.Snackbar
               title="Add funds to continue"
-              subTitle={<d.AddCreditsSnackbarContent message={message} context="configure_quotes_needs_funds" onAction={() => closeSnackbar(key)} />}
+              subTitle={
+                <d.AddCreditsSnackbarContent
+                  message={message}
+                  context={NEEDS_FUNDS_CONTEXT}
+                  nextStepLabel="Continue to deploy"
+                  onCreditsAdded={requestQuotesAgainAfterCredits}
+                  onAction={() => closeSnackbar(key)}
+                />
+              }
               iconVariant="warning"
             />,
             { variant: "warning", autoHideDuration: NEEDS_FUNDS_TOAST_DURATION_MS }
@@ -254,7 +274,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       }
       lastToastedFlowError.current = flow.error;
     },
-    [flow.error, enqueueSnackbar, closeSnackbar, d]
+    [flow.error, enqueueSnackbar, closeSnackbar, requestQuotesAgainAfterCredits, d]
   );
 
   useEffect(

@@ -248,6 +248,52 @@ describe(useDeploymentFlow.name, () => {
     await waitFor(() => expect(result.current.error).toEqual({ kind: "needs-funds", message }));
   });
 
+  it("sends a refused create again as it went out once the user has added funds", async () => {
+    const refusal = new ApiError(402, { message: "Not enough balance", code: "payment_required" }, "POST /v1/deployments → 402");
+    const createMutate = vi
+      .fn()
+      .mockImplementationOnce((_args, { onError }) => onError(refusal))
+      .mockImplementationOnce((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+    const { result } = setup({ createMutate });
+    act(() => result.current.actions.requestQuotes("sdl-content", { name: "my-app" }));
+    await waitFor(() => expect(result.current.error?.kind).toBe("needs-funds"));
+
+    act(() => result.current.actions.requestQuotesAgain());
+
+    await waitFor(() => expect(result.current.phase).toBe("quoting"));
+    expect(createMutate).toHaveBeenCalledTimes(2);
+    expect(createMutate.mock.calls[1][0]).toEqual(createMutate.mock.calls[0][0]);
+    expect(createMutate.mock.calls[1][0].data).toMatchObject({ sdl: "sdl-content", name: "my-app" });
+  });
+
+  it("closes a deployment it holds before sending the last create again, so two are never open at once", async () => {
+    const closeMutate = vi.fn((_args, options) => options.onSuccess?.({}));
+    const createMutate = vi
+      .fn()
+      .mockImplementationOnce((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }))
+      .mockImplementationOnce((_args, { onSuccess }) => onSuccess({ data: { dseq: "1000", manifest: "m" } }));
+    const { result } = setup({ closeMutate, createMutate });
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+    await waitFor(() => expect(result.current.dseq).toBe("999"));
+
+    act(() => result.current.actions.requestQuotesAgain());
+    await settleSeal();
+
+    expect(closeMutate).toHaveBeenCalledTimes(1);
+    expect(closeMutate.mock.invocationCallOrder[0]).toBeLessThan(createMutate.mock.invocationCallOrder[1]);
+  });
+
+  it("has nothing to send again before any create went out", async () => {
+    const createMutate = vi.fn();
+    const { result } = setup({ createMutate });
+
+    act(() => result.current.actions.requestQuotesAgain());
+    await settleSeal();
+
+    expect(createMutate).not.toHaveBeenCalled();
+    expect(result.current.phase).toBe("configuring");
+  });
+
   it("leaves any other api failure on the generic create error", async () => {
     const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(400, { message: "Invalid SDL" }, "POST /v1/deployments → 400")));
     const { result } = setup({ createMutate });

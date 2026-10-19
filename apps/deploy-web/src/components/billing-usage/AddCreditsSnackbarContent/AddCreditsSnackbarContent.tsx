@@ -3,6 +3,7 @@ import { Button } from "@akashnetwork/ui/components";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useAddCredits } from "@src/hooks/useAddCredits";
+import type { AddCreditsRequest } from "@src/store/addCreditsStore";
 
 const ADD_CREDITS_DESCRIPTION = "Add credits to your balance to continue.";
 
@@ -11,10 +12,10 @@ type Props = {
   /** Where the snackbar was raised, forwarded to the sheet's lifecycle events so its call sites stay distinguishable. */
   context?: string;
   onAction?: () => void;
-};
+} & Pick<AddCreditsRequest, "nextStepLabel" | "onCreditsAdded">;
 
 /** Renders in notistack's portal outside PopupProvider, so it opens the sheet through the jotai atom instead of AddFundsButton, whose email-verification hook calls usePopup() and would throw here. */
-export const AddCreditsSnackbarContent: React.FC<Props> = ({ message, context = "insufficient_funds_snackbar", onAction }) => {
+export const AddCreditsSnackbarContent: React.FC<Props> = ({ message, context = "insufficient_funds_snackbar", onAction, nextStepLabel, onCreditsAdded }) => {
   const { analyticsService } = useServices();
   const openAddCredits = useAddCredits();
 
@@ -25,7 +26,7 @@ export const AddCreditsSnackbarContent: React.FC<Props> = ({ message, context = 
         className="mt-2 h-7 px-3 text-xs"
         onClick={() => {
           analyticsService.track("add_funds_btn_clk");
-          openAddCredits({ initialTab: "purchase", description: ADD_CREDITS_DESCRIPTION, context });
+          openAddCredits({ initialTab: "purchase", description: ADD_CREDITS_DESCRIPTION, context, nextStepLabel, onCreditsAdded });
           onAction?.();
         }}
       >

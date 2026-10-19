@@ -121,6 +121,7 @@ export type AnalyticsEvent =
   | "add_credits_3ds_completed"
   | "add_credits_purchased"
   | "add_credits_cancelled"
+  | "add_credits_resumed_deploy"
   | "configure_page_viewed"
   | "deployment_copies_checked"
   | "configure_preset_selected"
