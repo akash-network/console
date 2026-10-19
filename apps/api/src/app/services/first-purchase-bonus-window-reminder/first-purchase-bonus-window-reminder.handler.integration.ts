@@ -5,6 +5,7 @@ import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { StripeTransactionRepository } from "@src/billing/repositories";
+import { FirstPurchaseBonusWinBackRepository } from "@src/billing/repositories/first-purchase-bonus-win-back/first-purchase-bonus-win-back.repository";
 import { JOB_NAME } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
@@ -97,6 +98,26 @@ describe(FirstPurchaseBonusWindowReminderHandler.name, () => {
     expect(notifications).toEqual([]);
   });
 
+  it("reminds a small buyer on the last day of their gpu win-back", async () => {
+    const { person, payOnPersonalAccount, answerNotifications, remindWinBack } = await setup();
+    await payOnPersonalAccount({ createdAt: subDays(new Date(), 40) });
+    const closesAt = addDays(new Date(), 1);
+    await container.resolve(FirstPurchaseBonusWinBackRepository).create({ userId: person.id, openedAt: subDays(closesAt, 7), closesAt });
+    const notifications = answerNotifications();
+
+    await remindWinBack(closesAt);
+
+    expect(notifications).toEqual([
+      {
+        userId: person.id,
+        body: expect.objectContaining({
+          notificationId: `firstPurchaseBonusWindowReminder.gpu_win_back.${person.id}`,
+          payload: expect.objectContaining({ summary: "Last day for your 10% bonus credits" })
+        })
+      }
+    ]);
+  });
+
   async function setup() {
     const { enqueue, startWorkers } = await jobWorkers();
     const notificationsBaseUrl = container.resolve(NOTIFICATIONS_CONFIG).NOTIFICATIONS_API_BASE_URL as string;
@@ -135,8 +156,7 @@ describe(FirstPurchaseBonusWindowReminderHandler.name, () => {
       return sent;
     }
 
-    async function remind(paidAt: Date) {
-      const reminder = { userId: person.id, reason: "small_first_purchase" as const, closesAt: addDays(paidAt, 7).toISOString() };
+    async function runReminder(reminder: FirstPurchaseBonusWindowReminderJob["data"]) {
       const options = firstPurchaseBonusWindowReminderOptionsFor(reminder);
       await enqueue(new FirstPurchaseBonusWindowReminderJob(reminder), options);
       await makeJobDue(REMINDER_JOB, { singletonKey: options.singletonKey });
@@ -144,6 +164,9 @@ describe(FirstPurchaseBonusWindowReminderHandler.name, () => {
       await expectJobCompleted(REMINDER_JOB, { singletonKey: options.singletonKey });
     }
 
-    return { person, payOnPersonalAccount, answerNotifications, remind };
+    const remind = (paidAt: Date) => runReminder({ userId: person.id, reason: "small_first_purchase", closesAt: addDays(paidAt, 7).toISOString() });
+    const remindWinBack = (closesAt: Date) => runReminder({ userId: person.id, reason: "gpu_win_back", closesAt: closesAt.toISOString() });
+
+    return { person, payOnPersonalAccount, answerNotifications, remind, remindWinBack };
   }
 });

@@ -117,6 +117,34 @@ describe(FirstPurchaseBonusWindowOpenedHandler.name, () => {
     expect(await findJobRows(REMINDER_JOB, { data: { userId: person.id } })).toHaveLength(1);
   });
 
+  it("emails a person who never paid the gpu win-back without a date and schedules no reminder", async () => {
+    const { person, answerNotifications, announceWithoutDeadline } = await setup();
+    const notifications = answerNotifications();
+
+    await announceWithoutDeadline();
+
+    expect(notifications).toEqual([
+      {
+        userId: person.id,
+        body: expect.objectContaining({
+          notificationId: `firstPurchaseBonusWindowOpened.gpu_win_back.${person.id}`,
+          payload: expect.objectContaining({ summary: "Your first purchase comes with bonus credits" })
+        })
+      }
+    ]);
+    expect(await findJobRows(REMINDER_JOB, { data: { userId: person.id } })).toEqual([]);
+  });
+
+  it("emails nothing about a win-back without a date to a person who paid since", async () => {
+    const { payOnPersonalAccount, answerNotifications, announceWithoutDeadline } = await setup();
+    await payOnPersonalAccount({ createdAt: subHours(new Date(), 1) });
+    const notifications = answerNotifications();
+
+    await announceWithoutDeadline();
+
+    expect(notifications).toEqual([]);
+  });
+
   async function setup(input: { productUpdatesUnsubscribedAt?: Date } = {}) {
     const { enqueue, startWorkers } = await jobWorkers();
     const notificationsBaseUrl = container.resolve(NOTIFICATIONS_CONFIG).NOTIFICATIONS_API_BASE_URL as string;
@@ -152,6 +180,12 @@ describe(FirstPurchaseBonusWindowOpenedHandler.name, () => {
       await expectJobCompleted(WINDOW_OPENED_EVENT, { data: { userId: person.id } });
     }
 
-    return { person, payOnPersonalAccount, answerNotifications, announce };
+    async function announceWithoutDeadline() {
+      await enqueue(new FirstPurchaseBonusWindowOpened({ userId: person.id, reason: "gpu_win_back", closesAt: null }));
+      await startWorkers();
+      await expectJobCompleted(WINDOW_OPENED_EVENT, { data: { userId: person.id } });
+    }
+
+    return { person, payOnPersonalAccount, answerNotifications, announce, announceWithoutDeadline };
   }
 });

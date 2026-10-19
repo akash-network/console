@@ -10,6 +10,7 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import { IssueCardPaymentInvoiceCommand } from "@src/billing/commands/issue-card-payment-invoice.command";
 import { type StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
+import { FirstPurchaseBonusWinBackRepository } from "@src/billing/repositories/first-purchase-bonus-win-back/first-purchase-bonus-win-back.repository";
 import { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import { PayerService } from "@src/billing/services/payer/payer.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
@@ -1552,6 +1553,7 @@ describe(StripeTransactionService.name, () => {
     const logger = mock<LoggerService>();
     const persistedBonusService = new FirstPurchaseBonusService(
       persistedTransactions,
+      container.resolve(FirstPurchaseBonusWinBackRepository),
       analyticsService,
       container.resolve(UserRepository),
       container.resolve(OrganizationRepository),

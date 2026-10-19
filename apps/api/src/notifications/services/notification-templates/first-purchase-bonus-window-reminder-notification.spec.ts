@@ -26,4 +26,25 @@ describe(firstPurchaseBonusWindowReminderNotification.name, () => {
       user: { id: "user-123", email: "user@example.com" }
     });
   });
+
+  it("reminds a person on the last day of the gpu win-back, with the closing time in UTC", () => {
+    const user = createUser({ id: "user-123", email: "user@example.com" });
+
+    const notification = firstPurchaseBonusWindowReminderNotification(user, {
+      reason: "gpu_win_back",
+      closesAt: "2026-10-26T18:00:00.000Z",
+      paymentLink: "https://console.akash.network/billing?openPayment=true"
+    });
+
+    expect(notification).toEqual({
+      notificationId: "firstPurchaseBonusWindowReminder.gpu_win_back.user-123",
+      payload: {
+        summary: "Last day for your 10% bonus credits",
+        description:
+          "Your bonus ends on October 26, 2026 at 18:00 UTC. Buy $100 or more in credits before then and we'll add 10% in bonus credits, up to $100.",
+        actions: [{ label: "Buy credits", url: "https://console.akash.network/billing?openPayment=true" }]
+      },
+      user: { id: "user-123", email: "user@example.com" }
+    });
+  });
 });

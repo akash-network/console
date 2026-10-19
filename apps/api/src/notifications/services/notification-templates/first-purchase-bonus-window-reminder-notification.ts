@@ -11,6 +11,10 @@ const REMINDER_COPY: Record<EmailedBonusWindowReason, (closesOn: string) => Wind
     description:
       `Your first-purchase bonus ends on ${closesOn}. ` +
       `Buy ${minPurchase} or more in credits before then and we'll add ${percent} in bonus credits, up to ${maxBonus}.`
+  }),
+  gpu_win_back: closesOn => ({
+    summary: `Last day for your ${percent} bonus credits`,
+    description: `Your bonus ends on ${closesOn}. Buy ${minPurchase} or more in credits before then and we'll add ${percent} in bonus credits, up to ${maxBonus}.`
   })
 };
 
