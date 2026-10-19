@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { THEME_SCRIPT_HASH, VIOLATION_REPORT_SAMPLE_RATE } from "@src/lib/csp/csp";
+import { REFERRAL_COOKIE_MAX_AGE_SECONDS, REFERRAL_COOKIE_NAME } from "@src/lib/referral/referral-cookie";
 import { middleware } from "@src/middleware";
 
 describe("middleware", () => {
@@ -147,10 +148,49 @@ describe("middleware", () => {
     expect(location.hostname).not.toBe("evil.example");
   });
 
-  function setup(input: { path: string; sentryDsn?: string; violationReportDraw?: number }) {
+  it("remembers a referral code from the ref query param", () => {
+    const { response } = setup({ path: "/?ref=Creator" });
+
+    const cookie = response.cookies.get(REFERRAL_COOKIE_NAME);
+    expect(cookie?.value).toBe("creator");
+    expect(cookie?.path).toBe("/");
+    expect(cookie?.httpOnly).toBe(true);
+    expect(cookie?.sameSite).toBe("lax");
+    expect(cookie?.maxAge).toBe(REFERRAL_COOKIE_MAX_AGE_SECONDS);
+  });
+
+  it("marks the referral cookie secure in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    const { response } = setup({ path: "/?ref=creator" });
+
+    expect(response.cookies.get(REFERRAL_COOKIE_NAME)?.secure).toBe(true);
+  });
+
+  it("overwrites an existing referral cookie with the most recently opened link", () => {
+    const { response } = setup({ path: "/?ref=newcode", existingReferralCookie: "oldcode" });
+
+    expect(response.cookies.get(REFERRAL_COOKIE_NAME)?.value).toBe("newcode");
+  });
+
+  it("ignores an invalid ref query param", () => {
+    const { response } = setup({ path: "/?ref=bad%20space" });
+
+    expect(response.cookies.get(REFERRAL_COOKIE_NAME)).toBeUndefined();
+  });
+
+  it("leaves the referral cookie untouched without a ref query param", () => {
+    const { response } = setup({ path: "/" });
+
+    expect(response.cookies.get(REFERRAL_COOKIE_NAME)).toBeUndefined();
+  });
+
+  function setup(input: { path: string; sentryDsn?: string; violationReportDraw?: number; existingReferralCookie?: string }) {
     vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", input.sentryDsn ?? "");
     vi.spyOn(Math, "random").mockReturnValue(input.violationReportDraw ?? 1);
-    const request = new NextRequest(new URL(`http://localhost${input.path}`));
+    const request = new NextRequest(new URL(`http://localhost${input.path}`), {
+      headers: input.existingReferralCookie ? { cookie: `${REFERRAL_COOKIE_NAME}=${input.existingReferralCookie}` } : undefined
+    });
     const response = middleware(request);
     return { request, response };
   }

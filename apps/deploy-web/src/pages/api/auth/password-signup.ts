@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+import { readReferralCode } from "@src/lib/referral/referral-cookie";
 import { verifyCaptcha } from "@src/middleware/verify-captcha/verify-captcha";
 
 const LOWER_LETTER_REGEX = /\p{Ll}/u;
@@ -43,7 +44,8 @@ export default defineApiHandler({
 
     const result = await services.sessionService.signUp({
       email: req.body.email,
-      password: req.body.password
+      password: req.body.password,
+      referralCode: readReferralCode(req.cookies)
     });
 
     if (result.ok) {
