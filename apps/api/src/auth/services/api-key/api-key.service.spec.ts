@@ -4,7 +4,9 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import type { ApiKeyExpiryReminderScheduler } from "@src/auth/services/api-key-expiry-reminder/api-key-expiry-reminder-scheduler.service";
 import type { AuthService } from "@src/auth/services/auth.service";
+import type { TxService } from "@src/core";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -80,6 +82,22 @@ describe(ApiKeyService.name, () => {
       await service.create({ name: "ci" });
 
       expect(apiKeyRepository.create).toHaveBeenCalledWith(expect.objectContaining({ expiresAt: new Date("2027-10-18T12:00:00.000Z") }));
+    });
+
+    it("schedules the expiry reminders of the stored key in the transaction that stores it", async () => {
+      const { service, apiKeyRepository, txService, expiryReminderScheduler, user } = setup();
+      const created = createApiKey({ userId: user.id, expiresAt: faker.date.soon({ days: 365 }).toISOString() });
+      apiKeyRepository.create.mockResolvedValue(created);
+      txService.transaction.mockImplementation(async cb => {
+        expect(apiKeyRepository.create).not.toHaveBeenCalled();
+        const result = await cb();
+        expect(expiryReminderScheduler.schedule).toHaveBeenCalledWith(created);
+        return result;
+      });
+
+      await service.create({ name: "ci" });
+
+      expect(txService.transaction).toHaveBeenCalledTimes(1);
     });
 
     it("binds the key to a reachable project of the active organization", async () => {
@@ -195,8 +213,29 @@ describe(ApiKeyService.name, () => {
       get: vi.fn().mockImplementation(key => (key === "ORGANIZATION_CONTEXT" ? organizationContext : undefined))
     });
     const featureFlagsService = mock<FeatureFlagsService>({ isEnabled: vi.fn().mockReturnValue(input.organizationsOn ?? true) });
-    const service = new ApiKeyService(apiKeyRepository, projectRepository, authService, apiKeyGenerator, executionContextService, featureFlagsService);
+    const txService = mock<TxService>({ transaction: vi.fn(cb => cb()) });
+    const expiryReminderScheduler = mock<ApiKeyExpiryReminderScheduler>();
+    const service = new ApiKeyService(
+      apiKeyRepository,
+      projectRepository,
+      authService,
+      apiKeyGenerator,
+      executionContextService,
+      featureFlagsService,
+      txService,
+      expiryReminderScheduler
+    );
 
-    return { service, apiKeyRepository, projectRepository, featureFlagsService, ability: authService.ability, user, apiKeyGenerator };
+    return {
+      service,
+      apiKeyRepository,
+      projectRepository,
+      featureFlagsService,
+      txService,
+      expiryReminderScheduler,
+      ability: authService.ability,
+      user,
+      apiKeyGenerator
+    };
   }
 });
