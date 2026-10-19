@@ -3,7 +3,7 @@ import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { CHAIN_DB } from "@src/chain";
-import { DeploymentRepository } from "./deployment.repository";
+import { DeploymentRepository, type GpuDeploymentOwner } from "./deployment.repository";
 
 import {
   createAkashAddress,
@@ -618,14 +618,60 @@ describe(DeploymentRepository.name, () => {
 
       await expect(repository.findGpuDeploymentActivity([])).resolves.toEqual({ latestGpuDeploymentCreatedAt: null, hasOpenDeployment: false });
     });
+  });
 
-    async function seedGpuLeasedDeployment(input: { owner: string; createdOn: string; closedOn?: string; isLeaseOpen?: boolean }) {
-      const deployment = await seedDeployment(input);
-      await seedLease(deployment, { gpuUnits: 1, closedHeight: input.isLeaseOpen ? undefined : deployment.closedHeight });
+  describe("findGpuDeploymentOwnersSince", () => {
+    it("lists every owner of a gpu deployment created since the given time, with their latest one", async () => {
+      const { repository, owner } = setup();
+      const otherOwner = createAkashAddress();
+      await seedGpuLeasedDeployment({ owner, createdOn: "2031-03-07", closedOn: "2031-03-08" });
+      await seedGpuLeasedDeployment({ owner, createdOn: "2031-03-10", isLeaseOpen: true });
+      await seedGpuLeasedDeployment({ owner: otherOwner, createdOn: "2031-03-05", closedOn: "2031-03-06" });
 
-      return deployment;
+      const owners = await repository.findGpuDeploymentOwnersSince(new Date("2031-03-05T12:00:00.000Z"));
+
+      expect(sortByOwner(owners.filter(({ owner: found }) => [owner, otherOwner].includes(found)))).toEqual(
+        sortByOwner([
+          { owner, latestGpuDeploymentCreatedAt: new Date("2031-03-10T12:00:00.000Z") },
+          { owner: otherOwner, latestGpuDeploymentCreatedAt: new Date("2031-03-05T12:00:00.000Z") }
+        ])
+      );
+    });
+
+    it("leaves out deployments created before that time and deployments that never had a gpu lease", async () => {
+      const { repository, owner } = setup();
+      const [earlierGpuOwner, cpuOwner, unleasedOwner] = [createAkashAddress(), createAkashAddress(), createAkashAddress()];
+      await seedGpuLeasedDeployment({ owner: earlierGpuOwner, createdOn: "2032-02-20", closedOn: "2032-02-21" });
+      await seedGpuLeasedDeployment({ owner, createdOn: "2032-02-25", closedOn: "2032-02-26" });
+      const cpuDeployment = await seedDeployment({ owner: cpuOwner, createdOn: "2032-03-05", closedOn: "2032-03-06" });
+      await seedLease(cpuDeployment, { gpuUnits: 0, closedHeight: cpuDeployment.closedHeight });
+      await seedDeployment({ owner: unleasedOwner, createdOn: "2032-03-06" });
+      await seedGpuLeasedDeployment({ owner, createdOn: "2032-03-08", closedOn: "2032-03-09" });
+
+      const owners = await repository.findGpuDeploymentOwnersSince(new Date("2032-03-01T00:00:00.000Z"));
+
+      expect(owners.filter(({ owner: found }) => [owner, earlierGpuOwner, cpuOwner, unleasedOwner].includes(found))).toEqual([
+        { owner, latestGpuDeploymentCreatedAt: new Date("2032-03-08T12:00:00.000Z") }
+      ]);
+    });
+
+    it("finds no owners when no block was made since that time", async () => {
+      const { repository } = setup();
+
+      await expect(repository.findGpuDeploymentOwnersSince(new Date("2040-01-01T00:00:00.000Z"))).resolves.toEqual([]);
+    });
+
+    function sortByOwner(owners: GpuDeploymentOwner[]) {
+      return [...owners].sort((a, b) => a.owner.localeCompare(b.owner));
     }
   });
+
+  async function seedGpuLeasedDeployment(input: { owner: string; createdOn: string; closedOn?: string; isLeaseOpen?: boolean }) {
+    const deployment = await seedDeployment(input);
+    await seedLease(deployment, { gpuUnits: 1, closedHeight: input.isLeaseOpen ? undefined : deployment.closedHeight });
+
+    return deployment;
+  }
 
   function setup() {
     // Resolve CHAIN_DB so the chain Sequelize instance (and its models) is initialized before the

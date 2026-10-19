@@ -8,6 +8,7 @@ export const UNSCOPED_REASONS = [
   "deployment-location",
   "email-domain-account-checks",
   "gpu-driver-statistics",
+  "gpu-win-back-catch-up",
   "invitation-by-token",
   "invitation-email-limits",
   "invitation-email-retention",

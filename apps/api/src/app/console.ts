@@ -10,6 +10,7 @@ import { z } from "zod";
 import { Auth0AccountLinkerService } from "@src/auth/services/auth0-account-linker/auth0-account-linker.service";
 import { MasterWalletMintController } from "@src/billing/controllers/master-wallet-mint/master-wallet-mint.controller";
 import { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
+import { GpuWinBackCatchUpService } from "@src/billing/services/gpu-win-back-catch-up/gpu-win-back-catch-up.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TopUpDeploymentsController } from "@src/deployment/controllers/deployment/top-up-deployments.controller";
 import { GpuBotController } from "@src/deployment/controllers/gpu-bot/gpu-bot.controller";
@@ -113,6 +114,16 @@ program
   .action(async (options, command) => {
     await executeCliHandler(command.name(), async () => {
       return container.resolve(LeaseGpuController).detectLeaseGpus(options);
+    });
+  });
+
+program
+  .command("first-purchase-bonus-win-back-catch-up")
+  .description("Schedule the gpu win-back check of every person whose gpu deployment was created in the last 30 days")
+  .option("-d, --dry-run", "Count the people who would be checked without scheduling their checks", false)
+  .action(async (options, command) => {
+    await executeCliHandler(command.name(), async () => {
+      return container.resolve(GpuWinBackCatchUpService).run({ dryRun: options.dryRun, now: new Date() });
     });
   });
 

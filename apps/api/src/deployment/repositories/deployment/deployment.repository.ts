@@ -79,6 +79,11 @@ export interface GpuDeploymentActivity {
   hasOpenDeployment: boolean;
 }
 
+export interface GpuDeploymentOwner {
+  owner: string;
+  latestGpuDeploymentCreatedAt: Date;
+}
+
 /** Keeps a deployment whose dseq contains `dseqContaining` or that `dseqs` names, which is how a name matched elsewhere reaches this table. */
 export interface ClosedDeploymentSearch {
   dseqContaining: string;
@@ -166,6 +171,22 @@ export class DeploymentRepository {
       latestGpuDeploymentCreatedAt: activity.latestGpuDeploymentCreatedAt === null ? null : new Date(activity.latestGpuDeploymentCreatedAt),
       hasOpenDeployment: activity.hasOpenDeployment
     };
+  }
+
+  /** Starts from the first block of the window, so the created-height index bounds the scan instead of every deployment's block. */
+  async findGpuDeploymentOwnersSince(since: Date): Promise<GpuDeploymentOwner[]> {
+    const owners = await this.#chainDb.query<{ owner: string; latestGpuDeploymentCreatedAt: Date | string }>(
+      `/* deployment:gpuDeploymentOwnersSince */
+      SELECT d."owner" AS "owner", MAX(b."datetime") AS "latestGpuDeploymentCreatedAt"
+      FROM deployment d
+      JOIN block b ON b."height" = d."createdHeight"
+      WHERE d."createdHeight" >= (SELECT MIN(first_block."height") FROM block first_block WHERE first_block."datetime" >= $1::timestamptz)
+        AND EXISTS (SELECT 1 FROM lease l WHERE l."deploymentId" = d."id" AND l."gpuUnits" > 0)
+      GROUP BY d."owner"`,
+      { bind: [since.toISOString()], type: QueryTypes.SELECT }
+    );
+
+    return owners.map(({ owner, latestGpuDeploymentCreatedAt }) => ({ owner, latestGpuDeploymentCreatedAt: new Date(latestGpuDeploymentCreatedAt) }));
   }
 
   async findByOwnerAndDseq(owner: string, dseq: string): Promise<Deployment | null> {
