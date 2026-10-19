@@ -16,7 +16,8 @@ export class FirstPurchaseBonusController {
   @Protected([{ action: "read", subject: "StripePayment" }])
   async getFirstPurchaseBonus(): Promise<FirstPurchaseBonusResponse> {
     const payer = await this.payerService.getCurrentPayer();
+    const { eligible, endsAt } = await this.firstPurchaseBonusService.evaluate(billingOwnerOf(payer), payer.user.id, new Date());
 
-    return { data: { eligible: await this.firstPurchaseBonusService.isEligible(billingOwnerOf(payer), payer.user.id) } };
+    return { data: { eligible, endsAt: endsAt?.toISOString() ?? null } };
   }
 }

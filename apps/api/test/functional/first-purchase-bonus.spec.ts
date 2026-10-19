@@ -1,5 +1,6 @@
 import type { Registry } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
+import { addDays } from "date-fns";
 import { eq } from "drizzle-orm";
 import nock from "nock";
 import stripe from "stripe";
@@ -28,6 +29,7 @@ import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response
 
 const STRIPE_API = "https://api.stripe.com";
 const QUALIFYING_AMOUNT_USD = 100;
+const SMALL_AMOUNT_USD = 20;
 const BONUS_CENTS = 10_00;
 
 describe("First-purchase bonus", () => {
@@ -74,7 +76,7 @@ describe("First-purchase bonus", () => {
       const nextPurchase = await buyInTeam(person, secondTeam);
 
       expect(await findTransaction(bonused!.id)).toMatchObject({ status: "refunded", bonusAmount: BONUS_CENTS });
-      expect(eligibility).toEqual({ data: { eligible: false } });
+      expect(eligibility).toEqual({ data: { eligible: false, endsAt: null } });
       expect(nextPurchase).toMatchObject({ status: "succeeded", bonusAmount: 0 });
     });
 
@@ -86,10 +88,34 @@ describe("First-purchase bonus", () => {
       const after = await eligibilityIn(person);
       const secondPurchase = await buyAsUser(person);
 
-      expect(before).toEqual({ data: { eligible: true } });
+      expect(before).toEqual({ data: { eligible: true, endsAt: null } });
       expect(firstPurchase).toMatchObject({ status: "succeeded", bonusAmount: BONUS_CENTS });
-      expect(after).toEqual({ data: { eligible: false } });
+      expect(after).toEqual({ data: { eligible: false, endsAt: null } });
       expect(secondPurchase).toMatchObject({ status: "succeeded", bonusAmount: 0 });
+    });
+
+    it("keeps the bonus open for 7 days after a small first purchase on a single-account user's own account", async () => {
+      const { person, buyAsUser, eligibilityIn } = await setup({ organizationsOn: false });
+
+      const smallPurchase = await buyAsUser(person, SMALL_AMOUNT_USD);
+      const eligibility = await eligibilityIn(person);
+      const qualifyingPurchase = await buyAsUser(person);
+
+      expect(smallPurchase).toMatchObject({ status: "succeeded", bonusAmount: 0 });
+      expect(eligibility).toEqual({ data: { eligible: true, endsAt: addDays(smallPurchase!.createdAt, 7).toISOString() } });
+      expect(qualifyingPurchase).toMatchObject({ status: "succeeded", bonusAmount: BONUS_CENTS });
+    });
+
+    it("opens no window after a team's small first purchase", async () => {
+      const { person, buyInTeam, teamOwnedBy, eligibilityIn } = await setup();
+      const team = await teamOwnedBy(person);
+
+      await buyInTeam(person, team, SMALL_AMOUNT_USD);
+      const eligibility = await eligibilityIn(person, team);
+      const qualifyingPurchase = await buyInTeam(person, team);
+
+      expect(eligibility).toEqual({ data: { eligible: false, endsAt: null } });
+      expect(qualifyingPurchase).toMatchObject({ status: "succeeded", bonusAmount: 0 });
     });
   });
 
@@ -98,7 +124,7 @@ describe("First-purchase bonus", () => {
       const { person, teamOwnedBy, eligibilityIn } = await setup();
       const team = await teamOwnedBy(person);
 
-      expect(await eligibilityIn(person, team)).toEqual({ data: { eligible: true } });
+      expect(await eligibilityIn(person, team)).toEqual({ data: { eligible: true, endsAt: null } });
     });
 
     it("answers not eligible in a new team for a person who received the bonus in another team", async () => {
@@ -107,7 +133,7 @@ describe("First-purchase bonus", () => {
       const secondTeam = await teamOwnedBy(person);
       await buyInTeam(person, firstTeam);
 
-      expect(await eligibilityIn(person, secondTeam)).toEqual({ data: { eligible: false } });
+      expect(await eligibilityIn(person, secondTeam)).toEqual({ data: { eligible: false, endsAt: null } });
     });
 
     it.each(["admin", "billing"] satisfies OrganizationRole[])("answers a team %s, who may read the team's payments", async role => {
@@ -115,7 +141,7 @@ describe("First-purchase bonus", () => {
       const team = await teamOwnedBy(person);
       const reader = await memberOf(team, role);
 
-      expect(await eligibilityIn(reader, team)).toEqual({ data: { eligible: true } });
+      expect(await eligibilityIn(reader, team)).toEqual({ data: { eligible: true, endsAt: null } });
     });
 
     it.each(["member", "viewer"] satisfies OrganizationRole[])("refuses a team %s, who may not read the team's payments", async role => {
@@ -138,7 +164,7 @@ describe("First-purchase bonus", () => {
       const response = await app.request("/v1/stripe/first-purchase-bonus", { headers: { "x-api-key": apiKey } });
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ data: { eligible: false } });
+      expect(await response.json()).toEqual({ data: { eligible: false, endsAt: null } });
     });
   });
 
@@ -264,11 +290,11 @@ describe("First-purchase bonus", () => {
       });
     };
 
-    const buy = async (buyer: UserOutput, payer: { customerId: string; organizationId?: string }) => {
+    const buy = async (buyer: UserOutput, payer: { customerId: string; organizationId?: string }, amountUsd: number) => {
       const paymentMethodId = `pm_${faker.string.alphanumeric(14)}`;
       const paymentIntentId = `pi_${faker.string.alphanumeric(14)}`;
       const chargeId = `ch_${faker.string.alphanumeric(14)}`;
-      const amountCents = QUALIFYING_AMOUNT_USD * 100;
+      const amountCents = amountUsd * 100;
       nock(STRIPE_API).get(`/v1/payment_methods/${paymentMethodId}`).reply(200, { id: paymentMethodId, object: "payment_method", customer: payer.customerId });
       nock(STRIPE_API)
         .post("/v1/payment_intents", body => body.customer === payer.customerId)
@@ -278,7 +304,7 @@ describe("First-purchase bonus", () => {
 
       const confirmed = await request(buyer, "/v1/stripe/transactions/confirm", {
         organizationId: payer.organizationId,
-        body: { userId: buyer.id, paymentMethodId, amount: QUALIFYING_AMOUNT_USD, idempotencyKey: faker.string.uuid() }
+        body: { userId: buyer.id, paymentMethodId, amount: amountUsd, idempotencyKey: faker.string.uuid() }
       });
       expect(confirmed.status).toBe(200);
       const { data } = (await confirmed.json()) as { data: { transactionId: string } };
@@ -303,16 +329,16 @@ describe("First-purchase bonus", () => {
       return await findTransaction(data.transactionId);
     };
 
-    const buyInTeam = async (buyer: UserOutput, team: { id: string }) =>
-      await buy(buyer, { customerId: customerByOwnerId.get(team.id)!, organizationId: team.id });
+    const buyInTeam = async (buyer: UserOutput, team: { id: string }, amountUsd = QUALIFYING_AMOUNT_USD) =>
+      await buy(buyer, { customerId: customerByOwnerId.get(team.id)!, organizationId: team.id }, amountUsd);
 
-    const buyAsUser = async (buyer: UserOutput) => {
+    const buyAsUser = async (buyer: UserOutput, amountUsd = QUALIFYING_AMOUNT_USD) => {
       await db
         .insert(resolveTable("UserWallets"))
         .values({ userId: buyer.id, address: createAkashAddress(), isTrialing: false, activatedAt: new Date() })
         .onConflictDoNothing();
 
-      return await buy(buyer, { customerId: customerByOwnerId.get(buyer.id)! });
+      return await buy(buyer, { customerId: customerByOwnerId.get(buyer.id)! }, amountUsd);
     };
 
     const refund = async (transaction: { stripeChargeId: string | null; amount: number }, team: { id: string }) => {
