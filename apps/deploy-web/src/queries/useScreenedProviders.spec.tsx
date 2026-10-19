@@ -9,9 +9,11 @@ import type { KeyedScreeningRequest, ScreenedProvider, ScreenedProvidersResponse
 import {
   buildCatalogScreeningRequest,
   buildPlacementScreeningRequest,
+  countNotBiddingProviders,
   SCREENING_DEBOUNCE_MS,
   sumAvailableGpus,
   toScreeningRequest,
+  useCachedNotBiddingProviderCount,
   useCachedScreenedProviderCount,
   useHasPlacementWithoutProviders,
   useScreenedProviderCounts,
@@ -417,8 +419,8 @@ describe(useScreenedProviderCounts.name, () => {
 
     await waitFor(() =>
       expect(result.current.counts).toEqual([
-        { count: 2, gpuCount: 4, isLoading: false },
-        { count: 0, gpuCount: 0, isLoading: false }
+        { count: 2, gpuCount: 4, notBiddingCount: 0, isLoading: false },
+        { count: 0, gpuCount: 0, notBiddingCount: 0, isLoading: false }
       ])
     );
   });
@@ -435,8 +437,8 @@ describe(useScreenedProviderCounts.name, () => {
 
     await waitFor(() =>
       expect(result.current.counts).toEqual([
-        { count: 2, gpuCount: 4, isLoading: false },
-        { count: 4, gpuCount: 8, isLoading: false }
+        { count: 2, gpuCount: 4, notBiddingCount: 0, isLoading: false },
+        { count: 4, gpuCount: 8, notBiddingCount: 0, isLoading: false }
       ])
     );
   });
@@ -461,7 +463,7 @@ describe(useScreenedProviderCounts.name, () => {
 
     rerender([keyed("a", "east")]);
 
-    await waitFor(() => expect(result.current.counts).toEqual([{ count: 2, gpuCount: 4, isLoading: true }]));
+    await waitFor(() => expect(result.current.counts).toEqual([{ count: 2, gpuCount: 4, notBiddingCount: 0, isLoading: true }]));
   });
 
   it("gives a new key no count until its request is screened", async () => {
@@ -482,10 +484,16 @@ describe(useScreenedProviderCounts.name, () => {
     expect(result.current.counts).toEqual([{ count: null, gpuCount: null, isLoading: false }]);
   });
 
+  it("counts the providers flagged for not bidding on the requested gpu", async () => {
+    const { result } = setup({ requests: [keyed("a", "west")], providersByRegion: { west: 3 }, notBiddingProviders: 2 });
+
+    await waitFor(() => expect(result.current.counts).toEqual([{ count: 3, gpuCount: 6, notBiddingCount: 2, isLoading: false }]));
+  });
+
   it("counts no free gpus while a provider comes from a screening api that predates them", async () => {
     const { result } = setup({ requests: [keyed("a", "west")], providersByRegion: { west: 2 }, withoutGpuCounts: true });
 
-    await waitFor(() => expect(result.current.counts).toEqual([{ count: 2, gpuCount: null, isLoading: false }]));
+    await waitFor(() => expect(result.current.counts).toEqual([{ count: 2, gpuCount: null, notBiddingCount: 0, isLoading: false }]));
   });
 
   it("reuses the screening the provider count already ran for the same spec", async () => {
@@ -507,13 +515,18 @@ describe(useScreenedProviderCounts.name, () => {
     alongsideHeadline?: string;
     providerLocations?: (string | null)[];
     withoutGpuCounts?: boolean;
+    notBiddingProviders?: number;
   }) {
     const screenProviders = vi.fn(async (request: ScreeningRequest): Promise<ScreenedProvidersResponse> => {
       const region = (request.requirements?.attributes ?? []).find(attribute => attribute.key === "location-region")!.value;
       if (input.pendingRegions?.includes(region)) return new Promise(() => {});
       return {
         providers: Array.from({ length: input.providersByRegion[region] }, (_, index) => {
-          const provider = buildScreenedProvider({ availableGpus: 2, ...(input.providerLocations ? { location: input.providerLocations[index] } : {}) });
+          const provider = buildScreenedProvider({
+            availableGpus: 2,
+            ...(input.providerLocations ? { location: input.providerLocations[index] } : {}),
+            ...(input.notBiddingProviders === undefined ? {} : { isNotBidding: index < input.notBiddingProviders })
+          });
           if (!input.withoutGpuCounts) return provider;
           const { availableGpus: _uncounted, ...fromOlderApi } = provider;
           return fromOlderApi as ScreenedProvider;
@@ -563,6 +576,41 @@ describe(sumAvailableGpus.name, () => {
     const { availableGpus: _uncounted, ...fromOlderApi } = buildScreenedProvider();
 
     expect(sumAvailableGpus([buildScreenedProvider({ availableGpus: 3 }), fromOlderApi as ScreenedProvider])).toBeNull();
+  });
+});
+
+describe(countNotBiddingProviders.name, () => {
+  it("counts the providers flagged for not bidding", () => {
+    expect(countNotBiddingProviders([buildScreenedProvider({ isNotBidding: true }), buildScreenedProvider({ isNotBidding: false })])).toBe(1);
+  });
+
+  it("counts none from a screening api that predates the flag", () => {
+    expect(countNotBiddingProviders([buildScreenedProvider(), buildScreenedProvider()])).toBe(0);
+  });
+});
+
+describe(useCachedNotBiddingProviderCount.name, () => {
+  it("adds up the flagged providers screening already found for every placement", async () => {
+    const screenProviders = vi.fn(
+      async (): Promise<ScreenedProvidersResponse> => ({
+        providers: [buildScreenedProvider({ isNotBidding: true }), buildScreenedProvider({ isNotBidding: false })]
+      })
+    );
+    const api = createProxy({ v1: { screenProviders } }) as unknown as ReturnType<
+      NonNullable<NonNullable<NonNullable<Parameters<typeof setupQuery>[1]>["services"]>["api"]>
+    >;
+    const { result } = setupQuery(
+      () => {
+        const west = useScreenedProviders({ sdl: TWO_PLACEMENT_SDL, placementName: "west" });
+        const east = useScreenedProviders({ sdl: TWO_PLACEMENT_SDL, placementName: "east" });
+        return { countNotBiddingProviders: useCachedNotBiddingProviderCount(), isScreened: !west.isLoading && !east.isLoading };
+      },
+      { services: { api: () => api } }
+    );
+
+    await waitFor(() => expect(result.current.isScreened).toBe(true));
+
+    expect(result.current.countNotBiddingProviders(TWO_PLACEMENT_SDL, [{ name: "west" }, { name: "east" }])).toBe(2);
   });
 });
 

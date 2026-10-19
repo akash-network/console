@@ -5,12 +5,13 @@ import { cn } from "@akashnetwork/ui/utils";
 import { GpuIcon, InfoIcon, LoaderCircleIcon, MessageSquareIcon, PanelsTopLeftIcon } from "lucide-react";
 
 import { useNetworkProviderCount } from "@src/queries/useNetworkProviderCount";
-import { sumAvailableGpus, useScreenedProviders } from "@src/queries/useScreenedProviders";
+import { countNotBiddingProviders, sumAvailableGpus, useScreenedProviders } from "@src/queries/useScreenedProviders";
 import type { PlacementType } from "@src/types";
 import { describeGpuAvailability } from "@src/utils/providerUtils";
 import { InvalidSpecReasons } from "../InvalidSpecReasons/InvalidSpecReasons";
 import type { GpuAvailabilityRow } from "./gpuAvailability/gpuAvailability";
 import { listGpuAvailabilityRows } from "./gpuAvailability/gpuAvailability";
+import { NotBiddingNotice } from "./NotBiddingNotice/NotBiddingNotice";
 import type { GpuAvailability } from "./useGpuAvailability/useGpuAvailability";
 import { useGpuAvailability } from "./useGpuAvailability/useGpuAvailability";
 import type { GpuQuantityAvailability } from "./useGpuQuantityAvailability/useGpuQuantityAvailability";
@@ -25,7 +26,8 @@ export const DEPENDENCIES = {
   useGpuQuantityAvailability,
   useGpuSelection,
   CustomTooltip,
-  InvalidSpecReasons
+  InvalidSpecReasons,
+  NotBiddingNotice
 };
 
 type Props = {
@@ -37,6 +39,7 @@ type Props = {
   hasPlacementWithoutProviders: boolean;
   onChooseProvider: () => void;
   onRequestCompute: () => void;
+  onRequestComputeForUnlikelyBids: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -49,6 +52,7 @@ export const AvailabilityPane: FC<Props> = ({
   hasPlacementWithoutProviders,
   onChooseProvider,
   onRequestCompute,
+  onRequestComputeForUnlikelyBids,
   dependencies: d = DEPENDENCIES
 }) => {
   const headingId = useId();
@@ -58,6 +62,7 @@ export const AvailabilityPane: FC<Props> = ({
   const gpuQuantities = d.useGpuQuantityAvailability(placement);
   const gpuSelection = d.useGpuSelection(placement.id);
   const scope = placementCount > 1 ? "this placement" : "your deployment";
+  const notBiddingCount = screened.isLoading || screened.isInvalid ? 0 : countNotBiddingProviders(screened.providers);
 
   return (
     <section aria-labelledby={headingId} className="flex h-full min-h-0 flex-col">
@@ -75,6 +80,13 @@ export const AvailabilityPane: FC<Props> = ({
             </p>
           )}
           <ProviderCountCard screened={screened} networkCount={network.count} scope={scope} InvalidSpecReasons={d.InvalidSpecReasons} />
+          {notBiddingCount > 0 && (
+            <d.NotBiddingNotice
+              notBiddingCount={notBiddingCount}
+              providerCount={screened.providers.length}
+              onRequestCompute={onRequestComputeForUnlikelyBids}
+            />
+          )}
           {!screened.isInvalid && !screened.isError && (
             <GpuAvailabilityCard
               gpuAvailability={gpuAvailability}

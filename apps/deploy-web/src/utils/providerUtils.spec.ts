@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { describeGpuAvailability, formatProviderCount, providerDisplayName } from "./providerUtils";
+import { describeGpuAvailability, describeNotBiddingProviders, formatProviderCount, providerDisplayName } from "./providerUtils";
 
 describe(providerDisplayName.name, () => {
   it("prefers the organization when present", () => {
@@ -49,5 +49,23 @@ describe(describeGpuAvailability.name, () => {
 
   it("reads the providers alone while the gpu count is unknown", () => {
     expect(describeGpuAvailability(2, null)).toBe("2 providers");
+  });
+});
+
+describe(describeNotBiddingProviders.name, () => {
+  it("reads how many of the providers have not bid when only some have not", () => {
+    expect(describeNotBiddingProviders(2, 4)).toBe("2 of 4 providers haven't bid on recent test deployments of this GPU");
+  });
+
+  it("reads a single provider that has not bid among several in the singular", () => {
+    expect(describeNotBiddingProviders(1, 3)).toBe("1 of 3 providers hasn't bid on recent test deployments of this GPU");
+  });
+
+  it("reads that none of the providers bid when every one has not", () => {
+    expect(describeNotBiddingProviders(3, 3)).toBe("None of the 3 providers bid on recent test deployments of this GPU");
+  });
+
+  it("reads that the only provider has not bid when it is alone", () => {
+    expect(describeNotBiddingProviders(1, 1)).toBe("The only provider hasn't bid on recent test deployments of this GPU");
   });
 });

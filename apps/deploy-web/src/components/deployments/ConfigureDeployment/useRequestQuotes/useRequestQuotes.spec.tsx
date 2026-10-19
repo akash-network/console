@@ -31,12 +31,20 @@ describe(useRequestQuotes.name, () => {
       { id: "p1", name: "west", regions: ["na-us-west"] },
       { id: "p2", name: "east" }
     ];
-    const { requestQuotes, submit, countScreenedProviders } = setup({ placements, screenedProviderCount: 4 });
+    const { requestQuotes, submit, countScreenedProviders, countNotBiddingProviders } = setup({
+      placements,
+      screenedProviderCount: 4,
+      notBiddingProviderCount: 3
+    });
 
     await submit();
 
     expect(countScreenedProviders).toHaveBeenCalledWith(GENERATED_SDL, placements);
-    expect(requestQuotes).toHaveBeenCalledWith(GENERATED_SDL, expect.objectContaining({ screening: { placementCount: 2, providerCount: 4 } }));
+    expect(countNotBiddingProviders).toHaveBeenCalledWith(GENERATED_SDL, placements);
+    expect(requestQuotes).toHaveBeenCalledWith(
+      GENERATED_SDL,
+      expect.objectContaining({ screening: { placementCount: 2, providerCount: 4, notBiddingProviderCount: 3 } })
+    );
   });
 
   it("requests quotes under the name typed for the deployment", async () => {
@@ -295,6 +303,7 @@ describe(useRequestQuotes.name, () => {
     rejectWith?: FieldErrors;
     placements?: Array<{ id: string; name: string; regions?: string[] }>;
     screenedProviderCount?: number;
+    notBiddingProviderCount?: number;
   }) {
     const requestQuotes = vi.fn();
     const flow = mock<DeploymentFlow>({ actions: mock<DeploymentFlowActions>({ requestQuotes }) });
@@ -302,6 +311,7 @@ describe(useRequestQuotes.name, () => {
     const analyticsService = mock<AnalyticsService>();
     const generateSdl = vi.fn(() => GENERATED_SDL);
     const countScreenedProviders = vi.fn(() => input.screenedProviderCount);
+    const countNotBiddingProviders = vi.fn(() => input.notBiddingProviderCount);
     const dependencies: typeof DEPENDENCIES = {
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       Snackbar,
@@ -312,6 +322,7 @@ describe(useRequestQuotes.name, () => {
       useTrialGate: () => ({ isRestricted: input.isRestricted ?? false, isWalletReady: true }),
       useTrialResourceLimit: () => input.trialResourceLimit,
       useCachedScreenedProviderCount: () => countScreenedProviders,
+      useCachedNotBiddingProviderCount: () => countNotBiddingProviders,
       useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService })
     };
     const services = (input.services ?? []).map(service => ({ count: 1, ...service, profile: { storage: [], ...service.profile } }));
@@ -332,6 +343,7 @@ describe(useRequestQuotes.name, () => {
       analyticsService,
       generateSdl,
       countScreenedProviders,
+      countNotBiddingProviders,
       submit: () => act(() => result.current())
     };
   }

@@ -48,3 +48,12 @@ export function describeGpuAvailability(providerCount: number, gpuCount: number 
   const providers = `${providerCount} ${providerCount === 1 ? "provider" : "providers"}`;
   return gpuCount === null ? providers : `${gpuCount} free ${gpuCount === 1 ? "GPU" : "GPUs"} on ${providers}`;
 }
+
+export function describeNotBiddingProviders(notBiddingCount: number, providerCount: number): string {
+  if (notBiddingCount < providerCount) {
+    return `${notBiddingCount} of ${providerCount} providers ${notBiddingCount === 1 ? "hasn't" : "haven't"} bid on recent test deployments of this GPU`;
+  }
+  return providerCount === 1
+    ? "The only provider hasn't bid on recent test deployments of this GPU"
+    : `None of the ${providerCount} providers bid on recent test deployments of this GPU`;
+}

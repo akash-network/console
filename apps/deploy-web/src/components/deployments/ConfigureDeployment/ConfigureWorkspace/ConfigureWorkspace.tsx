@@ -72,7 +72,7 @@ const PANEL_TRANSITION = { duration: 0.3, ease: "easeOut" } as const;
 
 type View = "configure" | "pick";
 
-type ComputeRequestSource = "footer" | "no_bids_notice";
+type ComputeRequestSource = "footer" | "no_bids_notice" | "not_bidding_notice";
 
 type HardwareRequest = { configuration: HardwareRequestConfiguration; category: HardwareRequestCategory; gpuModel: string };
 
@@ -192,6 +192,7 @@ export const ConfigureWorkspace: FC<Props> = ({
       hasPlacementWithoutProviders={hasPlacementWithoutProviders}
       onChooseProvider={chooseProvider}
       onRequestCompute={() => requestCompute("footer", "gpu_model")}
+      onRequestComputeForUnlikelyBids={() => requestCompute("not_bidding_notice", "capacity")}
     />
   );
 

@@ -42,6 +42,8 @@ export interface ScreenedProviderCount {
   count: number | null;
   /** Free GPUs of the requested kind across those providers, null while unknown. */
   gpuCount: number | null;
+  /** Absent until screened, and zero against a screening API that predates the flag. */
+  notBiddingCount?: number;
   isLoading: boolean;
 }
 
@@ -117,10 +119,14 @@ export function useScreenedProviderCounts(requests: KeyedScreeningRequest[]): Sc
     if (request === null) return { count: null, gpuCount: null, isLoading: false };
     if (result.data) {
       const providers = inPickedRegions(result.data.providers, regions);
-      lastCountByKey.current.set(key, { count: providers.length, gpuCount: sumAvailableGpus(providers) });
+      lastCountByKey.current.set(key, { count: providers.length, gpuCount: sumAvailableGpus(providers), notBiddingCount: countNotBiddingProviders(providers) });
     }
     return { count: null, gpuCount: null, ...lastCountByKey.current.get(key), isLoading: result.isLoading };
   });
+}
+
+export function countNotBiddingProviders(providers: ScreenedProvider[]): number {
+  return providers.filter(({ isNotBidding }) => isNotBidding).length;
 }
 
 /** Null while any provider comes from a screening API that predates the count, so a partial sum never reads as the total. */
@@ -136,6 +142,18 @@ export function sumAvailableGpus(providers: ScreenedProvider[]): number | null {
 
 /** Reads the screening already cached for each placement, so recording what screening promised never screens again. */
 export function useCachedScreenedProviderCount() {
+  return useCachedScreenedProviderTotal(countAllProviders);
+}
+
+export function useCachedNotBiddingProviderCount() {
+  return useCachedScreenedProviderTotal(countNotBiddingProviders);
+}
+
+function countAllProviders(providers: ScreenedProvider[]): number {
+  return providers.length;
+}
+
+function useCachedScreenedProviderTotal(countProviders: (providers: ScreenedProvider[]) => number) {
   const { api } = useServices();
   const queryClient = useQueryClient();
 
@@ -146,11 +164,11 @@ export function useCachedScreenedProviderCount() {
         const request = toScreeningRequest(sdl, placement.name);
         const screened = request && queryClient.getQueryData<ScreenedProvidersResponse>(api.v1.screenProviders.getKey(request));
         if (!screened) return undefined;
-        total += inPickedRegions(screened.providers, placement.regions).length;
+        total += countProviders(inPickedRegions(screened.providers, placement.regions));
       }
       return total;
     },
-    [api, queryClient]
+    [api, queryClient, countProviders]
   );
 }
 

@@ -138,6 +138,7 @@ export type AnalyticsEvent =
   | "configure_choose_provider_blocked"
   | "create_deployment_failed"
   | "configure_request_compute_clicked"
+  | "configure_not_bidding_warning_shown"
   | "configure_edit_clicked"
   | "configure_leave_discarded"
   | "cancel_during_create"

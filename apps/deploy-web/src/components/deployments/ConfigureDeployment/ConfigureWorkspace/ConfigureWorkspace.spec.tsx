@@ -120,6 +120,15 @@ describe(ConfigureWorkspace.name, () => {
       expect(useRequestQuotes).toHaveBeenCalledWith(expect.objectContaining({ deploymentName: "typed-name" }));
     });
 
+    it("asks for more capacity when bids are unlikely and tracks that the request came from the not-bidding notice", () => {
+      const { availabilityProps, analyticsService, dependencies } = setup({ selectedServiceId: "api" });
+
+      act(() => availabilityProps().onRequestComputeForUnlikelyBids());
+
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_request_compute_clicked", { category: "deployments", source: "not_bidding_notice" });
+      expect(dependencies.HardwareRequestDialog).toHaveBeenLastCalledWith(expect.objectContaining({ initialCategory: "capacity" }), expect.anything());
+    });
+
     it("tracks a compute request and asks for it with the selected service's configuration", () => {
       const { availabilityProps, analyticsService, dependencies } = setup({ selectedServiceId: "api" });
       expect(dependencies.HardwareRequestDialog).not.toHaveBeenCalled();

@@ -4,6 +4,7 @@ import { useController, useFieldArray, useFormContext, useWatch } from "react-ho
 import {
   Button,
   CollapsibleCard,
+  CustomTooltip,
   Field,
   FieldContent,
   FieldError,
@@ -41,7 +42,7 @@ import {
   withPinnedGpu
 } from "@src/utils/akash/gpu";
 import { validationConfig } from "@src/utils/akash/units";
-import { describeGpuAvailability } from "@src/utils/providerUtils";
+import { describeGpuAvailability, describeNotBiddingProviders } from "@src/utils/providerUtils";
 import { defaultGpuModel } from "@src/utils/sdl/data";
 import { describeCurrentConfiguration } from "../../HardwareRequestDialog/currentConfiguration";
 import { HardwareRequestDialog } from "../../HardwareRequestDialog/HardwareRequestDialog";
@@ -63,7 +64,8 @@ export const DEPENDENCIES = {
   GpuModelFields,
   GpuInterconnectFields,
   HardwareRequestDialog,
-  useScreenedGpuModelCounts
+  useScreenedGpuModelCounts,
+  CustomTooltip
 };
 
 type Props = {
@@ -368,6 +370,7 @@ function GpuModelFields({
       disabled={locked}
       emptyTriggerLabel={isGpuOn ? undefined : "Select"}
       useScreenedGpuModelCounts={d.useScreenedGpuModelCounts}
+      CustomTooltip={d.CustomTooltip}
     />
   );
 
@@ -516,6 +519,7 @@ function FirstGpuModelPicker({
           disabled={locked}
           emptyTriggerLabel="Select"
           useScreenedGpuModelCounts={d.useScreenedGpuModelCounts}
+          CustomTooltip={d.CustomTooltip}
         />
         {countField}
       </div>
@@ -536,6 +540,7 @@ type GpuModelControlProps = {
   disabled: boolean;
   emptyTriggerLabel?: string;
   useScreenedGpuModelCounts: typeof DEPENDENCIES.useScreenedGpuModelCounts;
+  CustomTooltip: typeof DEPENDENCIES.CustomTooltip;
 };
 
 function GpuModelControl({
@@ -548,10 +553,11 @@ function GpuModelControl({
   choices,
   disabled,
   emptyTriggerLabel,
-  useScreenedGpuModelCounts
+  useScreenedGpuModelCounts,
+  CustomTooltip
 }: GpuModelControlProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const screened = useScreenedModelOptions({ serviceIndex, choices, isOpen, useScreenedGpuModelCounts });
+  const screened = useScreenedModelOptions({ serviceIndex, choices, isOpen, useScreenedGpuModelCounts, CustomTooltip });
 
   if (isLoading) {
     return (
@@ -642,7 +648,15 @@ function AvailabilityColumnLabels() {
   );
 }
 
-function AvailabilityHint({ providerCount, gpuCount }: { providerCount: number | null; gpuCount: number | null }) {
+type AvailabilityHintProps = {
+  providerCount: number | null;
+  gpuCount: number | null;
+  /** Flags only a model none of whose providers bid on recent test deployments, so a few silent ones among many never deter. */
+  bidsUnlikely?: boolean;
+  CustomTooltip?: typeof DEPENDENCIES.CustomTooltip;
+};
+
+function AvailabilityHint({ providerCount, gpuCount, bidsUnlikely = false, CustomTooltip }: AvailabilityHintProps) {
   if (providerCount === null) {
     return (
       <span className={AVAILABILITY_COLUMNS}>
@@ -657,15 +671,25 @@ function AvailabilityHint({ providerCount, gpuCount }: { providerCount: number |
     );
   }
 
+  const unlikelyBids = bidsUnlikely ? `Bids are unlikely. ${describeNotBiddingProviders(providerCount, providerCount)}.` : null;
+
   return (
     <span className={AVAILABILITY_COLUMNS}>
-      <span aria-hidden="true" className="font-mono">
+      <span aria-hidden="true" className="flex items-center gap-1 font-mono">
+        {unlikelyBids && CustomTooltip && (
+          <CustomTooltip title={unlikelyBids} className="max-w-[300px] p-3 text-xs">
+            <TriangleAlertIcon className="h-3 w-3 text-warning" />
+          </CustomTooltip>
+        )}
         {providerCount}
       </span>
       <span aria-hidden="true" className="font-mono">
         {gpuCount ?? "–"}
       </span>
-      <span className="sr-only">{describeGpuAvailability(providerCount, gpuCount)}</span>
+      <span className="sr-only">
+        {describeGpuAvailability(providerCount, gpuCount)}
+        {unlikelyBids && `. ${unlikelyBids}`}
+      </span>
     </span>
   );
 }
@@ -677,25 +701,38 @@ type ScreenedModelOptionsInput = {
   choices: GpuModelChoices;
   isOpen: boolean;
   useScreenedGpuModelCounts: typeof DEPENDENCIES.useScreenedGpuModelCounts;
+  CustomTooltip: typeof DEPENDENCIES.CustomTooltip;
 };
 
 /** Screens only while the picker is open, and moves a model no provider could host this configuration with among the unavailable ones. */
-function useScreenedModelOptions({ serviceIndex, choices, isOpen, useScreenedGpuModelCounts }: ScreenedModelOptionsInput) {
+function useScreenedModelOptions({ serviceIndex, choices, isOpen, useScreenedGpuModelCounts, CustomTooltip }: ScreenedModelOptionsInput) {
   const screenedModels = isOpen ? choices.screenedModels : NOTHING_TO_SCREEN;
   const counts = useScreenedGpuModelCounts(serviceIndex, screenedModels);
   const countByName = new Map(screenedModels.map((model, index) => [model.name, counts[index]]));
   const isScreenedOut = (option: SearchableSelectOption) => countByName.get(option.value)?.count === 0;
-  const withScreenedHint = (option: SearchableSelectOption): SearchableSelectOption => ({ ...option, hint: screenedHint(countByName.get(option.value)) });
+  const withScreenedHint = (option: SearchableSelectOption): SearchableSelectOption => ({
+    ...option,
+    hint: screenedHint(countByName.get(option.value), CustomTooltip)
+  });
 
   return {
-    anyModelHint: screenedHint(countByName.get("")),
+    anyModelHint: screenedHint(countByName.get(""), CustomTooltip),
     modelOptions: choices.modelOptions.filter(option => !isScreenedOut(option)).map(withScreenedHint),
     unavailableModelOptions: [...choices.modelOptions.filter(isScreenedOut).map(withScreenedHint), ...choices.unavailableModelOptions]
   };
 }
 
-function screenedHint(screened: ScreenedProviderCount | undefined) {
-  return screened && <AvailabilityHint providerCount={screened.count} gpuCount={screened.gpuCount} />;
+function screenedHint(screened: ScreenedProviderCount | undefined, CustomTooltip: typeof DEPENDENCIES.CustomTooltip) {
+  return (
+    screened && (
+      <AvailabilityHint
+        providerCount={screened.count}
+        gpuCount={screened.gpuCount}
+        bidsUnlikely={!!screened.notBiddingCount && screened.notBiddingCount === screened.count}
+        CustomTooltip={CustomTooltip}
+      />
+    )
+  );
 }
 
 type GpuModelChoices = ReturnType<typeof useGpuModelOptions>;
