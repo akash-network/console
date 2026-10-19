@@ -680,6 +680,13 @@
       "when": 1792340861518,
       "tag": "0096_affiliates",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1792343605349,
+      "tag": "0097_referrals",
+      "breakpoints": true
     }
   ]
 }

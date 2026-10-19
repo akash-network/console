@@ -5,6 +5,7 @@ import { container } from "tsyringe";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ReferralService } from "@src/affiliate/services/referral/referral.service";
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
@@ -515,7 +516,8 @@ describe(UserService.name, () => {
       input?.ensureDataKey ? mock<DataKeyService>({ ensureDataKey: input.ensureDataKey }) : dataKeyService,
       mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(input?.isBlockedEmail ?? false) }),
       personalOrganizationService,
-      container.resolve(TxService)
+      container.resolve(TxService),
+      mock<ReferralService>({ attribute: vi.fn().mockResolvedValue(undefined) })
     );
 
     return {
