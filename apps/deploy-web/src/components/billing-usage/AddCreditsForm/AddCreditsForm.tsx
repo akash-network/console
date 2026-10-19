@@ -120,7 +120,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
   const { data: setupIntent, mutate: createSetupIntent, status: setupIntentStatus, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const { user } = d.useUser();
   const { pollForPayment, isPolling, lastOutcome } = d.usePaymentPolling();
-  const { stripe, analyticsService } = d.useServices();
+  const { stripe, analyticsService, api, queryClient } = d.useServices();
   const { isTrialing, topUpMinAmountUsd } = d.useWallet();
   const { balance } = d.useWalletBalance();
   const refreshPaymentMethods = d.useRefreshPaymentMethods();
@@ -399,6 +399,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
       attempt.clear();
       setCharge(null);
       analyticsService.track("add_credits_purchased", { category: "billing", ...charge.analytics });
+      void queryClient.invalidateQueries({ queryKey: api.v1.getFirstPurchaseBonus.getKey() });
 
       const { amount } = charge;
       void (async function completeWithGrantedBonus() {
@@ -418,7 +419,21 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
         setIsProcessing(false);
       })();
     },
-    [isPolling, lastOutcome, isTrialing, charge, releaseChargeKeepingAttempt, finalizeFailure, trackPaymentFailed, attempt, onDone, stripe, analyticsService]
+    [
+      isPolling,
+      lastOutcome,
+      isTrialing,
+      charge,
+      releaseChargeKeepingAttempt,
+      finalizeFailure,
+      trackPaymentFailed,
+      attempt,
+      onDone,
+      stripe,
+      analyticsService,
+      api,
+      queryClient
+    ]
   );
 
   useEffect(

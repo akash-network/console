@@ -1,5 +1,7 @@
 import React, { useContext, useImperativeHandle } from "react";
 import type { PaymentMethod } from "@akashnetwork/http-sdk";
+import { createProxy } from "@akashnetwork/react-query-proxy";
+import type { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -473,6 +475,36 @@ describe(AddCreditsForm.name, () => {
 
     await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, 10));
     expect(getCustomerTransactions).toHaveBeenCalledWith({ limit: 1 });
+  });
+
+  it("refreshes the first-purchase bonus offer once the payment settles", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
+    const invalidateQueries = vi.fn().mockResolvedValue(undefined);
+    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1" });
+    const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
+
+    const { rerender } = setup({
+      status: "success",
+      clientSecret: "seti_secret",
+      confirmPayment,
+      invalidateQueries,
+      isTrialing: false,
+      isPolling: false,
+      dependencies: { AddCreditsNewPaymentMethodFields }
+    });
+
+    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+    await act(async () => {
+      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+    });
+
+    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, invalidateQueries, isTrialing: false, isPolling: true });
+    expect(invalidateQueries).not.toHaveBeenCalled();
+
+    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, invalidateQueries, isTrialing: false, isPolling: false });
+
+    await waitFor(() => expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "getFirstPurchaseBonus"] }));
   });
 
   it("reports a zero bonus when the latest transaction does not match the charge", async () => {
@@ -1612,6 +1644,7 @@ describe(AddCreditsForm.name, () => {
     reset?: ReturnType<typeof DEPENDENCIES.useSetupIntentMutation>["reset"];
     refreshPaymentMethods?: ReturnType<typeof DEPENDENCIES.useRefreshPaymentMethods>;
     getCustomerTransactions?: ReturnType<typeof DEPENDENCIES.useServices>["stripe"]["getCustomerTransactions"];
+    invalidateQueries?: QueryClient["invalidateQueries"];
     topUpMinAmountUsd?: number;
     confirmPayment?: ReturnType<typeof DEPENDENCIES.usePaymentMutations>["confirmPayment"]["mutateAsync"];
     pollForPayment?: ReturnType<typeof DEPENDENCIES.usePaymentPolling>["pollForPayment"];
@@ -1671,13 +1704,18 @@ describe(AddCreditsForm.name, () => {
     const refreshPaymentMethods = input.refreshPaymentMethods ?? vi.fn().mockResolvedValue(undefined);
     const useRefreshPaymentMethods: typeof DEPENDENCIES.useRefreshPaymentMethods = () => refreshPaymentMethods;
 
-    const useServices: typeof DEPENDENCIES.useServices = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useServices>>({
+    const api = createProxy({ v1: { getFirstPurchaseBonus: vi.fn() } }) as unknown as ReturnType<typeof DEPENDENCIES.useServices>["api"];
+    const useServices: typeof DEPENDENCIES.useServices = () => {
+      const services = mock<ReturnType<typeof DEPENDENCIES.useServices>>({
         stripe: mock<ReturnType<typeof DEPENDENCIES.useServices>["stripe"]>({
           getCustomerTransactions: input.getCustomerTransactions ?? vi.fn().mockResolvedValue({ transactions: [] })
         }),
-        analyticsService: input.analyticsService ?? mock<AnalyticsService>()
+        analyticsService: input.analyticsService ?? mock<AnalyticsService>(),
+        queryClient: mock<QueryClient>({ invalidateQueries: input.invalidateQueries ?? vi.fn() })
       });
+      services.api = api;
+      return services;
+    };
 
     // UseQueryResult is a discriminated union that neither mock<T>() nor a partial literal can satisfy
     const usePaymentMethodsQuery = (() => ({
