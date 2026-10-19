@@ -52,6 +52,10 @@ export function getLeaseCloseReasonLabel(reason?: string): string {
   }
 }
 
+export function isClosedByOwner(lease: ReclaimableLease): boolean {
+  return toNumericCloseReason(lease.reason ?? lease.reclamation?.reason) === LeaseClosedReason.lease_closed_owner;
+}
+
 /**
  * The same close reason at list density, where a parenthetical detail would wrap the status badge onto a
  * second line; the full label stays on the badge's tooltip and on the deployment detail page.

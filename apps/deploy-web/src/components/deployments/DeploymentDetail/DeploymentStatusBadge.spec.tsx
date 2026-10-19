@@ -1,3 +1,4 @@
+import type { ConsoleCloseReason } from "@akashnetwork/http-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -109,6 +110,13 @@ describe("DeploymentStatusBadge", () => {
     setup({ state: "active", leases: [mock<LeaseDto>({ state: "closed", reason: undefined, group: mock<DeploymentGroup>({ state: "paused" }) })] });
 
     expect(screen.getByText("Closed by provider")).toBeInTheDocument();
+  });
+
+  it("names Console as the one who closed a deployment it closed with the owner's wallet", () => {
+    setup({ state: "closed", leases: [mock<LeaseDto>({ state: "closed", reason: "lease_closed_owner" })], consoleCloseReason: "provider_unreachable" });
+
+    expect(screen.getByText("Closed by Console")).toBeInTheDocument();
+    expect(screen.queryByText("Closed by you")).not.toBeInTheDocument();
   });
 
   it("ignores an empty lease list and reports the deployment state", () => {
@@ -240,9 +248,78 @@ describe("DeploymentStatusBadge", () => {
 
       expect(status).toEqual({ label: "Closed", summaryLabel: "Closed", tone: "closed" });
     });
+
+    describe("when Console closed the deployment", () => {
+      it("reads a close the chain records as the owner's as Console's, and says why", () => {
+        const status = getDeploymentStatus("closed", [closedLease("lease_closed_owner")], false, undefined, false, "runtime_limit_reached");
+
+        expect(status).toEqual({ label: "Closed by Console", summaryLabel: "Closed by Console", tone: "closed", reason: "It reached its runtime limit." });
+      });
+
+      it("warns about Console's close of a lease while the deployment is still open", () => {
+        const status = getDeploymentStatus("active", [closedLease("lease_closed_owner")], false, undefined, false, "trial_ended");
+
+        expect(status).toEqual({
+          label: "Closed by Console",
+          summaryLabel: "Closed by Console",
+          tone: "warning",
+          reason: "It reached the time limit for trial deployments."
+        });
+      });
+
+      it.each([{ leases: [] }, { leases: null }])("reads a closed deployment that never got a lease as Console's (leases: $leases)", ({ leases }) => {
+        const status = getDeploymentStatus("closed", leases, false, undefined, false, "no_lease");
+
+        expect(status).toEqual({
+          label: "Closed by Console",
+          summaryLabel: "Closed by Console",
+          tone: "closed",
+          reason: "It never got a lease, so its deposit was returned."
+        });
+      });
+
+      it.each([
+        { reason: "lease_closed_reason_unstable", label: "Closed by provider (workloads unstable)" },
+        { reason: "lease_closed_reason_insufficient_funds", label: "Closed (insufficient funds)" }
+      ])("keeps saying '$label' for a lease its provider or the network closed", ({ reason, label }) => {
+        const status = getDeploymentStatus("closed", [closedLease(reason)], false, undefined, false, "provider_unreachable");
+
+        expect(status).toEqual({ label, summaryLabel: expect.any(String), tone: "closed" });
+      });
+
+      it("keeps reading a deployment that is still open with no lease by its state", () => {
+        const status = getDeploymentStatus("active", [], false, undefined, false, "no_lease");
+
+        expect(status.label).toBe("Running");
+      });
+
+      it("keeps reading a closed deployment whose lease list still shows a live lease as plainly closed", () => {
+        const status = getDeploymentStatus("closed", [mock<LeaseDto>({ state: "active" })], false, undefined, false, "runtime_limit_reached");
+
+        expect(status).toEqual({ label: "Closed", summaryLabel: "Closed", tone: "closed" });
+      });
+    });
+
+    it.each([null, undefined])("reads an owner close as the owner's when Console gave no reason (%s)", consoleCloseReason => {
+      const status = getDeploymentStatus("closed", [closedLease("lease_closed_owner")], false, undefined, false, consoleCloseReason);
+
+      expect(status).toEqual({ label: "Closed by you", summaryLabel: "Closed by you", tone: "closed" });
+    });
+
+    function closedLease(reason: string) {
+      return mock<LeaseDto>({ state: "closed", reason, group: mock<DeploymentGroup>({ state: "closed" }) });
+    }
   });
 
-  function setup(input: { state: string; leases?: LeaseDto[]; isSummarized?: boolean; isClosing?: boolean; isUpdating?: boolean; workload?: WorkloadStatus }) {
+  function setup(input: {
+    state: string;
+    leases?: LeaseDto[];
+    isSummarized?: boolean;
+    isClosing?: boolean;
+    isUpdating?: boolean;
+    workload?: WorkloadStatus;
+    consoleCloseReason?: ConsoleCloseReason;
+  }) {
     const CustomTooltip = vi.fn<typeof DEPENDENCIES.CustomTooltip>(({ title, children }) => (
       <>
         {title}
@@ -252,7 +329,7 @@ describe("DeploymentStatusBadge", () => {
 
     render(
       <DeploymentStatusBadge
-        status={getDeploymentStatus(input.state, input.leases, input.isClosing, input.workload, input.isUpdating)}
+        status={getDeploymentStatus(input.state, input.leases, input.isClosing, input.workload, input.isUpdating, input.consoleCloseReason)}
         leases={input.leases}
         isSummarized={input.isSummarized}
         dependencies={{ ...DEPENDENCIES, CustomTooltip }}

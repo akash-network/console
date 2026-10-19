@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { ConsoleCloseReason } from "@akashnetwork/http-sdk";
 
 import type { WorkloadStatus } from "@src/components/deployments/DeploymentDetail/DeploymentPlacements/placementModel";
 import type { DeploymentStatusView } from "@src/components/deployments/DeploymentDetail/DeploymentStatusBadge";
@@ -62,25 +63,27 @@ function standingLeaseCreationOf(aboutDeployment: Activity[]): Activity | undefi
   return isDeliveredSince ? undefined : leaseCreation;
 }
 
-/** The one status a deployment's card, row and page all show, so none of them can disagree with another. */
+/** The one status a deployment's card, row and page all show, except that only the page loads the settings that say Console closed it. */
 export function useDeploymentStatus({
   dseq,
   state,
   leases,
   workload,
+  consoleCloseReason,
   dependencies
 }: {
   dseq: string;
   state: string;
   leases: LeaseDto[] | null | undefined;
   workload: WorkloadStatus | undefined;
+  consoleCloseReason?: ConsoleCloseReason | null;
   dependencies?: typeof DEPENDENCIES;
 }): ResolvedDeploymentStatus {
   const { isClosing, isUpdating, leaseCreation } = useDeploymentActivity(dseq, dependencies);
 
   return useMemo(
-    () => deploymentStatusOf({ state, leases, workload, isClosing, isUpdating, leaseCreation }),
-    [state, leases, workload, isClosing, isUpdating, leaseCreation]
+    () => deploymentStatusOf({ state, leases, workload, isClosing, isUpdating, leaseCreation, consoleCloseReason }),
+    [state, leases, workload, isClosing, isUpdating, leaseCreation, consoleCloseReason]
   );
 }
 
@@ -92,8 +95,9 @@ export function deploymentStatusOf(input: {
   isClosing: boolean;
   isUpdating: boolean;
   leaseCreation: Activity | undefined;
+  consoleCloseReason?: ConsoleCloseReason | null;
 }): ResolvedDeploymentStatus {
-  const status = getDeploymentStatus(input.state, input.leases, input.isClosing, input.workload, input.isUpdating);
+  const status = getDeploymentStatus(input.state, input.leases, input.isClosing, input.workload, input.isUpdating, input.consoleCloseReason);
   if (input.isClosing) return status;
 
   const launch = deploymentLaunchOf(input);
