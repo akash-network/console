@@ -1,5 +1,5 @@
 import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import type { MsgCloseDeployment, MsgCreateDeployment, QueryDeploymentResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import type { GroupSpec, MsgCloseDeployment, MsgCreateDeployment, QueryDeploymentResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { Bid, QueryBidResponse, QueryBidsResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import type { DeliverTxResponse, SigningStargateClient } from "@cosmjs/stargate";
@@ -10,6 +10,8 @@ import type { BillingConfigService } from "@src/billing/services/billing-config/
 import type { ChainSDK } from "@src/chain/providers/chain-sdk.provider";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentConfig } from "@src/deployment/config/config.provider";
+import type { GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
+import type { BidScreeningHttpService } from "@src/deployment/services/bid-screening-http/bid-screening-http.service";
 import type { GpuModel, PlacementOptionsHttpService } from "@src/deployment/services/placement-options-http/placement-options-http.service";
 import { GpuBidsCreatorService } from "./gpu-bids-creator.service";
 import type { GpuBotSigningClientFactory } from "./gpu-bot-signing-client.factory";
@@ -39,12 +41,19 @@ describe(GpuBidsCreatorService.name, () => {
     expect(signingClientFactory.connect).toHaveBeenCalledWith("test mnemonic words here");
   });
 
-  it("checks every model in one deployment with a group per model, pinning only the model", async () => {
+  it("checks every model in one deployment with a pricing group and a typical group per model, pinning only the model", async () => {
     const { service, signingClient } = setup({ models: [nvidia("a100"), nvidia("h100")] });
 
     await service.createGpuBids();
 
-    expect(createdDeployments(signingClient)).toEqual([["vendor/nvidia/model/a100", "vendor/nvidia/model/h100"]]);
+    expect(createdDeployments(signingClient)).toEqual([
+      [
+        { gpu: "vendor/nvidia/model/a100", cpuMillis: 100n },
+        { gpu: "vendor/nvidia/model/a100", cpuMillis: 4000n },
+        { gpu: "vendor/nvidia/model/h100", cpuMillis: 100n },
+        { gpu: "vendor/nvidia/model/h100", cpuMillis: 4000n }
+      ]
+    ]);
   });
 
   it("creates the deployment under the bot's address with a 0.5 act deposit from its balance, and closes that same deployment", async () => {
@@ -63,20 +72,19 @@ describe(GpuBidsCreatorService.name, () => {
 
     await service.createGpuBids();
 
-    const [created] = sentMessages(signingClient).map(message => message.value as MsgCreateDeployment);
     expect(chainSdk.akash.market.v1beta5.getBids).toHaveBeenCalledWith({
-      filters: { owner: BOT_ADDRESS, dseq: created.id!.dseq.toString() },
+      filters: { owner: BOT_ADDRESS, dseq: createdDseq(signingClient) },
       pagination: { key: undefined, limit: 1000n }
     });
   });
 
-  it("splits more than 20 models across deployments", async () => {
+  it("splits more than 10 models across deployments so none exceeds 20 groups", async () => {
     const models = Array.from({ length: 25 }, (_, index) => nvidia(`model${index}`));
     const { service, signingClient } = setup({ models });
 
     await service.createGpuBids();
 
-    expect(createdDeployments(signingClient).map(groups => groups.length)).toEqual([20, 5]);
+    expect(createdDeployments(signingClient).map(groups => groups.length)).toEqual([20, 20, 10]);
   });
 
   it("creates no deployment when no gpu is available", async () => {
@@ -93,7 +101,7 @@ describe(GpuBidsCreatorService.name, () => {
 
     await service.createGpuBids();
 
-    expect(createdDeployments(signingClient)).toEqual([["vendor/nvidia/model/h100"]]);
+    expect(createdModels(signingClient)).toEqual([["vendor/nvidia/model/h100"]]);
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "SKIPPING_UNSUPPORTED_GPU_MODELS" }));
   });
 
@@ -112,7 +120,7 @@ describe(GpuBidsCreatorService.name, () => {
 
       await service.createGpuBids();
 
-      expect(createdDeployments(signingClient)).toEqual([["vendor/nvidia/model/rtx-4090_d.v2"]]);
+      expect(createdModels(signingClient)).toEqual([["vendor/nvidia/model/rtx-4090_d.v2"]]);
     }
   );
 
@@ -121,7 +129,17 @@ describe(GpuBidsCreatorService.name, () => {
 
     await service.createGpuBids();
 
-    expect(createdDeployments(signingClient)).toEqual([[`vendor/nvidia/model/${model}`]]);
+    expect(createdModels(signingClient)).toEqual([[`vendor/nvidia/model/${model}`]]);
+  });
+
+  it("screens every group before creating the deployment", async () => {
+    const { service, signingClient, bidScreeningHttpService } = setup({ models: [nvidia("a100"), nvidia("h100")] });
+
+    await service.createGpuBids();
+
+    const screenedGroups = bidScreeningHttpService.findScreenedProviders.mock.calls.map(([groupSpec]) => groupSpec);
+    expect(screenedGroups).toEqual(sentDeployments(signingClient)[0].groups);
+    expect(bidScreeningHttpService.findScreenedProviders.mock.invocationCallOrder.at(-1)).toBeLessThan(signingClient.broadcastTx.mock.invocationCallOrder[0]);
   });
 
   it("waits the bid window before reading bids", async () => {
@@ -142,10 +160,67 @@ describe(GpuBidsCreatorService.name, () => {
     }
   });
 
-  it("reports the bids each model received", async () => {
+  it("records, per model, every provider screening expected and every provider that bid", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-19T12:00:00Z") });
+    try {
+      const { service, signingClient, gpuBidCheckRepository } = setup({
+        models: [nvidia("a100"), nvidia("h100")],
+        screened: { gpu00: ["akash1both", "akash1silent"], gpu02: ["akash1both"] },
+        bidPages: [{ bids: [aBid({ gseq: 1, provider: "akash1both" }), aBid({ gseq: 4, provider: "akash1unscreened" })] }]
+      });
+
+      await service.createGpuBids();
+
+      const check = { vendor: "nvidia", source: "pricing-bot", dseq: createdDseq(signingClient), checkedAt: new Date("2026-10-19T12:00:00Z") };
+      expect(gpuBidCheckRepository.insertMany).toHaveBeenCalledWith([
+        { ...check, provider: "akash1both", model: "a100", screened: true, bid: true },
+        { ...check, provider: "akash1silent", model: "a100", screened: true, bid: false },
+        { ...check, provider: "akash1both", model: "h100", screened: true, bid: false },
+        { ...check, provider: "akash1unscreened", model: "h100", screened: false, bid: true }
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts a provider that bid on either shape as having bid on the model, and one screened for either shape as expected", async () => {
+    const { service, gpuBidCheckRepository } = setup({
+      models: [nvidia("h100")],
+      screened: { gpu00: ["akash1pricing"], gpu01: ["akash1typical"] },
+      bidPages: [{ bids: [aBid({ gseq: 2, provider: "akash1pricing" }), aBid({ gseq: 1, provider: "akash1typical" })] }]
+    });
+
+    await service.createGpuBids();
+
+    expect(gpuBidCheckRepository.insertMany).toHaveBeenCalledWith([
+      expect.objectContaining({ provider: "akash1pricing", screened: true, bid: true }),
+      expect.objectContaining({ provider: "akash1typical", screened: true, bid: true })
+    ]);
+  });
+
+  it("ignores bids without an id", async () => {
+    const { service, gpuBidCheckRepository } = setup({
+      models: [nvidia("h100")],
+      bidPages: [
+        {
+          bids: [
+            { bid: mock<Bid>({ id: undefined }), escrowAccount: undefined },
+            { bid: undefined, escrowAccount: undefined }
+          ]
+        }
+      ]
+    });
+
+    await service.createGpuBids();
+
+    expect(gpuBidCheckRepository.insertMany).toHaveBeenCalledWith([]);
+  });
+
+  it("reports the providers each model was expected to get a bid from and did not", async () => {
     const { service, logger } = setup({
       models: [nvidia("a100"), nvidia("h100")],
-      bidPages: [{ bids: [aBid({ gseq: 2, provider: "akash1first" }), aBid({ gseq: 2, provider: "akash1second" })] }]
+      screened: { gpu00: ["akash1both", "akash1silent"], gpu03: ["akash1both"] },
+      bidPages: [{ bids: [aBid({ gseq: 1, provider: "akash1both" }), aBid({ gseq: 3, provider: "akash1both" })] }]
     });
 
     await service.createGpuBids();
@@ -153,12 +228,59 @@ describe(GpuBidsCreatorService.name, () => {
     expect(logger.info).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "GPU_CHECK_BIDS_RECEIVED",
-        bids: [
-          { model: "a100", bidCount: 0 },
-          { model: "h100", bidCount: 2 }
-        ]
+        models: [
+          { model: "a100", screenedCount: 2, bidders: ["akash1both"] },
+          { model: "h100", screenedCount: 1, bidders: ["akash1both"] }
+        ],
+        missed: [{ model: "a100", providers: ["akash1silent"] }]
       })
     );
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "GPU_BIDS_CREATED", bidCount: 2, missed: [{ model: "a100", providers: ["akash1silent"] }] })
+    );
+  });
+
+  it("still checks the gpus when screening fails, recording the bids without blaming any provider for a miss", async () => {
+    const { service, signingClient, bidScreeningHttpService, gpuBidCheckRepository, logger } = setup({
+      models: [nvidia("h100")],
+      bidPages: [{ bids: [aBid({ gseq: 1, provider: "akash1bidder" })] }]
+    });
+    bidScreeningHttpService.findScreenedProviders.mockRejectedValue(new Error("provider inventory unavailable"));
+
+    await service.createGpuBids();
+
+    expect(logger.warn).toHaveBeenCalledWith({ event: "GPU_CHECK_SCREENING_FAILED", error: new Error("provider inventory unavailable") });
+    expect(broadcastTypes(signingClient)).toEqual(["/akash.deployment.v1beta4.MsgCreateDeployment", "/akash.deployment.v1beta4.MsgCloseDeployment"]);
+    expect(gpuBidCheckRepository.insertMany).toHaveBeenCalledWith([expect.objectContaining({ provider: "akash1bidder", screened: false, bid: true })]);
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "GPU_CHECK_BIDS_RECEIVED", models: [{ model: "h100", screenedCount: null, bidders: ["akash1bidder"] }], missed: [] })
+    );
+  });
+
+  it("deletes checks older than 30 days once the run is over", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-19T12:00:00Z") });
+    try {
+      const { service, gpuBidCheckRepository } = setup({ models: [nvidia("h100")] });
+
+      await service.createGpuBids();
+
+      expect(gpuBidCheckRepository.deleteCheckedBefore).toHaveBeenCalledWith(new Date("2026-09-19T12:00:00Z"));
+      expect(gpuBidCheckRepository.deleteCheckedBefore.mock.invocationCallOrder[0]).toBeGreaterThan(
+        gpuBidCheckRepository.insertMany.mock.invocationCallOrder[0]
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes the deployment and reports the batch as failed when recording the checks fails", async () => {
+    const { service, signingClient, gpuBidCheckRepository, logger } = setup({ models: [nvidia("h100")] });
+    gpuBidCheckRepository.insertMany.mockRejectedValue(new Error("database unavailable"));
+
+    await expect(service.createGpuBids()).rejects.toThrow("1 of 1 gpu check deployments failed");
+
+    expect(broadcastTypes(signingClient)).toEqual(["/akash.deployment.v1beta4.MsgCreateDeployment", "/akash.deployment.v1beta4.MsgCloseDeployment"]);
+    expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "GPU_CHECK_BATCH_FAILED", error: new Error("database unavailable") }));
   });
 
   it("reads every page of bids", async () => {
@@ -189,7 +311,7 @@ describe(GpuBidsCreatorService.name, () => {
   });
 
   it("closes every deployment it creates", async () => {
-    const { service, signingClient } = setup({ models: Array.from({ length: 21 }, (_, index) => nvidia(`model${index}`)) });
+    const { service, signingClient } = setup({ models: Array.from({ length: 11 }, (_, index) => nvidia(`model${index}`)) });
 
     await service.createGpuBids();
 
@@ -202,7 +324,9 @@ describe(GpuBidsCreatorService.name, () => {
   });
 
   it("closes the deployment and checks the next batch when reading bids fails, then reports the failure", async () => {
-    const { service, signingClient, chainSdk, logger } = setup({ models: Array.from({ length: 21 }, (_, index) => nvidia(`model${index}`)) });
+    const { service, signingClient, chainSdk, gpuBidCheckRepository, logger } = setup({
+      models: Array.from({ length: 11 }, (_, index) => nvidia(`model${index}`))
+    });
     chainSdk.akash.market.v1beta5.getBids.mockReset();
     chainSdk.akash.market.v1beta5.getBids.mockRejectedValueOnce(new Error("rpc unavailable")).mockResolvedValue(bidsResponse([]));
 
@@ -216,6 +340,7 @@ describe(GpuBidsCreatorService.name, () => {
     ]);
     expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "GPU_CHECK_BATCH_FAILED" }));
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "GPU_BIDS_CREATED", deploymentCount: 1, failedDeploymentCount: 1 }));
+    expect(gpuBidCheckRepository.deleteCheckedBefore).toHaveBeenCalledTimes(1);
   });
 
   it("closes nothing when the deployment could not be created", async () => {
@@ -256,7 +381,7 @@ describe(GpuBidsCreatorService.name, () => {
       error: new Error("Error broadcasting transaction: deployment closed")
     });
     expect(closedDseqs(signingClient)).toContain(222n);
-    expect(createdDeployments(signingClient)).toEqual([["vendor/nvidia/model/h100"]]);
+    expect(createdModels(signingClient)).toEqual([["vendor/nvidia/model/h100"]]);
   });
 
   it("checks the gpus even when the open deployments cannot be read", async () => {
@@ -266,7 +391,7 @@ describe(GpuBidsCreatorService.name, () => {
     await service.createGpuBids();
 
     expect(logger.error).toHaveBeenCalledWith({ event: "GPU_CHECK_LEFTOVER_DEPLOYMENTS_UNREAD", error: new Error("rpc unavailable") });
-    expect(createdDeployments(signingClient)).toEqual([["vendor/nvidia/model/h100"]]);
+    expect(createdModels(signingClient)).toEqual([["vendor/nvidia/model/h100"]]);
   });
 
   it("doubles the simulated gas when calculating the fee", async () => {
@@ -332,10 +457,24 @@ describe(GpuBidsCreatorService.name, () => {
       .map(message => (message.value as MsgCloseDeployment).id!.dseq);
   }
 
-  function createdDeployments(signingClient: SigningStargateClient): string[][] {
+  function sentDeployments(signingClient: SigningStargateClient): MsgCreateDeployment[] {
     return sentMessages(signingClient)
       .filter(message => message.typeUrl.endsWith("MsgCreateDeployment"))
-      .map(message => (message.value as MsgCreateDeployment).groups.map(group => group.resources[0].resource!.gpu!.attributes[0].key));
+      .map(message => message.value as MsgCreateDeployment);
+  }
+
+  function createdDseq(signingClient: SigningStargateClient): string {
+    return sentDeployments(signingClient)[0].id!.dseq.toString();
+  }
+
+  function createdDeployments(signingClient: SigningStargateClient) {
+    return sentDeployments(signingClient).map(({ groups }) =>
+      groups.map(({ resources: [{ resource }] }) => ({ gpu: resource!.gpu!.attributes[0].key, cpuMillis: resource!.cpu!.units!.val }))
+    );
+  }
+
+  function createdModels(signingClient: SigningStargateClient): string[][] {
+    return createdDeployments(signingClient).map(groups => [...new Set(groups.map(({ gpu }) => gpu))]);
   }
 
   function setup(
@@ -343,6 +482,7 @@ describe(GpuBidsCreatorService.name, () => {
       gpuBotWalletMnemonic?: string;
       rpcNodeEndpoint?: string;
       models?: GpuModel[];
+      screened?: Record<string, string[]>;
       bidPages?: Array<{ bids: QueryBidResponse[]; nextKey?: Uint8Array }>;
       bidWindowSeconds?: number;
       leftoverDseqs?: bigint[];
@@ -366,6 +506,11 @@ describe(GpuBidsCreatorService.name, () => {
     const placementOptionsHttpService = mock<PlacementOptionsHttpService>();
     placementOptionsHttpService.findAvailableGpuModels.mockResolvedValue(input.models ?? []);
 
+    const bidScreeningHttpService = mock<BidScreeningHttpService>();
+    bidScreeningHttpService.findScreenedProviders.mockImplementation(async (groupSpec: GroupSpec) => input.screened?.[groupSpec.name] ?? []);
+
+    const gpuBidCheckRepository = mock<GpuBidCheckRepository>();
+
     const signingClient = mock<SigningStargateClient>();
     signingClient.simulate.mockResolvedValue(100000);
     signingClient.sign.mockResolvedValue({ authInfoBytes: new Uint8Array(), bodyBytes: new Uint8Array(), signatures: [] });
@@ -383,8 +528,28 @@ describe(GpuBidsCreatorService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
-    const service = new GpuBidsCreatorService(config, chainSdk, placementOptionsHttpService, signingClientFactory, deploymentConfig, createLogger);
+    const service = new GpuBidsCreatorService(
+      config,
+      chainSdk,
+      placementOptionsHttpService,
+      bidScreeningHttpService,
+      gpuBidCheckRepository,
+      signingClientFactory,
+      deploymentConfig,
+      createLogger
+    );
 
-    return { service, config, chainSdk, placementOptionsHttpService, signingClientFactory, signingClient, logger, createLogger };
+    return {
+      service,
+      config,
+      chainSdk,
+      placementOptionsHttpService,
+      bidScreeningHttpService,
+      gpuBidCheckRepository,
+      signingClientFactory,
+      signingClient,
+      logger,
+      createLogger
+    };
   }
 });
