@@ -1,3 +1,4 @@
+import { roundUsdToCentPrecision } from "@src/components/billing-usage/UsdValue/UsdValue";
 import { useWallet } from "@src/context/WalletProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
@@ -6,7 +7,7 @@ import { useBalances } from "@src/queries/useBalancesQuery";
 
 export const DEPENDENCIES = { useWallet, useBalances, useWalletBalance, useFlag, useAccountDeletionEligibilityQuery };
 
-/** The API rounds the balance to cents, so anything below one rounds to nothing to forfeit. */
+/** The API rounds the balance to cents, so anything rounding below one leaves nothing to forfeit. */
 const SMALLEST_FORFEITABLE_BALANCE_USD = 0.01;
 
 export type TeamReference = { id: string; name: string };
@@ -51,7 +52,7 @@ export function useWalletDeletionEligibility(
   const activeDeploymentCount = balances?.activeDeployments.length ?? 0;
   if (activeDeploymentCount > 0) return { status: "blocked", activeDeploymentCount };
 
-  const balanceUsd = isTrialing ? 0 : balance?.totalDeploymentGrantsUSD ?? 0;
+  const balanceUsd = isTrialing ? 0 : roundUsdToCentPrecision(balance?.totalDeploymentGrantsUSD ?? 0);
   if (balanceUsd >= SMALLEST_FORFEITABLE_BALANCE_USD) return { status: "forfeit", balanceUsd };
 
   return { status: "clean" };

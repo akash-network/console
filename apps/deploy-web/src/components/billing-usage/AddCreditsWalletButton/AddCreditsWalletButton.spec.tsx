@@ -3,6 +3,7 @@ import type { PaymentRequest, PaymentRequestPaymentMethodEvent, Stripe } from "@
 import { describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
+import type { PaymentMethodSetupResult } from "../AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
 import { AddCreditsWalletButton, type DEPENDENCIES } from "./AddCreditsWalletButton";
 
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -114,13 +115,17 @@ describe(AddCreditsWalletButton.name, () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ type }));
   });
 
-  it("shows a wallet decline inline without submitting a payment method", async () => {
-    const { authorize, event, result } = setup({ confirmCardSetup: vi.fn().mockResolvedValue({ error: { message: "Your card was declined." } }) });
+  it("shows a wallet decline inline and returns its codes without the message", async () => {
+    const { authorize, event, result } = setup({
+      confirmCardSetup: vi.fn().mockResolvedValue({
+        error: { type: "card_error", code: "card_declined", decline_code: "generic_decline", message: "Your card was declined." }
+      })
+    });
 
     await authorize();
 
     expect(screen.getByRole("alert")).toHaveTextContent("Your card was declined.");
-    expect(result()).toBeNull();
+    expect(result()).toEqual({ failure: { errorType: "card_error", errorCode: "card_declined", declineCode: "generic_decline" } });
     expect(event.complete).toHaveBeenCalledExactlyOnceWith("fail");
   });
 
@@ -130,7 +135,7 @@ describe(AddCreditsWalletButton.name, () => {
     await authorize();
 
     expect(screen.getByRole("alert")).toHaveTextContent(/couldn't save your wallet/i);
-    expect(result()).toBeNull();
+    expect(result()).toEqual({ failure: { errorType: "setup_request_failed" } });
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
     expect(event.complete).toHaveBeenCalledExactlyOnceWith("fail");
   });
@@ -179,7 +184,7 @@ describe(AddCreditsWalletButton.name, () => {
 
     await authorize();
 
-    expect(result()).toBeNull();
+    expect(result()).toEqual({ failure: { errorType: "setup_request_failed" } });
     expect(stripe.confirmCardSetup).not.toHaveBeenCalled();
     expect(event.complete).toHaveBeenCalledExactlyOnceWith("fail");
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save your wallet. Please check your connection and try again.");
@@ -190,7 +195,7 @@ describe(AddCreditsWalletButton.name, () => {
 
     await authorize();
 
-    expect(result()).toBeNull();
+    expect(result()).toEqual({ failure: {} });
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save your wallet. Please try again.");
   });
 
@@ -203,24 +208,39 @@ describe(AddCreditsWalletButton.name, () => {
 
     await authorize();
 
-    expect(result()).toBeNull();
+    expect(result()).toEqual({ failure: { errorType: "authentication_incomplete" } });
     expect(screen.getByRole("alert")).toHaveTextContent("Wallet authentication did not complete. Please try again.");
     expect(event.complete).toHaveBeenCalledOnce();
   });
 
-  it("shows authentication errors after closing the native wallet", async () => {
+  it("shows authentication errors after closing the native wallet and returns their codes", async () => {
     const confirmCardSetup = vi
       .fn()
       .mockResolvedValueOnce({ setupIntent: { status: "requires_action" } })
-      .mockResolvedValueOnce({ error: { message: "Authentication was cancelled." } });
+      .mockResolvedValueOnce({
+        error: { type: "invalid_request_error", code: "setup_intent_authentication_failure", message: "Authentication was cancelled." }
+      });
     const { authorize, result, event, onOpenChange } = setup({ confirmCardSetup });
 
     await authorize();
 
-    expect(result()).toBeNull();
+    expect(result()).toEqual({ failure: { errorType: "invalid_request_error", errorCode: "setup_intent_authentication_failure" } });
     expect(screen.getByRole("alert")).toHaveTextContent("Authentication was cancelled.");
     expect(event.complete).toHaveBeenCalledExactlyOnceWith("success");
     expect(onOpenChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("provides an inline fallback for an authentication error without a message", async () => {
+    const confirmCardSetup = vi
+      .fn()
+      .mockResolvedValueOnce({ setupIntent: { status: "requires_action" } })
+      .mockResolvedValueOnce({ error: { type: "card_error", code: "card_declined" } });
+    const { authorize, result } = setup({ confirmCardSetup });
+
+    await authorize();
+
+    expect(result()).toEqual({ failure: { errorType: "card_error", errorCode: "card_declined" } });
+    expect(screen.getByRole("alert")).toHaveTextContent("Wallet authentication did not complete. Please try again.");
   });
 
   it("clears a prior wallet error on the next authorization", async () => {
@@ -297,7 +317,7 @@ describe(AddCreditsWalletButton.name, () => {
     });
     const onOpenChange = vi.fn();
     const preventDefault = vi.fn();
-    let result: { paymentMethodId: string } | null = null;
+    let result: PaymentMethodSetupResult | null = null;
     const onSubmit = vi.fn<React.ComponentProps<typeof AddCreditsWalletButton>["onSubmit"]>(async source => {
       result = await source.addPaymentMethod();
     });

@@ -20,6 +20,8 @@ import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 
 export const API_REFERENCE_URL = "https://akash.network/docs/api-documentation/console-api/getting-started/";
 
+const EXPIRY_POLICY = "Keys expire after one year at most. We email you ahead of each expiry, so you can replace a key before it stops working.";
+
 export const DEPENDENCIES = {
   Layout,
   SettingsLayout,
@@ -56,6 +58,7 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const isLoading = isLoadingApiKeys || isLoadingProjects;
   const listedProjects = showsProjects ? projects : undefined;
   const projectChoices = isProjectsUiEnabled && activeOrganization?.role !== "billing" ? projects : undefined;
+  const teamName = isProjectsUiEnabled ? activeOrganization?.name : undefined;
   const { mutate: deleteApiKey, isPending: isRevoking } = d.useDeleteApiKey(apiKeyToRevoke?.id ?? "", () => {
     enqueueSnackbar(<Snackbar title={`“${apiKeyToRevoke?.name}” revoked`} iconVariant="success" />, { variant: "success" });
     setApiKeyToRevoke(null);
@@ -80,6 +83,7 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
 
       <d.SettingsLayout
         title="API keys"
+        description={EXPIRY_POLICY}
         headerActions={
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm" className="gap-2">
@@ -95,11 +99,11 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           </div>
         }
       >
-        <d.ApiKeyList apiKeys={apiKeys} isLoading={isLoading} isError={isError} onRevoke={setApiKeyToRevoke} projects={listedProjects} />
+        <d.ApiKeyList apiKeys={apiKeys} isLoading={isLoading} isError={isError} onRevoke={setApiKeyToRevoke} projects={listedProjects} teamName={teamName} />
         <d.ApiKeyUsageGuide />
       </d.SettingsLayout>
 
-      {isCreatingKey && <d.CreateApiKeyDialog projects={projectChoices} onClose={() => setIsCreatingKey(false)} />}
+      {isCreatingKey && <d.CreateApiKeyDialog projects={projectChoices} teamName={teamName} onClose={() => setIsCreatingKey(false)} />}
       {apiKeyToRevoke && (
         <d.RevokeApiKeyDialog apiKey={apiKeyToRevoke} isRevoking={isRevoking} onConfirm={revokeApiKey} onCancel={() => setApiKeyToRevoke(null)} />
       )}

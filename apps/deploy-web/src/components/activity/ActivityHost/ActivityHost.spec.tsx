@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
-import type { HeldActivityEvent } from "@src/hooks/useHeldActivityEvents/useHeldActivityEvents";
+import type { HeldActivityEvents } from "@src/hooks/useHeldActivityEvents/useHeldActivityEvents";
 import { QueryKeys } from "@src/queries/queryKeys";
 import type { Activity, ActivityOfAnyType } from "@src/queries/useLatestActivitiesQuery";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
@@ -153,12 +153,20 @@ describe(ActivityHost.name, () => {
   });
 
   describe("with the analytics a page held for an action it sent to the background", () => {
+    const DEPLOY_EVENTS: HeldActivityEvents = {
+      succeeded: [
+        { event: "create_lease", properties: { category: "deployments", dseq: "1234" } },
+        { event: "send_manifest", properties: { category: "deployments", dseq: "1234" } }
+      ],
+      failed: [{ event: "deploy_failed", properties: { category: "deployments", dseq: "1234", stage: "background_lease" } }]
+    };
+
     it("tracks the create_deployment event once the create succeeds", () => {
       const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
       const createdEvent = { category: "deployments" as const, dseq: "1234", secretCount: 0 };
       const { receive, analyticsService, takeHeldActivityEvents } = setup({
         activities: [pending],
-        heldEvents: { "activity-1": [{ event: "create_deployment", properties: createdEvent }] }
+        heldEvents: { "activity-1": { succeeded: [{ event: "create_deployment", properties: createdEvent }] } }
       });
 
       receive([{ ...pending, status: "succeeded" }]);
@@ -168,16 +176,11 @@ describe(ActivityHost.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith("create_deployment", createdEvent);
     });
 
-    it("tracks each event of a deploy once the deploy succeeds", () => {
+    it("tracks each event of a deploy once the deploy succeeds, and none of those held for its failure", () => {
       const pending = buildActivity({ id: "activity-1", type: "lease_create", status: "pending", meta: { dseq: "1234" } });
       const { receive, analyticsService } = setup({
         activities: [pending],
-        heldEvents: {
-          "activity-1": [
-            { event: "create_lease", properties: { category: "deployments", dseq: "1234" } },
-            { event: "send_manifest", properties: { category: "deployments", dseq: "1234" } }
-          ]
-        }
+        heldEvents: { "activity-1": DEPLOY_EVENTS }
       });
 
       receive([{ ...pending, status: "succeeded" }]);
@@ -187,11 +190,55 @@ describe(ActivityHost.name, () => {
       expect(analyticsService.track).toHaveBeenCalledWith("send_manifest", { category: "deployments", dseq: "1234" });
     });
 
-    it("drops them without tracking once the action fails", () => {
+    it("tracks only the events held for a deploy's failure once it fails, with the error code the api recorded but not its message", () => {
+      const pending = buildActivity({ id: "activity-1", type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+      const { receive, analyticsService } = setup({
+        activities: [pending],
+        heldEvents: { "activity-1": DEPLOY_EVENTS }
+      });
+
+      receive([{ ...pending, status: "failed", meta: { dseq: "1234", error: { code: "lease_not_created", message: "The lease was not created." } } }]);
+
+      expect(analyticsService.track).toHaveBeenCalledTimes(1);
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", {
+        category: "deployments",
+        dseq: "1234",
+        stage: "background_lease",
+        errorCode: "lease_not_created"
+      });
+    });
+
+    it("tracks a deploy's failure without an error code when the api recorded none", () => {
+      const pending = buildActivity({ id: "activity-1", type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+      const { receive, analyticsService } = setup({
+        activities: [pending],
+        heldEvents: { "activity-1": DEPLOY_EVENTS }
+      });
+
+      receive([{ ...pending, status: "failed" }]);
+
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { category: "deployments", dseq: "1234", stage: "background_lease" });
+    });
+
+    it("tracks a deploy's failure only once however often the feed reports it", () => {
+      const pending = buildActivity({ id: "activity-1", type: "lease_create", status: "pending", meta: { dseq: "1234" } });
+      const { receive, analyticsService } = setup({
+        activities: [pending],
+        heldEvents: { "activity-1": DEPLOY_EVENTS }
+      });
+      const failed = { ...pending, status: "failed" as const };
+
+      receive([failed]);
+      receive([failed]);
+
+      expect(analyticsService.track).toHaveBeenCalledTimes(1);
+    });
+
+    it("drops them without tracking once an action with nothing held for its failure fails", () => {
       const pending = buildActivity({ id: "activity-1", type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
       const { receive, analyticsService, takeHeldActivityEvents } = setup({
         activities: [pending],
-        heldEvents: { "activity-1": [{ event: "create_deployment", properties: { dseq: "1234" } }] }
+        heldEvents: { "activity-1": { succeeded: [{ event: "create_deployment", properties: { dseq: "1234" } }] } }
       });
 
       receive([{ ...pending, status: "failed" }]);
@@ -526,6 +573,14 @@ describe(ActivityHost.name, () => {
     );
   });
 
+  it("refreshes the settings of a deployment Console closed, so its page can say why", () => {
+    const { queryClient, receive } = setup({ activities: [] });
+
+    receive([buildActivity({ status: "succeeded", initiator: "system", meta: { dseq: "1234", reason: "runtime_limit_reached" } })]);
+
+    expect(invalidatedKeysOf(queryClient)).toContainEqual(QueryKeys.getDeploymentSettingKey("1234"));
+  });
+
   it("opens the deployment Console closed from its toast", async () => {
     const { receive, followToastAction, push } = setup({ activities: [] });
 
@@ -588,6 +643,7 @@ describe(ActivityHost.name, () => {
       QueryKeys.getWeeklyDeploymentCostKey(),
       api.v1.getSpendRate.getKey(),
       api.v1.getDeployment.getKey({ dseq: "1234" }),
+      QueryKeys.getDeploymentSettingKey("1234"),
       QueryKeys.getManagedWalletKey(user.id)
     ]);
   });
@@ -817,7 +873,7 @@ describe(ActivityHost.name, () => {
         useDeploymentNames,
         useCloseBatchesBeingSent: () => new Set(),
         useHandledActivityOutcomes: () => ({ isOutcomeHandled: () => false, isFollowedOnItsPage: () => false, forgetHandledOutcome: vi.fn() }),
-        useTakeHeldActivityEvents: () => () => [],
+        useTakeHeldActivityEvents: () => () => ({}),
         useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
         useQueryClient: () => queryClient,
         useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>()
@@ -850,7 +906,7 @@ describe(ActivityHost.name, () => {
       activities?: Activity[];
       address?: string;
       names?: Record<string, string>;
-      heldEvents?: Record<string, HeldActivityEvent[]>;
+      heldEvents?: Record<string, HeldActivityEvents>;
       handled?: Activity[];
       followed?: string[];
     } = {}
@@ -874,7 +930,7 @@ describe(ActivityHost.name, () => {
     const enqueueSnackbar = vi.fn().mockReturnValue(TOAST_KEY);
     const closeSnackbar = vi.fn();
     const push = vi.fn();
-    const takeHeldActivityEvents = vi.fn((activityId: string) => input.heldEvents?.[activityId] ?? []);
+    const takeHeldActivityEvents = vi.fn((activityId: string) => input.heldEvents?.[activityId] ?? {});
     const analyticsService = mock<AnalyticsService>();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const api = mockDeep<AppDIContainer["api"]>();

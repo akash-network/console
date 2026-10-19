@@ -26,7 +26,10 @@ const ISOLATED_ACCELERATED_EVIDENCE = [
   "--netl",
   "      2 listen=22",
   "--disk",
-  "4194304 /opt/worker"
+  "4194304 /opt/worker",
+  "--procorig",
+  "btime=1740000000",
+  "1234 ppid=1 starttime=100 accel=1 comm=python3"
 ].join("\n");
 
 const jobWorkers = useJobWorkers(() => [container.resolve(ProbeTrialDeploymentHandler)]);

@@ -2,7 +2,7 @@ import { ApiError } from "@akashnetwork/openapi-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { EditableRole } from "@src/components/organizations/organizationRoles";
+import type { AssignableRole } from "@src/components/organizations/organizationRoles";
 import type { ProjectGrant } from "@src/components/organizations/ProjectGrantsField/ProjectGrantsField";
 import type { OrganizationMemberOutput } from "@src/types/organizationMembership";
 import type { Project } from "@src/types/project";
@@ -19,18 +19,96 @@ describe("EditMemberDialog", () => {
     expect(screen.getByRole("heading", { name: "Edit bob" })).toBeInTheDocument();
     expect(screen.getByText("Changes apply as soon as you save.")).toBeInTheDocument();
     expect(within(screen.getByRole("radiogroup", { name: "Role" })).getByRole("radio", { name: /Member/ })).toBeChecked();
-    expect(screen.getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual(["member", "admin"]);
+    expect(screen.getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual(["member", "viewer", "billing", "admin"]);
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it.each([
-    ["viewer", "Looks at the projects they can access, but can't change anything."],
-    ["billing", "Manages payment methods and billing but can't open projects."]
-  ] as const)("keeps a %s's own role among the choices", (role, description) => {
+    ["viewer", "Sees deployments and logs in the projects they can access, but can't change them."],
+    ["billing", "Adds credits, manages payment methods and sees usage, but not deployments."]
+  ] as const)("starts a %s from their own role among the same choices", (role, description) => {
     setup({ member: { role, projectAccess: role === "viewer" ? "all" : null } });
 
-    expect(screen.getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual([role, "member", "admin"]);
+    expect(screen.getAllByRole("radio").map(radio => radio.getAttribute("value"))).toEqual(["member", "viewer", "billing", "admin"]);
     expect(screen.getByRole("radio", { name: new RegExp(description) })).toBeChecked();
+  });
+
+  it("keeps the projects of a member made a viewer", async () => {
+    const { user, updateMember } = setup({});
+
+    await user.click(screen.getByRole("radio", { name: /^Viewer/ }));
+
+    expect(screen.getByText("selected: storefront as viewer")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateMember.mock.lastCall?.[0]).toEqual({
+      id: "member-bob",
+      data: { role: "viewer", projectAccess: "selected", projectGrants: [STOREFRONT_GRANT] }
+    });
+  });
+
+  it("lowers the project roles of a member made a viewer to viewer", async () => {
+    const { user, updateMember, ProjectAccessField } = setup({ grants: [{ projectId: "storefront", role: "admin" }] });
+
+    expect(ProjectAccessField.mock.lastCall?.[0].grantRoles).toEqual(["viewer", "member", "admin"]);
+
+    await user.click(screen.getByRole("radio", { name: /^Viewer/ }));
+
+    expect(screen.getByText("selected: storefront as viewer")).toBeInTheDocument();
+    expect(ProjectAccessField.mock.lastCall?.[0].grantRoles).toEqual(["viewer"]);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateMember.mock.lastCall?.[0]).toEqual({
+      id: "member-bob",
+      data: { role: "viewer", projectAccess: "selected", projectGrants: [{ projectId: "storefront", role: "viewer" }] }
+    });
+  });
+
+  it("shows the grants a viewer already holds as they are, with nothing to save", () => {
+    const { ProjectAccessField } = setup({ member: { role: "viewer" }, grants: [{ projectId: "storefront", role: "member" }] });
+
+    expect(screen.getByText("selected: storefront as member")).toBeInTheDocument();
+    expect(ProjectAccessField.mock.lastCall?.[0].grantRoles).toEqual(["viewer"]);
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("keeps the project roles of a viewer made a member", async () => {
+    const { user, updateMember } = setup({ member: { role: "viewer" }, grants: [{ projectId: "storefront", role: "member" }] });
+
+    await user.click(screen.getByRole("radio", { name: /^Member/ }));
+
+    expect(screen.getByText("selected: storefront as member")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateMember.mock.lastCall?.[0]).toEqual({
+      id: "member-bob",
+      data: { role: "member", projectAccess: "selected", projectGrants: [{ projectId: "storefront", role: "member" }] }
+    });
+  });
+
+  it("asks for the project access of a billing member made a viewer", async () => {
+    const { user, updateMember, ProjectAccessField, useOrganizationMemberProjectGrantsQuery } = setup({
+      member: { role: "billing", projectAccess: null },
+      grants: undefined
+    });
+
+    expect(useOrganizationMemberProjectGrantsQuery).toHaveBeenCalledWith("member-bob", { enabled: false });
+    expect(ProjectAccessField).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("radio", { name: /^Viewer/ }));
+
+    expect(screen.getByText("all: no project picked")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "grant billing-api" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateMember.mock.lastCall?.[0]).toEqual({
+      id: "member-bob",
+      data: { role: "viewer", projectAccess: "selected", projectGrants: [{ projectId: "billing-api", role: "viewer" }] }
+    });
   });
 
   it("starts a member on specific projects from the grants they hold", () => {
@@ -109,13 +187,19 @@ describe("EditMemberDialog", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
-  it("sends only the role of a member made an admin", async () => {
+  it.each([
+    ["Admin", "admin"],
+    ["Billing", "billing"]
+  ])("sends only the role of a member made %s", async (label, role) => {
     const { user, updateMember } = setup({});
 
-    await user.click(screen.getByRole("radio", { name: /Admin/ }));
+    await user.click(screen.getByRole("radio", { name: new RegExp(`^${label}`) }));
+
+    expect(screen.queryByText("selected: storefront as viewer")).not.toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(updateMember.mock.lastCall?.[0]).toEqual({ id: "member-bob", data: { role: "admin" } });
+    expect(updateMember.mock.lastCall?.[0]).toEqual({ id: "member-bob", data: { role } });
   });
 
   it("holds the save back while a member on specific projects has none picked", async () => {
@@ -215,7 +299,7 @@ describe("EditMemberDialog", () => {
   }
 
   function setup(input: {
-    member?: Partial<OrganizationMemberOutput> & { role?: EditableRole };
+    member?: Partial<OrganizationMemberOutput> & { role?: AssignableRole };
     grants?: ProjectGrant[] | undefined;
     isGrantsError?: boolean;
     isPending?: boolean;
@@ -225,7 +309,7 @@ describe("EditMemberDialog", () => {
     const onClose = vi.fn();
     const grants = "grants" in input ? input.grants : [STOREFRONT_GRANT];
     const useOrganizationMemberProjectGrantsQuery = vi.fn<typeof DEPENDENCIES.useOrganizationMemberProjectGrantsQuery>(() =>
-      mock<ReturnType<typeof DEPENDENCIES.useOrganizationMemberProjectGrantsQuery>>({ data: grants, isError: input.isGrantsError ?? false })
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useOrganizationMemberProjectGrantsQuery>>({ isError: input.isGrantsError ?? false }), { data: grants })
     );
     const ProjectAccessField = vi.fn<typeof DEPENDENCIES.ProjectAccessField>(({ value, onChange }) => (
       <>
@@ -267,7 +351,7 @@ describe("EditMemberDialog", () => {
 
 const STOREFRONT_GRANT: ProjectGrant = { projectId: "storefront", role: "viewer" };
 
-const BOB: OrganizationMemberOutput & { role: EditableRole } = {
+const BOB: OrganizationMemberOutput & { role: AssignableRole } = {
   id: "member-bob",
   userId: "user-bob",
   username: "bob",

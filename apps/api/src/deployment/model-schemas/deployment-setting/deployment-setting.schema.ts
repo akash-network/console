@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, foreignKey, index, integer, jsonb, pgEnum, pgTable, text, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
 
+import { SYSTEM_CLOSE_REASONS } from "@src/activity/model-schemas/activity/activity.schema";
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Projects } from "@src/organization/model-schemas/project/project.schema";
 import { Users } from "@src/user/model-schemas";
@@ -62,6 +63,8 @@ export type DeploymentCloseReason = (typeof deploymentCloseReasonEnum.enumValues
 
 export const MAX_CLOSE_REASON_DETAILS_LENGTH = 1000;
 
+export const consoleCloseReasonEnum = pgEnum("console_close_reason", SYSTEM_CLOSE_REASONS);
+
 export const DeploymentSettings = pgTable(
   "deployment_settings",
   {
@@ -94,6 +97,8 @@ export const DeploymentSettings = pgTable(
     /** Null for a close the user gave no reason for, which includes every close the console makes on its own. */
     closeReason: deploymentCloseReasonEnum("close_reason"),
     closeReasonDetails: text("close_reason_details"),
+    /** Console signs its own closes with the owner's wallet, so the chain records them as the owner's and only this column says Console made one. */
+    consoleCloseReason: consoleCloseReasonEnum("console_close_reason"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow()
   },

@@ -19,17 +19,18 @@ import { useSnackbar } from "notistack";
 
 import { getMembershipErrorMessage } from "@src/components/organizations/membershipErrorMessages";
 import { ORGANIZATION_ROLE_LABELS } from "@src/components/organizations/organizationAccess";
-import type { EditableRole } from "@src/components/organizations/organizationRoles";
-import { EDITABLE_ROLE_DESCRIPTIONS, getEditableRolesFor, getMemberDisplayName } from "@src/components/organizations/organizationRoles";
+import type { AssignableRole } from "@src/components/organizations/organizationRoles";
+import { ASSIGNABLE_ROLE_DESCRIPTIONS, ASSIGNABLE_ROLES, getMemberDisplayName } from "@src/components/organizations/organizationRoles";
 import type { ProjectAccessValue } from "@src/components/organizations/ProjectAccessField/ProjectAccessField";
 import {
   hasProjectAccess,
   isSameProjectAccess,
+  limitGrantsToRoles,
   ProjectAccessField,
   toProjectAccessRequest
 } from "@src/components/organizations/ProjectAccessField/ProjectAccessField";
 import { RadioCard } from "@src/components/organizations/RadioCard/RadioCard";
-import { holdsProjectGrants } from "@src/components/projects/projectAccess";
+import { getGrantableProjectRoles, holdsProjectGrants } from "@src/components/projects/projectAccess";
 import { useOrganizationMemberProjectGrantsQuery, useUpdateOrganizationMemberMutation } from "@src/queries/useOrganizationMembersQueries";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import type { OrganizationMemberOutput } from "@src/types/organizationMembership";
@@ -37,7 +38,7 @@ import type { OrganizationMemberOutput } from "@src/types/organizationMembership
 export const DEPENDENCIES = { useSnackbar, useUpdateOrganizationMemberMutation, useOrganizationMemberProjectGrantsQuery, useProjectsQuery, ProjectAccessField };
 
 type Props = {
-  member: OrganizationMemberOutput & { role: EditableRole };
+  member: OrganizationMemberOutput & { role: AssignableRole };
   organizationName: string;
   onClose: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -52,13 +53,15 @@ export function EditMemberDialog({ member, organizationName, onClose, dependenci
   const holdsGrantsToday = holdsProjectGrants(member.role);
   const grantsQuery = d.useOrganizationMemberProjectGrantsQuery(member.id, { enabled: holdsGrantsToday });
   const { data: projects = [] } = d.useProjectsQuery();
-  const [role, setRole] = useState<EditableRole>(member.role);
+  const [role, setRole] = useState<AssignableRole>(member.role);
   const [editedAccess, setEditedAccess] = useState<ProjectAccessValue>();
   const storedAccess: ProjectAccessValue = {
     access: holdsGrantsToday && member.projectAccess === "selected" ? "selected" : "all",
     grants: grantsQuery.data ?? []
   };
-  const projectAccess = editedAccess ?? storedAccess;
+  const grantRoles = getGrantableProjectRoles(role);
+  const accessAsEdited = editedAccess ?? storedAccess;
+  const projectAccess = role === member.role ? accessAsEdited : limitGrantsToRoles(accessAsEdited, grantRoles);
   const carriesProjectAccess = holdsProjectGrants(role);
   const isGrantsUnread = holdsGrantsToday && !grantsQuery.data;
   const isChanged = role !== member.role || !isSameProjectAccess(projectAccess, storedAccess);
@@ -98,16 +101,16 @@ export function EditMemberDialog({ member, organizationName, onClose, dependenci
               <RadioGroup
                 aria-labelledby={`${formId}-role`}
                 value={role}
-                onValueChange={value => setRole(value as EditableRole)}
+                onValueChange={value => setRole(value as AssignableRole)}
                 className="grid grid-cols-1 gap-2 sm:grid-cols-2"
               >
-                {getEditableRolesFor(member.role).map(option => (
+                {ASSIGNABLE_ROLES.map(option => (
                   <RadioCard
                     key={option}
                     id={`${formId}-role-${option}`}
                     value={option}
                     label={ORGANIZATION_ROLE_LABELS[option]}
-                    description={EDITABLE_ROLE_DESCRIPTIONS[option]}
+                    description={ASSIGNABLE_ROLE_DESCRIPTIONS[option]}
                   />
                 ))}
               </RadioGroup>
@@ -117,7 +120,13 @@ export function EditMemberDialog({ member, organizationName, onClose, dependenci
               <p className="text-xs text-destructive">Couldn&apos;t load {name}&apos;s projects. Try again later.</p>
             )}
             {carriesProjectAccess && !isGrantsUnread && (
-              <d.ProjectAccessField organizationName={organizationName} projects={projects} value={projectAccess} onChange={setEditedAccess} />
+              <d.ProjectAccessField
+                organizationName={organizationName}
+                projects={projects}
+                grantRoles={grantRoles}
+                value={projectAccess}
+                onChange={setEditedAccess}
+              />
             )}
           </form>
         </DialogV2Body>

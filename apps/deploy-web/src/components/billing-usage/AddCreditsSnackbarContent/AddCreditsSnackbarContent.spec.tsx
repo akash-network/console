@@ -42,6 +42,15 @@ describe("AddCreditsSnackbarContent", () => {
     expect(store.get(addCreditsRequestAtom)).toMatchObject({ context: "configure_quotes_needs_funds" });
   });
 
+  it("hands the sheet the next step to take once credits land", () => {
+    const onCreditsAdded = vi.fn();
+    const { store } = setup({ nextStepLabel: "Continue to deploy", onCreditsAdded });
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Funds" }));
+
+    expect(store.get(addCreditsRequestAtom)).toMatchObject({ nextStepLabel: "Continue to deploy", onCreditsAdded });
+  });
+
   it("tracks analytics and calls onAction when the button is clicked", () => {
     const onAction = vi.fn();
     const { analyticsService } = setup({ onAction });
@@ -52,13 +61,19 @@ describe("AddCreditsSnackbarContent", () => {
     expect(onAction).toHaveBeenCalledTimes(1);
   });
 
-  function setup(input?: { message?: string; context?: string; onAction?: () => void }) {
+  function setup(input?: { message?: string; context?: string; onAction?: () => void; nextStepLabel?: string; onCreditsAdded?: () => void }) {
     const analyticsService = mock<AnalyticsService>();
     const store = createStore();
     render(
       <JotaiProvider store={store}>
         <TestContainerProvider services={{ analyticsService: () => analyticsService }}>
-          <AddCreditsSnackbarContent message={input?.message} context={input?.context} onAction={input?.onAction} />
+          <AddCreditsSnackbarContent
+            message={input?.message}
+            context={input?.context}
+            onAction={input?.onAction}
+            nextStepLabel={input?.nextStepLabel}
+            onCreditsAdded={input?.onCreditsAdded}
+          />
         </TestContainerProvider>
       </JotaiProvider>
     );

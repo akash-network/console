@@ -24,7 +24,7 @@ import { EditMemberDialog } from "@src/components/organizations/EditMemberDialog
 import { getMembershipErrorMessage } from "@src/components/organizations/membershipErrorMessages";
 import { canManageMembers, ORGANIZATION_ROLE_LABELS } from "@src/components/organizations/organizationAccess";
 import { hueOf } from "@src/components/organizations/OrganizationAvatar/OrganizationAvatar";
-import type { EditableRole } from "@src/components/organizations/organizationRoles";
+import type { AssignableRole } from "@src/components/organizations/organizationRoles";
 import { getMemberDisplayName, getRoleRank } from "@src/components/organizations/organizationRoles";
 import { useDeleteOrganizationMemberMutation, useTransferOrganizationOwnershipMutation } from "@src/queries/useOrganizationMembersQueries";
 import type { OrganizationRole } from "@src/types/organization";
@@ -38,7 +38,7 @@ export const DEPENDENCIES = {
   EditMemberDialog
 };
 
-type EditableMember = OrganizationMemberOutput & { role: EditableRole };
+type EditableMember = OrganizationMemberOutput & { role: AssignableRole };
 
 type Props = {
   members: OrganizationMemberOutput[] | undefined;

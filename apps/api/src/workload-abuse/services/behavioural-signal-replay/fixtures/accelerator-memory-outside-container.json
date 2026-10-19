@@ -1,0 +1,149 @@
+{
+  "deployment": "accelerator-memory-outside-container",
+  "snapshots": [
+    {
+      "shellStatus": "completed",
+      "accelerator": [
+        {
+          "name": "accelerator-0",
+          "utilPct": 0,
+          "memUsedMb": 6600,
+          "memTotalMb": 24576,
+          "processes": [
+            {
+              "pid": 48211,
+              "name": "[Not Found]",
+              "vramMb": 6496
+            }
+          ]
+        }
+      ],
+      "artifacts": [],
+      "processOrigins": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "init",
+          "startedAtEpochMs": 1760000000000,
+          "holdsAccelerator": false
+        },
+        {
+          "pid": 51,
+          "ppid": 1,
+          "comm": "tail",
+          "startedAtEpochMs": 1760000001000,
+          "holdsAccelerator": false
+        },
+        {
+          "pid": 54,
+          "ppid": 1,
+          "comm": "sshd",
+          "startedAtEpochMs": 1760000001000,
+          "holdsAccelerator": false
+        }
+      ],
+      "netShape": {
+        "listenPorts": [
+          22
+        ],
+        "connections": []
+      }
+    },
+    {
+      "shellStatus": "completed",
+      "accelerator": [
+        {
+          "name": "accelerator-0",
+          "utilPct": 0,
+          "memUsedMb": 6600,
+          "memTotalMb": 24576,
+          "processes": [
+            {
+              "pid": 48211,
+              "name": "[Not Found]",
+              "vramMb": 6496
+            }
+          ]
+        }
+      ],
+      "artifacts": [],
+      "processOrigins": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "init",
+          "startedAtEpochMs": 1760000000000,
+          "holdsAccelerator": false
+        },
+        {
+          "pid": 51,
+          "ppid": 1,
+          "comm": "tail",
+          "startedAtEpochMs": 1760000001000,
+          "holdsAccelerator": false
+        },
+        {
+          "pid": 54,
+          "ppid": 1,
+          "comm": "sshd",
+          "startedAtEpochMs": 1760000001000,
+          "holdsAccelerator": false
+        }
+      ],
+      "netShape": {
+        "listenPorts": [
+          22
+        ],
+        "connections": []
+      }
+    },
+    {
+      "shellStatus": "completed",
+      "accelerator": [
+        {
+          "name": "accelerator-0",
+          "utilPct": 0,
+          "memUsedMb": 6600,
+          "memTotalMb": 24576,
+          "processes": [
+            {
+              "pid": 48211,
+              "name": "[Not Found]",
+              "vramMb": 6496
+            }
+          ]
+        }
+      ],
+      "artifacts": [],
+      "processOrigins": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "init",
+          "startedAtEpochMs": 1760000000000,
+          "holdsAccelerator": false
+        },
+        {
+          "pid": 51,
+          "ppid": 1,
+          "comm": "tail",
+          "startedAtEpochMs": 1760000001000,
+          "holdsAccelerator": false
+        },
+        {
+          "pid": 54,
+          "ppid": 1,
+          "comm": "sshd",
+          "startedAtEpochMs": 1760000001000,
+          "holdsAccelerator": false
+        }
+      ],
+      "netShape": {
+        "listenPorts": [
+          22
+        ],
+        "connections": []
+      }
+    }
+  ]
+}

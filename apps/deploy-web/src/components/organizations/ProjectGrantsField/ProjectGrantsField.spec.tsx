@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { ProjectRole } from "@src/types/project";
 import type { ProjectGrant } from "./ProjectGrantsField";
 import { ProjectGrantsField } from "./ProjectGrantsField";
 
@@ -24,6 +25,42 @@ describe(ProjectGrantsField.name, () => {
     await user.click(screen.getByRole("option", { name: "marketing" }));
 
     expect(onChange).toHaveBeenCalledWith([{ projectId: "marketing", role: "member" }]);
+  });
+
+  it("adds a project as a viewer when only the viewer role is allowed", async () => {
+    const { user, onChange } = setup({ grants: [], roles: ["viewer"] });
+
+    await user.click(screen.getByRole("combobox", { name: "Add a project" }));
+    await user.click(screen.getByRole("option", { name: "marketing" }));
+
+    expect(onChange).toHaveBeenCalledWith([{ projectId: "marketing", role: "viewer" }]);
+  });
+
+  it("offers every project role when all are allowed", async () => {
+    const { user } = setup({ grants: [{ projectId: "storefront", role: "viewer" }] });
+
+    await user.click(screen.getByRole("combobox", { name: "Role in storefront" }));
+
+    expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["Viewer", "Member", "Admin"]);
+  });
+
+  it("offers only the allowed roles, plus the one a grant already holds", async () => {
+    const { user } = setup({
+      grants: [
+        { projectId: "storefront", role: "viewer" },
+        { projectId: "marketing", role: "member" }
+      ],
+      roles: ["viewer"]
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "Role in storefront" }));
+
+    expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["Viewer"]);
+
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("combobox", { name: "Role in marketing" }));
+
+    expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["Viewer", "Member"]);
   });
 
   it("lists the projects added, with their roles, and offers only the rest", async () => {
@@ -86,7 +123,7 @@ describe(ProjectGrantsField.name, () => {
     expect(screen.getByText("deleted-project")).toBeInTheDocument();
   });
 
-  function setup(input: { grants: ProjectGrant[] }) {
+  function setup(input: { grants: ProjectGrant[]; roles?: ProjectRole[] }) {
     const onChange = vi.fn();
 
     render(
@@ -95,6 +132,7 @@ describe(ProjectGrantsField.name, () => {
           { id: "storefront", name: "storefront" },
           { id: "marketing", name: "marketing" }
         ]}
+        roles={input.roles ?? ["viewer", "member", "admin"]}
         grants={input.grants}
         onChange={onChange}
       />

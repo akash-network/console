@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
-import { deploymentCloseReasonEnum, MAX_CLOSE_REASON_DETAILS_LENGTH } from "@src/deployment/model-schemas";
+import { consoleCloseReasonEnum, deploymentCloseReasonEnum, MAX_CLOSE_REASON_DETAILS_LENGTH } from "@src/deployment/model-schemas";
 import { DseqSchema } from "@src/utils/schema";
 import { MAX_RUNTIME_LIMIT_HOURS, MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "./runtime-limit";
 
@@ -19,6 +19,10 @@ const DeploymentSettingSchema = z.object({
   }),
   runtimeEndsAt: z.string().datetime().nullable().openapi({
     description: "When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set"
+  }),
+  consoleCloseReason: z.enum(consoleCloseReasonEnum.enumValues).nullable().openapi({
+    description:
+      "Why Console closed the deployment on the owner's behalf: `runtime_limit_reached` (its runtime limit ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit). Null when Console did not close it."
   }),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime()

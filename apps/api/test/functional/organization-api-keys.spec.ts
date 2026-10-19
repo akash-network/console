@@ -1,8 +1,9 @@
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
 import { container } from "tsyringe";
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { AuthService } from "@src/auth/services/auth.service";
@@ -21,6 +22,10 @@ import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedPro
 type ApiKeyBody = { data: { id: string; organizationId: string | null; projectId: string | null } };
 
 describe("Organization API keys", () => {
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
+
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
 
   afterEach(() => {

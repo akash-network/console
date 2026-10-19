@@ -39,7 +39,12 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     await handler.handle(aPayload());
 
     expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ address: OWNER }), DSEQ, { reason: "provider_unreachable" });
-    expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ, organizationId: ORGANIZATION_ID });
+    expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({
+      userId: USER_ID,
+      dseq: DSEQ,
+      organizationId: ORGANIZATION_ID,
+      consoleCloseReason: "provider_unreachable"
+    });
   });
 
   it("records the close in the owner's feed as Console's, because the provider stopped responding", async () => {
@@ -120,7 +125,12 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     expect(deploymentWriterService.close).toHaveBeenCalledWith(expect.objectContaining({ id: WALLET_ID, userId: null }), DSEQ, {
       reason: "provider_unreachable"
     });
-    expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: "member-2", dseq: DSEQ, organizationId: ORGANIZATION_ID });
+    expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({
+      userId: "member-2",
+      dseq: DSEQ,
+      organizationId: ORGANIZATION_ID,
+      consoleCloseReason: "provider_unreachable"
+    });
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: "member-2" }) }), expect.anything());
   });
 
@@ -179,7 +189,12 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
 
     await handler.handle(aPayload());
 
-    expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({ userId: USER_ID, dseq: DSEQ, organizationId: ORGANIZATION_ID });
+    expect(deploymentSettingRepository.markClosed).toHaveBeenCalledWith({
+      userId: USER_ID,
+      dseq: DSEQ,
+      organizationId: ORGANIZATION_ID,
+      consoleCloseReason: undefined
+    });
     expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
   });
 

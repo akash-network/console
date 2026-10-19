@@ -69,6 +69,22 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     ]);
   });
 
+  it("remembers on the setting that Console closed the deployment because the runtime limit was reached", async () => {
+    const { closeExpired, findSetting } = await setup();
+
+    await closeExpired();
+
+    expect(await findSetting()).toMatchObject({ closed: true, consoleCloseReason: "runtime_limit_reached" });
+  });
+
+  it("remembers on a team deployment's setting that Console closed it because the runtime limit was reached", async () => {
+    const { closeExpired, findSetting } = await setup({ inTeam: true });
+
+    await closeExpired();
+
+    expect(await findSetting()).toMatchObject({ closed: true, consoleCloseReason: "runtime_limit_reached" });
+  });
+
   it("records a team deployment's close in the feed of the member who created it, keyed by the organization's wallet", async () => {
     const { dseq, teamWallet, closeExpired, findActivities } = await setup({ inTeam: true });
 
@@ -99,16 +115,16 @@ describe(CloseExpiredDeploymentHandler.name, () => {
     await closeExpired();
 
     expect(await findActivities()).toEqual([]);
-    expect((await findSetting()).closed).toBe(true);
+    expect(await findSetting()).toMatchObject({ closed: true, consoleCloseReason: null });
   });
 
-  it("still marks the setting closed when the feed entry cannot be written", async () => {
+  it("still marks the setting closed, and remembers why Console closed it, when the feed entry cannot be written", async () => {
     const { closeExpired, findSetting, findActivities } = await setup();
     vi.spyOn(container.resolve(ActivityRepository), "createUnlessDuplicate").mockRejectedValue(new Error("connection terminated"));
 
     await closeExpired();
 
-    expect((await findSetting()).closed).toBe(true);
+    expect(await findSetting()).toMatchObject({ closed: true, consoleCloseReason: "runtime_limit_reached" });
     expect(await findActivities()).toEqual([]);
   });
 

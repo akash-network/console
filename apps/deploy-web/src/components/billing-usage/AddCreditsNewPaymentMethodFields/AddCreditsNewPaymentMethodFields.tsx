@@ -4,10 +4,20 @@ import React, { forwardRef, useImperativeHandle, useMemo, useState } from "react
 import { ErrorBoundary } from "react-error-boundary";
 import { Alert, AlertDescription, Spinner } from "@akashnetwork/ui/components";
 import { AddressElement, Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import type { StripeError } from "@stripe/stripe-js";
 import { ShieldCheck } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
+
+/** Why a payment method could not be set up, as codes only: Stripe's message is left out because it can echo what the user typed. */
+export interface PaymentMethodSetupFailure {
+  errorType?: string;
+  errorCode?: string;
+  declineCode?: string;
+}
+
+export type PaymentMethodSetupResult = { paymentMethodId: string } | { failure: PaymentMethodSetupFailure };
 
 /**
  * Imperative contract exposed by a payment-method source so an orchestrator
@@ -17,10 +27,14 @@ import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 export interface PaymentMethodSourceHandle {
   /**
    * Confirms the Stripe SetupIntent and returns the new payment method id,
-   * or null if confirmation failed — in which case the source has already
+   * or why confirmation failed, in which case the source has already
    * surfaced the error inline.
    */
-  addPaymentMethod(): Promise<{ paymentMethodId: string } | null>;
+  addPaymentMethod(): Promise<PaymentMethodSetupResult>;
+}
+
+export function toPaymentMethodSetupFailure(error: StripeError): PaymentMethodSetupFailure {
+  return { errorType: error.type, errorCode: error.code, declineCode: error.decline_code };
 }
 
 export const DEPENDENCIES = {
@@ -39,11 +53,12 @@ interface AddCreditsNewPaymentMethodFieldsProps {
   disabled?: boolean;
   /** Reports the payment-method type (card, bank, …) the user selects in the Stripe payment element, for analytics. */
   onPaymentTypeChange?: (type: string) => void;
+  onReady?: () => void;
   dependencies?: typeof DEPENDENCIES;
 }
 
 export const AddCreditsNewPaymentMethodFields = forwardRef<PaymentMethodSourceHandle, AddCreditsNewPaymentMethodFieldsProps>(
-  function AddCreditsNewPaymentMethodFields({ clientSecret, isLoading, disabled, onPaymentTypeChange, dependencies: d = DEPENDENCIES }, ref) {
+  function AddCreditsNewPaymentMethodFields({ clientSecret, isLoading, disabled, onPaymentTypeChange, onReady, dependencies: d = DEPENDENCIES }, ref) {
     const { stripeService } = d.useServices();
     const { resolvedTheme } = d.useTheme();
 
@@ -72,7 +87,7 @@ export const AddCreditsNewPaymentMethodFields = forwardRef<PaymentMethodSourceHa
                 if (element) element.inert = !!disabled;
               }}
             >
-              <StripePaymentMethodFields ref={ref} dependencies={d} onPaymentTypeChange={onPaymentTypeChange} />
+              <StripePaymentMethodFields ref={ref} dependencies={d} onPaymentTypeChange={onPaymentTypeChange} onReady={onReady} />
             </div>
           </d.Elements>
         ) : (
@@ -88,10 +103,11 @@ export const AddCreditsNewPaymentMethodFields = forwardRef<PaymentMethodSourceHa
 interface StripePaymentMethodFieldsProps {
   dependencies: typeof DEPENDENCIES;
   onPaymentTypeChange?: (type: string) => void;
+  onReady?: () => void;
 }
 
 const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePaymentMethodFieldsProps>(function StripePaymentMethodFields(
-  { dependencies: d, onPaymentTypeChange },
+  { dependencies: d, onPaymentTypeChange, onReady },
   ref
 ) {
   const stripe = d.useStripe();
@@ -103,13 +119,13 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
     () => ({
       /**
        * Confirms the SetupIntent with Stripe and returns the resulting payment
-       * method id. On failure the error is rendered inline and null is returned
-       * so the orchestrator can short-circuit.
+       * method id. On failure the error is rendered inline and its codes are
+       * returned so the orchestrator can short-circuit and report them.
        */
       async addPaymentMethod() {
         if (!stripe || !elements) {
           setError("The payment form is still loading. Please try again in a moment.");
-          return null;
+          return { failure: { errorType: "form_not_ready" } };
         }
 
         setError(null);
@@ -118,18 +134,18 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
           setupResult = await stripe.confirmSetup({ elements, redirect: "if_required" });
         } catch {
           setError("Couldn't save your payment method. Please check your connection and try again.");
-          return null;
+          return { failure: { errorType: "setup_request_failed" } };
         }
 
         if (setupResult.error) {
           setError(setupResult.error.message || "Couldn't save your card. Please try again.");
-          return null;
+          return { failure: toPaymentMethodSetupFailure(setupResult.error) };
         }
 
         const paymentMethodId = setupResult.setupIntent?.payment_method;
         if (typeof paymentMethodId !== "string") {
           setError("Couldn't save your card. Please try again.");
-          return null;
+          return { failure: { errorType: "missing_payment_method" } };
         }
 
         return { paymentMethodId };
@@ -147,7 +163,11 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
 
       <div className="space-y-2">
         <h3 className="text-left text-sm font-medium text-muted-foreground">CHOOSE A PAYMENT METHOD</h3>
-        <d.PaymentElement options={{ layout: "tabs", paymentMethodOrder: ["card", "link"] }} onChange={event => onPaymentTypeChange?.(event.value.type)} />
+        <d.PaymentElement
+          options={{ layout: "tabs", paymentMethodOrder: ["card", "link"] }}
+          onChange={event => onPaymentTypeChange?.(event.value.type)}
+          onReady={onReady}
+        />
       </div>
 
       <Alert variant="default" className="bg-muted p-3">

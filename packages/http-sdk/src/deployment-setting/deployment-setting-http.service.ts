@@ -2,6 +2,8 @@ import type { AxiosRequestConfig } from "axios";
 
 import { ApiHttpService } from "../api-http/api-http.service";
 
+export type ConsoleCloseReason = "runtime_limit_reached" | "trial_ended" | "provider_unreachable" | "no_lease";
+
 export interface DeploymentSettingOutput {
   id: number;
   userId: string | null;
@@ -11,6 +13,8 @@ export interface DeploymentSettingOutput {
   topUpFrequencyMs: number;
   runtimeLimitHours: number | null;
   runtimeEndsAt: string | null;
+  /** Absent from an api that predates it, which reads the same as a deployment Console did not close. */
+  consoleCloseReason?: ConsoleCloseReason | null;
   createdAt: string;
   updatedAt: string;
 }

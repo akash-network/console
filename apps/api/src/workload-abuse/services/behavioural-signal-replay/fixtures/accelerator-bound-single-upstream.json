@@ -24,6 +24,22 @@
           "sizeBytes": 12582912
         }
       ],
+      "processOrigins": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "init",
+          "startedAtEpochMs": 1760000000000,
+          "holdsAccelerator": false
+        },
+        {
+          "pid": 2048,
+          "ppid": 1,
+          "comm": "worker",
+          "startedAtEpochMs": 1760000005000,
+          "holdsAccelerator": true
+        }
+      ],
       "netShape": {
         "listenPorts": [
           22
@@ -62,6 +78,22 @@
           "sizeBytes": 12582912
         }
       ],
+      "processOrigins": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "init",
+          "startedAtEpochMs": 1760000000000,
+          "holdsAccelerator": false
+        },
+        {
+          "pid": 2048,
+          "ppid": 1,
+          "comm": "worker",
+          "startedAtEpochMs": 1760000005000,
+          "holdsAccelerator": true
+        }
+      ],
       "netShape": {
         "listenPorts": [
           22
@@ -98,6 +130,22 @@
         {
           "path": "/opt/worker/worker",
           "sizeBytes": 12582912
+        }
+      ],
+      "processOrigins": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "comm": "init",
+          "startedAtEpochMs": 1760000000000,
+          "holdsAccelerator": false
+        },
+        {
+          "pid": 2048,
+          "ppid": 1,
+          "comm": "worker",
+          "startedAtEpochMs": 1760000005000,
+          "holdsAccelerator": true
         }
       ],
       "netShape": {

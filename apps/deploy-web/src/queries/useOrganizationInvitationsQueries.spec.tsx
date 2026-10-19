@@ -57,6 +57,20 @@ describe("useOrganizationInvitationsQueries", () => {
       expect(createOrganizationInvitationLink).toHaveBeenCalledWith({ id: "invitation-1" });
       expect(queryClient.getQueryState(INVITATIONS_KEY)?.isInvalidated).toBe(true);
     });
+
+    it("hands the link back without waiting for the pending list to reload", async () => {
+      const { result, listOrganizationInvitations } = setup({
+        useHook: () => ({ invitations: useOrganizationInvitationsQuery({ enabled: true }), createLink: useCreateOrganizationInvitationLinkMutation() })
+      });
+      await waitFor(() => expect(listOrganizationInvitations).toHaveBeenCalledOnce());
+      await waitFor(() => expect(result.current.invitations.isFetching).toBe(false));
+      listOrganizationInvitations.mockReturnValue(new Promise(() => {}));
+
+      const response = await act(() => result.current.createLink.mutateAsync({ id: "invitation-1" }));
+
+      expect(response).toEqual({ data: { url: INVITE_URL } });
+      expect(listOrganizationInvitations).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe(useDeleteOrganizationInvitationMutation.name, () => {

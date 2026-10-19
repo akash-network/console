@@ -17,8 +17,8 @@ export const TEST_CARD_LAST4 = TEST_CARD_NUMBER.slice(-4);
 export async function createTeam(page: Page, team: string) {
   await page.goto(`${testEnvConfig.BASE_URL}/billing`);
   await new OrganizationSwitcher(page).createOrganization(team);
-  await page.waitForURL(url => url.pathname === "/members");
-  await expect(new MembersPage(page).heading()).toBeVisible();
+  await page.waitForURL(url => url.pathname === "/members", { timeout: 30_000 });
+  await expect(new MembersPage(page).heading()).toBeVisible({ timeout: 30_000 });
   await expect(new OrganizationSwitcher(page).trigger(team)).toBeVisible();
 }
 

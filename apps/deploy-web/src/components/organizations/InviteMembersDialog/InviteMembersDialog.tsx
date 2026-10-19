@@ -25,9 +25,14 @@ import { ORGANIZATION_ROLE_LABELS } from "@src/components/organizations/organiza
 import type { AssignableRole } from "@src/components/organizations/organizationRoles";
 import { ASSIGNABLE_ROLE_DESCRIPTIONS, ASSIGNABLE_ROLES } from "@src/components/organizations/organizationRoles";
 import type { ProjectAccessValue } from "@src/components/organizations/ProjectAccessField/ProjectAccessField";
-import { hasProjectAccess, ProjectAccessField, toProjectAccessRequest } from "@src/components/organizations/ProjectAccessField/ProjectAccessField";
+import {
+  hasProjectAccess,
+  limitGrantsToRoles,
+  ProjectAccessField,
+  toProjectAccessRequest
+} from "@src/components/organizations/ProjectAccessField/ProjectAccessField";
 import { RadioCard } from "@src/components/organizations/RadioCard/RadioCard";
-import { holdsProjectGrants } from "@src/components/projects/projectAccess";
+import { getGrantableProjectRoles, holdsProjectGrants } from "@src/components/projects/projectAccess";
 import { useCreateOrganizationInvitationsMutation } from "@src/queries/useOrganizationQueries";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 
@@ -52,9 +57,11 @@ export const InviteMembersDialog: FC<Props> = ({ organizationName, memberEmails,
   const { mutate: createInvitations, isPending } = d.useCreateOrganizationInvitationsMutation();
   const [emails, setEmails] = useState<string[]>([]);
   const [role, setRole] = useState<AssignableRole>("member");
-  const [projectAccess, setProjectAccess] = useState<ProjectAccessValue>({ access: "all", grants: [] });
+  const [chosenAccess, setChosenAccess] = useState<ProjectAccessValue>({ access: "all", grants: [] });
   const { data: projects = [] } = d.useProjectsQuery();
   const carriesProjectAccess = holdsProjectGrants(role);
+  const grantRoles = getGrantableProjectRoles(role);
+  const projectAccess = limitGrantsToRoles(chosenAccess, grantRoles);
   const formId = useId();
   const emailsId = `${formId}-emails`;
   const hintId = `${formId}-hint`;
@@ -129,7 +136,13 @@ export const InviteMembersDialog: FC<Props> = ({ organizationName, memberEmails,
             </div>
 
             {carriesProjectAccess && (
-              <d.ProjectAccessField organizationName={organizationName} projects={projects} value={projectAccess} onChange={setProjectAccess} />
+              <d.ProjectAccessField
+                organizationName={organizationName}
+                projects={projects}
+                grantRoles={grantRoles}
+                value={projectAccess}
+                onChange={setChosenAccess}
+              />
             )}
           </form>
         </DialogV2Body>

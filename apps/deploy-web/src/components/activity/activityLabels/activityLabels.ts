@@ -25,6 +25,10 @@ export function listOf(labels: string[]): string {
 }
 
 /** The api can close for a reason added after this app was built, which then reads as a plain close. */
+export function systemCloseReasonOf(reason: string | undefined): string {
+  return SYSTEM_CLOSE_REASONS.get(reason) ?? "It no longer runs or costs anything.";
+}
+
 export function systemCloseOf(deployment: string, reason: string | undefined): { title: string; detail: string } {
-  return { title: `Console closed ${deployment}`, detail: SYSTEM_CLOSE_REASONS.get(reason) ?? "It no longer runs or costs anything." };
+  return { title: `Console closed ${deployment}`, detail: systemCloseReasonOf(reason) };
 }

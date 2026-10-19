@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { ConsoleCloseReason } from "@akashnetwork/http-sdk";
 import { TooltipProvider } from "@akashnetwork/ui/components";
 import type { AxiosResponse } from "axios";
 import { AxiosError } from "axios";
@@ -162,8 +163,37 @@ describe(DeploymentDetailHeader.name, () => {
     const leases = [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "active" })];
     setup({ leases, availableReplicasByService: { web: 0 }, dependencies: { useDeploymentStatus } });
 
-    expect(useDeploymentStatus).toHaveBeenCalledWith({ dseq: "1786440078202", state: "active", leases, workload: "starting" });
+    expect(useDeploymentStatus).toHaveBeenCalledWith({ dseq: "1786440078202", state: "active", leases, workload: "starting", consoleCloseReason: null });
     expect(screen.getByText("Deploy failed")).toBeInTheDocument();
+  });
+
+  it("says Console closed the deployment, and why, when its settings say Console closed it", () => {
+    setup({
+      state: "closed",
+      leases: [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "closed", reason: "lease_closed_owner" })],
+      consoleCloseReason: "runtime_limit_reached"
+    });
+
+    expect(screen.getByText("Closed by Console")).toBeInTheDocument();
+    expect(screen.getByText("It reached its runtime limit.")).toBeInTheDocument();
+    expect(screen.queryByText("Closed by you")).not.toBeInTheDocument();
+  });
+
+  it("keeps saying the owner closed a deployment Console holds no settings for", () => {
+    setup({
+      state: "closed",
+      leases: [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "closed", reason: "lease_closed_owner" })],
+      hasSettings: false
+    });
+
+    expect(screen.getByText("Closed by you")).toBeInTheDocument();
+  });
+
+  it("keeps saying the owner closed a deployment whose settings name no Console close", () => {
+    setup({ state: "closed", leases: [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "closed", reason: "lease_closed_owner" })] });
+
+    expect(screen.getByText("Closed by you")).toBeInTheDocument();
+    expect(screen.queryByText("Closed by Console")).not.toBeInTheDocument();
   });
 
   it("asks the provider of each live lease what is running on it", () => {
@@ -430,6 +460,8 @@ describe(DeploymentDetailHeader.name, () => {
   function setup(input: {
     runtimeLimitHours?: number | null;
     runtimeEndsAt?: string | null;
+    consoleCloseReason?: ConsoleCloseReason;
+    hasSettings?: boolean;
     name?: string | null;
     isTrialing?: boolean;
     definitionSdl?: string | null;
@@ -466,10 +498,14 @@ describe(DeploymentDetailHeader.name, () => {
     });
     const useDeploymentSettingQuery: typeof DEPENDENCIES.useDeploymentSettingQuery = () =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>>({
-        data: mock<NonNullable<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>["data"]>>({
-          runtimeLimitHours: input.runtimeLimitHours ?? null,
-          runtimeEndsAt: input.runtimeEndsAt ?? null
-        })
+        data:
+          input.hasSettings === false
+            ? undefined
+            : mock<NonNullable<ReturnType<typeof DEPENDENCIES.useDeploymentSettingQuery>["data"]>>({
+                runtimeLimitHours: input.runtimeLimitHours ?? null,
+                runtimeEndsAt: input.runtimeEndsAt ?? null,
+                consoleCloseReason: input.consoleCloseReason ?? null
+              })
       });
     const CostRate = vi.fn(() => <div>cost-rate</div>);
     const CostBreakdownTooltip = vi.fn(({ children }: { children?: ReactNode }) => <span>cost-tooltip{children}</span>);

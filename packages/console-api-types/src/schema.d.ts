@@ -1897,6 +1897,11 @@ export interface paths {
                  * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
                  */
                 runtimeEndsAt: string | null;
+                /**
+                 * @description Why Console closed the deployment on the owner's behalf: `runtime_limit_reached` (its runtime limit ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit). Null when Console did not close it.
+                 * @enum {string|null}
+                 */
+                consoleCloseReason: "runtime_limit_reached" | "trial_ended" | "provider_unreachable" | "no_lease" | null;
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -1987,6 +1992,11 @@ export interface paths {
                  * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
                  */
                 runtimeEndsAt: string | null;
+                /**
+                 * @description Why Console closed the deployment on the owner's behalf: `runtime_limit_reached` (its runtime limit ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit). Null when Console did not close it.
+                 * @enum {string|null}
+                 */
+                consoleCloseReason: "runtime_limit_reached" | "trial_ended" | "provider_unreachable" | "no_lease" | null;
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -2094,6 +2104,11 @@ export interface paths {
                  * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
                  */
                 runtimeEndsAt: string | null;
+                /**
+                 * @description Why Console closed the deployment on the owner's behalf: `runtime_limit_reached` (its runtime limit ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit). Null when Console did not close it.
+                 * @enum {string|null}
+                 */
+                consoleCloseReason: "runtime_limit_reached" | "trial_ended" | "provider_unreachable" | "no_lease" | null;
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -2201,6 +2216,11 @@ export interface paths {
                  * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
                  */
                 runtimeEndsAt: string | null;
+                /**
+                 * @description Why Console closed the deployment on the owner's behalf: `runtime_limit_reached` (its runtime limit ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit). Null when Console did not close it.
+                 * @enum {string|null}
+                 */
+                consoleCloseReason: "runtime_limit_reached" | "trial_ended" | "provider_unreachable" | "no_lease" | null;
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -3193,7 +3213,10 @@ export interface paths {
           "application/json": {
             data: {
               name: string;
-              /** Format: date-time */
+              /**
+               * Format: date-time
+               * @description When the key stops working, at most 365 days from now. Defaults to 365 days from creation.
+               */
               expiresAt?: string;
               /**
                * Format: uuid
@@ -9665,6 +9688,11 @@ export interface operations {
                * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
                */
               runtimeEndsAt: string | null;
+              /**
+               * @description Why Console closed the deployment on the owner's behalf: `runtime_limit_reached` (its runtime limit ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit). Null when Console did not close it.
+               * @enum {string|null}
+               */
+              consoleCloseReason: "runtime_limit_reached" | "trial_ended" | "provider_unreachable" | "no_lease" | null;
               /** Format: date-time */
               createdAt: string;
               /** Format: date-time */
@@ -9750,6 +9778,11 @@ export interface operations {
                * @description When the runtime limit is reached, anchored at lease start; null until the lease starts or when no limit is set
                */
               runtimeEndsAt: string | null;
+              /**
+               * @description Why Console closed the deployment on the owner's behalf: `runtime_limit_reached` (its runtime limit ran out), `trial_ended` (the trial it ran on ended), `provider_unreachable` (its provider stopped responding) or `no_lease` (it had no lease, and closing it returned its deposit). Null when Console did not close it.
+               * @enum {string|null}
+               */
+              consoleCloseReason: "runtime_limit_reached" | "trial_ended" | "provider_unreachable" | "no_lease" | null;
               /** Format: date-time */
               createdAt: string;
               /** Format: date-time */

@@ -42,6 +42,8 @@ export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds" 
 
 export type FlowError = { message?: string; kind?: FlowErrorKind; shortfall?: DepositShortfall; projectId?: string };
 
+export type AbandonedAttemptKind = Extract<FlowErrorKind, "no-match" | "no-providers">;
+
 /** The live bids the flow polls while quoting (react-query-backed). Element shape derived from the shared `listBids` query. */
 export type DeploymentBids = NonNullable<ReturnType<typeof useListBids>["data"]>["data"];
 
@@ -93,15 +95,19 @@ export interface DeployOptions {
   unresolvedSecrets?: UnresolvedSdlSecret[];
   /** Lets the lease finish in the background while the activity center is on; the auto flow leaves it out, as its progress scene follows the lease to the end. */
   inBackground?: boolean;
+  /** Set by the onboarding autopilot, so a failed deploy's analytics tell its failures apart from a provider the user picked. */
+  isAutoDeploy?: boolean;
 }
 
 export interface DeploymentFlowActions {
   /** Creates the deployment from the given SDL. The caller passes the SDL generated from the just-submitted form
    * values so the request can never lag behind an in-flight edit. */
   requestQuotes: (sdl: string, options?: RequestQuotesOptions) => void;
+  /** Sends the last create again as it went out, for a refusal the user has since cleared elsewhere, such as by adding funds. */
+  requestQuotesAgain: () => void;
   cancelAndEdit: () => void;
   /** Ends the attempt in `error` and closes the deployment so its deposit is released; a human uses `cancelAndEdit`. */
-  closeAndFail: (message: string) => void;
+  closeAndFail: (message: string, kind?: AbandonedAttemptKind) => void;
   /** Re-closes a deployment a background close left open. No-op while a close is in flight. */
   retryClose: () => void;
   /** Gives the attempt up for good before leaving the page: the phase stays put so nothing flashes while the page navigates away, and nothing leases it meanwhile. */
@@ -138,13 +144,10 @@ const INHERITED_SECRETS_UNREADABLE_CODE = "inherited_secrets_unreadable";
 /** Hold after a successful lease so the deploy overlay's progress bar can fill to 100% and its final step turn green before redirecting. */
 const DEPLOY_SUCCESS_DWELL_MS = 1200;
 
-/**
- * Wait this long for a first bid before failing fast — some specs never draw one (niche resources, tight filters, a
- * quiet marketplace), and the full ~5-minute quote window only makes sense once bids exist. Resets when any bid lands.
- */
-const NO_BIDS_TIMEOUT_MS = 60 * 1000;
+/** How long a first bid may take before the user is told none came yet; the deployment stays open, since a late bid can still land. */
+export const NO_BIDS_TIMEOUT_MS = 60 * 1000;
 
-/** Error surfaced when a deployment draws no provider bids at all within {@link NO_BIDS_TIMEOUT_MS}. */
+/** Error surfaced when a deployment draws no provider bid at all. */
 export const NO_PROVIDERS_MESSAGE = "No providers are available for this deployment right now. Try adjusting your deployment and requesting new bids.";
 
 /** An `active` bid is one this deployment already holds the lease on — exactly what a resumed selection points at. */
@@ -292,6 +295,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   /** Pins a close's outcome to the close that started it, so a superseded one can never settle a newer session. */
   const closeTokenRef = useRef(0);
 
+  const lastQuoteRequestRef = useRef<{ sdl: string; options: RequestQuotesOptions } | null>(null);
+
   const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
 
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -325,6 +330,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   const bidsReceivedTrackedRef = useRef(false);
 
+  /** When this attempt's wait for a first bid ran out, so a bid landing later can report how late it came. */
+  const noBidsReportedAtRef = useRef<number | null>(null);
+
   /** Null on a resumed deployment, whose request this session never saw. */
   const screeningRef = useRef<ScreeningSummary | null>(null);
 
@@ -334,6 +342,16 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       if (!currentBids || currentBids.length === 0 || bidsReceivedTrackedRef.current) return;
       bidsReceivedTrackedRef.current = true;
       analyticsService.track("bids_received", { category: "deployments", numberOfBids: currentBids.length, dseq });
+      if (noBidsReportedAtRef.current === null) return;
+      analyticsService.track("bids_received_after_timeout", {
+        category: "deployments",
+        dseq,
+        bidStrategy: bidStrategyRef.current,
+        secondsAfterTimeout: Math.round((Date.now() - noBidsReportedAtRef.current) / 1000),
+        placementCount: screeningRef.current?.placementCount,
+        screenedProviderCount: screeningRef.current?.providerCount,
+        isAutoDeploy: intentRef.current.sdlStrategy === "default" && bidStrategyRef.current === "auto"
+      });
     },
     [bidsQuery.data, dseq, analyticsService]
   );
@@ -345,30 +363,19 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         setNoBidsReceived(false);
       }
       if (phase !== "quoting" || providersEverBidRef.current || !hasReadBidList) return;
-      const timer = setTimeout(
-        /**
-         * The auto flow autopilots over this shared flow and reads its error scene off `phase === "error"`, so it must
-         * halt there; the manual flow keeps the deployment open, since a late bid can still land.
-         */
-        function timeOutWithoutProviders() {
-          if (discardedRef.current) return;
-          analyticsService.track("bids_not_received", {
-            category: "deployments",
-            dseq,
-            bidStrategy: bidStrategyRef.current,
-            waitedSeconds: NO_BIDS_TIMEOUT_MS / 1000,
-            placementCount: screeningRef.current?.placementCount,
-            screenedProviderCount: screeningRef.current?.providerCount
-          });
-          if (intentRef.current.sdlStrategy === "default" && bidStrategyRef.current === "auto") {
-            setError({ message: NO_PROVIDERS_MESSAGE, kind: "no-providers" });
-            setPhase("error");
-            return;
-          }
-          setNoBidsReceived(true);
-        },
-        NO_BIDS_TIMEOUT_MS
-      );
+      const timer = setTimeout(function timeOutWithoutProviders() {
+        if (discardedRef.current) return;
+        analyticsService.track("bids_not_received", {
+          category: "deployments",
+          dseq,
+          bidStrategy: bidStrategyRef.current,
+          waitedSeconds: NO_BIDS_TIMEOUT_MS / 1000,
+          placementCount: screeningRef.current?.placementCount,
+          screenedProviderCount: screeningRef.current?.providerCount
+        });
+        noBidsReportedAtRef.current = Date.now();
+        setNoBidsReceived(true);
+      }, NO_BIDS_TIMEOUT_MS);
       return function cancelNoProvidersTimeout() {
         clearTimeout(timer);
       };
@@ -566,9 +573,11 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    */
   const requestQuotes = useCallback(
     function requestQuotes(sdl: string, options: RequestQuotesOptions = {}) {
+      lastQuoteRequestRef.current = { sdl, options };
       const attempt = ++createAttemptRef.current;
       providersEverBidRef.current = false;
       bidsReceivedTrackedRef.current = false;
+      noBidsReportedAtRef.current = null;
       screeningRef.current = options.screening ?? null;
       setError(undefined);
       setNoBidsReceived(false);
@@ -599,7 +608,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
         if (!isCurrentAttempt()) return;
         adoptDeployment(result);
-        holdActivityEvents(activityId, [{ event: "create_deployment", properties: createdEventOf(result.dseq) }]);
+        holdActivityEvents(activityId, { succeeded: [{ event: "create_deployment", properties: createdEventOf(result.dseq) }] });
       }
 
       function onCreated(result: { data: { dseq: string; manifest: string } }) {
@@ -717,6 +726,14 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     ]
   );
 
+  const requestQuotesAgain = useCallback(
+    function requestQuotesAgain() {
+      const lastRequest = lastQuoteRequestRef.current;
+      if (lastRequest) requestQuotes(lastRequest.sdl, lastRequest.options);
+    },
+    [requestQuotes]
+  );
+
   /**
    * The dseq leaves the URL on the same tick, so a returning user never sees the abandoned deployment. Falls back to
    * `strandedDseq` rather than any pending dseq so a second press cannot broadcast a duplicate close for one settling.
@@ -740,13 +757,13 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    * other close path falls back to `strandedDseq`, which only names a deployment whose close already came back open.
    */
   const closeAndFail = useCallback(
-    function closeAndFail(message: string) {
+    function closeAndFail(message: string, kind: AbandonedAttemptKind = "no-match") {
       createAttemptRef.current += 1;
       queuedCreateRef.current = null;
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategyRef.current), undefined, { shallow: true });
       const dseqToClose = createdDseq ?? strandedDseq;
       clearDeploymentState();
-      setError({ message, kind: "no-match" });
+      setError({ message, kind });
       setPhase("error");
       if (dseqToClose) startClose(dseqToClose, "in-background");
     },
@@ -819,29 +836,41 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const deploy = useCallback(
     function deploy(sdl: string, options: DeployOptions = {}) {
       if (!dseq || discardedRef.current) return;
+      const activeDseq = dseq;
+      const inBackground = !!options.inBackground && isRunningInBackground;
+      const attempt: DeployAttempt = { dseq: activeDseq, isAutoDeploy: !!options.isAutoDeploy, inBackground };
+
+      function trackDeployFailed(stage: DeployFailureStage, cause?: unknown) {
+        const { event, properties } = deployFailedEventOf(stage, attempt, cause);
+        analyticsService.track(event, properties);
+      }
+
+      function refuseDeploy(stage: DeployFailureStage, message: string) {
+        trackDeployFailed(stage);
+        setDeployError({ message });
+      }
+
       const nextManifest = dependencies.manifestFromSdl(sdl);
       const leases = Object.values(selections).map(parseBidId);
       if (!nextManifest) {
-        setDeployError({ message: MANIFEST_BUILD_MESSAGE });
+        refuseDeploy("manifest_build", MANIFEST_BUILD_MESSAGE);
         return;
       }
       if (leases.length === 0) {
-        setDeployError({ message: NO_SELECTION_MESSAGE });
+        refuseDeploy("no_selection", NO_SELECTION_MESSAGE);
         return;
       }
       /** A kept reference may already be sealed against this deployment, which only the api can confirm; a name this form minted is held by nothing. */
       const mintedWithoutValue = (options.unresolvedSecrets ?? []).filter(secret => !secret.isKeptReference);
       if (mintedWithoutValue.length > 0) {
-        setDeployError({ message: mintedWithoutValue.map(unresolvedSecretMessage).join(" ") });
+        refuseDeploy("unresolved_secret", mintedWithoutValue.map(unresolvedSecretMessage).join(" "));
         return;
       }
-      const activeDseq = dseq;
       const activeManifest = nextManifest;
       /** A corrected secret leaves the SDL untouched, because its reference is what the SDL carries, so an unchanged manifest still has to patch. */
       const hasTypedSecrets = Object.keys(options.secrets ?? {}).length > 0;
       const keepsStoredReference = hasSdlReference(sdl);
       const deployEvents = deployEventsOf(activeDseq, dependencies.deploymentResourcesFromSdl(sdl));
-      const inBackground = !!options.inBackground && isRunningInBackground;
       setDeployError(undefined);
       setDeploySucceeded(false);
       setPhase("deploying");
@@ -867,7 +896,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       /** The lease does not exist yet, so the onboarding gate is told to expect it and the list waits for the feed that shows it spinning up. */
       async function followDeployInBackground(activityId: string) {
-        holdActivityEvents(activityId, deployEvents);
+        holdActivityEvents(activityId, { succeeded: deployEvents, failed: [deployFailedEventOf("background_lease", attempt)] });
         if (settingsId) {
           queryClient.setQueryData(QueryKeys.getLeaseExistenceKey(settingsId), true);
           queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(settingsId) });
@@ -879,7 +908,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         router.replace(UrlService.deploymentList());
       }
 
-      function failDeploy(cause: unknown) {
+      function failDeploy(stage: DeployFailureStage, cause: unknown) {
+        trackDeployFailed(stage, cause);
         setDeployError({ message: extractApiErrorMessage(cause) ?? undefined });
         setPhase("quoting");
       }
@@ -905,14 +935,14 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
             },
             onError: function markAndFailDeploy(cause: unknown) {
               markOutcomeHandled("lease_create", activeDseq, "failed");
-              failDeploy(cause);
+              failDeploy("lease_create", cause);
             }
           }
         );
       }
 
       function updateWholeSdlAndLease() {
-        updateDeployment.mutate({ dseq: activeDseq, data: { sdl } }, { onSuccess: sendManifestAndLease, onError: failDeploy });
+        updateDeployment.mutate({ dseq: activeDseq, data: { sdl } }, { onSuccess: sendManifestAndLease, onError: cause => failDeploy("update", cause) });
       }
 
       function submitPatch(services: ServicesPatch | undefined, sealedSecrets: string, canResealOnce: boolean) {
@@ -926,7 +956,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
                 void sealAndPatch(services, false);
                 return;
               }
-              failDeploy(cause);
+              failDeploy("patch", cause);
             },
             onSettled: (_result, error) => markOutcomeHandled("deployment_update", activeDseq, shownOutcomeOf(error))
           }
@@ -937,7 +967,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         try {
           submitPatch(services, await sealSecrets(options.secrets ?? {}), canResealOnce);
         } catch (cause) {
-          failDeploy(cause);
+          failDeploy("seal", cause);
         }
       }
 
@@ -953,7 +983,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
           const patched = dependencies.servicesPatchBetween(baselineSdl, sdl);
           services = isEmptyServicesPatch(patched) ? undefined : patched;
         } catch (cause) {
-          failDeploy(cause);
+          failDeploy("patch", cause);
           return;
         }
 
@@ -1011,7 +1041,20 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     error,
     pendingClose,
     isCreatingInBackground: backgroundCreate?.dseq === dseq,
-    actions: { requestQuotes, cancelAndEdit, closeAndFail, retryClose, discard, setBidStrategy, refreshQuotes, retry, selectProvider, clearSelection, deploy }
+    actions: {
+      requestQuotes,
+      requestQuotesAgain,
+      cancelAndEdit,
+      closeAndFail,
+      retryClose,
+      discard,
+      setBidStrategy,
+      refreshQuotes,
+      retry,
+      selectProvider,
+      clearSelection,
+      deploy
+    }
   };
 }
 
@@ -1095,6 +1138,24 @@ function deployEventsOf(dseq: string, resources: ReturnType<typeof deploymentRes
     ...(resources.gpuAmount > 0 ? [{ event: "create_gpu_deployment" as const, properties: leaseProperties }] : []),
     { event: "send_manifest", properties: { category: "deployments", label: "Send manifest after creating lease", dseq } }
   ];
+}
+
+type DeployFailureStage = "manifest_build" | "no_selection" | "unresolved_secret" | "seal" | "patch" | "update" | "lease_create" | "background_lease";
+
+type DeployAttempt = { dseq: string; isAutoDeploy: boolean; inBackground: boolean };
+
+/** Leaves the api's error message out, since it can echo what the user typed. */
+function deployFailedEventOf(stage: DeployFailureStage, attempt: DeployAttempt, cause?: unknown): HeldActivityEvent {
+  return {
+    event: "deploy_failed",
+    properties: {
+      category: "deployments",
+      stage,
+      ...attempt,
+      errorCode: extractApiErrorCode(cause) ?? undefined,
+      errorStatus: isApiError(cause) ? cause.status : undefined
+    }
+  };
 }
 
 function deploymentResourcesFromSdl(sdl: string): { gpuAmount: number; cpuAmount: number; memoryAmount: number; storageAmount: number } {
