@@ -50,6 +50,27 @@ describe("useOrganizationQueries", () => {
       expect(createOrganization).toHaveBeenCalledWith({ data: { name: team.name } });
       expect(readCachedOrganizations(queryClient)).toEqual([personal, team]);
     });
+
+    it("keeps the created organization when a membership fetch that started before it lands afterwards", async () => {
+      const { personal, team } = buildOrganizations();
+      const { result, listOrganizations, queryClient } = setup({
+        useHook: () => ({ memberships: useOrganizationsQuery({ enabled: true }), create: useCreateOrganizationMutation() }),
+        organizations: [personal],
+        created: team
+      });
+      await waitFor(() => expect(result.current.memberships.data).toEqual([personal]));
+      let landStaleMemberships: (response: { data: OrganizationOutput[] }) => void = () => {};
+      listOrganizations.mockReturnValueOnce(new Promise(resolve => (landStaleMemberships = resolve)));
+      act(() => {
+        queryClient.refetchQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
+      });
+
+      await act(() => result.current.create.mutateAsync({ data: { name: team.name } }));
+      await act(async () => landStaleMemberships({ data: [personal] }));
+
+      expect(listOrganizations).toHaveBeenCalledTimes(2);
+      expect(readCachedOrganizations(queryClient)).toEqual([personal, team]);
+    });
   });
 
   describe(useCreateOrganizationInvitationsMutation.name, () => {
@@ -103,23 +124,33 @@ describe("useOrganizationQueries", () => {
   });
 
   describe(addCachedOrganization.name, () => {
-    it("appends the created organization to the cached memberships", () => {
+    it("appends the created organization to the cached memberships", async () => {
       const queryClient = new QueryClient();
       const { personal, team } = buildOrganizations();
       queryClient.setQueryData(ORGANIZATIONS_QUERY_KEY, { data: [personal] });
 
-      addCachedOrganization(queryClient, team);
+      await addCachedOrganization(queryClient, team);
 
       expect(readCachedOrganizations(queryClient)).toEqual([personal, team]);
     });
 
-    it("starts the memberships with the created organization when none are cached", () => {
+    it("starts the memberships with the created organization when none are cached", async () => {
       const queryClient = new QueryClient();
       const { team } = buildOrganizations();
 
-      addCachedOrganization(queryClient, team);
+      await addCachedOrganization(queryClient, team);
 
       expect(readCachedOrganizations(queryClient)).toEqual([team]);
+    });
+
+    it("does not list an organization the memberships already hold twice", async () => {
+      const queryClient = new QueryClient();
+      const { personal, team } = buildOrganizations();
+      queryClient.setQueryData(ORGANIZATIONS_QUERY_KEY, { data: [personal, team] });
+
+      await addCachedOrganization(queryClient, { ...team, name: "Globex Labs" });
+
+      expect(readCachedOrganizations(queryClient)).toEqual([personal, team]);
     });
 
     it("reads nothing before the memberships are cached", () => {

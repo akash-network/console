@@ -1,8 +1,11 @@
 import assert from "http-assert";
 import { singleton } from "tsyringe";
 
+import { getDefaultApiKeyExpiry } from "@src/auth/lib/api-key-lifetime/api-key-lifetime";
 import { ApiKeyInput, ApiKeyOutput, ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyExpiryReminderScheduler } from "@src/auth/services/api-key-expiry-reminder/api-key-expiry-reminder-scheduler.service";
 import { AuthService } from "@src/auth/services/auth.service";
+import { TxService } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -17,7 +20,9 @@ export class ApiKeyService {
     private readonly authService: AuthService,
     private readonly apiKeyGenerator: ApiKeyGeneratorService,
     private readonly executionContextService: ExecutionContextService,
-    private readonly featureFlagsService: FeatureFlagsService
+    private readonly featureFlagsService: FeatureFlagsService,
+    private readonly txService: TxService,
+    private readonly expiryReminderScheduler: ApiKeyExpiryReminderScheduler
   ) {}
 
   async findAll(): Promise<ApiKeyOutput[]> {
@@ -38,14 +43,19 @@ export class ApiKeyService {
     const hashedKey = this.apiKeyGenerator.hashApiKeySha256(apiKey);
     const obfuscatedKey = this.apiKeyGenerator.obfuscateApiKey(apiKey);
 
-    const created = await this.apiKeyRepository.accessibleBy(this.authService.ability, "create").create({
-      ...input,
-      userId: this.authService.currentUser.id,
-      projectId,
-      hashedKey,
-      keyFormat: obfuscatedKey,
-      expiresAt: input.expiresAt ? new Date(input.expiresAt) : undefined,
-      lastUsedAt: null
+    const created = await this.txService.transaction(async () => {
+      const stored = await this.apiKeyRepository.accessibleBy(this.authService.ability, "create").create({
+        ...input,
+        userId: this.authService.currentUser.id,
+        projectId,
+        hashedKey,
+        keyFormat: obfuscatedKey,
+        expiresAt: input.expiresAt ? new Date(input.expiresAt) : getDefaultApiKeyExpiry(new Date()),
+        lastUsedAt: null
+      });
+      await this.expiryReminderScheduler.schedule(stored);
+
+      return stored;
     });
 
     return {

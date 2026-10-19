@@ -74,6 +74,15 @@ describe(BehaviouralSignalReplayService.name, () => {
     expect(packaged).toMatchObject({ accelFires: 0, networkFires: 2, candidateProbes: 0 });
   });
 
+  it("leaves an idle host alone when the accelerator memory belongs to a process outside the container", async () => {
+    const { service } = setup();
+
+    const summary = await service.replay({ bundledFixtures: true });
+    const idleOnSharedCard = summary.deployments.find(deployment => deployment.label === "accelerator-memory-outside-container");
+
+    expect(idleOnSharedCard).toMatchObject({ probes: 3, accelFires: 0, networkFires: 3, candidateProbes: 0 });
+  });
+
   it("counts how many deployments each agreement length would reach", async () => {
     const { service } = setup();
 
@@ -205,6 +214,7 @@ describe(BehaviouralSignalReplayService.name, () => {
       shellStatus: "completed",
       accelerator: [{ name: "accelerator-0", utilPct: 99, memUsedMb: 20_480, memTotalMb: 24_576, processes: [{ pid: 1234, name: "worker", vramMb: 18_000 }] }],
       artifacts: [{ path: "/opt/worker", sizeBytes: 4_194_304 }],
+      processOrigins: [{ pid: 1234, ppid: 1, comm: "worker", startedAtEpochMs: 1_000, holdsAccelerator: true }],
       netShape: { listenPorts: [22], connections: [] },
       ...overrides
     });

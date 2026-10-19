@@ -1,3 +1,4 @@
+import type { ConsoleCloseReason } from "@akashnetwork/http-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -152,7 +153,11 @@ describe(useDeploymentStatus.name, () => {
 
   describe("while an update applies in the background", () => {
     it("shows the update over services still starting", () => {
-      const { result } = setup({ activities: [deploymentUpdate("pending"), leaseCreation({ status: "succeeded" })], leases: [liveLease()], workload: "starting" });
+      const { result } = setup({
+        activities: [deploymentUpdate("pending"), leaseCreation({ status: "succeeded" })],
+        leases: [liveLease()],
+        workload: "starting"
+      });
 
       expect(result.current).toEqual({ label: "Updating", summaryLabel: "Updating", tone: "loading" });
     });
@@ -250,6 +255,26 @@ describe(useDeploymentStatus.name, () => {
     expect(result.current.label).toBe("Closed");
   });
 
+  it("names Console as the one who closed a deployment it closed with the owner's wallet, and says why", () => {
+    const { result } = setup({
+      state: "closed",
+      activities: [],
+      leases: [mock<LeaseDto>({ state: "closed", reason: "lease_closed_owner" })],
+      consoleCloseReason: "runtime_limit_reached"
+    });
+
+    expect(result.current).toEqual({ label: "Closed by Console", summaryLabel: "Closed by Console", tone: "closed", reason: "It reached its runtime limit." });
+  });
+
+  it("follows why Console closed the deployment once its settings say so", () => {
+    const { result, receive } = setup({ state: "closed", activities: [], leases: [mock<LeaseDto>({ state: "closed", reason: "lease_closed_owner" })] });
+    expect(result.current.label).toBe("Closed by you");
+
+    receive({ consoleCloseReason: "provider_unreachable" });
+
+    expect(result.current.label).toBe("Closed by Console");
+  });
+
   it("shows what the chain and providers say when the deployment has no lease creation in the feed", () => {
     const { result } = setup({ activities: [], leases: [liveLease()], workload: "running" });
 
@@ -270,13 +295,21 @@ describe(useDeploymentStatus.name, () => {
     state?: string;
     leases?: LeaseDto[];
     workload?: WorkloadStatus;
+    consoleCloseReason?: ConsoleCloseReason;
     isEnabled?: boolean;
     isSignedIn?: boolean;
   }) {
     const current = { ...input };
     const dependencies = dependenciesFor(current);
     const { result, rerender } = renderHook(() =>
-      useDeploymentStatus({ dseq: DSEQ, state: current.state ?? "active", leases: current.leases, workload: current.workload, dependencies })
+      useDeploymentStatus({
+        dseq: DSEQ,
+        state: current.state ?? "active",
+        leases: current.leases,
+        workload: current.workload,
+        consoleCloseReason: current.consoleCloseReason,
+        dependencies
+      })
     );
 
     return {

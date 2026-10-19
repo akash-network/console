@@ -64,6 +64,21 @@ describe(DeploymentSettingService.name, () => {
       expect(result).not.toHaveProperty("closeReasonDetails");
     });
 
+    it("serves why Console closed the deployment, unlike the reason its user gave", async () => {
+      const { service, deploymentSettingRepository } = setup();
+      const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
+
+      deploymentSettingRepository.accessibleBy.mockReturnValue(deploymentSettingRepository);
+      deploymentSettingRepository.findOneBy.mockResolvedValue(
+        createDeploymentSettingsOutput({ ...params, closed: true, closeReason: "other", consoleCloseReason: "provider_unreachable" })
+      );
+
+      const result = await service.findByUserIdAndDseq(params);
+
+      expect(result).toEqual(expect.objectContaining({ consoleCloseReason: "provider_unreachable" }));
+      expect(result).not.toHaveProperty("closeReason");
+    });
+
     it("returns undefined and writes no row when nothing is stored for the deployment", async () => {
       const { service, deploymentSettingRepository } = setup();
       const params = { userId: faker.string.uuid(), dseq: faker.string.numeric(6) };
@@ -773,6 +788,7 @@ describe(DeploymentSettingService.name, () => {
       offeredGpus: null,
       closeReason: null,
       closeReasonDetails: null,
+      consoleCloseReason: null,
       createdAt: faker.date.past().toISOString(),
       updatedAt: faker.date.past().toISOString(),
       ...overrides

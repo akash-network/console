@@ -6,7 +6,7 @@ import type { ProjectGrant } from "@src/components/organizations/ProjectGrantsFi
 import { ProjectGrantsField } from "@src/components/organizations/ProjectGrantsField/ProjectGrantsField";
 import { RadioCard } from "@src/components/organizations/RadioCard/RadioCard";
 import type { ProjectAccess } from "@src/types/organizationMembership";
-import type { Project } from "@src/types/project";
+import type { Project, ProjectRole } from "@src/types/project";
 
 export const DEPENDENCIES = { ProjectGrantsField };
 
@@ -36,15 +36,20 @@ export function toProjectAccessRequest({ access, grants }: ProjectAccessValue): 
   return access === "all" ? { projectAccess: access } : { projectAccess: access, projectGrants: grants };
 }
 
+export function limitGrantsToRoles(value: ProjectAccessValue, roles: ProjectRole[]): ProjectAccessValue {
+  return { ...value, grants: value.grants.map(grant => (roles.includes(grant.role) ? grant : { ...grant, role: roles[0] })) };
+}
+
 interface Props {
   organizationName: string;
   projects: Pick<Project, "id" | "name">[];
+  grantRoles: ProjectRole[];
   value: ProjectAccessValue;
   onChange: (value: ProjectAccessValue) => void;
   dependencies?: typeof DEPENDENCIES;
 }
 
-export function ProjectAccessField({ organizationName, projects, value, onChange, dependencies: d = DEPENDENCIES }: Props) {
+export function ProjectAccessField({ organizationName, projects, grantRoles, value, onChange, dependencies: d = DEPENDENCIES }: Props) {
   const fieldId = useId();
   const options: { access: ProjectAccess; label: string; description: string }[] = [
     { access: "all", label: "All projects", description: `Every project in ${organizationName}, including new ones.` },
@@ -67,7 +72,7 @@ export function ProjectAccessField({ organizationName, projects, value, onChange
 
       {value.access === "selected" && (
         <>
-          <d.ProjectGrantsField projects={projects} grants={value.grants} onChange={grants => onChange({ ...value, grants })} />
+          <d.ProjectGrantsField projects={projects} roles={grantRoles} grants={value.grants} onChange={grants => onChange({ ...value, grants })} />
           {value.grants.length === 0 && <p className="text-xs text-muted-foreground">{NO_PROJECT_PICKED_MESSAGE}</p>}
         </>
       )}

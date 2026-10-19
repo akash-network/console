@@ -11,7 +11,8 @@ export type ProbeEvidenceAccelerator = {
 
 export type ProbeEvidenceArtifact = { path: string; sizeBytes: number };
 
-export type ProbeEvidenceProcessOrigin = { pid: number; ppid: number; comm: string; startedAtEpochMs: number };
+/** Rows recorded before the collector reported device handles carry no `holdsAccelerator`. */
+export type ProbeEvidenceProcessOrigin = { pid: number; ppid: number; comm: string; startedAtEpochMs: number; holdsAccelerator?: boolean };
 
 export type ProbeEvidenceConnectionState = "established" | "connecting";
 

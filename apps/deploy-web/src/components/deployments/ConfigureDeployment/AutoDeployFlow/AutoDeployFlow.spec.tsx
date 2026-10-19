@@ -103,8 +103,41 @@ describe(AutoDeployFlow.name, () => {
     expect(openAddCredits).toHaveBeenCalledWith({
       initialTab: "purchase",
       description: "Add credits to your balance to deploy Hello World.",
-      context: "auto_deploy_needs_funds"
+      context: "auto_deploy_needs_funds",
+      nextStepLabel: "Continue to deploy",
+      onCreditsAdded: expect.any(Function)
     });
+  });
+
+  it("tries again on its own once credits land, so the user is not left on the error scene", () => {
+    const tryAgain = vi.fn();
+    const { sceneProps, creditsAddedCallback, analyticsService } = setup({ autopilot: { tryAgain, state: { kind: "error", reason: "needs-funds" } } });
+    sceneProps().onAddFunds?.();
+
+    creditsAddedCallback()();
+
+    expect(tryAgain).toHaveBeenCalledTimes(1);
+    expect(analyticsService.track).toHaveBeenCalledWith("add_credits_resumed_deploy", { category: "billing", context: "auto_deploy_needs_funds" });
+  });
+
+  it("leaves a deploy refused for another reason alone when credits land", () => {
+    const tryAgain = vi.fn();
+    const { sceneProps, creditsAddedCallback } = setup({ autopilot: { tryAgain, state: { kind: "error", reason: "top-up-pending" } } });
+    sceneProps().onAddFunds?.();
+
+    creditsAddedCallback()();
+
+    expect(tryAgain).not.toHaveBeenCalled();
+  });
+
+  it("leaves a deploy that is no longer failing alone when credits land", () => {
+    const tryAgain = vi.fn();
+    const { sceneProps, creditsAddedCallback } = setup({ autopilot: { tryAgain, state: { kind: "creating" } } });
+    sceneProps().onAddFunds?.();
+
+    creditsAddedCallback()();
+
+    expect(tryAgain).not.toHaveBeenCalled();
   });
 
   it("stops the autopilot and switches to manual bid selection when the user chooses a provider", () => {
@@ -212,6 +245,12 @@ describe(AutoDeployFlow.name, () => {
       />
     );
 
-    return { push, analyticsService, openAddCredits, sceneProps: () => (PhasedDeployProgressScene as ReturnType<typeof vi.fn>).mock.calls[0][0] as SceneProps };
+    return {
+      push,
+      analyticsService,
+      openAddCredits,
+      sceneProps: () => (PhasedDeployProgressScene as ReturnType<typeof vi.fn>).mock.calls[0][0] as SceneProps,
+      creditsAddedCallback: () => openAddCredits.mock.calls[0][0].onCreditsAdded as () => void
+    };
   }
 });

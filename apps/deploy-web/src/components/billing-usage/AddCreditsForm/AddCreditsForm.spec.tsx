@@ -20,6 +20,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 describe(AddCreditsForm.name, () => {
   afterEach(() => {
     window.sessionStorage.clear();
+    vi.restoreAllMocks();
   });
 
   it("creates a setup intent on mount when the user has no saved payment methods", () => {
@@ -579,10 +580,10 @@ describe(AddCreditsForm.name, () => {
     expect(onDone).not.toHaveBeenCalled();
   });
 
-  it("does not call the API when addPaymentMethod resolves null", async () => {
+  it("does not call the API when the payment method cannot be set up", async () => {
     const confirmPayment = vi.fn();
     const onDone = vi.fn();
-    const addPaymentMethod = vi.fn().mockResolvedValue(null);
+    const addPaymentMethod = vi.fn().mockResolvedValue({ failure: { errorType: "card_error", errorCode: "incorrect_cvc" } });
     const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
 
     setup({
@@ -951,7 +952,7 @@ describe(AddCreditsForm.name, () => {
   it("rotates the key after a definitive 402 decline", async () => {
     const confirmPayment = vi
       .fn()
-      .mockRejectedValueOnce({ response: { status: 402, data: { code: "card_declined" } } })
+      .mockRejectedValueOnce({ response: { status: 402, data: { code: "insufficient_funds" } } })
       .mockResolvedValue({ success: true });
     setup({ status: "idle", confirmPayment, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })] });
 
@@ -1228,9 +1229,11 @@ describe(AddCreditsForm.name, () => {
       });
     });
 
-    it("tracks a setup failure when the new payment method cannot be confirmed", async () => {
+    it("tracks a setup failure with Stripe's codes when the new payment method cannot be confirmed", async () => {
       const analyticsService = mock<AnalyticsService>();
-      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(vi.fn().mockResolvedValue(null));
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(
+        vi.fn().mockResolvedValue({ failure: { errorType: "card_error", errorCode: "card_declined", declineCode: "generic_decline" } })
+      );
       setup({ status: "success", clientSecret: "seti_secret", analyticsService, dependencies: { AddCreditsNewPaymentMethodFields } });
 
       await submitWithAmount("100");
@@ -1240,7 +1243,62 @@ describe(AddCreditsForm.name, () => {
         amount: 100,
         type: "card",
         isSavedMethod: false,
-        stage: "payment_method_setup"
+        stage: "payment_method_setup",
+        errorType: "card_error",
+        errorCode: "card_declined",
+        declineCode: "generic_decline"
+      });
+    });
+
+    it("tracks a wallet setup failure with Stripe's codes", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      const addPaymentMethod = vi.fn().mockResolvedValue({ failure: { errorType: "card_error", errorCode: "card_declined", declineCode: "do_not_honor" } });
+      const AddCreditsWalletButton: typeof DEPENDENCIES.AddCreditsWalletButton = ({ onSubmit }) => (
+        <button type="button" onClick={() => void onSubmit({ type: "apple_pay", addPaymentMethod })}>
+          Express checkout
+        </button>
+      );
+      setup({
+        status: "idle",
+        analyticsService,
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })],
+        dependencies: { AddCreditsWalletButton }
+      });
+      fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "Express checkout" })));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_failed", {
+        category: "billing",
+        amount: 100,
+        type: "apple_pay",
+        isSavedMethod: false,
+        stage: "payment_method_setup",
+        errorType: "card_error",
+        errorCode: "card_declined",
+        declineCode: "do_not_honor"
+      });
+    });
+
+    it("tracks the payment form as not ready when the new card fields expose no handle", async () => {
+      const analyticsService = mock<AnalyticsService>();
+      const AddCreditsNewPaymentMethodFields: typeof DEPENDENCIES.AddCreditsNewPaymentMethodFields = React.forwardRef<
+        PaymentMethodSourceHandle,
+        { isLoading: boolean }
+      >(function FieldsWithoutHandle() {
+        return null;
+      });
+      setup({ status: "success", clientSecret: "seti_secret", analyticsService, dependencies: { AddCreditsNewPaymentMethodFields } });
+
+      await submitWithAmount("100");
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_failed", {
+        category: "billing",
+        amount: 100,
+        type: "card",
+        isSavedMethod: false,
+        stage: "payment_method_setup",
+        errorType: "form_not_ready"
       });
     });
 
@@ -1530,6 +1588,173 @@ describe(AddCreditsForm.name, () => {
     });
   });
 
+  describe("when the bank refuses a card", () => {
+    const BANK_REFUSED_MESSAGE = "Your bank refused this card. Try a different card or payment method.";
+    const BANK_REFUSAL = { failure: { errorType: "card_error", errorCode: "card_declined", declineCode: "generic_decline" } };
+
+    it("moves a refused saved card off the default selection and says the bank refused it", async () => {
+      const reset = vi.fn();
+      const mutate = vi.fn();
+      setup({
+        status: "idle",
+        reset,
+        mutate,
+        confirmPayment: vi.fn().mockRejectedValue({ response: { status: 402, data: { code: "card_declined" } } }),
+        handleStripeError: () => ({ message: "Your card was declined.", userAction: "Contact your bank or try a different card." }),
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+
+      expect(screen.getByRole("button", { name: /add new payment method/i })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: /4242/ })).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByTestId("new-payment-method-fields")).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent(BANK_REFUSED_MESSAGE);
+      expect(screen.queryByText("Your card was declined.")).not.toBeInTheDocument();
+      expect(reset).toHaveBeenCalledOnce();
+      expect(mutate).toHaveBeenCalledOnce();
+    });
+
+    it("keeps the saved card selected when its charge fails for another reason", async () => {
+      const reset = vi.fn();
+      setup({
+        status: "idle",
+        reset,
+        confirmPayment: vi.fn().mockRejectedValue({ response: { status: 402, data: { code: "insufficient_funds" } } }),
+        handleStripeError: () => ({ message: "Your card has insufficient funds.", userAction: undefined }),
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+
+      expect(screen.getByRole("button", { name: /4242/ })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("alert")).toHaveTextContent("Your card has insufficient funds.");
+      expect(reset).not.toHaveBeenCalled();
+    });
+
+    it("asks for a different card when the bank refuses the charge on a card saved for this purchase", async () => {
+      const reset = vi.fn();
+      const refreshPaymentMethods = vi.fn().mockResolvedValue(undefined);
+      const analyticsService = mock<AnalyticsService>();
+      const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_new" });
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(addPaymentMethod);
+      setup({
+        status: "success",
+        clientSecret: "seti_secret",
+        reset,
+        refreshPaymentMethods,
+        analyticsService,
+        confirmPayment: vi.fn().mockRejectedValue({ response: { status: 402, data: { code: "card_declined" } } }),
+        dependencies: { AddCreditsNewPaymentMethodFields }
+      });
+      act(() => lastProps()!.onPaymentTypeChange?.("link"));
+
+      await submitWithAmount("100");
+
+      expect(refreshPaymentMethods).toHaveBeenCalled();
+      expect(reset).toHaveBeenCalledOnce();
+      expect(lastProps()!.disabled).toBe(false);
+      expect(screen.queryByRole("button", { name: "Use a different payment method" })).not.toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent(BANK_REFUSED_MESSAGE);
+
+      await submitWithAmount("100");
+
+      expect(addPaymentMethod).toHaveBeenCalledTimes(2);
+      const submittedTypes = analyticsService.track.mock.calls
+        .filter(([event]) => event === "add_credits_payment_submitted")
+        .map(([, properties]) => (properties as { type?: string }).type);
+      expect(submittedTypes).toEqual(["link", "card"]);
+    });
+
+    it("starts a fresh new card form once the bank refuses a new card twice in a row", async () => {
+      const reset = vi.fn();
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(vi.fn().mockResolvedValue(BANK_REFUSAL));
+      setup({ status: "success", clientSecret: "seti_secret", reset, dependencies: { AddCreditsNewPaymentMethodFields } });
+
+      await submitWithAmount("100");
+
+      expect(reset).not.toHaveBeenCalled();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+      await submitWithAmount("100");
+
+      expect(reset).toHaveBeenCalledOnce();
+      expect(screen.getByRole("alert")).toHaveTextContent(BANK_REFUSED_MESSAGE);
+
+      await submitWithAmount("100");
+
+      expect(reset).toHaveBeenCalledOnce();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("keeps the new card form when another setup failure breaks the run of refusals", async () => {
+      const reset = vi.fn();
+      const addPaymentMethod = vi
+        .fn()
+        .mockResolvedValueOnce(BANK_REFUSAL)
+        .mockResolvedValueOnce({ failure: { errorType: "validation_error", errorCode: "incomplete_number" } })
+        .mockResolvedValueOnce(BANK_REFUSAL);
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
+      setup({ status: "success", clientSecret: "seti_secret", reset, dependencies: { AddCreditsNewPaymentMethodFields } });
+
+      await submitWithAmount("100");
+      await submitWithAmount("100");
+      await submitWithAmount("100");
+
+      expect(addPaymentMethod).toHaveBeenCalledTimes(3);
+      expect(reset).not.toHaveBeenCalled();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("leaves the selected method alone when the bank refuses a wallet", async () => {
+      const reset = vi.fn();
+      const addPaymentMethod = vi.fn().mockResolvedValue(BANK_REFUSAL);
+      const AddCreditsWalletButton: typeof DEPENDENCIES.AddCreditsWalletButton = ({ onSubmit }) => (
+        <button type="button" onClick={() => void onSubmit({ type: "google_pay", addPaymentMethod })}>
+          Express checkout
+        </button>
+      );
+      setup({ status: "idle", reset, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })], dependencies: { AddCreditsWalletButton } });
+      fireEvent.click(screen.getByRole("radio", { name: "100" }));
+
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "Express checkout" })));
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: "Express checkout" })));
+
+      expect(addPaymentMethod).toHaveBeenCalledTimes(2);
+      expect(reset).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: /4242/ })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("payment form readiness", () => {
+    it("tracks the payment form as ready once, with how long it took since the form opened", () => {
+      let clock = 1000.4;
+      vi.spyOn(performance, "now").mockImplementation(() => clock);
+      const analyticsService = mock<AnalyticsService>();
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock();
+      setup({ status: "success", clientSecret: "seti_secret", analyticsService, context: "billing", dependencies: { AddCreditsNewPaymentMethodFields } });
+
+      clock = 3500.6;
+      act(() => lastProps()!.onReady?.());
+      act(() => lastProps()!.onReady?.());
+
+      const readyEvents = analyticsService.track.mock.calls.filter(([event]) => event === "add_credits_payment_form_ready");
+      expect(readyEvents).toEqual([["add_credits_payment_form_ready", { category: "billing", type: "card", msSinceOpen: 2500, context: "billing" }]]);
+    });
+
+    it("tracks the payment type the payment element reported before it was ready", () => {
+      const analyticsService = mock<AnalyticsService>();
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock();
+      setup({ status: "success", clientSecret: "seti_secret", analyticsService, dependencies: { AddCreditsNewPaymentMethodFields } });
+
+      act(() => lastProps()!.onPaymentTypeChange?.("link"));
+      act(() => lastProps()!.onReady?.());
+
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_form_ready", expect.objectContaining({ type: "link" }));
+    });
+  });
+
   async function submitWithAmount(amount: string) {
     fireEvent.click(screen.getByRole("radio", { name: amount }));
 
@@ -1555,16 +1780,16 @@ describe(AddCreditsForm.name, () => {
     return { use3DSecure, threeDSecureOptions: () => options };
   }
 
-  function makePaymentMethodFieldsMock(addPaymentMethod: PaymentMethodSourceHandle["addPaymentMethod"] = vi.fn().mockResolvedValue(null)) {
-    const propsLog: Array<{ clientSecret?: string; isLoading: boolean; disabled?: boolean; onPaymentTypeChange?: (type: string) => void }> = [];
-    const Mock: typeof DEPENDENCIES.AddCreditsNewPaymentMethodFields = React.forwardRef<
-      PaymentMethodSourceHandle,
-      { clientSecret?: string; isLoading: boolean; disabled?: boolean; onPaymentTypeChange?: (type: string) => void }
-    >(function MockPaymentMethodFields(props, ref) {
-      propsLog.push(props);
-      useImperativeHandle(ref, () => ({ addPaymentMethod }), [addPaymentMethod]);
-      return <div data-testid="new-payment-method-fields" />;
-    });
+  function makePaymentMethodFieldsMock(addPaymentMethod: PaymentMethodSourceHandle["addPaymentMethod"] = vi.fn().mockResolvedValue({ failure: {} })) {
+    type FieldsProps = { clientSecret?: string; isLoading: boolean; disabled?: boolean; onPaymentTypeChange?: (type: string) => void; onReady?: () => void };
+    const propsLog: FieldsProps[] = [];
+    const Mock: typeof DEPENDENCIES.AddCreditsNewPaymentMethodFields = React.forwardRef<PaymentMethodSourceHandle, FieldsProps>(
+      function MockPaymentMethodFields(props, ref) {
+        propsLog.push(props);
+        useImperativeHandle(ref, () => ({ addPaymentMethod }), [addPaymentMethod]);
+        return <div data-testid="new-payment-method-fields" />;
+      }
+    );
 
     return {
       Mock,

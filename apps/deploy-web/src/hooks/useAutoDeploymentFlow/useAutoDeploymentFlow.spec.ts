@@ -2,13 +2,18 @@ import { useCallback, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { DeploymentBids, DeploymentFlow, FlowError } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import type {
+  AbandonedAttemptKind,
+  DeploymentBids,
+  DeploymentFlow,
+  FlowError
+} from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import { NO_PROVIDERS_MESSAGE } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { useFirstReachableProvider } from "@src/queries/useProvidersQuery";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { ApiProviderList } from "@src/types/provider";
 import { formatBidId } from "@src/utils/bids/bidId";
-import type { DEPENDENCIES } from "./useAutoDeploymentFlow";
-import { useAutoDeploymentFlow } from "./useAutoDeploymentFlow";
+import { DEPENDENCIES, useAutoDeploymentFlow } from "./useAutoDeploymentFlow";
 
 import { act } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
@@ -140,12 +145,80 @@ describe(useAutoDeploymentFlow.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("onboarding_match_failed", expect.objectContaining({ reason: "quote_expired" }));
   });
 
-  it("leaves a deployment that has drawn no bids to the flow's own timeout", async () => {
-    const { flow } = setup({ bids: [], matchDeadlineMs: SHORT_DEADLINE_MS });
+  it("keeps waiting on a deployment no provider has bid on before the flow says the first bid is late", async () => {
+    const { result, flow } = setup({ bids: [], matchDeadlineMs: SHORT_DEADLINE_MS, lateBidWaitMs: SHORT_DEADLINE_MS });
 
     await waitForDeadline();
 
     expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
+    expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: false });
+  });
+
+  describe("when the flow says the first bid is late", () => {
+    it("tells the user providers are busy while it keeps waiting", async () => {
+      const { result, flow } = setup({ bids: [] });
+      await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
+
+      act(() => flow.reportNoBids());
+
+      expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: true });
+      expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
+    });
+
+    it("closes the deployment and ends on no providers once the wait for a late bid runs out", async () => {
+      vi.useFakeTimers();
+      const { result, flow, analyticsService } = setup({ bids: [], lateBidWaitMs: DEADLINE_PAST_WAIT_FOR_MS });
+      await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
+      act(() => flow.reportNoBids());
+
+      await act(() => vi.advanceTimersByTimeAsync(DEADLINE_PAST_WAIT_FOR_MS));
+
+      expect(flow.actions.closeAndFail).toHaveBeenCalledWith(NO_PROVIDERS_MESSAGE, "no-providers");
+      expect(result.current.state).toEqual({ kind: "error", message: NO_PROVIDERS_MESSAGE });
+      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_match_failed", { category: "onboarding", reason: "no_bids", dseq: DSEQ });
+    });
+
+    it("waits four minutes past the flow's one minute mark by default, five in all", async () => {
+      vi.useFakeTimers();
+      const { result, flow } = setup({ bids: [], lateBidWaitMs: DEPENDENCIES.lateBidWaitMs });
+      await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
+      act(() => flow.reportNoBids());
+
+      await act(() => vi.advanceTimersByTimeAsync(4 * 60_000 - 1));
+      expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
+
+      await act(() => vi.advanceTimersByTimeAsync(1));
+      expect(flow.actions.closeAndFail).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops waiting once a late bid lands, leaving the match to its own deadline", async () => {
+      vi.useFakeTimers();
+      const { result, flow } = setup({
+        bids: [],
+        providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")),
+        lateBidWaitMs: DEADLINE_PAST_WAIT_FOR_MS
+      });
+      await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
+      act(() => flow.reportNoBids());
+
+      act(() => flow.receiveBids([openBid()]));
+      await act(() => vi.advanceTimersByTimeAsync(DEADLINE_PAST_WAIT_FOR_MS));
+
+      expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
+      expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: false });
+    });
+
+    it("leaves the deployment open once the autopilot has been stopped for a manual hand-off", async () => {
+      vi.useFakeTimers();
+      const { result, flow } = setup({ bids: [], lateBidWaitMs: DEADLINE_PAST_WAIT_FOR_MS });
+      await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
+      act(() => flow.reportNoBids());
+
+      act(() => result.current.stopAutopilot());
+      await act(() => vi.advanceTimersByTimeAsync(DEADLINE_PAST_WAIT_FOR_MS));
+
+      expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
+    });
   });
 
   it("does not abandon the attempt once the autopilot has been stopped for a manual hand-off", async () => {
@@ -427,6 +500,10 @@ describe(useAutoDeploymentFlow.name, () => {
     vi.useRealTimers();
   });
 
+  function openBid() {
+    return mock<DeploymentBids[number]>({ bid: { state: "open", id: { provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 1, oseq: 1 } } });
+  }
+
   function setup(input?: {
     sdl?: string;
     initialDseq?: string;
@@ -438,14 +515,14 @@ describe(useAutoDeploymentFlow.name, () => {
     quoteExpiry?: { secondsLeft: number; isExpired: boolean } | null;
     holdDeploy?: boolean;
     matchDeadlineMs?: number;
+    lateBidWaitMs?: number;
   }) {
     vi.spyOn(globalThis, "requestAnimationFrame").mockReturnValue(1);
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined);
 
     const provider = mock<ApiProviderList>({ owner: PROVIDER_OWNER, hostUri: "https://provider.example" });
     const providers = input?.providers ?? [provider];
-    const bid = mock<DeploymentBids[number]>({ bid: { state: "open", id: { provider: PROVIDER_OWNER, dseq: DSEQ, gseq: 1, oseq: 1 } } });
-    const bids = input?.bids ?? [bid];
+    const bids = input?.bids ?? [openBid()];
 
     const providerProxy = mock<ProviderProxyService>();
     if (input?.providerProxyRequest) {
@@ -457,6 +534,7 @@ describe(useAutoDeploymentFlow.name, () => {
     // Captures the action calls the autopilot makes and exposes hooks to simulate the underlying flow's terminal states.
     const actions = {
       requestQuotes: vi.fn(),
+      requestQuotesAgain: vi.fn(),
       selectProvider: vi.fn(),
       deploy: vi.fn(),
       cancelAndEdit: vi.fn(),
@@ -476,13 +554,17 @@ describe(useAutoDeploymentFlow.name, () => {
       setCreating: () => void;
       dropSelections: () => void;
       replaceDseq: (next: string) => void;
+      reportNoBids: () => void;
+      receiveBids: (next: DeploymentBids) => void;
     } = {
       setPhaseError: () => undefined,
       setFlowError: () => undefined,
       setDeployError: () => undefined,
       setCreating: () => undefined,
       dropSelections: () => undefined,
-      replaceDseq: () => undefined
+      replaceDseq: () => undefined,
+      reportNoBids: () => undefined,
+      receiveBids: () => undefined
     };
 
     // A live, stateful stub of the base flow: it advances phase in response to the autopilot's action calls exactly as
@@ -495,6 +577,8 @@ describe(useAutoDeploymentFlow.name, () => {
       const [deploySucceeded, setDeploySucceeded] = useState(false);
       const [deployError, setDeployError] = useState<{ message?: string } | undefined>(undefined);
       const [error, setError] = useState<FlowError | undefined>(undefined);
+      const [liveBids, setLiveBids] = useState(bids);
+      const [noBidsReceived, setNoBidsReceived] = useState(false);
 
       flowControls.setPhaseError = (message?: string) => {
         setError({ message });
@@ -511,6 +595,11 @@ describe(useAutoDeploymentFlow.name, () => {
       flowControls.setCreating = () => setPhase("creating");
       flowControls.dropSelections = () => setSelections({});
       flowControls.replaceDseq = (next: string) => setDseq(next);
+      flowControls.reportNoBids = () => setNoBidsReceived(true);
+      flowControls.receiveBids = (next: DeploymentBids) => {
+        setLiveBids(next);
+        setNoBidsReceived(false);
+      };
 
       const requestQuotes = useCallback((sdl: string) => {
         actions.requestQuotes(sdl);
@@ -528,8 +617,8 @@ describe(useAutoDeploymentFlow.name, () => {
         setPhase("deploying");
         setDeploySucceeded(true);
       }, []);
-      const closeAndFail = useCallback((message: string) => {
-        actions.closeAndFail(message);
+      const closeAndFail = useCallback((message: string, kind?: AbandonedAttemptKind) => {
+        actions.closeAndFail(message, kind);
         setError({ message });
         setSelections({});
         setDseq(null);
@@ -556,10 +645,10 @@ describe(useAutoDeploymentFlow.name, () => {
         dseq,
         bidStrategy: "auto",
         selections,
-        bids: phase === "quoting" ? bids : [],
+        bids: phase === "quoting" ? liveBids : [],
         deploySucceeded,
         isDeployedInBackground: false,
-        noBidsReceived: false,
+        noBidsReceived,
         deployError,
         error,
         pendingClose: null,
@@ -605,7 +694,8 @@ describe(useAutoDeploymentFlow.name, () => {
             useFirstReachableProvider,
             useQuoteExpiry,
             getRequiredGseqs,
-            matchDeadlineMs: input?.matchDeadlineMs ?? UNREACHED_DEADLINE_MS
+            matchDeadlineMs: input?.matchDeadlineMs ?? UNREACHED_DEADLINE_MS,
+            lateBidWaitMs: input?.lateBidWaitMs ?? UNREACHED_DEADLINE_MS
           }
         );
       },

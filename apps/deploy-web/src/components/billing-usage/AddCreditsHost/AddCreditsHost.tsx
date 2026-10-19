@@ -18,6 +18,11 @@ export function AddCreditsHost({ dependencies: d = DEPENDENCIES }: { dependencie
 
   const closeSheet = () => setRequest(null);
 
+  const closeSheetAfterPurchase = () => {
+    closeSheet();
+    request?.onCreditsAdded?.();
+  };
+
   return (
     <d.AddCreditsSheet
       open={!!request}
@@ -26,7 +31,8 @@ export function AddCreditsHost({ dependencies: d = DEPENDENCIES }: { dependencie
       description={request?.description ?? DEFAULT_DESCRIPTION}
       deploymentDailyCostUsd={request?.deploymentDailyCostUsd}
       context={request?.context}
-      onDone={closeSheet}
+      nextStepLabel={request?.nextStepLabel}
+      onDone={closeSheetAfterPurchase}
       onRedeemed={closeSheet}
     />
   );

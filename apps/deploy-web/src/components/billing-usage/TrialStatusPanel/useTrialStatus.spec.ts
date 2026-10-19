@@ -12,19 +12,23 @@ import { useTrialStatus } from "./useTrialStatus";
 import { renderHook } from "@testing-library/react";
 
 describe(useTrialStatus.name, () => {
+  const NOW_FAR_FROM_ANY_DST_CHANGE = new Date(2026, 5, 5, 9, 0, 0);
+
   afterEach(() => {
     vi.useRealTimers();
   });
 
   it("reports the days left until the trial expires", () => {
-    const { result } = setup({ trialEndsAt: addDays(new Date(), 12) });
+    const now = pinClockTo(NOW_FAR_FROM_ANY_DST_CHANGE);
+
+    const { result } = setup({ trialEndsAt: addDays(now, 12) });
 
     expect(result.current.daysLeft).toBe(12);
     expect(result.current.isExpired).toBe(false);
   });
 
   it("keeps a trial expiring later the same day running", () => {
-    const now = pinClockTo(new Date(2026, 5, 5, 9, 0, 0));
+    const now = pinClockTo(NOW_FAR_FROM_ANY_DST_CHANGE);
 
     const { result } = setup({ trialEndsAt: addHours(now, 6) });
 
@@ -33,7 +37,7 @@ describe(useTrialStatus.name, () => {
   });
 
   it("marks the trial expired once its timestamp has passed", () => {
-    const now = pinClockTo(new Date(2026, 5, 5, 9, 0, 0));
+    const now = pinClockTo(NOW_FAR_FROM_ANY_DST_CHANGE);
 
     const { result } = setup({ trialEndsAt: subHours(now, 1) });
 
@@ -42,20 +46,26 @@ describe(useTrialStatus.name, () => {
   });
 
   it("clamps an elapsed trial to zero days left", () => {
-    const { result } = setup({ trialEndsAt: subDays(new Date(), 3) });
+    const now = pinClockTo(NOW_FAR_FROM_ANY_DST_CHANGE);
+
+    const { result } = setup({ trialEndsAt: subDays(now, 3) });
 
     expect(result.current.daysLeft).toBe(0);
     expect(result.current.isExpired).toBe(true);
   });
 
   it("drains the bar in step with the days left", () => {
-    const { result } = setup({ trialEndsAt: addDays(new Date(), 15), trialDurationDays: 30 });
+    const now = pinClockTo(NOW_FAR_FROM_ANY_DST_CHANGE);
+
+    const { result } = setup({ trialEndsAt: addDays(now, 15), trialDurationDays: 30 });
 
     expect(result.current.daysRemainingPercent).toBe(50);
   });
 
   it("takes the trial length from the wallet rather than a local default", () => {
-    const { result } = setup({ trialEndsAt: addDays(new Date(), 45), trialDurationDays: 45 });
+    const now = pinClockTo(NOW_FAR_FROM_ANY_DST_CHANGE);
+
+    const { result } = setup({ trialEndsAt: addDays(now, 45), trialDurationDays: 45 });
 
     expect(result.current.totalDays).toBe(45);
     expect(result.current.daysLeft).toBe(45);
@@ -77,7 +87,9 @@ describe(useTrialStatus.name, () => {
   });
 
   it("leaves the countdown unknown when the wallet reports an expiry without a duration", () => {
-    const { result } = setup({ trialEndsAt: addDays(new Date(), 12), trialDurationDays: null });
+    const now = pinClockTo(NOW_FAR_FROM_ANY_DST_CHANGE);
+
+    const { result } = setup({ trialEndsAt: addDays(now, 12), trialDurationDays: null });
 
     expect(result.current.daysLeft).toBeNull();
   });

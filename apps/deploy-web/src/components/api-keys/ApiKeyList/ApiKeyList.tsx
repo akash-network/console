@@ -27,9 +27,10 @@ type Props = {
   onRevoke: (apiKey: ApiKeyResponse) => void;
   /** Shows which project each key reaches; left out, the list has no project column. */
   projects?: ProjectOutput[];
+  teamName?: string;
 };
 
-export const ApiKeyList: FC<Props> = ({ apiKeys, isLoading, isError, onRevoke, projects }) => {
+export const ApiKeyList: FC<Props> = ({ apiKeys, isLoading, isError, onRevoke, projects, teamName }) => {
   const now = new Date();
   const newestFirst = [...(apiKeys ?? [])].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const activeCount = newestFirst.filter(apiKey => getApiKeyExpiryStatus(apiKey.expiresAt, now) !== "expired").length;
@@ -46,10 +47,8 @@ export const ApiKeyList: FC<Props> = ({ apiKeys, isLoading, isError, onRevoke, p
       <p className="mt-2.5 flex items-start gap-2 px-0.5 text-xs leading-[17px] text-muted-foreground">
         <ShieldAlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         <span>
-          {projects
-            ? "A key without a project has full access to your Console account, and a key for a project only works on that project. Treat keys like passwords."
-            : "API keys grant full access to your Console account, so treat them like passwords."}{" "}
-          Keep them in environment variables, never in source code. To rotate a key, create a new one and revoke the old one.
+          {describeKeyAccess({ teamName, hasProjects: !!projects })} Keep them in environment variables, never in source code. To rotate a key, create a new one
+          and revoke the old one.
         </span>
       </p>
     </SettingsSection>
@@ -180,6 +179,18 @@ const ApiKeyRow: FC<ApiKeyRowProps> = ({ apiKey, now, onRevoke, projectLabel }) 
     </li>
   );
 };
+
+function describeKeyAccess({ teamName, hasProjects }: { teamName?: string; hasProjects: boolean }) {
+  if (teamName) {
+    return `A key without a project can do what your role allows in ${teamName}, and a key for a project only works on that project. Treat keys like passwords.`;
+  }
+
+  if (hasProjects) {
+    return "A key without a project has full access to your Console account, and a key for a project only works on that project. Treat keys like passwords.";
+  }
+
+  return "API keys grant full access to your Console account, so treat them like passwords.";
+}
 
 type ProjectDescriber = (apiKey: ApiKeyResponse) => string;
 

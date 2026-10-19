@@ -6,7 +6,10 @@ import { cn } from "@akashnetwork/ui/utils";
 import { Elements, PaymentRequestButtonElement } from "@stripe/react-stripe-js";
 import type { PaymentRequest, PaymentRequestPaymentMethodEvent } from "@stripe/stripe-js";
 
-import type { PaymentMethodSourceHandle } from "@src/components/billing-usage/AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
+import {
+  type PaymentMethodSourceHandle,
+  toPaymentMethodSetupFailure
+} from "@src/components/billing-usage/AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
 import { useServices } from "@src/context/ServicesProvider";
 
 export interface WalletPaymentSource extends PaymentMethodSourceHandle {
@@ -59,21 +62,25 @@ export function AddCreditsWalletButton({ amount, disabled, onSubmit, onOpenChang
                 if (result.error) {
                   setError(result.error.message || "Couldn't save your wallet. Please try again.");
                   complete("fail");
-                  return null;
+                  return { failure: toPaymentMethodSetupFailure(result.error) };
                 }
 
                 complete("success");
                 if (result.setupIntent.status === "requires_action") {
                   result = await stripe.confirmCardSetup(clientSecret);
                 }
-                if (result.error || result.setupIntent.status !== "succeeded" || typeof result.setupIntent.payment_method !== "string") {
-                  setError(result.error?.message || "Wallet authentication did not complete. Please try again.");
-                  return null;
+                if (result.error) {
+                  setError(result.error.message || "Wallet authentication did not complete. Please try again.");
+                  return { failure: toPaymentMethodSetupFailure(result.error) };
+                }
+                if (result.setupIntent.status !== "succeeded" || typeof result.setupIntent.payment_method !== "string") {
+                  setError("Wallet authentication did not complete. Please try again.");
+                  return { failure: { errorType: "authentication_incomplete" } };
                 }
                 return { paymentMethodId: result.setupIntent.payment_method };
               } catch {
                 setError("Couldn't save your wallet. Please check your connection and try again.");
-                return null;
+                return { failure: { errorType: "setup_request_failed" } };
               }
             }
           });

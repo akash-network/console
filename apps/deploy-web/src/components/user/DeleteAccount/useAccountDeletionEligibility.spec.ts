@@ -38,7 +38,7 @@ describe(useAccountDeletionEligibility.name, () => {
     expect(result.current).toEqual({ status: "forfeit", balanceUsd: 0.01, teamsDeletedWithAccount: [] });
   });
 
-  it("ignores less than a cent of credits", () => {
+  it("ignores credits that round down to no cent", () => {
     const { result } = setup({ grantsUsd: 0.004 });
 
     expect(result.current).toEqual({ status: "clean", teamsDeletedWithAccount: [] });
@@ -149,6 +149,22 @@ describe(useAccountDeletionEligibility.name, () => {
       const { result } = renderHook(() => useWalletDeletionEligibility(dependencies));
 
       expect(result.current).toEqual({ status: "clean" });
+    });
+
+    it("asks a team holding under a cent to forfeit the cent it shows as", () => {
+      const { dependencies } = setup({ grantsUsd: 0.006 });
+
+      const { result } = renderHook(() => useWalletDeletionEligibility(dependencies));
+
+      expect(result.current).toEqual({ status: "forfeit", balanceUsd: 0.01 });
+    });
+
+    it("tells a team what it forfeits to the cent it shows", () => {
+      const { dependencies } = setup({ grantsUsd: 19.999976 });
+
+      const { result } = renderHook(() => useWalletDeletionEligibility(dependencies));
+
+      expect(result.current).toEqual({ status: "forfeit", balanceUsd: 20 });
     });
   });
 

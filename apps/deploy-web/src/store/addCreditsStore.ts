@@ -9,6 +9,9 @@ export type AddCreditsRequest = {
   deploymentDailyCostUsd?: number;
   /** Where the sheet was opened from; sent with its lifecycle events for funnel segmentation. */
   context?: string;
+  nextStepLabel?: string;
+  /** Runs once a purchase is confirmed in the balance, never on a cancel or a coupon (whose credits can still be settling), so the call site can pick up where the user left off. */
+  onCreditsAdded?: () => void;
 };
 
 /**

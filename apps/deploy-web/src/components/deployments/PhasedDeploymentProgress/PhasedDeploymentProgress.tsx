@@ -6,7 +6,7 @@ import { capitalize } from "lodash";
 import { ArrowRight, Check } from "lucide-react";
 
 import { describeDepositShortfall, TOP_UP_PENDING_MESSAGE } from "@src/components/deployments/ConfigureDeployment/depositShortfall/depositShortfall";
-import type { DeployFailure } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
+import type { DeployFailure, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 
 type DeploymentPhaseStatus = "pending" | "active" | "completed";
 
@@ -20,16 +20,20 @@ const NEEDS_FUNDS_FALLBACK_MESSAGE = "Your balance doesn't cover this deployment
 
 const BUDGET_EXCEEDED_MESSAGE = "Starting this deployment would take the project past its monthly budget. An owner or admin can raise the budget.";
 
+const TYPICAL_DEPLOY_MESSAGE =
+  "We'll pick the best host for you. Typical deploys take 15–30 seconds. When your deployment is ready, we'll automatically redirect you.";
+
+const WAITING_FOR_LATE_BIDS_MESSAGE =
+  "Providers are busy right now, so this is taking longer than usual. We'll keep waiting and pick a provider as soon as one bids.";
+
 type DeploymentPhase = {
   id: "creating" | "matching" | "preparing";
   label: string;
   status: DeploymentPhaseStatus;
 };
 
-type DeployOverlayState = { kind: "creating" | "matching" | "preparing" | "success" } | ({ kind: "error" } & DeployFailure);
-
 type DeployProgressOverlayProps = {
-  state: DeployOverlayState;
+  state: DeployProgressState;
   templateName: string;
   progressPercent: number;
   phases: [DeploymentPhase, DeploymentPhase, DeploymentPhase];
@@ -70,6 +74,7 @@ export function PhasedDeploymentProgress({
       templateName={templateName}
       progressPercent={progressPercent}
       phases={phases}
+      isWaitingForLateBids={!!state.isWaitingForLateBids}
       onChooseProvider={canChooseProvider ? onChooseProvider : undefined}
     />
   );
@@ -144,10 +149,11 @@ type DeployProgressPanelProps = {
   templateName: string;
   progressPercent: number;
   phases: [DeploymentPhase, DeploymentPhase, DeploymentPhase];
+  isWaitingForLateBids: boolean;
   onChooseProvider?: () => void;
 };
 
-function DeployProgressPanel({ templateName, progressPercent, phases, onChooseProvider }: DeployProgressPanelProps) {
+function DeployProgressPanel({ templateName, progressPercent, phases, isWaitingForLateBids, onChooseProvider }: DeployProgressPanelProps) {
   const checkpoints = phases.map((phase, i) => ({
     at: ((i + 1) / phases.length) * BAR_MAX_PERCENT,
     status: phase.status
@@ -163,9 +169,7 @@ function DeployProgressPanel({ templateName, progressPercent, phases, onChoosePr
 
         <h1 className="text-3xl leading-9 text-foreground">Deploying {templateName}</h1>
 
-        <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
-          We&apos;ll pick the best host for you. Typical deploys take 15–30 seconds. When your deployment is ready, we&apos;ll automatically redirect you.
-        </p>
+        <p className="max-w-2xl text-sm leading-5 text-muted-foreground">{isWaitingForLateBids ? WAITING_FOR_LATE_BIDS_MESSAGE : TYPICAL_DEPLOY_MESSAGE}</p>
       </div>
 
       <div className="flex w-full flex-col gap-3 rounded-xl border border-border bg-card p-4">
