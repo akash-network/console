@@ -44,7 +44,9 @@ describe(ApiKeyExpiryReminderHandler.name, () => {
           notificationId: `apiKeyExpiryReminder.${apiKey.id}.${apiKey.expiresAt}.7`,
           payload: expect.objectContaining({
             summary: `Your Akash Console API key "${apiKey.name}" expires in 7 days`,
-            actions: [{ label: "Manage API keys", url: `${container.resolve(DeploymentConfigService).get("DEPLOY_WEB_BASE_URL")}/user/api-keys?org=${organization.id}` }]
+            actions: [
+              { label: "Manage API keys", url: `${container.resolve(DeploymentConfigService).get("DEPLOY_WEB_BASE_URL")}/user/api-keys?org=${organization.id}` }
+            ]
           })
         })
       }
@@ -61,6 +63,29 @@ describe(ApiKeyExpiryReminderHandler.name, () => {
     expect(notifications.map(({ body }) => body.payload.actions[0].url)).toEqual([
       `${container.resolve(DeploymentConfigService).get("DEPLOY_WEB_BASE_URL")}/user/api-keys`
     ]);
+  });
+
+  it("emails one reminder listing the keys of an organization that expire at the same time", async () => {
+    const { owner, seedApiKey, answerNotifications, remind } = await setup();
+    const organization = await seedOrganization();
+    const expiresAt = addDays(new Date(), 200);
+    const keys = [await seedApiKey({ organizationId: organization.id, expiresAt }), await seedApiKey({ organizationId: organization.id, expiresAt })];
+    const personalKey = await seedApiKey({ expiresAt });
+    const notifications = answerNotifications();
+
+    for (const key of [...keys, personalKey]) {
+      await remind({ apiKeyId: key.id, expiresAt: key.expiresAt!, daysBeforeExpiry: 7 });
+    }
+
+    const apiKeysUrl = `${container.resolve(DeploymentConfigService).get("DEPLOY_WEB_BASE_URL")}/user/api-keys`;
+    const [teamReminder, personalReminder] = [`${apiKeysUrl}?org=${organization.id}`, apiKeysUrl].map(url =>
+      notifications.find(({ body }) => body.payload.actions[0].url === url)
+    );
+    expect(notifications).toHaveLength(2);
+    expect(teamReminder?.body.payload.summary).toBe("2 of your Akash Console API keys expire in 7 days");
+    expect(keys.map(key => teamReminder?.body.payload.description.includes(key.keyFormat))).toEqual([true, true]);
+    expect(personalReminder?.body.payload.summary).toBe(`Your Akash Console API key "${personalKey.name}" expires in 7 days`);
+    expect(notifications.map(({ userId }) => userId)).toEqual([owner.id, owner.id]);
   });
 
   it("emails nothing for a key revoked since the reminder was scheduled", async () => {

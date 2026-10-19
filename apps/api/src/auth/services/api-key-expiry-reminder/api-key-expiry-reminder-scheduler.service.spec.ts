@@ -18,15 +18,15 @@ describe(ApiKeyExpiryReminderScheduler.name, () => {
     expect(jobQueueService.enqueue.mock.calls).toEqual([
       [
         new ApiKeyExpiryReminderJob({ apiKeyId: apiKey.id, expiresAt: apiKey.expiresAt, daysBeforeExpiry: 30 }),
-        { ...RETRY_OPTIONS, startAfter: new Date("2027-09-18T12:00:00.000Z") }
+        { ...RETRY_OPTIONS, singletonKey: `apiKeyExpiryReminder.${apiKey.id}.${apiKey.expiresAt}.30`, startAfter: new Date("2027-09-18T12:00:00.000Z") }
       ],
       [
         new ApiKeyExpiryReminderJob({ apiKeyId: apiKey.id, expiresAt: apiKey.expiresAt, daysBeforeExpiry: 7 }),
-        { ...RETRY_OPTIONS, startAfter: new Date("2027-10-11T12:00:00.000Z") }
+        { ...RETRY_OPTIONS, singletonKey: `apiKeyExpiryReminder.${apiKey.id}.${apiKey.expiresAt}.7`, startAfter: new Date("2027-10-11T12:00:00.000Z") }
       ],
       [
         new ApiKeyExpiryReminderJob({ apiKeyId: apiKey.id, expiresAt: apiKey.expiresAt, daysBeforeExpiry: 1 }),
-        { ...RETRY_OPTIONS, startAfter: new Date("2027-10-17T12:00:00.000Z") }
+        { ...RETRY_OPTIONS, singletonKey: `apiKeyExpiryReminder.${apiKey.id}.${apiKey.expiresAt}.1`, startAfter: new Date("2027-10-17T12:00:00.000Z") }
       ]
     ]);
   });

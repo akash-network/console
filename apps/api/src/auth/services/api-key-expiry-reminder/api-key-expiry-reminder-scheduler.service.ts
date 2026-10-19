@@ -30,6 +30,7 @@ export class ApiKeyExpiryReminderScheduler {
     for (const daysBeforeExpiry of API_KEY_EXPIRY_REMINDER_DAYS.filter(days => hoursLeft >= (days + 1) * HOURS_PER_DAY)) {
       await this.jobQueueService.enqueue(new ApiKeyExpiryReminderJob({ apiKeyId: apiKey.id, expiresAt: apiKey.expiresAt, daysBeforeExpiry }), {
         ...REMINDER_RETRY_OPTIONS,
+        singletonKey: `apiKeyExpiryReminder.${apiKey.id}.${apiKey.expiresAt}.${daysBeforeExpiry}`,
         startAfter: subHours(expiresAt, daysBeforeExpiry * HOURS_PER_DAY)
       });
     }

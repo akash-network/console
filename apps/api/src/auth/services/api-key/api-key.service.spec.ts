@@ -226,6 +226,16 @@ describe(ApiKeyService.name, () => {
       expiryReminderScheduler
     );
 
-    return { service, apiKeyRepository, projectRepository, featureFlagsService, txService, expiryReminderScheduler, ability: authService.ability, user, apiKeyGenerator };
+    return {
+      service,
+      apiKeyRepository,
+      projectRepository,
+      featureFlagsService,
+      txService,
+      expiryReminderScheduler,
+      ability: authService.ability,
+      user,
+      apiKeyGenerator
+    };
   }
 });

@@ -35,8 +35,10 @@ export class ApiKeyExpiryReminderHandler implements JobHandler<ApiKeyExpiryRemin
     return [];
   }
 
+  /** Keys of one owner and organization that expire at the same moment share one email, sent by the job of the first of them. */
   async handle({ apiKeyId, expiresAt, daysBeforeExpiry }: JobPayload<ApiKeyExpiryReminderJob>): Promise<void> {
-    const apiKey = await this.apiKeyRepository.unscoped("api-key-expiry-reminders").findById(apiKeyId);
+    const apiKeyRepository = this.apiKeyRepository.unscoped("api-key-expiry-reminders");
+    const apiKey = await apiKeyRepository.findById(apiKeyId);
     const owner = apiKey && (await this.userRepository.findById(apiKey.userId));
     const skipReason = whyNotToRemind(apiKey, expiresAt) ?? (owner?.email ? undefined : "Owner has no email");
 
@@ -45,17 +47,28 @@ export class ApiKeyExpiryReminderHandler implements JobHandler<ApiKeyExpiryRemin
       return;
     }
 
+    const keysExpiringTogether = await apiKeyRepository.findExpiringTogether({ userId: apiKey.userId, organizationId: apiKey.organizationId, expiresAt });
+
+    if (keysExpiringTogether[0]?.id !== apiKeyId) {
+      this.#logger.info({
+        event: "API_KEY_EXPIRY_REMINDER_SKIPPED",
+        apiKeyId,
+        daysBeforeExpiry,
+        reason: "Reminded with another key expiring at the same time"
+      });
+      return;
+    }
+
     await this.notificationService.createNotificationOnce(
       apiKeyExpiryReminderNotification(owner, {
         apiKeyId,
-        name: apiKey.name,
-        keyFormat: apiKey.keyFormat,
+        keys: keysExpiringTogether.map(({ name, keyFormat }) => ({ name, keyFormat })),
         expiresAt,
         daysBeforeExpiry,
         apiKeysUrl: this.#apiKeysUrl(apiKey.organizationId)
       })
     );
-    this.#logger.info({ event: "API_KEY_EXPIRY_REMINDER_SENT", apiKeyId, daysBeforeExpiry });
+    this.#logger.info({ event: "API_KEY_EXPIRY_REMINDER_SENT", apiKeyId, keys: keysExpiringTogether.length, daysBeforeExpiry });
   }
 
   #apiKeysUrl(organizationId: string | null): string {
