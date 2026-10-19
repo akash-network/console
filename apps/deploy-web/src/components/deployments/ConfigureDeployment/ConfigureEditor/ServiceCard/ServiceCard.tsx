@@ -16,7 +16,7 @@ type Props = {
   service: ServiceType;
   serviceIndex: number;
   isExpanded: boolean;
-  isSelected: boolean;
+  showsDeploymentLimit: boolean;
   onExpandedChange: (expanded: boolean) => void;
   canRemove: boolean;
   onRemove: () => void;
@@ -30,7 +30,7 @@ export const ServiceCard: FC<Props> = ({
   service,
   serviceIndex,
   isExpanded,
-  isSelected,
+  showsDeploymentLimit,
   onExpandedChange,
   canRemove,
   onRemove,
@@ -109,7 +109,7 @@ export const ServiceCard: FC<Props> = ({
         <CollapsibleContent>
           <div className="flex flex-col gap-6 border-t py-4">
             <d.ImageSection serviceIndex={serviceIndex} locked={locked === "all"} />
-            <d.HardwareSection serviceIndex={serviceIndex} locked={!!locked} showsDeploymentLimit={isSelected} />
+            <d.HardwareSection serviceIndex={serviceIndex} locked={!!locked} showsDeploymentLimit={showsDeploymentLimit} />
             <d.AdditionalSection serviceIndex={serviceIndex} locked={locked} />
           </div>
         </CollapsibleContent>

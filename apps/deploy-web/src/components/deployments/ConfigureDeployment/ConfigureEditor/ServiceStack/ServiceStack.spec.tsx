@@ -19,10 +19,18 @@ describe(ServiceStack.name, () => {
     expect(cardProps("api")).toMatchObject({ serviceIndex: 2 });
   });
 
-  it("marks only the selected service's card as selected", () => {
+  it("shows the deployment's trial size cap on the selected service's card only", () => {
     const { cardProps } = setup({ selectedServiceId: "api" });
 
-    expect([cardProps("web").isSelected, cardProps("api").isSelected]).toEqual([false, true]);
+    expect([cardProps("web").showsDeploymentLimit, cardProps("api").showsDeploymentLimit]).toEqual([false, true]);
+  });
+
+  it("moves the deployment's trial size cap to an open card when the selected card collapses", () => {
+    const { cardProps } = setup({ selectedServiceId: "api" });
+
+    act(() => cardProps("api").onExpandedChange(false));
+
+    expect([cardProps("web").showsDeploymentLimit, cardProps("api").showsDeploymentLimit]).toEqual([true, false]);
   });
 
   it("expands the first service's card by default", () => {
