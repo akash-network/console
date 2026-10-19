@@ -9,11 +9,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-key";
 import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import { JOB_NAME } from "@src/core";
+import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { NotificationHandler, NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
 import { CloseTrialDeployment, CloseTrialDeploymentHandler, closeTrialDeploymentKeyFor } from "./close-trial-deployment.handler";
 
-import { createDseq } from "@test/seeders/db/deployment-setting.seeder";
+import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
@@ -54,6 +55,15 @@ describe(CloseTrialDeploymentHandler.name, () => {
         dedupeKey: deploymentCloseDedupeKeyOf({ owner: address, dseq })
       })
     ]);
+  });
+
+  it("remembers on the deployment's setting that Console closed it because the trial ended", async () => {
+    const { closeTrialDeployment, seedSetting, findSetting } = await setup();
+    const setting = await seedSetting();
+
+    await closeTrialDeployment();
+
+    expect(await findSetting(setting.id)).toMatchObject({ consoleCloseReason: "trial_ended" });
   });
 
   it("adds nothing to the feed when the deployment had already closed", async () => {
@@ -134,6 +144,8 @@ describe(CloseTrialDeploymentHandler.name, () => {
       close,
       sentNotifications,
       findActivities: () => container.resolve(ActivityRepository).find({ userId: wallet.userId }),
+      seedSetting: () => seedDeploymentSetting({ userId: wallet.userId, dseq }),
+      findSetting: (id: string) => container.resolve(DeploymentSettingRepository).findOneBy({ id }),
       findRetry: async () => {
         const [row] = await findJobRows(CloseTrialDeployment[JOB_NAME], { singletonKey: closeKey, state: "created" });
 

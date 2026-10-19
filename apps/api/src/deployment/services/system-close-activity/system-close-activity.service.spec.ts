@@ -59,7 +59,7 @@ describe(SystemCloseActivityService.name, () => {
     });
   });
 
-  it("logs a failed lookup instead of failing the close that already happened", async () => {
+  it("logs a failed lookup as both writes failing instead of failing the close that already happened", async () => {
     const { service, activityService, deploymentSettingRepository, logger, teamWallet } = setup({ filedUnder: "member-1" });
     const error = new Error("connection terminated");
     deploymentSettingRepository.findOneOwnedByWallet.mockRejectedValue(error);
@@ -67,13 +67,105 @@ describe(SystemCloseActivityService.name, () => {
     await expect(service.record({ wallet: teamWallet, dseq: "100", reason: "no_lease" })).resolves.toBeUndefined();
 
     expect(activityService.record).not.toHaveBeenCalled();
-    expect(logger.error).toHaveBeenCalledWith({
-      event: "SYSTEM_CLOSE_ACTIVITY_RECORD_FAILED",
-      owner: teamWallet.address,
-      organizationId: teamWallet.organizationId,
+    expect(deploymentSettingRepository.updateBy).not.toHaveBeenCalled();
+    const logged = { owner: teamWallet.address, organizationId: teamWallet.organizationId, dseq: "100", closeReason: "no_lease", error };
+    expect(logger.error.mock.calls).toEqual([
+      [{ event: "SYSTEM_CLOSE_REASON_RECORD_FAILED", ...logged }],
+      [{ event: "SYSTEM_CLOSE_ACTIVITY_RECORD_FAILED", ...logged }]
+    ]);
+  });
+
+  it("remembers on the deployment's record why Console closed it, unless an earlier close already did", async () => {
+    const { service, deploymentSettingRepository, setting, teamWallet } = setup({ filedUnder: "member-1" });
+
+    await service.record({ wallet: teamWallet, dseq: "100", reason: "runtime_limit_reached" });
+
+    expect(deploymentSettingRepository.unscoped.mock.calls).toEqual([["deployment-activity"], ["deployment-activity"]]);
+    expect(deploymentSettingRepository.updateBy).toHaveBeenCalledWith(
+      { id: setting!.id, consoleCloseReason: null },
+      { consoleCloseReason: "runtime_limit_reached" }
+    );
+  });
+
+  it("remembers why Console closed the deployment before the feed entry that refreshes its page", async () => {
+    const { service, activityService, deploymentSettingRepository, teamWallet } = setup({ filedUnder: "member-1" });
+
+    await service.record({ wallet: teamWallet, dseq: "100", reason: "trial_ended" });
+
+    expect(deploymentSettingRepository.updateBy.mock.invocationCallOrder[0]).toBeLessThan(activityService.record.mock.invocationCallOrder[0]);
+  });
+
+  it("remembers why Console closed a team deployment whose member deleted their account, though no feed can show it", async () => {
+    const { service, activityService, deploymentSettingRepository, setting, teamWallet } = setup({ filedUnder: null });
+
+    await service.record({ wallet: teamWallet, dseq: "100", reason: "provider_unreachable" });
+
+    expect(activityService.record).not.toHaveBeenCalled();
+    expect(deploymentSettingRepository.updateBy).toHaveBeenCalledWith(
+      { id: setting!.id, consoleCloseReason: null },
+      { consoleCloseReason: "provider_unreachable" }
+    );
+  });
+
+  it("remembers why Console closed the deployment when its feed entry cannot be written", async () => {
+    const { service, activityService, deploymentSettingRepository, logger, setting, teamWallet } = setup({ filedUnder: "member-1" });
+    const error = new Error("connection terminated");
+    activityService.record.mockRejectedValue(error);
+
+    await expect(service.record({ wallet: teamWallet, dseq: "100", reason: "trial_ended" })).resolves.toBeUndefined();
+
+    expect(deploymentSettingRepository.updateBy).toHaveBeenCalledWith({ id: setting!.id, consoleCloseReason: null }, { consoleCloseReason: "trial_ended" });
+    expect(logger.error.mock.calls).toEqual([
+      [
+        {
+          event: "SYSTEM_CLOSE_ACTIVITY_RECORD_FAILED",
+          owner: teamWallet.address,
+          organizationId: teamWallet.organizationId,
+          dseq: "100",
+          closeReason: "trial_ended",
+          error
+        }
+      ]
+    ]);
+  });
+
+  it("records the close in the feed and logs the failure when why Console closed it cannot be remembered", async () => {
+    const { service, activityService, deploymentSettingRepository, logger, teamWallet } = setup({ filedUnder: "member-1" });
+    const error = new Error("connection terminated");
+    deploymentSettingRepository.updateBy.mockRejectedValue(error);
+
+    await expect(service.record({ wallet: teamWallet, dseq: "100", reason: "no_lease" })).resolves.toBeUndefined();
+
+    expect(activityService.record).toHaveBeenCalledWith(
+      systemClosedActivityOf({ userId: "member-1", owner: teamWallet.address, dseq: "100", reason: "no_lease" })
+    );
+    expect(logger.error.mock.calls).toEqual([
+      [
+        {
+          event: "SYSTEM_CLOSE_REASON_RECORD_FAILED",
+          owner: teamWallet.address,
+          organizationId: teamWallet.organizationId,
+          dseq: "100",
+          closeReason: "no_lease",
+          error
+        }
+      ]
+    ]);
+  });
+
+  it("remembers nothing and says so for a deployment Console holds no record of", async () => {
+    const { service, deploymentSettingRepository, logger, personalWallet } = setup({ filedUnder: undefined });
+
+    await service.record({ wallet: personalWallet, dseq: "100", reason: "trial_ended" });
+
+    expect(deploymentSettingRepository.updateBy).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith({
+      event: "SYSTEM_CLOSE_REASON_SKIPPED",
+      reason: "NO_DEPLOYMENT_RECORD",
+      owner: personalWallet.address,
+      organizationId: personalWallet.organizationId,
       dseq: "100",
-      closeReason: "no_lease",
-      error
+      closeReason: "trial_ended"
     });
   });
 
@@ -86,9 +178,8 @@ describe(SystemCloseActivityService.name, () => {
   function setup(input: { filedUnder: string | null | undefined }) {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.unscoped.mockReturnValue(deploymentSettingRepository);
-    deploymentSettingRepository.findOneOwnedByWallet.mockResolvedValue(
-      input.filedUnder === undefined ? undefined : mock<DeploymentSettingsOutput>({ userId: input.filedUnder })
-    );
+    const setting = input.filedUnder === undefined ? undefined : mock<DeploymentSettingsOutput>({ id: faker.string.uuid(), userId: input.filedUnder });
+    deploymentSettingRepository.findOneOwnedByWallet.mockResolvedValue(setting);
     const activityService = mock<ActivityService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
@@ -97,6 +188,7 @@ describe(SystemCloseActivityService.name, () => {
 
     return {
       service,
+      setting,
       deploymentSettingRepository,
       activityService,
       logger,

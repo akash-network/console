@@ -702,6 +702,7 @@ describe(InitialDeploymentFundingService.name, () => {
       offeredGpus: null,
       closeReason: null,
       closeReasonDetails: null,
+      consoleCloseReason: null,
       createdAt: new Date("2026-08-20T00:00:00.000Z").toISOString(),
       updatedAt: new Date("2026-08-20T00:00:00.000Z").toISOString(),
       ...overrides

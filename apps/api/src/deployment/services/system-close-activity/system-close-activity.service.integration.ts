@@ -28,6 +28,24 @@ describe(SystemCloseActivityService.name, () => {
     ]);
   });
 
+  it("remembers on a team deployment's record why Console closed it", async () => {
+    const { service, member, teamWallet, dseq, findSetting } = await setup();
+    const setting = await seedDeploymentSetting({ userId: member.id, organizationId: teamWallet.organizationId, dseq });
+
+    await service.record({ wallet: teamWallet, dseq, reason: "runtime_limit_reached" });
+
+    expect(await findSetting(setting.id)).toMatchObject({ consoleCloseReason: "runtime_limit_reached" });
+  });
+
+  it("remembers on a personal deployment's record why Console closed it", async () => {
+    const { service, member, personalWallet, dseq, findSetting } = await setup();
+    const setting = await seedDeploymentSetting({ userId: member.id, organizationId: personalWallet.organizationId, dseq });
+
+    await service.record({ wallet: personalWallet, dseq, reason: "trial_ended" });
+
+    expect(await findSetting(setting.id)).toMatchObject({ consoleCloseReason: "trial_ended" });
+  });
+
   it("records a personal deployment's close in its user's feed", async () => {
     const { service, member, personalWallet, dseq, activitiesOf } = await setup();
     await seedDeploymentSetting({ userId: member.id, organizationId: personalWallet.organizationId, dseq });
@@ -55,32 +73,45 @@ describe(SystemCloseActivityService.name, () => {
     expect(await activitiesOf(member.id)).toHaveLength(2);
   });
 
-  it("records a deployment's close once when reported twice", async () => {
-    const { service, member, teamWallet, dseq, activitiesOf } = await setup();
-    await seedDeploymentSetting({ userId: member.id, organizationId: teamWallet.organizationId, dseq });
+  it("keeps the reason of a team deployment's close off the personal deployment that shares its dseq", async () => {
+    const { service, member, personalWallet, teamWallet, dseq, findSetting } = await setup();
+    const teamSetting = await seedDeploymentSetting({ userId: member.id, organizationId: teamWallet.organizationId, dseq });
+
+    await service.record({ wallet: teamWallet, dseq, reason: "runtime_limit_reached" });
+    await service.record({ wallet: personalWallet, dseq, reason: "no_lease" });
+
+    expect(await findSetting(teamSetting.id)).toMatchObject({ consoleCloseReason: "runtime_limit_reached" });
+  });
+
+  it("records a deployment's close once when reported twice, in the feed and on its record alike", async () => {
+    const { service, member, teamWallet, dseq, activitiesOf, findSetting } = await setup();
+    const setting = await seedDeploymentSetting({ userId: member.id, organizationId: teamWallet.organizationId, dseq });
 
     await service.record({ wallet: teamWallet, dseq, reason: "provider_unreachable" });
     await service.record({ wallet: teamWallet, dseq, reason: "no_lease" });
 
     expect(await activitiesOf(member.id)).toEqual([expect.objectContaining({ meta: { dseq, reason: "provider_unreachable" } })]);
+    expect(await findSetting(setting.id)).toMatchObject({ consoleCloseReason: "provider_unreachable" });
   });
 
-  it("records nothing for a team deployment Console holds no record of", async () => {
-    const { service, member, teamWallet, dseq, activitiesOf } = await setup();
+  it("records nothing, and files no record, for a team deployment Console holds no record of", async () => {
+    const { service, member, teamWallet, dseq, activitiesOf, settingsOf } = await setup();
 
     await service.record({ wallet: teamWallet, dseq, reason: "no_lease" });
 
     expect(await activitiesOf(member.id)).toEqual([]);
+    expect(await settingsOf(dseq)).toEqual([]);
   });
 
-  it("records nothing for a team deployment whose member deleted their account", async () => {
-    const { service, member, teamWallet, dseq, activitiesOf } = await setup();
+  it("adds nothing to any feed for a team deployment whose member deleted their account, yet remembers why Console closed it", async () => {
+    const { service, member, teamWallet, dseq, activitiesOf, findSetting } = await setup();
     const setting = await seedDeploymentSetting({ userId: member.id, organizationId: teamWallet.organizationId, dseq });
     await container.resolve(DeploymentSettingRepository).unscoped("account-deletion").updateById(setting.id, { userId: null });
 
     await service.record({ wallet: teamWallet, dseq, reason: "no_lease" });
 
     expect(await activitiesOf(member.id)).toEqual([]);
+    expect(await findSetting(setting.id)).toMatchObject({ consoleCloseReason: "no_lease" });
   });
 
   async function setup() {
@@ -96,7 +127,9 @@ describe(SystemCloseActivityService.name, () => {
       dseq: createDseq(),
       personalWallet: { userId: member.id, organizationId: personal.id, address: createAkashAddress() },
       teamWallet: { userId: null, organizationId: team.id, address: createAkashAddress() },
-      activitiesOf: (userId: string) => container.resolve(ActivityRepository).find({ userId })
+      activitiesOf: (userId: string) => container.resolve(ActivityRepository).find({ userId }),
+      findSetting: (id: string) => container.resolve(DeploymentSettingRepository).findOneBy({ id }),
+      settingsOf: (dseq: string) => container.resolve(DeploymentSettingRepository).find({ dseq })
     };
   }
 });

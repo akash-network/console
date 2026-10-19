@@ -6723,6 +6723,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "autoTopUpEnabled": {
                           "type": "boolean",
                         },
+                        "consoleCloseReason": {
+                          "description": "Why Console closed the deployment on the owner's behalf: \`runtime_limit_reached\` (its runtime limit ran out), \`trial_ended\` (the trial it ran on ended), \`provider_unreachable\` (its provider stopped responding) or \`no_lease\` (it had no lease, and closing it returned its deposit). Null when Console did not close it.",
+                          "enum": [
+                            "runtime_limit_reached",
+                            "trial_ended",
+                            "provider_unreachable",
+                            "no_lease",
+                          ],
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "createdAt": {
                           "format": "date-time",
                           "type": "string",
@@ -6776,6 +6787,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "topUpFrequencyMs",
                         "runtimeLimitHours",
                         "runtimeEndsAt",
+                        "consoleCloseReason",
                         "createdAt",
                         "updatedAt",
                       ],
@@ -6865,6 +6877,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "autoTopUpEnabled": {
                           "type": "boolean",
                         },
+                        "consoleCloseReason": {
+                          "description": "Why Console closed the deployment on the owner's behalf: \`runtime_limit_reached\` (its runtime limit ran out), \`trial_ended\` (the trial it ran on ended), \`provider_unreachable\` (its provider stopped responding) or \`no_lease\` (it had no lease, and closing it returned its deposit). Null when Console did not close it.",
+                          "enum": [
+                            "runtime_limit_reached",
+                            "trial_ended",
+                            "provider_unreachable",
+                            "no_lease",
+                          ],
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "createdAt": {
                           "format": "date-time",
                           "type": "string",
@@ -6918,6 +6941,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "topUpFrequencyMs",
                         "runtimeLimitHours",
                         "runtimeEndsAt",
+                        "consoleCloseReason",
                         "createdAt",
                         "updatedAt",
                       ],
@@ -7048,6 +7072,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "autoTopUpEnabled": {
                           "type": "boolean",
                         },
+                        "consoleCloseReason": {
+                          "description": "Why Console closed the deployment on the owner's behalf: \`runtime_limit_reached\` (its runtime limit ran out), \`trial_ended\` (the trial it ran on ended), \`provider_unreachable\` (its provider stopped responding) or \`no_lease\` (it had no lease, and closing it returned its deposit). Null when Console did not close it.",
+                          "enum": [
+                            "runtime_limit_reached",
+                            "trial_ended",
+                            "provider_unreachable",
+                            "no_lease",
+                          ],
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "createdAt": {
                           "format": "date-time",
                           "type": "string",
@@ -7101,6 +7136,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "topUpFrequencyMs",
                         "runtimeLimitHours",
                         "runtimeEndsAt",
+                        "consoleCloseReason",
                         "createdAt",
                         "updatedAt",
                       ],
@@ -22798,6 +22834,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "autoTopUpEnabled": {
                           "type": "boolean",
                         },
+                        "consoleCloseReason": {
+                          "description": "Why Console closed the deployment on the owner's behalf: \`runtime_limit_reached\` (its runtime limit ran out), \`trial_ended\` (the trial it ran on ended), \`provider_unreachable\` (its provider stopped responding) or \`no_lease\` (it had no lease, and closing it returned its deposit). Null when Console did not close it.",
+                          "enum": [
+                            "runtime_limit_reached",
+                            "trial_ended",
+                            "provider_unreachable",
+                            "no_lease",
+                          ],
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "createdAt": {
                           "format": "date-time",
                           "type": "string",
@@ -22851,6 +22898,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "topUpFrequencyMs",
                         "runtimeLimitHours",
                         "runtimeEndsAt",
+                        "consoleCloseReason",
                         "createdAt",
                         "updatedAt",
                       ],
@@ -22941,6 +22989,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "autoTopUpEnabled": {
                           "type": "boolean",
                         },
+                        "consoleCloseReason": {
+                          "description": "Why Console closed the deployment on the owner's behalf: \`runtime_limit_reached\` (its runtime limit ran out), \`trial_ended\` (the trial it ran on ended), \`provider_unreachable\` (its provider stopped responding) or \`no_lease\` (it had no lease, and closing it returned its deposit). Null when Console did not close it.",
+                          "enum": [
+                            "runtime_limit_reached",
+                            "trial_ended",
+                            "provider_unreachable",
+                            "no_lease",
+                          ],
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "createdAt": {
                           "format": "date-time",
                           "type": "string",
@@ -22994,6 +23053,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "topUpFrequencyMs",
                         "runtimeLimitHours",
                         "runtimeEndsAt",
+                        "consoleCloseReason",
                         "createdAt",
                         "updatedAt",
                       ],
@@ -23125,6 +23185,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "autoTopUpEnabled": {
                           "type": "boolean",
                         },
+                        "consoleCloseReason": {
+                          "description": "Why Console closed the deployment on the owner's behalf: \`runtime_limit_reached\` (its runtime limit ran out), \`trial_ended\` (the trial it ran on ended), \`provider_unreachable\` (its provider stopped responding) or \`no_lease\` (it had no lease, and closing it returned its deposit). Null when Console did not close it.",
+                          "enum": [
+                            "runtime_limit_reached",
+                            "trial_ended",
+                            "provider_unreachable",
+                            "no_lease",
+                          ],
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "createdAt": {
                           "format": "date-time",
                           "type": "string",
@@ -23178,6 +23249,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "topUpFrequencyMs",
                         "runtimeLimitHours",
                         "runtimeEndsAt",
+                        "consoleCloseReason",
                         "createdAt",
                         "updatedAt",
                       ],
