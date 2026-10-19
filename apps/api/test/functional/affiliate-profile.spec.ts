@@ -7,8 +7,12 @@ import { AffiliateRepository } from "@src/affiliate/repositories/affiliate/affil
 import { ReferralRepository } from "@src/affiliate/repositories/referral/referral.repository";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { StripeTransactionRepository } from "@src/billing/repositories";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
+
+import { seedOrganization, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
 
 describe("GET /v1/affiliates/me", () => {
   const userRepository = container.resolve(UserRepository);
@@ -108,6 +112,36 @@ describe("GET /v1/affiliates/me", () => {
     });
   });
 
+  it("returns the earnings filed under the affiliate's personal organization while one of their teams is active", async () => {
+    const { token, user } = await setup({ hasOrganizations: true });
+    await affiliateRepository.create({
+      userId: user.id,
+      code: faker.string.alpha({ length: 8, casing: "lower" }),
+      approvedAt: new Date(),
+      approvedBy: "ops@akash.network"
+    });
+    const personalOrganization = await seedOrganization({ type: "personal", createdByUserId: user.id });
+    const team = await seedOrganization({ type: "team", createdByUserId: user.id });
+    await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: "owner" });
+    await stripeTransactionRepository.create({
+      userId: user.id,
+      organizationId: personalOrganization.id,
+      type: "affiliate_commission",
+      status: "succeeded",
+      amount: 500,
+      currency: "usd"
+    });
+
+    const response = await request(token, { organizationId: team.id });
+    const body = (await response.json()) as AffiliateProfileResponse;
+
+    expect(response.status).toBe(200);
+    expect(body.data).toMatchObject({
+      stats: { totalCommissionUsd: 5, monthCommissionUsd: 5 },
+      commissions: [{ amountUsd: 5, reversedUsd: 0 }]
+    });
+  });
+
   it("never includes the referred user's id or email in the response", async () => {
     const { token, user } = await setup();
     const affiliate = await affiliateRepository.create({
@@ -144,14 +178,18 @@ describe("GET /v1/affiliates/me", () => {
     expect(await response.json()).toEqual({ data: null });
   });
 
-  async function request(token?: string) {
+  async function request(token?: string, options: { organizationId?: string } = {}) {
     return app.request("/v1/affiliates/me", {
       method: "GET",
-      headers: { "Content-Type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(options.organizationId ? { "x-organization-id": options.organizationId } : {})
+      }
     });
   }
 
-  async function setup() {
+  async function setup(input: { hasOrganizations?: boolean } = {}) {
     const user = await userRepository.create({ userId: faker.string.uuid() });
     const token = faker.string.alphanumeric(40);
     const otherTokens = vi.isMockFunction(userAuthTokenService.getValidUserId)
@@ -161,6 +199,12 @@ describe("GET /v1/affiliates/me", () => {
     vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async header =>
       header.replace(/^Bearer +/i, "") === token ? user.userId! : (await otherTokens?.(header)) ?? null
     );
+
+    if (input.hasOrganizations) {
+      const featureFlagsService = container.resolve(FeatureFlagsService);
+      const isEnabled = featureFlagsService.isEnabled.bind(featureFlagsService);
+      vi.spyOn(featureFlagsService, "isEnabled").mockImplementation((flag, context) => flag === FeatureFlags.ORGANIZATIONS || isEnabled(flag, context));
+    }
 
     return { user, token };
   }
