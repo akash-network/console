@@ -12492,6 +12492,14 @@ export interface operations {
                 /** @description Downtime clipped to that day, in seconds (max 86400) */
                 downtimeSeconds: number;
               }[];
+              /** @description Present when the request asks for a GPU model: true when Console's GPU checks of the requested models listed the provider on every check of the last 48 hours, at least 3 of them, and it bid on none */
+              isNotBidding?: boolean;
+              /**
+               * Format: date-time
+               * @description Present when the request asks for a GPU model: when the provider last bid on a Console GPU check of the requested models; null if not in 30 days
+               * @example 2026-10-18T06:01:30.000Z
+               */
+              lastCheckBidAt?: string | null;
             }[];
           };
         };
