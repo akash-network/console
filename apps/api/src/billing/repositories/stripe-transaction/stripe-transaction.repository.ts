@@ -254,16 +254,6 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return item;
   }
 
-  async hasCompletedPaidTransactionOfAtLeast(owner: BillingOwner, minAmountCents: number): Promise<boolean> {
-    const [item] = await this.cursor
-      .select({ id: this.table.id })
-      .from(this.table)
-      .where(this.unscoped("per-person-billing-limits").whereAccessibleBy(and(this.#completedPaidBy(owner), gte(this.table.amount, minAmountCents))))
-      .limit(1);
-
-    return !!item;
-  }
-
   #completedPaidBy(owner: BillingOwner): SQL | undefined {
     return and(ownedBy(this.table, owner), eq(this.table.type, "payment_intent"), inArray(this.table.status, ["succeeded", "refunded"]));
   }

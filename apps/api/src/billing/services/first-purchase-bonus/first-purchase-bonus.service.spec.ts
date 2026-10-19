@@ -204,6 +204,17 @@ describe(FirstPurchaseBonusService.name, () => {
       expect(eligibility).toEqual({ eligible: false, endsAt: null, window: null });
     });
 
+    it.each([
+      { case: "opens", amount: 9999, expected: { eligible: true, endsAt: WINDOW_CLOSES_AT, window: "small_first_purchase" } },
+      { case: "opens no", amount: 10000, expected: { eligible: false, endsAt: null, window: null } }
+    ])("$case window after a first purchase of $amount cents", async ({ amount, expected }) => {
+      const { service } = setup({ firstPaymentAt: FIRST_PAYMENT_AT, firstPaymentAmount: amount });
+
+      const eligibility = await service.evaluate({ userId: "user-1" }, "user-1", INSIDE_WINDOW);
+
+      expect(eligibility).toEqual(expected);
+    });
+
     it("never opens a window for a team account", async () => {
       const { service } = setup({ firstPaymentAt: FIRST_PAYMENT_AT });
 
@@ -373,6 +384,7 @@ describe(FirstPurchaseBonusService.name, () => {
 
   function setup(input?: {
     firstPaymentAt?: Date;
+    firstPaymentAmount?: number;
     personHasBonus?: boolean;
     userLockable?: boolean;
     organization?: OrganizationOutput;
@@ -380,7 +392,7 @@ describe(FirstPurchaseBonusService.name, () => {
   }) {
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
     stripeTransactionRepository.findEarliestCompletedPaidTransaction.mockResolvedValue(
-      input?.firstPaymentAt ? { id: faker.string.uuid(), createdAt: input.firstPaymentAt, amount: 2000 } : undefined
+      input?.firstPaymentAt ? { id: faker.string.uuid(), createdAt: input.firstPaymentAt, amount: input.firstPaymentAmount ?? 2000 } : undefined
     );
     stripeTransactionRepository.hasReceivedFirstPurchaseBonus.mockResolvedValue(input?.personHasBonus ?? false);
     stripeTransactionRepository.recordFirstPurchaseBonus.mockResolvedValue(input?.bonusRecordable ?? true);

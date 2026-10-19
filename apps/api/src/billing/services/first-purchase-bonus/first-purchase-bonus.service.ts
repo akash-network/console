@@ -76,7 +76,7 @@ export class FirstPurchaseBonusService {
     });
     if (!firstPayment) return { eligible: true, endsAt: null, window: null };
 
-    const openWindow = "userId" in payingAccount ? await this.#findLatestOpenWindow(payingAccount.userId, firstPayment.createdAt, at) : undefined;
+    const openWindow = "userId" in payingAccount ? await this.#findLatestOpenWindow(payingAccount.userId, firstPayment, at) : undefined;
 
     return openWindow ? { eligible: true, endsAt: openWindow.closesAt, window: openWindow.reason } : { eligible: false, endsAt: null, window: null };
   }
@@ -85,16 +85,19 @@ export class FirstPurchaseBonusService {
     return (await this.evaluate(payingAccount, userId, at)).eligible;
   }
 
-  async #findLatestOpenWindow(userId: string, firstPaymentAt: Date, at: Date): Promise<BonusWindow | undefined> {
-    const windows = [
-      { reason: "small_first_purchase" as const, closesAt: addDays(firstPaymentAt, SMALL_FIRST_PURCHASE_WINDOW_DAYS) },
-      await this.#findWinBackWindow(userId)
-    ];
+  async #findLatestOpenWindow(userId: string, firstPayment: { createdAt: Date; amount: number }, at: Date): Promise<BonusWindow | undefined> {
+    const windows = [this.#findSmallFirstPurchaseWindow(firstPayment), await this.#findWinBackWindow(userId)];
 
     return maxBy(
       windows.filter((window): window is BonusWindow => window !== null && window.closesAt > at),
       window => window.closesAt.getTime()
     );
+  }
+
+  #findSmallFirstPurchaseWindow({ createdAt, amount }: { createdAt: Date; amount: number }): BonusWindow | null {
+    if (amount >= MIN_QUALIFYING_AMOUNT_CENTS) return null;
+
+    return { reason: "small_first_purchase", closesAt: addDays(createdAt, SMALL_FIRST_PURCHASE_WINDOW_DAYS) };
   }
 
   /** Inert until the GPU win-back (CON-1166) records a window per person. */
