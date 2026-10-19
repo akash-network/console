@@ -273,7 +273,7 @@ describe(FirstPurchaseBonusService.name, () => {
 
       await service.findWindowOpenedBy(transaction);
 
-      expect(organizationRepository.findById).not.toHaveBeenCalled();
+      expect(organizationRepository.findOneByAndLock).not.toHaveBeenCalled();
       expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction).toHaveBeenCalledWith(
         { userId: transaction.userId },
         { excludeId: transaction.id }
@@ -288,8 +288,37 @@ describe(FirstPurchaseBonusService.name, () => {
 
       const opened = await service.findWindowOpenedBy(transaction);
 
-      expect(organizationRepository.findById).toHaveBeenCalledWith(personal.id);
+      expect(organizationRepository.findOneByAndLock).toHaveBeenCalledWith({ id: personal.id }, { strength: "no key update" });
       expect(opened).toEqual({ userId: transaction.userId, reason: "small_first_purchase", closesAt: WINDOW_CLOSES_AT.toISOString() });
+    });
+
+    it("locks the paying organization, then the person, before checking for an earlier payment", async () => {
+      const personal = createOrganization({ type: "personal" });
+      const { service, stripeTransactionRepository, userRepository, organizationRepository } = setup({ organization: personal });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: personal.id, createdAt: FIRST_PAYMENT_AT });
+
+      await service.findWindowOpenedBy(transaction);
+
+      expect(userRepository.findOneByAndLock).toHaveBeenCalledWith({ id: transaction.userId }, { strength: "no key update" });
+      const [organizationLock] = organizationRepository.findOneByAndLock.mock.invocationCallOrder;
+      const [personLock] = userRepository.findOneByAndLock.mock.invocationCallOrder;
+      const [accountCheck] = stripeTransactionRepository.findEarliestCompletedPaidTransaction.mock.invocationCallOrder;
+      const [personCheck] = stripeTransactionRepository.hasReceivedFirstPurchaseBonus.mock.invocationCallOrder;
+      expect(organizationLock).toBeLessThan(personLock);
+      expect(personLock).toBeLessThan(accountCheck);
+      expect(personLock).toBeLessThan(personCheck);
+    });
+
+    it("throws when the user row cannot be locked", async () => {
+      const { service, stripeTransactionRepository } = setup({ userLockable: false });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: null, createdAt: FIRST_PAYMENT_AT });
+
+      await expect(service.findWindowOpenedBy(transaction)).rejects.toMatchObject({
+        status: 500,
+        message: "Failed to lock user for first-purchase bonus eligibility",
+        userId: transaction.userId
+      });
+      expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction).not.toHaveBeenCalled();
     });
 
     it("treats a payment filed under an organization it cannot find as the person's own, as the bonus does", async () => {
@@ -496,7 +525,6 @@ describe(FirstPurchaseBonusService.name, () => {
 
     const organizationRepository = mock<OrganizationRepository>();
     organizationRepository.findOneByAndLock.mockResolvedValue(input?.organization);
-    organizationRepository.findById.mockResolvedValue(input?.organization);
 
     const logger = mock<LoggerService>();
 

@@ -19,8 +19,8 @@ import type { ExecutionContextService } from "@src/core/services/execution-conte
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
-import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
-import type { UserRepository } from "@src/user/repositories/user/user.repository";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { AUTO_RECHARGE_METADATA_KEY, StripeTransactionService } from "./stripe-transaction.service";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
@@ -1550,7 +1550,13 @@ describe(StripeTransactionService.name, () => {
     const featureFlagsService = mock<FeatureFlagsService>();
     featureFlagsService.isEnabled.mockReturnValue(false);
     const logger = mock<LoggerService>();
-    const persistedBonusService = new FirstPurchaseBonusService(persistedTransactions, analyticsService, userRepository, organizationRepository, () => logger);
+    const persistedBonusService = new FirstPurchaseBonusService(
+      persistedTransactions,
+      analyticsService,
+      container.resolve(UserRepository),
+      container.resolve(OrganizationRepository),
+      () => logger
+    );
 
     const toppedUpWallet = { walletId: 42, address: "akash1toppedupwallet" };
     refillService.topUpWallet.mockResolvedValue(toppedUpWallet);

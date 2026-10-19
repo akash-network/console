@@ -52,17 +52,13 @@ export class FirstPurchaseBonusService {
     this.#logger = createLogger({ context: FirstPurchaseBonusService.name });
   }
 
-  /** Locking the paying organization, then the person, serializes concurrent settlements that share either. */
   async getEligibleBonusAmount(transaction: StripeTransactionOutput, paidAmountCents: number): Promise<EligibleBonus> {
     if (transaction.type !== "payment_intent" || !transaction.userId) return { bonusCents: 0, window: null };
 
     const bonusCents = this.calculateBonusCents(paidAmountCents);
     if (bonusCents === 0) return { bonusCents: 0, window: null };
 
-    const payingAccount = await this.#lockPayingAccount(transaction.organizationId, transaction.userId);
-    const person = await this.userRepository.findOneByAndLock({ id: transaction.userId }, { strength: "no key update" });
-    assert(person, 500, "Failed to lock user for first-purchase bonus eligibility", { userId: transaction.userId });
-
+    const payingAccount = await this.#lockPayingAccountThenPerson(transaction.organizationId, transaction.userId);
     const { eligible, window } = await this.evaluate(payingAccount, transaction.userId, transaction.createdAt, { excludeTransactionId: transaction.id });
 
     return eligible ? { bonusCents, window } : { bonusCents: 0, window: null };
@@ -84,11 +80,12 @@ export class FirstPurchaseBonusService {
 
   /** Called once the payment has earned no bonus: a personal account's first card payment then leaves the person a window to earn it. */
   async findWindowOpenedBy(transaction: StripeTransactionOutput): Promise<FirstPurchaseBonusWindowOpened["data"] | undefined> {
-    if (transaction.type !== "payment_intent" || !transaction.userId || (await this.#isPaidByTeam(transaction.organizationId))) return undefined;
+    if (transaction.type !== "payment_intent" || !transaction.userId) return undefined;
 
-    const { eligible, window } = await this.evaluate({ userId: transaction.userId }, transaction.userId, transaction.createdAt, {
-      excludeTransactionId: transaction.id
-    });
+    const payingAccount = await this.#lockPayingAccountThenPerson(transaction.organizationId, transaction.userId);
+    if (!("userId" in payingAccount)) return undefined;
+
+    const { eligible, window } = await this.evaluate(payingAccount, transaction.userId, transaction.createdAt, { excludeTransactionId: transaction.id });
     if (!eligible || window) return undefined;
 
     return {
@@ -96,12 +93,6 @@ export class FirstPurchaseBonusService {
       reason: "small_first_purchase",
       closesAt: addDays(transaction.createdAt, SMALL_FIRST_PURCHASE_WINDOW_DAYS).toISOString()
     };
-  }
-
-  async #isPaidByTeam(organizationId: StripeTransactionOutput["organizationId"]): Promise<boolean> {
-    if (!organizationId) return false;
-
-    return (await this.organizationRepository.findById(organizationId))?.type === "team";
   }
 
   async isEligible(payingAccount: BillingOwner, userId: string, at = new Date()): Promise<boolean> {
@@ -144,8 +135,11 @@ export class FirstPurchaseBonusService {
     return 0;
   }
 
-  async #lockPayingAccount(organizationId: StripeTransactionOutput["organizationId"], userId: string): Promise<BillingOwner> {
+  /** Serializes concurrent settlements that share the paying organization or the person, so each sees the other's payment. */
+  async #lockPayingAccountThenPerson(organizationId: StripeTransactionOutput["organizationId"], userId: string): Promise<BillingOwner> {
     const organization = organizationId ? await this.organizationRepository.findOneByAndLock({ id: organizationId }, { strength: "no key update" }) : undefined;
+    const person = await this.userRepository.findOneByAndLock({ id: userId }, { strength: "no key update" });
+    assert(person, 500, "Failed to lock user for first-purchase bonus eligibility", { userId });
 
     return organization?.type === "team" ? { organizationId: organization.id } : { userId };
   }

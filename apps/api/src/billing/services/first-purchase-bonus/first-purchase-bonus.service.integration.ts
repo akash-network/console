@@ -124,6 +124,18 @@ describe(FirstPurchaseBonusService.name, () => {
     });
   });
 
+  describe("findWindowOpenedBy", () => {
+    it("opens one window when one person's two small first purchases settle at the same time", async () => {
+      const { pendingSmallPurchase, openWindowsConcurrently } = setup();
+      const person = await seedUser();
+      const purchases = await Promise.all([pendingSmallPurchase(person.id), pendingSmallPurchase(person.id)]);
+
+      const openedWindows = await openWindowsConcurrently(purchases);
+
+      expect(openedWindows.filter(Boolean)).toEqual([expect.objectContaining({ userId: person.id, reason: "small_first_purchase" })]);
+    });
+  });
+
   function setup() {
     const service = container.resolve(FirstPurchaseBonusService);
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
@@ -169,6 +181,29 @@ describe(FirstPurchaseBonusService.name, () => {
 
     const eligibleBonus = (purchase: StripeTransactionOutput) => txService.transaction(() => service.getEligibleBonusAmount(purchase, QUALIFYING_AMOUNT_CENTS));
 
-    return { stripeTransactionRepository, pendingPurchase, smallFirstPurchase, settleConcurrently, eligibleBonus };
+    const pendingSmallPurchase = (userId: string) =>
+      stripeTransactionRepository.create({ userId, type: "payment_intent", status: "pending", amount: SMALL_AMOUNT_CENTS, currency: "usd" });
+
+    const openWindowsConcurrently = (purchases: StripeTransactionOutput[]) =>
+      Promise.all(
+        purchases.map(purchase =>
+          txService.transaction(async () => {
+            await stripeTransactionRepository.updateById(purchase.id, { status: "succeeded" });
+            const openedWindow = await service.findWindowOpenedBy(purchase);
+            await delay(100);
+            return openedWindow;
+          })
+        )
+      );
+
+    return {
+      stripeTransactionRepository,
+      pendingPurchase,
+      pendingSmallPurchase,
+      smallFirstPurchase,
+      settleConcurrently,
+      eligibleBonus,
+      openWindowsConcurrently
+    };
   }
 });
