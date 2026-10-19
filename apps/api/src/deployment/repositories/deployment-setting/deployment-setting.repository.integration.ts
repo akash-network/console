@@ -636,6 +636,18 @@ describe(DeploymentSettingRepository.name, () => {
       expect(setting).toMatchObject({ closed: true, autoTopUpEnabled: false });
     });
 
+    it("records why Console closed a deployment that had no settings row", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+
+      await deploymentSettingRepository.markClosed({ userId: user.id, dseq, consoleCloseReason: "provider_unreachable" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({
+        closed: true,
+        consoleCloseReason: "provider_unreachable"
+      });
+    });
+
     it("closes an existing row without disturbing its funding setting", async () => {
       const { deploymentSettingRepository, user, createLimitedSetting } = await setup();
       const setting = await createLimitedSetting(24, { autoTopUpEnabled: true });

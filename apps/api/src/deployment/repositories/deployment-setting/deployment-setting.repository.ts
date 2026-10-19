@@ -1496,10 +1496,15 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    * closed deployment has nothing to fund.
    */
   /** Leaves open a row the user filed in another organization than the close names, since a dseq can be shared across tenants. */
-  async markClosed({ userId, dseq, organizationId }: DeploymentSettingOwner): Promise<void> {
+  async markClosed({
+    userId,
+    dseq,
+    organizationId,
+    consoleCloseReason
+  }: DeploymentSettingOwner & Pick<DeploymentSettingsInput, "consoleCloseReason">): Promise<void> {
     await this.cursor
       .insert(this.table)
-      .values(await this.attributeToOrganization({ userId, dseq, organizationId, autoTopUpEnabled: false, closed: true }))
+      .values(await this.attributeToOrganization({ userId, dseq, organizationId, autoTopUpEnabled: false, closed: true, consoleCloseReason }))
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
         set: { closed: true, updatedAt: sql`now()` },
