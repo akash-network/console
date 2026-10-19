@@ -41,7 +41,7 @@ export interface PaymentMethod {
   } | null;
 }
 
-export type BillingTransactionType = "payment_intent" | "coupon_claim" | "manual_credit";
+export type BillingTransactionType = "payment_intent" | "coupon_claim" | "manual_credit" | "affiliate_commission";
 
 export interface BillingTransaction {
   id: string;

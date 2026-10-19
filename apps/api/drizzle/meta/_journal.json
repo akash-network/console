@@ -687,6 +687,13 @@
       "when": 1792343605349,
       "tag": "0097_referrals",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1792343871290,
+      "tag": "0098_affiliate_commission",
+      "breakpoints": true
     }
   ]
 }
