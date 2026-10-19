@@ -25,11 +25,12 @@ import type { ProjectAccessValue } from "@src/components/organizations/ProjectAc
 import {
   hasProjectAccess,
   isSameProjectAccess,
+  limitGrantsToRoles,
   ProjectAccessField,
   toProjectAccessRequest
 } from "@src/components/organizations/ProjectAccessField/ProjectAccessField";
 import { RadioCard } from "@src/components/organizations/RadioCard/RadioCard";
-import { holdsProjectGrants } from "@src/components/projects/projectAccess";
+import { getGrantableProjectRoles, holdsProjectGrants } from "@src/components/projects/projectAccess";
 import { useOrganizationMemberProjectGrantsQuery, useUpdateOrganizationMemberMutation } from "@src/queries/useOrganizationMembersQueries";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import type { OrganizationMemberOutput } from "@src/types/organizationMembership";
@@ -58,7 +59,9 @@ export function EditMemberDialog({ member, organizationName, onClose, dependenci
     access: holdsGrantsToday && member.projectAccess === "selected" ? "selected" : "all",
     grants: grantsQuery.data ?? []
   };
-  const projectAccess = editedAccess ?? storedAccess;
+  const grantRoles = getGrantableProjectRoles(role);
+  const accessAsEdited = editedAccess ?? storedAccess;
+  const projectAccess = role === member.role ? accessAsEdited : limitGrantsToRoles(accessAsEdited, grantRoles);
   const carriesProjectAccess = holdsProjectGrants(role);
   const isGrantsUnread = holdsGrantsToday && !grantsQuery.data;
   const isChanged = role !== member.role || !isSameProjectAccess(projectAccess, storedAccess);
@@ -117,7 +120,13 @@ export function EditMemberDialog({ member, organizationName, onClose, dependenci
               <p className="text-xs text-destructive">Couldn&apos;t load {name}&apos;s projects. Try again later.</p>
             )}
             {carriesProjectAccess && !isGrantsUnread && (
-              <d.ProjectAccessField organizationName={organizationName} projects={projects} value={projectAccess} onChange={setEditedAccess} />
+              <d.ProjectAccessField
+                organizationName={organizationName}
+                projects={projects}
+                grantRoles={grantRoles}
+                value={projectAccess}
+                onChange={setEditedAccess}
+              />
             )}
           </form>
         </DialogV2Body>

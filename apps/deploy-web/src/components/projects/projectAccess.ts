@@ -19,6 +19,11 @@ const GRANTED_ORGANIZATION_ROLES: ReadonlySet<OrganizationRole> = new Set(["memb
 
 export const holdsProjectGrants = (role: OrganizationRole): boolean => GRANTED_ORGANIZATION_ROLES.has(role);
 
+const VIEWER_GRANT_ROLES: ProjectRole[] = ["viewer"];
+
+/** A viewer's member or admin grant would take effect once they are promoted, so a viewer is granted viewer only. */
+export const getGrantableProjectRoles = (role: OrganizationRole): ProjectRole[] => (role === "viewer" ? VIEWER_GRANT_ROLES : PROJECT_ROLES);
+
 const PROJECT_ACCESS_ERROR_MESSAGES = new Map<string, string>([
   [PROJECT_ACCESS_ERROR_CODES.forbidden, "You can't manage access to this project."],
   [PROJECT_ACCESS_ERROR_CODES.implicitProjectAccess, "Owners and admins already open every project."],

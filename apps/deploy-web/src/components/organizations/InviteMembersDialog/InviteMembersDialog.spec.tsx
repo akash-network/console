@@ -66,6 +66,32 @@ describe("InviteMembersDialog", () => {
     expect(ProjectAccessField.mock.lastCall?.[0].projects.map(project => project.id)).toEqual(["storefront"]);
   });
 
+  it("lets a member be granted any project role and a viewer the viewer role only", async () => {
+    const { user, ProjectAccessField } = setup({});
+
+    expect(ProjectAccessField.mock.lastCall?.[0].grantRoles).toEqual(["viewer", "member", "admin"]);
+
+    await user.click(screen.getByRole("radio", { name: /^Viewer/ }));
+
+    expect(ProjectAccessField.mock.lastCall?.[0].grantRoles).toEqual(["viewer"]);
+  });
+
+  it.each([
+    ["Member", "admin"],
+    ["Viewer", "viewer"]
+  ])("sends a project picked as admin with the role a %s may hold", async (label, grantRole) => {
+    const { user, createInvitations } = setup({});
+
+    await user.type(screen.getByLabelText("Email addresses"), "carol@acme.io{Enter}");
+    await user.click(screen.getByRole("button", { name: "grant storefront as admin" }));
+    await user.click(screen.getByRole("radio", { name: new RegExp(`^${label}`) }));
+    await user.click(screen.getByRole("button", { name: "Send invite" }));
+
+    expect(createInvitations.mock.lastCall?.[0]).toEqual({
+      data: { emails: ["carol@acme.io"], role: label.toLowerCase(), projectAccess: "selected", projectGrants: [{ projectId: "storefront", role: grantRole }] }
+    });
+  });
+
   it.each([
     ["Member", "member"],
     ["Viewer", "viewer"]
@@ -194,6 +220,9 @@ describe("InviteMembersDialog", () => {
       <>
         <button type="button" onClick={() => onChange({ access: "selected", grants: [{ projectId: "storefront", role: "viewer" }] })}>
           grant storefront
+        </button>
+        <button type="button" onClick={() => onChange({ access: "selected", grants: [{ projectId: "storefront", role: "admin" }] })}>
+          grant storefront as admin
         </button>
         <button type="button" onClick={() => onChange({ access: "selected", grants: [] })}>
           pick no project

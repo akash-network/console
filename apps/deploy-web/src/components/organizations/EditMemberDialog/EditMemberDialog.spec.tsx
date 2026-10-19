@@ -48,6 +48,47 @@ describe("EditMemberDialog", () => {
     });
   });
 
+  it("lowers the project roles of a member made a viewer to viewer", async () => {
+    const { user, updateMember, ProjectAccessField } = setup({ grants: [{ projectId: "storefront", role: "admin" }] });
+
+    expect(ProjectAccessField.mock.lastCall?.[0].grantRoles).toEqual(["viewer", "member", "admin"]);
+
+    await user.click(screen.getByRole("radio", { name: /^Viewer/ }));
+
+    expect(screen.getByText("selected: storefront as viewer")).toBeInTheDocument();
+    expect(ProjectAccessField.mock.lastCall?.[0].grantRoles).toEqual(["viewer"]);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateMember.mock.lastCall?.[0]).toEqual({
+      id: "member-bob",
+      data: { role: "viewer", projectAccess: "selected", projectGrants: [{ projectId: "storefront", role: "viewer" }] }
+    });
+  });
+
+  it("shows the grants a viewer already holds as they are, with nothing to save", () => {
+    const { ProjectAccessField } = setup({ member: { role: "viewer" }, grants: [{ projectId: "storefront", role: "member" }] });
+
+    expect(screen.getByText("selected: storefront as member")).toBeInTheDocument();
+    expect(ProjectAccessField.mock.lastCall?.[0].grantRoles).toEqual(["viewer"]);
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("keeps the project roles of a viewer made a member", async () => {
+    const { user, updateMember } = setup({ member: { role: "viewer" }, grants: [{ projectId: "storefront", role: "member" }] });
+
+    await user.click(screen.getByRole("radio", { name: /^Member/ }));
+
+    expect(screen.getByText("selected: storefront as member")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateMember.mock.lastCall?.[0]).toEqual({
+      id: "member-bob",
+      data: { role: "member", projectAccess: "selected", projectGrants: [{ projectId: "storefront", role: "member" }] }
+    });
+  });
+
   it("asks for the project access of a billing member made a viewer", async () => {
     const { user, updateMember, ProjectAccessField, useOrganizationMemberProjectGrantsQuery } = setup({
       member: { role: "billing", projectAccess: null },
@@ -66,7 +107,7 @@ describe("EditMemberDialog", () => {
 
     expect(updateMember.mock.lastCall?.[0]).toEqual({
       id: "member-bob",
-      data: { role: "viewer", projectAccess: "selected", projectGrants: [{ projectId: "billing-api", role: "member" }] }
+      data: { role: "viewer", projectAccess: "selected", projectGrants: [{ projectId: "billing-api", role: "viewer" }] }
     });
   });
 

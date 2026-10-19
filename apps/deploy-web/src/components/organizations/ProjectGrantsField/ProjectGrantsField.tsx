@@ -14,17 +14,19 @@ const DEFAULT_GRANT_ROLE: ProjectRole = "member";
 
 interface Props {
   projects: Pick<Project, "id" | "name">[];
+  roles: ProjectRole[];
   grants: ProjectGrant[];
   onChange: (grants: ProjectGrant[]) => void;
 }
 
 /** Picks the projects a member may open, each project at most once and with its own role. */
-export function ProjectGrantsField({ projects, grants, onChange }: Props) {
+export function ProjectGrantsField({ projects, roles, grants, onChange }: Props) {
   const grantedProjectIds = new Set(grants.map(grant => grant.projectId));
   const remainingProjects = projects.filter(project => !grantedProjectIds.has(project.id));
   const projectNames = new Map(projects.map(project => [project.id, project.name]));
+  const newGrantRole = roles.includes(DEFAULT_GRANT_ROLE) ? DEFAULT_GRANT_ROLE : roles[0];
 
-  const addProject = (projectId: string) => onChange([...grants, { projectId, role: DEFAULT_GRANT_ROLE }]);
+  const addProject = (projectId: string) => onChange([...grants, { projectId, role: newGrantRole }]);
   const changeRole = (projectId: string, role: ProjectRole) => onChange(grants.map(grant => (grant.projectId === projectId ? { ...grant, role } : grant)));
   const removeProject = (projectId: string) => onChange(grants.filter(grant => grant.projectId !== projectId));
 
@@ -42,7 +44,7 @@ export function ProjectGrantsField({ projects, grants, onChange }: Props) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {PROJECT_ROLES.map(role => (
+                    {PROJECT_ROLES.filter(role => roles.includes(role) || role === grant.role).map(role => (
                       <SelectItem key={role} value={role}>
                         {PROJECT_ROLE_LABELS[role]}
                       </SelectItem>

@@ -1,9 +1,19 @@
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { describe, expect, it } from "vitest";
 
-import { getProjectAccessErrorMessage, holdsProjectGrants } from "./projectAccess";
+import { getGrantableProjectRoles, getProjectAccessErrorMessage, holdsProjectGrants } from "./projectAccess";
 
 describe("projectAccess", () => {
+  describe(getGrantableProjectRoles.name, () => {
+    it("grants a viewer the viewer project role only", () => {
+      expect(getGrantableProjectRoles("viewer")).toEqual(["viewer"]);
+    });
+
+    it("grants a member any project role", () => {
+      expect(getGrantableProjectRoles("member")).toEqual(["viewer", "member", "admin"]);
+    });
+  });
+
   describe(holdsProjectGrants.name, () => {
     it.each(["member", "viewer"] as const)("gives a %s project grants", role => {
       expect(holdsProjectGrants(role)).toBe(true);
