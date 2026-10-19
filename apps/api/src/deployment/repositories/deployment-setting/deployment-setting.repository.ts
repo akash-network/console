@@ -1507,7 +1507,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .values(await this.attributeToOrganization({ userId, dseq, organizationId, autoTopUpEnabled: false, closed: true, consoleCloseReason }))
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
-        set: { closed: true, updatedAt: sql`now()` },
+        set: { closed: true, consoleCloseReason: sql`coalesce(${this.table.consoleCloseReason}, excluded.console_close_reason)`, updatedAt: sql`now()` },
         setWhere: this.whereAccessibleBy(organizationId ? or(isNull(this.table.organizationId), eq(this.table.organizationId, organizationId)) : undefined)
       });
   }

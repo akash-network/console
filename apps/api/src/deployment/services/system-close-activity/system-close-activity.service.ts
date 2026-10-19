@@ -31,8 +31,8 @@ export class SystemCloseActivityService {
   async record(close: SystemClose): Promise<void> {
     const deployment = this.#findDeployment(close);
 
-    await this.#recordActivity(close, deployment);
     await this.#recordCloseReason(close, deployment);
+    await this.#recordActivity(close, deployment);
   }
 
   async #findDeployment({ wallet, dseq }: SystemClose): DeploymentLookup {

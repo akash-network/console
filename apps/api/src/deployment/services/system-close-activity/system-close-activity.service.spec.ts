@@ -70,8 +70,8 @@ describe(SystemCloseActivityService.name, () => {
     expect(deploymentSettingRepository.updateBy).not.toHaveBeenCalled();
     const logged = { owner: teamWallet.address, organizationId: teamWallet.organizationId, dseq: "100", closeReason: "no_lease", error };
     expect(logger.error.mock.calls).toEqual([
-      [{ event: "SYSTEM_CLOSE_ACTIVITY_RECORD_FAILED", ...logged }],
-      [{ event: "SYSTEM_CLOSE_REASON_RECORD_FAILED", ...logged }]
+      [{ event: "SYSTEM_CLOSE_REASON_RECORD_FAILED", ...logged }],
+      [{ event: "SYSTEM_CLOSE_ACTIVITY_RECORD_FAILED", ...logged }]
     ]);
   });
 
@@ -85,6 +85,14 @@ describe(SystemCloseActivityService.name, () => {
       { id: setting!.id, consoleCloseReason: null },
       { consoleCloseReason: "runtime_limit_reached" }
     );
+  });
+
+  it("remembers why Console closed the deployment before the feed entry that refreshes its page", async () => {
+    const { service, activityService, deploymentSettingRepository, teamWallet } = setup({ filedUnder: "member-1" });
+
+    await service.record({ wallet: teamWallet, dseq: "100", reason: "trial_ended" });
+
+    expect(deploymentSettingRepository.updateBy.mock.invocationCallOrder[0]).toBeLessThan(activityService.record.mock.invocationCallOrder[0]);
   });
 
   it("remembers why Console closed a team deployment whose member deleted their account, though no feed can show it", async () => {

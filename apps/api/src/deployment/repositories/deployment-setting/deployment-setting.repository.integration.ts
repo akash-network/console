@@ -648,6 +648,35 @@ describe(DeploymentSettingRepository.name, () => {
       });
     });
 
+    it("records why Console closed a deployment on the row it already had", async () => {
+      const { deploymentSettingRepository, user, createLimitedSetting } = await setup();
+      const setting = await createLimitedSetting(24);
+
+      await deploymentSettingRepository.markClosed({ userId: user.id, dseq: setting.dseq, consoleCloseReason: "provider_unreachable" });
+
+      expect(await deploymentSettingRepository.findOneBy({ id: setting.id })).toMatchObject({ closed: true, consoleCloseReason: "provider_unreachable" });
+    });
+
+    it("keeps the first reason Console recorded for closing a deployment", async () => {
+      const { deploymentSettingRepository, user, createLimitedSetting } = await setup();
+      const setting = await createLimitedSetting(24);
+      await deploymentSettingRepository.updateBy({ id: setting.id }, { consoleCloseReason: "runtime_limit_reached" });
+
+      await deploymentSettingRepository.markClosed({ userId: user.id, dseq: setting.dseq, consoleCloseReason: "provider_unreachable" });
+
+      expect(await deploymentSettingRepository.findOneBy({ id: setting.id })).toMatchObject({ closed: true, consoleCloseReason: "runtime_limit_reached" });
+    });
+
+    it("keeps the reason Console recorded when a close names none", async () => {
+      const { deploymentSettingRepository, user, createLimitedSetting } = await setup();
+      const setting = await createLimitedSetting(24);
+      await deploymentSettingRepository.updateBy({ id: setting.id }, { consoleCloseReason: "trial_ended" });
+
+      await deploymentSettingRepository.markClosed({ userId: user.id, dseq: setting.dseq });
+
+      expect(await deploymentSettingRepository.findOneBy({ id: setting.id })).toMatchObject({ closed: true, consoleCloseReason: "trial_ended" });
+    });
+
     it("closes an existing row without disturbing its funding setting", async () => {
       const { deploymentSettingRepository, user, createLimitedSetting } = await setup();
       const setting = await createLimitedSetting(24, { autoTopUpEnabled: true });
