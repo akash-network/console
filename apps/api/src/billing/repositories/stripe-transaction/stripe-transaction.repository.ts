@@ -371,7 +371,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     }
 
     const items = await this.cursor.query.StripeTransactions.findMany({
-      where: this.whereAccessibleBy(and(...conditions)),
+      where: this.unscoped("affiliate-earnings").whereAccessibleBy(and(...conditions)),
       columns: { amount: true, amountRefunded: true }
     });
 
@@ -381,7 +381,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
   async findAffiliateCommissions(userId: string, limit = 100): Promise<StripeTransactionOutput[]> {
     return this.toOutputList(
       await this.cursor.query.StripeTransactions.findMany({
-        where: this.whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.type, "affiliate_commission"))),
+        where: this.unscoped("affiliate-earnings").whereAccessibleBy(and(eq(this.table.userId, userId), eq(this.table.type, "affiliate_commission"))),
         orderBy: [desc(this.table.createdAt)],
         limit
       })

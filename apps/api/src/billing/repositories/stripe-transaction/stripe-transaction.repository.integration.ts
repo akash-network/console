@@ -10,7 +10,7 @@ import type { OrganizationContext } from "@src/organization/types/organization-c
 import { type UserOutput, UserRepository } from "@src/user/repositories";
 import { type StripeTransactionInput, StripeTransactionRepository } from "./stripe-transaction.repository";
 
-import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedOrganization, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
 describe(StripeTransactionRepository.name, () => {
@@ -518,6 +518,18 @@ describe(StripeTransactionRepository.name, () => {
 
       await expect(stripeTransactionRepository.sumAffiliateCommissionNet(affiliate.id, monthStart)).resolves.toBe(500);
     });
+
+    it("sums the commissions filed under the affiliate's personal organization while one of their teams is active", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestCommission } = setup();
+      const affiliate = await createTestUser();
+      const personalOrganization = await seedOrganization({ type: "personal", createdByUserId: affiliate.id });
+      const { organization: team } = await seedOrganizationWithOwner();
+      await createTestCommission(affiliate.id, { amount: 500, organizationId: personalOrganization.id });
+
+      await expect(
+        inOrganization({ user: affiliate, organizationId: team.id }, () => stripeTransactionRepository.sumAffiliateCommissionNet(affiliate.id))
+      ).resolves.toBe(500);
+    });
   });
 
   describe("findAffiliateCommissions", () => {
@@ -551,6 +563,20 @@ describe(StripeTransactionRepository.name, () => {
       await createTestTransaction({ userId: affiliate.id });
 
       await expect(stripeTransactionRepository.findAffiliateCommissions(affiliate.id)).resolves.toEqual([]);
+    });
+
+    it("lists the commissions filed under the affiliate's personal organization while one of their teams is active", async () => {
+      const { stripeTransactionRepository, createTestUser, createTestCommission } = setup();
+      const affiliate = await createTestUser();
+      const personalOrganization = await seedOrganization({ type: "personal", createdByUserId: affiliate.id });
+      const { organization: team } = await seedOrganizationWithOwner();
+      const commission = await createTestCommission(affiliate.id, { organizationId: personalOrganization.id });
+
+      const result = await inOrganization({ user: affiliate, organizationId: team.id }, () =>
+        stripeTransactionRepository.findAffiliateCommissions(affiliate.id)
+      );
+
+      expect(result.map(row => row.id)).toEqual([commission.id]);
     });
   });
 
