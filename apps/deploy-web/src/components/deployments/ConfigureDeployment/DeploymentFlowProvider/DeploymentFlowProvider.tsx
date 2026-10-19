@@ -61,6 +61,7 @@ export const DeploymentFlowProvider: FC<Props> = ({ intent, children, dependenci
   return <DeploymentLeaveGuardContext.Provider value={leaveGuard}>{children({ flow })}</DeploymentLeaveGuardContext.Provider>;
 };
 
-function isAwaitingLease({ phase, deploySucceeded }: DeploymentFlow): boolean {
-  return phase === "quoting" || (phase === "deploying" && !deploySucceeded);
+/** The auto flow's no-providers error is the one error that keeps its deployment open, so an error still holding a dseq awaits a lease too. */
+function isAwaitingLease({ phase, deploySucceeded, dseq }: DeploymentFlow): boolean {
+  return phase === "quoting" || (phase === "deploying" && !deploySucceeded) || (phase === "error" && !!dseq);
 }

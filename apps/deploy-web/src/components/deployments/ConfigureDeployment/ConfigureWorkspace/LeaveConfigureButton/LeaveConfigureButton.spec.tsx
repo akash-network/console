@@ -210,7 +210,7 @@ describe(LeaveConfigureButton.name, () => {
     const analyticsService = mock<AnalyticsService>();
     const dependencies: typeof DEPENDENCIES = {
       useRouter: () => router,
-      useIsOnboarded: () => input.isOnboarded ?? true,
+      useIsKnownNotOnboarded: () => !(input.isOnboarded ?? true),
       useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),
       UrlService
     };

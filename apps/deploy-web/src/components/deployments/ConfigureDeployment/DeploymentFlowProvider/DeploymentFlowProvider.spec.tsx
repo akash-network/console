@@ -74,7 +74,8 @@ describe(DeploymentFlowProvider.name, () => {
     ["quoting a deployment the api created in the background", { phase: "quoting", isCreatingInBackground: true }, false],
     ["configuring", { phase: "configuring" }, false],
     ["creating", { phase: "creating" }, false],
-    ["in error", { phase: "error" }, false]
+    ["in error", { phase: "error" }, false],
+    ["in error with its deployment still open", { phase: "error", dseq: "1234" }, true]
   ] as const)("tells its descendants whether a deployment without a lease is held while %s", (_, state, holdsUnleasedDeployment) => {
     setup({ flow: flowIn(state) });
 
@@ -119,8 +120,8 @@ describe(DeploymentFlowProvider.name, () => {
     return { sdlStrategy: "default", bidStrategy: "auto", dseq, vm: false };
   }
 
-  function flowIn(state: Partial<Pick<DeploymentFlow, "phase" | "deploySucceeded" | "isCreatingInBackground">>): DeploymentFlow {
-    return mock<DeploymentFlow>({ isCreatingInBackground: false, deploySucceeded: false, actions: mock<DeploymentFlowActions>(), ...state });
+  function flowIn(state: Partial<Pick<DeploymentFlow, "phase" | "deploySucceeded" | "isCreatingInBackground" | "dseq">>): DeploymentFlow {
+    return mock<DeploymentFlow>({ isCreatingInBackground: false, deploySucceeded: false, dseq: null, actions: mock<DeploymentFlowActions>(), ...state });
   }
 
   function setup(input: { intent?: DeploymentIntent; flow?: DeploymentFlow; useDeploymentFlow?: typeof DEPENDENCIES.useDeploymentFlow }) {

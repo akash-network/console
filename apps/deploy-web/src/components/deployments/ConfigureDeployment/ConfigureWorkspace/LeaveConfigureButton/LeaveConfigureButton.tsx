@@ -6,13 +6,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
+import { useIsKnownNotOnboarded } from "@src/hooks/useIsKnownNotOnboarded";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import { DiscardDeploymentDialog } from "../../DiscardDeploymentDialog/DiscardDeploymentDialog";
 import type { DeploymentIntent } from "../../useDeploymentFlow/deploymentIntent";
 
-export const DEPENDENCIES = { useRouter, useIsOnboarded, useServices, UrlService };
+export const DEPENDENCIES = { useRouter, useIsKnownNotOnboarded, useServices, UrlService };
 
 type Props = {
   intent: Pick<DeploymentIntent, "templateId" | "userTemplateId">;
@@ -39,10 +39,10 @@ export const LeaveConfigureButton: FC<Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const router = d.useRouter();
-  const isOnboarded = d.useIsOnboarded();
+  const isKnownNotOnboarded = d.useIsKnownNotOnboarded();
   const { analyticsService } = d.useServices();
   const [isConfirming, setIsConfirming] = useState(false);
-  const destination = destinationFor(intent, isOnboarded, d.UrlService);
+  const destination = destinationFor(intent, isKnownNotOnboarded, d.UrlService);
 
   function confirmBeforeLeaving(event: MouseEvent<HTMLAnchorElement>) {
     if (isOpeningElsewhere(event)) return;
@@ -62,7 +62,7 @@ export const LeaveConfigureButton: FC<Props> = ({
   }
 
   function trackLeavingOnboarding(discardedDeployment: boolean) {
-    if (isOnboarded) return;
+    if (!isKnownNotOnboarded) return;
     analyticsService.track("onboarding_left", { category: "onboarding", control: "back_link", discardedDeployment });
   }
 
@@ -99,8 +99,12 @@ export const LeaveConfigureButton: FC<Props> = ({
 };
 
 /** A user who has not onboarded yet goes to the onboarding picker directly, since the onboarding gate bounces them there from every other destination. */
-function destinationFor({ templateId, userTemplateId }: Props["intent"], isOnboarded: boolean, urlService: typeof UrlService): { href: string; label: string } {
-  if (!isOnboarded) return { href: urlService.onboardingPicker(), label: "Back to onboarding" };
+function destinationFor(
+  { templateId, userTemplateId }: Props["intent"],
+  isKnownNotOnboarded: boolean,
+  urlService: typeof UrlService
+): { href: string; label: string } {
+  if (isKnownNotOnboarded) return { href: urlService.onboardingPicker(), label: "Back to onboarding" };
   if (templateId && hasGalleryPage(templateId)) return { href: urlService.templateDetails(templateId), label: "Back to template" };
   if (userTemplateId) return { href: urlService.template(userTemplateId), label: "Back to template" };
   return { href: urlService.newDeployment(), label: "Back to deployment types" };
