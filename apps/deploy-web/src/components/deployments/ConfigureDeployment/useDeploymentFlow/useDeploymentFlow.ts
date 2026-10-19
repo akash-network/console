@@ -99,6 +99,8 @@ export interface DeploymentFlowActions {
   /** Creates the deployment from the given SDL. The caller passes the SDL generated from the just-submitted form
    * values so the request can never lag behind an in-flight edit. */
   requestQuotes: (sdl: string, options?: RequestQuotesOptions) => void;
+  /** Sends the last create again as it went out, for a refusal the user has since cleared elsewhere, such as by adding funds. */
+  requestQuotesAgain: () => void;
   cancelAndEdit: () => void;
   /** Ends the attempt in `error` and closes the deployment so its deposit is released; a human uses `cancelAndEdit`. */
   closeAndFail: (message: string) => void;
@@ -291,6 +293,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   /** Pins a close's outcome to the close that started it, so a superseded one can never settle a newer session. */
   const closeTokenRef = useRef(0);
+
+  const lastQuoteRequestRef = useRef<{ sdl: string; options: RequestQuotesOptions } | null>(null);
 
   const bidsQuery = dependencies.useListBids(dseq, { enabled: phase === "quoting", refetchInterval: BID_POLL_INTERVAL });
 
@@ -566,6 +570,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    */
   const requestQuotes = useCallback(
     function requestQuotes(sdl: string, options: RequestQuotesOptions = {}) {
+      lastQuoteRequestRef.current = { sdl, options };
       const attempt = ++createAttemptRef.current;
       providersEverBidRef.current = false;
       bidsReceivedTrackedRef.current = false;
@@ -715,6 +720,14 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       forgetProject,
       markOutcomeHandled
     ]
+  );
+
+  const requestQuotesAgain = useCallback(
+    function requestQuotesAgain() {
+      const lastRequest = lastQuoteRequestRef.current;
+      if (lastRequest) requestQuotes(lastRequest.sdl, lastRequest.options);
+    },
+    [requestQuotes]
   );
 
   /**
@@ -1011,7 +1024,20 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     error,
     pendingClose,
     isCreatingInBackground: backgroundCreate?.dseq === dseq,
-    actions: { requestQuotes, cancelAndEdit, closeAndFail, retryClose, discard, setBidStrategy, refreshQuotes, retry, selectProvider, clearSelection, deploy }
+    actions: {
+      requestQuotes,
+      requestQuotesAgain,
+      cancelAndEdit,
+      closeAndFail,
+      retryClose,
+      discard,
+      setBidStrategy,
+      refreshQuotes,
+      retry,
+      selectProvider,
+      clearSelection,
+      deploy
+    }
   };
 }
 

@@ -457,6 +457,7 @@ describe(useAutoDeploymentFlow.name, () => {
     // Captures the action calls the autopilot makes and exposes hooks to simulate the underlying flow's terminal states.
     const actions = {
       requestQuotes: vi.fn(),
+      requestQuotesAgain: vi.fn(),
       selectProvider: vi.fn(),
       deploy: vi.fn(),
       cancelAndEdit: vi.fn(),

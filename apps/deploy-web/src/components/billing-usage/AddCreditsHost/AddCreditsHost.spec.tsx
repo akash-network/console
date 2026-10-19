@@ -1,5 +1,5 @@
 import { createStore, Provider as JotaiProvider } from "jotai";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { AddCreditsRequest } from "@src/store/addCreditsStore";
 import { addCreditsRequestAtom } from "@src/store/addCreditsStore";
@@ -67,10 +67,57 @@ describe("AddCreditsHost", () => {
     expect(screen.getByTestId("add-credits-sheet")).toHaveAttribute("data-open", "false");
   });
 
+  it("lets the call site pick up where the user left off once a purchase is confirmed", () => {
+    const { open } = setup();
+    const onCreditsAdded = vi.fn();
+    open({ context: "configure_quotes_needs_funds", onCreditsAdded });
+
+    act(() => screen.getByRole("button", { name: "done" }).click());
+
+    expect(onCreditsAdded).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets the call site pick up where the user left off once a coupon adds credits", () => {
+    const { open } = setup();
+    const onCreditsAdded = vi.fn();
+    open({ initialTab: "coupon", onCreditsAdded });
+
+    act(() => screen.getByRole("button", { name: "redeemed" }).click());
+
+    expect(onCreditsAdded).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the call site alone when the sheet is dismissed without adding credits", () => {
+    const { open } = setup();
+    const onCreditsAdded = vi.fn();
+    open({ onCreditsAdded });
+
+    act(() => screen.getByRole("button", { name: "close" }).click());
+
+    expect(onCreditsAdded).not.toHaveBeenCalled();
+  });
+
+  it("names the step after the payment confirmation when the call site asks", () => {
+    const { open } = setup();
+
+    open({ nextStepLabel: "Continue to deploy" });
+
+    expect(screen.getByTestId("add-credits-sheet")).toHaveAttribute("data-next-step", "Continue to deploy");
+  });
+
   function setup() {
     const store = createStore();
-    const AddCreditsSheet: typeof DEPENDENCIES.AddCreditsSheet = ({ open, onOpenChange, onDone, onRedeemed, initialTab, description, context }) => (
-      <div data-testid="add-credits-sheet" data-open={open} data-tab={initialTab} data-context={context}>
+    const AddCreditsSheet: typeof DEPENDENCIES.AddCreditsSheet = ({
+      open,
+      onOpenChange,
+      onDone,
+      onRedeemed,
+      initialTab,
+      description,
+      context,
+      nextStepLabel
+    }) => (
+      <div data-testid="add-credits-sheet" data-open={open} data-tab={initialTab} data-context={context} data-next-step={nextStepLabel}>
         {description}
         <button onClick={() => onOpenChange(false)}>close</button>
         <button onClick={() => onDone(100, 10)}>done</button>

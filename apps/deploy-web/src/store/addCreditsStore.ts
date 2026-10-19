@@ -8,6 +8,9 @@ export type AddCreditsRequest = {
   description?: ReactNode;
   /** Where the sheet was opened from; sent with its lifecycle events for funnel segmentation. */
   context?: string;
+  nextStepLabel?: string;
+  /** Runs once a purchase or a credit-adding coupon lands in the balance, never on a cancel, so the call site can pick up where the user left off. */
+  onCreditsAdded?: () => void;
 };
 
 /**

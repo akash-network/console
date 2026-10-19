@@ -635,6 +635,64 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(closeSnackbar).toHaveBeenCalled();
   });
 
+  it("sends the refused request again once credits land, so the user goes on to quotes without another click", () => {
+    const { enqueueSnackbar, flow, analyticsService } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds" }
+    });
+    const toastContent = needsFundsToastOf(enqueueSnackbar).props.subTitle.props;
+
+    toastContent.onCreditsAdded?.();
+
+    expect(toastContent.nextStepLabel).toBe("Continue to deploy");
+    expect(flow.actions.requestQuotesAgain).toHaveBeenCalledTimes(1);
+    expect(analyticsService.track).toHaveBeenCalledWith("add_credits_resumed_deploy", { category: "billing", context: "configure_quotes_needs_funds" });
+  });
+
+  it("leaves a request the user already sent again alone when credits land", () => {
+    const { enqueueSnackbar, flow, analyticsService, rerenderWith } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds" }
+    });
+    flow.phase = "creating";
+    rerenderWith({});
+
+    needsFundsToastOf(enqueueSnackbar).props.subTitle.props.onCreditsAdded?.();
+
+    expect(flow.actions.requestQuotesAgain).not.toHaveBeenCalled();
+    expect(analyticsService.track).not.toHaveBeenCalledWith("add_credits_resumed_deploy", expect.anything());
+  });
+
+  it("leaves the refused request alone when credits land after the user edited the form, so a stale spec is never sent", async () => {
+    const { enqueueSnackbar, flow } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds" },
+      Panes: SdlProbePanes
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "change image" }));
+    needsFundsToastOf(enqueueSnackbar).props.subTitle.props.onCreditsAdded?.();
+
+    expect(flow.actions.requestQuotesAgain).not.toHaveBeenCalled();
+  });
+
+  it("leaves a different failure alone when credits land", () => {
+    const { enqueueSnackbar, flow, rerenderWith } = setup({
+      initialSdl: undefined,
+      phase: "error",
+      flowError: { message: "Not enough balance", kind: "needs-funds" }
+    });
+    flow.error = { message: "Invalid SDL", kind: "create" };
+    rerenderWith({});
+
+    needsFundsToastOf(enqueueSnackbar).props.subTitle.props.onCreditsAdded?.();
+
+    expect(flow.actions.requestQuotesAgain).not.toHaveBeenCalled();
+  });
+
   it("closes the review modal when it is dismissed via Back", async () => {
     setup({ initialSdl: VALID_SDL, Panes: ProviderSelectProbePanes });
 
@@ -1184,7 +1242,12 @@ function sealedSdlOf(sdl: string) {
 }
 
 function needsFundsToastOf(enqueueSnackbar: Mock) {
-  return enqueueSnackbar.mock.calls[0][0] as { props: { title: string; subTitle: { props: { message?: string; context?: string; onAction?: () => void } } } };
+  return enqueueSnackbar.mock.calls[0][0] as {
+    props: {
+      title: string;
+      subTitle: { props: { message?: string; context?: string; nextStepLabel?: string; onCreditsAdded?: () => void; onAction?: () => void } };
+    };
+  };
 }
 
 interface WorkspaceProbeProps {
