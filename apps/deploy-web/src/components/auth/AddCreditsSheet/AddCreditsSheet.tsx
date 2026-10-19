@@ -32,6 +32,7 @@ interface AddCreditsSheetProps {
   /** Where the sheet was opened from (e.g. the onboarding reason); sent with the lifecycle and payment events for funnel segmentation. */
   context?: string;
   nextStepLabel?: string;
+  deploymentDailyCostUsd?: number;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -45,6 +46,7 @@ export function AddCreditsSheet({
   description = DEFAULT_DESCRIPTION,
   context,
   nextStepLabel = "Done",
+  deploymentDailyCostUsd,
   dependencies: d = DEPENDENCIES
 }: AddCreditsSheetProps) {
   const { analyticsService } = d.useServices();
@@ -116,6 +118,7 @@ export function AddCreditsSheet({
           <d.AddCreditsTabs
             initialTab={initialTab}
             context={context}
+            deploymentDailyCostUsd={deploymentDailyCostUsd}
             onDone={completePurchase}
             onRedeemed={completeRedemption}
             onProcessingChange={setIsProcessing}

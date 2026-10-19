@@ -85,6 +85,21 @@ describe(AddCreditsForm.name, () => {
     expect(screen.getByTestId("first-purchase-bonus-alert")).toHaveTextContent("100");
   });
 
+  it("pre-selects the smallest amount that keeps the deployment the credits are for running for a week", () => {
+    setup({ status: "idle", deploymentDailyCostUsd: 20 });
+
+    expect(screen.getByRole("radio", { name: /^500 / })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /^500 / })).toHaveAccessibleName("500 about 25 days of this deployment");
+    expect(screen.getByTestId("first-purchase-bonus-alert")).toHaveTextContent("500");
+  });
+
+  it("pre-selects no amount when even the largest one runs the deployment out within a week", () => {
+    setup({ status: "idle", deploymentDailyCostUsd: 200 });
+
+    expect(screen.queryByRole("radio", { checked: true })).not.toBeInTheDocument();
+    expect(screen.getByTestId("first-purchase-bonus-alert")).toHaveTextContent("0");
+  });
+
   it("pre-selects the default saved payment method", () => {
     setup({
       status: "idle",
@@ -1620,6 +1635,7 @@ describe(AddCreditsForm.name, () => {
     onDone?: (amount: number, bonusAmount?: number) => void;
     onProcessingChange?: (isProcessing: boolean) => void;
     context?: string;
+    deploymentDailyCostUsd?: number;
     isTrialing?: boolean;
     isPolling?: boolean;
     lastOutcome?: ReturnType<typeof DEPENDENCIES.usePaymentPolling>["lastOutcome"];
@@ -1702,6 +1718,7 @@ describe(AddCreditsForm.name, () => {
         onDone={input.onDone ?? vi.fn()}
         onProcessingChange={input.onProcessingChange}
         context={input.context}
+        deploymentDailyCostUsd={input.deploymentDailyCostUsd}
         dependencies={{
           AddCreditsAmountFields,
           AddCreditsNewPaymentMethodFields: makePaymentMethodFieldsMock().Mock,

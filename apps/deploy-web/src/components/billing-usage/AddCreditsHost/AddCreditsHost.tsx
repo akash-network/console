@@ -24,6 +24,7 @@ export function AddCreditsHost({ dependencies: d = DEPENDENCIES }: { dependencie
       onOpenChange={isOpen => (!isOpen ? closeSheet() : undefined)}
       initialTab={request?.initialTab ?? "purchase"}
       description={request?.description ?? DEFAULT_DESCRIPTION}
+      deploymentDailyCostUsd={request?.deploymentDailyCostUsd}
       context={request?.context}
       onDone={closeSheet}
       onRedeemed={closeSheet}

@@ -137,8 +137,8 @@ describe("FundingImpactReviewSection", () => {
     expect(screen.getByRole("button", { name: "Add Credits" })).toBeInTheDocument();
   });
 
-  it("opens the add credits sheet in place instead of navigating to billing", async () => {
-    const { openAddCredits } = setup({ impact: visible({ state: "trial" }) });
+  it("opens the add credits sheet in place, sized to this deployment's daily cost", async () => {
+    const { openAddCredits } = setup({ impact: visible({ state: "trial", dailyCostUsd: 12 }) });
 
     await userEvent.click(screen.getByRole("button", { name: /Escrow/ }));
     await userEvent.click(screen.getByRole("button", { name: "Add Credits" }));
@@ -146,7 +146,8 @@ describe("FundingImpactReviewSection", () => {
     expect(openAddCredits).toHaveBeenCalledWith({
       initialTab: "purchase",
       description: "Add credits to keep this deployment funded and running.",
-      context: "review_funding_impact"
+      context: "review_funding_impact",
+      deploymentDailyCostUsd: 12
     });
   });
 
@@ -155,6 +156,7 @@ describe("FundingImpactReviewSection", () => {
       kind: "visible",
       state: "funded",
       escrowUsd: 144,
+      dailyCostUsd: 72,
       availableNowUsd: 200,
       availableAfterUsd: 56,
       thresholdUsd: null,

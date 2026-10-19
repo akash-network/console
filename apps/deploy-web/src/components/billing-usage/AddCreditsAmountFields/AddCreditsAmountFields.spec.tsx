@@ -66,11 +66,38 @@ describe(AddCreditsAmountFields.name, () => {
     expect(onAmountCommit).not.toHaveBeenCalled();
   });
 
-  function setup(input: { value: AddCreditsAmountValue; minAmount?: number; error?: string; onAmountCommit?: (amount: number, isCustom: boolean) => void }) {
+  it("sizes each preset in days of the deployment the credits are for", () => {
+    setup({ value: { predefinedAmount: "", customAmount: "" }, deploymentDailyCostUsd: 20 });
+
+    expect(screen.getByRole("radio", { name: "100 about 5 days of this deployment" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "500 about 25 days of this deployment" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "1000 about 50 days of this deployment" })).toBeInTheDocument();
+  });
+
+  it("leaves the presets as plain amounts without a deployment to size them for", () => {
+    setup({ value: { predefinedAmount: "", customAmount: "" } });
+
+    expect(screen.queryByText(/of this deployment/)).not.toBeInTheDocument();
+  });
+
+  function setup(input: {
+    value: AddCreditsAmountValue;
+    minAmount?: number;
+    error?: string;
+    onAmountCommit?: (amount: number, isCustom: boolean) => void;
+    deploymentDailyCostUsd?: number;
+  }) {
     const onChange = vi.fn();
     const onAmountCommit = input.onAmountCommit ?? vi.fn();
     render(
-      <AddCreditsAmountFields value={input.value} onChange={onChange} minAmount={input.minAmount ?? 20} error={input.error} onAmountCommit={onAmountCommit} />
+      <AddCreditsAmountFields
+        value={input.value}
+        onChange={onChange}
+        minAmount={input.minAmount ?? 20}
+        error={input.error}
+        onAmountCommit={onAmountCommit}
+        deploymentDailyCostUsd={input.deploymentDailyCostUsd}
+      />
     );
     return { onChange, onAmountCommit };
   }

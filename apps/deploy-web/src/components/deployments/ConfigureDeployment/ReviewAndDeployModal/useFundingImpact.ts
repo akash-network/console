@@ -20,6 +20,8 @@ export const DEPENDENCIES = {
   useDeploymentFundingConfigQuery
 };
 
+const HOURS_PER_DAY = 24;
+
 export type FundingImpactState = "funded" | "crosses-threshold" | "trial" | "no-payment-method" | "not-enough-available";
 
 export type FundingImpact =
@@ -30,6 +32,7 @@ export type FundingImpact =
       kind: "visible";
       state: FundingImpactState;
       escrowUsd: number;
+      dailyCostUsd: number;
       availableNowUsd: number;
       /** Null when the remaining escrow exceeds what is available, where an "available after" figure would be a lie. */
       availableAfterUsd: number | null;
@@ -84,6 +87,7 @@ export function useFundingImpact({ rows, runtimeLimitHours, dependencies: d = DE
     kind: "visible",
     state: resolveState({ availableAfterUsd, thresholdUsd, hasPaymentMethod, isTrialing }),
     escrowUsd,
+    dailyCostUsd: hourlyCostUsd * HOURS_PER_DAY,
     availableNowUsd,
     availableAfterUsd,
     thresholdUsd,

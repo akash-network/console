@@ -6,6 +6,7 @@ import type { AddCreditsTab } from "@src/components/billing-usage/AddCreditsTabs
 export type AddCreditsRequest = {
   initialTab?: AddCreditsTab;
   description?: ReactNode;
+  deploymentDailyCostUsd?: number;
   /** Where the sheet was opened from; sent with its lifecycle events for funnel segmentation. */
   context?: string;
 };

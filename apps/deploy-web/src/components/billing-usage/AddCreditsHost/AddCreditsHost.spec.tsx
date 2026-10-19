@@ -1,5 +1,5 @@
 import { createStore, Provider as JotaiProvider } from "jotai";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { AddCreditsRequest } from "@src/store/addCreditsStore";
 import { addCreditsRequestAtom } from "@src/store/addCreditsStore";
@@ -67,7 +67,16 @@ describe("AddCreditsHost", () => {
     expect(screen.getByTestId("add-credits-sheet")).toHaveAttribute("data-open", "false");
   });
 
-  function setup() {
+  it("sizes the sheet's amounts to the deployment the credits are for", () => {
+    const AddCreditsSheet = vi.fn((_props: Parameters<typeof DEPENDENCIES.AddCreditsSheet>[0]) => <></>);
+    const { open } = setup({ AddCreditsSheet });
+
+    open({ deploymentDailyCostUsd: 12 });
+
+    expect(AddCreditsSheet.mock.lastCall?.[0]).toMatchObject({ open: true, deploymentDailyCostUsd: 12 });
+  });
+
+  function setup(input?: { AddCreditsSheet?: typeof DEPENDENCIES.AddCreditsSheet }) {
     const store = createStore();
     const AddCreditsSheet: typeof DEPENDENCIES.AddCreditsSheet = ({ open, onOpenChange, onDone, onRedeemed, initialTab, description, context }) => (
       <div data-testid="add-credits-sheet" data-open={open} data-tab={initialTab} data-context={context}>
@@ -80,7 +89,7 @@ describe("AddCreditsHost", () => {
 
     render(
       <JotaiProvider store={store}>
-        <AddCreditsHost dependencies={{ AddCreditsSheet }} />
+        <AddCreditsHost dependencies={{ AddCreditsSheet: input?.AddCreditsSheet ?? AddCreditsSheet }} />
       </JotaiProvider>
     );
 

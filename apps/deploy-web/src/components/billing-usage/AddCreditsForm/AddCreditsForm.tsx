@@ -18,6 +18,7 @@ import {
 
 import type { AddCreditsAmountValue } from "@src/components/billing-usage/AddCreditsAmountFields/AddCreditsAmountFields";
 import { AddCreditsAmountFields } from "@src/components/billing-usage/AddCreditsAmountFields/AddCreditsAmountFields";
+import { suggestedPresetAmountUsd } from "@src/components/billing-usage/AddCreditsAmountFields/presetAmounts";
 import type { PaymentMethodSourceHandle } from "@src/components/billing-usage/AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
 import { AddCreditsNewPaymentMethodFields } from "@src/components/billing-usage/AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
 import { AddCreditsWalletButton, type WalletPaymentSource } from "@src/components/billing-usage/AddCreditsWalletButton/AddCreditsWalletButton";
@@ -71,6 +72,7 @@ interface AddCreditsFormProps {
   onDone: (amount: number, bonusAmount?: number) => void;
   onProcessingChange?: (isProcessing: boolean) => void;
   context?: string;
+  deploymentDailyCostUsd?: number;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -116,7 +118,7 @@ interface PendingCharge {
  * saved payment method instead of re-confirming a consumed intent. Each charge
  * carries a replay-safe idempotency key managed by useTopUpAttemptKey.
  */
-export function AddCreditsForm({ onDone, onProcessingChange, context, dependencies: d = DEPENDENCIES }: AddCreditsFormProps) {
+export function AddCreditsForm({ onDone, onProcessingChange, context, deploymentDailyCostUsd, dependencies: d = DEPENDENCIES }: AddCreditsFormProps) {
   const { data: setupIntent, mutate: createSetupIntent, status: setupIntentStatus, reset: resetSetupIntent } = d.useSetupIntentMutation();
   const { user } = d.useUser();
   const { pollForPayment, isPolling, lastOutcome } = d.usePaymentPolling();
@@ -130,7 +132,10 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
   } = d.usePaymentMutations();
   const attempt = d.useTopUpAttemptKey();
 
-  const [amountInput, setAmountInput] = useState<AddCreditsAmountValue>({ predefinedAmount: undefined, customAmount: "" });
+  const [amountInput, setAmountInput] = useState<AddCreditsAmountValue>(() => ({
+    predefinedAmount: suggestedPresetAmountUsd(deploymentDailyCostUsd)?.toString(),
+    customAmount: ""
+  }));
   const [selectedMethodId, setSelectedMethodId] = useState<string | undefined>(undefined);
   const [charge, setCharge] = useState<PendingCharge | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -479,6 +484,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, dependenci
             minAmount={topUpMinAmountUsd}
             error={amountError}
             onAmountCommit={trackAmountSelected}
+            deploymentDailyCostUsd={deploymentDailyCostUsd}
           />
 
           <d.AddCreditsWalletButton
