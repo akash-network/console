@@ -139,6 +139,7 @@ export type AnalyticsEvent =
   | "configure_leave_discarded"
   | "cancel_during_create"
   | "close_deployment_failed"
+  | "deploy_failed"
   | "review_deploy_opened"
   | "review_deploy_confirmed"
   | "review_deploy_dismissed"

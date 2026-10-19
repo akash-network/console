@@ -6,6 +6,7 @@ import type {
   AbandonedAttemptKind,
   DeploymentBids,
   DeploymentFlow,
+  DeployOptions,
   FlowError
 } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { NO_PROVIDERS_MESSAGE } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
@@ -337,10 +338,10 @@ describe(useAutoDeploymentFlow.name, () => {
     expect(flow.actions.selectProvider).toHaveBeenCalledWith(BID_ID, BID_ID);
   });
 
-  it("fires deploy with the current SDL once a selection exists", async () => {
+  it("fires deploy with the current SDL as an auto deploy once a selection exists", async () => {
     const { flow } = setup({ sdl: "sdl-content" });
 
-    await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledWith("sdl-content"));
+    await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledWith("sdl-content", { isAutoDeploy: true }));
   });
 
   it("stops matching a provider and deploying, but still lets the deployment creation finish, once the autopilot is stopped", async () => {
@@ -610,8 +611,8 @@ describe(useAutoDeploymentFlow.name, () => {
         setDeployError(undefined);
         setSelections(previous => ({ ...previous, [placementId]: bidId }));
       }, []);
-      const deploy = useCallback((sdl: string) => {
-        actions.deploy(sdl);
+      const deploy = useCallback((sdl: string, options?: DeployOptions) => {
+        actions.deploy(sdl, options);
         setDeployError(undefined);
         if (input?.holdDeploy) return;
         setPhase("deploying");

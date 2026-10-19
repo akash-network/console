@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { atom, useSetAtom, useStore } from "jotai";
 
+import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import type { AnalyticsEvent, EventProperties } from "@src/services/analytics/analytics.service";
 
 export interface HeldActivityEvent {
@@ -8,14 +9,19 @@ export interface HeldActivityEvent {
   properties: EventProperties;
 }
 
-const heldActivityEventsAtom = atom<ReadonlyMap<string, HeldActivityEvent[]>>(new Map<string, HeldActivityEvent[]>());
+type HeldOutcome = Extract<Activity["status"], "succeeded" | "failed">;
 
-/** Holds the analytics events of an action sent to the background under its activity, so they are tracked once it succeeds wherever the user is by then. */
+/** The events to track for each way the action can end. */
+export type HeldActivityEvents = Partial<Record<HeldOutcome, HeldActivityEvent[]>>;
+
+const heldActivityEventsAtom = atom<ReadonlyMap<string, HeldActivityEvents>>(new Map<string, HeldActivityEvents>());
+
+/** Holds the analytics events of an action sent to the background under its activity, so they are tracked once it ends wherever the user is by then. */
 export function useHoldActivityEvents() {
   const setHeld = useSetAtom(heldActivityEventsAtom);
 
   return useCallback(
-    (activityId: string, events: HeldActivityEvent[]) => {
+    (activityId: string, events: HeldActivityEvents) => {
       setHeld(current => new Map(current).set(activityId, events));
     },
     [setHeld]
@@ -27,10 +33,10 @@ export function useTakeHeldActivityEvents() {
   const store = useStore();
 
   return useCallback(
-    (activityId: string): HeldActivityEvent[] => {
+    (activityId: string): HeldActivityEvents => {
       const held = store.get(heldActivityEventsAtom);
       const events = held.get(activityId);
-      if (!events) return [];
+      if (!events) return {};
 
       store.set(heldActivityEventsAtom, new Map([...held].filter(([id]) => id !== activityId)));
       return events;

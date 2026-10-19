@@ -169,12 +169,11 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         closeSnackbar(key);
       }
 
-      function trackHeldEvents({ id, status }: FinishedActivity) {
-        const heldEvents = takeHeldActivityEvents(id);
-        if (status !== "succeeded") return;
+      function trackHeldEvents(activity: FinishedActivity) {
+        const heldEvents = takeHeldActivityEvents(activity.id)[activity.status] ?? [];
 
         for (const { event, properties } of heldEvents) {
-          analyticsService.track(event, properties);
+          analyticsService.track(event, { ...properties, ...errorCodeOf(activity) });
         }
       }
 
@@ -215,6 +214,11 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   );
 
   return null;
+}
+
+/** The code alone, since the message of a failure can echo what the user typed. */
+function errorCodeOf({ meta: { error } }: Activity): { errorCode?: string } {
+  return error ? { errorCode: error.code } : {};
 }
 
 /** An action never seen before counts too, so one that finished between two checks, or a close Console made, is still announced, unless the page that sent it already showed how it ended. */

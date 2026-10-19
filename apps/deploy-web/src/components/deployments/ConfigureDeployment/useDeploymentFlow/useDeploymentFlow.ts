@@ -95,6 +95,8 @@ export interface DeployOptions {
   unresolvedSecrets?: UnresolvedSdlSecret[];
   /** Lets the lease finish in the background while the activity center is on; the auto flow leaves it out, as its progress scene follows the lease to the end. */
   inBackground?: boolean;
+  /** Set by the onboarding autopilot, so a failed deploy's analytics tell its failures apart from a provider the user picked. */
+  isAutoDeploy?: boolean;
 }
 
 export interface DeploymentFlowActions {
@@ -606,7 +608,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
         if (!isCurrentAttempt()) return;
         adoptDeployment(result);
-        holdActivityEvents(activityId, [{ event: "create_deployment", properties: createdEventOf(result.dseq) }]);
+        holdActivityEvents(activityId, { succeeded: [{ event: "create_deployment", properties: createdEventOf(result.dseq) }] });
       }
 
       function onCreated(result: { data: { dseq: string; manifest: string } }) {
@@ -834,29 +836,41 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const deploy = useCallback(
     function deploy(sdl: string, options: DeployOptions = {}) {
       if (!dseq) return;
+      const activeDseq = dseq;
+      const inBackground = !!options.inBackground && isRunningInBackground;
+      const attempt: DeployAttempt = { dseq: activeDseq, isAutoDeploy: !!options.isAutoDeploy, inBackground };
+
+      function trackDeployFailed(stage: DeployFailureStage, cause?: unknown) {
+        const { event, properties } = deployFailedEventOf(stage, attempt, cause);
+        analyticsService.track(event, properties);
+      }
+
+      function refuseDeploy(stage: DeployFailureStage, message: string) {
+        trackDeployFailed(stage);
+        setDeployError({ message });
+      }
+
       const nextManifest = dependencies.manifestFromSdl(sdl);
       const leases = Object.values(selections).map(parseBidId);
       if (!nextManifest) {
-        setDeployError({ message: MANIFEST_BUILD_MESSAGE });
+        refuseDeploy("manifest_build", MANIFEST_BUILD_MESSAGE);
         return;
       }
       if (leases.length === 0) {
-        setDeployError({ message: NO_SELECTION_MESSAGE });
+        refuseDeploy("no_selection", NO_SELECTION_MESSAGE);
         return;
       }
       /** A kept reference may already be sealed against this deployment, which only the api can confirm; a name this form minted is held by nothing. */
       const mintedWithoutValue = (options.unresolvedSecrets ?? []).filter(secret => !secret.isKeptReference);
       if (mintedWithoutValue.length > 0) {
-        setDeployError({ message: mintedWithoutValue.map(unresolvedSecretMessage).join(" ") });
+        refuseDeploy("unresolved_secret", mintedWithoutValue.map(unresolvedSecretMessage).join(" "));
         return;
       }
-      const activeDseq = dseq;
       const activeManifest = nextManifest;
       /** A corrected secret leaves the SDL untouched, because its reference is what the SDL carries, so an unchanged manifest still has to patch. */
       const hasTypedSecrets = Object.keys(options.secrets ?? {}).length > 0;
       const keepsStoredReference = hasSdlReference(sdl);
       const deployEvents = deployEventsOf(activeDseq, dependencies.deploymentResourcesFromSdl(sdl));
-      const inBackground = !!options.inBackground && isRunningInBackground;
       setDeployError(undefined);
       setDeploySucceeded(false);
       setPhase("deploying");
@@ -882,7 +896,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       /** The lease does not exist yet, so the onboarding gate is told to expect it and the list waits for the feed that shows it spinning up. */
       async function followDeployInBackground(activityId: string) {
-        holdActivityEvents(activityId, deployEvents);
+        holdActivityEvents(activityId, { succeeded: deployEvents, failed: [deployFailedEventOf("background_lease", attempt)] });
         if (settingsId) {
           queryClient.setQueryData(QueryKeys.getLeaseExistenceKey(settingsId), true);
           queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(settingsId) });
@@ -894,7 +908,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         router.replace(UrlService.deploymentList());
       }
 
-      function failDeploy(cause: unknown) {
+      function failDeploy(stage: DeployFailureStage, cause: unknown) {
+        trackDeployFailed(stage, cause);
         setDeployError({ message: extractApiErrorMessage(cause) ?? undefined });
         setPhase("quoting");
       }
@@ -920,14 +935,14 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
             },
             onError: function markAndFailDeploy(cause: unknown) {
               markOutcomeHandled("lease_create", activeDseq, "failed");
-              failDeploy(cause);
+              failDeploy("lease_create", cause);
             }
           }
         );
       }
 
       function updateWholeSdlAndLease() {
-        updateDeployment.mutate({ dseq: activeDseq, data: { sdl } }, { onSuccess: sendManifestAndLease, onError: failDeploy });
+        updateDeployment.mutate({ dseq: activeDseq, data: { sdl } }, { onSuccess: sendManifestAndLease, onError: cause => failDeploy("update", cause) });
       }
 
       function submitPatch(services: ServicesPatch | undefined, sealedSecrets: string, canResealOnce: boolean) {
@@ -941,7 +956,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
                 void sealAndPatch(services, false);
                 return;
               }
-              failDeploy(cause);
+              failDeploy("patch", cause);
             },
             onSettled: (_result, error) => markOutcomeHandled("deployment_update", activeDseq, shownOutcomeOf(error))
           }
@@ -952,7 +967,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         try {
           submitPatch(services, await sealSecrets(options.secrets ?? {}), canResealOnce);
         } catch (cause) {
-          failDeploy(cause);
+          failDeploy("seal", cause);
         }
       }
 
@@ -968,7 +983,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
           const patched = dependencies.servicesPatchBetween(baselineSdl, sdl);
           services = isEmptyServicesPatch(patched) ? undefined : patched;
         } catch (cause) {
-          failDeploy(cause);
+          failDeploy("patch", cause);
           return;
         }
 
@@ -1123,6 +1138,24 @@ function deployEventsOf(dseq: string, resources: ReturnType<typeof deploymentRes
     ...(resources.gpuAmount > 0 ? [{ event: "create_gpu_deployment" as const, properties: leaseProperties }] : []),
     { event: "send_manifest", properties: { category: "deployments", label: "Send manifest after creating lease", dseq } }
   ];
+}
+
+type DeployFailureStage = "manifest_build" | "no_selection" | "unresolved_secret" | "seal" | "patch" | "update" | "lease_create" | "background_lease";
+
+type DeployAttempt = { dseq: string; isAutoDeploy: boolean; inBackground: boolean };
+
+/** Leaves the api's error message out, since it can echo what the user typed. */
+function deployFailedEventOf(stage: DeployFailureStage, attempt: DeployAttempt, cause?: unknown): HeldActivityEvent {
+  return {
+    event: "deploy_failed",
+    properties: {
+      category: "deployments",
+      stage,
+      ...attempt,
+      errorCode: extractApiErrorCode(cause) ?? undefined,
+      errorStatus: isApiError(cause) ? cause.status : undefined
+    }
+  };
 }
 
 function deploymentResourcesFromSdl(sdl: string): { gpuAmount: number; cpuAmount: number; memoryAmount: number; storageAmount: number } {

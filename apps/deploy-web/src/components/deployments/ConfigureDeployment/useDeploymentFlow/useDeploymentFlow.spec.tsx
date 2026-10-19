@@ -1908,11 +1908,16 @@ describe(useDeploymentFlow.name, () => {
       await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
 
       const leaseProperties = { category: "deployments", label: "Create lease", dseq: "555", ...resources };
-      expect(holdActivityEvents).toHaveBeenCalledWith("activity-1", [
-        { event: "create_lease", properties: leaseProperties },
-        { event: "create_gpu_deployment", properties: leaseProperties },
-        { event: "send_manifest", properties: { category: "deployments", label: "Send manifest after creating lease", dseq: "555" } }
-      ]);
+      expect(holdActivityEvents).toHaveBeenCalledWith(
+        "activity-1",
+        expect.objectContaining({
+          succeeded: [
+            { event: "create_lease", properties: leaseProperties },
+            { event: "create_gpu_deployment", properties: leaseProperties },
+            { event: "send_manifest", properties: { category: "deployments", label: "Send manifest after creating lease", dseq: "555" } }
+          ]
+        })
+      );
       expect(analyticsService.track).not.toHaveBeenCalledWith("create_lease", expect.anything());
       expect(analyticsService.track).not.toHaveBeenCalledWith("send_manifest", expect.anything());
     });
@@ -1922,10 +1927,29 @@ describe(useDeploymentFlow.name, () => {
 
       await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
 
-      expect(holdActivityEvents).toHaveBeenCalledWith("activity-1", [
-        expect.objectContaining({ event: "create_lease" }),
-        expect.objectContaining({ event: "send_manifest" })
-      ]);
+      expect(holdActivityEvents).toHaveBeenCalledWith(
+        "activity-1",
+        expect.objectContaining({ succeeded: [expect.objectContaining({ event: "create_lease" }), expect.objectContaining({ event: "send_manifest" })] })
+      );
+    });
+
+    it("holds a deploy_failed event for the lease's activity, so a lease that fails in the background is still reported", async () => {
+      const { result, holdActivityEvents, analyticsService } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+
+      await act(async () => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(holdActivityEvents).toHaveBeenCalledWith(
+        "activity-1",
+        expect.objectContaining({
+          failed: [
+            {
+              event: "deploy_failed",
+              properties: { category: "deployments", stage: "background_lease", dseq: "555", isAutoDeploy: false, inBackground: true }
+            }
+          ]
+        })
+      );
+      expect(analyticsService.track).not.toHaveBeenCalledWith("deploy_failed", expect.anything());
     });
 
     it("tells the onboarding gate to expect the lease and refreshes the feed and the list the user lands on", async () => {
@@ -2124,6 +2148,158 @@ describe(useDeploymentFlow.name, () => {
       const createLease = mockMutation();
       createLease.mutate.mockImplementation((_i, o) => o.onSuccess(deployedResult("akash1owner")));
       return renderFlow({ createDeployment, createLease, deploymentResourcesFromSdl: () => resources });
+    }
+  });
+
+  describe("deploy failure analytics", () => {
+    const FAILED_DEPLOY = { category: "deployments", dseq: "555", isAutoDeploy: false, inBackground: false };
+
+    it("tracks deploy_failed at the manifest_build stage when the manifest cannot be built", () => {
+      const { result, analyticsService } = renderFlow({ intent: { dseq: "555" }, manifestFromSdl: () => null });
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "manifest_build" });
+    });
+
+    it("tracks deploy_failed at the no_selection stage when no provider is selected", () => {
+      const { result, analyticsService } = renderFlow({ intent: { dseq: "555" } });
+
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "no_selection" });
+    });
+
+    it("tracks deploy_failed at the unresolved_secret stage without naming the secret", () => {
+      const { result, analyticsService } = renderFlow({ intent: { dseq: "555" } });
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+
+      act(() =>
+        result.current.actions.deploy("sdl", { unresolvedSecrets: [{ serviceTitle: "web", label: "API_KEY", name: "API_KEY", isKeptReference: false }] })
+      );
+
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "unresolved_secret" });
+    });
+
+    it("tracks deploy_failed at the seal stage when the secrets of an edit cannot be sealed", async () => {
+      const { result, analyticsService } = renderResumedFlow({
+        sealSdlSecrets: async () => {
+          throw new Error("sealing failed");
+        }
+      });
+
+      act(() => result.current.actions.deploy("sdl-b"));
+
+      await waitFor(() => expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "seal" }));
+    });
+
+    it("tracks deploy_failed at the patch stage with the api's code and status but not its message when the patch is refused", async () => {
+      const refusal = new ApiError(400, { code: "invalid_sdl", message: "Invalid SDL" }, "PATCH /v1/deployments/555 → 400");
+      const { result, analyticsService } = renderResumedFlow({ patchDeployment: mockMutation(vi.fn((_i, o) => o.onError(refusal))) });
+
+      act(() => result.current.actions.deploy("sdl-b"));
+
+      await waitFor(() =>
+        expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "patch", errorCode: "invalid_sdl", errorStatus: 400 })
+      );
+    });
+
+    it("tracks deploy_failed at the patch stage when the stored definition to diff against cannot be read", async () => {
+      const { result, analyticsService } = renderResumedFlow({ getDeployment: mockMutation(vi.fn(), vi.fn().mockRejectedValue(new Error("unreachable"))) });
+
+      act(() => result.current.actions.deploy("sdl-b"));
+
+      await waitFor(() => expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "patch" }));
+    });
+
+    it("tracks deploy_failed at the update stage with the api's status when the whole SDL cannot be resubmitted", async () => {
+      const { result, analyticsService } = renderResumedFlow({
+        getDeployment: mockMutation(
+          vi.fn(),
+          vi.fn(async () => ({ data: { consoleSettings: null } }))
+        ),
+        updateDeployment: mockMutation(vi.fn((_i, o) => o.onError(new ApiError(400, { message: "Invalid SDL" }, "PUT → 400"))))
+      });
+
+      act(() => result.current.actions.deploy("sdl-b"));
+
+      await waitFor(() => expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "update", errorStatus: 400 }));
+    });
+
+    it("tracks deploy_failed at the lease_create stage with the api's code and status when the lease is refused", async () => {
+      const refusal = new ApiError(402, { code: "insufficient_funds", message: "Not enough credits" }, "POST /v1/leases → 402");
+      const { result, analyticsService } = await renderLeasingFlow({ createLease: mockMutation(vi.fn((_i, o) => o.onError(refusal))) });
+
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", {
+        ...FAILED_DEPLOY,
+        stage: "lease_create",
+        errorCode: "insufficient_funds",
+        errorStatus: 402
+      });
+    });
+
+    it("tells a failed auto deploy apart from a provider the user picked", async () => {
+      const { result, analyticsService } = await renderLeasingFlow({ createLease: mockMutation(vi.fn((_i, o) => o.onError(new Error("network")))) });
+
+      act(() => result.current.actions.deploy("sdl", { isAutoDeploy: true }));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "lease_create", isAutoDeploy: true });
+    });
+
+    it("tells a lease the api was asked to finish in the background apart from one made during the request", async () => {
+      const { result, analyticsService } = await renderLeasingFlow({
+        createLease: mockMutation(vi.fn((_i, o) => o.onError(new Error("network")))),
+        isActivityCenterOn: true
+      });
+
+      act(() => result.current.actions.deploy("sdl", { inBackground: true }));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "lease_create", inBackground: true });
+    });
+
+    it("tracks one deploy_failed per failed attempt", async () => {
+      const { result, analyticsService, rerender } = await renderLeasingFlow({ createLease: mockMutation(vi.fn((_i, o) => o.onError(new Error("network")))) });
+
+      act(() => result.current.actions.deploy("sdl"));
+      rerender();
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(analyticsService.track.mock.calls.filter(([name]) => name === "deploy_failed")).toHaveLength(2);
+    });
+
+    it("tracks no deploy_failed for a deploy that goes through", async () => {
+      const { result, analyticsService } = await renderLeasingFlow({ createLease: mockMutation(vi.fn((_i, o) => o.onSuccess(deployedResult("akash1owner")))) });
+
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("deploy_failed", expect.anything());
+    });
+
+    function renderResumedFlow(input: NonNullable<Parameters<typeof renderFlow>[0]>) {
+      const flow = renderFlow({
+        intent: { dseq: "555" },
+        getDeployment: mockMutation(
+          vi.fn(),
+          vi.fn(async () => ({ data: { consoleSettings: { sdl: "stored-sdl" } } }))
+        ),
+        patchDeployment: mockMutation(),
+        servicesPatchBetween: () => ({ web: { image: "nginx:2" } }),
+        ...input
+      });
+      act(() => flow.result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      return flow;
+    }
+
+    async function renderLeasingFlow(input: NonNullable<Parameters<typeof renderFlow>[0]>) {
+      const createDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } })));
+      const flow = renderFlow({ createDeployment, ...input });
+      act(() => flow.result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => flow.result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      return flow;
     }
   });
 
@@ -3070,9 +3246,9 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => accept());
 
-      expect(holdActivityEvents).toHaveBeenCalledWith("activity-1", [
-        { event: "create_deployment", properties: { category: "deployments", label: "Create deployment in wizard", dseq: "1000", secretCount: 0 } }
-      ]);
+      expect(holdActivityEvents).toHaveBeenCalledWith("activity-1", {
+        succeeded: [{ event: "create_deployment", properties: { category: "deployments", label: "Create deployment in wizard", dseq: "1000", secretCount: 0 } }]
+      });
       expect(analyticsService.track).not.toHaveBeenCalledWith("create_deployment", expect.anything());
     });
 
