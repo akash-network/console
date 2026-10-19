@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 import { AutoRechargeSucceeded } from "@src/billing/events/auto-recharge-succeeded";
 import { CreditsAdded } from "@src/billing/events/credits-added";
 import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
+import { FirstPurchaseBonusWindowOpened } from "@src/billing/events/first-purchase-bonus-window-opened";
 import type { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import type { StripeService } from "@src/billing/services/stripe/stripe.service";
 import type { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
@@ -95,6 +96,17 @@ describe(StripeWebhookService.name, () => {
       await service.routeStripeEvent("sig", "body");
 
       expect(domainEventsService.publish).toHaveBeenCalledWith(new FirstPurchaseBonusGranted(bonusGrant));
+    });
+
+    it.each(["payment_intent.succeeded", "invoice.paid"] as const)("publishes the opening of a bonus window when a %s settlement opens one", async type => {
+      const { service, stripeTransaction, domainEventsService } = setup(type);
+      const bonusWindowOpened = { userId: "user_1", reason: "small_first_purchase" as const, closesAt: "2026-10-26T18:00:00.000Z" };
+      stripeTransaction.settlePaymentIntent.mockResolvedValue({ bonusWindowOpened });
+      stripeTransaction.settleInvoice.mockResolvedValue({ bonusWindowOpened });
+
+      await service.routeStripeEvent("sig", "body");
+
+      expect(domainEventsService.publish).toHaveBeenCalledExactlyOnceWith(new FirstPurchaseBonusWindowOpened(bonusWindowOpened));
     });
 
     it("publishes an auto-recharge event when settlePaymentIntent settles one", async () => {

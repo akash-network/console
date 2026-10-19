@@ -1,20 +1,23 @@
 import { faker } from "@faker-js/faker";
-import { subDays } from "date-fns";
+import { addDays, subDays } from "date-fns";
 import { eq } from "drizzle-orm";
 import nock from "nock";
 import stripe from "stripe";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
+import { FirstPurchaseBonusWindowOpened } from "@src/billing/events/first-purchase-bonus-window-opened";
 import { BILLING_CONFIG, type BillingConfig } from "@src/billing/providers";
 import { StripeTransactionRepository, UserWalletRepository } from "@src/billing/repositories";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import type { ApiPgDatabase } from "@src/core";
-import { POSTGRES_DB, resolveTable } from "@src/core";
+import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { findJobRows } from "@test/services/job-queue-harness";
 
 describe("Stripe webhook", () => {
   const userWalletsTable = resolveTable("UserWallets");
@@ -79,6 +82,10 @@ describe("Stripe webhook", () => {
       })
     });
   };
+
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -390,6 +397,55 @@ describe("Stripe webhook", () => {
         expect(webhookResponse.status).toBe(200);
         expect(userWallet?.deploymentAllowance).toBe(`${expectedBalance}.00`);
         expect(transaction).toMatchObject({ status: "succeeded", bonusAmount: 0 });
+      });
+
+      it("opens the first-purchase bonus window for 7 days after a small first purchase on a personal account", async () => {
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const { user, stripeCustomerId } = await setup();
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "created",
+          amount: 2000,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId
+        });
+
+        const webhookResponse = await getWebhookResponse(paymentIntentSucceededPayload({ paymentIntentId, stripeCustomerId, amount: 2000 }));
+
+        const transaction = await stripeTransactionRepository.findByPaymentIntentId(paymentIntentId);
+        const windowsOpened = await findJobRows(FirstPurchaseBonusWindowOpened[JOB_NAME], { data: { userId: user.id } });
+        expect(webhookResponse.status).toBe(200);
+        expect(windowsOpened.map(({ data }) => data)).toEqual([
+          { userId: user.id, reason: "small_first_purchase", closesAt: addDays(transaction!.createdAt, 7).toISOString(), version: 1 }
+        ]);
+      });
+
+      it("opens no first-purchase bonus window for a small purchase that follows an earlier one", async () => {
+        const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+        const { user, stripeCustomerId } = await setup();
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "succeeded",
+          amount: 2000,
+          currency: "usd",
+          stripePaymentIntentId: `pi_${faker.string.alphanumeric(24)}`,
+          createdAt: subDays(new Date(), 1)
+        });
+        await stripeTransactionRepository.create({
+          userId: user.id,
+          type: "payment_intent",
+          status: "created",
+          amount: 2000,
+          currency: "usd",
+          stripePaymentIntentId: paymentIntentId
+        });
+
+        const webhookResponse = await getWebhookResponse(paymentIntentSucceededPayload({ paymentIntentId, stripeCustomerId, amount: 2000 }));
+
+        expect(webhookResponse.status).toBe(200);
+        expect(await findJobRows(FirstPurchaseBonusWindowOpened[JOB_NAME], { data: { userId: user.id } })).toEqual([]);
       });
 
       it("grants the bonus exactly once when two first purchases are delivered concurrently", async () => {
@@ -824,6 +880,15 @@ describe("Stripe webhook", () => {
       });
     });
   });
+
+  function paymentIntentSucceededPayload({ paymentIntentId, stripeCustomerId, amount }: { paymentIntentId: string; stripeCustomerId: string; amount: number }) {
+    return JSON.stringify({
+      data: {
+        object: { id: paymentIntentId, customer: stripeCustomerId, amount, amount_received: amount, payment_method_types: ["card"], metadata: {} }
+      },
+      type: "payment_intent.succeeded"
+    });
+  }
 
   async function setup() {
     const refillService = container.resolve(RefillService);

@@ -4,6 +4,7 @@ import assert from "http-assert";
 import maxBy from "lodash/maxBy";
 import { inject, singleton } from "tsyringe";
 
+import type { FirstPurchaseBonusWindowOpened } from "@src/billing/events/first-purchase-bonus-window-opened";
 import type { BillingOwner } from "@src/billing/lib/billing-owner/billing-owner";
 import { type StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
@@ -79,6 +80,28 @@ export class FirstPurchaseBonusService {
     const openWindow = "userId" in payingAccount ? await this.#findLatestOpenWindow(payingAccount.userId, firstPayment, at) : undefined;
 
     return openWindow ? { eligible: true, endsAt: openWindow.closesAt, window: openWindow.reason } : { eligible: false, endsAt: null, window: null };
+  }
+
+  /** Called once the payment has earned no bonus: a personal account's first card payment then leaves the person a window to earn it. */
+  async findWindowOpenedBy(transaction: StripeTransactionOutput): Promise<FirstPurchaseBonusWindowOpened["data"] | undefined> {
+    if (transaction.type !== "payment_intent" || !transaction.userId || (await this.#isPaidByTeam(transaction.organizationId))) return undefined;
+
+    const { eligible, window } = await this.evaluate({ userId: transaction.userId }, transaction.userId, transaction.createdAt, {
+      excludeTransactionId: transaction.id
+    });
+    if (!eligible || window) return undefined;
+
+    return {
+      userId: transaction.userId,
+      reason: "small_first_purchase",
+      closesAt: addDays(transaction.createdAt, SMALL_FIRST_PURCHASE_WINDOW_DAYS).toISOString()
+    };
+  }
+
+  async #isPaidByTeam(organizationId: StripeTransactionOutput["organizationId"]): Promise<boolean> {
+    if (!organizationId) return false;
+
+    return (await this.organizationRepository.findById(organizationId))?.type === "team";
   }
 
   async isEligible(payingAccount: BillingOwner, userId: string, at = new Date()): Promise<boolean> {

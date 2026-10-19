@@ -4,6 +4,7 @@ import { singleton } from "tsyringe";
 import { AutoRechargeSucceeded } from "@src/billing/events/auto-recharge-succeeded";
 import { CreditsAdded } from "@src/billing/events/credits-added";
 import { FirstPurchaseBonusGranted } from "@src/billing/events/first-purchase-bonus-granted";
+import { FirstPurchaseBonusWindowOpened } from "@src/billing/events/first-purchase-bonus-window-opened";
 import { PaymentMethodService } from "@src/billing/services/payment-method/payment-method.service";
 import { StripeService } from "@src/billing/services/stripe/stripe.service";
 import { type SettlementOutcome, StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
@@ -63,6 +64,9 @@ export class StripeWebhookService {
       // Published after the settling transaction has committed so nothing notifies on a rolled-back credit.
       if (outcome.bonusGrant) {
         await this.domainEventsService.publish(new FirstPurchaseBonusGranted(outcome.bonusGrant));
+      }
+      if (outcome.bonusWindowOpened) {
+        await this.domainEventsService.publish(new FirstPurchaseBonusWindowOpened(outcome.bonusWindowOpened));
       }
       if (outcome.autoRecharge) {
         await this.domainEventsService.publish(new AutoRechargeSucceeded(outcome.autoRecharge));

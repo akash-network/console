@@ -257,6 +257,98 @@ describe(FirstPurchaseBonusService.name, () => {
     });
   });
 
+  describe("findWindowOpenedBy", () => {
+    it("opens the window until 7 days after a personal account's first card payment by a person who never received the bonus", async () => {
+      const { service } = setup();
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: null, createdAt: FIRST_PAYMENT_AT });
+
+      const opened = await service.findWindowOpenedBy(transaction);
+
+      expect(opened).toEqual({ userId: transaction.userId, reason: "small_first_purchase", closesAt: WINDOW_CLOSES_AT.toISOString() });
+    });
+
+    it("checks the person's own purchases at the time they paid, leaving the settling payment out", async () => {
+      const { service, stripeTransactionRepository, organizationRepository } = setup();
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: null, createdAt: FIRST_PAYMENT_AT });
+
+      await service.findWindowOpenedBy(transaction);
+
+      expect(organizationRepository.findById).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction).toHaveBeenCalledWith(
+        { userId: transaction.userId },
+        { excludeId: transaction.id }
+      );
+      expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus).toHaveBeenCalledWith(transaction.userId);
+    });
+
+    it("opens the window for a first card payment filed under the person's personal organization", async () => {
+      const personal = createOrganization({ type: "personal" });
+      const { service, organizationRepository } = setup({ organization: personal });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: personal.id, createdAt: FIRST_PAYMENT_AT });
+
+      const opened = await service.findWindowOpenedBy(transaction);
+
+      expect(organizationRepository.findById).toHaveBeenCalledWith(personal.id);
+      expect(opened).toEqual({ userId: transaction.userId, reason: "small_first_purchase", closesAt: WINDOW_CLOSES_AT.toISOString() });
+    });
+
+    it("treats a payment filed under an organization it cannot find as the person's own, as the bonus does", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: "org-gone", createdAt: FIRST_PAYMENT_AT });
+
+      const opened = await service.findWindowOpenedBy(transaction);
+
+      expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction).toHaveBeenCalledWith({ userId: transaction.userId }, expect.anything());
+      expect(opened).toEqual({ userId: transaction.userId, reason: "small_first_purchase", closesAt: WINDOW_CLOSES_AT.toISOString() });
+    });
+
+    it("opens no window for a team's first card payment", async () => {
+      const team = createOrganization({ type: "team" });
+      const { service, stripeTransactionRepository } = setup({ organization: team });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: team.id, createdAt: FIRST_PAYMENT_AT });
+
+      await expect(service.findWindowOpenedBy(transaction)).resolves.toBeUndefined();
+      expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction).not.toHaveBeenCalled();
+    });
+
+    it("opens no window for a payment that is not a card payment", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      const transaction = generateDatabaseStripeTransaction({ type: "coupon_claim", organizationId: null, createdAt: FIRST_PAYMENT_AT });
+
+      await expect(service.findWindowOpenedBy(transaction)).resolves.toBeUndefined();
+      expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction).not.toHaveBeenCalled();
+    });
+
+    it("opens no window for a payment whose buyer has deleted their account", async () => {
+      const { service, stripeTransactionRepository } = setup();
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", userId: null, organizationId: null, createdAt: FIRST_PAYMENT_AT });
+
+      await expect(service.findWindowOpenedBy(transaction)).resolves.toBeUndefined();
+      expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction).not.toHaveBeenCalled();
+    });
+
+    it("opens no window for a payment made while the window of an earlier first payment is open", async () => {
+      const { service } = setup({ firstPaymentAt: FIRST_PAYMENT_AT });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: null, createdAt: INSIDE_WINDOW });
+
+      await expect(service.findWindowOpenedBy(transaction)).resolves.toBeUndefined();
+    });
+
+    it("opens no window for a payment made after the window of an earlier first payment closed", async () => {
+      const { service } = setup({ firstPaymentAt: FIRST_PAYMENT_AT });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: null, createdAt: AFTER_WINDOW });
+
+      await expect(service.findWindowOpenedBy(transaction)).resolves.toBeUndefined();
+    });
+
+    it("opens no window for a small first purchase on the personal account of a person who received the bonus on a team", async () => {
+      const { service } = setup({ personHasBonus: true });
+      const transaction = generateDatabaseStripeTransaction({ type: "payment_intent", organizationId: null, createdAt: FIRST_PAYMENT_AT });
+
+      await expect(service.findWindowOpenedBy(transaction)).resolves.toBeUndefined();
+    });
+  });
+
   describe("isEligible", () => {
     it.each([
       { teamHasPaid: false, personHasBonus: false, expected: true },
@@ -404,6 +496,7 @@ describe(FirstPurchaseBonusService.name, () => {
 
     const organizationRepository = mock<OrganizationRepository>();
     organizationRepository.findOneByAndLock.mockResolvedValue(input?.organization);
+    organizationRepository.findById.mockResolvedValue(input?.organization);
 
     const logger = mock<LoggerService>();
 

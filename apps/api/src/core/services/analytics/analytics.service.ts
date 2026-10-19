@@ -9,6 +9,8 @@ type AnalyticsEvent =
   | "balance_top_up_failed"
   | "balance_refund"
   | "first_purchase_bonus_granted"
+  | "first_purchase_bonus_window_opened"
+  | "first_purchase_bonus_window_email_sent"
   | "auto_recharge_enabled"
   | "auto_recharge_disabled"
   | "trial_started"
