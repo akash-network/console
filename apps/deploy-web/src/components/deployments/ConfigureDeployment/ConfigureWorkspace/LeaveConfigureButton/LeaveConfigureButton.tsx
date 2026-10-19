@@ -1,25 +1,18 @@
 "use client";
 import type { FC, MouseEvent } from "react";
-import { useId, useState } from "react";
-import {
-  Button,
-  DialogV2,
-  DialogV2Body,
-  DialogV2Content,
-  DialogV2Description,
-  DialogV2Footer,
-  DialogV2Header,
-  DialogV2Title
-} from "@akashnetwork/ui/components";
+import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { useServices } from "@src/context/ServicesProvider";
+import { useIsKnownNotOnboarded } from "@src/hooks/useIsKnownNotOnboarded";
 import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
+import { DiscardDeploymentDialog } from "../../DiscardDeploymentDialog/DiscardDeploymentDialog";
 import type { DeploymentIntent } from "../../useDeploymentFlow/deploymentIntent";
 
-export const DEPENDENCIES = { useRouter, UrlService };
+export const DEPENDENCIES = { useRouter, useIsKnownNotOnboarded, useServices, UrlService };
 
 type Props = {
   intent: Pick<DeploymentIntent, "templateId" | "userTemplateId">;
@@ -46,20 +39,31 @@ export const LeaveConfigureButton: FC<Props> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const router = d.useRouter();
+  const isKnownNotOnboarded = d.useIsKnownNotOnboarded();
+  const { analyticsService } = d.useServices();
   const [isConfirming, setIsConfirming] = useState(false);
-  const descriptionId = useId();
-  const destination = destinationFor(intent, d.UrlService);
+  const destination = destinationFor(intent, isKnownNotOnboarded, d.UrlService);
 
   function confirmBeforeLeaving(event: MouseEvent<HTMLAnchorElement>) {
-    if (!needsConfirmation || isOpeningElsewhere(event)) return;
+    if (isOpeningElsewhere(event)) return;
+    if (!needsConfirmation) {
+      trackLeavingOnboarding(false);
+      return;
+    }
     event.preventDefault();
     setIsConfirming(true);
   }
 
   function discardAndLeave() {
     onDiscard();
+    trackLeavingOnboarding(true);
     setIsConfirming(false);
     router.replace(destination.href);
+  }
+
+  function trackLeavingOnboarding(discardedDeployment: boolean) {
+    if (!isKnownNotOnboarded) return;
+    analyticsService.track("onboarding_left", { category: "onboarding", control: "back_link", discardedDeployment });
   }
 
   return (
@@ -72,37 +76,35 @@ export const LeaveConfigureButton: FC<Props> = ({
         <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
         {destination.label}
       </Link>
-      <DialogV2 open={isConfirming} onOpenChange={setIsConfirming}>
-        <DialogV2Content className="max-w-md" aria-describedby={descriptionId}>
-          <DialogV2Header>
-            <DialogV2Title>Leave and discard this deployment?</DialogV2Title>
-            <DialogV2Description id={descriptionId}>Leaving closes the pending deployment and discards this draft. You&apos;ll lose:</DialogV2Description>
-          </DialogV2Header>
-          <DialogV2Body className="flex flex-col gap-3">
-            <ul className="list-disc space-y-1 pl-5 text-sm">
-              <li>
-                {deploymentName || "Your deployment"}, with {serviceCount} {serviceCount === 1 ? "service" : "services"} across {placementCount}{" "}
-                {placementCount === 1 ? "placement" : "placements"}
-              </li>
-              {hasBids && <li>The bids providers have sent so far</li>}
-            </ul>
-            {canEditInstead && <p className="text-sm text-muted-foreground">To change the configuration instead, use Edit.</p>}
-          </DialogV2Body>
-          <DialogV2Footer className="flex items-center justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => setIsConfirming(false)}>
-              Keep configuring
-            </Button>
-            <Button type="button" variant="destructive" onClick={discardAndLeave}>
-              Discard and leave
-            </Button>
-          </DialogV2Footer>
-        </DialogV2Content>
-      </DialogV2>
+      <DiscardDeploymentDialog
+        open={isConfirming}
+        onOpenChange={setIsConfirming}
+        title="Leave and discard this deployment?"
+        description="Leaving closes the pending deployment and discards this draft. You'll lose:"
+        keepLabel="Keep configuring"
+        discardLabel="Discard and leave"
+        onDiscard={discardAndLeave}
+      >
+        <ul className="list-disc space-y-1 pl-5 text-sm">
+          <li>
+            {deploymentName || "Your deployment"}, with {serviceCount} {serviceCount === 1 ? "service" : "services"} across {placementCount}{" "}
+            {placementCount === 1 ? "placement" : "placements"}
+          </li>
+          {hasBids && <li>The bids providers have sent so far</li>}
+        </ul>
+        {canEditInstead && <p className="text-sm text-muted-foreground">To change the configuration instead, use Edit.</p>}
+      </DiscardDeploymentDialog>
     </>
   );
 };
 
-function destinationFor({ templateId, userTemplateId }: Props["intent"], urlService: typeof UrlService): { href: string; label: string } {
+/** A user who has not onboarded yet goes to the onboarding picker directly, since the onboarding gate bounces them there from every other destination. */
+function destinationFor(
+  { templateId, userTemplateId }: Props["intent"],
+  isKnownNotOnboarded: boolean,
+  urlService: typeof UrlService
+): { href: string; label: string } {
+  if (isKnownNotOnboarded) return { href: urlService.onboardingPicker(), label: "Back to onboarding" };
   if (templateId && hasGalleryPage(templateId)) return { href: urlService.templateDetails(templateId), label: "Back to template" };
   if (userTemplateId) return { href: urlService.template(userTemplateId), label: "Back to template" };
   return { href: urlService.newDeployment(), label: "Back to deployment types" };

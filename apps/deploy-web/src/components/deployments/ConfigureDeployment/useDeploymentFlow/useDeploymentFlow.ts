@@ -110,7 +110,7 @@ export interface DeploymentFlowActions {
   closeAndFail: (message: string, kind?: AbandonedAttemptKind) => void;
   /** Re-closes a deployment a background close left open. No-op while a close is in flight. */
   retryClose: () => void;
-  /** Gives the attempt up for good before leaving the page: the phase stays put so nothing flashes while the page navigates away. */
+  /** Gives the attempt up for good before leaving the page: the phase stays put so nothing flashes while the page navigates away, and nothing leases it meanwhile. */
   discard: () => void;
   setBidStrategy: (strategy: BidStrategy) => void;
   refreshQuotes: () => void;
@@ -840,7 +840,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    */
   const deploy = useCallback(
     function deploy(sdl: string, options: DeployOptions = {}) {
-      if (!dseq) return;
+      if (!dseq || discardedRef.current) return;
       const activeDseq = dseq;
       const inBackground = !!options.inBackground && isRunningInBackground;
       const attempt: DeployAttempt = { dseq: activeDseq, isAutoDeploy: !!options.isAutoDeploy, inBackground };

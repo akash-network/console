@@ -110,6 +110,7 @@ export type AnalyticsEvent =
   | "onboarding_choose_provider_click"
   | "onboarding_match_failed"
   | "onboarding_skipped"
+  | "onboarding_left"
   | "fair_use_policy_accepted"
   | "add_credits_opened"
   | "add_credits_payment_form_ready"

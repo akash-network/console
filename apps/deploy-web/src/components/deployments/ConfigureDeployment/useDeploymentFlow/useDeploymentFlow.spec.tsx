@@ -2367,6 +2367,18 @@ describe(useDeploymentFlow.name, () => {
       expect(closeMutate).toHaveBeenLastCalledWith({ dseq: "777" }, expect.any(Object));
     });
 
+    it("never leases a deployment it discarded, since the page may linger before it navigates away", () => {
+      const createLease = mockMutation();
+      const { result } = renderFlow({ intent: { dseq: "555" }, createLease });
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.discard());
+
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(createLease.mutate).not.toHaveBeenCalled();
+      expect(result.current.phase).toBe("quoting");
+    });
+
     it("discards only once however often it is asked", () => {
       const closeMutate = vi.fn();
       const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
