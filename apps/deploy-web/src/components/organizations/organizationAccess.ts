@@ -29,7 +29,7 @@ export const canDeleteOrganization = (role: OrganizationRole): boolean => role =
 /** Creating, renaming and deleting projects is for owners and admins; the api refuses everyone else. */
 export const canManageProjects = (role: OrganizationRole): boolean => role === "owner" || role === "admin";
 
-/** Viewers and billing members read deployments but cannot start, close or change them. */
+/** Viewers read the deployments of their projects without changing them, and billing members reach no deployment at all. */
 export const canChangeDeployments = (role: OrganizationRole): boolean => role !== "viewer" && role !== "billing";
 
 export const hasGeneralSettingsPage = (type: OrganizationType): boolean => type === "team";

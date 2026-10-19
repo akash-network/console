@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { DEPENDENCIES, ProjectAccessValue } from "./ProjectAccessField";
-import { hasProjectAccess, isSameProjectAccess, NO_PROJECT_PICKED_MESSAGE, ProjectAccessField, toProjectAccessRequest } from "./ProjectAccessField";
+import {
+  hasProjectAccess,
+  isSameProjectAccess,
+  limitGrantsToRoles,
+  NO_PROJECT_PICKED_MESSAGE,
+  ProjectAccessField,
+  toProjectAccessRequest
+} from "./ProjectAccessField";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -44,7 +51,7 @@ describe(ProjectAccessField.name, () => {
   it("asks for a project while specific projects are chosen and none is picked", () => {
     const { ProjectGrantsField } = setup({ value: { access: "selected", grants: [] } });
 
-    expect(ProjectGrantsField.mock.lastCall?.[0]).toMatchObject({ projects: [{ id: "storefront", name: "storefront" }], grants: [] });
+    expect(ProjectGrantsField.mock.lastCall?.[0]).toMatchObject({ projects: [{ id: "storefront", name: "storefront" }], roles: ["viewer"], grants: [] });
     expect(screen.getByText(NO_PROJECT_PICKED_MESSAGE)).toBeInTheDocument();
   });
 
@@ -100,6 +107,32 @@ describe(ProjectAccessField.name, () => {
     });
   });
 
+  describe(limitGrantsToRoles.name, () => {
+    it("lowers a grant above the allowed roles to the first allowed one", () => {
+      const value: ProjectAccessValue = {
+        access: "selected",
+        grants: [
+          { projectId: "storefront", role: "admin" },
+          { projectId: "docs", role: "viewer" }
+        ]
+      };
+
+      expect(limitGrantsToRoles(value, ["viewer"])).toEqual({
+        access: "selected",
+        grants: [
+          { projectId: "storefront", role: "viewer" },
+          { projectId: "docs", role: "viewer" }
+        ]
+      });
+    });
+
+    it("keeps every grant whose role is allowed", () => {
+      const value: ProjectAccessValue = { access: "selected", grants: [{ projectId: "storefront", role: "admin" }] };
+
+      expect(limitGrantsToRoles(value, ["viewer", "member", "admin"])).toEqual(value);
+    });
+  });
+
   describe(toProjectAccessRequest.name, () => {
     it("sends no grants for every project", () => {
       expect(toProjectAccessRequest({ access: "all", grants: [{ projectId: "storefront", role: "member" }] })).toEqual({ projectAccess: "all" });
@@ -124,6 +157,7 @@ describe(ProjectAccessField.name, () => {
       <ProjectAccessField
         organizationName="Acme Corp"
         projects={[{ id: "storefront", name: "storefront" }]}
+        grantRoles={["viewer"]}
         value={input.value}
         onChange={onChange}
         dependencies={{ ProjectGrantsField }}
