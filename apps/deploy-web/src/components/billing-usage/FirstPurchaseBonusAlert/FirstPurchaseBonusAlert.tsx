@@ -5,8 +5,7 @@ import { FormattedNumber } from "react-intl";
 import { Alert, Progress } from "@akashnetwork/ui/components";
 import { GiftIcon } from "lucide-react";
 
-import { useFlag } from "@src/hooks/useFlag";
-import { useFirstPurchaseBonusQuery, usePaymentTransactionsQuery } from "@src/queries";
+import { useFirstPurchaseBonusQuery } from "@src/queries";
 
 /** Keep in sync with FirstPurchaseBonusService (apps/api). Amounts in dollars. */
 const MIN_QUALIFYING_AMOUNT = 100;
@@ -16,8 +15,6 @@ export const MAX_BONUS = 100;
 const AMOUNT_FOR_MAX_BONUS = (MAX_BONUS * 100) / BONUS_PERCENT;
 
 export const DEPENDENCIES = {
-  useFlag,
-  usePaymentTransactionsQuery,
   useFirstPurchaseBonusQuery
 };
 
@@ -27,35 +24,9 @@ interface FirstPurchaseBonusAlertProps {
 }
 
 export function FirstPurchaseBonusAlert({ amount, dependencies: d = DEPENDENCIES }: FirstPurchaseBonusAlertProps) {
-  return d.useFlag("organizations") ? (
-    <EligibleFirstPurchaseBonusAlert amount={amount} dependencies={d} />
-  ) : (
-    <FirstChargeBonusAlert amount={amount} dependencies={d} />
-  );
-}
-
-function EligibleFirstPurchaseBonusAlert({ amount, dependencies: d }: Required<FirstPurchaseBonusAlertProps>) {
   const { data, isSuccess } = d.useFirstPurchaseBonusQuery();
 
   if (!isSuccess || !data.eligible) return null;
-
-  return <FirstPurchaseBonusOffer amount={amount} />;
-}
-
-/**
- * Promotes the one-time first-purchase bonus and previews it against the entered
- * amount. Hidden for users who already completed a paid purchase (any succeeded
- * Stripe charge — refunded charges keep the "succeeded" status and correctly count
- * as consumed). Coupon claims create no charge, so coupon users still see the offer.
- */
-function FirstChargeBonusAlert({ amount, dependencies: d }: Required<FirstPurchaseBonusAlertProps>) {
-  const { data, isSuccess } = d.usePaymentTransactionsQuery();
-
-  const hasPaidBefore = !!data?.transactions?.some(transaction => transaction.status === "succeeded");
-
-  // Gate on isSuccess (not isFetched): a failed transactions fetch also sets isFetched, leaving `data`
-  // empty and hasPaidBefore false, which would wrongly show the offer to users with unknown history.
-  if (!isSuccess || hasPaidBefore) return null;
 
   return <FirstPurchaseBonusOffer amount={amount} />;
 }

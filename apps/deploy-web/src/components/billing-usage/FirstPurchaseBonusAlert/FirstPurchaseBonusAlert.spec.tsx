@@ -1,6 +1,5 @@
 import React from "react";
 import { IntlProvider } from "react-intl";
-import type { BillingTransaction } from "@akashnetwork/http-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -10,14 +9,14 @@ import { FirstPurchaseBonusAlert } from "./FirstPurchaseBonusAlert";
 import { render, screen } from "@testing-library/react";
 
 describe(FirstPurchaseBonusAlert.name, () => {
-  it("renders nothing until the transactions query succeeds", () => {
+  it("renders nothing until eligibility is known, including when the request is refused", () => {
     const { container } = setup({ isSuccess: false });
 
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders nothing when the user already has a succeeded charge", () => {
-    const { container } = setup({ transactions: [mock<BillingTransaction>({ status: "succeeded" })] });
+  it("renders nothing when the next purchase would not earn the bonus", () => {
+    const { container } = setup({ amount: 100, eligible: false });
 
     expect(container).toBeEmptyDOMElement();
   });
@@ -28,12 +27,6 @@ describe(FirstPurchaseBonusAlert.name, () => {
     expect(screen.getByText("First-purchase bonus")).toBeInTheDocument();
     expect(container).toHaveTextContent("Get 10% in bonus credits on your first purchase, up to $100.");
     expect(container).toHaveTextContent("Add $100.00 or more to unlock your bonus.");
-  });
-
-  it("shows the offer to users whose only charges failed", () => {
-    setup({ amount: 0, transactions: [mock<BillingTransaction>({ status: "failed" })] });
-
-    expect(screen.getByText("First-purchase bonus")).toBeInTheDocument();
   });
 
   it("nudges to add the shortfall when the amount is below the qualifying minimum", () => {
@@ -66,63 +59,19 @@ describe(FirstPurchaseBonusAlert.name, () => {
     expect(container).not.toHaveTextContent("more to unlock");
   });
 
-  it("judges the offer by the purchase history without asking for eligibility while organizations are off", () => {
-    const { useFirstPurchaseBonusQuery } = setup({ amount: 0 });
-
-    expect(screen.getByText("First-purchase bonus")).toBeInTheDocument();
-    expect(useFirstPurchaseBonusQuery).not.toHaveBeenCalled();
-  });
-
-  describe("when organizations are on", () => {
-    it("shows the offer when the caller is eligible", () => {
-      const { usePaymentTransactionsQuery } = setup({
-        amount: 100,
-        isOrganizationsEnabled: true,
-        bonus: { isSuccess: true, eligible: true },
-        transactions: [mock<BillingTransaction>({ status: "succeeded" })]
-      });
-
-      expect(screen.getByText("$110.00 in credits")).toBeInTheDocument();
-      expect(usePaymentTransactionsQuery).not.toHaveBeenCalled();
-    });
-
-    it("renders nothing when the caller is not eligible", () => {
-      const { container } = setup({ amount: 100, isOrganizationsEnabled: true, bonus: { isSuccess: true, eligible: false } });
-
-      expect(container).toBeEmptyDOMElement();
-    });
-
-    it("renders nothing until eligibility is known, including when the request is refused", () => {
-      const { container } = setup({ amount: 100, isOrganizationsEnabled: true, bonus: { isSuccess: false } });
-
-      expect(container).toBeEmptyDOMElement();
-    });
-  });
-
-  function setup(input?: {
-    amount?: number;
-    isSuccess?: boolean;
-    transactions?: BillingTransaction[];
-    isOrganizationsEnabled?: boolean;
-    bonus?: { isSuccess: boolean; eligible?: boolean };
-  }) {
-    // UseQueryResult is a discriminated union that neither mock<T>() nor a partial literal can satisfy
-    const usePaymentTransactionsQuery = vi.fn(() => ({
-      data: { transactions: input?.transactions ?? [] },
-      isSuccess: input?.isSuccess ?? true
-    })) as unknown as typeof DEPENDENCIES.usePaymentTransactionsQuery;
-    const useFirstPurchaseBonusQuery = vi.fn(() => ({
-      data: input?.bonus?.isSuccess ? { eligible: input.bonus.eligible } : undefined,
-      isSuccess: input?.bonus?.isSuccess ?? false
-    })) as unknown as typeof DEPENDENCIES.useFirstPurchaseBonusQuery;
-    const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "organizations" && !!input?.isOrganizationsEnabled;
-
-    const result = render(
-      <IntlProvider locale="en-US" defaultLocale="en-US">
-        <FirstPurchaseBonusAlert amount={input?.amount ?? 0} dependencies={{ useFlag, usePaymentTransactionsQuery, useFirstPurchaseBonusQuery }} />
-      </IntlProvider>
+  function setup(input?: { amount?: number; isSuccess?: boolean; eligible?: boolean }) {
+    const isSuccess = input?.isSuccess ?? true;
+    const useFirstPurchaseBonusQuery = vi.fn(() =>
+      mock<ReturnType<typeof DEPENDENCIES.useFirstPurchaseBonusQuery>>({
+        data: isSuccess ? { eligible: input?.eligible ?? true } : undefined,
+        isSuccess
+      })
     );
 
-    return { ...result, usePaymentTransactionsQuery, useFirstPurchaseBonusQuery };
+    return render(
+      <IntlProvider locale="en-US" defaultLocale="en-US">
+        <FirstPurchaseBonusAlert amount={input?.amount ?? 0} dependencies={{ useFirstPurchaseBonusQuery }} />
+      </IntlProvider>
+    );
   }
 });
