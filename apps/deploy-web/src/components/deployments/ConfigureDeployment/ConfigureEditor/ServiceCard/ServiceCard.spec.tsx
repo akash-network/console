@@ -28,6 +28,12 @@ describe(ServiceCard.name, () => {
     expect(AdditionalSection).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 0, locked: undefined }), expect.anything());
   });
 
+  it.each([true, false])("passes on whether its hardware shows the deployment's trial size cap (%s)", showsDeploymentLimit => {
+    const { HardwareSection } = setup({ isExpanded: true, showsDeploymentLimit });
+
+    expect(HardwareSection).toHaveBeenCalledWith(expect.objectContaining({ showsDeploymentLimit }), expect.anything());
+  });
+
   it.each<[ConfigurationLock, boolean, boolean]>([
     ["onchain", false, true],
     ["all", true, true]
@@ -124,7 +130,13 @@ describe(ServiceCard.name, () => {
     scrollIntoView.mockRestore();
   });
 
-  function setup(input: { isExpanded?: boolean; canRemove?: boolean; locked?: ConfigurationLock; shouldScrollIntoView?: boolean }) {
+  function setup(input: {
+    isExpanded?: boolean;
+    showsDeploymentLimit?: boolean;
+    canRemove?: boolean;
+    locked?: ConfigurationLock;
+    shouldScrollIntoView?: boolean;
+  }) {
     const values = defaultServiceWithPlacement({ title: "web" });
     const ImageSection = vi.fn(() => null);
     const HardwareSection = vi.fn(() => null);
@@ -144,6 +156,7 @@ describe(ServiceCard.name, () => {
           service={values.services[0]}
           serviceIndex={0}
           isExpanded={input.isExpanded ?? true}
+          showsDeploymentLimit={input.showsDeploymentLimit ?? true}
           onExpandedChange={onExpandedChange}
           canRemove={input.canRemove ?? true}
           onRemove={onRemove}

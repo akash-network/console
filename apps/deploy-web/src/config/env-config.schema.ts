@@ -15,6 +15,10 @@ export const browserEnvSchema = z.object({
   NEXT_PUBLIC_NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development"),
   NEXT_PUBLIC_TRIAL_DEPLOYMENTS_DURATION_HOURS: z.number({ coerce: true }).optional().default(24),
   NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT: z.number({ coerce: true }).optional().default(1),
+  /** Mirrors the api's MANAGED_WALLET_TRIAL_MAX_CPU, which refuses a larger trial deployment at creation; 0 disables the cap. */
+  NEXT_PUBLIC_MANAGED_WALLET_TRIAL_MAX_CPU: z.number({ coerce: true }).nonnegative().optional().default(4),
+  /** Mirrors the api's MANAGED_WALLET_TRIAL_MAX_MEMORY_GI, which refuses a larger trial deployment at creation; 0 disables the cap. */
+  NEXT_PUBLIC_MANAGED_WALLET_TRIAL_MAX_MEMORY_GI: z.number({ coerce: true }).nonnegative().optional().default(16),
   NEXT_PUBLIC_BASE_API_MAINNET_URL: z.string(),
   NEXT_PUBLIC_BASE_API_TESTNET_URL: z.string(),
   NEXT_PUBLIC_BASE_API_SANDBOX_URL: z.string(),

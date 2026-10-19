@@ -14,6 +14,11 @@ export function listInvalidFieldMessages(values: SdlBuilderFormValuesType, error
   return [...new Set(messages)];
 }
 
+/** Drops list indexes so a path names the field, never which entry of the user's spec holds it. */
+export function listInvalidFieldPaths(errors: FieldErrors<SdlBuilderFormValuesType>): string[] {
+  return [...new Set(collectPaths(errors, []))];
+}
+
 /** Reads the schema rather than the form's errors, which stay empty until a field is touched or a submit is refused. */
 export function listSpecIssueMessages(values: SdlBuilderFormValuesType): string[] {
   const result = SdlBuilderFormValuesSchema.safeParse(values);
@@ -51,6 +56,18 @@ function collectMessages(error: unknown): string[] {
   if (!isRecord(error)) return [];
 
   return [...ownMessage(error), ...childErrors(error).flatMap(([, child]) => collectMessages(child))];
+}
+
+function collectPaths(error: unknown, path: string[]): string[] {
+  if (!isRecord(error)) return [];
+
+  const ownPath = ownMessage(error).length > 0 ? [path.join(".")] : [];
+  const childPaths = childErrors(error).flatMap(([key, child]) => collectPaths(child, isListIndex(key) ? path : [...path, key]));
+  return [...ownPath, ...childPaths];
+}
+
+function isListIndex(key: string): boolean {
+  return /^\d+$/.test(key);
 }
 
 function ownMessage(error: Record<string, unknown>): string[] {

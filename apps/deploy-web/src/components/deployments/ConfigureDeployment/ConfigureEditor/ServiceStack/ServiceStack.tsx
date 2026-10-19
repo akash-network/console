@@ -67,6 +67,10 @@ export const ServiceStack: FC<Props> = ({
     setScrollTargetId(onAddService());
   }
 
+  const deploymentLimitServiceId = expandedIds.has(selectedServiceId)
+    ? selectedServiceId
+    : services.find(({ service }) => expandedIds.has(service.id))?.service.id;
+
   return (
     <div ref={stackRef} className="flex flex-col gap-4">
       {services.map(({ service, index }) => (
@@ -75,6 +79,7 @@ export const ServiceStack: FC<Props> = ({
           service={service}
           serviceIndex={index}
           isExpanded={expandedIds.has(service.id)}
+          showsDeploymentLimit={service.id === deploymentLimitServiceId}
           onExpandedChange={expanded => changeExpanded(service.id as string, expanded)}
           canRemove={canRemoveService}
           onRemove={() => onRemoveService(service.id as string)}

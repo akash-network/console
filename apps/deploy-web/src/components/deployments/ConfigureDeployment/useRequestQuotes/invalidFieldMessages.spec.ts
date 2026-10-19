@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
-import { listInvalidFieldMessages, listSpecIssueMessages } from "./invalidFieldMessages";
+import { listInvalidFieldMessages, listInvalidFieldPaths, listSpecIssueMessages } from "./invalidFieldMessages";
 
 describe(listInvalidFieldMessages.name, () => {
   it("names the service of each field error", () => {
@@ -126,6 +126,41 @@ describe(listInvalidFieldMessages.name, () => {
     };
     return { values };
   }
+});
+
+describe(listInvalidFieldPaths.name, () => {
+  it("names each invalid field once, without the list position of the entry that holds it", () => {
+    const paths = listInvalidFieldPaths({
+      services: {
+        0: { image: { type: "too_small", message: "Docker image name is required." } },
+        12: { image: { type: "too_small", message: "Docker image name is required." }, profile: { cpu: { type: "custom", message: "Too many CPUs." } } }
+      }
+    } as FieldErrors<SdlBuilderFormValuesType>);
+
+    expect(paths).toEqual(["services.image", "services.profile.cpu"]);
+  });
+
+  it("walks listed field errors nested inside an entry", () => {
+    const paths = listInvalidFieldPaths({
+      services: { 0: { expose: [undefined, { port: { type: "custom", message: "Port 22 is reserved." } }] } }
+    } as FieldErrors<SdlBuilderFormValuesType>);
+
+    expect(paths).toEqual(["services.expose.port"]);
+  });
+
+  it("names a whole list that is invalid as a list", () => {
+    const paths = listInvalidFieldPaths({ placements: { type: "too_small", message: "Add a placement." } } as FieldErrors<SdlBuilderFormValuesType>);
+
+    expect(paths).toEqual(["placements"]);
+  });
+
+  it("keeps a field name that mixes digits and letters", () => {
+    const paths = listInvalidFieldPaths({
+      services: { 0: { ipv4: { type: "custom", message: "Invalid." }, "2fa": { type: "custom", message: "Invalid." } } }
+    } as FieldErrors<SdlBuilderFormValuesType>);
+
+    expect(paths).toEqual(["services.ipv4", "services.2fa"]);
+  });
 });
 
 describe(listSpecIssueMessages.name, () => {
