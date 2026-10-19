@@ -121,6 +121,7 @@ describe(DeploymentSettingController.name, () => {
       topUpFrequencyMs: faker.number.int({ min: 1000, max: 100000 }),
       runtimeLimitHours: null,
       runtimeEndsAt: null,
+      consoleCloseReason: null,
       createdAt: faker.date.recent().toISOString(),
       updatedAt: faker.date.recent().toISOString()
     };

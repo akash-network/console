@@ -81,6 +81,14 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     ]);
   });
 
+  it("remembers on a team deployment's setting that Console closed it because its provider stopped responding", async () => {
+    const { closeUnreachable, findSetting } = await setup({ inTeam: true });
+
+    await closeUnreachable();
+
+    expect(await findSetting()).toMatchObject({ closed: true, consoleCloseReason: "provider_unreachable" });
+  });
+
   it("adds nothing to the feed when the close had already landed on chain", async () => {
     const { closeUnreachable, awaitClosedNotice, findActivities } = await setup({ alreadyClosedOnChain: true });
 
