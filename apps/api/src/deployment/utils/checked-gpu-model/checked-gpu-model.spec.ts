@@ -12,9 +12,12 @@ describe(findCheckedGpuModel.name, () => {
     expect(findCheckedGpuModel(aGroup(["vendor/nvidia/model/h100", "vendor/nvidia/model/a100"]))).toBeNull();
   });
 
-  it("reads no model from a group that accepts any model of a vendor", () => {
-    expect(findCheckedGpuModel(aGroup(["vendor/nvidia/model/*"]))).toBeNull();
-  });
+  it.each([[["vendor/nvidia/model/*"]], [["vendor/nvidia/model/h100*"]], [["vendor/nvidia/model/*", "vendor/nvidia/model/a100"]]])(
+    "reads no model from a group that accepts models no check names: %j",
+    keys => {
+      expect(findCheckedGpuModel(aGroup(keys))).toBeNull();
+    }
+  );
 
   it("reads no model from a group without a gpu", () => {
     expect(findCheckedGpuModel(aGroup([]))).toBeNull();

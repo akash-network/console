@@ -26,6 +26,11 @@ import { ACCESS_REVOKED_ERROR_CODE } from "@src/deployment/services/member-deplo
 import { ReconcileDeploymentCreateHandler } from "@src/deployment/services/reconcile-deployment-create/reconcile-deployment-create.handler";
 import { ReconcileDeploymentCreate } from "@src/deployment/services/reconcile-deployment-create/reconcile-deployment-create.job";
 import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
+import {
+  ScreenUserGpuDeployment,
+  ScreenUserGpuDeploymentHandler,
+  screenUserGpuDeploymentKeyFor
+} from "@src/deployment/services/screen-user-gpu-deployment/screen-user-gpu-deployment.handler";
 import { creatingActivityOf } from "@src/deployment/utils/create-activity/create-activity";
 import { OrganizationContextResolver } from "@src/organization/services/organization-context/organization-context.resolver";
 import type { UserOutput } from "@src/user/repositories";
@@ -67,6 +72,11 @@ deployment:
       profile: web
       count: 1`;
 
+const GPU_SDL = SDL.replace(
+  "          - size: 512Mi\n",
+  "          - size: 512Mi\n        gpu:\n          units: 1\n          attributes:\n            vendor:\n              nvidia:\n                - model: h100\n"
+);
+
 const DEPLOYMENT_INFO_PATH = "/akash/deployment/v1beta4/deployments/info";
 
 const ACCESS_REVOKED = { code: ACCESS_REVOKED_ERROR_CODE, message: "You no longer have access to this deployment." };
@@ -77,7 +87,8 @@ const jobWorkers = useJobWorkers(() => [
   container.resolve(CreateDeploymentHandler),
   container.resolve(ReconcileDeploymentCreateHandler),
   container.resolve(DeleteUnbackedDeploymentSettingHandler),
-  container.resolve(RecordDeploymentSettingHandler)
+  container.resolve(RecordDeploymentSettingHandler),
+  container.resolve(ScreenUserGpuDeploymentHandler)
 ]);
 
 describe(CreateDeploymentHandler.name, () => {
@@ -132,6 +143,19 @@ describe(CreateDeploymentHandler.name, () => {
       ]);
       expect(await findActivity(activityId)).toMatchObject({ status: "succeeded", meta: { dseq: accepted.dseq } });
       expect((await findCompensation(accepted.dseq)).state).toBe("cancelled");
+    });
+
+    it.each([
+      { recordGpuBids: true, screens: 1 },
+      { recordGpuBids: undefined, screens: 0 }
+    ])("schedules the gpu bid checks of a configure page gpu create once it is on chain: %o", async ({ recordGpuBids, screens }) => {
+      const { wallet, queueCreate } = await setup({ sdl: GPU_SDL, recordGpuBids });
+
+      const { accepted } = await queueCreate();
+
+      await expectJobCompleted(CreateDeployment[JOB_NAME], { singletonKey: createDeploymentKeyFor(accepted) });
+      const screenJobs = await findJobRows(ScreenUserGpuDeployment[JOB_NAME], { singletonKey: screenUserGpuDeploymentKeyFor(wallet.address!, accepted.dseq) });
+      expect(screenJobs).toEqual(Array(screens).fill(expect.objectContaining({ state: "created" })));
     });
 
     it("adopts on a retry the deployment an undecided attempt created, without sending it again", async () => {
@@ -244,7 +268,7 @@ describe(CreateDeploymentHandler.name, () => {
 
   let revokeAccess: (revocation: Revocation) => Promise<unknown>;
 
-  async function setup(input: { inTeam?: boolean } = {}) {
+  async function setup(input: { inTeam?: boolean; sdl?: string; recordGpuBids?: boolean } = {}) {
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
     const { enqueue, startWorkers } = await jobWorkers();
     const activityRepository = container.resolve(ActivityRepository);
@@ -276,10 +300,10 @@ describe(CreateDeploymentHandler.name, () => {
     }
 
     async function queueCreate(retryOverrides: EnqueueOptions = {}, beforeWorkersStart: (dseq: string) => Promise<void> = async () => undefined) {
-      const { accepted } = await runAsCaller(() => writer.acceptCreate({ userId: user.id, sdl: SDL, projectId }));
+      const { accepted } = await runAsCaller(() => writer.acceptCreate({ userId: user.id, sdl: input.sdl ?? SDL, projectId }));
       const activity = await activityRepository.create(creatingActivityOf(accepted));
       await beforeWorkersStart(accepted.dseq);
-      await enqueue(new CreateDeployment({ ...accepted, activityId: activity.id }), {
+      await enqueue(new CreateDeployment({ ...accepted, activityId: activity.id, recordGpuBids: input.recordGpuBids }), {
         singletonKey: createDeploymentKeyFor(accepted),
         ...CREATE_DEPLOYMENT_RETRY_OPTIONS,
         ...retryOverrides

@@ -3,11 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { CHAIN_SDK, type ChainSDK } from "@src/chain/providers/chain-sdk.provider";
 import { type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions } from "@src/core";
-import {
-  type CheckedGpuModel,
-  type GpuBidCheckInsert,
-  GpuBidCheckRepository
-} from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
+import { type CheckedGpuModel, type GpuBidCheckInsert, GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
 import { findDeploymentBids } from "@src/deployment/utils/find-deployment-bids/find-deployment-bids";
 
 export interface ScreenedGpuGroup extends CheckedGpuModel {

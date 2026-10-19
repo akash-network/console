@@ -286,7 +286,7 @@ export class DeploymentWriterService {
 
     const activityId = await this.txService.transaction(async () => {
       const activityId = randomUUID();
-      const jobId = await this.jobQueueService.enqueue(new CreateDeployment({ ...accepted, activityId }), {
+      const jobId = await this.jobQueueService.enqueue(new CreateDeployment({ ...accepted, activityId, recordGpuBids: input.recordGpuBids }), {
         singletonKey: createDeploymentKeyFor(accepted),
         ...CREATE_DEPLOYMENT_RETRY_OPTIONS
       });
@@ -299,7 +299,6 @@ export class DeploymentWriterService {
       );
       return activityId;
     });
-    if (input.recordGpuBids) await this.userGpuBidCheckService.scheduleFor(accepted);
 
     return { dseq: accepted.dseq, manifest, activityId };
   }

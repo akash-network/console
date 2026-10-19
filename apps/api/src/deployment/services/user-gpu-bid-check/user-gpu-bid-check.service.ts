@@ -3,10 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
-import {
-  ScreenUserGpuDeployment,
-  screenUserGpuDeploymentKeyFor
-} from "@src/deployment/services/screen-user-gpu-deployment/screen-user-gpu-deployment.handler";
+import { ScreenUserGpuDeployment, screenUserGpuDeploymentKeyFor } from "@src/deployment/services/screen-user-gpu-deployment/screen-user-gpu-deployment.handler";
 import { findCheckedGpuModel } from "@src/deployment/utils/checked-gpu-model/checked-gpu-model";
 import { decodeCreateDeploymentMessage } from "@src/deployment/utils/create-deployment-message/create-deployment-message";
 

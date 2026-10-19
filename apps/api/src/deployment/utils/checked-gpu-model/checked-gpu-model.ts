@@ -6,10 +6,7 @@ import { extractRequestedGpusFromGroupSpecs } from "@src/deployment/utils/blocke
 
 /** Only a group pinned to one gpu model tells which model a silent provider passed on. */
 export function findCheckedGpuModel(groupSpec: GroupSpec): CheckedGpuModel | null {
-  const models = uniqBy(
-    extractRequestedGpusFromGroupSpecs([groupSpec]).filter(({ model }) => model !== "*"),
-    ({ vendor, model }) => `${vendor}/${model}`
-  );
+  const models = uniqBy(extractRequestedGpusFromGroupSpecs([groupSpec]), ({ vendor, model }) => `${vendor}/${model}`);
 
-  return models.length === 1 ? models[0] : null;
+  return models.length === 1 && !models[0].model.includes("*") ? models[0] : null;
 }

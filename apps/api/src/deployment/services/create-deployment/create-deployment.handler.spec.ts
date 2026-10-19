@@ -7,6 +7,7 @@ import { TxNotIncludedError, TxOutcomeUnknownError } from "@src/billing/services
 import type { CreateLogger } from "@src/core";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import type { MemberDeploymentAccessService } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
+import type { UserGpuBidCheckService } from "@src/deployment/services/user-gpu-bid-check/user-gpu-bid-check.service";
 import { createdActivityOf, failedCreateActivityOf } from "@src/deployment/utils/create-activity/create-activity";
 import { CreateDeploymentHandler } from "./create-deployment.handler";
 
@@ -43,6 +44,32 @@ describe(CreateDeploymentHandler.name, () => {
 
     expect(deploymentWriterService.createOnChain).toHaveBeenCalledWith(ACCEPTED, { retry: false, assertMayStillSign: expect.any(Function) });
     expect(activityService.settle).toHaveBeenCalledWith("activity-1", createdActivityOf(KEY));
+  });
+
+  it("schedules the gpu bid checks of a configure page create once the deployment is on chain", async () => {
+    const { handler, deploymentWriterService, userGpuBidCheckService } = setup();
+
+    await handler.handle({ ...PAYLOAD, recordGpuBids: true }, FIRST_ATTEMPT);
+
+    expect(userGpuBidCheckService.scheduleFor).toHaveBeenCalledWith(ACCEPTED);
+    expect(userGpuBidCheckService.scheduleFor.mock.invocationCallOrder[0]).toBeGreaterThan(deploymentWriterService.createOnChain.mock.invocationCallOrder[0]);
+  });
+
+  it("schedules no gpu bid check for a create made elsewhere than the configure page", async () => {
+    const { handler, userGpuBidCheckService } = setup();
+
+    await handler.handle(PAYLOAD, FIRST_ATTEMPT);
+
+    expect(userGpuBidCheckService.scheduleFor).not.toHaveBeenCalled();
+  });
+
+  it("schedules no gpu bid check for a create that did not land", async () => {
+    const { handler, deploymentWriterService, userGpuBidCheckService } = setup();
+    deploymentWriterService.createOnChain.mockRejectedValue(new Error("tx-signer unavailable"));
+
+    await expect(handler.handle({ ...PAYLOAD, recordGpuBids: true }, RETRY)).rejects.toThrow("tx-signer unavailable");
+
+    expect(userGpuBidCheckService.scheduleFor).not.toHaveBeenCalled();
   });
 
   it("has the writer check, right before it signs, that the member who asked may still sign with the wallet for this deployment", async () => {
@@ -244,9 +271,10 @@ describe(CreateDeploymentHandler.name, () => {
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
     const memberDeploymentAccessService = mock<MemberDeploymentAccessService>();
+    const userGpuBidCheckService = mock<UserGpuBidCheckService>();
 
-    const handler = new CreateDeploymentHandler(deploymentWriterService, activityService, memberDeploymentAccessService, createLogger);
+    const handler = new CreateDeploymentHandler(deploymentWriterService, activityService, memberDeploymentAccessService, userGpuBidCheckService, createLogger);
 
-    return { handler, deploymentWriterService, activityService, memberDeploymentAccessService, logger, createLogger };
+    return { handler, deploymentWriterService, activityService, memberDeploymentAccessService, userGpuBidCheckService, logger, createLogger };
   }
 });

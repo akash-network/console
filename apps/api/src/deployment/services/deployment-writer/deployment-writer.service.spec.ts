@@ -1819,21 +1819,13 @@ describe(DeploymentWriterService.name, () => {
   });
 
   describe("createInBackground", () => {
-    it("schedules the gpu bid checks of a configure page create once the create is queued", async () => {
-      const { service, txService, userGpuBidCheckService } = setup();
-      vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
+    it.each([true, undefined])("leaves the gpu bid checks to the queued create, which knows when the deployment lands: %s", async recordGpuBids => {
+      const { service, jobQueueService, userGpuBidCheckService } = setup();
 
-      await service.createInBackground({ userId: "user-1", sdl: SDL_WITH_SECRETS, recordGpuBids: true });
+      await service.createInBackground({ userId: "user-1", sdl: SDL_WITH_SECRETS, recordGpuBids });
 
-      expect(userGpuBidCheckService.scheduleFor).toHaveBeenCalledWith(expect.objectContaining({ dseq: ACCEPTED_DSEQ, message: expect.any(String) }));
-      expect(userGpuBidCheckService.scheduleFor.mock.invocationCallOrder[0]).toBeGreaterThan(txService.transaction.mock.invocationCallOrder.at(-1)!);
-    });
-
-    it("schedules no gpu bid check for a background create made elsewhere than the configure page", async () => {
-      const { service, userGpuBidCheckService } = setup();
-
-      await service.createInBackground({ userId: "user-1", sdl: SDL_WITH_SECRETS });
-
+      const createJob = jobQueueService.enqueue.mock.calls.map(([job]) => job).find(job => job instanceof CreateDeployment);
+      expect(createJob).toEqual(expect.objectContaining({ data: expect.objectContaining({ recordGpuBids }) }));
       expect(userGpuBidCheckService.scheduleFor).not.toHaveBeenCalled();
     });
 
