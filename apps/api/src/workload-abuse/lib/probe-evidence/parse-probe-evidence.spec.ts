@@ -15,7 +15,7 @@ describe("parseProbeEvidence", () => {
       "73014444032 /root/.cache/model.safetensors",
       "--procorig",
       "btime=1740000000",
-      "1234 ppid=1 starttime=650000 comm=python3",
+      "1234 ppid=1 starttime=650000 accel=1 comm=python3",
       ""
     ].join("\n");
 
@@ -25,7 +25,7 @@ describe("parseProbeEvidence", () => {
       { name: "NVIDIA T4", utilPct: 95, memUsedMb: 15130, memTotalMb: 15360, processes: [{ pid: 1234, name: "python3", vramMb: 15100 }] }
     ]);
     expect(features.artifacts).toEqual([{ path: "/root/.cache/model.safetensors", sizeBytes: 73014444032 }]);
-    expect(features.processOrigins).toEqual([{ pid: 1234, ppid: 1, comm: "python3", startedAtEpochMs: 1740006500000 }]);
+    expect(features.processOrigins).toEqual([{ pid: 1234, ppid: 1, comm: "python3", startedAtEpochMs: 1740006500000, holdsAccelerator: true }]);
     expect(features.netShape).toEqual({
       listenPorts: [8080],
       connections: [{ localPort: 3333, remoteIp: "18.185.10.20", remotePort: 443, count: 3, state: "established" }]
@@ -81,11 +81,11 @@ describe("parseProbeEvidence", () => {
 
   it("keeps spaces in artifact paths and process comm fields", () => {
     const features = parseProbeEvidence(
-      ["--disk", "104857600 /root/My Folder/model file.bin", "--procorig", "btime=100", "7 ppid=1 starttime=50 comm=my worker", ""].join("\n")
+      ["--disk", "104857600 /root/My Folder/model file.bin", "--procorig", "btime=100", "7 ppid=1 starttime=50 accel=0 comm=my worker", ""].join("\n")
     );
 
     expect(features.artifacts).toEqual([{ path: "/root/My Folder/model file.bin", sizeBytes: 104857600 }]);
-    expect(features.processOrigins).toEqual([{ pid: 7, ppid: 1, comm: "my worker", startedAtEpochMs: 100500 }]);
+    expect(features.processOrigins).toEqual([{ pid: 7, ppid: 1, comm: "my worker", startedAtEpochMs: 100500, holdsAccelerator: false }]);
   });
 
   it("decodes v4-mapped and native ipv6 remotes from netl lines", () => {
@@ -136,9 +136,23 @@ describe("parseProbeEvidence", () => {
     expect(features.netShape).toEqual({ listenPorts: [], connections: [] });
   });
 
-  it("reports zero startedAtEpochMs when the btime header is missing", () => {
-    const features = parseProbeEvidence("--procorig\n999 ppid=1 starttime=100 comm=sh\n");
+  it("reads multi-digit parent pids and leaves out a line with text before the pid", () => {
+    const features = parseProbeEvidence(
+      ["--procorig", "btime=100", "4481 ppid=4464 starttime=50 accel=1 comm=worker", "note 7 ppid=1 starttime=50 accel=0 comm=sh", ""].join("\n")
+    );
 
-    expect(features.processOrigins).toEqual([{ pid: 999, ppid: 1, comm: "sh", startedAtEpochMs: 0 }]);
+    expect(features.processOrigins).toEqual([{ pid: 4481, ppid: 4464, comm: "worker", startedAtEpochMs: 100500, holdsAccelerator: true }]);
+  });
+
+  it("leaves out a process line that does not say whether the process holds an accelerator", () => {
+    const features = parseProbeEvidence("--procorig\nbtime=100\n7 ppid=1 starttime=50 comm=worker\n8 ppid=1 starttime=60 accel=2 comm=worker\n");
+
+    expect(features.processOrigins).toEqual([]);
+  });
+
+  it("reports zero startedAtEpochMs when the btime header is missing", () => {
+    const features = parseProbeEvidence("--procorig\n999 ppid=1 starttime=100 accel=0 comm=sh\n");
+
+    expect(features.processOrigins).toEqual([{ pid: 999, ppid: 1, comm: "sh", startedAtEpochMs: 0, holdsAccelerator: false }]);
   });
 });

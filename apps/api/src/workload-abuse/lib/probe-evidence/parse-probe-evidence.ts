@@ -103,14 +103,15 @@ function parseProcessOrigins(lines: string[] | undefined): ProbeEvidenceProcessO
       bootTimeSeconds = Number(bootTimeMatch[1]);
       continue;
     }
-    const match = line.match(/^(\d+) ppid=(\d+) starttime=(\d+) comm=(.*)$/);
+    const match = line.match(/^(\d+) ppid=(\d+) starttime=(\d+) accel=([01]) comm=(.*)$/);
     if (!match) continue;
     const starttimeTicks = Number(match[3]);
     origins.push({
       pid: Number(match[1]),
       ppid: Number(match[2]),
-      comm: match[4],
-      startedAtEpochMs: bootTimeSeconds === null ? 0 : Math.round((bootTimeSeconds + starttimeTicks / 100) * 1000)
+      comm: match[5],
+      startedAtEpochMs: bootTimeSeconds === null ? 0 : Math.round((bootTimeSeconds + starttimeTicks / 100) * 1000),
+      holdsAccelerator: match[4] === "1"
     });
   }
 

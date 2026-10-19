@@ -155,7 +155,7 @@ describe("evaluateNetworkIsolation", () => {
   });
 
   function setup(input: { netShape: ProbeEvidenceNetShape | null; relayEndpoints?: string[] }) {
-    const snapshot: ProbeEvidenceSnapshot = { shellStatus: "completed", accelerator: null, artifacts: null, netShape: input.netShape };
+    const snapshot: ProbeEvidenceSnapshot = { shellStatus: "completed", accelerator: null, artifacts: null, processOrigins: null, netShape: input.netShape };
     const params: BehaviouralSignalParams = { accelMinVramMb: 1_024, artifactMinMb: 256, relayEndpoints: input.relayEndpoints ?? [] };
 
     return { snapshot, params };

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import acceleratorBoundNoArtifacts from "./accelerator-bound-no-artifacts.json";
 import acceleratorBoundSingleUpstream from "./accelerator-bound-single-upstream.json";
+import acceleratorMemoryOutsideContainer from "./accelerator-memory-outside-container.json";
 import cpuOnlyWorkload from "./cpu-only-workload.json";
 import idleShellHost from "./idle-shell-host.json";
 import inferenceWithWeights from "./inference-with-weights.json";
@@ -9,12 +10,21 @@ import packagedRuntime from "./packaged-runtime.json";
 
 const PROCESS_SCHEMA = z.object({ pid: z.number(), name: z.string(), vramMb: z.number() });
 
+const PROCESS_ORIGIN_SCHEMA = z.object({
+  pid: z.number(),
+  ppid: z.number(),
+  comm: z.string(),
+  startedAtEpochMs: z.number(),
+  holdsAccelerator: z.boolean().optional()
+});
+
 const SNAPSHOT_SCHEMA = z.object({
   shellStatus: z.string(),
   accelerator: z
     .array(z.object({ name: z.string(), utilPct: z.number(), memUsedMb: z.number(), memTotalMb: z.number(), processes: z.array(PROCESS_SCHEMA) }))
     .nullable(),
   artifacts: z.array(z.object({ path: z.string(), sizeBytes: z.number() })).nullable(),
+  processOrigins: z.array(PROCESS_ORIGIN_SCHEMA).nullable().default(null),
   netShape: z
     .object({
       listenPorts: z.array(z.number()),
@@ -42,6 +52,7 @@ export function parseReplayFixture(contents: unknown): BehaviouralReplayFixture 
 export const BUNDLED_REPLAY_FIXTURES: BehaviouralReplayFixture[] = [
   acceleratorBoundNoArtifacts,
   acceleratorBoundSingleUpstream,
+  acceleratorMemoryOutsideContainer,
   inferenceWithWeights,
   idleShellHost,
   packagedRuntime,
