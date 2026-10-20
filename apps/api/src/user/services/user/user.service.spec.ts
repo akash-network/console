@@ -287,6 +287,16 @@ describe(UserService.name, () => {
         expect(notificationService.createDefaultChannel).toHaveBeenCalledWith(expect.objectContaining({ id: user.id, timezone: "Europe/Paris" }));
       });
 
+      it("keeps the alert emails of the default notification channel in the picked timezone when another one is detected", async () => {
+        const user = createUser({ timezone: "Europe/Paris", timezonePickedAt: faker.date.past() });
+        const { service, userRepository, notificationService } = setup();
+        userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
+
+        await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Asia/Tokyo" }));
+
+        expect(notificationService.createDefaultChannel).toHaveBeenCalledWith(expect.objectContaining({ id: user.id, timezone: "Europe/Paris" }));
+      });
+
       it("stores the canonical name of a timezone alias", async () => {
         const user = createUser({ timezone: null, timezonePickedAt: null });
         const { service, userRepository } = setup();

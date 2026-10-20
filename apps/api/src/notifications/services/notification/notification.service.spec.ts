@@ -428,6 +428,26 @@ describe(NotificationService.name, () => {
       );
     });
 
+    it("opens the deployer's missing default channel in their timezone", async () => {
+      const { service, api, userRepository, organizationRepository, deploymentSettingRepository } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com", timezone: "Asia/Tokyo" } as UserOutput);
+      deploymentSettingRepository.findTenancy.mockResolvedValue(undefined);
+      organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1", type: "personal" }));
+      api.v1.listNotificationChannels.mockResolvedValueOnce({ data: [] } as never).mockResolvedValueOnce({ data: [{ id: "default-channel", isDefault: true }] } as never);
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(
+        { data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] }, timezone: "Asia/Tokyo" } },
+        expect.anything()
+      );
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(
+        { dseq: "123", data: { alerts: { deploymentClosed: { notificationChannelId: "default-channel", enabled: true } } } },
+        expect.anything()
+      );
+    });
+
     it("creates a channel for the deployer in a team deployment's organization when they have none there", async () => {
       const { service, api, userRepository, deploymentSettingRepository } = setup();
       const teamHeaders = { "x-user-id": "user-1", "x-organization-id": "organization-1", "x-organization-type": "team", "x-project-id": "project-1" };
