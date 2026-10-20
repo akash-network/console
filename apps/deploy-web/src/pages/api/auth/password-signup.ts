@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { readBrowserTimezone } from "@src/lib/browser-timezone/browser-timezone-cookie";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import { verifyCaptcha } from "@src/middleware/verify-captcha/verify-captcha";
 
@@ -43,7 +44,8 @@ export default defineApiHandler({
 
     const result = await services.sessionService.signUp({
       email: req.body.email,
-      password: req.body.password
+      password: req.body.password,
+      timezone: readBrowserTimezone(req)
     });
 
     if (result.ok) {

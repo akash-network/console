@@ -17,6 +17,7 @@ export interface UserSettings {
   onboardingSkippedAt?: string | null;
   fairUsePolicyAcceptedAt?: string | null;
   productUpdatesUnsubscribedAt?: string | null;
+  timezone?: string | null;
 }
 
 export type CustomUserProfile = UserProfile & UserSettings;
