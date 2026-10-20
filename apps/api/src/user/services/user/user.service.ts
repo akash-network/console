@@ -16,6 +16,7 @@ import { NotificationService } from "@src/notifications/services/notification/no
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import { DataKeyService } from "@src/secret/services/data-key/data-key.service";
+import { toIanaTimeZone } from "@src/utils/date/date";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { UserInput, type UserOutput, UserRepository } from "../../repositories/user/user.repository";
 
@@ -52,6 +53,7 @@ export class UserService {
     youtubeUsername: string | null;
     twitterUsername: string | null;
     githubUsername: string | null;
+    timezone: string | null;
     isNewUser: boolean;
   }> {
     await this.assertDomainNotBlockedForNewUser(data);
@@ -66,10 +68,12 @@ export class UserService {
       lastFingerprint: data.fingerprint
     };
 
-    const { user, wasInserted, organization } = await this.upsertUser({
+    const upserted = await this.upsertUser({
       ...userDetails,
       username: data.wantedUsername
     });
+    const { wasInserted, organization } = upserted;
+    const user = await this.#rememberDetectedTimezone(upserted.user, data.timezone);
 
     this.logger.info({ event: "USER_REGISTERED", id: user.id, userId: user.userId });
     this.analyticsService.identify(user.id, {
@@ -105,8 +109,20 @@ export class UserService {
       });
     }
 
-    const { id, userId, username, email, emailVerified, stripeCustomerId, bio, subscribedToNewsletter, youtubeUsername, twitterUsername, githubUsername } =
-      user;
+    const {
+      id,
+      userId,
+      username,
+      email,
+      emailVerified,
+      stripeCustomerId,
+      bio,
+      subscribedToNewsletter,
+      youtubeUsername,
+      twitterUsername,
+      githubUsername,
+      timezone
+    } = user;
 
     return {
       id,
@@ -120,6 +136,7 @@ export class UserService {
       youtubeUsername,
       twitterUsername,
       githubUsername,
+      timezone,
       isNewUser: wasInserted
     } as Awaited<ReturnType<this["registerUser"]>>;
   }
@@ -136,6 +153,14 @@ export class UserService {
     this.logger.warn({ event: "REGISTRATION_BLOCKED_EMAIL_DOMAIN", userId: data.userId });
 
     throw createError(403, ACCOUNT_UNAVAILABLE_MESSAGE, { errorCode: ACCOUNT_UNAVAILABLE_ERROR_CODE });
+  }
+
+  /** A timezone the user picked stays theirs, while a detected one follows them to wherever they last signed in from. */
+  async #rememberDetectedTimezone(user: UserOutput, detectedTimezone: string | undefined): Promise<UserOutput> {
+    const timezone = detectedTimezone && toIanaTimeZone(detectedTimezone);
+    if (!timezone || user.timezonePickedAt || user.timezone === timezone) return user;
+
+    return (await this.userRepository.updateBy({ id: user.id, timezonePickedAt: null }, { timezone }, { returning: true })) ?? user;
   }
 
   /**
@@ -216,18 +241,24 @@ export class UserService {
     userId: string,
     data: Pick<UserInput, "username" | "subscribedToNewsletter" | "bio" | "youtubeUsername" | "twitterUsername" | "githubUsername"> & {
       subscribedToProductUpdates?: boolean;
+      timezone?: string;
     }
   ): Promise<void> {
     const user = await this.userRepository.findById(userId);
     assert(user, 404, "User settings not found: " + userId);
 
-    const { subscribedToProductUpdates, ...details } = data;
+    const { subscribedToProductUpdates, timezone, ...details } = data;
     const changes: Partial<UserInput> = {
       ...details
     };
 
     if (subscribedToProductUpdates !== undefined) {
       changes.productUpdatesUnsubscribedAt = subscribedToProductUpdates ? null : user.productUpdatesUnsubscribedAt ?? new Date();
+    }
+
+    if (timezone) {
+      changes.timezone = timezone;
+      changes.timezonePickedAt = new Date();
     }
 
     if (data.username && user.username !== data.username) {
@@ -281,6 +312,7 @@ export interface RegisterUserInput {
   email: string;
   emailVerified: boolean;
   subscribedToNewsletter: boolean;
+  timezone?: string;
   ip: string;
   userAgent: string;
   fingerprint: string;

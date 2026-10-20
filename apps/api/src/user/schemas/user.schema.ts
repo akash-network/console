@@ -14,7 +14,8 @@ export const UserSchema = z.object({
   githubUsername: z.string().optional().nullable(),
   onboardingSkippedAt: z.string().datetime().nullable().optional(),
   fairUsePolicyAcceptedAt: z.string().datetime().nullable().optional(),
-  productUpdatesUnsubscribedAt: z.string().datetime().nullable().optional()
+  productUpdatesUnsubscribedAt: z.string().datetime().nullable().optional(),
+  timezone: z.string().nullable().optional().openapi({ description: "IANA timezone the dates in the user's emails are shown in, UTC when unknown" })
 });
 
 export type UserSchema = z.infer<typeof UserSchema>;

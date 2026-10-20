@@ -19,6 +19,28 @@ describe(startTrialNotification.name, () => {
     expect(result.payload.description).toContain("24 hours");
   });
 
+  it("shows when the trial ends in the user's timezone and names it", () => {
+    const user = createUser({ id: "user-123", email: "user@example.com", timezone: "Asia/Kolkata" });
+
+    const result = startTrialNotification(user, {
+      trialEndsAt: "2025-10-22T07:58:47.770Z",
+      deploymentLifetimeInHours: 24
+    });
+
+    expect(result.payload.description).toContain("Your trial ends at Oct 22, 2025, 13:28 India Standard Time, and");
+  });
+
+  it("shows when the trial ends in UTC when the user's timezone is unknown", () => {
+    const user = createUser({ id: "user-123", email: "user@example.com", timezone: null });
+
+    const result = startTrialNotification(user, {
+      trialEndsAt: "2025-10-22T07:58:47.770Z",
+      deploymentLifetimeInHours: 24
+    });
+
+    expect(result.payload.description).toContain("Your trial ends at Oct 22, 2025, 07:58 UTC, and");
+  });
+
   it("does not disclose a specific credit amount", () => {
     const user = createUser({ id: "user-123", email: "user@example.com" });
 

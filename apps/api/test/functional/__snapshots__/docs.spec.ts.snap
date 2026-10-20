@@ -19852,6 +19852,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "subscribedToNewsletter": {
                     "type": "boolean",
                   },
+                  "timezone": {
+                    "description": "The browser's IANA timezone, kept on the account until the user picks one in their profile. A value that names no zone is ignored.",
+                    "example": "Europe/Paris",
+                    "type": "string",
+                  },
                   "wantedUsername": {
                     "type": "string",
                   },
@@ -19912,6 +19917,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         },
                         "subscribedToNewsletter": {
                           "type": "boolean",
+                        },
+                        "timezone": {
+                          "description": "IANA timezone the dates in the user's emails are shown in, UTC when unknown",
+                          "nullable": true,
+                          "type": "string",
                         },
                         "twitterUsername": {
                           "nullable": true,
@@ -21399,6 +21409,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "subscribedToNewsletter": {
                           "type": "boolean",
                         },
+                        "timezone": {
+                          "description": "IANA timezone the dates in the user's emails are shown in, UTC when unknown",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "twitterUsername": {
                           "nullable": true,
                           "type": "string",
@@ -21923,6 +21938,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   },
                   "subscribedToProductUpdates": {
                     "type": "boolean",
+                  },
+                  "timezone": {
+                    "description": "IANA timezone the user picked for the dates in their emails",
+                    "example": "Europe/Paris",
+                    "type": "string",
                   },
                   "twitterUsername": {
                     "maxLength": 200,

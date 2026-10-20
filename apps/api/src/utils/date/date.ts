@@ -23,6 +23,19 @@ export function isSupportedTimeZone(timeZone: string): boolean {
   }
 }
 
+/** Intl also accepts UTC offsets such as `+05:00`, which name no zone. */
+const UTC_OFFSET = /^[+-]/;
+
+const UTC = "UTC";
+
+/** A timezone as given in ICU's letter case, and `UTC` for every UTC alias, since ICU would rename current zones to retired ones such as `Asia/Calcutta`. */
+export function toIanaTimeZone(timeZone: string): string | undefined {
+  if (UTC_OFFSET.test(timeZone) || !isSupportedTimeZone(timeZone)) return undefined;
+
+  const resolvedTimeZone = new Intl.DateTimeFormat(undefined, { timeZone }).resolvedOptions().timeZone;
+  return resolvedTimeZone === UTC || resolvedTimeZone.toLowerCase() === timeZone.toLowerCase() ? resolvedTimeZone : timeZone;
+}
+
 export function getPrettyTime(timeMs: number): string {
   if (timeMs < 10) {
     return `${round(timeMs, 2)}ms`;

@@ -685,6 +685,11 @@ export interface paths {
             email: string;
             emailVerified: boolean;
             subscribedToNewsletter?: boolean;
+            /**
+             * @description The browser's IANA timezone, kept on the account until the user picks one in their profile. A value that names no zone is ignored.
+             * @example Europe/Paris
+             */
+            timezone?: string;
           };
         };
       };
@@ -714,6 +719,8 @@ export interface paths {
                 fairUsePolicyAcceptedAt?: string | null;
                 /** Format: date-time */
                 productUpdatesUnsubscribedAt?: string | null;
+                /** @description IANA timezone the dates in the user's emails are shown in, UTC when unknown */
+                timezone?: string | null;
               };
               isNewUser: boolean;
             };
@@ -774,6 +781,8 @@ export interface paths {
                 fairUsePolicyAcceptedAt?: string | null;
                 /** Format: date-time */
                 productUpdatesUnsubscribedAt?: string | null;
+                /** @description IANA timezone the dates in the user's emails are shown in, UTC when unknown */
+                timezone?: string | null;
               };
             };
           };
@@ -867,6 +876,11 @@ export interface paths {
             twitterUsername?: string | null;
             githubUsername?: string | null;
             subscribedToProductUpdates?: boolean;
+            /**
+             * @description IANA timezone the user picked for the dates in their emails
+             * @example Europe/Paris
+             */
+            timezone?: string;
           };
         };
       };
