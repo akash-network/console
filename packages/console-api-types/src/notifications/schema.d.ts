@@ -791,7 +791,7 @@ export interface components {
         /** Format: uuid */
         userId: string;
         /** @description IANA timezone the dates in the channel's emails are shown in, UTC when there is none */
-        timezone?: string | null;
+        timezone: string | null;
         createdAt: unknown;
         updatedAt: unknown;
       };
@@ -826,7 +826,7 @@ export interface components {
         /** Format: uuid */
         userId: string;
         /** @description IANA timezone the dates in the channel's emails are shown in, UTC when there is none */
-        timezone?: string | null;
+        timezone: string | null;
         createdAt: unknown;
         updatedAt: unknown;
       }[];

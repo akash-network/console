@@ -34,7 +34,7 @@ export const notificationChannelOutputSchema = notificationChannelCreateInputSch
   id: z.string().uuid(),
   userId: z.string().uuid(),
   isDefault: z.boolean(),
-  timezone: z.string().nullable().optional().describe("IANA timezone the dates in the channel's emails are shown in, UTC when there is none"),
+  timezone: z.string().nullable().describe("IANA timezone the dates in the channel's emails are shown in, UTC when there is none"),
   createdAt: z.date(),
   updatedAt: z.date()
 });

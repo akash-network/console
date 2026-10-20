@@ -5292,6 +5292,7 @@
               "isDefault",
               "id",
               "userId",
+              "timezone",
               "createdAt",
               "updatedAt"
             ]
@@ -5422,6 +5423,7 @@
                 "isDefault",
                 "id",
                 "userId",
+                "timezone",
                 "createdAt",
                 "updatedAt"
               ]
