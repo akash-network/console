@@ -374,6 +374,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         secondsAfterTimeout: Math.round((Date.now() - noBidsReportedAtRef.current) / 1000),
         placementCount: screeningRef.current?.placementCount,
         screenedProviderCount: screeningRef.current?.providerCount,
+        notBiddingProviderCount: screeningRef.current?.notBiddingProviderCount,
         isAutoDeploy: intentRef.current.sdlStrategy === "default" && bidStrategyRef.current === "auto"
       });
     },

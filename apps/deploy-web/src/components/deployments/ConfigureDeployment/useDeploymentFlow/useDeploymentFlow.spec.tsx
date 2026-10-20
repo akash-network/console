@@ -527,7 +527,7 @@ describe(useDeploymentFlow.name, () => {
         const bidList: { bids: Array<ReturnType<typeof openBidOn>> } = { bids: [] };
         const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
         const { result, rerender, analyticsService } = setup({ createMutate, closeMutate: vi.fn(), bidList });
-        act(() => result.current.actions.requestQuotes("sdl-content", { screening: { placementCount: 2, providerCount: 28 } }));
+        act(() => result.current.actions.requestQuotes("sdl-content", { screening: { placementCount: 2, providerCount: 28, notBiddingProviderCount: 5 } }));
         await settleSeal();
         act(() => vi.advanceTimersByTime(67_000));
 
@@ -541,6 +541,7 @@ describe(useDeploymentFlow.name, () => {
           secondsAfterTimeout: 7,
           placementCount: 2,
           screenedProviderCount: 28,
+          notBiddingProviderCount: 5,
           isAutoDeploy: false
         });
       } finally {
@@ -565,6 +566,7 @@ describe(useDeploymentFlow.name, () => {
           secondsAfterTimeout: 1,
           placementCount: undefined,
           screenedProviderCount: undefined,
+          notBiddingProviderCount: undefined,
           isAutoDeploy: true
         });
       } finally {
