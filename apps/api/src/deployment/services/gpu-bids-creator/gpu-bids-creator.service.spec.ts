@@ -1,5 +1,5 @@
 import { Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import type { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
+import type { MsgCloseDeployment, MsgCreateDeployment, QueryDeploymentResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { Bid, QueryBidResponse, QueryBidsResponse } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import type { DeliverTxResponse, SigningStargateClient } from "@cosmjs/stargate";
@@ -230,6 +230,45 @@ describe(GpuBidsCreatorService.name, () => {
     );
   });
 
+  it("closes the deployments an earlier run left open before checking", async () => {
+    const { service, signingClient, chainSdk, logger } = setup({ models: [nvidia("h100")], leftoverDseqs: [111n, 222n] });
+
+    await service.createGpuBids();
+
+    expect(chainSdk.akash.deployment.v1beta4.getDeployments).toHaveBeenCalledWith({
+      filters: { owner: BOT_ADDRESS, state: "active" },
+      pagination: { limit: 100n }
+    });
+    expect(closedDseqs(signingClient).slice(0, 2)).toEqual([111n, 222n]);
+    expect(broadcastTypes(signingClient)[2]).toBe("/akash.deployment.v1beta4.MsgCreateDeployment");
+    expect(logger.info).toHaveBeenCalledWith({ event: "GPU_CHECK_LEFTOVER_DEPLOYMENT_CLOSED", dseq: "111" });
+  });
+
+  it("keeps closing leftovers and checking when a leftover cannot be closed", async () => {
+    const { service, signingClient, logger } = setup({ models: [nvidia("h100")], leftoverDseqs: [111n, 222n] });
+    signingClient.broadcastTx.mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 5, rawLog: "deployment closed" }));
+
+    await service.createGpuBids();
+
+    expect(logger.error).toHaveBeenCalledWith({
+      event: "GPU_CHECK_LEFTOVER_DEPLOYMENT_CLOSE_FAILED",
+      dseq: "111",
+      error: new Error("Error broadcasting transaction: deployment closed")
+    });
+    expect(closedDseqs(signingClient)).toContain(222n);
+    expect(createdDeployments(signingClient)).toEqual([["vendor/nvidia/model/h100"]]);
+  });
+
+  it("checks the gpus even when the open deployments cannot be read", async () => {
+    const { service, signingClient, chainSdk, logger } = setup({ models: [nvidia("h100")] });
+    chainSdk.akash.deployment.v1beta4.getDeployments.mockRejectedValue(new Error("rpc unavailable"));
+
+    await service.createGpuBids();
+
+    expect(logger.error).toHaveBeenCalledWith({ event: "GPU_CHECK_LEFTOVER_DEPLOYMENTS_UNREAD", error: new Error("rpc unavailable") });
+    expect(createdDeployments(signingClient)).toEqual([["vendor/nvidia/model/h100"]]);
+  });
+
   it("doubles the simulated gas when calculating the fee", async () => {
     const { service, signingClient } = setup({ models: [nvidia("h100")] });
     signingClient.simulate.mockResolvedValue(205481);
@@ -287,6 +326,12 @@ describe(GpuBidsCreatorService.name, () => {
     return sentMessages(signingClient).map(message => message.typeUrl);
   }
 
+  function closedDseqs(signingClient: SigningStargateClient): bigint[] {
+    return sentMessages(signingClient)
+      .filter(message => message.typeUrl.endsWith("MsgCloseDeployment"))
+      .map(message => (message.value as MsgCloseDeployment).id!.dseq);
+  }
+
   function createdDeployments(signingClient: SigningStargateClient): string[][] {
     return sentMessages(signingClient)
       .filter(message => message.typeUrl.endsWith("MsgCreateDeployment"))
@@ -300,6 +345,7 @@ describe(GpuBidsCreatorService.name, () => {
       models?: GpuModel[];
       bidPages?: Array<{ bids: QueryBidResponse[]; nextKey?: Uint8Array }>;
       bidWindowSeconds?: number;
+      leftoverDseqs?: bigint[];
     } = {}
   ) {
     const config = mockConfigService<BillingConfigService>({
@@ -312,6 +358,10 @@ describe(GpuBidsCreatorService.name, () => {
       chainSdk.akash.market.v1beta5.getBids.mockResolvedValueOnce(bidsResponse(page.bids, page.nextKey));
     }
     chainSdk.akash.market.v1beta5.getBids.mockResolvedValue(bidsResponse([]));
+    chainSdk.akash.deployment.v1beta4.getDeployments.mockResolvedValue({
+      deployments: (input.leftoverDseqs ?? []).map(dseq => mock<QueryDeploymentResponse>({ deployment: { id: { owner: BOT_ADDRESS, dseq } } })),
+      pagination: undefined
+    });
 
     const placementOptionsHttpService = mock<PlacementOptionsHttpService>();
     placementOptionsHttpService.findAvailableGpuModels.mockResolvedValue(input.models ?? []);

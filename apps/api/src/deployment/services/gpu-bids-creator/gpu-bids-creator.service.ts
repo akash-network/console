@@ -32,6 +32,9 @@ const DEPOSIT_UACT = "500000";
 
 const BIDS_PAGE_SIZE = 1000n;
 
+/** One page per run is enough, since each run closes what it finds and leaves the rest to the next. */
+const LEFTOVER_DEPLOYMENTS_PAGE_SIZE = 100n;
+
 interface GpuCheckBatchResult {
   dseq: string;
   bidCount: number;
@@ -63,6 +66,7 @@ export class GpuBidsCreatorService {
     const { address, client } = await this.signingClientFactory.connect(this.#deploymentConfig.GPU_BOT_WALLET_MNEMONIC);
     const feeBalanceBefore = await this.#getFeeBalance(client, address);
     this.#logger.info({ event: "CREATING_GPU_BIDS", address, feeBalance: feeBalanceBefore / 1_000_000 });
+    await this.#closeLeftoverDeployments(client, address);
 
     const models = await this.#findCheckableModels();
     const batches = chunk(models, MAX_GROUPS_PER_DEPLOYMENT);
@@ -91,6 +95,35 @@ export class GpuBidsCreatorService {
     if (failures.length > 0) {
       throw new AggregateError(failures, `${failures.length} of ${batches.length} gpu check deployments failed`);
     }
+  }
+
+  /** A run that lost track of its deployment, to a broadcast timeout or a pod stopped mid-check, left it open with its deposit, so the next run closes it. */
+  async #closeLeftoverDeployments(client: SigningStargateClient, owner: string): Promise<void> {
+    let dseqs: string[];
+    try {
+      dseqs = await this.#findActiveDeploymentDseqs(owner);
+    } catch (error) {
+      this.#logger.error({ event: "GPU_CHECK_LEFTOVER_DEPLOYMENTS_UNREAD", error });
+      return;
+    }
+
+    for (const dseq of dseqs) {
+      try {
+        await this.#closeDeployment(client, owner, dseq);
+        this.#logger.info({ event: "GPU_CHECK_LEFTOVER_DEPLOYMENT_CLOSED", dseq });
+      } catch (error) {
+        this.#logger.error({ event: "GPU_CHECK_LEFTOVER_DEPLOYMENT_CLOSE_FAILED", dseq, error });
+      }
+    }
+  }
+
+  async #findActiveDeploymentDseqs(owner: string): Promise<string[]> {
+    const { deployments } = await this.#chainSdk.akash.deployment.v1beta4.getDeployments({
+      filters: { owner, state: "active" },
+      pagination: { limit: LEFTOVER_DEPLOYMENTS_PAGE_SIZE }
+    });
+
+    return deployments.flatMap(({ deployment }) => (deployment?.id ? [deployment.id.dseq.toString()] : []));
   }
 
   async #findCheckableModels(): Promise<string[]> {
