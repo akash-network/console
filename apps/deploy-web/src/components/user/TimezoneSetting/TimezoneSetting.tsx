@@ -36,7 +36,7 @@ export const TimezoneSetting: FC<Props> = ({ user, dependencies: d = DEPENDENCIE
   return (
     <SettingsRow
       label="Timezone"
-      description="Dates and times in your emails are shown in this timezone. Until you pick one, it follows the browser you sign in with."
+      description="Dates and times in your emails are shown in this timezone. Until you pick one, it is detected from your browser."
     >
       <div className="w-[260px] max-w-full">
         <SearchableSelect

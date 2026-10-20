@@ -28,7 +28,7 @@ describe(TimezoneSetting.name, () => {
     setup({ timezone: null });
 
     expect(
-      screen.getByText("Dates and times in your emails are shown in this timezone. Until you pick one, it follows the browser you sign in with.")
+      screen.getByText("Dates and times in your emails are shown in this timezone. Until you pick one, it is detected from your browser.")
     ).toBeInTheDocument();
   });
 
