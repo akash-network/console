@@ -31,6 +31,12 @@ describe(listTimezoneOptions.name, () => {
     expect(options.slice(0, 2).map(option => option.value)).toEqual(["UTC", "Asia/Kolkata"]);
     expect(options.filter(option => option.value === "Asia/Kolkata")).toHaveLength(1);
   });
+
+  it("lists a current zone this browser has no data for by name alone", () => {
+    const options = listTimezoneOptions("Mars/Olympus_Mons", JULY);
+
+    expect(options[1]).toEqual({ value: "Mars/Olympus_Mons", label: "Mars/Olympus Mons", hint: "", keywords: ["Mars/Olympus Mons"] });
+  });
 });
 
 describe(formatTimezoneName.name, () => {

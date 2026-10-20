@@ -15,10 +15,15 @@ export function listTimezoneOptions(currentTimeZone: string, at: Date): Searchab
     const name = formatTimezoneName(timeZone);
     const offset = formatUtcOffset(timeZone, at);
 
-    return { value: timeZone, label: name, hint: offset, keywords: [name, offset] };
+    return { value: timeZone, label: name, hint: offset, keywords: offset ? [name, offset] : [name] };
   });
 }
 
+/** A zone saved from a device with newer time zone data can be unknown to this browser, which then has no offset to show for it. */
 function formatUtcOffset(timeZone: string, at: Date): string {
-  return new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "shortOffset" }).formatToParts(at).find(part => part.type === "timeZoneName")!.value;
+  try {
+    return new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "shortOffset" }).formatToParts(at).find(part => part.type === "timeZoneName")!.value;
+  } catch {
+    return "";
+  }
 }
