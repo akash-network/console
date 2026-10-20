@@ -29,8 +29,8 @@ export const useProviderApiActions = (): ProviderApiActions => {
       const snackbarKey = enqueueSnackbar(
         <Snackbar
           title={title}
-          subTitle={
-            <Button onClick={() => abortController.abort()} variant="text" size="sm">
+          action={
+            <Button onClick={() => abortController.abort()} variant="outline" size="xs" className="text-xs">
               Cancel
             </Button>
           }
