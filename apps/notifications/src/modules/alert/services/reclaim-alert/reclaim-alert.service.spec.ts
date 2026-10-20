@@ -166,6 +166,18 @@ describe(ReclaimAlertService.name, () => {
 
       expect(onMessage.mock.calls[0][0].payload.description).toContain("You have until 2025-06-08 16:00 UTC (");
     });
+
+    it("leaves the alert unclaimed for a redelivery when the channel's timezone cannot be read", async () => {
+      const { service, alertRepository, onMessage } = await setup();
+      const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.findNotificationChannelTimezone.mockRejectedValue(new Error("connection reset"));
+
+      await expect(service.alertFor(generateReclaimEvent(), onMessage)).rejects.toThrow("connection reset");
+
+      expect(alertRepository.claimNotification).not.toHaveBeenCalled();
+      expect(onMessage).not.toHaveBeenCalled();
+    });
   });
 
   function generateReclaimEvent(overrides: Partial<ReclaimAlertEvent> = {}): ReclaimAlertEvent {

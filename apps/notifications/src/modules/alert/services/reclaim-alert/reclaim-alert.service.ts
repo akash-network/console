@@ -42,14 +42,13 @@ export class ReclaimAlertService {
       return;
     }
 
+    const recipientTimezone = await this.alertRepository.findNotificationChannelTimezone(alert.notificationChannelId);
     const claimedAlert = await this.alertRepository.claimNotification(alert.id, "reclaimNotifiedAt");
 
     if (!claimedAlert) {
       this.loggerService.debug({ event: "RECLAIM_ALERT_SKIPPED", reason: "ALREADY_NOTIFIED", alertId: alert.id });
       return;
     }
-
-    const recipientTimezone = await this.alertRepository.findNotificationChannelTimezone(claimedAlert.notificationChannelId);
 
     await onMessage({
       notificationChannelId: claimedAlert.notificationChannelId,
