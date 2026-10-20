@@ -273,6 +273,17 @@ describe(GpuBidsCreatorService.name, () => {
     }
   });
 
+  it("still reports the run and its failed batches when old checks cannot be deleted", async () => {
+    const { service, signingClient, gpuBidCheckRepository, logger } = setup({ models: [nvidia("h100")] });
+    signingClient.broadcastTx.mockResolvedValueOnce(mock<DeliverTxResponse>({ code: 5, rawLog: "insufficient funds" }));
+    gpuBidCheckRepository.deleteCheckedBefore.mockRejectedValue(new Error("database unavailable"));
+
+    await expect(service.createGpuBids()).rejects.toThrow("1 of 1 gpu check deployments failed");
+
+    expect(logger.error).toHaveBeenCalledWith({ event: "GPU_CHECK_RETENTION_CLEANUP_FAILED", error: new Error("database unavailable") });
+    expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "GPU_BIDS_CREATED", failedDeploymentCount: 1 }));
+  });
+
   it("closes the deployment and reports the batch as failed when recording the checks fails", async () => {
     const { service, signingClient, gpuBidCheckRepository, logger } = setup({ models: [nvidia("h100")] });
     gpuBidCheckRepository.insertMany.mockRejectedValue(new Error("database unavailable"));

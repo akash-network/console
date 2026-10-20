@@ -110,7 +110,7 @@ export class GpuBidsCreatorService {
       }
     }
 
-    await this.gpuBidCheckRepository.deleteCheckedBefore(subDays(new Date(), CHECK_RETENTION_DAYS));
+    await this.#deleteExpiredChecks();
 
     const feeBalanceAfter = await this.#getFeeBalance(client, address);
     this.#logger.info({
@@ -155,6 +155,14 @@ export class GpuBidsCreatorService {
     });
 
     return deployments.flatMap(({ deployment }) => (deployment?.id ? [deployment.id.dseq.toString()] : []));
+  }
+
+  async #deleteExpiredChecks(): Promise<void> {
+    try {
+      await this.gpuBidCheckRepository.deleteCheckedBefore(subDays(new Date(), CHECK_RETENTION_DAYS));
+    } catch (error) {
+      this.#logger.error({ event: "GPU_CHECK_RETENTION_CLEANUP_FAILED", error });
+    }
   }
 
   async #findCheckableModels(): Promise<string[]> {
