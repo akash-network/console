@@ -1,4 +1,4 @@
-import type { Project, ProjectDeploymentPreview, ProjectDeploymentStatus, ProjectDeploymentSummary } from "@src/types/project";
+import type { ProjectDeploymentPreview, ProjectDeploymentStatus, ProjectDeploymentSummary } from "@src/types/project";
 
 /** Problems come out of the folder first, so a degraded sheet is the one furthest back and highest. */
 const STATUS_RANK: Record<ProjectDeploymentStatus, number> = { degraded: 0, pending: 1, running: 2 };
@@ -32,9 +32,4 @@ export function selectFolderSheets(summary: ProjectDeploymentSummary | null): { 
     sheets: [...deploymentSheets.slice(0, MAX_FOLDER_SHEETS - 1), { kind: "more", count: activeCount - (MAX_FOLDER_SHEETS - 1) }],
     bulkEdges: Math.min(MAX_BULK_EDGES, activeCount - MAX_FOLDER_SHEETS)
   };
-}
-
-/** To those who manage projects, the default project every organization carries only shows once it holds open deployments, so a fresh organization reads as empty. */
-export function isProjectListed(project: Project): boolean {
-  return !project.isDefault || !project.deployments || project.deployments.activeCount > 0;
 }

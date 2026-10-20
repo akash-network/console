@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { Project, ProjectDeploymentPreview, ProjectDeploymentStatus } from "@src/types/project";
-import { isProblemStatus, isProjectListed, rankActiveDeployments, selectFolderSheets } from "./projectSummary";
-
-import { buildProject } from "@tests/seeders/project";
+import type { ProjectDeploymentPreview, ProjectDeploymentStatus } from "@src/types/project";
+import { isProblemStatus, rankActiveDeployments, selectFolderSheets } from "./projectSummary";
 
 describe(rankActiveDeployments.name, () => {
   it("puts problems first, worst first, and keeps the api order among equals", () => {
@@ -69,28 +67,6 @@ describe(selectFolderSheets.name, () => {
   });
 });
 
-describe(isProjectListed.name, () => {
-  it("lists every project that is not the default one", () => {
-    expect(isProjectListed(project({ isDefault: false, activeCount: 0 }))).toBe(true);
-  });
-
-  it("hides the default project while it holds no open deployment", () => {
-    expect(isProjectListed(project({ isDefault: true, activeCount: 0 }))).toBe(false);
-  });
-
-  it("lists the default project once it holds an open deployment", () => {
-    expect(isProjectListed(project({ isDefault: true, activeCount: 1 }))).toBe(true);
-  });
-
-  it("lists the default project when its deployments could not be counted", () => {
-    expect(isProjectListed(buildProject({ isDefault: true, deployments: null }))).toBe(true);
-  });
-});
-
 function preview(name: string, status: ProjectDeploymentStatus): ProjectDeploymentPreview {
   return { dseq: name, name, status };
-}
-
-function project(input: { isDefault: boolean; activeCount: number }): Project {
-  return buildProject({ isDefault: input.isDefault, deployments: { activeCount: input.activeCount, preview: [] } });
 }

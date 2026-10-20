@@ -98,16 +98,13 @@ describe(ProjectsPage.name, () => {
     expect(screen.queryByText(/\d+ projects?$/)).not.toBeInTheDocument();
   });
 
-  it("treats an organization holding only an untouched default project as empty", () => {
-    setup({ projects: [project({ name: "default", isDefault: true })] });
+  it("shows a manager the default project before anything runs in it, ready for a first deployment", () => {
+    setup({ role: "owner", projects: [project({ name: "default", isDefault: true })] });
 
-    expect(screen.getByRole("heading", { name: "Create your first project" })).toBeInTheDocument();
-  });
-
-  it("shows the default project to a manager when its deployments could not be counted", () => {
-    setup({ projects: [project({ name: "default", isDefault: true, deployments: null })] });
-
-    expect(screen.getByRole("link", { name: "Open default" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open default, 0 active deployments" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "menu of default" })).toBeInTheDocument();
+    expect(screen.getByText("1 project")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^New deployment/ })).toHaveAttribute("href", "/new-deployment");
     expect(screen.queryByRole("heading", { name: "Create your first project" })).not.toBeInTheDocument();
   });
 
@@ -207,12 +204,12 @@ describe(ProjectsPage.name, () => {
     expect(screen.queryByRole("heading", { name: "Create your first project" })).not.toBeInTheDocument();
   });
 
-  function project(input: { name: string; isDefault?: boolean; deployments?: ProjectDeploymentPreview[] | null; canDeploy?: boolean }): Project {
+  function project(input: { name: string; isDefault?: boolean; deployments?: ProjectDeploymentPreview[]; canDeploy?: boolean }): Project {
     return buildProject({
       id: input.name,
       name: input.name,
       isDefault: input.isDefault ?? false,
-      deployments: input.deployments === null ? null : { activeCount: input.deployments?.length ?? 0, preview: input.deployments ?? [] },
+      deployments: { activeCount: input.deployments?.length ?? 0, preview: input.deployments ?? [] },
       access: { canDeploy: input.canDeploy ?? true, canManage: false }
     });
   }
