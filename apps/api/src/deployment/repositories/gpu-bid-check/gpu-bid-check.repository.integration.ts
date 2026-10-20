@@ -11,6 +11,8 @@ import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 const CUTOFF = new Date("2026-10-17T12:00:00Z");
 
+const LAST_BID_CUTOFF = new Date("2026-09-19T12:00:00Z");
+
 describe(GpuBidCheckRepository.name, () => {
   describe("insertMany", () => {
     it("stores every check", async () => {
@@ -48,7 +50,7 @@ describe(GpuBidCheckRepository.name, () => {
   });
 
   describe("findPricingBotHistory", () => {
-    it("counts the model's checks since the cutoff, the ones listing the provider, whether it bid since and its last bid ever", async () => {
+    it("counts the model's checks since the cutoff, the ones listing the provider, whether it bid since and its last bid since the last bid cutoff", async () => {
       const { repository, aCheck } = setup();
       const model = aModel();
       const provider = createAkashAddress();
@@ -60,7 +62,12 @@ describe(GpuBidCheckRepository.name, () => {
         aCheck({ model, dseq: "5", checkedAt: new Date("2026-10-19T06:00:00Z") })
       ]);
 
-      const history = await repository.findPricingBotHistory({ providers: [provider], models: [{ vendor: "nvidia", model }], since: CUTOFF });
+      const history = await repository.findPricingBotHistory({
+        providers: [provider],
+        models: [{ vendor: "nvidia", model }],
+        since: CUTOFF,
+        lastBidSince: LAST_BID_CUTOFF
+      });
 
       expect(history).toEqual([
         { provider, vendor: "nvidia", model, checks: 4, screenedChecks: 3, bidSinceCutoff: false, lastBidAt: new Date("2026-10-10T00:00:00Z") }
@@ -73,9 +80,55 @@ describe(GpuBidCheckRepository.name, () => {
       const provider = createAkashAddress();
       await repository.insertMany([aCheck({ provider, model, dseq: "1", screened: false, bid: true, checkedAt: new Date("2026-10-18T00:00:00Z") })]);
 
-      const [history] = await repository.findPricingBotHistory({ providers: [provider], models: [{ vendor: "nvidia", model }], since: CUTOFF });
+      const [history] = await repository.findPricingBotHistory({
+        providers: [provider],
+        models: [{ vendor: "nvidia", model }],
+        since: CUTOFF,
+        lastBidSince: LAST_BID_CUTOFF
+      });
 
       expect(history).toEqual(expect.objectContaining({ checks: 0, screenedChecks: 0, bidSinceCutoff: true, lastBidAt: new Date("2026-10-18T00:00:00Z") }));
+    });
+
+    it("reads no last bid for a provider whose last bid came before the last bid cutoff", async () => {
+      const { repository, aCheck } = setup();
+      const model = aModel();
+      const [lateProvider, onTimeProvider] = [createAkashAddress(), createAkashAddress()];
+      await repository.insertMany([
+        aCheck({ provider: lateProvider, model, bid: true, checkedAt: new Date("2026-09-19T11:59:59Z") }),
+        aCheck({ provider: onTimeProvider, model, bid: true, checkedAt: LAST_BID_CUTOFF })
+      ]);
+
+      const history = await repository.findPricingBotHistory({
+        providers: [lateProvider, onTimeProvider],
+        models: [{ vendor: "nvidia", model }],
+        since: CUTOFF,
+        lastBidSince: LAST_BID_CUTOFF
+      });
+
+      expect(history).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ provider: lateProvider, lastBidAt: null }),
+          expect.objectContaining({ provider: onTimeProvider, lastBidAt: LAST_BID_CUTOFF })
+        ])
+      );
+    });
+
+    it("counts a check listing the provider once, however many rows it holds for it", async () => {
+      const { repository, aCheck } = setup();
+      const model = aModel();
+      const provider = createAkashAddress();
+      const check = aCheck({ provider, model, dseq: "1", bid: false, checkedAt: new Date("2026-10-18T00:00:00Z") });
+      await repository.insertMany([check, check]);
+
+      const [history] = await repository.findPricingBotHistory({
+        providers: [provider],
+        models: [{ vendor: "nvidia", model }],
+        since: CUTOFF,
+        lastBidSince: LAST_BID_CUTOFF
+      });
+
+      expect(history).toEqual(expect.objectContaining({ checks: 1, screenedChecks: 1 }));
     });
 
     it("reads no last bid for a provider that never bid", async () => {
@@ -84,7 +137,12 @@ describe(GpuBidCheckRepository.name, () => {
       const provider = createAkashAddress();
       await repository.insertMany([aCheck({ provider, model, bid: false })]);
 
-      const [history] = await repository.findPricingBotHistory({ providers: [provider], models: [{ vendor: "nvidia", model }], since: CUTOFF });
+      const [history] = await repository.findPricingBotHistory({
+        providers: [provider],
+        models: [{ vendor: "nvidia", model }],
+        since: CUTOFF,
+        lastBidSince: LAST_BID_CUTOFF
+      });
 
       expect(history).toEqual(expect.objectContaining({ checks: 1, screenedChecks: 1, bidSinceCutoff: false, lastBidAt: null }));
     });
@@ -108,7 +166,8 @@ describe(GpuBidCheckRepository.name, () => {
           { vendor: "nvidia", model },
           { vendor: "nvidia", model: otherModel }
         ],
-        since: CUTOFF
+        since: CUTOFF,
+        lastBidSince: LAST_BID_CUTOFF
       });
 
       expect(history.map(({ provider, vendor, model }) => ({ provider, vendor, model }))).toEqual(
@@ -124,8 +183,12 @@ describe(GpuBidCheckRepository.name, () => {
     it("reads nothing for no provider or no model", async () => {
       const { repository } = setup();
 
-      expect(await repository.findPricingBotHistory({ providers: [], models: [{ vendor: "nvidia", model: "h100" }], since: CUTOFF })).toEqual([]);
-      expect(await repository.findPricingBotHistory({ providers: [createAkashAddress()], models: [], since: CUTOFF })).toEqual([]);
+      expect(
+        await repository.findPricingBotHistory({ providers: [], models: [{ vendor: "nvidia", model: "h100" }], since: CUTOFF, lastBidSince: LAST_BID_CUTOFF })
+      ).toEqual([]);
+      expect(await repository.findPricingBotHistory({ providers: [createAkashAddress()], models: [], since: CUTOFF, lastBidSince: LAST_BID_CUTOFF })).toEqual(
+        []
+      );
     });
   });
 

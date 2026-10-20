@@ -1,4 +1,4 @@
-import { subHours } from "date-fns";
+import { subDays, subHours } from "date-fns";
 import maxBy from "lodash/maxBy";
 import uniqBy from "lodash/uniqBy";
 import { inject, singleton } from "tsyringe";
@@ -9,6 +9,8 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.p
 import { type CheckedGpuModel, GpuBidCheckRepository, type PricingBotCheckHistory } from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
 
 const NOT_BIDDING_WINDOW_HOURS = 48;
+
+const LAST_BID_WINDOW_DAYS = 30;
 
 /** Fewer checks than this cannot tell a provider that stopped bidding from one that missed a bid window by chance. */
 const MIN_CHECKS_TO_FLAG = 3;
@@ -47,10 +49,12 @@ export class ProviderGpuBiddingService {
   }
 
   async #addBidding(screening: Screening, models: CheckedGpuModel[]): Promise<Screening> {
+    const now = new Date();
     const history = await this.gpuBidCheckRepository.findPricingBotHistory({
       providers: screening.providers.map(({ owner }) => owner),
       models,
-      since: subHours(new Date(), NOT_BIDDING_WINDOW_HOURS)
+      since: subHours(now, NOT_BIDDING_WINDOW_HOURS),
+      lastBidSince: subDays(now, LAST_BID_WINDOW_DAYS)
     });
 
     return {

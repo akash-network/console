@@ -11,7 +11,7 @@ const A100 = { vendor: "nvidia", model: "a100" };
 
 describe(ProviderGpuBiddingService.name, () => {
   describe("addBidding", () => {
-    it("reads the history of every listed provider for the requested models over the last 48 hours", async () => {
+    it("reads the history of every listed provider for the requested models over the last 48 hours, and their last bid over the last 30 days", async () => {
       vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-19T12:00:00Z") });
       try {
         const { service, gpuBidCheckRepository } = setup();
@@ -21,7 +21,8 @@ describe(ProviderGpuBiddingService.name, () => {
         expect(gpuBidCheckRepository.findPricingBotHistory).toHaveBeenCalledWith({
           providers: ["akash1first", "akash1second"],
           models: [H100, A100],
-          since: new Date("2026-10-17T12:00:00Z")
+          since: new Date("2026-10-17T12:00:00Z"),
+          lastBidSince: new Date("2026-09-19T12:00:00Z")
         });
       } finally {
         vi.useRealTimers();

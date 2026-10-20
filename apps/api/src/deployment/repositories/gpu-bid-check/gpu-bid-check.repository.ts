@@ -51,11 +51,13 @@ export class GpuBidCheckRepository extends BaseRepository<Table, GpuBidCheckInpu
   async findPricingBotHistory({
     providers,
     models,
-    since
+    since,
+    lastBidSince
   }: {
     providers: string[];
     models: CheckedGpuModel[];
     since: Date;
+    lastBidSince: Date;
   }): Promise<PricingBotCheckHistory[]> {
     if (!providers.length || !models.length) return [];
 
@@ -64,6 +66,7 @@ export class GpuBidCheckRepository extends BaseRepository<Table, GpuBidCheckInpu
       or(...models.map(({ vendor, model }) => and(eq(this.table.vendor, vendor), eq(this.table.model, model))))
     );
     const isSinceCutoff = gte(this.table.checkedAt, since);
+    const isSinceLastBidCutoff = gte(this.table.checkedAt, lastBidSince);
 
     const modelChecks = this.cursor
       .select({ vendor: this.table.vendor, model: this.table.model, checks: countDistinct(this.table.dseq).as("checks") })
@@ -78,9 +81,9 @@ export class GpuBidCheckRepository extends BaseRepository<Table, GpuBidCheckInpu
         vendor: this.table.vendor,
         model: this.table.model,
         checks: sql<number>`coalesce(${modelChecks.checks}, 0)`.mapWith(Number),
-        screenedChecks: sql<number>`count(*) filter (where ${this.table.screened} and ${isSinceCutoff})`.mapWith(Number),
+        screenedChecks: sql<number>`count(distinct ${this.table.dseq}) filter (where ${this.table.screened} and ${isSinceCutoff})`.mapWith(Number),
         bidSinceCutoff: sql<boolean>`coalesce(bool_or(${this.table.bid} and ${isSinceCutoff}), false)`,
-        lastBidAt: sql<Date | null>`max(${this.table.checkedAt}) filter (where ${this.table.bid})`.mapWith(this.table.checkedAt)
+        lastBidAt: sql<Date | null>`max(${this.table.checkedAt}) filter (where ${this.table.bid} and ${isSinceLastBidCutoff})`.mapWith(this.table.checkedAt)
       })
       .from(this.table)
       .leftJoin(modelChecks, and(eq(modelChecks.vendor, this.table.vendor), eq(modelChecks.model, this.table.model)))
