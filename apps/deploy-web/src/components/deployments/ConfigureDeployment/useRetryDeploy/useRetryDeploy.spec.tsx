@@ -21,7 +21,7 @@ describe(useRetryDeploy.name, () => {
 
     expect(resolveSdlSecrets).toHaveBeenCalledWith(expect.anything(), { sealSecrets: true });
 
-    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: { API_KEY: "hunter2" }, unresolvedSecrets: [], inBackground: true });
+    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: { API_KEY: "hunter2" }, unresolvedSecrets: [] });
     expect(generateSdl).toHaveBeenCalledWith(expect.anything(), { sealSecrets: true });
   });
 
@@ -33,7 +33,7 @@ describe(useRetryDeploy.name, () => {
 
     retry();
 
-    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: {}, unresolvedSecrets: unresolved, inBackground: true });
+    expect(deploy).toHaveBeenCalledWith(GENERATED_SDL, { secrets: {}, unresolvedSecrets: unresolved });
   });
 
   function setup(input: { resolveSdlSecrets?: typeof DEPENDENCIES.resolveSdlSecrets }) {

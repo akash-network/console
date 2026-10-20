@@ -21,6 +21,6 @@ export function useRetryDeploy({ flow }: { flow: DeploymentFlow }, dependencies:
   return useCallback(() => {
     const values = getValues();
     const secrets = d.resolveSdlSecrets(values, { sealSecrets: true });
-    flow.actions.deploy(d.generateSdl(values, { sealSecrets: true }), { secrets: secrets.values, unresolvedSecrets: secrets.unresolved, inBackground: true });
+    flow.actions.deploy(d.generateSdl(values, { sealSecrets: true }), { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
   }, [d, flow.actions, getValues]);
 }

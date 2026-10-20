@@ -102,6 +102,42 @@ describe(DeploymentFlowProvider.name, () => {
     expect(flow.actions.discard).toHaveBeenCalled();
   });
 
+  it("tells the user the deployment was created once the api has taken its lease on in the background", () => {
+    const { enqueueSnackbar } = setup({ flow: flowIn({ phase: "deploying", isDeployedInBackground: true }) });
+
+    expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: { title: "Deployment created", subTitle: "It's spinning up. We'll let you know when it's ready.", iconVariant: "success" }
+      }),
+      { variant: "success" }
+    );
+  });
+
+  it("says nothing about a deployment whose lease the api has not taken on in the background", () => {
+    const { enqueueSnackbar } = setup({ flow: flowIn({ phase: "deploying", isDeployedInBackground: false }) });
+
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+  });
+
+  it("tells the user once however often the flow renders after the hand-off", () => {
+    const flow = flowIn({ phase: "deploying", isDeployedInBackground: true });
+    const { enqueueSnackbar, rerenderWith } = setup({ flow });
+
+    rerenderWith(flow);
+    rerenderWith(flow);
+
+    expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+  });
+
+  it("tells the user once the api takes on the lease of a deploy that was already underway", () => {
+    const { enqueueSnackbar, rerenderWith } = setup({ flow: flowIn({ phase: "deploying", isDeployedInBackground: false }) });
+
+    rerenderWith(flowIn({ phase: "deploying", isDeployedInBackground: true }));
+
+    expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+  });
+
   describe(useDeploymentLeaveGuard.name, () => {
     it("guards nothing outside the provider", () => {
       const { result } = renderHook(() => useDeploymentLeaveGuard());
@@ -123,9 +159,12 @@ describe(DeploymentFlowProvider.name, () => {
     return { sdlStrategy: "default", bidStrategy: "auto", dseq, vm: false };
   }
 
-  function flowIn(state: Partial<Pick<DeploymentFlow, "phase" | "deploySucceeded" | "isCreatingInBackground" | "dseq" | "pendingClose">>): DeploymentFlow {
+  function flowIn(
+    state: Partial<Pick<DeploymentFlow, "phase" | "deploySucceeded" | "isCreatingInBackground" | "isDeployedInBackground" | "dseq" | "pendingClose">>
+  ): DeploymentFlow {
     return mock<DeploymentFlow>({
       isCreatingInBackground: false,
+      isDeployedInBackground: false,
       deploySucceeded: false,
       dseq: null,
       pendingClose: null,
@@ -138,6 +177,9 @@ describe(DeploymentFlowProvider.name, () => {
     let flow = input.flow ?? mock<DeploymentFlow>();
     const useDeploymentFlow = input.useDeploymentFlow ?? vi.fn(() => flow);
     const useWarnBeforeUnload = vi.fn();
+    const enqueueSnackbar = vi.fn();
+    const useSnackbar = () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
+    const Snackbar = vi.fn(() => null);
 
     let context: DeploymentFlowContext | undefined;
     const renderChild = (received: DeploymentFlowContext) => {
@@ -150,11 +192,9 @@ describe(DeploymentFlowProvider.name, () => {
       );
     };
 
+    const dependencies = { useDeploymentFlow: useDeploymentFlow as never, useWarnBeforeUnload, useSnackbar, Snackbar };
     const provider = () => (
-      <DeploymentFlowProvider
-        intent={input.intent ?? intentFor(undefined)}
-        dependencies={{ useDeploymentFlow: useDeploymentFlow as never, useWarnBeforeUnload }}
-      >
+      <DeploymentFlowProvider intent={input.intent ?? intentFor(undefined)} dependencies={dependencies}>
         {renderChild}
       </DeploymentFlowProvider>
     );
@@ -164,7 +204,7 @@ describe(DeploymentFlowProvider.name, () => {
       rerender(provider());
     };
 
-    return { getContext: () => context, useWarnBeforeUnload, rerenderWith };
+    return { getContext: () => context, useWarnBeforeUnload, enqueueSnackbar, rerenderWith };
   }
 
   function CreatingProbe() {

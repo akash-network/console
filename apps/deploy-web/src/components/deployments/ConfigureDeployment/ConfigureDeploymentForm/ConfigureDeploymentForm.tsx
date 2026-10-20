@@ -213,16 +213,6 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     [flow.deployError, enqueueSnackbar, d]
   );
 
-  useEffect(
-    function announceDeployFinishingInBackground() {
-      if (!flow.isDeployedInBackground) return;
-      enqueueSnackbar(<d.Snackbar title="Deployment created" subTitle="It's spinning up. We'll let you know when it's ready." iconVariant="success" />, {
-        variant: "success"
-      });
-    },
-    [flow.isDeployedInBackground, enqueueSnackbar, d]
-  );
-
   const requestQuotesAgainAfterCredits = useResumeAfterCredits({
     isRefusedForFunds: flow.phase === "error" && flow.error?.kind === "needs-funds",
     snapshotRequest: () => JSON.stringify([typedDeploymentName, form.getValues()]),
@@ -475,7 +465,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
                 setReviewOpen(false);
                 const values = form.getValues();
                 const secrets = resolveSdlSecrets(values, { sealSecrets: true });
-                flow.actions.deploy(regenerateSdl(values, liveSdl), { secrets: secrets.values, unresolvedSecrets: secrets.unresolved, inBackground: true });
+                flow.actions.deploy(regenerateSdl(values, liveSdl), { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
               }}
             />
           </InheritedSecretsProvider>
