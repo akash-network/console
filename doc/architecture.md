@@ -144,7 +144,7 @@ flowchart TB
     C1["top-up-deployments · hourly"]:::env
     C2["refill-wallets · :45 hourly"]:::env
     C3["cleanup-stale-deployments · 10:30 and 22:30"]:::env
-    C4["gpu-pricing-bot · 12:00"]:::env
+    C4["gpu-pricing-bot · every 6 h"]:::env
     C5["mint-act · 06:00"]:::env
   end
   A --- cron

@@ -137,6 +137,8 @@ export const envSchema = z
     DEPLOY_WEB_BASE_URL: z.string().url(),
     PROVIDER_PROXY_URL: z.string().url(),
     GPU_BOT_WALLET_MNEMONIC: z.string().optional(),
+    /** Must stay above the 60 s the configure page waits for bids, or a provider users still get bids from reads as not bidding. */
+    GPU_BOT_BID_WINDOW_SECONDS: positiveIntegerOrDefault(90),
     /** Secrets one deployment may carry. Raising it past what the create route's body limit was sized for is refused below rather than at request time. */
     SDL_SECRETS_MAX_COUNT: z.number({ coerce: true }).int().positive().optional().default(SDL_SECRETS_DEFAULT_MAX_COUNT),
     /** Bytes one secret value may be, measured as UTF-8 rather than as string length, since it is a storage bound and a character is not a byte. */
