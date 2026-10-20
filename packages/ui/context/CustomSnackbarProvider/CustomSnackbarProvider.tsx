@@ -1,29 +1,39 @@
 "use client";
-import React, { useRef } from "react";
-import { styled } from "@mui/material/styles";
+import React, { forwardRef, useRef } from "react";
 import { X } from "lucide-react";
-import type { SnackbarKey } from "notistack";
-import { MaterialDesignContent, SnackbarProvider } from "notistack";
-import { blue, green } from "tailwindcss/colors";
+import type { CustomContentProps, SnackbarKey, VariantType } from "notistack";
+import { SnackbarContent, SnackbarProvider } from "notistack";
 
 import { Button } from "../../components/button";
+import { Snackbar } from "../../components/custom/snackbar";
+import { cn } from "../../utils";
 
-const StyledMaterialDesignContent = styled(MaterialDesignContent)(() => {
-  return {
-    "&.notistack-MuiContent-success": {
-      backgroundColor: green[600]
-    },
-    "&.notistack-MuiContent-error": {
-      backgroundColor: "hsl(var(--destructive))"
-    },
-    "&.notistack-MuiContent-warning": {
-      backgroundColor: "hsl(var(--warning))"
-    },
-    "&.notistack-MuiContent-info": {
-      backgroundColor: blue[600]
-    }
-  };
-});
+const VARIANT_CLASSES: Record<VariantType, string> = {
+  default: "border-border bg-popover",
+  info: "border-border bg-popover",
+  success: "border-green-100 bg-green-50 dark:border-[hsl(147,100%,12%)] dark:bg-[hsl(150,100%,6%)]",
+  warning: "border-amber-100 bg-amber-50 dark:border-[hsl(60,100%,12%)] dark:bg-[hsl(64,100%,6%)]",
+  error: "border-red-100 bg-red-50 dark:border-[hsl(357,89%,16%)] dark:bg-[hsl(358,76%,10%)]"
+};
+
+const ToastContent = forwardRef<HTMLDivElement, CustomContentProps>(({ id, message, variant, action, style, className }, ref) => (
+  <SnackbarContent
+    ref={ref}
+    role="alert"
+    style={style}
+    className={cn(
+      "text-popover-foreground flex w-full !flex-nowrap items-start gap-2 rounded-lg border p-4 shadow-[0_4px_12px_rgba(0,0,0,0.1)]",
+      VARIANT_CLASSES[variant],
+      className
+    )}
+  >
+    <div className="min-w-0 flex-1">
+      {typeof message === "string" ? <Snackbar title={message} iconVariant={variant === "default" ? undefined : variant} /> : message}
+    </div>
+    {typeof action === "function" ? action(id) : action}
+  </SnackbarContent>
+));
+ToastContent.displayName = "ToastContent";
 
 export const CustomSnackbarProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const notistackRef = useRef<SnackbarProvider>(null);
@@ -37,27 +47,25 @@ export const CustomSnackbarProvider: React.FC<{ children: React.ReactNode }> = (
       anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       ref={notistackRef}
       classes={{
-        containerRoot: "pb-4 !w-[360px] [&>div]:w-full"
+        containerRoot: "pb-3 !w-[400px] [&>div]:w-full"
       }}
       Components={{
-        success: StyledMaterialDesignContent,
-        error: StyledMaterialDesignContent,
-        warning: StyledMaterialDesignContent,
-        info: StyledMaterialDesignContent
+        default: ToastContent,
+        success: ToastContent,
+        error: ToastContent,
+        warning: ToastContent,
+        info: ToastContent
       }}
-      hideIconVariant
-      dense
       action={key => (
-        <div className="w-8">
-          <Button
-            onClick={onClickDismiss(key)}
-            size="icon"
-            variant="text"
-            className="absolute right-2 top-2 h-6 w-6 rounded-full text-white hover:text-white/70"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+        <Button
+          onClick={onClickDismiss(key)}
+          aria-label="Dismiss"
+          size="icon"
+          variant="text"
+          className="text-muted-foreground hover:text-foreground -mr-1.5 -mt-0.5 h-6 w-6 shrink-0"
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
       )}
     >
       {children}

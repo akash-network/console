@@ -13,13 +13,11 @@ export const ActivityToast: FC<ActivityToastProps> = ({ title, subTitle, iconVar
   <Snackbar
     title={title}
     iconVariant={iconVariant}
-    subTitle={
-      <>
-        <div>{subTitle}</div>
-        <Button className="mt-2 h-7 px-3 text-xs" onClick={onAction}>
-          {actionLabel}
-        </Button>
-      </>
+    subTitle={subTitle}
+    action={
+      <Button size="xs" className="text-xs" onClick={onAction}>
+        {actionLabel}
+      </Button>
     }
   />
 );

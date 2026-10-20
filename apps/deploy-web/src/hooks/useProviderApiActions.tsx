@@ -15,13 +15,15 @@ type ProviderApiActions = {
   downloadFileFromShell: (provider: ProviderInfo, dseq: string, gseq: number, oseq: number, service: string, filePath: string) => Promise<void>;
 };
 
+export const DEPENDENCIES = { useProviderCredentials, useSnackbar, useServices };
+
 // TODO: ideally this should be merged together with useProviderWebsocket hook
 // but it depends on useWebsocket hook which immediately connects the websocket
 // and we don't want to connect the websocket unnecessarily
-export const useProviderApiActions = (): ProviderApiActions => {
-  const providerCredentials = useProviderCredentials();
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const { providerProxy, logger } = useServices();
+export const useProviderApiActions = (d: typeof DEPENDENCIES = DEPENDENCIES): ProviderApiActions => {
+  const providerCredentials = d.useProviderCredentials();
+  const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
+  const { providerProxy, logger } = d.useServices();
 
   const showSnackbar = useCallback(
     (title: string) => {
@@ -29,8 +31,8 @@ export const useProviderApiActions = (): ProviderApiActions => {
       const snackbarKey = enqueueSnackbar(
         <Snackbar
           title={title}
-          subTitle={
-            <Button onClick={() => abortController.abort()} variant="text" size="sm">
+          action={
+            <Button onClick={() => abortController.abort()} variant="outline" size="xs" className="text-xs">
               Cancel
             </Button>
           }
@@ -46,8 +48,7 @@ export const useProviderApiActions = (): ProviderApiActions => {
   const displayResult = useCallback(
     (errorMessage: string, result: DownloadMessagesResult) => {
       if (!result.ok && result.code !== "cancelled") {
-        const message = result.message ? `${errorMessage}:\n${result.message}` : errorMessage;
-        enqueueSnackbar(message, { variant: "error" });
+        enqueueSnackbar(<Snackbar title={errorMessage} subTitle={result.message} iconVariant="error" />, { variant: "error" });
       }
     },
     [enqueueSnackbar]
