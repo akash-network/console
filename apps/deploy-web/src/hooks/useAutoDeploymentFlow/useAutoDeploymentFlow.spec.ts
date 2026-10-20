@@ -649,6 +649,7 @@ describe(useAutoDeploymentFlow.name, () => {
         bids: phase === "quoting" ? liveBids : [],
         deploySucceeded,
         isDeployedInBackground: false,
+        showsDeployProgress: false,
         noBidsReceived,
         deployError,
         error,

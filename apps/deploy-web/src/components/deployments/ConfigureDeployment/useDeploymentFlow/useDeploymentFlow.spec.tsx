@@ -1842,13 +1842,127 @@ describe(useDeploymentFlow.name, () => {
     it.each([
       { case: "the activity center is off", isActivityCenterOn: false, inBackground: true },
       { case: "the caller waits on the lease", isActivityCenterOn: true, inBackground: undefined }
-    ])("creates the lease during the request when $case", async ({ isActivityCenterOn, inBackground }) => {
+    ])("creates the lease during the request and shows its progress at once when $case", async ({ isActivityCenterOn, inBackground }) => {
       const createLease = mockMutation();
       const { result } = await renderQuotingFlow({ createLease, isActivityCenterOn });
 
       act(() => result.current.actions.deploy("sdl", { inBackground }));
 
       expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M", leases: [LEASE] }, expect.anything());
+      expect(result.current.showsDeployProgress).toBe(true);
+    });
+
+    it("shows no progress screen while the api may still take the lease on, and shows it once the request has run longer than a hand-off takes", async () => {
+      vi.useFakeTimers();
+      try {
+        const lease = deferredMutate();
+        const { result } = await renderQuotingFlow({ createLease: mockMutation(lease.mutate), isActivityCenterOn: true });
+
+        expect(result.current.showsDeployProgress).toBe(false);
+
+        act(() => result.current.actions.deploy("sdl", { inBackground: true }));
+        act(() => vi.advanceTimersByTime(2_999));
+
+        expect(result.current.phase).toBe("deploying");
+        expect(result.current.showsDeployProgress).toBe(false);
+
+        act(() => vi.advanceTimersByTime(1));
+
+        expect(result.current.showsDeployProgress).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("hides the progress screen again when the next deploy may finish in the background", async () => {
+      vi.useFakeTimers();
+      try {
+        const lease = deferredMutate();
+        const { result } = await renderQuotingFlow({ createLease: mockMutation(lease.mutate), isActivityCenterOn: true });
+
+        act(() => result.current.actions.deploy("sdl", { inBackground: true }));
+        act(() => vi.advanceTimersByTime(3_000));
+        act(() => lease.calls[0].options.onError?.(new Error("bid closed")));
+        act(() => result.current.actions.deploy("sdl", { inBackground: true }));
+
+        expect(result.current.showsDeployProgress).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it.each([
+      { case: "takes the lease on in the background", answer: { data: { activityId: "activity-1" } } },
+      { case: "creates the lease during the request", answer: deployedResult("akash1owner") }
+    ])("never shows the progress screen when the api soon answers that it $case", async ({ answer }) => {
+      vi.useFakeTimers();
+      try {
+        const lease = deferredMutate();
+        const { result } = await renderQuotingFlow({ createLease: mockMutation(lease.mutate), isActivityCenterOn: true });
+
+        act(() => result.current.actions.deploy("sdl", { inBackground: true }));
+        act(() => vi.advanceTimersByTime(500));
+        await act(async () => lease.calls[0].options.onSuccess?.(answer));
+        act(() => vi.advanceTimersByTime(3_000));
+
+        expect(result.current.deploySucceeded).toBe(true);
+        expect(result.current.showsDeployProgress).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("leaves no progress screen to appear later once the api refuses the lease", async () => {
+      vi.useFakeTimers();
+      try {
+        const lease = deferredMutate();
+        const { result } = await renderQuotingFlow({ createLease: mockMutation(lease.mutate), isActivityCenterOn: true });
+
+        act(() => result.current.actions.deploy("sdl", { inBackground: true }));
+        act(() => vi.advanceTimersByTime(1_000));
+        act(() => lease.calls[0].options.onError?.(new ApiError(400, { message: "The bid is closed" }, "POST /v1/leases → 400")));
+        act(() => vi.advanceTimersByTime(3_000));
+
+        expect(result.current.phase).toBe("quoting");
+        expect(result.current.deployError).toEqual({ message: "The bid is closed" });
+        expect(result.current.showsDeployProgress).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("shows no progress screen while an edit since quoting is applied, and starts the wait only once the lease is requested", async () => {
+      vi.useFakeTimers();
+      try {
+        const patch = deferredMutate();
+        const lease = deferredMutate();
+        const { result } = await renderQuotingFlow({
+          createLease: mockMutation(lease.mutate),
+          patchDeployment: mockMutation(patch.mutate),
+          isActivityCenterOn: true,
+          manifestFromSdl: () => "M2",
+          servicesPatchBetween: () => ({ web: { env: { FOO: "bar" } } })
+        });
+
+        act(() => result.current.actions.deploy("sdl-b", { inBackground: true }));
+        await act(async () => {});
+        act(() => vi.advanceTimersByTime(5_000));
+
+        expect(patch.calls).toHaveLength(1);
+        expect(result.current.showsDeployProgress).toBe(false);
+
+        await act(async () => patch.calls[0].options.onSuccess?.({}));
+        act(() => vi.advanceTimersByTime(2_999));
+
+        expect(lease.calls).toHaveLength(1);
+        expect(result.current.showsDeployProgress).toBe(false);
+
+        act(() => vi.advanceTimersByTime(1));
+
+        expect(result.current.showsDeployProgress).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("sends the user to the deployments list as soon as the api takes the lease on, without waiting to show the deployment", async () => {

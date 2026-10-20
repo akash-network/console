@@ -9,7 +9,8 @@ import userEvent from "@testing-library/user-event";
 describe(WorkspaceCtaButton.name, () => {
   it.each<[WorkspaceCtaState, string]>([
     ["requesting", "Requesting…"],
-    ["select-providers", "Select providers to deploy"]
+    ["select-providers", "Select providers to deploy"],
+    ["deploying", "Deploying…"]
   ])("shows a disabled %s action", (state, name) => {
     setup({ state });
 

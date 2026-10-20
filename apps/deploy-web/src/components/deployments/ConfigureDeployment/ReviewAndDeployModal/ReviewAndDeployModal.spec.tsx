@@ -43,6 +43,20 @@ describe(ReviewAndDeployModal.name, () => {
     expect(onBack).toHaveBeenCalled();
   });
 
+  it("shows no spinner on Confirm and deploy while nothing is pending", () => {
+    setup({});
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("shows the deploy pending and lets neither button be pressed while it is handed to the api", () => {
+    setup({ isDeploying: true });
+
+    expect(screen.getByRole("button", { name: "Deploying…" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /confirm and deploy/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /back to marketplace/i })).toBeDisabled();
+  });
+
   it("disables Confirm and deploy when a selected placement is no longer priced", () => {
     setup({
       rows: [
@@ -246,6 +260,7 @@ describe(ReviewAndDeployModal.name, () => {
     hasGpu?: boolean;
     onConfirm?: () => void;
     onBack?: () => void;
+    isDeploying?: boolean;
     runtimeLimitHours?: number;
     storedRuntimeLimitHours?: number;
     isStoredSettingLoading?: boolean;
@@ -320,6 +335,7 @@ describe(ReviewAndDeployModal.name, () => {
     const modal = (runtimeLimitHours: number | undefined) => (
       <ReviewAndDeployModal
         open
+        isDeploying={input.isDeploying ?? false}
         dseq="55"
         placements={[mock<PlacementType>({ id: "p1", name: "placement-1", regions: [] })]}
         selections={{ p1: "akash1a/55/1/2" }}

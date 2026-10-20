@@ -383,6 +383,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   }, [analyticsService, applyImportedState, startingSdl, intent.vm]);
   /** Import is only meaningful while the deployment is still editable; export stays available in every phase. */
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
+  /** The review stays up, its deploy pending, until the api has the deploy, which also keeps Edit and Leave out of reach. */
+  const isHandingOffDeploy = flow.phase === "deploying" && !flow.showsDeployProgress;
 
   return (
     <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
@@ -451,7 +453,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
                   </div>
                 </>
               )}
-              {flow.phase === "deploying" && (
+              {flow.phase === "deploying" && flow.showsDeployProgress && (
                 <d.DeployProgressOverlay
                   providerAddress={firstSelectedProviderAddress(flow.selections)}
                   activePhase={flow.deploySucceeded ? "success" : "preparing"}
@@ -460,7 +462,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
               )}
             </div>
             <d.ReviewAndDeployModal
-              open={isReviewOpen}
+              open={isReviewOpen || isHandingOffDeploy}
+              isDeploying={isHandingOffDeploy}
               dseq={flow.dseq}
               placements={placements}
               selections={flow.selections}
