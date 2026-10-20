@@ -160,7 +160,16 @@ const ProviderResultSchema = z.object({
         downtimeSeconds: z.number().int().openapi({ description: "Downtime clipped to that day, in seconds (max 86400)" })
       })
     )
-    .openapi({ description: "Per-day downtime over a rolling 7-day window" })
+    .openapi({ description: "Per-day downtime over a rolling 7-day window" }),
+  isNotBidding: z.boolean().optional().openapi({
+    description:
+      "Present when the request asks for a GPU model: true when Console's GPU checks of the requested models listed the provider on every check of the last 48 hours, at least 3 of them, and it bid on none"
+  }),
+  lastCheckBidAt: z.string().datetime().nullable().optional().openapi({
+    description:
+      "Present when the request asks for a GPU model: when the provider last bid on a Console GPU check of the requested models; null if not in 30 days",
+    example: "2026-10-18T06:01:30.000Z"
+  })
 });
 
 export const BidScreeningResponseSchema = z.object({

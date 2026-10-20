@@ -3841,6 +3841,17 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "description": "True if signed by a known auditor",
                             "type": "boolean",
                           },
+                          "isNotBidding": {
+                            "description": "Present when the request asks for a GPU model: true when Console's GPU checks of the requested models listed the provider on every check of the last 48 hours, at least 3 of them, and it bid on none",
+                            "type": "boolean",
+                          },
+                          "lastCheckBidAt": {
+                            "description": "Present when the request asks for a GPU model: when the provider last bid on a Console GPU check of the requested models; null if not in 30 days",
+                            "example": "2026-10-18T06:01:30.000Z",
+                            "format": "date-time",
+                            "nullable": true,
+                            "type": "string",
+                          },
                           "location": {
                             "description": "Provider region from the location-region attribute (signed preferred, else self-declared); null if unset",
                             "example": "us-west",

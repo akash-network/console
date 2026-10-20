@@ -4,6 +4,7 @@ import type { StatusCode } from "hono/utils/http-status";
 import { container } from "tsyringe";
 
 import { BID_SCREENING_CONFIG } from "@src/bid-screening/providers/config.provider";
+import { findRequestedGpuModels, ProviderGpuBiddingService } from "@src/bid-screening/services/provider-gpu-bidding/provider-gpu-bidding.service";
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
@@ -61,8 +62,15 @@ bidScreeningRouter.openapi(postBidScreeningRoute, async function routePostBidScr
     throw new HTTPException(statusCode, { cause: error, message: "Failed to screen providers." });
   }
 
-  return new Response(upstream.body, {
-    status: upstream.status,
-    headers: { "Content-Type": upstream.headers.get("content-type") ?? "application/json" }
-  }) as unknown as TypedResponse<BidScreeningResponse, 200, "json">;
+  const gpuModels = findRequestedGpuModels(c.req.valid("json"));
+
+  if (!upstream.ok || !gpuModels.length) {
+    return new Response(upstream.body, {
+      status: upstream.status,
+      headers: { "Content-Type": upstream.headers.get("content-type") ?? "application/json" }
+    }) as unknown as TypedResponse<BidScreeningResponse, 200, "json">;
+  }
+
+  const screening = await container.resolve(ProviderGpuBiddingService).addBidding(await upstream.json(), gpuModels);
+  return c.json(screening as BidScreeningResponse, 200);
 });
