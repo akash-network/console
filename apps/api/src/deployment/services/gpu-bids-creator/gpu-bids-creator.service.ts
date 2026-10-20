@@ -6,7 +6,6 @@ import { TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { DirectSecp256k1HdWallet, EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { calculateFee, SigningStargateClient } from "@cosmjs/stargate";
 import assert from "http-assert";
-import pick from "lodash/pick";
 import { setTimeout as sleep } from "timers/promises";
 import { inject, singleton } from "tsyringe";
 
@@ -15,11 +14,17 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { CHAIN_SDK, type ChainSDK } from "@src/chain/providers/chain-sdk.provider";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config/config.provider";
-import { GpuService } from "@src/gpu/services/gpu.service";
-import { sdlTemplateWithRam, sdlTemplateWithRamAndInterface } from "./sdl-templates";
+import { type GpuModel, PlacementOptionsHttpService } from "@src/deployment/services/placement-options-http/placement-options-http.service";
+import { sdlTemplate } from "./sdl-templates";
 
 /** Close settlement gas grows with bids placed between simulation and inclusion; matches tx-signer GAS_DEFAULT_MULTIPLIER (PR #3501). */
 const GAS_MULTIPLIER = 2;
+
+/** The chain SDK's SDL schema accepts no other gpu vendor, so a deployment for any other would fail validation and stop the run. */
+const SDL_GPU_VENDORS = new Set(["nvidia"]);
+
+/** Model names come from what providers report, so anything an SDL attribute key cannot carry is skipped rather than written into the SDL. */
+const SDL_GPU_MODEL_NAME = /^[\w.-]+$/;
 
 @singleton()
 export class GpuBidsCreatorService {
@@ -30,7 +35,7 @@ export class GpuBidsCreatorService {
   constructor(
     private readonly config: BillingConfigService,
     @inject(CHAIN_SDK) chainSdk: ChainSDK,
-    private readonly gpuService: GpuService,
+    private readonly placementOptionsHttpService: PlacementOptionsHttpService,
     @InjectTypeRegistry() private readonly typeRegistry: Registry,
     @inject(DEPLOYMENT_CONFIG) deploymentConfig: DeploymentConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -58,10 +63,14 @@ export class GpuBidsCreatorService {
     const act = Math.round((balanceBeforeUAct / 1_000_000) * 100) / 100;
     this.#logger.info({ event: "CLIENT_CONNECTED", balance: act });
 
-    const gpuModels = await this.gpuService.getGpuList();
+    const availableGpuModels = await this.placementOptionsHttpService.findAvailableGpuModels();
+    const gpuModels = availableGpuModels.filter(isExpressibleInSdl);
 
-    await this.createBidsForAllModels(gpuModels, client, account.address, false);
-    await this.createBidsForAllModels(gpuModels, client, account.address, true);
+    if (gpuModels.length < availableGpuModels.length) {
+      this.#logger.info({ event: "SKIPPING_UNSUPPORTED_GPU_MODELS", models: availableGpuModels.filter(model => !isExpressibleInSdl(model)) });
+    }
+
+    await this.createBidsForAllModels(gpuModels, client, account.address);
 
     const balanceAfter = await client.getBalance(account.address, "uact");
     const balanceAfterUAct = parseFloat(balanceAfter.amount);
@@ -88,35 +97,14 @@ export class GpuBidsCreatorService {
     return txResult;
   }
 
-  private async createBidsForAllModels(
-    gpuModels: Awaited<ReturnType<typeof GpuService.prototype.getGpuList>>,
-    client: SigningStargateClient,
-    walletAddress: string,
-    includeInterface: boolean
-  ) {
-    const vendors = Object.keys(gpuModels.gpus.details).filter(x => x !== "<UNKNOWN>");
+  private async createBidsForAllModels(gpuModels: GpuModel[], client: SigningStargateClient, walletAddress: string) {
+    this.#logger.info({ event: "CREATING_BIDS", modelCount: gpuModels.length });
 
-    const models = vendors.flatMap(vendor => gpuModels.gpus.details[vendor].map(x => ({ vendor, ...x })));
-
-    models.sort(
-      (a, b) => a.vendor.localeCompare(b.vendor) || a.model.localeCompare(b.model) || a.ram.localeCompare(b.ram) || a.interface.localeCompare(b.interface)
-    );
-
-    this.#logger.info({ event: "CREATING_BIDS", includeInterface });
-
-    const doneModels: string[] = [];
-    for (const model of models) {
+    for (const gpuModel of gpuModels) {
       const dseq = Date.now().toString();
-      this.#logger.info({ event: "CREATING_DEPLOYMENT", ...pick(model, ["vendor", "model", "ram", "interface"]) });
+      this.#logger.info({ event: "CREATING_DEPLOYMENT", ...gpuModel });
 
-      if (doneModels.includes(model.model + "-" + model.ram)) {
-        this.#logger.info({ event: "SKIPPING_DEPLOYMENT", ...pick(model, ["model", "ram"]) });
-        continue;
-      }
-
-      const gpuSdl = this.getModelSdl(model.vendor, model.model, model.ram, includeInterface ? model.interface : undefined);
-
-      await this.createDeployment(client, gpuSdl, walletAddress, dseq);
+      await this.createDeployment(client, this.getModelSdl(gpuModel), walletAddress, dseq);
       this.#logger.info({ event: "DEPLOYMENT_CREATED" });
 
       await sleep(30_000);
@@ -131,10 +119,6 @@ export class GpuBidsCreatorService {
       this.#logger.info({ event: "DEPLOYMENT_CLOSING", bidsCount: bids?.bids.length });
       await this.closeDeployment(client, walletAddress, dseq);
       this.#logger.info({ event: "DEPLOYMENT_CLOSED" });
-
-      if (!includeInterface) {
-        doneModels.push(model.model + "-" + model.ram);
-      }
 
       await sleep(10_000);
     }
@@ -184,16 +168,11 @@ export class GpuBidsCreatorService {
     await this.signAndBroadcast(owner, client, [message]);
   }
 
-  private getModelSdl(vendor: string, model: string, ram: string, gpuInterface?: string) {
-    let gpuSdl = gpuInterface ? sdlTemplateWithRamAndInterface : sdlTemplateWithRam;
-    gpuSdl = gpuSdl.replace("<VENDOR>", vendor);
-    gpuSdl = gpuSdl.replace("<MODEL>", model);
-    gpuSdl = gpuSdl.replace("<RAM>", ram);
-
-    if (gpuInterface) {
-      gpuSdl = gpuSdl.replace("<INTERFACE>", gpuInterface.toLowerCase().startsWith("sxm") ? "sxm" : gpuInterface.toLowerCase());
-    }
-
-    return gpuSdl;
+  private getModelSdl({ vendor, model }: GpuModel) {
+    return sdlTemplate.replace("<VENDOR>", vendor).replace("<MODEL>", model);
   }
+}
+
+function isExpressibleInSdl({ vendor, model }: GpuModel): boolean {
+  return SDL_GPU_VENDORS.has(vendor) && SDL_GPU_MODEL_NAME.test(model);
 }

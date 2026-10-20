@@ -64,7 +64,7 @@ export class PlacementOptionsRepository {
   }
 
   /** Filtered on a node's free GPU capacity rather than on which of its GPUs are free, because the inventory does not say which units are free. */
-  async findAvailableGpus(): Promise<AvailableGpu[]> {
+  async findAvailableGpus({ includeUnaudited = false }: { includeUnaudited?: boolean } = {}): Promise<AvailableGpu[]> {
     const sql = this.#sql;
     return await sql<AvailableGpu[]>`
       WITH gpu_nodes AS (
@@ -85,7 +85,7 @@ export class PlacementOptionsRepository {
         ) WITH ORDINALITY AS node(value, position)
         WHERE ${sql(providerInventory.isOnline.name)} = true
           AND ${sql(providerInventory.isOnlineSince.name)} IS NOT NULL
-          AND ${sql(providerInventory.auditedBy.name)} @> ARRAY[${AUDITOR}]::text[]
+          AND (${includeUnaudited}::boolean OR ${sql(providerInventory.auditedBy.name)} @> ARRAY[${AUDITOR}]::text[])
           AND ${sql(providerInventory.maxNodeFreeGpu.name)} > 0
       ),
       gpu_node_capacity AS (

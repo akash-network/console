@@ -1,6 +1,6 @@
 import { singleton } from "tsyringe";
 
-import type { PlacementOptionsResponse } from "@src/http-schemas/placement-options.schema";
+import type { PlacementOptionsRequest, PlacementOptionsResponse } from "@src/http-schemas/placement-options.schema";
 import { mapToGpuVendorOptions } from "@src/mappers/gpu-options-mapper/gpu-options-mapper";
 import { PlacementOptionsRepository } from "@src/repositories/placement-options/placement-options.repository";
 
@@ -12,10 +12,10 @@ export class PlacementOptionsController {
     this.#placementOptionsRepository = placementOptionsRepository;
   }
 
-  async getPlacementOptions(): Promise<PlacementOptionsResponse> {
+  async getPlacementOptions({ includeUnaudited }: PlacementOptionsRequest = { includeUnaudited: false }): Promise<PlacementOptionsResponse> {
     const [onlineRegions, gpus] = await Promise.all([
       this.#placementOptionsRepository.findOnlineRegions(),
-      this.#placementOptionsRepository.findAvailableGpus()
+      this.#placementOptionsRepository.findAvailableGpus({ includeUnaudited })
     ]);
 
     return {
