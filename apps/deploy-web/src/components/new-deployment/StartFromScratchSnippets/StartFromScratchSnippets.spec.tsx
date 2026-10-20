@@ -22,7 +22,7 @@ describe("StartFromScratchSnippets", () => {
     setupSshSession();
     const banners: Array<string | null> = [];
 
-    for (let tick = 0; tick < 5; tick++) {
+    for (let tick = 0; tick < 6; tick++) {
       banners.push(screen.getByText(/Ubuntu|CentOS|Debian|openSUSE/).textContent);
       act(() => vi.advanceTimersByTime(WELCOME_BANNER_ROTATION_MS));
     }
@@ -30,6 +30,7 @@ describe("StartFromScratchSnippets", () => {
     expect(banners).toEqual([
       "Welcome to Ubuntu 24.04 LTS",
       "CentOS Stream release 9",
+      "Debian GNU/Linux 13 (trixie)",
       "Debian GNU/Linux 11 (bullseye)",
       "openSUSE Leap 15.5",
       "Welcome to Ubuntu 24.04 LTS"
