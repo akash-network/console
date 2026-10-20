@@ -22,12 +22,14 @@ const ToastContent = forwardRef<HTMLDivElement, CustomContentProps>(({ id, messa
     role="alert"
     style={style}
     className={cn(
-      "flex w-full !flex-nowrap items-start gap-2 rounded-lg border p-4 text-popover-foreground shadow-[0_4px_12px_rgba(0,0,0,0.1)]",
+      "text-popover-foreground flex w-full !flex-nowrap items-start gap-2 rounded-lg border p-4 shadow-[0_4px_12px_rgba(0,0,0,0.1)]",
       VARIANT_CLASSES[variant],
       className
     )}
   >
-    <div className="min-w-0 flex-1">{typeof message === "string" ? <Snackbar title={message} iconVariant={variant === "default" ? undefined : variant} /> : message}</div>
+    <div className="min-w-0 flex-1">
+      {typeof message === "string" ? <Snackbar title={message} iconVariant={variant === "default" ? undefined : variant} /> : message}
+    </div>
     {typeof action === "function" ? action(id) : action}
   </SnackbarContent>
 ));
@@ -60,7 +62,7 @@ export const CustomSnackbarProvider: React.FC<{ children: React.ReactNode }> = (
           aria-label="Dismiss"
           size="icon"
           variant="text"
-          className="-mr-1.5 -mt-0.5 h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground -mr-1.5 -mt-0.5 h-6 w-6 shrink-0"
         >
           <X className="h-3.5 w-3.5" />
         </Button>
