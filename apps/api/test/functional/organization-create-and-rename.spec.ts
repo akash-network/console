@@ -53,7 +53,7 @@ describe("Organization creation and renaming", () => {
       });
       expect(await readOrganizationRows(data.id)).toEqual({
         members: [expect.objectContaining({ userId: user.id, role: "owner" })],
-        projects: [expect.objectContaining({ slug: "default", isDefault: true })],
+        projects: [expect.objectContaining({ name: "default-project", slug: "default-project", isDefault: true })],
         wallets: [
           expect.objectContaining({ userId: null, createdByUserId: user.id, isTrialing: false, activatedAt: null, address: expect.stringMatching(/^akash1/) })
         ]

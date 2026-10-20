@@ -54,7 +54,7 @@ describe("User registration", () => {
       expect(await organizationMemberRepository.find({ userId: body.data.id })).toEqual([
         expect.objectContaining({ organizationId: organization?.id, role: "owner" })
       ]);
-      expect(await projectRepository.find({ organizationId: organization?.id })).toEqual([expect.objectContaining({ slug: "default", isDefault: true })]);
+      expect(await projectRepository.find({ organizationId: organization?.id })).toEqual([expect.objectContaining({ name: "default-project", slug: "default-project", isDefault: true })]);
       expect(await userWalletRepository.findOneByUserId(body.data.id)).toMatchObject({ organizationId: organization?.id });
     });
 

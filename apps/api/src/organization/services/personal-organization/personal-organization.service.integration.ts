@@ -31,7 +31,7 @@ describe(PersonalOrganizationService.name, () => {
         expect.objectContaining({ organizationId: organizations[0].id, role: "owner" })
       ]);
       expect(await projectRepository.find({ organizationId: organizations[0].id })).toEqual([
-        expect.objectContaining({ slug: "default", isDefault: true, createdByUserId: user.id })
+        expect.objectContaining({ name: "default-project", slug: "default-project", isDefault: true, createdByUserId: user.id })
       ]);
     });
 
