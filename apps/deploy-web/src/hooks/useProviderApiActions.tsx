@@ -15,13 +15,15 @@ type ProviderApiActions = {
   downloadFileFromShell: (provider: ProviderInfo, dseq: string, gseq: number, oseq: number, service: string, filePath: string) => Promise<void>;
 };
 
+export const DEPENDENCIES = { useProviderCredentials, useSnackbar, useServices };
+
 // TODO: ideally this should be merged together with useProviderWebsocket hook
 // but it depends on useWebsocket hook which immediately connects the websocket
 // and we don't want to connect the websocket unnecessarily
-export const useProviderApiActions = (): ProviderApiActions => {
-  const providerCredentials = useProviderCredentials();
-  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const { providerProxy, logger } = useServices();
+export const useProviderApiActions = (d: typeof DEPENDENCIES = DEPENDENCIES): ProviderApiActions => {
+  const providerCredentials = d.useProviderCredentials();
+  const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
+  const { providerProxy, logger } = d.useServices();
 
   const showSnackbar = useCallback(
     (title: string) => {
