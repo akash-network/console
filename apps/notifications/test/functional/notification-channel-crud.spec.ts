@@ -88,6 +88,46 @@ describe("Contact Points CRUD", () => {
     await app.close();
   });
 
+  it("moves the default notification channel to the timezone it is given", async () => {
+    const { app } = await setup();
+    const server = app.getHttpServer();
+    const userId = faker.string.uuid();
+    const input = { name: "Default", type: "email", config: { addresses: [faker.internet.email()] } };
+
+    await request(server).post("/v1/notification-channels/default").set("x-user-id", userId).send({ data: input });
+    const res = await request(server)
+      .post("/v1/notification-channels/default")
+      .set("x-user-id", userId)
+      .send({ data: { ...input, timezone: "Europe/Paris" } });
+    const listRes = await request(server).get("/v1/notification-channels").set("x-user-id", userId);
+
+    expect(res.status).toBe(204);
+    expect(listRes.body).toMatchObject({
+      data: [expect.objectContaining({ isDefault: true, timezone: "Europe/Paris" })],
+      pagination: { total: 1 }
+    });
+
+    await app.close();
+  });
+
+  it.each(["Mars/Olympus", "+05:00"])("creates the default notification channel without a timezone when given %j, which names no zone", async timezone => {
+    const { app } = await setup();
+    const server = app.getHttpServer();
+    const userId = faker.string.uuid();
+    const input = { name: "Default", type: "email", config: { addresses: [faker.internet.email()] } };
+
+    const res = await request(server)
+      .post("/v1/notification-channels/default")
+      .set("x-user-id", userId)
+      .send({ data: { ...input, timezone } });
+    const listRes = await request(server).get("/v1/notification-channels").set("x-user-id", userId);
+
+    expect(res.status).toBe(204);
+    expect(listRes.body.data).toEqual([expect.objectContaining({ isDefault: true, timezone: null })]);
+
+    await app.close();
+  });
+
   async function shouldCreate(app: INestApplication): Promise<NotificationChannelMeta> {
     const input = generateMock(notificationChannelCreateInputSchema);
     const userId = faker.string.uuid();

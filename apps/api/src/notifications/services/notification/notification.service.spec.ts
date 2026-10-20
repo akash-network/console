@@ -38,6 +38,29 @@ describe(NotificationService.name, () => {
       );
     });
 
+    it("passes the user's timezone on for the dates in the channel's emails", async () => {
+      const { service, api } = setup();
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createDefaultChannel({ id: "user-1", email: "user@example.com", timezone: "Europe/Paris" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(
+        { data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] }, timezone: "Europe/Paris" } },
+        { headers: { "x-user-id": "user-1" } }
+      );
+    });
+
+    it("leaves the timezone out while the user's is unknown", async () => {
+      const { service, api } = setup();
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createDefaultChannel({ id: "user-1", email: "user@example.com", timezone: null });
+
+      expect(api.v1.createDefaultNotificationChannel.mock.calls[0][0]).toStrictEqual({
+        data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] } }
+      });
+    });
+
     it("retries if notification service returns an error", async () => {
       vi.useFakeTimers();
       const { service, api } = setup();
@@ -234,6 +257,23 @@ describe(NotificationService.name, () => {
         { headers: { "x-user-id": "user-1" } }
       );
       expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(2);
+    });
+
+    it("opens the missing default channel in the user's timezone", async () => {
+      const { service, api, apiInternal } = setup();
+      apiInternal.v1.createNotification.mockRejectedValueOnce(channelMissing).mockResolvedValueOnce(undefined as never);
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createNotificationOnce({ ...input, user: { ...input.user, timezone: "Asia/Tokyo" } });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(
+        { data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] }, timezone: "Asia/Tokyo" } },
+        { headers: { "x-user-id": "user-1" } }
+      );
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledWith(
+        { notificationId: "n-1", payload: { summary: "s", description: "d" } },
+        { headers: { "x-user-id": "user-1" } }
+      );
     });
 
     it("attributes the notification and the channel it opens to the user's personal organization", async () => {

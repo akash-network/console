@@ -129,6 +129,7 @@ export class NotificationChannelRepository {
     const existingDefault = await this.db.query.NotificationChannel.findFirst({ where: this.#liveDefaultOf(owner) });
 
     if (existingDefault) {
+      await this.#moveToTimezone(existingDefault, input.timezone);
       return;
     }
 
@@ -139,6 +140,12 @@ export class NotificationChannelRepository {
         isDefault: true
       })
       .onConflictDoNothing();
+  }
+
+  async #moveToTimezone(channel: InternalNotificationChannelOutput, timezone: string | null | undefined): Promise<void> {
+    if (!timezone || channel.timezone === timezone) return;
+
+    await this.db.update(schema.NotificationChannel).set({ timezone }).where(eq(schema.NotificationChannel.id, channel.id));
   }
 
   #liveDefaultOf(owner: DefaultChannelOwner): SQL | undefined {

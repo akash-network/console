@@ -68,7 +68,7 @@ export class NotificationService {
       await send().catch(async error => {
         if (extractApiErrorCode(error) !== "NOTIFICATION_CHANNEL_NOT_FOUND" || !user.email) throw error;
 
-        await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email), { headers });
+        await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email, user.timezone), { headers });
         await send();
       });
     } catch (error) {
@@ -80,7 +80,7 @@ export class NotificationService {
     const headers = await this.#userIdentityHeaders(user.id);
     await this.#retryPolicy.execute(async () => {
       try {
-        await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email!), { headers });
+        await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email!, user.timezone), { headers });
       } catch (error) {
         throw new Error("Failed to create default notification channel", { cause: error });
       }
@@ -207,13 +207,14 @@ export class NotificationService {
   }
 }
 
-function defaultChannelInput(email: string) {
-  return { data: { name: "Default", type: "email" as const, config: { addresses: [email] } } };
+function defaultChannelInput(email: string, timezone: string | null | undefined) {
+  return { data: { name: "Default", type: "email" as const, config: { addresses: [email] }, ...(timezone && { timezone }) } };
 }
 
 interface UserInput {
   id: string;
   email?: string | null;
+  timezone?: string | null;
 }
 
 export interface ReleaseDepartedMemberAddressInput {

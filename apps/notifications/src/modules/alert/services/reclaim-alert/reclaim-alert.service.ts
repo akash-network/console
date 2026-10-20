@@ -49,17 +49,19 @@ export class ReclaimAlertService {
       return;
     }
 
+    const recipientTimezone = await this.alertRepository.findNotificationChannelTimezone(claimedAlert.notificationChannelId);
+
     await onMessage({
       notificationChannelId: claimedAlert.notificationChannelId,
-      payload: { ...this.buildMessage(event), feedEntry: feedEntryOf(claimedAlert, event.dseq) }
+      payload: { ...this.buildMessage(event, recipientTimezone), feedEntry: feedEntryOf(claimedAlert, event.dseq) }
     });
 
     this.loggerService.info(alertNotifiedLog(claimedAlert, { reason: "RECLAIM_DEADLINE" }));
   }
 
-  private buildMessage(event: ReclaimAlertEvent): AlertMessagePayload {
+  private buildMessage(event: ReclaimAlertEvent, recipientTimezone: string | null): AlertMessagePayload {
     const reasonText = getLeaseClosedReasonText(toLeaseClosedReason(event.reason));
-    const deadline = formatReclaimDeadline(Number(event.deadline), Date.now());
+    const deadline = formatReclaimDeadline(Number(event.deadline), Date.now(), recipientTimezone);
     const link = this.getConsoleLink(event.dseq);
 
     return {
