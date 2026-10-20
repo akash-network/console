@@ -1,8 +1,27 @@
+import { isIanaTimeZone } from "@src/lib/time-zone/time-zone";
+
 const HOUR_MS = 3_600_000;
 
-function toUtcString(ms: number): string {
-  // toISOString is always UTC: "2025-06-08T16:00:00.000Z" -> "2025-06-08 16:00 UTC"
-  return `${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`;
+const UTC = "UTC";
+
+const DEADLINE_FORMAT: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZoneName: "long"
+};
+
+/** Shaped like "2026-06-08 16:00 Central European Summer Time", except that UTC keeps its abbreviation. */
+function toZonedString(ms: number, timeZone: string): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { ...DEADLINE_FORMAT, timeZone }).formatToParts(ms).map(({ type, value }) => [type, value])
+  );
+  const zoneName = timeZone === UTC ? UTC : parts.timeZoneName;
+
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} ${zoneName}`;
 }
 
 function toRelative(deadlineMs: number, nowMs: number): string {
@@ -20,15 +39,10 @@ function toRelative(deadlineMs: number, nowMs: number): string {
   return `about ${hours} ${hours === 1 ? "hour" : "hours"} from now`;
 }
 
-/**
- * Renders a reclamation deadline as an absolute UTC timestamp plus a relative
- * window, e.g. `2026-06-08 14:00 UTC (about 71 hours from now)`. The tenant's
- * timezone is unknown server-side, so the absolute time is always UTC.
- *
- * @param deadlineSeconds - unix timestamp (seconds) when the reclamation window expires
- * @param nowMs - current time in milliseconds (injected for deterministic formatting)
- */
-export function formatReclaimDeadline(deadlineSeconds: number, nowMs: number): string {
+/** Renders a reclamation deadline in the recipient's timezone, or in UTC when it is unknown, plus a relative window. */
+export function formatReclaimDeadline(deadlineSeconds: number, nowMs: number, timeZone?: string | null): string {
   const deadlineMs = deadlineSeconds * 1000;
-  return `${toUtcString(deadlineMs)} (${toRelative(deadlineMs, nowMs)})`;
+  const zone = timeZone && isIanaTimeZone(timeZone) ? timeZone : UTC;
+
+  return `${toZonedString(deadlineMs, zone)} (${toRelative(deadlineMs, nowMs)})`;
 }

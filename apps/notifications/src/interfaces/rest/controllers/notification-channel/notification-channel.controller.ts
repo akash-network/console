@@ -7,6 +7,7 @@ import { z } from "zod";
 import { NotFoundErrorResponse, ValidateHttp } from "@src/interfaces/rest/decorators/http-validate/http-validate.decorator";
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { toPaginatedQuery, toPaginatedResponse } from "@src/lib/http-schema/http-schema";
+import { isIanaTimeZone } from "@src/lib/time-zone/time-zone";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import {
   notificationChannelConfigSchema,
@@ -21,12 +22,19 @@ export const notificationChannelCreateInputSchema = z.object({
   isDefault: z.boolean().optional()
 });
 
-export const notificationChannelCreateDefaultInputSchema = notificationChannelCreateInputSchema.omit({ isDefault: true });
+export const notificationChannelCreateDefaultInputSchema = notificationChannelCreateInputSchema.omit({ isDefault: true }).extend({
+  timezone: z
+    .string()
+    .describe("IANA timezone the dates in the channel's emails are shown in, also set on an existing default channel. A value that names no zone is ignored.")
+    .transform(timeZone => (isIanaTimeZone(timeZone) ? timeZone : undefined))
+    .optional()
+});
 
 export const notificationChannelOutputSchema = notificationChannelCreateInputSchema.extend({
   id: z.string().uuid(),
   userId: z.string().uuid(),
   isDefault: z.boolean(),
+  timezone: z.string().nullable().describe("IANA timezone the dates in the channel's emails are shown in, UTC when there is none"),
   createdAt: z.date(),
   updatedAt: z.date()
 });
@@ -83,7 +91,7 @@ export class NotificationChannelController {
   @Post("default")
   @HttpCode(204)
   @ValidateHttp({})
-  @ApiNoContentResponse({ description: "Creates the default notification channel only if it doesn't exist." })
+  @ApiNoContentResponse({ description: "Creates the default notification channel only if it doesn't exist, and otherwise updates its timezone when one is given." })
   async createDefaultNotificationChannel(@Body() { data }: NotificationChannelCreateDefaultInput): Promise<Result<void, unknown>> {
     await this.notificationChannelRepository
       .accessibleBy(this.authService.ability, "create")

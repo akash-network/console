@@ -276,6 +276,27 @@ describe(UserService.name, () => {
         expect(result.timezone).toBe("Europe/Paris");
       });
 
+      it("dates the alert emails of the default notification channel in the detected timezone", async () => {
+        const user = createUser({ timezone: null, timezonePickedAt: null });
+        const { service, userRepository, notificationService } = setup();
+        userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+        userRepository.updateBy.mockImplementation(vi.fn().mockResolvedValue({ ...user, timezone: "Europe/Paris" }));
+
+        await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Europe/Paris" }));
+
+        expect(notificationService.createDefaultChannel).toHaveBeenCalledWith(expect.objectContaining({ id: user.id, timezone: "Europe/Paris" }));
+      });
+
+      it("keeps the alert emails of the default notification channel in the picked timezone when another one is detected", async () => {
+        const user = createUser({ timezone: "Europe/Paris", timezonePickedAt: faker.date.past() });
+        const { service, userRepository, notificationService } = setup();
+        userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
+
+        await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Asia/Tokyo" }));
+
+        expect(notificationService.createDefaultChannel).toHaveBeenCalledWith(expect.objectContaining({ id: user.id, timezone: "Europe/Paris" }));
+      });
+
       it("stores the canonical name of a timezone alias", async () => {
         const user = createUser({ timezone: null, timezonePickedAt: null });
         const { service, userRepository } = setup();
@@ -383,6 +404,49 @@ describe(UserService.name, () => {
       await service.updateUserDetails(user.id, { timezone: "Europe/Paris" });
 
       expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { timezone: "Europe/Paris", timezonePickedAt: expect.any(Date) });
+    });
+
+    it("moves the user's alert emails to the timezone they picked", async () => {
+      const user = createUser({ timezone: "America/New_York", timezonePickedAt: null });
+      const { service, userRepository, notificationService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+
+      await service.updateUserDetails(user.id, { timezone: "Europe/Paris" });
+
+      expect(notificationService.createDefaultChannel).toHaveBeenCalledWith({ id: user.id, email: user.email, timezone: "Europe/Paris" });
+    });
+
+    it("keeps the picked timezone when the alert emails cannot be moved to it", async () => {
+      const user = createUser({ timezone: null, timezonePickedAt: null });
+      const error = new Error("notifications unavailable");
+      const { service, userRepository, notificationService, logger } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      notificationService.createDefaultChannel.mockRejectedValue(error);
+
+      await service.updateUserDetails(user.id, { timezone: "Europe/Paris" });
+
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { timezone: "Europe/Paris", timezonePickedAt: expect.any(Date) });
+      expect(logger.error).toHaveBeenCalledWith({ event: "FAILED_TO_SHARE_TIMEZONE_WITH_ALERT_EMAILS", id: user.id, error });
+    });
+
+    it("leaves the alert emails alone when no timezone is picked", async () => {
+      const user = createUser();
+      const { service, userRepository, notificationService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+
+      await service.updateUserDetails(user.id, { bio: "Builds on Akash" });
+
+      expect(notificationService.createDefaultChannel).not.toHaveBeenCalled();
+    });
+
+    it("leaves the alert emails alone for a user without an email address", async () => {
+      const user = createUser({ email: null });
+      const { service, userRepository, notificationService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+
+      await service.updateUserDetails(user.id, { timezone: "Europe/Paris" });
+
+      expect(notificationService.createDefaultChannel).not.toHaveBeenCalled();
     });
 
     it("leaves the opt-out untouched when the product updates preference is not sent", async () => {

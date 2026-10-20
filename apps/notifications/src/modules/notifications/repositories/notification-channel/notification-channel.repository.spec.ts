@@ -113,6 +113,51 @@ describe(NotificationChannelRepository.name, () => {
       expect(await liveDefaultsOf(repository, { organizationId })).toHaveLength(1);
     });
 
+    it("creates the default in the timezone it is given", async () => {
+      const { repository } = await setup();
+      const userId = faker.string.uuid();
+      const owner: DefaultChannelOwner = { kind: "user", userId, organizationId: null };
+
+      await repository.createDefaultChannel(channelInput({ userId, timezone: "Europe/Paris" }), owner);
+
+      expect(await repository.findDefault(owner)).toMatchObject({ timezone: "Europe/Paris" });
+    });
+
+    it("moves the existing default to the timezone it is given instead of adding another", async () => {
+      const { repository } = await setup();
+      const userId = faker.string.uuid();
+      const owner: DefaultChannelOwner = { kind: "user", userId, organizationId: null };
+      const existingDefault = channelInput({ userId });
+
+      await repository.createDefaultChannel(existingDefault, owner);
+      await repository.createDefaultChannel(channelInput({ userId, timezone: "Asia/Tokyo" }), owner);
+
+      expect(await liveDefaultsOf(repository, { userId })).toEqual([expect.objectContaining({ id: existingDefault.id, timezone: "Asia/Tokyo" })]);
+    });
+
+    it("keeps the timezone of the existing default when none is given", async () => {
+      const { repository } = await setup();
+      const userId = faker.string.uuid();
+      const owner: DefaultChannelOwner = { kind: "user", userId, organizationId: null };
+
+      await repository.createDefaultChannel(channelInput({ userId, timezone: "Europe/Paris" }), owner);
+      await repository.createDefaultChannel(channelInput({ userId }), owner);
+
+      expect(await repository.findDefault(owner)).toMatchObject({ timezone: "Europe/Paris" });
+    });
+
+    it("leaves the timezone of other channels alone", async () => {
+      const { repository } = await setup();
+      const userId = faker.string.uuid();
+      const owner: DefaultChannelOwner = { kind: "user", userId, organizationId: null };
+      const otherChannel = await repository.create({ ...channelInput({ userId, timezone: "Europe/Paris" }), isDefault: false });
+
+      await repository.createDefaultChannel(channelInput({ userId }), owner);
+      await repository.createDefaultChannel(channelInput({ userId, timezone: "Asia/Tokyo" }), owner);
+
+      expect(await repository.findById(otherChannel.id)).toMatchObject({ timezone: "Europe/Paris" });
+    });
+
     it("refuses a default the ability does not allow to create", async () => {
       const { repository } = await setup();
       const organizationId = faker.string.uuid();
@@ -323,7 +368,7 @@ describe(NotificationChannelRepository.name, () => {
     }
   });
 
-  function channelInput(input: { userId?: string; organizationId?: string; addresses?: string[] }): NotificationChannelInput {
+  function channelInput(input: { userId?: string; organizationId?: string; addresses?: string[]; timezone?: string }): NotificationChannelInput {
     const { addresses, ...overrides } = input;
     const { isDefault, ...channel } = generateNotificationChannel({
       ...overrides,

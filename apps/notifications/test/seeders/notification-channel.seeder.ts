@@ -12,6 +12,7 @@ export const generateNotificationChannel = ({
   type = faker.helpers.arrayElement<NotificationChannelOutput["type"]>(["email"]),
   config = generateMock(notificationChannelConfigSchema),
   isDefault = faker.datatype.boolean(),
+  timezone = null,
   createdAt = new Date(),
   updatedAt = new Date()
 }: Partial<NotificationChannelOutput>): NotificationChannelOutput => {
@@ -24,6 +25,7 @@ export const generateNotificationChannel = ({
     config,
     createdAt,
     updatedAt,
-    isDefault
+    isDefault,
+    timezone
   };
 };

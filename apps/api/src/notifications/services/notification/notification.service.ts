@@ -68,7 +68,7 @@ export class NotificationService {
       await send().catch(async error => {
         if (extractApiErrorCode(error) !== "NOTIFICATION_CHANNEL_NOT_FOUND" || !user.email) throw error;
 
-        await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email), { headers });
+        await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email, user.timezone), { headers });
         await send();
       });
     } catch (error) {
@@ -80,7 +80,7 @@ export class NotificationService {
     const headers = await this.#userIdentityHeaders(user.id);
     await this.#retryPolicy.execute(async () => {
       try {
-        await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email!), { headers });
+        await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email!, user.timezone), { headers });
       } catch (error) {
         throw new Error("Failed to create default notification channel", { cause: error });
       }
@@ -114,7 +114,7 @@ export class NotificationService {
     const channelId =
       deploymentHeaders[NOTIFICATIONS_IDENTITY_HEADERS.organizationType] === "team"
         ? await this.#getOrCreateTeamChannelId(deploymentHeaders, user.email)
-        : await this.getOrCreateNotificationChannelId(deploymentHeaders, input.userId, user.email);
+        : await this.getOrCreateNotificationChannelId(deploymentHeaders, { id: input.userId, email: user.email, timezone: user.timezone });
     if (!channelId) {
       this.#logger.warn({ event: "SKIP_AUTO_ENABLE_ALERT", reason: "No channel found after creation", userId: input.userId });
       return;
@@ -123,15 +123,15 @@ export class NotificationService {
     await this.upsertDeploymentClosedAlert(deploymentHeaders, { walletAddress: input.walletAddress, dseq: input.dseq, channelId });
   }
 
-  private async getOrCreateNotificationChannelId(deploymentHeaders: Record<string, string>, userId: string, email: string): Promise<string | undefined> {
+  private async getOrCreateNotificationChannelId(deploymentHeaders: Record<string, string>, user: UserInput): Promise<string | undefined> {
     let channels = await this.getNotificationChannels(deploymentHeaders);
 
     if (!channels?.data?.length) {
       // Treat the create as best-effort: a concurrent autoEnableDeploymentAlert for the
       // same user may have already won the race, so swallow the create error and let the
       // re-fetch decide whether a channel is now available.
-      await this.createDefaultChannel({ id: userId, email }).catch(error => {
-        this.#logger.debug({ event: "AUTO_ENABLE_ALERT_CHANNEL_CREATE_FAILED", userId, error });
+      await this.createDefaultChannel(user).catch(error => {
+        this.#logger.debug({ event: "AUTO_ENABLE_ALERT_CHANNEL_CREATE_FAILED", userId: user.id, error });
       });
       channels = await this.getNotificationChannels(deploymentHeaders);
     }
@@ -207,13 +207,14 @@ export class NotificationService {
   }
 }
 
-function defaultChannelInput(email: string) {
-  return { data: { name: "Default", type: "email" as const, config: { addresses: [email] } } };
+function defaultChannelInput(email: string, timezone: string | null | undefined) {
+  return { data: { name: "Default", type: "email" as const, config: { addresses: [email] }, ...(timezone && { timezone }) } };
 }
 
 interface UserInput {
   id: string;
   email?: string | null;
+  timezone?: string | null;
 }
 
 export interface ReleaseDepartedMemberAddressInput {

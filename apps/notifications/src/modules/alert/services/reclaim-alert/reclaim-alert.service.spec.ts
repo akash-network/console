@@ -141,6 +141,43 @@ describe(ReclaimAlertService.name, () => {
       expect(description).toContain("2025-06-08");
       expect(description).toContain("/deployments/12345");
     });
+
+    it("shows the deadline in the timezone of the channel the alert emails, naming the zone", async () => {
+      const { service, alertRepository, onMessage } = await setup();
+      const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.claimNotification.mockResolvedValue(alert);
+      alertRepository.findNotificationChannelTimezone.mockResolvedValue("Asia/Tokyo");
+
+      await service.alertFor(generateReclaimEvent({ deadline: 1749398400 }), onMessage);
+
+      expect(alertRepository.findNotificationChannelTimezone).toHaveBeenCalledWith(alert.notificationChannelId);
+      expect(onMessage.mock.calls[0][0].payload.description).toContain("You have until 2025-06-09 01:00 Japan Standard Time (");
+    });
+
+    it("shows the deadline in UTC when the channel the alert emails has no timezone", async () => {
+      const { service, alertRepository, onMessage } = await setup();
+      const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.claimNotification.mockResolvedValue(alert);
+      alertRepository.findNotificationChannelTimezone.mockResolvedValue(null);
+
+      await service.alertFor(generateReclaimEvent({ deadline: 1749398400 }), onMessage);
+
+      expect(onMessage.mock.calls[0][0].payload.description).toContain("You have until 2025-06-08 16:00 UTC (");
+    });
+
+    it("leaves the alert unclaimed for a redelivery when the channel's timezone cannot be read", async () => {
+      const { service, alertRepository, onMessage } = await setup();
+      const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.findNotificationChannelTimezone.mockRejectedValue(new Error("connection reset"));
+
+      await expect(service.alertFor(generateReclaimEvent(), onMessage)).rejects.toThrow("connection reset");
+
+      expect(alertRepository.claimNotification).not.toHaveBeenCalled();
+      expect(onMessage).not.toHaveBeenCalled();
+    });
   });
 
   function generateReclaimEvent(overrides: Partial<ReclaimAlertEvent> = {}): ReclaimAlertEvent {

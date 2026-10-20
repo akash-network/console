@@ -279,6 +279,15 @@ export class AlertRepository {
     return deleted.length;
   }
 
+  async findNotificationChannelTimezone(notificationChannelId: string): Promise<string | null> {
+    const [channel] = await this.db
+      .select({ timezone: NotificationChannel.timezone })
+      .from(NotificationChannel)
+      .where(eq(NotificationChannel.id, notificationChannelId));
+
+    return channel?.timezone ?? null;
+  }
+
   async countActiveByNotificationChannelId(notificationChannelId: string): Promise<number> {
     const result = await this.db
       .select({ count: count(schema.Alert.id) })

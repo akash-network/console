@@ -268,6 +268,17 @@ export class UserService {
     }
 
     await this.userRepository.updateById(userId, changes);
+
+    if (timezone && user.email) {
+      await this.#shareTimezoneWithAlertEmails({ id: userId, email: user.email, timezone });
+    }
+  }
+
+  /** The notifications service dates its alert emails with the timezone it keeps on the user's default channel. */
+  async #shareTimezoneWithAlertEmails(user: { id: string; email: string; timezone: string }): Promise<void> {
+    await this.notificationService.createDefaultChannel(user).catch(error => {
+      this.logger.error({ event: "FAILED_TO_SHARE_TIMEZONE_WITH_ALERT_EMAILS", id: user.id, error });
+    });
   }
 
   async subscribeToNewsletter(userId: string) {

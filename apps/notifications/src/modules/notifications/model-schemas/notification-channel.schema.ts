@@ -19,6 +19,7 @@ export const NotificationChannel = pgTable(
     config: jsonb("config").notNull(),
     deletedAt: timestamp("deleted_at"),
     isDefault: boolean("is_default").notNull().default(false),
+    timezone: varchar("timezone", { length: 64 }),
 
     ...timestamps
   },

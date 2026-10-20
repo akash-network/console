@@ -17,6 +17,7 @@ export function buildNotificationChannel(
     createdAt: createdAt.toISOString(),
     updatedAt: updatedAt.toISOString(),
     isDefault: faker.datatype.boolean(),
+    timezone: null,
     ...overrides
   };
 }

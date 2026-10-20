@@ -616,7 +616,7 @@
         },
         "responses": {
           "204": {
-            "description": "Creates the default notification channel only if it doesn't exist."
+            "description": "Creates the default notification channel only if it doesn't exist, and otherwise updates its timezone when one is given."
           },
           "400": {
             "description": "Validation error responded when some request parameters are invalid",
@@ -5277,6 +5277,11 @@
                 "type": "string",
                 "format": "uuid"
               },
+              "timezone": {
+                "description": "IANA timezone the dates in the channel's emails are shown in, UTC when there is none",
+                "type": "string",
+                "nullable": true
+              },
               "createdAt": {},
               "updatedAt": {}
             },
@@ -5287,6 +5292,7 @@
               "isDefault",
               "id",
               "userId",
+              "timezone",
               "createdAt",
               "updatedAt"
             ]
@@ -5325,6 +5331,10 @@
                 "required": [
                   "addresses"
                 ]
+              },
+              "timezone": {
+                "description": "IANA timezone the dates in the channel's emails are shown in, also set on an existing default channel. A value that names no zone is ignored.",
+                "type": "string"
               }
             },
             "required": [
@@ -5398,6 +5408,11 @@
                   "type": "string",
                   "format": "uuid"
                 },
+                "timezone": {
+                  "description": "IANA timezone the dates in the channel's emails are shown in, UTC when there is none",
+                  "type": "string",
+                  "nullable": true
+                },
                 "createdAt": {},
                 "updatedAt": {}
               },
@@ -5408,6 +5423,7 @@
                 "isDefault",
                 "id",
                 "userId",
+                "timezone",
                 "createdAt",
                 "updatedAt"
               ]

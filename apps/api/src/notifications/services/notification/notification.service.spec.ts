@@ -38,6 +38,29 @@ describe(NotificationService.name, () => {
       );
     });
 
+    it("passes the user's timezone on for the dates in the channel's emails", async () => {
+      const { service, api } = setup();
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createDefaultChannel({ id: "user-1", email: "user@example.com", timezone: "Europe/Paris" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(
+        { data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] }, timezone: "Europe/Paris" } },
+        { headers: { "x-user-id": "user-1" } }
+      );
+    });
+
+    it("leaves the timezone out while the user's is unknown", async () => {
+      const { service, api } = setup();
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createDefaultChannel({ id: "user-1", email: "user@example.com", timezone: null });
+
+      expect(api.v1.createDefaultNotificationChannel.mock.calls[0][0]).toStrictEqual({
+        data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] } }
+      });
+    });
+
     it("retries if notification service returns an error", async () => {
       vi.useFakeTimers();
       const { service, api } = setup();
@@ -236,6 +259,23 @@ describe(NotificationService.name, () => {
       expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(2);
     });
 
+    it("opens the missing default channel in the user's timezone", async () => {
+      const { service, api, apiInternal } = setup();
+      apiInternal.v1.createNotification.mockRejectedValueOnce(channelMissing).mockResolvedValueOnce(undefined as never);
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createNotificationOnce({ ...input, user: { ...input.user, timezone: "Asia/Tokyo" } });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(
+        { data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] }, timezone: "Asia/Tokyo" } },
+        { headers: { "x-user-id": "user-1" } }
+      );
+      expect(apiInternal.v1.createNotification).toHaveBeenCalledWith(
+        { notificationId: "n-1", payload: { summary: "s", description: "d" } },
+        { headers: { "x-user-id": "user-1" } }
+      );
+    });
+
     it("attributes the notification and the channel it opens to the user's personal organization", async () => {
       const { service, api, apiInternal, organizationRepository } = setup();
       organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1", type: "personal" }));
@@ -381,6 +421,26 @@ describe(NotificationService.name, () => {
       expect(api.v1.listNotificationChannels).toHaveBeenCalledWith(
         { page: 1, limit: 100 },
         { headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1", "x-organization-type": "personal" } }
+      );
+      expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(
+        { dseq: "123", data: { alerts: { deploymentClosed: { notificationChannelId: "default-channel", enabled: true } } } },
+        expect.anything()
+      );
+    });
+
+    it("opens the deployer's missing default channel in their timezone", async () => {
+      const { service, api, userRepository, organizationRepository, deploymentSettingRepository } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com", timezone: "Asia/Tokyo" } as UserOutput);
+      deploymentSettingRepository.findTenancy.mockResolvedValue(undefined);
+      organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1", type: "personal" }));
+      api.v1.listNotificationChannels.mockResolvedValueOnce({ data: [] } as never).mockResolvedValueOnce({ data: [{ id: "default-channel", isDefault: true }] } as never);
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(
+        { data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] }, timezone: "Asia/Tokyo" } },
+        expect.anything()
       );
       expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(
         { dseq: "123", data: { alerts: { deploymentClosed: { notificationChannelId: "default-channel", enabled: true } } } },

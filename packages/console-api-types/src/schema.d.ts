@@ -8289,6 +8289,8 @@ export interface components {
         id: string;
         /** Format: uuid */
         userId: string;
+        /** @description IANA timezone the dates in the channel's emails are shown in, UTC when there is none */
+        timezone: string | null;
         createdAt: unknown;
         updatedAt: unknown;
       };
@@ -8301,6 +8303,8 @@ export interface components {
         config: {
           addresses: string[];
         };
+        /** @description IANA timezone the dates in the channel's emails are shown in, also set on an existing default channel. A value that names no zone is ignored. */
+        timezone?: string;
       };
     };
     NotFoundErrorResponse: {
@@ -8320,6 +8324,8 @@ export interface components {
         id: string;
         /** Format: uuid */
         userId: string;
+        /** @description IANA timezone the dates in the channel's emails are shown in, UTC when there is none */
+        timezone: string | null;
         createdAt: unknown;
         updatedAt: unknown;
       }[];
@@ -16484,7 +16490,7 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Creates the default notification channel only if it doesn't exist. */
+      /** @description Creates the default notification channel only if it doesn't exist, and otherwise updates its timezone when one is given. */
       204: {
         headers: {
           [name: string]: unknown;

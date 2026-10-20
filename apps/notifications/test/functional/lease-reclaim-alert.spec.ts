@@ -72,6 +72,70 @@ describe("lease reclaim alerts", () => {
     }
   });
 
+  it("shows the deadline in the timezone of the channel it emails, naming the zone", async () => {
+    const { module } = await setup();
+
+    try {
+      const controller = module.get(ChainEventsHandler);
+      const brokerService = module.get(BrokerService);
+      const db = module.get(DRIZZLE_PROVIDER_TOKEN);
+
+      const owner = mockAkashAddress();
+      const dseq = String(faker.number.int({ min: 1, max: 999999 }));
+
+      vi.spyOn(brokerService, "publish").mockResolvedValue(undefined);
+
+      const [channel] = await db
+        .insert(NotificationChannel)
+        .values([generateNotificationChannel({ timezone: "Europe/Paris" })])
+        .returning();
+      await db.insert(schema.Alert).values([generateClosedAlert({ owner, dseq, notificationChannelId: channel.id })]);
+
+      await controller.processLeaseReclaimStarted(generateReclaimEvent({ owner, dseq }));
+
+      expect(brokerService.publish).toHaveBeenCalledWith(
+        eventKeyRegistry.createNotification,
+        expect.objectContaining({
+          payload: expect.objectContaining({ description: expect.stringContaining("You have until 2025-06-08 18:00 Central European Summer Time (") })
+        })
+      );
+    } finally {
+      await module.close();
+    }
+  });
+
+  it("shows the deadline in UTC when the channel it emails has no timezone", async () => {
+    const { module } = await setup();
+
+    try {
+      const controller = module.get(ChainEventsHandler);
+      const brokerService = module.get(BrokerService);
+      const db = module.get(DRIZZLE_PROVIDER_TOKEN);
+
+      const owner = mockAkashAddress();
+      const dseq = String(faker.number.int({ min: 1, max: 999999 }));
+
+      vi.spyOn(brokerService, "publish").mockResolvedValue(undefined);
+
+      const [channel] = await db
+        .insert(NotificationChannel)
+        .values([generateNotificationChannel({ timezone: null })])
+        .returning();
+      await db.insert(schema.Alert).values([generateClosedAlert({ owner, dseq, notificationChannelId: channel.id })]);
+
+      await controller.processLeaseReclaimStarted(generateReclaimEvent({ owner, dseq }));
+
+      expect(brokerService.publish).toHaveBeenCalledWith(
+        eventKeyRegistry.createNotification,
+        expect.objectContaining({
+          payload: expect.objectContaining({ description: expect.stringContaining("You have until 2025-06-08 16:00 UTC (") })
+        })
+      );
+    } finally {
+      await module.close();
+    }
+  });
+
   it("does not send when the deployment-closed alert is disabled (opted out)", async () => {
     const { module } = await setup();
 
