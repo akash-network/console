@@ -61,7 +61,12 @@ describe("date helpers", () => {
       ["Europe/Paris", "Europe/Paris"],
       ["Etc/GMT+5", "Etc/GMT+5"],
       ["Etc/UTC", "UTC"],
-      ["europe/paris", "Europe/Paris"]
+      ["GMT", "UTC"],
+      ["europe/paris", "Europe/Paris"],
+      ["Asia/Kolkata", "Asia/Kolkata"],
+      ["Asia/Calcutta", "Asia/Calcutta"],
+      ["Europe/Kyiv", "Europe/Kyiv"],
+      ["US/Eastern", "US/Eastern"]
     ])("names %s as %s", (timeZone, ianaTimeZone) => {
       expect(toIanaTimeZone(timeZone)).toBe(ianaTimeZone);
     });
