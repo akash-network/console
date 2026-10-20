@@ -46,8 +46,7 @@ export const useProviderApiActions = (): ProviderApiActions => {
   const displayResult = useCallback(
     (errorMessage: string, result: DownloadMessagesResult) => {
       if (!result.ok && result.code !== "cancelled") {
-        const message = result.message ? `${errorMessage}:\n${result.message}` : errorMessage;
-        enqueueSnackbar(message, { variant: "error" });
+        enqueueSnackbar(<Snackbar title={errorMessage} subTitle={result.message} iconVariant="error" />, { variant: "error" });
       }
     },
     [enqueueSnackbar]

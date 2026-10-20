@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { Snackbar } from "./snackbar";
@@ -11,7 +11,7 @@ describe(Snackbar.name, () => {
     setup({ title: "Event has been created", subTitle: "Monday, January 3rd at 6:00pm" });
 
     expect(screen.getByRole("heading", { name: "Event has been created" })).toBeInTheDocument();
-    expect(screen.getByText("Monday, January 3rd at 6:00pm")).toHaveClass("text-muted-foreground");
+    expect(screen.getByText("Monday, January 3rd at 6:00pm")).toHaveClass("text-foreground/70");
   });
 
   it.each([
@@ -49,7 +49,13 @@ describe(Snackbar.name, () => {
     expect(undo).toHaveBeenCalledTimes(1);
   });
 
-  function setup(input: ComponentProps<typeof Snackbar>) {
+  function setup(input: {
+    title: string;
+    subTitle?: ReactNode;
+    iconVariant?: "success" | "info" | "warning" | "error";
+    showLoading?: boolean;
+    action?: ReactNode;
+  }) {
     return render(<Snackbar {...input} />);
   }
 });

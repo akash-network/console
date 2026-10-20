@@ -10,7 +10,6 @@ type Props = {
   subTitle?: string | ReactNode;
   iconVariant?: IconVariant;
   showLoading?: boolean;
-  /** Sits on the right of the toast, such as a "View" or "Undo" button. */
   action?: ReactNode;
   ["data-testid"]?: string;
 };
@@ -28,8 +27,8 @@ export const Snackbar: React.FunctionComponent<Props> = ({ title, subTitle, icon
       )}
 
       <div className="min-w-0 flex-1">
-        <h5 className="text-sm font-medium leading-5">{title}</h5>
-        {subTitle && <div className="mt-0.5 break-words text-[13px] leading-5 text-muted-foreground">{subTitle}</div>}
+        <h5 className="break-words text-sm font-medium leading-5">{title}</h5>
+        {subTitle && <div className="text-foreground/70 mt-0.5 break-words text-[13px] leading-5">{subTitle}</div>}
       </div>
 
       {action && <div className="shrink-0">{action}</div>}

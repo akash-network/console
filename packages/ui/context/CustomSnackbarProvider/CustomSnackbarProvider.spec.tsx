@@ -15,7 +15,7 @@ describe(CustomSnackbarProvider.name, () => {
     ["error", "bg-red-50"],
     ["info", "bg-popover"],
     ["default", "bg-popover"]
-  ] as const)("shows a %s toast as a %s card", async (variant, background) => {
+  ] as const)("gives a %s toast the card tint of its kind", async (variant, background) => {
     setup({ message: "Event has been created", options: { variant } });
 
     const toast = await screen.findByRole("alert");
