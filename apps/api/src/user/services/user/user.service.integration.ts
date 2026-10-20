@@ -38,7 +38,11 @@ describe(UserService.name, () => {
       const organization = await organizationRepository.findPersonalByUserId(result.id);
       expect(organization).toMatchObject({ type: "personal", name: result.username, createdByUserId: result.id });
       expect(await organizationMemberRepository.findOneBy({ organizationId: organization?.id, userId: result.id })).toMatchObject({ role: "owner" });
-      expect(await projectRepository.findDefaultByOrganizationId(organization?.id as string)).toMatchObject({ name: "default-project", slug: "default-project", isDefault: true });
+      expect(await projectRepository.findDefaultByOrganizationId(organization?.id as string)).toMatchObject({
+        name: "default-project",
+        slug: "default-project",
+        isDefault: true
+      });
     });
 
     it("creates no user when the personal organization cannot be created", async () => {
