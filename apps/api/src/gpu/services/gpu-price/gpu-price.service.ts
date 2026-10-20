@@ -27,6 +27,9 @@ function resourceValToInt(val: Uint8Array | bigint | undefined): number {
   return parseInt(uint8arrayToString(val), 10);
 }
 
+/** The cpu of the pricing bot's tiny pricing order; its other check orders carry cpu, memory and storage that would skew their gpu's price. */
+const PRICING_BOT_CPU_UNITS = 100;
+
 @injectable()
 export class GpuPriceService {
   readonly #gpuConfig: GpuConfig;
@@ -73,6 +76,7 @@ export class GpuPriceService {
     // Fetch all deployments with GPU resources created during this period and their related MsgCreateBid messages
     const deployments = this.deploymentRepository.findAllWithGpuResources({ minHeight: firstBlockToUse.height });
     const gpuModels: GpuWithPricesType[] = gpus.map(x => ({ ...x, prices: [] as GpuBidType[] }));
+    const pricingBotAddress = this.#gpuConfig.PRICING_BOT_ADDRESS;
     const gpusByModelAndVendor = Object.groupBy(gpuModels, x => `${x.vendor}-${x.model}`);
 
     for await (const d of deployments) {
@@ -137,6 +141,8 @@ export class GpuPriceService {
           data: decodedBidJson
         } as GpuBidType;
 
+        if (bid.deployment.owner === pricingBotAddress && bid.deployment.cpuUnits !== PRICING_BOT_CPU_UNITS) return;
+
         const gpu = bid.deployment.gpus[0];
         const matchingGpuModels = gpusByModelAndVendor[`${gpu.vendor}-${gpu.model}`];
         if (!matchingGpuModels) return;
@@ -169,14 +175,13 @@ export class GpuPriceService {
       */
 
       const lastBidsForPeriod = addDays(new Date(), -14);
-      const pricingBotAddress = this.#gpuConfig.PRICING_BOT_ADDRESS;
       const pricesByProvider = Map.groupBy(x.prices, b => b.provider);
 
       const providersWithBestBid: ProviderWithBestBid[] = [];
       x.providers.forEach(p => {
         const providerBids = pricesByProvider.get(p.owner) ?? [];
         const providerBidsLast14d = providerBids.filter(b => b.datetime > lastBidsForPeriod);
-        const bidsFromPricingBot = providerBids.filter(b => b.deployment.owner === pricingBotAddress && b.deployment.cpuUnits === 100);
+        const bidsFromPricingBot = providerBids.filter(b => b.deployment.owner === pricingBotAddress);
 
         const bestBid =
           bidsFromPricingBot.length > 0

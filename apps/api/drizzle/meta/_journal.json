@@ -680,6 +680,13 @@
       "when": 1792390525537,
       "tag": "0096_deployment_settings_console_close_reason",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1792399872040,
+      "tag": "0097_gpu_bid_checks",
+      "breakpoints": true
     }
   ]
 }

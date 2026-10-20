@@ -376,6 +376,43 @@ describe(GpuPriceService.name, () => {
       expect(result.models[0].providersWithBestBid![0].bestBid.deployment.owner).toBe(pricingBotAddress);
     });
 
+    it("leaves out the pricing bot's bids on orders larger than its pricing order", async () => {
+      const provider = createProvider();
+      const pricingBotAddress = "akash1pricingbot123";
+      const gpu = createGpuType({ vendor: "nvidia", model: "h100", providers: [provider] });
+      const regularBid = createMsgCreateBidV5({ provider: provider.owner, gpuVendor: "nvidia", gpuModel: "h100", priceAmount: "1000" });
+      const typicalCheckBid = createMsgCreateBidV5({ provider: provider.owner, gpuVendor: "nvidia", gpuModel: "h100", priceAmount: "500", cpuUnits: 4000 });
+      const days = [createDay({ aktPrice: 3.0 })];
+
+      const { service } = setup({
+        gpusForPricing: [gpu],
+        deploymentsWithGpu: [
+          createDeploymentWithBid({
+            owner: faker.string.alphanumeric(43),
+            dayId: days[0].id,
+            bidData: regularBid.encoded,
+            bidType: `/akash.market.v1beta5.MsgCreateBid`,
+            height: 100
+          }),
+          createDeploymentWithBid({
+            owner: pricingBotAddress,
+            dayId: days[0].id,
+            bidData: typicalCheckBid.encoded,
+            bidType: `/akash.market.v1beta5.MsgCreateBid`,
+            height: 200
+          })
+        ],
+        days,
+        pricingBotAddress
+      });
+
+      const result = await service.getGpuPrices(true);
+
+      expect(result.models[0].providersWithBestBid).toHaveLength(1);
+      expect(result.models[0].providersWithBestBid![0].bestBid.deployment.owner).not.toBe(pricingBotAddress);
+      expect(result.models[0].bidCount).toBe(1);
+    });
+
     it("includes debug information when debug flag is true", async () => {
       const provider = createProvider();
       const gpu = createGpuType({
