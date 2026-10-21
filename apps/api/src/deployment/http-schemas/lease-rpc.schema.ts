@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
+import { MAX_FALLBACK_LIST_LIMIT } from "@src/deployment/http-schemas/deployment-rpc.schema";
 import { DseqSchema } from "@src/utils/schema";
 
 const LeaseIdSchema = z.object({
@@ -66,8 +67,12 @@ export const FallbackLeaseListQuerySchema = z.object({
   "filters.oseq": z.coerce.number().optional(),
   "filters.provider": z.string().optional(),
   "filters.state": z.string().optional(),
-  "pagination.offset": z.coerce.number().optional(),
-  "pagination.limit": z.coerce.number().optional(),
+  "pagination.offset": z.coerce.number().finite().min(0).optional(),
+  "pagination.limit": z.coerce
+    .number()
+    .min(0)
+    .optional()
+    .transform(limit => (limit === undefined ? undefined : Math.min(limit, MAX_FALLBACK_LIST_LIMIT))),
   "pagination.key": z.string().optional(),
   "pagination.count_total": z
     .string()
