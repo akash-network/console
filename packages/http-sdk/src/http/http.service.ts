@@ -1,11 +1,14 @@
 import axios, { Axios, type AxiosRequestConfig, type AxiosResponse } from "axios";
 
+import { keepBrowserUserAgent } from "../utils/keepBrowserUserAgent";
+
 export class HttpService extends Axios {
   constructor(config?: AxiosRequestConfig) {
     const { headers, ...defaults } = axios.defaults;
     super({
       ...defaults,
-      ...config
+      ...config,
+      headers: { ...keepBrowserUserAgent(), ...config?.headers }
     });
   }
 
