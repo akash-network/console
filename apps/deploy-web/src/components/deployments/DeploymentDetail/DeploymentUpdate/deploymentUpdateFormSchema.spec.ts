@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { importDeploymentState } from "@src/components/deployments/ConfigureDeployment/importDeploymentState/importDeploymentState";
 import { SdlBuilderFormValuesSchema } from "@src/types";
+import { SSH_VM_IMAGES } from "@src/utils/sdl/vmImages";
 import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
 import { DeploymentUpdateFormSchema, deploymentUpdateFormSchemaFor } from "./deploymentUpdateFormSchema";
 
@@ -160,6 +161,29 @@ describe("DeploymentUpdateFormSchema", () => {
     values.secretValues = { API_TOKEN: "rotated" };
 
     expect(DeploymentUpdateFormSchema.parse(values)).toMatchObject({ secretValues: { API_TOKEN: "rotated" } });
+  });
+
+  it.each(["", "   ", undefined])("refuses a vm service left with the ssh key %j", sshPubKey => {
+    const { values } = setup();
+    values.services[0].image = SSH_VM_IMAGES["Ubuntu 24.04"];
+    values.services[0].sshPubKey = sshPubKey;
+
+    expect(issuesOf(values)).toEqual([{ path: "services.0.sshPubKey", message: "SSH Public key is required." }]);
+  });
+
+  it("accepts a vm service with an ssh key", () => {
+    const { values } = setup();
+    values.services[0].image = SSH_VM_IMAGES["Ubuntu 24.04"];
+    values.services[0].sshPubKey = "ssh-ed25519 AAAA";
+
+    expect(issuesOf(values)).toEqual([]);
+  });
+
+  it("lets a container drop its ssh key, since only a vm image needs one", () => {
+    const { values } = setup();
+    values.services[0].sshPubKey = "";
+
+    expect(issuesOf(values)).toEqual([]);
   });
 
   function issuesOf(values: DeploymentUpdateFormValues) {

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
-import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { ImageCard } from "./ImageCard";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -314,10 +314,23 @@ describe(ImageCard.name, () => {
     expect(screen.getByRole("textbox", { name: "SSH public key" })).toBeDisabled();
   });
 
-  it("offers no ssh controls in the Docker card", () => {
-    setup({ image: "nginx:latest", hasSSHKey: true });
+  it("offers no ssh controls in the Docker card of a deployment without a key", () => {
+    setup({ image: "nginx:latest" });
 
     expect(screen.queryByRole("checkbox", { name: "Expose SSH" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "SSH public key" })).not.toBeInTheDocument();
+  });
+
+  it("shows the key in the Docker card of a deployment that carries one, so an imported placeholder can be replaced", () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:1", hasSSHKey: true, sshPubKey: "YOUR_KEY_HERE" });
+
+    expect(screen.getByRole("textbox", { name: "SSH public key" })).toHaveValue("YOUR_KEY_HERE");
+    expect(screen.queryByRole("checkbox", { name: "Expose SSH" })).not.toBeInTheDocument();
+  });
+
+  it("leaves the key to the Operating System card when the deployment also runs a vm", () => {
+    setup({ image: "nginx:latest", hasSSHKey: true, otherServiceImage: "ghcr.io/akash-network/ubuntu-2404-ssh:2" });
+
     expect(screen.queryByRole("textbox", { name: "SSH public key" })).not.toBeInTheDocument();
   });
 
@@ -361,18 +374,25 @@ describe(ImageCard.name, () => {
   function setup(input: {
     image?: string;
     hasSSHKey?: boolean;
+    sshPubKey?: string;
+    otherServiceImage?: string;
     hasCredentials?: boolean;
     credentials?: { host: string; username: string; password: string };
     resolver?: Resolver<SdlBuilderFormValuesType>;
     locked?: boolean;
   }) {
     const hasCredentials = input.hasCredentials ?? !!input.credentials;
+    const seeded = defaultServiceWithPlacement({
+      image: input.image ?? "",
+      sshPubKey: input.sshPubKey ?? "",
+      hasCredentials,
+      credentials: hasCredentials ? input.credentials ?? { host: "docker.io", username: "", password: "" } : undefined
+    });
+    const otherServices =
+      input.otherServiceImage === undefined ? [] : [defaultService(seeded.placements[0].id, { title: "service-2", image: input.otherServiceImage })];
     const values: SdlBuilderFormValuesType = {
-      ...defaultServiceWithPlacement({
-        image: input.image ?? "",
-        hasCredentials,
-        credentials: hasCredentials ? input.credentials ?? { host: "docker.io", username: "", password: "" } : undefined
-      }),
+      ...seeded,
+      services: [...seeded.services, ...otherServices],
       hasSSHKey: input.hasSSHKey ?? false
     };
 

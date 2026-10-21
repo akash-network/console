@@ -5,10 +5,11 @@ import { Button, Collapsible, CollapsibleContent, CollapsibleTrigger, Input } fr
 import { ChevronRight } from "lucide-react";
 
 import { supportedHosts } from "@src/components/deployments/ConfigureDeployment/ConfigurationPane/ImageCard/ImageCard";
-import type { SdlBuilderFormValuesType } from "@src/types";
+import { SshPublicKeyField } from "@src/components/deployments/ConfigureDeployment/ConfigurationPane/SshPublicKeyField/SshPublicKeyField";
 import { CUSTOM_HOST_ID } from "@src/types";
 import { normalizeDockerImage } from "@src/utils/sdl/normalizeDockerImage";
 import { secretNameOf } from "@src/utils/sdl/sdlSecrets";
+import { takesSshKey } from "@src/utils/sdl/sshKey";
 import { isVmImage } from "@src/utils/sdl/vmImages";
 import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
 import { UpdateSectionRule } from "./UpdateSectionRule";
@@ -24,10 +25,12 @@ export interface UpdateImageSectionProps {
 
 /** A managed VM image is read-only, because the SSH bootstrap it runs is what the deployment was created around. */
 export const UpdateImageSection: FC<UpdateImageSectionProps> = ({ serviceIndex, locked }) => {
-  const { control, setValue } = useFormContext<SdlBuilderFormValuesType>();
+  const { control, setValue, formState } = useFormContext<DeploymentUpdateFormValues>();
   const image = useController({ control, name: `services.${serviceIndex}.image` });
   const hasCredentials = useWatch({ control, name: `services.${serviceIndex}.hasCredentials` });
   const isVm = isVmImage(image.field.value ?? "");
+  const loadedService = formState.defaultValues?.services?.[serviceIndex];
+  const takesKey = !!loadedService && takesSshKey(loadedService);
   const inputId = `update-image-${serviceIndex}`;
 
   function startUsingPrivateRegistry() {
@@ -51,6 +54,12 @@ export const UpdateImageSection: FC<UpdateImageSectionProps> = ({ serviceIndex, 
         />
         {image.fieldState.error && <p className="text-xs text-destructive">{image.fieldState.error.message}</p>}
       </fieldset>
+
+      {takesKey && (
+        <fieldset disabled={locked} className="m-0 min-w-0 border-0 p-0">
+          <SshPublicKeyField serviceIndex={serviceIndex} scope="service" />
+        </fieldset>
+      )}
 
       {!isVm && (
         <Collapsible>

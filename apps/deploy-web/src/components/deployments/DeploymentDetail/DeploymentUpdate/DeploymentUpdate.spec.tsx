@@ -171,6 +171,65 @@ deployment:
       count: 1`
   );
 
+const SDL_WITH_SSH = `
+version: "2.0"
+services:
+  shell:
+    image: ghcr.io/akash-network/ubuntu-2404-ssh:2
+    env:
+      - SSH_PUBKEY=ssh-ed25519 AAAAold
+    expose:
+      - port: 22
+        as: 22
+        to:
+          - global: true
+  web:
+    image: nginx:1.25
+    expose:
+      - port: 80
+        as: 80
+        to:
+          - global: true
+profiles:
+  compute:
+    shell:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 1Gi
+        storage:
+          - size: 10Gi
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          - size: 1Gi
+  placement:
+    edge-us:
+      pricing:
+        shell:
+          denom: uakt
+          amount: 1000
+        web:
+          denom: uakt
+          amount: 1000
+deployment:
+  shell:
+    edge-us:
+      profile: shell
+      count: 1
+  web:
+    edge-us:
+      profile: web
+      count: 1
+`;
+
+const SDL_WITH_SSH_CONTAINER = SDL_WITH_SSH.replace("ubuntu-2404-ssh:2", "ubuntu-2404-ssh:1");
+
 const RECORDED_VERSION = "cmVjb3JkZWQ=";
 
 const PROTECTED_SDL = STORED_SDL.replace("MODE=dev", "MODE=ac-secret://s0_e0");
@@ -688,6 +747,56 @@ describe(DeploymentUpdate.name, () => {
 
       expect(await within(web).findByText("Enter a value for this secret.")).toBeInTheDocument();
       expect(submit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("ssh key", () => {
+    it("shows the key a vm service runs with, and no key field on a service without one", () => {
+      setup({ definition: { sdl: SDL_WITH_SSH } });
+
+      expect(within(serviceSection("shell")).getByRole("textbox", { name: "SSH public key" })).toHaveValue("ssh-ed25519 AAAAold");
+      expect(within(serviceSection("web")).queryByRole("textbox", { name: "SSH public key" })).not.toBeInTheDocument();
+    });
+
+    it("sends a new key as the service's SSH_PUBKEY, leaving the other services as they were", async () => {
+      const { submit } = setup({ definition: { sdl: SDL_WITH_SSH } });
+      const key = within(serviceSection("shell")).getByRole("textbox", { name: "SSH public key" });
+
+      await userEvent.clear(key);
+      await userEvent.type(key, "ssh-ed25519 AAAAnew");
+      await userEvent.click(updateButton());
+
+      const [seed, current] = submit.mock.calls[0] as [SdlBuilderFormValuesType, SdlBuilderFormValuesType];
+      expect(serviceIn(current, "shell").env).toEqual([expect.objectContaining({ key: "SSH_PUBKEY", value: "ssh-ed25519 AAAAnew" })]);
+      expect(serviceIn(current, "web").env).toEqual(serviceIn(seed, "web").env);
+    });
+
+    it("refuses a vm service left without a key, and sends nothing", async () => {
+      const { submit } = setup({ definition: { sdl: SDL_WITH_SSH } });
+
+      await userEvent.clear(within(serviceSection("shell")).getByRole("textbox", { name: "SSH public key" }));
+      await userEvent.click(updateButton());
+
+      expect(await within(serviceSection("shell")).findByText("SSH Public key is required.")).toBeInTheDocument();
+      expect(submit).not.toHaveBeenCalled();
+    });
+
+    it("lets a container drop its key, keeping the field to type a new one", async () => {
+      const { submit } = setup({ definition: { sdl: SDL_WITH_SSH_CONTAINER } });
+      const key = within(serviceSection("shell")).getByRole("textbox", { name: "SSH public key" });
+
+      await userEvent.clear(key);
+      await userEvent.click(updateButton());
+
+      expect(within(serviceSection("shell")).getByRole("textbox", { name: "SSH public key" })).toHaveValue("");
+      expect(serviceIn(submittedValues(submit), "shell").env).toEqual([]);
+    });
+
+    it("holds the key while an update runs", () => {
+      setup({ definition: { sdl: SDL_WITH_SSH }, isUpdating: true });
+
+      expect(within(serviceSection("shell")).getByRole("textbox", { name: "SSH public key" })).toBeDisabled();
+      expect(within(serviceSection("shell")).getByRole("button", { name: "Generate new key" })).toBeDisabled();
     });
   });
 

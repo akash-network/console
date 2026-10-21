@@ -1,8 +1,16 @@
 import { z } from "zod";
 
 import type { ExposeType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { CommandSchema, CredentialsSchema, EnvironmentVariableSchema, ExposeSchema, VALID_IMAGE_NAME } from "@src/types/sdlBuilder/sdlBuilder";
+import {
+  CommandSchema,
+  CredentialsSchema,
+  EnvironmentVariableSchema,
+  ExposeSchema,
+  SSH_KEY_REQUIRED_MESSAGE,
+  VALID_IMAGE_NAME
+} from "@src/types/sdlBuilder/sdlBuilder";
 import { secretNameOf } from "@src/utils/sdl/sdlSecrets";
+import { isVmImage } from "@src/utils/sdl/vmImages";
 
 /** A replacement typed for a kept secret is keyed by the name its reference carries, so the reference itself never changes under it. */
 export type DeploymentUpdateFormValues = SdlBuilderFormValuesType & { secretValues?: Record<string, string | undefined> };
@@ -64,6 +72,13 @@ function refuseShortRegistryPasswordReplacements(
   });
 }
 
+/** A VM image restarted without `SSH_PUBKEY` accepts no login at all. */
+function refuseVmWithoutSshKey(service: { image: string; sshPubKey?: string }, context: z.RefinementCtx) {
+  if (isVmImage(service.image) && !service.sshPubKey?.trim()) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["sshPubKey"], message: SSH_KEY_REQUIRED_MESSAGE });
+  }
+}
+
 const UpdatablePortSchema = z.number({ invalid_type_error: "Enter a port number." }).pipe(ExposeSchema.shape.port);
 
 const UpdatableServiceSchema = z
@@ -73,11 +88,13 @@ const UpdatableServiceSchema = z
     credentials: CredentialsSchema,
     env: z.array(EnvironmentVariableSchema).optional(),
     command: CommandSchema.optional(),
+    sshPubKey: z.string().optional(),
     expose: z.array(z.object({ port: UpdatablePortSchema, as: UpdatablePortSchema, global: z.boolean().optional() }).passthrough())
   })
   .passthrough()
   .superRefine(refuseRepeatedVariableNames)
-  .superRefine(refuseSecretsWithoutValue);
+  .superRefine(refuseSecretsWithoutValue)
+  .superRefine(refuseVmWithoutSshKey);
 
 /** Only what a running deployment can change is validated, because a locked field the create form would now refuse is not one the user could fix here. */
 export const DeploymentUpdateFormSchema = z
