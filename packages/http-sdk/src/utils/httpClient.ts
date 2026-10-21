@@ -2,6 +2,7 @@ import type { AxiosAdapter, AxiosInstance, AxiosResponse, CreateAxiosDefaults } 
 import axios from "axios";
 
 import { createFetchAdapter } from "./createFetchAdapter/createFetchAdapter";
+import { keepBrowserUserAgent } from "./keepBrowserUserAgent";
 
 export function createHttpClient(fullConfig: HttpClientOptions = {}): HttpClient {
   const { abortPendingWhenOneFail, adapter, ...config } = fullConfig;
@@ -16,6 +17,7 @@ export function createHttpClient(fullConfig: HttpClientOptions = {}): HttpClient
     adapter: customAdapter,
     headers: {
       "Content-Type": "application/json",
+      ...keepBrowserUserAgent(),
       ...config?.headers
     }
   });
