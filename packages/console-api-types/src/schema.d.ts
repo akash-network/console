@@ -6497,7 +6497,7 @@ export interface paths {
         query?: never;
         header?: never;
         path: {
-          id: number | null;
+          id: number;
         };
         cookie?: never;
       };
