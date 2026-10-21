@@ -6699,7 +6699,7 @@ export interface paths {
             };
           };
         };
-        /** @description Invalid start date, must be in the following format: YYYY-MM-DD */
+        /** @description Invalid query or too many matches: dates must be YYYY-MM-DD, endDate must not be before startDate and at most 2000 closed leases may match (narrow the date range or filter by dseq) */
         400: {
           headers: {
             [name: string]: unknown;
