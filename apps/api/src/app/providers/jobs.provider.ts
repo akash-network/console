@@ -48,6 +48,8 @@ import { CloseUnreachableProviderDeploymentHandler } from "../services/close-unr
 import { CreditsAddedSlackAlertHandler } from "../services/credits-added-slack-alert/credits-added-slack-alert.handler";
 import { EnableDeploymentAlertHandler } from "../services/enable-deployment-alert/enable-deployment-alert.handler";
 import { FirstPurchaseBonusGrantedHandler } from "../services/first-purchase-bonus-granted/first-purchase-bonus-granted.handler";
+import { FirstPurchaseBonusWindowOpenedHandler } from "../services/first-purchase-bonus-window-opened/first-purchase-bonus-window-opened.handler";
+import { FirstPurchaseBonusWindowReminderHandler } from "../services/first-purchase-bonus-window-reminder/first-purchase-bonus-window-reminder.handler";
 import { FundDeploymentHandler } from "../services/fund-deployment/fund-deployment.handler";
 import { FundDrainingDeploymentsHandler } from "../services/fund-draining-deployments/fund-draining-deployments.handler";
 import { ManagedDeploymentLeaseCreatedHandler } from "../services/managed-deployment-lease-created/managed-deployment-lease-created.handler";
@@ -72,6 +74,8 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(WalletCreditsLowCheckHandler),
     container.resolve(WalletCreditsExhaustedCheckHandler),
     container.resolve(FirstPurchaseBonusGrantedHandler),
+    container.resolve(FirstPurchaseBonusWindowOpenedHandler),
+    container.resolve(FirstPurchaseBonusWindowReminderHandler),
     container.resolve(AutoRechargeSucceededHandler),
     container.resolve(CreditsAddedSlackAlertHandler),
     container.resolve(CardPaymentInvoiceHandler),

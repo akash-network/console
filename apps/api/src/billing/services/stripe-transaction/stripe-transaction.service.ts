@@ -8,6 +8,7 @@ import { inject, singleton } from "tsyringe";
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import { IssueCardPaymentInvoiceCommand } from "@src/billing/commands/issue-card-payment-invoice.command";
 import type { CreditsAdded } from "@src/billing/events/credits-added";
+import type { FirstPurchaseBonusWindowOpened } from "@src/billing/events/first-purchase-bonus-window-opened";
 import { PaymentIntentResult } from "@src/billing/http-schemas/stripe.schema";
 import { CARD_DECLINED_ERROR_CODE } from "@src/billing/lib/card-decline/card-decline";
 import { organizationAnalyticsProperties } from "@src/billing/lib/organization-analytics/organization-analytics";
@@ -88,6 +89,7 @@ export interface AutoRechargeSuccess {
  */
 export interface SettlementOutcome {
   bonusGrant?: FirstPurchaseBonusGrant;
+  bonusWindowOpened?: FirstPurchaseBonusWindowOpened["data"];
   autoRecharge?: AutoRechargeSuccess;
   creditsAdded?: CreditsAdded["data"];
 }
@@ -509,7 +511,13 @@ export class StripeTransactionService {
     eventDescription: string;
     endTrial?: boolean;
     isAutoRecharge: boolean;
-  }): Promise<{ settled: boolean; bonusAmount: number; toppedUpWallet?: ToppedUpWallet; actingUserId: string | null }> {
+  }): Promise<{
+    settled: boolean;
+    bonusAmount: number;
+    bonusWindowOpened?: FirstPurchaseBonusWindowOpened["data"];
+    toppedUpWallet?: ToppedUpWallet;
+    actingUserId: string | null;
+  }> {
     const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId });
 
     if (!transaction) {
@@ -546,6 +554,7 @@ export class StripeTransactionService {
     });
 
     const bonusAmount = await this.firstPurchaseBonusService.recordGrant(transaction, eligibleBonus.bonusCents);
+    const bonusWindowOpened = bonusAmount === 0 ? await this.firstPurchaseBonusService.findWindowOpenedBy(transaction) : undefined;
 
     // Single combined top-up: two calls would double chain fees and race on retrieveDeploymentLimit.
     const toppedUpWallet = await this.refillService.topUpWallet(params.paymentAmount + bonusAmount, payerOf(transaction, actingUserId, params.team), {
@@ -577,7 +586,7 @@ export class StripeTransactionService {
       });
     }
 
-    return { settled: true, bonusAmount, toppedUpWallet, actingUserId };
+    return { settled: true, bonusAmount, bonusWindowOpened, toppedUpWallet, actingUserId };
   }
 
   async settlePaymentIntent(event: Stripe.PaymentIntentSucceededEvent): Promise<SettlementOutcome> {
@@ -671,7 +680,7 @@ export class StripeTransactionService {
    * Credits the wallet for a settled Stripe charge: resolves the owning user, enriches the row with the
    * charge's card details, and records the succeeded transaction. Once that transaction has committed it
    * publishes the draining-deployment funding command, then returns the events the caller should publish
-   * (first-purchase bonus, automatic recharge success, credits added). Everything runs post-commit so a
+   * (first-purchase bonus, its window opening, automatic recharge success, credits added). Everything runs post-commit so a
    * rolled-back credit can neither fund deployments nor send an email. The auto-recharge and credits-added
    * events are returned only when this delivery actually credited the wallet, so retries and replays never
    * notify twice.
@@ -732,6 +741,7 @@ export class StripeTransactionService {
     const {
       settled,
       bonusAmount,
+      bonusWindowOpened,
       toppedUpWallet,
       actingUserId: userId
     } = await this.settleSucceededTransaction({
@@ -758,6 +768,7 @@ export class StripeTransactionService {
 
     return {
       bonusGrant: bonusAmount > 0 && userId ? { userId, bonusAmountCents: bonusAmount, paidAmountCents: params.paymentAmount } : undefined,
+      bonusWindowOpened,
       autoRecharge:
         settled && params.isAutoRecharge
           ? { userId, transactionId: params.transaction.id, amountCents: params.paymentAmount, walletId: toppedUpWallet?.walletId }

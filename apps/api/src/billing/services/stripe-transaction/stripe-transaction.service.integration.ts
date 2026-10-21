@@ -1,5 +1,6 @@
 import type { LoggerService } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
+import { addDays, subDays } from "date-fns";
 import Stripe from "stripe";
 import { container } from "tsyringe";
 import { describe, expect, it, vi } from "vitest";
@@ -8,7 +9,7 @@ import { mock } from "vitest-mock-extended";
 import type { AuthService } from "@src/auth/services/auth.service";
 import { FundDrainingDeploymentsCommand } from "@src/billing/commands/fund-draining-deployments.command";
 import { IssueCardPaymentInvoiceCommand } from "@src/billing/commands/issue-card-payment-invoice.command";
-import { StripeTransactionRepository } from "@src/billing/repositories";
+import { type StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import { PayerService } from "@src/billing/services/payer/payer.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
@@ -18,8 +19,8 @@ import type { ExecutionContextService } from "@src/core/services/execution-conte
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { TimerService } from "@src/core/services/timer/timer.service";
-import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
-import type { UserRepository } from "@src/user/repositories/user/user.repository";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { AUTO_RECHARGE_METADATA_KEY, StripeTransactionService } from "./stripe-transaction.service";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
@@ -371,6 +372,102 @@ describe(StripeTransactionService.name, () => {
       expect(firstPurchaseBonusService.trackBonusGranted).not.toHaveBeenCalled();
       expect(outcome.bonusGrant).toBeUndefined();
       expect(outcome.creditsAdded).toMatchObject({ paidAmountCents: amount, bonusAmountCents: 0 });
+    });
+
+    it("returns the bonus window a payment that earned no bonus opens", async () => {
+      const { service, userRepository, stripeTransactionRepository, firstPurchaseBonusService } = setup();
+      const mockUser = createTestUser();
+      const internalTransaction = generateDatabaseStripeTransaction({ status: "created", userId: mockUser.id });
+      const bonusWindowOpened = { userId: mockUser.id, reason: "small_first_purchase" as const, closesAt: "2026-10-26T18:00:00.000Z" };
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+      firstPurchaseBonusService.findWindowOpenedBy.mockResolvedValue(bonusWindowOpened);
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_123",
+          customer: mockUser.stripeCustomerId,
+          amount: 2000,
+          amount_received: 2000,
+          metadata: { internal_transaction_id: internalTransaction.id }
+        })
+      );
+
+      expect(firstPurchaseBonusService.findWindowOpenedBy).toHaveBeenCalledExactlyOnceWith(internalTransaction);
+      expect(outcome.bonusWindowOpened).toEqual(bonusWindowOpened);
+    });
+
+    it("looks for no bonus window when the payment earned the bonus", async () => {
+      const { service, userRepository, stripeTransactionRepository, firstPurchaseBonusService } = setup();
+      const mockUser = createTestUser();
+      const internalTransaction = generateDatabaseStripeTransaction({ status: "created" });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue({ bonusCents: 1500, window: null });
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_123",
+          customer: mockUser.stripeCustomerId,
+          amount: 15000,
+          amount_received: 15000,
+          metadata: { internal_transaction_id: internalTransaction.id }
+        })
+      );
+
+      expect(firstPurchaseBonusService.findWindowOpenedBy).not.toHaveBeenCalled();
+      expect(outcome.bonusWindowOpened).toBeUndefined();
+    });
+
+    it("looks for a bonus window when recording the bonus is refused", async () => {
+      const { service, userRepository, stripeTransactionRepository, firstPurchaseBonusService } = setup();
+      const mockUser = createTestUser();
+      const internalTransaction = generateDatabaseStripeTransaction({ status: "created" });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue({ bonusCents: 1500, window: null });
+      firstPurchaseBonusService.recordGrant.mockResolvedValue(0);
+
+      await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_123",
+          customer: mockUser.stripeCustomerId,
+          amount: 15000,
+          amount_received: 15000,
+          metadata: { internal_transaction_id: internalTransaction.id }
+        })
+      );
+
+      expect(firstPurchaseBonusService.findWindowOpenedBy).toHaveBeenCalledExactlyOnceWith(internalTransaction);
+    });
+
+    it("returns no bonus window when the transaction was already settled", async () => {
+      const { service, userRepository, stripeTransactionRepository, firstPurchaseBonusService } = setup();
+      const mockUser = createTestUser();
+      const internalTransaction = generateDatabaseStripeTransaction({ status: "succeeded" });
+
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
+
+      const outcome = await service.settlePaymentIntent(
+        createPaymentIntentSucceededEvent({
+          id: "pi_123",
+          customer: mockUser.stripeCustomerId,
+          amount: 2000,
+          amount_received: 2000,
+          metadata: { internal_transaction_id: internalTransaction.id }
+        })
+      );
+
+      expect(firstPurchaseBonusService.findWindowOpenedBy).not.toHaveBeenCalled();
+      expect(outcome.bonusWindowOpened).toBeUndefined();
     });
 
     it("returns the auto recharge and reports the top-up as automatic when the payment intent carries the auto_recharge marker", async () => {
@@ -1377,6 +1474,29 @@ describe(StripeTransactionService.name, () => {
     });
   });
 
+  describe("when a small card payment settles on a personal account", () => {
+    it("opens the bonus window for 7 days after the account's first card payment", async () => {
+      const { persistedTransactions, settlePersisted } = setup({ persistTransactions: true });
+      const person = await seedUser();
+      const purchase = await persistedTransactions.create({ userId: person.id, type: "payment_intent", status: "pending", amount: 2000 });
+
+      const { bonusWindowOpened } = await settlePersisted(purchase);
+
+      expect(bonusWindowOpened).toEqual({ userId: person.id, reason: "small_first_purchase", closesAt: addDays(purchase.createdAt, 7).toISOString() });
+    });
+
+    it("opens no bonus window for a payment that follows the account's first card payment", async () => {
+      const { persistedTransactions, settlePersisted } = setup({ persistTransactions: true });
+      const person = await seedUser();
+      await persistedTransactions.create({ userId: person.id, type: "payment_intent", status: "succeeded", amount: 2000, createdAt: subDays(new Date(), 1) });
+      const purchase = await persistedTransactions.create({ userId: person.id, type: "payment_intent", status: "pending", amount: 2000 });
+
+      const { bonusWindowOpened } = await settlePersisted(purchase);
+
+      expect(bonusWindowOpened).toBeUndefined();
+    });
+  });
+
   describe("when the eligibility check lets a person's second bonus through", () => {
     it("grants one bonus and credits both payments when two of the person's purchases for different teams settle at once", async () => {
       const { service, persistedTransactions, persistedBonusService, refillService, logger } = setup({ persistTransactions: true });
@@ -1430,7 +1550,13 @@ describe(StripeTransactionService.name, () => {
     const featureFlagsService = mock<FeatureFlagsService>();
     featureFlagsService.isEnabled.mockReturnValue(false);
     const logger = mock<LoggerService>();
-    const persistedBonusService = new FirstPurchaseBonusService(persistedTransactions, analyticsService, userRepository, organizationRepository, () => logger);
+    const persistedBonusService = new FirstPurchaseBonusService(
+      persistedTransactions,
+      analyticsService,
+      container.resolve(UserRepository),
+      container.resolve(OrganizationRepository),
+      () => logger
+    );
 
     const toppedUpWallet = { walletId: 42, address: "akash1toppedupwallet" };
     refillService.topUpWallet.mockResolvedValue(toppedUpWallet);
@@ -1451,8 +1577,25 @@ describe(StripeTransactionService.name, () => {
       () => logger
     );
 
+    async function settlePersisted(purchase: StripeTransactionOutput) {
+      return await service.settleSucceededTransaction({
+        transactionId: purchase.id,
+        chargeId: `ch_${faker.string.alphanumeric(24)}`,
+        paymentMethodType: "card",
+        cardBrand: "visa",
+        cardLast4: "4242",
+        receiptUrl: undefined,
+        stripePaymentIntentId: `pi_${faker.string.alphanumeric(24)}`,
+        paymentAmount: purchase.amount,
+        customerUserId: undefined,
+        eventDescription: `payment_intent for ${purchase.id}`,
+        isAutoRecharge: false
+      });
+    }
+
     return {
       service,
+      settlePersisted,
       stripe,
       stripeTransactionRepository,
       persistedTransactions,
