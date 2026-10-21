@@ -9,9 +9,9 @@ import { SshPublicKeyField } from "@src/components/deployments/ConfigureDeployme
 import { CUSTOM_HOST_ID } from "@src/types";
 import { normalizeDockerImage } from "@src/utils/sdl/normalizeDockerImage";
 import { secretNameOf } from "@src/utils/sdl/sdlSecrets";
-import { takesSshKey } from "@src/utils/sdl/sshKey";
 import { isVmImage } from "@src/utils/sdl/vmImages";
 import type { DeploymentUpdateFormValues } from "./deploymentUpdateFormSchema";
+import { requiresSshKey } from "./deploymentUpdateFormSchema";
 import { UpdateSectionRule } from "./UpdateSectionRule";
 
 const PUBLIC_IMAGE_NOTE = "This service pulls a public image.";
@@ -29,8 +29,7 @@ export const UpdateImageSection: FC<UpdateImageSectionProps> = ({ serviceIndex, 
   const image = useController({ control, name: `services.${serviceIndex}.image` });
   const hasCredentials = useWatch({ control, name: `services.${serviceIndex}.hasCredentials` });
   const isVm = isVmImage(image.field.value ?? "");
-  const loadedService = formState.defaultValues?.services?.[serviceIndex];
-  const takesKey = !!loadedService && takesSshKey(loadedService);
+  const takesKey = requiresSshKey(image.field.value ?? "", formState.defaultValues?.services?.[serviceIndex]);
   const inputId = `update-image-${serviceIndex}`;
 
   function startUsingPrivateRegistry() {

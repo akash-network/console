@@ -10,6 +10,7 @@ import {
   VALID_IMAGE_NAME
 } from "@src/types/sdlBuilder/sdlBuilder";
 import { secretNameOf } from "@src/utils/sdl/sdlSecrets";
+import { takesSshKey } from "@src/utils/sdl/sshKey";
 import { isVmImage } from "@src/utils/sdl/vmImages";
 
 /** A replacement typed for a kept secret is keyed by the name its reference carries, so the reference itself never changes under it. */
@@ -72,11 +73,9 @@ function refuseShortRegistryPasswordReplacements(
   });
 }
 
-/** A VM image restarted without `SSH_PUBKEY` accepts no login at all. */
-function refuseVmWithoutSshKey(service: { image: string; sshPubKey?: string }, context: z.RefinementCtx) {
-  if (isVmImage(service.image) && !service.sshPubKey?.trim()) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ["sshPubKey"], message: SSH_KEY_REQUIRED_MESSAGE });
-  }
+/** The update tab shows the key field exactly where this holds, so a refused key always has a field to show the refusal on. */
+export function requiresSshKey(image: string, loaded: Parameters<typeof takesSshKey>[0] | undefined): boolean {
+  return isVmImage(image) || (!!loaded && takesSshKey(loaded));
 }
 
 const UpdatablePortSchema = z.number({ invalid_type_error: "Enter a port number." }).pipe(ExposeSchema.shape.port);
@@ -93,8 +92,7 @@ const UpdatableServiceSchema = z
   })
   .passthrough()
   .superRefine(refuseRepeatedVariableNames)
-  .superRefine(refuseSecretsWithoutValue)
-  .superRefine(refuseVmWithoutSshKey);
+  .superRefine(refuseSecretsWithoutValue);
 
 /** Only what a running deployment can change is validated, because a locked field the create form would now refuse is not one the user could fix here. */
 export const DeploymentUpdateFormSchema = z
@@ -109,9 +107,13 @@ type ExposedPort = Pick<ExposeType, "port" | "as" | "global">;
 /** The chain fixed each endpoint's kind at create, so a port move is judged against the ports the form was loaded with, as the api judges it. */
 export function deploymentUpdateFormSchemaFor(loadedServices: ServiceType[]) {
   return DeploymentUpdateFormSchema.superRefine((values, context) =>
-    values.services.forEach((service, serviceIndex) =>
-      refusePortMovesTheApiRefuses(service.expose, loadedServices[serviceIndex]?.expose ?? [], ["services", serviceIndex, "expose"], context)
-    )
+    values.services.forEach((service, serviceIndex) => {
+      const loaded = loadedServices[serviceIndex];
+      refusePortMovesTheApiRefuses(service.expose, loaded?.expose ?? [], ["services", serviceIndex, "expose"], context);
+      if (requiresSshKey(service.image, loaded) && !service.sshPubKey?.trim()) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ["services", serviceIndex, "sshPubKey"], message: SSH_KEY_REQUIRED_MESSAGE });
+      }
+    })
   );
 }
 

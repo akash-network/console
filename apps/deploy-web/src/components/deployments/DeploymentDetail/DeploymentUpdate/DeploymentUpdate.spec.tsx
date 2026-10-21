@@ -781,15 +781,41 @@ describe(DeploymentUpdate.name, () => {
       expect(submit).not.toHaveBeenCalled();
     });
 
-    it("lets a container drop its key, keeping the field to type a new one", async () => {
+    it("refuses a container left without the key it ran with, and sends nothing", async () => {
       const { submit } = setup({ definition: { sdl: SDL_WITH_SSH_CONTAINER } });
-      const key = within(serviceSection("shell")).getByRole("textbox", { name: "SSH public key" });
 
-      await userEvent.clear(key);
+      await userEvent.clear(within(serviceSection("shell")).getByRole("textbox", { name: "SSH public key" }));
       await userEvent.click(updateButton());
 
+      expect(await within(serviceSection("shell")).findByText("SSH Public key is required.")).toBeInTheDocument();
       expect(within(serviceSection("shell")).getByRole("textbox", { name: "SSH public key" })).toHaveValue("");
-      expect(serviceIn(submittedValues(submit), "shell").env).toEqual([]);
+      expect(submit).not.toHaveBeenCalled();
+    });
+
+    it("asks for a key once a vm image is typed into a container, and sends nothing without one", async () => {
+      const { submit } = setup({ definition: { sdl: SDL_WITH_SSH } });
+      const image = within(serviceSection("web")).getByLabelText("Image");
+
+      await userEvent.clear(image);
+      await userEvent.type(image, "ghcr.io/akash-network/ubuntu-2404-ssh:2");
+      await userEvent.click(updateButton());
+
+      expect(await within(serviceSection("web")).findByText("SSH Public key is required.")).toBeInTheDocument();
+      expect(within(serviceSection("web")).getByRole("textbox", { name: "SSH public key" })).toBeEnabled();
+      expect(submit).not.toHaveBeenCalled();
+    });
+
+    it("keeps the key field once an update with a new key lands", async () => {
+      const { submit, submitInput } = setup({ definition: { sdl: SDL_WITH_SSH_CONTAINER } });
+      const key = within(serviceSection("shell")).getByRole("textbox", { name: "SSH public key" });
+      await userEvent.clear(key);
+      await userEvent.type(key, "ssh-ed25519 AAAAnew");
+      await userEvent.click(updateButton());
+
+      act(() => submitInput().onUpdated({ values: submittedValues(submit), manifestVersion: "bmV3" }));
+
+      expect(within(serviceSection("shell")).getByRole("textbox", { name: "SSH public key" })).toHaveValue("ssh-ed25519 AAAAnew");
+      expect(updateButton()).toBeDisabled();
     });
 
     it("holds the key while an update runs", () => {

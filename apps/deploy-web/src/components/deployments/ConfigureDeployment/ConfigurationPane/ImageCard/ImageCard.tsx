@@ -22,6 +22,7 @@ import type { SdlBuilderFormValuesType } from "@src/types";
 import { CUSTOM_HOST_ID } from "@src/types";
 import { normalizeDockerImage } from "@src/utils/sdl/normalizeDockerImage";
 import { isSdlReference } from "@src/utils/sdl/sdlSecrets";
+import { takesSshKey } from "@src/utils/sdl/sshKey";
 import { isVmImage, SSH_VM_IMAGES } from "@src/utils/sdl/vmImages";
 import { dockerImageTooltip, operatingSystemTooltip } from "../cardTooltips";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
@@ -62,17 +63,18 @@ const KEPT_CREDENTIAL_PLACEHOLDER = "Kept from your deployment. Type to replace.
  * A service running a managed SSH-VM image presents as an "Operating System" card instead: the image
  * becomes a distro Select over the managed catalog (the form always stores the real image ref), the
  * required SSH public key sits under it, and the private-registry controls are hidden (the VM images
- * are public) with any credentials cleared. A Docker card shows the SSH public key only when the
- * deployment carries one and has no VM service to hold it, since `SSH_PUBKEY` is kept out of the variables card.
+ * are public) with any credentials cleared. A Docker card shows its own service's SSH public key when
+ * that service was loaded with one and no VM service holds the key, since `SSH_PUBKEY` is kept out of the variables card.
  */
 export const ImageCard: FC<Props> = ({ serviceIndex, locked = false, dependencies: d = DEPENDENCIES }) => {
   const { control, setValue, formState } = useFormContext<SdlBuilderFormValuesType>();
   const hasCredentials = useController({ control, name: `services.${serviceIndex}.hasCredentials` });
   const image = useWatch({ control, name: `services.${serviceIndex}.image` });
   const isVm = isVmImage(image ?? "");
-  const hasSshKey = useWatch({ control, name: "hasSSHKey" });
   const services = useWatch({ control, name: "services" });
-  const showsSshKeyOnDockerCard = !!hasSshKey && !services?.some(service => isVmImage(service.image ?? ""));
+  const { defaultValues } = useFormState({ control });
+  const seededService = defaultValues?.services?.find(seeded => seeded?.id === services?.[serviceIndex]?.id);
+  const showsSshKeyOnDockerCard = !!seededService && takesSshKey(seededService) && !services?.some(service => isVmImage(service.image ?? ""));
   const hasSshKeyError = formState.isSubmitted && !!formState.errors.services?.[serviceIndex]?.sshPubKey;
 
   useEffect(
@@ -106,7 +108,7 @@ export const ImageCard: FC<Props> = ({ serviceIndex, locked = false, dependencie
 
             {hasCredentials.field.value && <CredentialsFields serviceIndex={serviceIndex} />}
 
-            {showsSshKeyOnDockerCard && <d.SshPublicKeyField serviceIndex={serviceIndex} />}
+            {showsSshKeyOnDockerCard && <d.SshPublicKeyField serviceIndex={serviceIndex} scope="service" />}
           </>
         )}
       </fieldset>

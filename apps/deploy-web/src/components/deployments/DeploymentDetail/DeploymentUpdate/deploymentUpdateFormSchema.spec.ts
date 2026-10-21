@@ -163,29 +163,6 @@ describe("DeploymentUpdateFormSchema", () => {
     expect(DeploymentUpdateFormSchema.parse(values)).toMatchObject({ secretValues: { API_TOKEN: "rotated" } });
   });
 
-  it.each(["", "   ", undefined])("refuses a vm service left with the ssh key %j", sshPubKey => {
-    const { values } = setup();
-    values.services[0].image = SSH_VM_IMAGES["Ubuntu 24.04"];
-    values.services[0].sshPubKey = sshPubKey;
-
-    expect(issuesOf(values)).toEqual([{ path: "services.0.sshPubKey", message: "SSH Public key is required." }]);
-  });
-
-  it("accepts a vm service with an ssh key", () => {
-    const { values } = setup();
-    values.services[0].image = SSH_VM_IMAGES["Ubuntu 24.04"];
-    values.services[0].sshPubKey = "ssh-ed25519 AAAA";
-
-    expect(issuesOf(values)).toEqual([]);
-  });
-
-  it("lets a container drop its ssh key, since only a vm image needs one", () => {
-    const { values } = setup();
-    values.services[0].sshPubKey = "";
-
-    expect(issuesOf(values)).toEqual([]);
-  });
-
   function issuesOf(values: DeploymentUpdateFormValues) {
     const result = DeploymentUpdateFormSchema.safeParse(values);
     return result.success ? [] : result.error.issues.map(issue => ({ path: issue.path.join("."), message: issue.message }));
@@ -262,7 +239,39 @@ deployment:
 
 const SDL_WITH_SHARED_CONTAINER_PORT = SDL_WITH_PORTS.replace("- port: 9000", "- port: 80");
 
+const SDL_WITH_SSH_CONTAINER = SDL_WITH_PORTS.replace("    image: nginx:1.25\n", "    image: nginx:1.25\n    env:\n      - SSH_PUBKEY=ssh-ed25519 AAAAold\n");
+
 describe(deploymentUpdateFormSchemaFor.name, () => {
+  it.each(["", "   ", undefined])("refuses a vm image typed into a container left with the ssh key %j", sshPubKey => {
+    const { values, issuesOf } = setup();
+    values.services[0].image = SSH_VM_IMAGES["Ubuntu 24.04"];
+    values.services[0].sshPubKey = sshPubKey;
+
+    expect(issuesOf(values)).toEqual([{ path: "services.0.sshPubKey", message: "SSH Public key is required." }]);
+  });
+
+  it("accepts a vm image with an ssh key", () => {
+    const { values, issuesOf } = setup();
+    values.services[0].image = SSH_VM_IMAGES["Ubuntu 24.04"];
+    values.services[0].sshPubKey = "ssh-ed25519 AAAA";
+
+    expect(issuesOf(values)).toEqual([]);
+  });
+
+  it("refuses a container left without the ssh key it was loaded with", () => {
+    const { values, issuesOf } = setup({ sdl: SDL_WITH_SSH_CONTAINER });
+    values.services[0].sshPubKey = "";
+
+    expect(issuesOf(values)).toEqual([{ path: "services.0.sshPubKey", message: "SSH Public key is required." }]);
+  });
+
+  it("asks no ssh key of a container loaded without one", () => {
+    const { values, issuesOf } = setup();
+
+    expect(values.services[0].sshPubKey).toBeFalsy();
+    expect(issuesOf(values)).toEqual([]);
+  });
+
   it("moves a container port that stays reached on the same external port", () => {
     const { values, issuesOf } = setup();
     values.services[0].expose[0].port = 8080;
