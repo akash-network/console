@@ -81,6 +81,7 @@ export class SessionService {
   async signUp(input: {
     email: string;
     password: string;
+    timezone?: string;
   }): Promise<Result<Session, { code: "user_exists"; message: string; cause: unknown } | { code: "signup_failed"; message: string; cause: unknown }>> {
     const signupResponse = await this.#consoleApiHttpClient.post(
       "/v1/auth/signup",
@@ -117,7 +118,7 @@ export class SessionService {
 
     if (result.ok) {
       const session = result.val;
-      const { userSettings } = await this.createLocalUser(result.val);
+      const { userSettings } = await this.createLocalUser(result.val, { timezone: input.timezone });
       session.user = { ...session.user, nickname: userSettings.username };
       return Ok(session);
     }
@@ -207,7 +208,7 @@ export class SessionService {
   /**
    * This method calls idempotent API call to create a local user in the database.
    */
-  async createLocalUser(session: Session): Promise<{ userSettings: UserSettings; isNewUser: boolean }> {
+  async createLocalUser(session: Session, browser: { timezone?: string } = {}): Promise<{ userSettings: UserSettings; isNewUser: boolean }> {
     const user_metadata = session.user["https://console.akash.network/user_metadata"];
     const headers: Record<string, string> = {
       Authorization: `Bearer ${session.accessToken}`
@@ -219,7 +220,8 @@ export class SessionService {
         wantedUsername: session.user.nickname,
         email: session.user.email,
         emailVerified: session.user.email_verified,
-        subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true"
+        subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true",
+        timezone: browser.timezone
       },
       {
         headers

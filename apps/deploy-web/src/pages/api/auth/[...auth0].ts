@@ -15,6 +15,7 @@ import { getStateMismatchReturnTo } from "@src/lib/auth0/getStateMismatchReturnT
 import { isAccessTokenExpired } from "@src/lib/auth0/isAccessTokenExpired/isAccessTokenExpired";
 import { isInvalidSessionError } from "@src/lib/auth0/isInvalidSessionError/isInvalidSessionError";
 import { loadSessionProfile } from "@src/lib/auth0/loadSessionProfile/loadSessionProfile";
+import { readBrowserTimezone } from "@src/lib/browser-timezone/browser-timezone-cookie";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import type { AppServices } from "@src/services/app-di-container/server-di-container.service";
 import { rewriteLocalRedirect } from "@src/services/auth/auth/rewrite-local-redirect";
@@ -48,7 +49,7 @@ const authHandler = once((services: AppServices) =>
         await handleCallback(req, res, {
           afterCallback: async (req: NextApiRequest, res: NextApiResponse, session: Session) => {
             try {
-              const { userSettings, isNewUser } = await services.sessionService.createLocalUser(session);
+              const { userSettings, isNewUser } = await services.sessionService.createLocalUser(session, { timezone: readBrowserTimezone(req) });
               session.user = { ...session.user, ...userSettings };
               if (isNewUser) setAccountCreatedCookie(res);
             } catch (error) {

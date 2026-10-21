@@ -34,6 +34,13 @@ describe(AppBootstrap.name, () => {
     expect(registerServiceWorker).toHaveBeenCalledWith(workbox, logger);
   });
 
+  it("leaves the browser's timezone where sign-in reads it, once", () => {
+    const { rememberBrowserTimezone } = setup();
+
+    expect(rememberBrowserTimezone).toHaveBeenCalledTimes(1);
+    expect(rememberBrowserTimezone).toHaveBeenCalledWith(document, window.location);
+  });
+
   it("starts tracking in-app navigation", () => {
     const { useTrackInAppNavigation } = setup();
 
@@ -51,16 +58,17 @@ describe(AppBootstrap.name, () => {
     const forgetRetiredStorage = vi.fn<typeof DEPENDENCIES.forgetRetiredStorage>();
     const registerServiceWorker = vi.fn<typeof DEPENDENCIES.registerServiceWorker>();
     const useTrackInAppNavigation = vi.fn<typeof DEPENDENCIES.useTrackInAppNavigation>();
+    const rememberBrowserTimezone = vi.fn<typeof DEPENDENCIES.rememberBrowserTimezone>();
     const workbox = mock<ServiceWorkerRegistrar>();
     const logger = mock<LoggerService>();
     window.workbox = workbox;
 
     const { container } = render(
       <TestContainerProvider services={{ logger: () => logger }}>
-        <AppBootstrap dependencies={{ useTrackInAppNavigation, migrateLocalStorage, forgetRetiredStorage, registerServiceWorker }} />
+        <AppBootstrap dependencies={{ useTrackInAppNavigation, migrateLocalStorage, forgetRetiredStorage, registerServiceWorker, rememberBrowserTimezone }} />
       </TestContainerProvider>
     );
 
-    return { container, migrateLocalStorage, forgetRetiredStorage, registerServiceWorker, useTrackInAppNavigation, workbox, logger };
+    return { container, migrateLocalStorage, forgetRetiredStorage, registerServiceWorker, useTrackInAppNavigation, rememberBrowserTimezone, workbox, logger };
   }
 });

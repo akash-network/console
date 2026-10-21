@@ -280,6 +280,24 @@ describe(SessionService.name, () => {
       expect(session.user.nickname).toBe(createdUser.username);
       expect(session.user[USER_METADATA_KEY]).toEqual(tokenPayload[USER_METADATA_KEY]);
     });
+
+    it("hands the browser's timezone to the registration that follows a signup", async () => {
+      const email = "user@example.com";
+      const { service, externalHttpClient, consoleApiHttpClient } = setup();
+      consoleApiHttpClient.post.mockResolvedValueOnce({ status: 200, data: {}, headers: {} });
+      externalHttpClient.post.mockResolvedValueOnce({
+        status: 200,
+        data: { access_token: "access-token", id_token: createIdToken({ sub: "auth0|user-456", nickname: "TokenUser", email }), expires_in: 3_600 },
+        headers: {}
+      });
+      externalHttpClient.get.mockResolvedValueOnce({ status: 200, data: {}, headers: {} });
+      consoleApiHttpClient.post.mockResolvedValueOnce({ data: { data: { username: "registered-user" } } });
+
+      await service.signUp({ email, password: "StrongPassword123!", timezone: "Asia/Tokyo" });
+
+      expect(consoleApiHttpClient.post).toHaveBeenNthCalledWith(1, "/v1/auth/signup", { email, password: "StrongPassword123!" }, expect.anything());
+      expect(consoleApiHttpClient.post).toHaveBeenNthCalledWith(2, "/v1/register-user", expect.objectContaining({ timezone: "Asia/Tokyo" }), expect.anything());
+    });
   });
 
   describe("createLocalUser", () => {
@@ -322,6 +340,22 @@ describe(SessionService.name, () => {
         }
       );
       expect(result).toEqual({ userSettings: expectedSettings, isNewUser: true });
+    });
+
+    it("sends the browser's timezone with the registration", async () => {
+      const claims = { sub: "auth0|user-789", nickname: "PreferredName", email: "local@example.com", email_verified: true };
+      const session = new Session(claims);
+      Object.assign(session, { accessToken: "local-access-token", user: { ...claims } });
+      const { service, consoleApiHttpClient } = setup();
+      consoleApiHttpClient.post.mockResolvedValueOnce({ data: { data: { username: "PreferredName" }, isNewUser: false } });
+
+      await service.createLocalUser(session, { timezone: "Europe/Paris" });
+
+      expect(consoleApiHttpClient.post).toHaveBeenCalledWith(
+        "/v1/register-user",
+        expect.objectContaining({ wantedUsername: "PreferredName", subscribedToNewsletter: false, timezone: "Europe/Paris" }),
+        expect.anything()
+      );
     });
   });
 

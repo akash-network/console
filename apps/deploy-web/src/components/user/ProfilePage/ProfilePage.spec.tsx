@@ -18,10 +18,13 @@ describe(ProfilePage.name, () => {
   });
 
   it("hands each setting the profile it edits", () => {
-    const { user, UsernameSetting, ProductUpdatesSetting, DeleteAccountSection } = setup({ user: { username: "alice", email: "alice@example.com" } });
+    const { user, UsernameSetting, ProductUpdatesSetting, TimezoneSetting, DeleteAccountSection } = setup({
+      user: { username: "alice", email: "alice@example.com", timezone: "Europe/Paris" }
+    });
 
     expect(UsernameSetting.mock.lastCall?.[0]).toEqual(expect.objectContaining({ username: "alice" }));
     expect(ProductUpdatesSetting.mock.lastCall?.[0]).toEqual(expect.objectContaining({ user }));
+    expect(TimezoneSetting.mock.lastCall?.[0]).toEqual(expect.objectContaining({ user }));
     expect(DeleteAccountSection.mock.lastCall?.[0]).toEqual(expect.objectContaining({ email: "alice@example.com" }));
   });
 
@@ -46,6 +49,7 @@ describe(ProfilePage.name, () => {
       NextSeo: vi.mocked(dependencies.NextSeo),
       UsernameSetting: vi.mocked(dependencies.UsernameSetting),
       ProductUpdatesSetting: vi.mocked(dependencies.ProductUpdatesSetting),
+      TimezoneSetting: vi.mocked(dependencies.TimezoneSetting),
       DeleteAccountSection: vi.mocked(dependencies.DeleteAccountSection)
     };
   }
