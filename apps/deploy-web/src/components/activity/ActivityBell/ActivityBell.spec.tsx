@@ -341,6 +341,10 @@ describe(ActivityBell.name, () => {
     await userEvent.keyboard("{Escape}");
   }
 
+  function feedQueryOf(result: { data?: NonNullable<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>["data"]>; isError: boolean }) {
+    return Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), result);
+  }
+
   function setup(input: {
     isEnabled?: boolean;
     isSignedIn?: boolean;
@@ -363,7 +367,7 @@ describe(ActivityBell.name, () => {
       })) as typeof DEPENDENCIES.useDeploymentNames);
     const activities = input.activities ?? [buildActivity()];
     const useActivityFeedQuery = vi.fn((() =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), {
+      feedQueryOf({
         data: input.feed ? undefined : { activities, unseenCount: input.unseenCount ?? 0, newestCreatedAt: input.newestCreatedAt ?? activities[0]?.createdAt },
         isError: input.feed === "failed" || !!input.isRefreshFailing
       })) as typeof DEPENDENCIES.useActivityFeedQuery);
@@ -384,15 +388,10 @@ describe(ActivityBell.name, () => {
     );
 
     function refreshFeed(feed: { activities: Activity[]; unseenCount: number }) {
-      useActivityFeedQuery.mockImplementation(() =>
-        Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), {
-          data: { ...feed, newestCreatedAt: feed.activities[0]?.createdAt },
-          isError: false
-        })
-      );
+      useActivityFeedQuery.mockImplementation(() => feedQueryOf({ data: { ...feed, newestCreatedAt: feed.activities[0]?.createdAt }, isError: false }));
       rerender(
         <TestContainerProvider services={services}>
-          <ActivityBell dependencies={{ ...dependencies }} />
+          <ActivityBell dependencies={dependencies} />
         </TestContainerProvider>
       );
     }

@@ -46,15 +46,17 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
       queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
     }
   });
+  const [isOpen, setIsOpen] = useState(false);
   const [unseenWhenOpened, setUnseenWhenOpened] = useState<ReadonlySet<string>>(new Set());
 
   if (!isShown) return null;
 
   const entries = activityEntriesOf(activities, dseq => deploymentLabelOf(getDeploymentName(dseq), dseq), MAX_LISTED_ENTRIES);
 
-  /** Marking seen refreshes the feed while the list is still open, so what stays highlighted is what was unseen at opening. */
-  function highlightUnseenThenMarkSeen(isOpen: boolean) {
-    if (!isOpen) return;
+  /** Marking seen refreshes the feed while the list is still open, so the highlight is a snapshot taken in the very render that opens it. */
+  function toggleActivityList(isOpening: boolean) {
+    setIsOpen(isOpening);
+    if (!isOpening) return;
 
     setUnseenWhenOpened(new Set(entries.filter(entry => entry.isUnseen).map(entry => entry.id)));
     markListedSeen();
@@ -69,7 +71,7 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
   }
 
   return (
-    <DropdownMenu modal={false} onOpenChange={highlightUnseenThenMarkSeen}>
+    <DropdownMenu modal={false} open={isOpen} onOpenChange={toggleActivityList}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative rounded-full" aria-label={unseenCount > 0 ? `Activity, ${unseenCount} unseen` : "Activity"}>
           <Bell className="h-5 w-5" />
