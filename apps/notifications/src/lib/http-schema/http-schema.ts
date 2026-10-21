@@ -1,9 +1,11 @@
 import type { ZodArray, ZodObject, ZodRawShape, ZodTypeAny } from "zod";
 import { z } from "zod";
 
+const MAX_PAGE_SIZE = 1000;
+
 export const paginationSchema = z.object({
   page: z.number().min(0),
-  limit: z.number().min(0).max(1000),
+  limit: z.number().min(0).max(MAX_PAGE_SIZE),
   total: z.number().min(0),
   totalPages: z.number().min(0),
   hasNextPage: z.boolean(),
@@ -14,8 +16,8 @@ export const toPaginatedResponse = <T extends ZodTypeAny>(schema: T): ZodObject<
   z.object({ data: z.array(schema), pagination: paginationSchema });
 
 export const paginationQuerySchema = z.object({
-  page: z.number({ coerce: true }).optional(),
-  limit: z.number({ coerce: true }).optional()
+  page: z.number({ coerce: true }).int().positive().safe().optional(),
+  limit: z.number({ coerce: true }).int().positive().max(MAX_PAGE_SIZE).optional()
 });
 
 export function toPaginatedQuery(): typeof paginationQuerySchema;

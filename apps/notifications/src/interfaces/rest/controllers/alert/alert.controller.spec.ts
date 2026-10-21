@@ -251,6 +251,30 @@ describe(AlertController.name, () => {
     });
   });
 
+  describe("listAlerts", () => {
+    it.each(["page=-1", "limit=1001"])("answers 400 without listing alerts when given %s", async paging => {
+      const { app, alertRepository } = await setup();
+
+      const res = await request(app.getHttpServer()).get(`/v1/alerts?${paging}`);
+
+      expect(res.status).toBe(400);
+      expect(alertRepository.paginate).not.toHaveBeenCalled();
+    });
+
+    it("lists alerts with the page and limit it is given", async () => {
+      const { app, alertRepository } = await setup();
+      alertRepository.paginate.mockResolvedValue({
+        data: [],
+        pagination: { page: 2, limit: 10, total: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: true }
+      });
+
+      const res = await request(app.getHttpServer()).get("/v1/alerts?page=2&limit=10");
+
+      expect(res.status).toBe(200);
+      expect(alertRepository.paginate).toHaveBeenCalledWith({ page: 2, limit: 10, query: {} });
+    });
+  });
+
   async function setup(): Promise<{
     controller: AlertController;
     app: INestApplication;

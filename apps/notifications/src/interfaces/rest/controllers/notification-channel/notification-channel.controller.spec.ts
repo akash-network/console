@@ -271,6 +271,30 @@ describe(NotificationChannelController.name, () => {
     });
   });
 
+  describe("listNotificationChannels", () => {
+    it.each(["page=-1", "limit=1001"])("answers 400 without listing channels when given %s", async paging => {
+      const { app, notificationChannelRepository } = await setup();
+
+      const res = await request(app.getHttpServer()).get(`/v1/notification-channels?${paging}`);
+
+      expect(res.status).toBe(400);
+      expect(notificationChannelRepository.paginate).not.toHaveBeenCalled();
+    });
+
+    it("lists channels with the page and limit it is given", async () => {
+      const { app, notificationChannelRepository } = await setup();
+      notificationChannelRepository.paginate.mockResolvedValue({
+        data: [],
+        pagination: { page: 2, limit: 10, total: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: true }
+      });
+
+      const res = await request(app.getHttpServer()).get("/v1/notification-channels?page=2&limit=10");
+
+      expect(res.status).toBe(200);
+      expect(notificationChannelRepository.paginate).toHaveBeenCalledWith({ page: 2, limit: 10 });
+    });
+  });
+
   async function setup(): Promise<{
     controller: NotificationChannelController;
     app: INestApplication;
