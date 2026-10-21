@@ -36,7 +36,7 @@ describe(TeamOrganizationService.name, () => {
       expect(await readTeam(organization.id)).toEqual({
         organization: expect.objectContaining({ name, slug: toSlug(name), type: "team", createdByUserId: user.id, deletedAt: null }),
         members: [expect.objectContaining({ userId: user.id, role: "owner" })],
-        projects: [expect.objectContaining({ name: "default", slug: "default", isDefault: true, createdByUserId: user.id })],
+        projects: [expect.objectContaining({ name: "default-project", slug: "default-project", isDefault: true, createdByUserId: user.id })],
         wallets: [
           expect.objectContaining({
             userId: null,

@@ -9,8 +9,8 @@ export const MAX_PROJECT_NAME_LENGTH = 64;
 export const MAX_PROJECT_SLUG_LENGTH = 40;
 export const MAX_PROJECT_DESCRIPTION_LENGTH = 140;
 
-export const DEFAULT_PROJECT_NAME = "default";
-export const DEFAULT_PROJECT_SLUG = "default";
+export const DEFAULT_PROJECT_NAME = "default-project";
+export const DEFAULT_PROJECT_SLUG = "default-project";
 
 export const PROJECT_NAME_UNIQUE_INDEX = "projects_organization_id_name_unique";
 
