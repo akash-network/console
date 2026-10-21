@@ -14,6 +14,7 @@ import { DEPENDENCIES, GpuCard } from "./GpuCard";
 
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { ComponentMock } from "@tests/unit/mocks";
 
 const GPU_VENDORS: GpuVendor[] = [
   {
@@ -480,6 +481,33 @@ describe(GpuCard.name, () => {
 
       expect(await screen.findByRole("option", { name: "NVIDIA t4" })).toHaveAccessibleDescription("30 free GPUs on 3 providers");
       expect(screen.getByRole("option", { name: "NVIDIA a100" })).toHaveAccessibleDescription("14 free GPUs on 1 provider");
+    });
+
+    it("warns on a model none of whose providers have been bidding, with a popup that says what it means", async () => {
+      const { user, CustomTooltip } = setup({
+        hasGpu: true,
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 4, 40), availableModel("a100", ["80Gi"], ["sxm"], 2, 17)] }],
+        screened: { t4: { count: 3, gpuCount: 30, notBiddingCount: 0 }, a100: { count: 2, gpuCount: 14, notBiddingCount: 2 } }
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      const unlikelyBids = "Bids are unlikely. None of the 2 providers bid on recent test deployments of this GPU.";
+      expect(await screen.findByRole("option", { name: "NVIDIA a100" })).toHaveAccessibleDescription(`14 free GPUs on 2 providers. ${unlikelyBids}`);
+      expect(new Set(CustomTooltip.mock.calls.map(([props]) => props.title))).toEqual(new Set([unlikelyBids]));
+    });
+
+    it("does not warn on a model only some of whose providers have not been bidding", async () => {
+      const { user, CustomTooltip } = setup({
+        hasGpu: true,
+        availableGpus: [{ vendor: "nvidia", models: [availableModel("t4", ["16Gi"], ["pcie"], 10, 40)] }],
+        screened: { t4: { count: 10, gpuCount: 30, notBiddingCount: 2 } }
+      });
+
+      await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+
+      expect(await screen.findByRole("option", { name: "NVIDIA t4" })).toHaveAccessibleDescription("30 free GPUs on 10 providers");
+      expect(CustomTooltip).not.toHaveBeenCalled();
     });
 
     it("screens this service switched to each offered model, and only once the picker opens", async () => {
@@ -1196,6 +1224,8 @@ describe(GpuCard.name, () => {
       })
     );
 
+    const CustomTooltip = vi.fn<typeof DEPENDENCIES.CustomTooltip>(ComponentMock);
+
     let getValues: () => SdlBuilderFormValuesType = () => values;
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values, mode: "onChange" });
@@ -1216,6 +1246,7 @@ describe(GpuCard.name, () => {
             useServices,
             HardwareRequestDialog,
             useScreenedGpuModelCounts,
+            CustomTooltip,
             ...input.dependencies
           }}
         />
@@ -1224,6 +1255,6 @@ describe(GpuCard.name, () => {
 
     const user = userEvent.setup();
 
-    return { user, getValues: () => getValues(), analyticsService, HardwareRequestDialog, useScreenedGpuModelCounts };
+    return { user, getValues: () => getValues(), analyticsService, HardwareRequestDialog, useScreenedGpuModelCounts, CustomTooltip };
   }
 });

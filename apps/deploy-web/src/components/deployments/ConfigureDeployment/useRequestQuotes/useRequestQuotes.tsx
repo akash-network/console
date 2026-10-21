@@ -4,7 +4,7 @@ import { Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useCachedScreenedProviderCount } from "@src/queries/useScreenedProviders";
+import { useCachedNotBiddingProviderCount, useCachedScreenedProviderCount } from "@src/queries/useScreenedProviders";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import { hasTrialBlockedGpu } from "@src/utils/deploymentData/v1beta3";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
@@ -34,6 +34,7 @@ export const DEPENDENCIES = {
   useTrialGate,
   useTrialResourceLimit,
   useCachedScreenedProviderCount,
+  useCachedNotBiddingProviderCount,
   useServices
 };
 
@@ -58,6 +59,7 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
   const trialResourceLimit = d.useTrialResourceLimit();
   const inheritedSecrets = d.useInheritedSecrets();
   const countScreenedProviders = d.useCachedScreenedProviderCount();
+  const countNotBiddingProviders = d.useCachedNotBiddingProviderCount();
 
   function explainWhySubmitIsBlocked(reasons: string[]) {
     enqueueSnackbar(
@@ -113,7 +115,11 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
       }
       flow.actions.requestQuotes(sdl, {
         name: deploymentName,
-        screening: { placementCount: values.placements.length, providerCount: countScreenedProviders(sdl, values.placements) },
+        screening: {
+          placementCount: values.placements.length,
+          providerCount: countScreenedProviders(sdl, values.placements),
+          notBiddingProviderCount: countNotBiddingProviders(sdl, values.placements)
+        },
         secrets: secrets.values,
         ...(inheritedSecrets ? { inheritSecretsFrom: inheritedSecrets.sourceDseq } : {})
       });

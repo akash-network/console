@@ -88,6 +88,8 @@ export interface ScreeningSummary {
   placementCount: number;
   /** Absent while any placement is still unscreened. */
   providerCount?: number;
+  /** Of those, the ones flagged for not bidding on the requested gpu; absent like providerCount. */
+  notBiddingProviderCount?: number;
 }
 
 export interface DeployOptions {
@@ -358,7 +360,12 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       const currentBids = bidsQuery.data?.data;
       if (!currentBids || currentBids.length === 0 || bidsReceivedTrackedRef.current) return;
       bidsReceivedTrackedRef.current = true;
-      analyticsService.track("bids_received", { category: "deployments", numberOfBids: currentBids.length, dseq });
+      analyticsService.track("bids_received", {
+        category: "deployments",
+        numberOfBids: currentBids.length,
+        dseq,
+        notBiddingProviderCount: screeningRef.current?.notBiddingProviderCount
+      });
       if (noBidsReportedAtRef.current === null) return;
       analyticsService.track("bids_received_after_timeout", {
         category: "deployments",
@@ -367,6 +374,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         secondsAfterTimeout: Math.round((Date.now() - noBidsReportedAtRef.current) / 1000),
         placementCount: screeningRef.current?.placementCount,
         screenedProviderCount: screeningRef.current?.providerCount,
+        notBiddingProviderCount: screeningRef.current?.notBiddingProviderCount,
         isAutoDeploy: intentRef.current.sdlStrategy === "default" && bidStrategyRef.current === "auto"
       });
     },
@@ -388,7 +396,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
           bidStrategy: bidStrategyRef.current,
           waitedSeconds: NO_BIDS_TIMEOUT_MS / 1000,
           placementCount: screeningRef.current?.placementCount,
-          screenedProviderCount: screeningRef.current?.providerCount
+          screenedProviderCount: screeningRef.current?.providerCount,
+          notBiddingProviderCount: screeningRef.current?.notBiddingProviderCount
         });
         noBidsReportedAtRef.current = Date.now();
         setNoBidsReceived(true);
@@ -616,7 +625,13 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       }
 
       function createdEventOf(newDseq: string) {
-        return { category: "deployments" as const, label: "Create deployment in wizard", dseq: newDseq, secretCount: Object.keys(secrets).length };
+        return {
+          category: "deployments" as const,
+          label: "Create deployment in wizard",
+          dseq: newDseq,
+          secretCount: Object.keys(secrets).length,
+          notBiddingProviderCount: options.screening?.notBiddingProviderCount
+        };
       }
 
       /** Only a create still current takes the page over and holds its analytics until the feed reports it created. */

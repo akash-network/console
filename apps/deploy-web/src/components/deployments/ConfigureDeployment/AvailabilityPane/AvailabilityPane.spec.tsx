@@ -300,6 +300,27 @@ describe(AvailabilityPane.name, () => {
     expect(onChooseProvider).not.toHaveBeenCalled();
   });
 
+  it("warns about the listed providers that are not bidding and requests compute for unlikely bids from it", () => {
+    const { NotBiddingNotice, onRequestComputeForUnlikelyBids } = setup({ eligibleCount: 4, notBiddingCount: 2 });
+
+    expect(NotBiddingNotice).toHaveBeenCalledWith(
+      { notBiddingCount: 2, providerCount: 4, onRequestCompute: onRequestComputeForUnlikelyBids },
+      expect.anything()
+    );
+  });
+
+  it("warns about nothing when no listed provider is flagged, as against an API without the flag", () => {
+    const { NotBiddingNotice } = setup({ eligibleCount: 4, notBiddingCount: 0 });
+
+    expect(NotBiddingNotice).not.toHaveBeenCalled();
+  });
+
+  it.each([{ isLoading: true }, { isInvalid: true }])("warns about nothing while the providers are not known: %o", state => {
+    const { NotBiddingNotice } = setup({ eligibleCount: 4, notBiddingCount: 4, ...state });
+
+    expect(NotBiddingNotice).not.toHaveBeenCalled();
+  });
+
   it("offers the compute request for what is missing before the provider choice", () => {
     setup({});
 
@@ -326,11 +347,16 @@ describe(AvailabilityPane.name, () => {
     gpuAvailability?: Partial<GpuAvailability>;
     gpuQuantities?: GpuQuantityAvailability[];
     canSelect?: GpuSelectionActions["canSelect"];
+    notBiddingCount?: number;
   }) {
     const onChooseProvider = vi.fn();
     const onRequestCompute = vi.fn();
+    const onRequestComputeForUnlikelyBids = vi.fn();
     const useScreenedProviders = vi.fn(() => ({
-      providers: Array.from({ length: input.eligibleCount ?? 3 }, () => screenedProvider(input.gpusPerProvider === undefined ? 2 : input.gpusPerProvider)),
+      providers: Array.from({ length: input.eligibleCount ?? 3 }, (_, index) => ({
+        ...screenedProvider(input.gpusPerProvider === undefined ? 2 : input.gpusPerProvider),
+        isNotBidding: index < (input.notBiddingCount ?? 0)
+      })),
       isLoading: input.isLoading ?? false,
       isError: input.isError ?? false,
       isInvalid: input.isInvalid ?? false,
@@ -354,6 +380,7 @@ describe(AvailabilityPane.name, () => {
     const gpuSelection = mock<GpuSelectionActions>({ canSelect: input.canSelect ?? (() => true) });
     const useGpuSelection = vi.fn(() => gpuSelection);
     const CustomTooltip = vi.fn(ComponentMock);
+    const NotBiddingNotice = vi.fn(ComponentMock);
     const dependencies: typeof DEPENDENCIES = {
       useScreenedProviders,
       useNetworkProviderCount: () => ({ count: input.networkCount === undefined ? 20 : input.networkCount, isLoading: false }),
@@ -361,7 +388,8 @@ describe(AvailabilityPane.name, () => {
       useGpuQuantityAvailability,
       useGpuSelection,
       CustomTooltip: CustomTooltip as never,
-      InvalidSpecReasons: () => <p>Settings to fix</p>
+      InvalidSpecReasons: () => <p>Settings to fix</p>,
+      NotBiddingNotice
     };
 
     render(
@@ -374,6 +402,7 @@ describe(AvailabilityPane.name, () => {
         hasPlacementWithoutProviders={input.hasPlacementWithoutProviders ?? false}
         onChooseProvider={onChooseProvider}
         onRequestCompute={onRequestCompute}
+        onRequestComputeForUnlikelyBids={onRequestComputeForUnlikelyBids}
         dependencies={dependencies}
       />
     );
@@ -381,6 +410,8 @@ describe(AvailabilityPane.name, () => {
     return {
       onChooseProvider,
       onRequestCompute,
+      onRequestComputeForUnlikelyBids,
+      NotBiddingNotice,
       useScreenedProviders,
       useGpuAvailability,
       useGpuQuantityAvailability,

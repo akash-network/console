@@ -373,7 +373,7 @@ describe(useDeploymentFlow.name, () => {
       const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
       const { result, analyticsService } = setup({ createMutate, closeMutate: vi.fn() });
 
-      act(() => result.current.actions.requestQuotes("sdl-content", { screening: { placementCount: 2, providerCount: 3 } }));
+      act(() => result.current.actions.requestQuotes("sdl-content", { screening: { placementCount: 2, providerCount: 3, notBiddingProviderCount: 3 } }));
 
       await settleSeal();
       act(() => vi.advanceTimersByTime(60_000));
@@ -384,7 +384,8 @@ describe(useDeploymentFlow.name, () => {
         bidStrategy: "select",
         waitedSeconds: 60,
         placementCount: 2,
-        screenedProviderCount: 3
+        screenedProviderCount: 3,
+        notBiddingProviderCount: 3
       });
     } finally {
       vi.useRealTimers();
@@ -526,7 +527,7 @@ describe(useDeploymentFlow.name, () => {
         const bidList: { bids: Array<ReturnType<typeof openBidOn>> } = { bids: [] };
         const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
         const { result, rerender, analyticsService } = setup({ createMutate, closeMutate: vi.fn(), bidList });
-        act(() => result.current.actions.requestQuotes("sdl-content", { screening: { placementCount: 2, providerCount: 28 } }));
+        act(() => result.current.actions.requestQuotes("sdl-content", { screening: { placementCount: 2, providerCount: 28, notBiddingProviderCount: 5 } }));
         await settleSeal();
         act(() => vi.advanceTimersByTime(67_000));
 
@@ -540,6 +541,7 @@ describe(useDeploymentFlow.name, () => {
           secondsAfterTimeout: 7,
           placementCount: 2,
           screenedProviderCount: 28,
+          notBiddingProviderCount: 5,
           isAutoDeploy: false
         });
       } finally {
@@ -564,6 +566,7 @@ describe(useDeploymentFlow.name, () => {
           secondsAfterTimeout: 1,
           placementCount: undefined,
           screenedProviderCount: undefined,
+          notBiddingProviderCount: undefined,
           isAutoDeploy: true
         });
       } finally {
@@ -2222,6 +2225,28 @@ describe(useDeploymentFlow.name, () => {
       await settleSeal();
 
       expect(analyticsService.track).not.toHaveBeenCalledWith("create_deployment_failed", expect.anything());
+    });
+
+    it("tracks create_deployment with how many screened providers were not bidding when bids were requested", async () => {
+      const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+      const { result, analyticsService } = setup({ createMutate });
+
+      act(() => result.current.actions.requestQuotes("sdl-content", { screening: { placementCount: 1, providerCount: 4, notBiddingProviderCount: 4 } }));
+
+      await settleSeal();
+
+      expect(analyticsService.track).toHaveBeenCalledWith("create_deployment", expect.objectContaining({ dseq: "999", notBiddingProviderCount: 4 }));
+    });
+
+    it("tracks bids_received with how many screened providers were not bidding when bids were requested", async () => {
+      const openBid = { bid: { state: "open", price: { amount: "1", denom: "uakt" }, id: { provider: "p", dseq: "999", gseq: 1, oseq: 1 } } };
+      const createDeployment = mockMutation(vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } })));
+      const { result, analyticsService } = renderFlow({ createDeployment, listBids: [openBid] });
+
+      act(() => result.current.actions.requestQuotes("sdl-content", { screening: { placementCount: 1, providerCount: 4, notBiddingProviderCount: 2 } }));
+      await settleSeal();
+
+      expect(analyticsService.track).toHaveBeenCalledWith("bids_received", expect.objectContaining({ numberOfBids: 1, notBiddingProviderCount: 2 }));
     });
 
     it("tracks bids_received with the bid count the first time bids arrive", () => {
