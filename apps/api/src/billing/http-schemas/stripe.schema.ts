@@ -176,7 +176,8 @@ export const TransactionSchema = z.object({
 
 export const FirstPurchaseBonusResponseSchema = z.object({
   data: z.object({
-    eligible: z.boolean()
+    eligible: z.boolean(),
+    endsAt: z.string().datetime().nullable().optional().openapi({ description: "When the offer ends, null when it lasts until the first purchase." })
   })
 });
 

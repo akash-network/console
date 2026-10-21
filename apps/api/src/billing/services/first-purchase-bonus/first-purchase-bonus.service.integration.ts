@@ -10,6 +10,8 @@ import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 const QUALIFYING_AMOUNT_CENTS = 100_00;
+const SMALL_AMOUNT_CENTS = 20_00;
+const FIRST_PAYMENT_AT = new Date("2026-01-01T00:00:00.000Z");
 
 describe(FirstPurchaseBonusService.name, () => {
   describe("getEligibleBonusAmount", () => {
@@ -37,17 +39,17 @@ describe(FirstPurchaseBonusService.name, () => {
     });
 
     it("grants the bonus on a first purchase for a new team by a person whose own account paid without one", async () => {
-      const { stripeTransactionRepository, pendingPurchase, eligibleBonusAmount } = setup();
+      const { stripeTransactionRepository, pendingPurchase, eligibleBonus } = setup();
       const person = await seedUser();
       const { organization: team } = await seedOrganizationWithOwner();
-      await stripeTransactionRepository.create({ userId: person.id, type: "payment_intent", status: "succeeded", amount: 2000, currency: "usd" });
+      await stripeTransactionRepository.create({ userId: person.id, type: "payment_intent", status: "succeeded", amount: SMALL_AMOUNT_CENTS, currency: "usd" });
       const purchase = await pendingPurchase(person.id, team.id);
 
-      await expect(eligibleBonusAmount(purchase)).resolves.toBe(QUALIFYING_AMOUNT_CENTS / 10);
+      await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: QUALIFYING_AMOUNT_CENTS / 10, window: null });
     });
 
     it("refuses the bonus to a person whose bonused purchase was refunded", async () => {
-      const { stripeTransactionRepository, pendingPurchase, eligibleBonusAmount } = setup();
+      const { stripeTransactionRepository, pendingPurchase, eligibleBonus } = setup();
       const person = await seedUser();
       const [{ organization: team }, { organization: otherTeam }] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
       await stripeTransactionRepository.create({
@@ -62,7 +64,63 @@ describe(FirstPurchaseBonusService.name, () => {
       });
       const purchase = await pendingPurchase(person.id, otherTeam.id);
 
-      await expect(eligibleBonusAmount(purchase)).resolves.toBe(0);
+      await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: 0, window: null });
+    });
+
+    describe("when the paying account made a small first purchase", () => {
+      it("grants the bonus to a personal purchase made 6 days and 23 hours after a refunded small first purchase, settled days later", async () => {
+        const { stripeTransactionRepository, pendingPurchase, eligibleBonus } = setup();
+        const person = await seedUser();
+        await stripeTransactionRepository.create({
+          userId: person.id,
+          type: "payment_intent",
+          status: "refunded",
+          amount: SMALL_AMOUNT_CENTS,
+          amountRefunded: SMALL_AMOUNT_CENTS,
+          currency: "usd",
+          createdAt: FIRST_PAYMENT_AT
+        });
+        const purchase = await pendingPurchase(person.id, null, new Date("2026-01-07T23:00:00.000Z"));
+
+        await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: QUALIFYING_AMOUNT_CENTS / 10, window: "small_first_purchase" });
+      });
+
+      it("grants nothing to a personal purchase made 7 days after the small first purchase", async () => {
+        const { smallFirstPurchase, pendingPurchase, eligibleBonus } = setup();
+        const person = await seedUser();
+        await smallFirstPurchase(person.id, null);
+        const purchase = await pendingPurchase(person.id, null, new Date("2026-01-08T00:00:00.000Z"));
+
+        await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: 0, window: null });
+      });
+
+      it("grants nothing on the personal account of a person who already received the bonus on a team", async () => {
+        const { stripeTransactionRepository, smallFirstPurchase, pendingPurchase, eligibleBonus } = setup();
+        const person = await seedUser();
+        const { organization: team } = await seedOrganizationWithOwner();
+        await stripeTransactionRepository.create({
+          userId: person.id,
+          organizationId: team.id,
+          type: "payment_intent",
+          status: "succeeded",
+          amount: QUALIFYING_AMOUNT_CENTS,
+          bonusAmount: QUALIFYING_AMOUNT_CENTS / 10,
+          currency: "usd"
+        });
+        await smallFirstPurchase(person.id, null);
+        const purchase = await pendingPurchase(person.id, null, new Date("2026-01-02T00:00:00.000Z"));
+
+        await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: 0, window: null });
+      });
+
+      it("grants nothing to a team's purchase made a day after the team's small first purchase", async () => {
+        const { smallFirstPurchase, pendingPurchase, eligibleBonus } = setup();
+        const { organization: team, user: owner } = await seedOrganizationWithOwner();
+        await smallFirstPurchase(owner.id, team.id);
+        const purchase = await pendingPurchase(owner.id, team.id, new Date("2026-01-02T00:00:00.000Z"));
+
+        await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: 0, window: null });
+      });
     });
   });
 
@@ -71,23 +129,35 @@ describe(FirstPurchaseBonusService.name, () => {
     const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
     const txService = container.resolve(TxService);
 
-    const pendingPurchase = (userId: string, organizationId: string) =>
+    const pendingPurchase = (userId: string, organizationId: string | null, createdAt?: Date) =>
       stripeTransactionRepository.create({
         userId,
         organizationId,
         type: "payment_intent",
         status: "pending",
         amount: QUALIFYING_AMOUNT_CENTS,
-        currency: "usd"
+        currency: "usd",
+        createdAt
+      });
+
+    const smallFirstPurchase = (userId: string, organizationId: string | null) =>
+      stripeTransactionRepository.create({
+        userId,
+        organizationId,
+        type: "payment_intent",
+        status: "succeeded",
+        amount: SMALL_AMOUNT_CENTS,
+        currency: "usd",
+        createdAt: FIRST_PAYMENT_AT
       });
 
     const settleConcurrently = async (purchases: StripeTransactionOutput[]) => {
       await Promise.all(
         purchases.map(purchase =>
           txService.transaction(async () => {
-            const bonusAmount = await service.getEligibleBonusAmount(purchase, QUALIFYING_AMOUNT_CENTS);
+            const { bonusCents } = await service.getEligibleBonusAmount(purchase, QUALIFYING_AMOUNT_CENTS);
             await delay(100);
-            await stripeTransactionRepository.updateById(purchase.id, { status: "succeeded", bonusAmount });
+            await stripeTransactionRepository.updateById(purchase.id, { status: "succeeded", bonusAmount: bonusCents });
           })
         )
       );
@@ -97,9 +167,8 @@ describe(FirstPurchaseBonusService.name, () => {
       return settled.map(purchase => purchase!.bonusAmount);
     };
 
-    const eligibleBonusAmount = (purchase: StripeTransactionOutput) =>
-      txService.transaction(() => service.getEligibleBonusAmount(purchase, QUALIFYING_AMOUNT_CENTS));
+    const eligibleBonus = (purchase: StripeTransactionOutput) => txService.transaction(() => service.getEligibleBonusAmount(purchase, QUALIFYING_AMOUNT_CENTS));
 
-    return { stripeTransactionRepository, pendingPurchase, settleConcurrently, eligibleBonusAmount };
+    return { stripeTransactionRepository, pendingPurchase, smallFirstPurchase, settleConcurrently, eligibleBonus };
   }
 });

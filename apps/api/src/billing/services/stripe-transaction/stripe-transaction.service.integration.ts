@@ -267,7 +267,7 @@ describe(StripeTransactionService.name, () => {
       userRepository.findOneBy.mockResolvedValue(mockUser);
       stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
-      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(bonusAmount);
+      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue({ bonusCents: bonusAmount, window: "small_first_purchase" });
 
       const outcome = await service.settlePaymentIntent(
         createPaymentIntentSucceededEvent({
@@ -297,7 +297,7 @@ describe(StripeTransactionService.name, () => {
           }
         }
       );
-      expect(firstPurchaseBonusService.trackBonusGranted).toHaveBeenCalledWith(mockUser.id, amount, bonusAmount);
+      expect(firstPurchaseBonusService.trackBonusGranted).toHaveBeenCalledWith(mockUser.id, amount, bonusAmount, "small_first_purchase");
       expect(outcome.bonusGrant).toEqual({ userId: mockUser.id, bonusAmountCents: bonusAmount, paidAmountCents: amount });
     });
 
@@ -339,7 +339,7 @@ describe(StripeTransactionService.name, () => {
       userRepository.findOneBy.mockResolvedValue(mockUser);
       stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
-      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(1500);
+      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue({ bonusCents: 1500, window: null });
       firstPurchaseBonusService.recordGrant.mockResolvedValue(0);
 
       const outcome = await service.settlePaymentIntent(
@@ -465,7 +465,7 @@ describe(StripeTransactionService.name, () => {
       userRepository.findOneBy.mockResolvedValue(mockUser);
       stripeTransactionRepository.findById.mockResolvedValue(internalTransaction);
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(internalTransaction);
-      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(bonusAmount);
+      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue({ bonusCents: bonusAmount, window: null });
 
       const outcome = await service.settlePaymentIntent(
         createPaymentIntentSucceededEvent({
@@ -1101,7 +1101,7 @@ describe(StripeTransactionService.name, () => {
       organizationRepository.findById.mockResolvedValue(team);
       stripeTransactionRepository.findById.mockResolvedValue(transaction);
       stripeTransactionRepository.findOneByAndLock.mockResolvedValue(transaction);
-      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(500);
+      firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue({ bonusCents: 500, window: null });
       vi.spyOn(stripe.charges, "retrieve").mockResolvedValue(mock<Stripe.Response<Stripe.Charge>>({ id: "ch_team" }));
 
       const outcome = await service.settlePaymentIntent(
@@ -1387,7 +1387,7 @@ describe(StripeTransactionService.name, () => {
           persistedTransactions.create({ userId: person.id, organizationId: organization.id, type: "payment_intent", status: "pending", amount: 10000 })
         )
       );
-      vi.spyOn(persistedBonusService, "getEligibleBonusAmount").mockResolvedValue(1000);
+      vi.spyOn(persistedBonusService, "getEligibleBonusAmount").mockResolvedValue({ bonusCents: 1000, window: null });
 
       await Promise.all(
         purchases.map(purchase =>
@@ -1420,7 +1420,7 @@ describe(StripeTransactionService.name, () => {
     const persistedTransactions = container.resolve(StripeTransactionRepository);
     const refillService = mock<RefillService>();
     const firstPurchaseBonusService = mock<FirstPurchaseBonusService>();
-    firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue(0);
+    firstPurchaseBonusService.getEligibleBonusAmount.mockResolvedValue({ bonusCents: 0, window: null });
     firstPurchaseBonusService.recordGrant.mockImplementation(async (_transaction, bonusCents) => bonusCents);
     const userRepository = mock<UserRepository>();
     const organizationRepository = mock<OrganizationRepository>();

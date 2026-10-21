@@ -1,4 +1,4 @@
-import { and, count, desc, eq, exists, gt, gte, inArray, isNotNull, lt, lte, notInArray, or, SQL, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNotNull, lt, lte, ne, notInArray, or, SQL, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
@@ -235,19 +235,27 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       );
   }
 
-  /** Whether the owner ever completed a paid purchase, refunded or not, coupon claims aside; reads every organization, as settlement does. */
-  async hasCompletedPaidTransaction(owner: BillingOwner): Promise<boolean> {
+  /** The owner's first completed paid purchase, refunded or not, coupon claims aside; reads every organization, as settlement does. */
+  async findEarliestCompletedPaidTransaction(
+    owner: BillingOwner,
+    options?: { excludeId?: string }
+  ): Promise<Pick<StripeTransactionOutput, "id" | "createdAt" | "amount"> | undefined> {
     const [item] = await this.cursor
-      .select({ id: this.table.id })
+      .select({ id: this.table.id, createdAt: this.table.createdAt, amount: this.table.amount })
       .from(this.table)
       .where(
         this.unscoped("per-person-billing-limits").whereAccessibleBy(
-          and(ownedBy(this.table, owner), eq(this.table.type, "payment_intent"), inArray(this.table.status, ["succeeded", "refunded"]))
+          and(this.#completedPaidBy(owner), options?.excludeId ? ne(this.table.id, options.excludeId) : undefined)
         )
       )
+      .orderBy(asc(this.table.createdAt))
       .limit(1);
 
-    return !!item;
+    return item;
+  }
+
+  #completedPaidBy(owner: BillingOwner): SQL | undefined {
+    return and(ownedBy(this.table, owner), eq(this.table.type, "payment_intent"), inArray(this.table.status, ["succeeded", "refunded"]));
   }
 
   /** Writes in a savepoint so the person's one-bonus index refusing it leaves the settling transaction usable; answers whether the bonus was recorded. */

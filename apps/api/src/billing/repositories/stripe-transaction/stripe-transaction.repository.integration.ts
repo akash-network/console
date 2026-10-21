@@ -443,19 +443,60 @@ describe(StripeTransactionRepository.name, () => {
     }
   });
 
-  describe("hasCompletedPaidTransaction", () => {
+  describe("findEarliestCompletedPaidTransaction", () => {
     it.each([
-      { status: "succeeded" as const, expected: true },
-      { status: "refunded" as const, expected: true },
-      { status: "created" as const, expected: false },
-      { status: "failed" as const, expected: false }
-    ])("answers $expected for a team's payment_intent in $status", async ({ status, expected }) => {
+      { status: "succeeded" as const, isCompleted: true },
+      { status: "refunded" as const, isCompleted: true },
+      { status: "created" as const, isCompleted: false },
+      { status: "failed" as const, isCompleted: false }
+    ])("finds a team's payment_intent in $status only when $isCompleted", async ({ status, isCompleted }) => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const { organization: team } = await seedOrganizationWithOwner();
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id, status });
+      const purchase = await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id, status });
 
-      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ organizationId: team.id })).resolves.toBe(expected);
+      const earliest = await stripeTransactionRepository.findEarliestCompletedPaidTransaction({ organizationId: team.id });
+
+      expect(earliest?.id).toBe(isCompleted ? purchase.id : undefined);
+    });
+
+    it("finds the earliest of the owner's purchases with its time and amount, even when it was refunded", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2026-01-03T00:00:00Z") });
+      const first = await stripeTransactionRepository.create({
+        ...transactionInput(user.id),
+        status: "refunded",
+        amount: 2000,
+        amountRefunded: 2000,
+        createdAt: new Date("2026-01-01T00:00:00Z")
+      });
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2026-01-02T00:00:00Z") });
+
+      await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: user.id })).resolves.toEqual({
+        id: first.id,
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+        amount: 2000
+      });
+    });
+
+    it("leaves out the transaction it is told to exclude", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const excluded = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2026-01-01T00:00:00Z") });
+      const next = await stripeTransactionRepository.create({ ...transactionInput(user.id), createdAt: new Date("2026-01-02T00:00:00Z") });
+
+      const earliest = await stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: user.id }, { excludeId: excluded.id });
+
+      expect(earliest?.id).toBe(next.id);
+    });
+
+    it("finds nothing when the only purchase is the excluded one", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const excluded = await stripeTransactionRepository.create(transactionInput(user.id));
+
+      await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: user.id }, { excludeId: excluded.id })).resolves.toBeUndefined();
     });
 
     it("never counts a coupon claim", async () => {
@@ -463,42 +504,42 @@ describe(StripeTransactionRepository.name, () => {
       const user = await createTestUser();
       await stripeTransactionRepository.create({ ...transactionInput(user.id), type: "coupon_claim" });
 
-      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ userId: user.id })).resolves.toBe(false);
+      await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: user.id })).resolves.toBeUndefined();
     });
 
     it("keeps a member's purchase for a team apart from the member's own account and from other teams", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const [{ organization: team }, { organization: otherTeam }] = await Promise.all([seedOrganizationWithOwner(), seedOrganizationWithOwner()]);
       const user = await createTestUser();
-      await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id });
+      const purchase = await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id });
 
-      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ organizationId: team.id })).resolves.toBe(true);
-      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ organizationId: otherTeam.id })).resolves.toBe(false);
-      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ userId: user.id })).resolves.toBe(false);
+      await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ organizationId: team.id })).resolves.toMatchObject({ id: purchase.id });
+      await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ organizationId: otherTeam.id })).resolves.toBeUndefined();
+      await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: user.id })).resolves.toBeUndefined();
     });
 
-    it("counts the user's own purchases, whether or not they are filed under an organization", async () => {
+    it("finds the user's own purchases, whether or not they are filed under an organization", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const [filedUser, unfiledUser] = await Promise.all([createTestUser(), createTestUser()]);
       const { organization: personal } = await seedOrganizationWithOwner({ type: "personal" });
-      await stripeTransactionRepository.create({ ...transactionInput(filedUser.id), organizationId: personal.id });
-      await stripeTransactionRepository.create(transactionInput(unfiledUser.id));
+      const filed = await stripeTransactionRepository.create({ ...transactionInput(filedUser.id), organizationId: personal.id });
+      const unfiled = await stripeTransactionRepository.create(transactionInput(unfiledUser.id));
 
-      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ userId: filedUser.id })).resolves.toBe(true);
-      await expect(stripeTransactionRepository.hasCompletedPaidTransaction({ userId: unfiledUser.id })).resolves.toBe(true);
+      await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: filedUser.id })).resolves.toMatchObject({ id: filed.id });
+      await expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: unfiledUser.id })).resolves.toMatchObject({ id: unfiled.id });
     });
 
-    it("counts a purchase not yet filed into any organization while the person's organization is active", async () => {
+    it("finds a purchase not yet filed into any organization while the person's organization is active", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();
       const user = await createTestUser();
       const { organization: personal } = await seedOrganizationWithOwner({ type: "personal" });
-      await stripeTransactionRepository.create(transactionInput(user.id));
+      const purchase = await stripeTransactionRepository.create(transactionInput(user.id));
 
-      const hasPaid = await inOrganization({ user, organizationId: personal.id }, () =>
-        stripeTransactionRepository.hasCompletedPaidTransaction({ userId: user.id })
+      const earliest = await inOrganization({ user, organizationId: personal.id }, () =>
+        stripeTransactionRepository.findEarliestCompletedPaidTransaction({ userId: user.id })
       );
 
-      expect(hasPaid).toBe(true);
+      expect(earliest?.id).toBe(purchase.id);
     });
   });
 

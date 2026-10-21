@@ -2359,6 +2359,12 @@
                       "properties": {
                         "eligible": {
                           "type": "boolean"
+                        },
+                        "endsAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time",
+                          "description": "When the offer ends, null when it lasts until the first purchase."
                         }
                       },
                       "required": [

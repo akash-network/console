@@ -1,5 +1,7 @@
 import type { LoggerService } from "@akashnetwork/logging";
+import { addDays } from "date-fns";
 import assert from "http-assert";
+import maxBy from "lodash/maxBy";
 import { inject, singleton } from "tsyringe";
 
 import type { BillingOwner } from "@src/billing/lib/billing-owner/billing-owner";
@@ -15,6 +17,25 @@ export const MIN_QUALIFYING_AMOUNT_CENTS = 100_00;
 export const BONUS_PERCENT = 10;
 /** Bonus ceiling, in cents. */
 export const MAX_BONUS_CENTS = 100_00;
+export const SMALL_FIRST_PURCHASE_WINDOW_DAYS = 7;
+
+export type BonusWindowReason = "small_first_purchase" | "gpu_win_back";
+
+export interface BonusEligibility {
+  eligible: boolean;
+  endsAt: Date | null;
+  window: BonusWindowReason | null;
+}
+
+export interface EligibleBonus {
+  bonusCents: number;
+  window: BonusWindowReason | null;
+}
+
+interface BonusWindow {
+  reason: BonusWindowReason;
+  closesAt: Date;
+}
 
 @singleton()
 export class FirstPurchaseBonusService {
@@ -31,17 +52,57 @@ export class FirstPurchaseBonusService {
   }
 
   /** Locking the paying organization, then the person, serializes concurrent settlements that share either. */
-  async getEligibleBonusAmount(transaction: StripeTransactionOutput, paidAmountCents: number): Promise<number> {
-    if (transaction.type !== "payment_intent" || !transaction.userId) return 0;
+  async getEligibleBonusAmount(transaction: StripeTransactionOutput, paidAmountCents: number): Promise<EligibleBonus> {
+    if (transaction.type !== "payment_intent" || !transaction.userId) return { bonusCents: 0, window: null };
 
     const bonusCents = this.calculateBonusCents(paidAmountCents);
-    if (bonusCents === 0) return 0;
+    if (bonusCents === 0) return { bonusCents: 0, window: null };
 
     const payingAccount = await this.#lockPayingAccount(transaction.organizationId, transaction.userId);
     const person = await this.userRepository.findOneByAndLock({ id: transaction.userId }, { strength: "no key update" });
     assert(person, 500, "Failed to lock user for first-purchase bonus eligibility", { userId: transaction.userId });
 
-    return (await this.isEligible(payingAccount, transaction.userId)) ? bonusCents : 0;
+    const { eligible, window } = await this.evaluate(payingAccount, transaction.userId, transaction.createdAt, { excludeTransactionId: transaction.id });
+
+    return eligible ? { bonusCents, window } : { bonusCents: 0, window: null };
+  }
+
+  /** A person who never received the bonus earns it on an account that never paid, or on their own account while one of its windows is open. */
+  async evaluate(payingAccount: BillingOwner, userId: string, at: Date, options?: { excludeTransactionId?: string }): Promise<BonusEligibility> {
+    if (await this.stripeTransactionRepository.hasReceivedFirstPurchaseBonus(userId)) return { eligible: false, endsAt: null, window: null };
+
+    const firstPayment = await this.stripeTransactionRepository.findEarliestCompletedPaidTransaction(payingAccount, {
+      excludeId: options?.excludeTransactionId
+    });
+    if (!firstPayment) return { eligible: true, endsAt: null, window: null };
+
+    const openWindow = "userId" in payingAccount ? await this.#findLatestOpenWindow(payingAccount.userId, firstPayment, at) : undefined;
+
+    return openWindow ? { eligible: true, endsAt: openWindow.closesAt, window: openWindow.reason } : { eligible: false, endsAt: null, window: null };
+  }
+
+  async isEligible(payingAccount: BillingOwner, userId: string, at = new Date()): Promise<boolean> {
+    return (await this.evaluate(payingAccount, userId, at)).eligible;
+  }
+
+  async #findLatestOpenWindow(userId: string, firstPayment: { createdAt: Date; amount: number }, at: Date): Promise<BonusWindow | undefined> {
+    const windows = [this.#findSmallFirstPurchaseWindow(firstPayment), await this.#findWinBackWindow(userId)];
+
+    return maxBy(
+      windows.filter((window): window is BonusWindow => window !== null && window.closesAt > at),
+      window => window.closesAt.getTime()
+    );
+  }
+
+  #findSmallFirstPurchaseWindow({ createdAt, amount }: { createdAt: Date; amount: number }): BonusWindow | null {
+    if (amount >= MIN_QUALIFYING_AMOUNT_CENTS) return null;
+
+    return { reason: "small_first_purchase", closesAt: addDays(createdAt, SMALL_FIRST_PURCHASE_WINDOW_DAYS) };
+  }
+
+  /** Inert until the GPU win-back (CON-1166) records a window per person. */
+  async #findWinBackWindow(_userId: string): Promise<BonusWindow | null> {
+    return null;
   }
 
   /** The person's one-bonus index backs up the eligibility check, so when it refuses the bonus the payment settles without one. */
@@ -60,13 +121,6 @@ export class FirstPurchaseBonusService {
     return 0;
   }
 
-  /** The first purchase of a paying account earns the bonus, unless the person paying already received one under any account. */
-  async isEligible(payingAccount: BillingOwner, userId: string): Promise<boolean> {
-    if (await this.stripeTransactionRepository.hasCompletedPaidTransaction(payingAccount)) return false;
-
-    return !(await this.stripeTransactionRepository.hasReceivedFirstPurchaseBonus(userId));
-  }
-
   async #lockPayingAccount(organizationId: StripeTransactionOutput["organizationId"], userId: string): Promise<BillingOwner> {
     const organization = organizationId ? await this.organizationRepository.findOneByAndLock({ id: organizationId }, { strength: "no key update" }) : undefined;
 
@@ -80,12 +134,13 @@ export class FirstPurchaseBonusService {
     return Math.min(Math.floor((paidAmountCents * BONUS_PERCENT) / 100), MAX_BONUS_CENTS);
   }
 
-  trackBonusGranted(userId: string, paidAmountCents: number, bonusAmountCents: number): void {
+  trackBonusGranted(userId: string, paidAmountCents: number, bonusAmountCents: number, window: BonusWindowReason | null): void {
     this.analyticsService.track(userId, "first_purchase_bonus_granted", {
       paid_amount_cents: paidAmountCents,
       paid_amount_usd: paidAmountCents / 100,
       bonus_amount_cents: bonusAmountCents,
-      bonus_amount_usd: bonusAmountCents / 100
+      bonus_amount_usd: bonusAmountCents / 100,
+      window: window ?? "none"
     });
   }
 }

@@ -9379,6 +9379,11 @@ export interface operations {
           "application/json": {
             data: {
               eligible: boolean;
+              /**
+               * Format: date-time
+               * @description When the offer ends, null when it lasts until the first purchase.
+               */
+              endsAt?: string | null;
             };
           };
         };

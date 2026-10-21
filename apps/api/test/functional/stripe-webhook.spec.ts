@@ -1,4 +1,5 @@
 import { faker } from "@faker-js/faker";
+import { subDays } from "date-fns";
 import { eq } from "drizzle-orm";
 import nock from "nock";
 import stripe from "stripe";
@@ -331,21 +332,21 @@ describe("Stripe webhook", () => {
         expect(transaction).toMatchObject({ status: "succeeded", bonusAmount: 0 });
       });
 
-      it("does not grant the bonus when the user already completed a paid purchase", async () => {
+      it("does not grant the bonus once the first paid purchase is more than 7 days old", async () => {
         const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
         const chargeId = `ch_${faker.string.alphanumeric(24)}`;
         const amount = 10000;
 
         const { user, stripeCustomerId } = await setup();
 
-        // Prior completed paid purchase consumed the one-time eligibility
         await stripeTransactionRepository.create({
           userId: user.id,
           type: "payment_intent",
           status: "succeeded",
-          amount: 20000,
+          amount: 2000,
           currency: "usd",
-          stripePaymentIntentId: `pi_${faker.string.alphanumeric(24)}`
+          stripePaymentIntentId: `pi_${faker.string.alphanumeric(24)}`,
+          createdAt: subDays(new Date(), 8)
         });
 
         await stripeTransactionRepository.create({
