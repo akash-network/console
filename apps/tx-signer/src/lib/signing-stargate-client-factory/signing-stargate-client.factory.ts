@@ -33,6 +33,9 @@ const EXPIRED_TX_LOG_RE = /tx timeout/i;
 
 const FAILED_MESSAGE_EXECUTION_RE = /Query failed with \(\d+\): .*failed to execute message/;
 
+/** Anchored to the start of the description, because ante refusals such as an unordered ttl the node's clock rejects end in a generic ": invalid request". */
+const INVALID_MESSAGE_RE = /Query failed with \(\d+\): rpc error: code = \w+ desc = invalid\b/i;
+
 export interface SimulateRetryConfig {
   /** Retries allowed after the first attempt, matching cockatiel's own reading of the name. */
   maxAttempts?: number;
@@ -211,15 +214,15 @@ export class SigningStargateWithUnorderedSupportClient extends SigningStargateCl
       return new SimulationExpiredError(this.#signConfig.ttlMs, error);
     }
 
-    return this.#isMessageExecutionFailure(error) ? new MessageExecutionFailedError(error) : error;
+    return this.#isMessageRejection(error) ? new MessageExecutionFailedError(error) : error;
   }
 
   #isExpiryRejection(error: unknown): boolean {
     return error instanceof Error && EXPIRED_TX_LOG_RE.test(error.message);
   }
 
-  #isMessageExecutionFailure(error: unknown): error is Error {
-    return error instanceof Error && FAILED_MESSAGE_EXECUTION_RE.test(error.message);
+  #isMessageRejection(error: unknown): error is Error {
+    return error instanceof Error && (FAILED_MESSAGE_EXECUTION_RE.test(error.message) || INVALID_MESSAGE_RE.test(error.message));
   }
 }
 

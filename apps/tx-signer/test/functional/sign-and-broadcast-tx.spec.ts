@@ -145,6 +145,21 @@ describe(TxController.name, () => {
     expect(getBroadcastedTxs()).toHaveLength(0);
   });
 
+  it("answers 400 with the chain's own message and broadcasts nothing when the chain refuses a message as invalid in simulation", async () => {
+    const log = "rpc error: code = Unknown desc = invalid deposit with gas used: '1150': unknown request";
+    const { getBroadcastedTxs } = mockRpcNode({ simulateRejection: { code: 6, log } });
+
+    const res = await app.request("/v1/tx/derived", {
+      method: "POST",
+      body: JSON.stringify({ data: { derivationIndex: DERIVATION_INDEX, messages: await buildDerivedMessages() } }),
+      headers: authorizedHeaders()
+    });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "BadRequestError", message: `Query failed with (6): ${log}`, code: "bad_request", type: "client_error" });
+    expect(getBroadcastedTxs()).toHaveLength(0);
+  });
+
   it("rejects a tx request that carries no API key", async () => {
     const res = await app.request("/v1/tx/derived", {
       method: "POST",
