@@ -59,17 +59,37 @@ describe(FirstPurchaseBonusAlert.name, () => {
     expect(container).not.toHaveTextContent("more to unlock");
   });
 
-  function setup(input?: { amount?: number; isSuccess?: boolean; eligible?: boolean }) {
+  it("shows when the offer ends and pitches the next purchase while a bonus window is open", () => {
+    const { container } = setup({ amount: 0, endsAt: "2026-10-26T18:00:00.000Z" });
+
+    expect(container).toHaveTextContent("Get 10% in bonus credits on your next purchase, up to $100.");
+    expect(container).toHaveTextContent(/Offer ends October 26, 2026.*6:00\sPM UTC\./);
+  });
+
+  it("shows when the offer ends next to the bonus preview at a qualifying amount", () => {
+    const { container } = setup({ amount: 100, endsAt: "2026-10-26T18:00:00.000Z" });
+
+    expect(screen.getByText("$110.00 in credits")).toBeInTheDocument();
+    expect(container).toHaveTextContent(/Offer ends October 26, 2026/);
+  });
+
+  it("shows no end date when the offer lasts until the first purchase", () => {
+    const { container } = setup({ amount: 100, endsAt: null });
+
+    expect(container).not.toHaveTextContent("Offer ends");
+  });
+
+  function setup(input?: { amount?: number; isSuccess?: boolean; eligible?: boolean; endsAt?: string | null }) {
     const isSuccess = input?.isSuccess ?? true;
     const useFirstPurchaseBonusQuery = vi.fn(() =>
       mock<ReturnType<typeof DEPENDENCIES.useFirstPurchaseBonusQuery>>({
-        data: isSuccess ? { eligible: input?.eligible ?? true } : undefined,
+        data: isSuccess ? { eligible: input?.eligible ?? true, endsAt: input?.endsAt } : undefined,
         isSuccess
       })
     );
 
     return render(
-      <IntlProvider locale="en-US" defaultLocale="en-US">
+      <IntlProvider locale="en-US" defaultLocale="en-US" timeZone="UTC">
         <FirstPurchaseBonusAlert amount={input?.amount ?? 0} dependencies={{ useFirstPurchaseBonusQuery }} />
       </IntlProvider>
     );
