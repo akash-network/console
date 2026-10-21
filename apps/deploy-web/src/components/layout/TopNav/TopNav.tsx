@@ -133,7 +133,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
           )}
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2.5">
           {!minimal && (
             <div className="hidden md:block">
               <d.HackathonCouponNavEntry />
@@ -142,14 +142,11 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
 
           {minimal && <d.SkipOnboardingButton source="auto_deploy" />}
 
-          {showOrganizationSwitcher && <d.OrganizationSwitcher onCreateOrganization={openCreateOrganization} />}
+          {showNavLinks && isCommandMenuEnabled && <d.CommandMenu />}
 
-          {showNavLinks && (
-            <div className="flex items-center gap-3">
-              {isCommandMenuEnabled && <d.CommandMenu />}
-              <d.ActivityBell />
-            </div>
-          )}
+          {showNavLinks && <d.ActivityBell />}
+
+          {showOrganizationSwitcher && <d.OrganizationSwitcher onCreateOrganization={openCreateOrganization} />}
 
           <div className={cn({ "hidden md:block": showNavLinks })}>
             <d.TopNavAccountMenu minimal={minimal} onCreateOrganization={openCreateOrganization} />
