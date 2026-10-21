@@ -201,12 +201,32 @@ describe(SigningStargateWithUnorderedSupportClient.name, () => {
   });
 
   it("leaves a query the node refused outside the simulation as the node reported it", async () => {
-    const { client } = setup({ simulateRejection: { code: 18, log: "invalid request" } });
+    const { client, abciQuery } = setup({ simulateRejection: { code: 18, log: "invalid request" } });
 
     const signing = client.signUnordered(createMessages());
 
     await expect(signing).rejects.not.toBeInstanceOf(MessageExecutionFailedError);
     await expect(signing).rejects.toHaveProperty("message", "Query failed with (18): invalid request");
+    expect(abciQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    {
+      refusal: "a ttl beyond what the node's last block allows",
+      log: "rpc error: code = Unknown desc = unordered tx ttl exceeds 10m0s: invalid request [cosmos/cosmos-sdk@v0.53.4/x/auth/ante/sigverify.go:440] with gas used: '2186': unknown request"
+    },
+    {
+      refusal: "a panic the node recovered from",
+      log: "rpc error: code = Unknown desc = recovered: runtime error: invalid memory address or nil pointer dereference with gas used: '4120': unknown request"
+    }
+  ])("leaves a simulation refused for $refusal as the node reported it", async ({ log }) => {
+    const { client, abciQuery } = setup({ simulateRejection: { code: 6, log } });
+
+    const signing = client.signUnordered(createMessages());
+
+    await expect(signing).rejects.not.toBeInstanceOf(MessageExecutionFailedError);
+    await expect(signing).rejects.toHaveProperty("message", `Query failed with (6): ${log}`);
+    expect(abciQuery).toHaveBeenCalledTimes(1);
   });
 
   it("leaves a simulation refused for its account sequence as the node reported it", async () => {
