@@ -4,6 +4,7 @@ import { PurgeExpiredActivitiesHandler } from "@src/activity/services/purge-expi
 import { ApiKeyExpiryReminderHandler } from "@src/auth/services/api-key-expiry-reminder/api-key-expiry-reminder.handler";
 import { ActivateTrialHandler } from "@src/billing/services/activate-trial/activate-trial.handler";
 import { CardPaymentInvoiceHandler } from "@src/billing/services/card-payment-invoice/card-payment-invoice.handler";
+import { GpuWinBackCheckHandler } from "@src/billing/services/gpu-win-back/gpu-win-back-check.handler";
 import { ReconcileDeploymentDepositHandler } from "@src/billing/services/reconcile-deployment-deposit/reconcile-deployment-deposit.handler";
 import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-balance-reload-check/wallet-balance-reload-check.handler";
 import { WalletCreditsExhaustedCheckHandler } from "@src/billing/services/wallet-credits-exhausted-check/wallet-credits-exhausted-check.handler";
@@ -97,6 +98,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(DetectLeaseGpusHandler),
     container.resolve(RecordLeaseGpuOffersHandler),
     container.resolve(ManagedDeploymentLeaseCreatedHandler),
+    container.resolve(GpuWinBackCheckHandler),
     container.resolve(EnforceTrialAbuseHandler),
     container.resolve(LockBlockedDomainWalletHandler),
     container.resolve(BlockEmailDomainOfWalletHandler),

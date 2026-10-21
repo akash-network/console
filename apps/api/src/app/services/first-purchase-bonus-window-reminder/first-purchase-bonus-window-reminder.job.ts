@@ -4,7 +4,8 @@ import type { EmailedBonusWindowReason } from "@src/billing/events/first-purchas
 import { type EnqueueOptions, type Job, JOB_NAME } from "@src/core";
 
 const REMINDER_DAYS_BEFORE_WINDOW_CLOSES: Record<EmailedBonusWindowReason, number> = {
-  small_first_purchase: 2
+  small_first_purchase: 2,
+  gpu_win_back: 1
 };
 
 export class FirstPurchaseBonusWindowReminderJob implements Job {

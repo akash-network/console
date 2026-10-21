@@ -74,6 +74,11 @@ export interface DeploymentLeaseState extends DeploymentKey {
   hasOpenLease: boolean;
 }
 
+export interface GpuDeploymentActivity {
+  latestGpuDeploymentCreatedAt: Date | null;
+  hasOpenDeployment: boolean;
+}
+
 /** Keeps a deployment whose dseq contains `dseqContaining` or that `dseqs` names, which is how a name matched elsewhere reaches this table. */
 export interface ClosedDeploymentSearch {
   dseqContaining: string;
@@ -137,6 +142,30 @@ export class DeploymentRepository {
         type: QueryTypes.SELECT
       }
     );
+  }
+
+  /** A deployment counts as a gpu one only once a lease gave it a gpu, and it is dated by the block that created the deployment. */
+  async findGpuDeploymentActivity(owners: string[]): Promise<GpuDeploymentActivity> {
+    if (owners.length === 0) return { latestGpuDeploymentCreatedAt: null, hasOpenDeployment: false };
+
+    const [activity] = await this.#chainDb.query<{ latestGpuDeploymentCreatedAt: Date | string | null; hasOpenDeployment: boolean }>(
+      `/* deployment:gpuActivityByOwners */
+      SELECT
+        (
+          SELECT MAX(b."datetime")
+          FROM deployment d
+          JOIN block b ON b."height" = d."createdHeight"
+          WHERE d."owner" = ANY($1::text[])
+            AND EXISTS (SELECT 1 FROM lease l WHERE l."deploymentId" = d."id" AND l."gpuUnits" > 0)
+        ) AS "latestGpuDeploymentCreatedAt",
+        EXISTS (SELECT 1 FROM deployment d WHERE d."owner" = ANY($1::text[]) AND d."closedHeight" IS NULL) AS "hasOpenDeployment"`,
+      { bind: [owners], type: QueryTypes.SELECT }
+    );
+
+    return {
+      latestGpuDeploymentCreatedAt: activity.latestGpuDeploymentCreatedAt === null ? null : new Date(activity.latestGpuDeploymentCreatedAt),
+      hasOpenDeployment: activity.hasOpenDeployment
+    };
   }
 
   async findByOwnerAndDseq(owner: string, dseq: string): Promise<Deployment | null> {

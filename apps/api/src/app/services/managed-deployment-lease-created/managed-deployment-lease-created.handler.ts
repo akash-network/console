@@ -1,6 +1,7 @@
 import { inject, singleton } from "tsyringe";
 
 import { ManagedDeploymentLeaseCreated } from "@src/billing/events/managed-deployment-lease-created";
+import { GpuWinBackService } from "@src/billing/services/gpu-win-back/gpu-win-back.service";
 import { type CreateLogger, DOMAIN_EVENT_NAME, EventPayload, JobHandler, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { LeaseGpuDetectionJobService } from "@src/deployment/services/lease-gpu-detection-job/lease-gpu-detection-job.service";
 import { LeaseGpuOfferJobService } from "@src/deployment/services/lease-gpu-offer-job/lease-gpu-offer-job.service";
@@ -19,6 +20,7 @@ export class ManagedDeploymentLeaseCreatedHandler implements JobHandler<ManagedD
   constructor(
     private readonly gpuDetectionJobService: LeaseGpuDetectionJobService,
     private readonly gpuOfferJobService: LeaseGpuOfferJobService,
+    private readonly gpuWinBackService: GpuWinBackService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: ManagedDeploymentLeaseCreatedHandler.name });
@@ -28,10 +30,25 @@ export class ManagedDeploymentLeaseCreatedHandler implements JobHandler<ManagedD
     return [];
   }
 
-  /** Reading a lease's gpus is an extra the deployment does not depend on, so a failure to schedule either read is logged rather than retried. */
+  /** Reading a lease's gpus and the win-back check are extras the deployment does not depend on, so a failure to schedule any of them is logged rather than retried. */
   async handle(payload: EventPayload<ManagedDeploymentLeaseCreated>): Promise<void> {
     await this.#scheduleOfferRecord(payload);
     await this.#scheduleDetection(payload);
+    await this.#scheduleWinBackCheck(payload);
+  }
+
+  async #scheduleWinBackCheck(payload: EventPayload<ManagedDeploymentLeaseCreated>): Promise<void> {
+    try {
+      await this.gpuWinBackService.scheduleCheckAfterLease({ walletId: payload.walletId, leaseCreatedAt: new Date(payload.createdAt) });
+    } catch (error) {
+      this.logger.error({
+        event: "GPU_WIN_BACK_CHECK_SCHEDULE_FAILED",
+        domainEvent: ManagedDeploymentLeaseCreated[DOMAIN_EVENT_NAME],
+        walletId: payload.walletId,
+        dseq: payload.dseq,
+        error
+      });
+    }
   }
 
   async #scheduleOfferRecord(payload: EventPayload<ManagedDeploymentLeaseCreated>): Promise<void> {

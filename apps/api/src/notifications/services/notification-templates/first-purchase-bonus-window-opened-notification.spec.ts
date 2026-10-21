@@ -27,6 +27,48 @@ describe(firstPurchaseBonusWindowOpenedNotification.name, () => {
     });
   });
 
+  it("offers a person who paid before 10% bonus credits for the week of the gpu win-back, until it closes in UTC", () => {
+    const user = createUser({ id: "user-123", email: "user@example.com" });
+
+    const notification = firstPurchaseBonusWindowOpenedNotification(user, {
+      reason: "gpu_win_back",
+      closesAt: "2026-10-26T18:00:00.000Z",
+      paymentLink: "https://console.akash.network/billing?openPayment=true"
+    });
+
+    expect(notification).toEqual({
+      notificationId: "firstPurchaseBonusWindowOpened.gpu_win_back.user-123",
+      payload: {
+        summary: "10% bonus credits, this week only",
+        description:
+          "Come back to Akash Console with a bonus: buy $100 or more in credits before October 26, 2026 at 18:00 UTC " +
+          "and get 10% in bonus credits, up to $100.",
+        actions: [{ label: "Buy credits", url: "https://console.akash.network/billing?openPayment=true" }]
+      },
+      user: { id: "user-123", email: "user@example.com" }
+    });
+  });
+
+  it("promotes the bonus without a date to a person who never paid", () => {
+    const user = createUser({ id: "user-123", email: "user@example.com" });
+
+    const notification = firstPurchaseBonusWindowOpenedNotification(user, {
+      reason: "gpu_win_back",
+      closesAt: null,
+      paymentLink: "https://console.akash.network/billing?openPayment=true"
+    });
+
+    expect(notification).toEqual({
+      notificationId: "firstPurchaseBonusWindowOpened.gpu_win_back.user-123",
+      payload: {
+        summary: "Your first purchase comes with bonus credits",
+        description: "Ready for your next GPU deployment? Your first purchase of $100 or more on Akash Console comes with 10% in bonus credits, up to $100.",
+        actions: [{ label: "Buy credits", url: "https://console.akash.network/billing?openPayment=true" }]
+      },
+      user: { id: "user-123", email: "user@example.com" }
+    });
+  });
+
   it("shows the closing time on a 24-hour clock", () => {
     const user = createUser();
 

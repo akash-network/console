@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { type StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
+import { FirstPurchaseBonusWinBackRepository } from "@src/billing/repositories/first-purchase-bonus-win-back/first-purchase-bonus-win-back.repository";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { FirstPurchaseBonusService } from "./first-purchase-bonus.service";
 
@@ -122,6 +123,48 @@ describe(FirstPurchaseBonusService.name, () => {
         await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: 0, window: null });
       });
     });
+
+    describe("when the person has a gpu win-back", () => {
+      it("grants the bonus to a personal purchase made before the win-back closes, long after a small first purchase", async () => {
+        const { smallFirstPurchase, pendingPurchase, eligibleBonus, openWinBack } = setup();
+        const person = await seedUser();
+        await smallFirstPurchase(person.id, null);
+        await openWinBack(person.id, new Date("2026-03-08T00:00:00.000Z"));
+        const purchase = await pendingPurchase(person.id, null, new Date("2026-03-07T23:00:00.000Z"));
+
+        await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: QUALIFYING_AMOUNT_CENTS / 10, window: "gpu_win_back" });
+      });
+
+      it("grants nothing to a personal purchase made once the win-back closed", async () => {
+        const { smallFirstPurchase, pendingPurchase, eligibleBonus, openWinBack } = setup();
+        const person = await seedUser();
+        await smallFirstPurchase(person.id, null);
+        await openWinBack(person.id, new Date("2026-03-08T00:00:00.000Z"));
+        const purchase = await pendingPurchase(person.id, null, new Date("2026-03-08T00:00:00.000Z"));
+
+        await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: 0, window: null });
+      });
+
+      it("grants nothing to a personal purchase begun before the win-back opened, settled after", async () => {
+        const { smallFirstPurchase, pendingPurchase, eligibleBonus, openWinBack } = setup();
+        const person = await seedUser();
+        await smallFirstPurchase(person.id, null);
+        await openWinBack(person.id, new Date("2026-03-08T00:00:00.000Z"));
+        const purchase = await pendingPurchase(person.id, null, new Date("2026-02-28T23:00:00.000Z"));
+
+        await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: 0, window: null });
+      });
+
+      it("grants nothing on a win-back without a deadline once the account has paid", async () => {
+        const { smallFirstPurchase, pendingPurchase, eligibleBonus, openWinBack } = setup();
+        const person = await seedUser();
+        await openWinBack(person.id, null);
+        await smallFirstPurchase(person.id, null);
+        const purchase = await pendingPurchase(person.id, null, new Date("2026-03-07T23:00:00.000Z"));
+
+        await expect(eligibleBonus(purchase)).resolves.toEqual({ bonusCents: 0, window: null });
+      });
+    });
   });
 
   describe("findWindowOpenedBy", () => {
@@ -196,6 +239,9 @@ describe(FirstPurchaseBonusService.name, () => {
         )
       );
 
+    const openWinBack = (userId: string, closesAt: Date | null) =>
+      container.resolve(FirstPurchaseBonusWinBackRepository).create({ userId, openedAt: new Date("2026-03-01T00:00:00.000Z"), closesAt });
+
     return {
       stripeTransactionRepository,
       pendingPurchase,
@@ -203,7 +249,8 @@ describe(FirstPurchaseBonusService.name, () => {
       smallFirstPurchase,
       settleConcurrently,
       eligibleBonus,
-      openWindowsConcurrently
+      openWindowsConcurrently,
+      openWinBack
     };
   }
 });

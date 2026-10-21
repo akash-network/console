@@ -543,6 +543,51 @@ describe(StripeTransactionRepository.name, () => {
     });
   });
 
+  describe("hasCompletedPaidTransactionOfAtLeast", () => {
+    it.each([
+      { amount: 10000, expected: true },
+      { amount: 10001, expected: true },
+      { amount: 9999, expected: false }
+    ])("answers $expected for a purchase of $amount cents against a 10000 cents minimum", async ({ amount, expected }) => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount });
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransactionOfAtLeast({ userId: user.id }, 10000)).resolves.toBe(expected);
+    });
+
+    it.each([
+      { status: "succeeded" as const, expected: true },
+      { status: "refunded" as const, expected: true },
+      { status: "created" as const, expected: false },
+      { status: "failed" as const, expected: false }
+    ])("answers $expected for a large payment_intent in $status", async ({ status, expected }) => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), amount: 10000, status });
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransactionOfAtLeast({ userId: user.id }, 10000)).resolves.toBe(expected);
+    });
+
+    it("never counts a coupon claim", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), type: "coupon_claim", amount: 10000 });
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransactionOfAtLeast({ userId: user.id }, 10000)).resolves.toBe(false);
+    });
+
+    it("keeps a member's large purchase for a team apart from the member's own account", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const { organization: team } = await seedOrganizationWithOwner();
+      const user = await createTestUser();
+      await stripeTransactionRepository.create({ ...transactionInput(user.id), organizationId: team.id, amount: 10000 });
+
+      await expect(stripeTransactionRepository.hasCompletedPaidTransactionOfAtLeast({ organizationId: team.id }, 10000)).resolves.toBe(true);
+      await expect(stripeTransactionRepository.hasCompletedPaidTransactionOfAtLeast({ userId: user.id }, 10000)).resolves.toBe(false);
+    });
+  });
+
   describe("hasReceivedFirstPurchaseBonus", () => {
     it.each(["succeeded" as const, "refunded" as const])("counts a bonus the person received on a purchase now %s", async status => {
       const { stripeTransactionRepository, createTestUser } = setup();

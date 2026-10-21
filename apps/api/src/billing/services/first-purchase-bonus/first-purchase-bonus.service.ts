@@ -7,6 +7,7 @@ import { inject, singleton } from "tsyringe";
 import type { FirstPurchaseBonusWindowOpened } from "@src/billing/events/first-purchase-bonus-window-opened";
 import type { BillingOwner } from "@src/billing/lib/billing-owner/billing-owner";
 import { type StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
+import { FirstPurchaseBonusWinBackRepository } from "@src/billing/repositories/first-purchase-bonus-win-back/first-purchase-bonus-win-back.repository";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
@@ -44,6 +45,7 @@ export class FirstPurchaseBonusService {
 
   constructor(
     private readonly stripeTransactionRepository: StripeTransactionRepository,
+    private readonly winBackRepository: FirstPurchaseBonusWinBackRepository,
     private readonly analyticsService: AnalyticsService,
     private readonly userRepository: UserRepository,
     private readonly organizationRepository: OrganizationRepository,
@@ -100,7 +102,7 @@ export class FirstPurchaseBonusService {
   }
 
   async #findLatestOpenWindow(userId: string, firstPayment: { createdAt: Date; amount: number }, at: Date): Promise<BonusWindow | undefined> {
-    const windows = [this.#findSmallFirstPurchaseWindow(firstPayment), await this.#findWinBackWindow(userId)];
+    const windows = [this.#findSmallFirstPurchaseWindow(firstPayment), await this.#findWinBackWindow(userId, at)];
 
     return maxBy(
       windows.filter((window): window is BonusWindow => window !== null && window.closesAt > at),
@@ -114,9 +116,12 @@ export class FirstPurchaseBonusService {
     return { reason: "small_first_purchase", closesAt: addDays(createdAt, SMALL_FIRST_PURCHASE_WINDOW_DAYS) };
   }
 
-  /** Inert until the GPU win-back (CON-1166) records a window per person. */
-  async #findWinBackWindow(_userId: string): Promise<BonusWindow | null> {
-    return null;
+  /** Counts only for purchases begun once it opened, and one without a deadline belongs to a person who never paid, whom today's rule already keeps eligible. */
+  async #findWinBackWindow(userId: string, at: Date): Promise<BonusWindow | null> {
+    const winBack = await this.winBackRepository.findByUserId(userId);
+    if (!winBack?.closesAt || winBack.openedAt > at) return null;
+
+    return { reason: "gpu_win_back", closesAt: winBack.closesAt };
   }
 
   /** The person's one-bonus index backs up the eligibility check, so when it refuses the bonus the payment settles without one. */

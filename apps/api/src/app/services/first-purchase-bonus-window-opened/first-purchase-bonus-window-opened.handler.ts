@@ -1,13 +1,13 @@
 import { inject, singleton } from "tsyringe";
 
-import { FirstPurchaseBonusWindowOpened } from "@src/billing/events/first-purchase-bonus-window-opened";
+import { type EmailedBonusWindowReason, FirstPurchaseBonusWindowOpened } from "@src/billing/events/first-purchase-bonus-window-opened";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
+import { type BonusEligibility, FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import { type CreateLogger, type EventPayload, type JobHandler, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { firstPurchaseBonusWindowOpenedNotification } from "@src/notifications/services/notification-templates/first-purchase-bonus-window-opened-notification";
 import { PromotionalNotificationService } from "@src/notifications/services/promotional-notification/promotional-notification.service";
-import { UserRepository } from "@src/user/repositories";
+import { type UserOutput, UserRepository } from "@src/user/repositories";
 import {
   firstPurchaseBonusWindowRemindAt,
   FirstPurchaseBonusWindowReminderJob,
@@ -45,23 +45,55 @@ export class FirstPurchaseBonusWindowOpenedHandler implements JobHandler<FirstPu
     }
 
     const now = new Date();
-    const { window, endsAt } = await this.firstPurchaseBonusService.evaluate({ userId }, userId, now);
-    const windowClosesAt = window === reason ? endsAt : null;
+    const eligibility = await this.firstPurchaseBonusService.evaluate({ userId }, userId, now);
+
+    if (closesAt === null) {
+      await this.#announceWithoutDeadline(user, reason, eligibility);
+      return;
+    }
+
+    const windowClosesAt = eligibility.window === reason ? eligibility.endsAt : null;
     if (!windowClosesAt) {
       this.#logger.info({ event: "FIRST_PURCHASE_BONUS_WINDOW_OPENED_EMAIL_SKIPPED", userId, reason, closesAt, skipReason: "Window is no longer open" });
       return;
     }
 
-    this.analyticsService.track(userId, "first_purchase_bonus_window_opened", { reason, has_deadline: true }, { insertId: `windowOpened.${reason}.${userId}` });
+    this.#trackOpened(userId, reason, true);
     await this.#scheduleReminder({ userId, reason, closesAt: windowClosesAt.toISOString() }, now);
+    await this.#sendOpenedEmail(user, reason, windowClosesAt.toISOString());
+  }
 
+  /** A person who never paid keeps the bonus until their first purchase, so no reminder follows, and a purchase made since then ends this offer. */
+  async #announceWithoutDeadline(user: UserOutput, reason: EmailedBonusWindowReason, { eligible, endsAt }: BonusEligibility): Promise<void> {
+    if (!eligible || endsAt) {
+      this.#logger.info({
+        event: "FIRST_PURCHASE_BONUS_WINDOW_OPENED_EMAIL_SKIPPED",
+        userId: user.id,
+        reason,
+        closesAt: null,
+        skipReason: "Bonus is no longer open without a deadline"
+      });
+      return;
+    }
+
+    this.#trackOpened(user.id, reason, false);
+    await this.#sendOpenedEmail(user, reason, null);
+  }
+
+  #trackOpened(userId: string, reason: EmailedBonusWindowReason, hasDeadline: boolean): void {
+    this.analyticsService.track(
+      userId,
+      "first_purchase_bonus_window_opened",
+      { reason, has_deadline: hasDeadline },
+      { insertId: `windowOpened.${reason}.${userId}` }
+    );
+  }
+
+  async #sendOpenedEmail(user: UserOutput, reason: EmailedBonusWindowReason, closesAt: string | null): Promise<void> {
+    const userId = user.id;
     const outcome = await this.promotionalNotificationService.send(
       user,
-      firstPurchaseBonusWindowOpenedNotification(user, {
-        reason,
-        closesAt: windowClosesAt.toISOString(),
-        paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK")
-      })
+      firstPurchaseBonusWindowOpenedNotification(user, { reason, closesAt, paymentLink: this.billingConfig.get("CONSOLE_WEB_PAYMENT_LINK") })
     );
 
     if (outcome === "sent") {

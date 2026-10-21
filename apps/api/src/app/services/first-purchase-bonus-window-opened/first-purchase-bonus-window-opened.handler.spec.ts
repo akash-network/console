@@ -24,6 +24,10 @@ import { createUser } from "@test/seeders/user.seeder";
 const NOW = new Date("2026-10-19T12:00:00.000Z");
 const WINDOW_CLOSES_AT = new Date("2026-10-26T11:00:00.000Z");
 const PAYMENT_LINK = "https://console.akash.network/billing?openPayment=true";
+const NO_DEADLINE_WIN_BACK = {
+  event: { reason: "gpu_win_back", closesAt: null },
+  eligibility: { eligible: true, endsAt: null, window: null }
+} satisfies { event: Partial<FirstPurchaseBonusWindowOpened["data"]>; eligibility: BonusEligibility };
 
 describe(FirstPurchaseBonusWindowOpenedHandler.name, () => {
   it("emails the person that the bonus is still theirs until the window closes", async () => {
@@ -137,6 +141,88 @@ describe(FirstPurchaseBonusWindowOpenedHandler.name, () => {
     expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "FIRST_PURCHASE_BONUS_WINDOW_OPENED_EMAIL_SKIPPED", userId: payload.userId }));
   });
 
+  it("schedules the reminder of a gpu win-back on its last day", async () => {
+    const { handler, payload, jobQueueService } = setup({
+      event: { reason: "gpu_win_back" },
+      eligibility: { eligible: true, endsAt: WINDOW_CLOSES_AT, window: "gpu_win_back" }
+    });
+
+    await handler.handle(payload);
+
+    expect(jobQueueService.enqueue).toHaveBeenCalledExactlyOnceWith(
+      new FirstPurchaseBonusWindowReminderJob({ userId: payload.userId, reason: "gpu_win_back", closesAt: WINDOW_CLOSES_AT.toISOString() }),
+      { singletonKey: `firstPurchaseBonusWindowReminder.gpu_win_back.${payload.userId}`, startAfter: subDays(WINDOW_CLOSES_AT, 1) }
+    );
+  });
+
+  describe("when the window has no deadline", () => {
+    it("emails a person who never paid the bonus with no date and schedules no reminder", async () => {
+      const { handler, payload, user, promotionalNotificationService, jobQueueService } = setup(NO_DEADLINE_WIN_BACK);
+
+      await handler.handle(payload);
+
+      expect(promotionalNotificationService.send).toHaveBeenCalledExactlyOnceWith(
+        user,
+        firstPurchaseBonusWindowOpenedNotification(user, { reason: "gpu_win_back", closesAt: null, paymentLink: PAYMENT_LINK })
+      );
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("tracks the window opening without a deadline and the email sent, once per person and window", async () => {
+      const { handler, payload, analyticsService } = setup(NO_DEADLINE_WIN_BACK);
+
+      await handler.handle(payload);
+
+      expect(analyticsService.track.mock.calls).toEqual([
+        [
+          payload.userId,
+          "first_purchase_bonus_window_opened",
+          { reason: "gpu_win_back", has_deadline: false },
+          { insertId: `windowOpened.gpu_win_back.${payload.userId}` }
+        ],
+        [
+          payload.userId,
+          "first_purchase_bonus_window_email_sent",
+          { reason: "gpu_win_back", kind: "opened" },
+          { insertId: `windowEmailSent.opened.gpu_win_back.${payload.userId}` }
+        ]
+      ]);
+    });
+
+    it("tracks the window opening but no email sent when the person unsubscribed", async () => {
+      const { handler, payload, analyticsService } = setup({ ...NO_DEADLINE_WIN_BACK, outcome: "unsubscribed" });
+
+      await handler.handle(payload);
+
+      expect(analyticsService.track).toHaveBeenCalledExactlyOnceWith(
+        payload.userId,
+        "first_purchase_bonus_window_opened",
+        expect.anything(),
+        expect.anything()
+      );
+    });
+
+    it.each([
+      { case: "the person can no longer earn the bonus", eligibility: { eligible: false, endsAt: null, window: null } },
+      { case: "the person made a first purchase since", eligibility: { eligible: true, endsAt: WINDOW_CLOSES_AT, window: "small_first_purchase" } }
+    ] satisfies { case: string; eligibility: BonusEligibility }[])("sends, tracks and schedules nothing when $case", async ({ eligibility }) => {
+      const { handler, payload, promotionalNotificationService, analyticsService, jobQueueService, logger } = setup({ ...NO_DEADLINE_WIN_BACK, eligibility });
+
+      await handler.handle(payload);
+
+      expect(promotionalNotificationService.send).not.toHaveBeenCalled();
+      expect(analyticsService.track).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "FIRST_PURCHASE_BONUS_WINDOW_OPENED_EMAIL_SKIPPED",
+        userId: payload.userId,
+        reason: "gpu_win_back",
+        closesAt: null,
+        skipReason: "Bonus is no longer open without a deadline"
+      });
+    });
+  });
+
   it.each([
     { case: "is gone", user: undefined },
     { case: "has no email", user: createUser({ email: null }) }
@@ -171,7 +257,14 @@ describe(FirstPurchaseBonusWindowOpenedHandler.name, () => {
     expect(handler.requiresPermission()).toEqual([]);
   });
 
-  function setup(input: { user?: UserOutput; eligibility?: BonusEligibility; outcome?: PromotionalNotificationOutcome } = {}) {
+  function setup(
+    input: {
+      user?: UserOutput;
+      event?: Partial<Pick<EventPayload<FirstPurchaseBonusWindowOpened>, "reason" | "closesAt">>;
+      eligibility?: BonusEligibility;
+      outcome?: PromotionalNotificationOutcome;
+    } = {}
+  ) {
     vi.useFakeTimers({ toFake: ["Date"], now: NOW });
     onTestFinished(() => {
       vi.useRealTimers();
@@ -182,6 +275,7 @@ describe(FirstPurchaseBonusWindowOpenedHandler.name, () => {
       userId: user?.id ?? faker.string.uuid(),
       reason: "small_first_purchase",
       closesAt: WINDOW_CLOSES_AT.toISOString(),
+      ...input.event,
       version: 1
     };
     const userRepository = mock<UserRepository>({ findById: vi.fn().mockResolvedValue(user) });
