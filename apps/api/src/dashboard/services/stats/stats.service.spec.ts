@@ -922,17 +922,7 @@ describe(StatsService.name, () => {
   describe("getLeasesDuration", () => {
     it("maps closed leases to durations with totals", async () => {
       const { service, statsRepository } = setup();
-      const closedLease = {
-        dseq: "123",
-        oseq: 1,
-        gseq: 1,
-        providerAddress: "akash1provider",
-        createdHeight: 100,
-        closedHeight: 300,
-        createdBlock: { datetime: new Date("2024-01-01T00:00:00Z") },
-        closedBlock: { datetime: new Date("2024-01-15T00:00:00Z") }
-      };
-      statsRepository.findClosedLeases.mockResolvedValue([closedLease] as unknown as Lease[]);
+      statsRepository.findClosedLeases.mockResolvedValue([buildClosedLease()]);
 
       const result = await service.getLeasesDuration("akash1owner", buildLeasesDurationQuery());
 
@@ -955,6 +945,57 @@ describe(StatsService.name, () => {
             durationInHours: 336
           }
         ]
+      });
+    });
+
+    it("sums the durations of every closed lease into the totals", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.findClosedLeases.mockResolvedValue([
+        buildClosedLease({ dseq: "1", createdAt: new Date("2024-01-01T00:00:00Z"), closedAt: new Date("2024-01-02T00:00:00Z") }),
+        buildClosedLease({ dseq: "2", createdAt: new Date("2024-01-03T00:00:00Z"), closedAt: new Date("2024-01-03T12:00:00Z") })
+      ]);
+
+      const result = await service.getLeasesDuration("akash1owner", buildLeasesDurationQuery());
+
+      expect(result).toMatchObject({
+        leaseCount: 2,
+        totalDurationInSeconds: 129600,
+        totalDurationInHours: 36,
+        leases: [
+          { dseq: "1", durationInSeconds: 86400, durationInHours: 24 },
+          { dseq: "2", durationInSeconds: 43200, durationInHours: 12 }
+        ]
+      });
+    });
+
+    it("asks the repository for one closed lease more than the result cap", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.findClosedLeases.mockResolvedValue([]);
+      const query = buildLeasesDurationQuery({ dseq: "123" });
+
+      await service.getLeasesDuration("akash1owner", query);
+
+      expect(statsRepository.findClosedLeases).toHaveBeenCalledWith("akash1owner", query, { limit: 2001 });
+    });
+
+    it("returns every closed lease when exactly 2000 match", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.findClosedLeases.mockResolvedValue(Array.from({ length: 2000 }, () => buildClosedLease()));
+
+      const result = await service.getLeasesDuration("akash1owner", buildLeasesDurationQuery());
+
+      expect(result.leaseCount).toBe(2000);
+      expect(result.leases).toHaveLength(2000);
+      expect(result.totalDurationInHours).toBe(2000 * 336);
+    });
+
+    it("rejects with a 400 when more than 2000 closed leases match", async () => {
+      const { service, statsRepository } = setup();
+      statsRepository.findClosedLeases.mockResolvedValue(Array.from({ length: 2001 }, () => buildClosedLease()));
+
+      await expect(service.getLeasesDuration("akash1owner", buildLeasesDurationQuery())).rejects.toMatchObject({
+        status: 400,
+        message: "More than 2000 closed leases match. Narrow the date range or filter by dseq."
       });
     });
 
@@ -996,6 +1037,19 @@ describe(StatsService.name, () => {
       endDate: new Date("2024-02-01T00:00:00Z"),
       ...overrides
     };
+  }
+
+  function buildClosedLease(input: { dseq?: string; createdAt?: Date; closedAt?: Date } = {}) {
+    return mock<Lease>({
+      dseq: input.dseq ?? "123",
+      oseq: 1,
+      gseq: 1,
+      providerAddress: "akash1provider",
+      createdHeight: 100,
+      closedHeight: 300,
+      createdBlock: { datetime: input.createdAt ?? new Date("2024-01-01T00:00:00Z") },
+      closedBlock: { datetime: input.closedAt ?? new Date("2024-01-15T00:00:00Z") }
+    });
   }
 
   function setup() {

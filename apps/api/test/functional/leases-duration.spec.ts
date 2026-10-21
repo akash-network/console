@@ -205,6 +205,27 @@ describe("GET /v1/leases-duration/{owner}", () => {
     });
   });
 
+  it("responds with 400 when more than 2000 closed leases match", async () => {
+    const owner = faker.finance.ethereumAddress();
+    await Promise.all(
+      Array.from({ length: 2001 }, () =>
+        createLease({
+          owner,
+          providerAddress: providers[0].owner,
+          createdHeight: blocks[0].height,
+          closedHeight: blocks[1].height,
+          deploymentId: deployments[0].id,
+          deploymentGroupId: deploymentGroups[0].id
+        })
+      )
+    );
+
+    const response = await app.request(`/v1/leases-duration/${owner}`);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ message: "More than 2000 closed leases match. Narrow the date range or filter by dseq." });
+  });
+
   it("responds with 400 for an invalid dseq", async () => {
     const response = await app.request(`/v1/leases-duration/${owners[0]}?dseq=invalid`);
 

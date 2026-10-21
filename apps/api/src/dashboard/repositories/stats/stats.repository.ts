@@ -285,9 +285,10 @@ export class StatsRepository {
     return { now: nowRow, compare: compareRow, secondCompare: secondCompareRow };
   }
 
-  async findClosedLeases(owner: string, query: { dseq?: string; startDate: Date; endDate: Date }) {
+  async findClosedLeases(owner: string, query: { dseq?: string; startDate: Date; endDate: Date }, options: { limit: number }) {
     const { dseq, startDate, endDate } = query;
     return Lease.findAll({
+      attributes: ["dseq", "oseq", "gseq", "providerAddress", "createdHeight", "closedHeight"],
       where: {
         owner,
         closedHeight: { [Op.not]: null },
@@ -296,9 +297,15 @@ export class StatsRepository {
         ...(dseq ? { dseq } : {})
       },
       include: [
-        { model: Block, as: "createdBlock" },
-        { model: Block, as: "closedBlock" }
-      ]
+        { model: Block, as: "createdBlock", attributes: ["datetime"] },
+        { model: Block, as: "closedBlock", attributes: ["datetime"] }
+      ],
+      order: [
+        ["createdHeight", "ASC"],
+        ["closedHeight", "ASC"],
+        ["id", "ASC"]
+      ],
+      limit: options.limit
     });
   }
 }

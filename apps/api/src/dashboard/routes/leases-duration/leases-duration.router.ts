@@ -11,7 +11,8 @@ import type { LeasesDurationParams, LeasesDurationQuery } from "@src/dashboard/h
 import {
   LeasesDurationParamsSchema,
   LeasesDurationQuerySchema,
-  LeasesDurationResponseSchema
+  LeasesDurationResponseSchema,
+  MAX_LEASES_DURATION_RESULTS
 } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 
 export const route = createRoute({
@@ -34,7 +35,7 @@ export const route = createRoute({
       }
     },
     400: {
-      description: "Invalid start date, must be in the following format: YYYY-MM-DD"
+      description: `Invalid query or too many matches: dates must be YYYY-MM-DD, endDate must not be before startDate and at most ${MAX_LEASES_DURATION_RESULTS} closed leases may match (narrow the date range or filter by dseq)`
     }
   }
 });
