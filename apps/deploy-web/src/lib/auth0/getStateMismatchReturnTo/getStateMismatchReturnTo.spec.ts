@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
-import { CallbackHandlerError, MissingStateCookieError } from "@src/lib/auth0";
+import { ApplicationError, CallbackHandlerError, MissingStateCookieError } from "@src/lib/auth0";
 import { getStateMismatchReturnTo } from "./getStateMismatchReturnTo";
 
 describe(getStateMismatchReturnTo.name, () => {
@@ -36,7 +36,7 @@ describe(getStateMismatchReturnTo.name, () => {
   });
 
   it("returns the root path when the callback state cannot be decoded", () => {
-    const error = setup({ cookieState: encodeState("/terms-of-service"), callbackState: "not-base64-json" });
+    const error = setup({ cookieState: encodeState("/terms-of-service"), callbackState: "not base64\njson" });
 
     expect(getStateMismatchReturnTo(error)).toBe("/");
   });
@@ -47,18 +47,10 @@ describe(getStateMismatchReturnTo.name, () => {
     expect(getStateMismatchReturnTo(error)).toBe("/");
   });
 
-  it("returns undefined when both states match", () => {
-    const state = encodeState("https://console.akash.network/");
+  it("returns undefined for an application error other than a state mismatch", () => {
+    const error = new CallbackHandlerError(new ApplicationError(new Error("state missing from the response")));
 
-    expect(getStateMismatchReturnTo(setup({ cookieState: state, callbackState: state }))).toBeUndefined();
-  });
-
-  it("returns undefined when only the transaction cookie carries a state", () => {
-    expect(getStateMismatchReturnTo(setup({ cookieState: encodeState("/terms-of-service") }))).toBeUndefined();
-  });
-
-  it("returns undefined when only the callback carries a state", () => {
-    expect(getStateMismatchReturnTo(setup({ callbackState: encodeState("/terms-of-service") }))).toBeUndefined();
+    expect(getStateMismatchReturnTo(error)).toBeUndefined();
   });
 
   it("returns undefined for a callback handler error with another cause", () => {
@@ -70,13 +62,10 @@ describe(getStateMismatchReturnTo.name, () => {
     expect(getStateMismatchReturnTo(undefined)).toBeUndefined();
   });
 
-  function setup(input: { cookieState?: string; callbackState?: string }) {
-    return new CallbackHandlerError(
-      Object.assign(new Error("state mismatch"), {
-        ...(input.cookieState ? { checks: { state: input.cookieState } } : {}),
-        ...(input.callbackState ? { params: { state: input.callbackState } } : {})
-      })
-    );
+  function setup(input: { cookieState: string; callbackState: string }) {
+    const openIdClientError = new Error(`state mismatch, expected ${input.cookieState}, got: ${input.callbackState}`);
+
+    return new CallbackHandlerError(new ApplicationError(openIdClientError));
   }
 
   function encodeState(returnTo: string) {

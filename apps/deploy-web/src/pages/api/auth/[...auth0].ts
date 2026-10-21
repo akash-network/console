@@ -7,7 +7,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { expireActiveOrganizationCookie } from "@src/lib/active-organization/active-organization-cookie";
 import { setAccountCreatedCookie } from "@src/lib/analytics/account-created-cookie";
 import type { Session } from "@src/lib/auth0";
-import { CallbackHandlerError, MissingStateCookieError } from "@src/lib/auth0";
+import { CallbackHandlerError, MissingStateCookieError, MissingStateParamError } from "@src/lib/auth0";
 import { handleAuth, handleCallback, handleLogin, handleLogout } from "@src/lib/auth0";
 import { clearSessionCookies } from "@src/lib/auth0/clearSessionCookies/clearSessionCookies";
 import { getIdentityProviderError } from "@src/lib/auth0/getIdentityProviderError/getIdentityProviderError";
@@ -60,8 +60,9 @@ const authHandler = once((services: AppServices) =>
           }
         });
       } catch (error) {
-        if (isMissingStateCookieError(error)) {
-          services.logger.warn({ event: "AUTH_CALLBACK_MISSING_STATE_COOKIE", error });
+        const missingStateEvent = getMissingStateEvent(error);
+        if (missingStateEvent) {
+          services.logger.warn({ event: missingStateEvent, error });
           res.writeHead(302, { Location: "/login" });
           res.end();
           return;
@@ -160,8 +161,11 @@ function getPathWithoutQuery(url: string): string {
   return url.split("?")[0];
 }
 
-function isMissingStateCookieError(error: unknown): boolean {
-  return error instanceof CallbackHandlerError && error.cause instanceof MissingStateCookieError;
+function getMissingStateEvent(error: unknown) {
+  if (!(error instanceof CallbackHandlerError)) return undefined;
+  if (error.cause instanceof MissingStateCookieError) return "AUTH_CALLBACK_MISSING_STATE_COOKIE";
+  if (error.cause instanceof MissingStateParamError) return "AUTH_CALLBACK_MISSING_STATE_PARAM";
+  return undefined;
 }
 
 function clearSessionAndRedirectToLogin(req: NextApiRequest, res: NextApiResponse): void {
