@@ -22066,12 +22066,13 @@
         "parameters": [
           {
             "schema": {
-              "type": "number",
-              "nullable": true,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
               "description": "Proposal ID",
               "example": 1
             },
-            "required": false,
+            "required": true,
             "name": "id",
             "in": "path"
           }

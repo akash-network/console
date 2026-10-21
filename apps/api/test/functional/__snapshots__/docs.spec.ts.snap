@@ -15600,12 +15600,13 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           {
             "in": "path",
             "name": "id",
-            "required": false,
+            "required": true,
             "schema": {
               "description": "Proposal ID",
               "example": 1,
-              "nullable": true,
-              "type": "number",
+              "maximum": 9007199254740991,
+              "minimum": 1,
+              "type": "integer",
             },
           },
         ],
