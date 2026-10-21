@@ -183,6 +183,32 @@ describe(SigningStargateWithUnorderedSupportClient.name, () => {
     expect(abciQuery).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    { refusal: "an invalid deposit", log: "rpc error: code = Unknown desc = invalid deposit with gas used: '1150': unknown request" },
+    { refusal: "an invalid certificate pubkey", log: "rpc error: code = Unknown desc = invalid pubkey value with gas used: '1150': unknown request" },
+    {
+      refusal: "invalid groups",
+      log: "rpc error: code = Unknown desc = Invalid groups: group spec name cannot be empty with gas used: '1150': unknown request"
+    }
+  ])("reports a message the chain refused in simulation for $refusal as a failed message execution in the chain's own words", async ({ log }) => {
+    const { client, abciQuery } = setup({ simulateRejection: { code: 6, log } });
+
+    const signing = client.signUnordered(createMessages());
+
+    await expect(signing).rejects.toBeInstanceOf(MessageExecutionFailedError);
+    await expect(signing).rejects.toHaveProperty("message", `Query failed with (6): ${log}`);
+    expect(abciQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a query the node refused outside the simulation as the node reported it", async () => {
+    const { client } = setup({ simulateRejection: { code: 18, log: "invalid request" } });
+
+    const signing = client.signUnordered(createMessages());
+
+    await expect(signing).rejects.not.toBeInstanceOf(MessageExecutionFailedError);
+    await expect(signing).rejects.toHaveProperty("message", "Query failed with (18): invalid request");
+  });
+
   it("leaves a simulation refused for its account sequence as the node reported it", async () => {
     const { client, abciQuery } = setup({ simulateRejection: { code: 6, log: sequenceMismatchLog() } });
 
