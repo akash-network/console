@@ -17,6 +17,7 @@ import { startJobQueues } from "@src/app/providers/jobs.provider";
 import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyAuthService } from "@src/auth/services/api-key/api-key-auth.service";
 import { AuthService } from "@src/auth/services/auth.service";
+import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { EnableDeploymentAlertCommand } from "@src/billing/commands/enable-deployment-alert.command";
 import { FundDeploymentCommand } from "@src/billing/commands/fund-deployment.command";
 import type { UserWalletOutput } from "@src/billing/repositories";
@@ -36,6 +37,7 @@ import { DeploymentConfigService } from "@src/deployment/services/deployment-con
 import { DeploymentReaderService, MAX_SEARCHABLE_DEPLOYMENTS } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { ReconcileDeploymentClose } from "@src/deployment/services/reconcile-deployment-close/reconcile-deployment-close.job";
 import { ReconcileDeploymentCreate } from "@src/deployment/services/reconcile-deployment-create/reconcile-deployment-create.job";
+import { ScreenUserGpuDeployment, screenUserGpuDeploymentKeyFor } from "@src/deployment/services/screen-user-gpu-deployment/screen-user-gpu-deployment.handler";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlSecretsService } from "@src/deployment/services/sdl-secrets/sdl-secrets.service";
@@ -74,6 +76,10 @@ import { findJobRows, type JobRow } from "@test/services/job-queue-harness";
 
 const OVERSIZED_FILLER = "z".repeat(4096);
 const HELLO_WORLD_SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+const GPU_SDL = HELLO_WORLD_SDL.replace(
+  "          - size: 512Mi\n",
+  "          - size: 512Mi\n        gpu:\n          units: 1\n          attributes:\n            vendor:\n              nvidia:\n                - model: h100\n"
+);
 const CLIENT_MANIFEST = '{"client":"supplied"}';
 
 registerFakeSdlSecretsKms();
@@ -227,6 +233,14 @@ describe("Deployments API", () => {
       executionContextService.set("ABILITY", createMongoAbility<MongoAbility>(handler.requiresPermission(job.data)));
 
       await handler.handle(job.data, { id: randomUUID(), retryCount: job.retry_count, retryLimit: job.retry_limit });
+    });
+  }
+
+  async function createGpuDeployment(credentials: Record<string, string>) {
+    return await app.request("/v1/deployments", {
+      method: "POST",
+      body: JSON.stringify({ data: { sdl: GPU_SDL } }),
+      headers: new Headers({ "Content-Type": "application/json", ...credentials })
     });
   }
 
@@ -1326,6 +1340,32 @@ describe("Deployments API", () => {
           rawLog: expect.any(String)
         }
       });
+    });
+
+    it("schedules a check of which providers bid on a gpu deployment created from a Console session", async () => {
+      const { user, wallets } = await mockPersistedUser({ isTrialing: false });
+      const token = faker.string.alphanumeric(40);
+      vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async header =>
+        header.replace(/^Bearer +/i, "") === token ? user.userId! : null
+      );
+
+      const response = await createGpuDeployment({ authorization: `Bearer ${token}` });
+
+      expect(response.status).toBe(201);
+      const { data } = (await response.json()) as { data: { dseq: string } };
+      expect(await findJobRows(ScreenUserGpuDeployment[JOB_NAME], { singletonKey: screenUserGpuDeploymentKeyFor(wallets[0].address!, data.dseq) })).toEqual([
+        expect.objectContaining({ state: "created", data: { owner: wallets[0].address, dseq: data.dseq, version: 1 } })
+      ]);
+    });
+
+    it("schedules no bid check for a gpu deployment created with an api key", async () => {
+      const { userApiKeySecret, wallets } = await mockPersistedUser({ isTrialing: false });
+
+      const response = await createGpuDeployment({ "x-api-key": userApiKeySecret });
+
+      expect(response.status).toBe(201);
+      const { data } = (await response.json()) as { data: { dseq: string } };
+      expect(await findJobRows(ScreenUserGpuDeployment[JOB_NAME], { singletonKey: screenUserGpuDeploymentKeyFor(wallets[0].address!, data.dseq) })).toEqual([]);
     });
 
     it("records nothing for a create the signer refuses", async () => {

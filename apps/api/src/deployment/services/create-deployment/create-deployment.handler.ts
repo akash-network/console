@@ -6,6 +6,7 @@ import { ActivityService } from "@src/activity/services/activity/activity.servic
 import { type CreateLogger, type JobHandler, type JobMeta, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { type AcceptedDeploymentCreate, DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { isAccessRevoked, MemberDeploymentAccessService } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
+import { UserGpuBidCheckService } from "@src/deployment/services/user-gpu-bid-check/user-gpu-bid-check.service";
 import { createdActivityOf, failedCreateActivityOf, isCreateRefusal } from "@src/deployment/utils/create-activity/create-activity";
 import { CreateDeployment } from "./create-deployment.job";
 
@@ -22,6 +23,7 @@ export class CreateDeploymentHandler implements JobHandler<CreateDeployment> {
     private readonly deploymentWriterService: DeploymentWriterService,
     private readonly activityService: ActivityService,
     private readonly memberDeploymentAccessService: MemberDeploymentAccessService,
+    private readonly userGpuBidCheckService: UserGpuBidCheckService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: CreateDeploymentHandler.name });
@@ -32,7 +34,7 @@ export class CreateDeploymentHandler implements JobHandler<CreateDeployment> {
   }
 
   /** A refusal that settles the activity ends the job, since a retry would find nothing pending to create. */
-  async handle({ userId, walletId, dseq, message, activityId }: JobPayload<CreateDeployment>, job?: JobMeta): Promise<void> {
+  async handle({ userId, walletId, dseq, message, activityId, recordGpuBids }: JobPayload<CreateDeployment>, job?: JobMeta): Promise<void> {
     if (!(await this.activityService.isPending(activityId))) return;
 
     const accepted = { userId, walletId, dseq, message };
@@ -49,6 +51,7 @@ export class CreateDeploymentHandler implements JobHandler<CreateDeployment> {
     }
 
     await this.activityService.settle(activityId, createdActivityOf(accepted));
+    if (recordGpuBids) await this.userGpuBidCheckService.scheduleFor(accepted);
   }
 
   async #settleRefused(activityId: string, accepted: AcceptedDeploymentCreate, refusal: HttpError): Promise<void> {

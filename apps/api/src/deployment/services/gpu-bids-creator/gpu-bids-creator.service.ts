@@ -16,6 +16,7 @@ import { DEPLOYMENT_CONFIG, type DeploymentConfig } from "@src/deployment/config
 import { type GpuBidCheckInsert, GpuBidCheckRepository } from "@src/deployment/repositories/gpu-bid-check/gpu-bid-check.repository";
 import { BidScreeningHttpService } from "@src/deployment/services/bid-screening-http/bid-screening-http.service";
 import { type GpuModel, PlacementOptionsHttpService } from "@src/deployment/services/placement-options-http/placement-options-http.service";
+import { findDeploymentBids } from "@src/deployment/utils/find-deployment-bids/find-deployment-bids";
 import { GpuBotSigningClientFactory } from "./gpu-bot-signing-client.factory";
 import { buildGpuCheckSdl, GPU_CHECK_SHAPES, type GpuCheck, toPlacementName } from "./gpu-check-sdl";
 
@@ -34,8 +35,6 @@ const MAX_GROUPS_PER_DEPLOYMENT = 20;
 const MODELS_PER_DEPLOYMENT = MAX_GROUPS_PER_DEPLOYMENT / GPU_CHECK_SHAPES.length;
 
 const DEPOSIT_UACT = "500000";
-
-const BIDS_PAGE_SIZE = 1000n;
 
 /** One page per run is enough, since each run closes what it finds and leaves the rest to the next. */
 const LEFTOVER_DEPLOYMENTS_PAGE_SIZE = 100n;
@@ -186,7 +185,7 @@ export class GpuBidsCreatorService {
 
     try {
       await new Promise(resolve => setTimeout(resolve, this.#deploymentConfig.GPU_BOT_BID_WINDOW_SECONDS * 1000));
-      const bids = await this.#findBids(owner, dseq);
+      const bids = await findDeploymentBids(this.#chainSdk, owner, dseq);
       const outcomes = toModelOutcomes(models, manifest.groupModels, screenedByGroup, bids);
       const checkedAt = new Date();
 
@@ -241,19 +240,6 @@ export class GpuBidsCreatorService {
     };
 
     await this.#signAndBroadcast(owner, client, [message]);
-  }
-
-  async #findBids(owner: string, dseq: string): Promise<Bid[]> {
-    const bids: Bid[] = [];
-    let key: Uint8Array | undefined;
-
-    do {
-      const response = await this.#chainSdk.akash.market.v1beta5.getBids({ filters: { owner, dseq }, pagination: { key, limit: BIDS_PAGE_SIZE } });
-      bids.push(...response.bids.flatMap(({ bid }) => (bid ? [bid] : [])));
-      key = response.pagination?.nextKey.length ? response.pagination.nextKey : undefined;
-    } while (key);
-
-    return bids;
   }
 
   async #closeDeployment(client: SigningStargateClient, owner: string, dseq: string) {

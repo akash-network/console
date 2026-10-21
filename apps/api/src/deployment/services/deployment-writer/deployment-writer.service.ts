@@ -77,6 +77,7 @@ import { SdlSecretsService, unreferencedNameError } from "@src/deployment/servic
 import { SdlSecretsDerivationService } from "@src/deployment/services/sdl-secrets-derivation/sdl-secrets-derivation.service";
 import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secrets-inheritance/sdl-secrets-inheritance.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
+import { UserGpuBidCheckService } from "@src/deployment/services/user-gpu-bid-check/user-gpu-bid-check.service";
 import { findGroupWithChangedResources, type OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
 import { closedActivityOf, failedCloseActivityOf, pendingCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { createdActivityOf, creatingActivityOf, failedCreateActivityOf } from "@src/deployment/utils/create-activity/create-activity";
@@ -129,6 +130,12 @@ export type AcceptedDeploymentCreate = {
   walletId: number;
   dseq: string;
   message: string;
+};
+
+type CreateDeploymentRequester = {
+  userId: string;
+  /** Set for creates from the configure page, whose gpu deployments also count as checks of which providers bid. */
+  recordGpuBids?: boolean;
 };
 
 type CreateDeploymentTx = Awaited<ReturnType<ManagedSignerService["executeDecodedTxByUserWallet"]>>;
@@ -259,25 +266,27 @@ export class DeploymentWriterService {
     private readonly depositLedger: DeploymentDepositLedgerService,
     private readonly deploymentHttpService: DeploymentHttpService,
     private readonly chainErrorService: ChainErrorService,
-    private readonly deploymentPresenceService: DeploymentPresenceService
+    private readonly deploymentPresenceService: DeploymentPresenceService,
+    private readonly userGpuBidCheckService: UserGpuBidCheckService
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
 
-  public async create(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentResponse["data"]> {
+  public async create(input: CreateDeploymentRequest["data"] & CreateDeploymentRequester): Promise<CreateDeploymentResponse["data"]> {
     const { accepted, manifest } = await this.acceptCreate(input);
     const signTx = await this.#createOnChainRecordingOutcome(accepted);
+    if (input.recordGpuBids) await this.userGpuBidCheckService.scheduleFor(accepted);
 
     return { dseq: accepted.dseq, manifest, signTx };
   }
 
   /** Refusals answer before anything is recorded; a create that passes them is queued in the same transaction as its pending activity and a later check on it, so the activity settles even if the create job is lost. */
-  public async createInBackground(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<CreateDeploymentAcceptedResponse["data"]> {
+  public async createInBackground(input: CreateDeploymentRequest["data"] & CreateDeploymentRequester): Promise<CreateDeploymentAcceptedResponse["data"]> {
     const { accepted, manifest } = await this.acceptCreate(input);
 
     const activityId = await this.txService.transaction(async () => {
       const activityId = randomUUID();
-      const jobId = await this.jobQueueService.enqueue(new CreateDeployment({ ...accepted, activityId }), {
+      const jobId = await this.jobQueueService.enqueue(new CreateDeployment({ ...accepted, activityId, recordGpuBids: input.recordGpuBids }), {
         singletonKey: createDeploymentKeyFor(accepted),
         ...CREATE_DEPLOYMENT_RETRY_OPTIONS
       });

@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
-export type GpuBidCheckSource = "pricing-bot";
+export type GpuBidCheckSource = "pricing-bot" | "user-deployment";
 
 /** One row per provider a gpu check either expected a bid from or got one from. */
 export const GpuBidChecks = pgTable(

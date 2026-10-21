@@ -7,7 +7,7 @@ export class CreateDeployment implements Job {
   readonly name = CreateDeployment[JOB_NAME];
   readonly version = 1;
 
-  constructor(public readonly data: AcceptedDeploymentCreate & { activityId: string }) {}
+  constructor(public readonly data: AcceptedDeploymentCreate & { activityId: string; recordGpuBids?: boolean }) {}
 }
 
 /** Keyed by the wallet rather than the member, because one member creates through a personal and a team wallet whose dseqs can coincide. */
