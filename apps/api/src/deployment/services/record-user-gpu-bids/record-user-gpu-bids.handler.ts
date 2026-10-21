@@ -41,6 +41,7 @@ export class RecordUserGpuBidsHandler implements JobHandler<RecordUserGpuBids> {
     return [];
   }
 
+  /** Records a deployment closed or leased since screening too, since the chain keeps its closed bids and the wait misses are judged on had already ended. */
   async handle({ owner, dseq, groups }: JobPayload<RecordUserGpuBids>): Promise<void> {
     const bids = await findDeploymentBids(this.#chainSdk, owner, dseq);
     const checkedAt = new Date();

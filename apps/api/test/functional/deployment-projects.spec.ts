@@ -144,6 +144,7 @@ describe("Deployment projects", () => {
         dseq: data.dseq,
         message: expect.any(String),
         activityId: data.activityId,
+        recordGpuBids: true,
         version: 1
       });
       expect(signedIndexes).toEqual([]);
