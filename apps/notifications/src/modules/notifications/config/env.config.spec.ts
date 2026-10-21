@@ -35,6 +35,18 @@ describe("notifications env config", () => {
     expect(schema.safeParse({ ...requiredEnv(), CONSOLE_API_BASE_URL: "console-api" }).success).toBe(false);
   });
 
+  it("takes an empty promotional email postal address for an unset one", () => {
+    const config = schema.parse({ ...requiredEnv(), PROMOTIONAL_EMAIL_POSTAL_ADDRESS: "" });
+
+    expect(config.PROMOTIONAL_EMAIL_POSTAL_ADDRESS).toBeUndefined();
+  });
+
+  it("keeps the promotional email postal address once it is set", () => {
+    const config = schema.parse({ ...requiredEnv(), PROMOTIONAL_EMAIL_POSTAL_ADDRESS: "1 Market St, San Francisco, CA 94105" });
+
+    expect(config.PROMOTIONAL_EMAIL_POSTAL_ADDRESS).toBe("1 Market St, San Francisco, CA 94105");
+  });
+
   function requiredEnv() {
     return { NOVU_SECRET_KEY: "novu-secret", NOVU_MAILER_WORKFLOW_ID: "mailer" };
   }

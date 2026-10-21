@@ -1,11 +1,12 @@
-import { BadRequestException, Body, Controller, HttpCode, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, HttpCode, Post, UsePipes } from "@nestjs/common";
 import { ApiNoContentResponse } from "@nestjs/swagger";
-import { createZodDto } from "nestjs-zod";
+import { createZodDto, ZodValidationPipe } from "nestjs-zod";
 import { Err, Ok, Result } from "ts-results";
 import { z } from "zod";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService, PublishOptions } from "@src/infrastructure/broker/services/broker/broker.service";
+import { EmailUnsubscribeSchema } from "@src/modules/notifications/dto/NotificationCommand.dto";
 import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 import { AuthService } from "../../services/auth/auth.service";
 
@@ -26,7 +27,8 @@ class NotificationJobDto extends createZodDto(
           })
         )
         .optional()
-    })
+    }),
+    unsubscribe: EmailUnsubscribeSchema.optional()
   })
 ) {}
 
@@ -42,6 +44,7 @@ export class JobsController {
 
   @Post("notification")
   @HttpCode(204)
+  @UsePipes(ZodValidationPipe)
   @ApiNoContentResponse({ description: "Creates a notification job" })
   async createNotification(@Body() job: NotificationJobDto): Promise<Result<void, BadRequestException>> {
     const notificationChannelRepository = this.notificationChannelRepository.accessibleBy(this.authService.ability, "read");
@@ -69,7 +72,8 @@ export class JobsController {
       {
         payload: job.payload,
         notificationChannelId: notificationChannel.id,
-        notificationId: job.notificationId
+        notificationId: job.notificationId,
+        unsubscribe: job.unsubscribe
       },
       publishOptions
     );

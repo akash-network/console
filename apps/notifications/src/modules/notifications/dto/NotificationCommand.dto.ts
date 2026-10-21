@@ -17,6 +17,22 @@ const AlertFeedEntrySchema = z
   .optional()
   .catch(undefined);
 
+/** The one-click URL goes verbatim into an email header, so only printable ASCII without spaces is allowed. */
+const HeaderSafeHttpsUrlSchema = z
+  .string()
+  .url()
+  .startsWith("https://")
+  .regex(/^[\x21-\x7e]+$/, "Must contain only printable ASCII characters and no spaces");
+
+export const EmailUnsubscribeSchema = z
+  .object({
+    url: HeaderSafeHttpsUrlSchema.describe("https URL of the unsubscribe page linked from the email footer"),
+    oneClickUrl: HeaderSafeHttpsUrlSchema.describe("https URL of the endpoint that takes the RFC 8058 one-click unsubscribe POST")
+  })
+  .describe("Marks the email as promotional: it gets an unsubscribe footer, the postal address and one-click unsubscribe headers");
+
+export type EmailUnsubscribe = z.infer<typeof EmailUnsubscribeSchema>;
+
 const NotificationCommandSchema = z.object({
   notificationChannelId: z.string(),
   notificationId: z.string().optional(),
@@ -33,7 +49,8 @@ const NotificationCommandSchema = z.object({
       )
       .optional(),
     feedEntry: AlertFeedEntrySchema
-  })
+  }),
+  unsubscribe: EmailUnsubscribeSchema.optional()
 });
 
 export type AlertFeedEntry = NonNullable<z.infer<typeof AlertFeedEntrySchema>>;

@@ -33,8 +33,23 @@ describe(NotificationRouterService.name, () => {
         content: notificationCommand.payload.description,
         actions: notificationCommand.payload.actions,
         code: notificationCommand.payload.code,
-        notificationId: notificationCommand.notificationId
+        notificationId: notificationCommand.notificationId,
+        unsubscribe: notificationCommand.unsubscribe
       });
+    });
+
+    it("hands the unsubscribe links of a promotional notification to the email", async () => {
+      const { service, emailSenderService, notificationChannelRepository } = await setup();
+      const unsubscribe = {
+        url: "https://console.akash.network/unsubscribe?token=abc",
+        oneClickUrl: "https://console-api.akash.network/v1/product-update-unsubscriptions?token=abc"
+      };
+      const notificationCommand: NotificationCommandDto = { ...createAlertCommand(), unsubscribe };
+      notificationChannelRepository.findById.mockResolvedValue(generateNotificationChannel({ id: notificationCommand.notificationChannelId }));
+
+      await service.send(notificationCommand);
+
+      expect(emailSenderService.send).toHaveBeenCalledWith(expect.objectContaining({ unsubscribe }));
     });
 
     it("adds an alert that shows in the activity feed to the feed of the user who set it once its email is sent, whoever owns the channel", async () => {

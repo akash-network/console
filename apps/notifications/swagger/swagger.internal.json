@@ -182,6 +182,28 @@
               "summary",
               "description"
             ]
+          },
+          "unsubscribe": {
+            "description": "Marks the email as promotional: it gets an unsubscribe footer, the postal address and one-click unsubscribe headers",
+            "type": "object",
+            "properties": {
+              "url": {
+                "description": "https URL of the unsubscribe page linked from the email footer",
+                "type": "string",
+                "format": "uri",
+                "pattern": "^[\\x21-\\x7e]+$"
+              },
+              "oneClickUrl": {
+                "description": "https URL of the endpoint that takes the RFC 8058 one-click unsubscribe POST",
+                "type": "string",
+                "format": "uri",
+                "pattern": "^[\\x21-\\x7e]+$"
+              }
+            },
+            "required": [
+              "url",
+              "oneClickUrl"
+            ]
           }
         },
         "required": [
