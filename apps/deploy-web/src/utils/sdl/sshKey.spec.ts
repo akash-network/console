@@ -2,9 +2,28 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { applyImportedSshState, readServiceSshKey, withServiceSshKey } from "./sshKey";
+import { applyImportedSshState, readServiceSshKey, takesSshKey, withServiceSshKey } from "./sshKey";
+import { SSH_VM_IMAGES } from "./vmImages";
 
 describe("sshKey", () => {
+  describe(takesSshKey.name, () => {
+    it("takes a key on a managed vm image, even before one is set", () => {
+      expect(takesSshKey({ image: SSH_VM_IMAGES["Ubuntu 24.04"], env: [] })).toBe(true);
+    });
+
+    it("takes a key on a container that carries SSH_PUBKEY", () => {
+      expect(takesSshKey({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:1", env: [{ key: "PORT" }, { key: "SSH_PUBKEY" }] })).toBe(true);
+    });
+
+    it("takes no key on a container without SSH_PUBKEY", () => {
+      expect(takesSshKey({ image: "nginx:1.25", env: [{ key: "PORT" }, undefined] })).toBe(false);
+    });
+
+    it("takes no key on a service with neither an image nor variables", () => {
+      expect(takesSshKey({})).toBe(false);
+    });
+  });
+
   describe(readServiceSshKey.name, () => {
     it("prefers the managed SSH_PUBKEY env entry over the sshPubKey field", () => {
       const service = mock<ServiceType>({ sshPubKey: "field-key", env: [{ id: "SSH_PUBKEY", key: "SSH_PUBKEY", value: "env-key" }] });

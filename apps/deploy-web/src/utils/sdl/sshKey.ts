@@ -1,5 +1,10 @@
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SSH_PUBKEY_ENV_KEY } from "@src/types/sdlBuilder/sdlBuilder";
+import { isVmImage } from "@src/utils/sdl/vmImages";
+
+export function takesSshKey(service: { image?: string; env?: Array<{ key?: string } | undefined> }): boolean {
+  return isVmImage(service.image ?? "") || !!service.env?.some(entry => entry?.key === SSH_PUBKEY_ENV_KEY);
+}
 
 /**
  * Reads the SSH public key carried by a service, preferring the managed

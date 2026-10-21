@@ -63,6 +63,18 @@ describe(SshPublicKeyField.name, () => {
     }
   });
 
+  it("writes a service-scoped key only to its own service", async () => {
+    const { getValues } = setup({ extraServices: 1, scope: "service" });
+
+    await userEvent.type(screen.getByRole("textbox", { name: "SSH public key" }), "ssh-rsa AAAA");
+
+    const [own, other] = getValues().services;
+    expect(own.sshPubKey).toBe("ssh-rsa AAAA");
+    expect(own.env?.find(e => e.key === "SSH_PUBKEY")?.value).toBe("ssh-rsa AAAA");
+    expect(other.sshPubKey).toBe("");
+    expect(other.env?.some(e => e.key === "SSH_PUBKEY")).toBe(false);
+  });
+
   it("clears the ssh public key when the input is emptied", async () => {
     const { getValues } = setup({ sshPubKey: "ssh-rsa EXISTING" });
 
@@ -209,6 +221,7 @@ describe(SshPublicKeyField.name, () => {
     sshPubKey?: string;
     env?: Array<{ key: string; value?: string }>;
     extraServices?: number;
+    scope?: "deployment" | "service";
     validate?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
@@ -260,7 +273,7 @@ describe(SshPublicKeyField.name, () => {
 
     render(
       <Wrapper>
-        <SshPublicKeyField serviceIndex={0} dependencies={dependencies} />
+        <SshPublicKeyField serviceIndex={0} scope={input.scope} dependencies={dependencies} />
       </Wrapper>
     );
 

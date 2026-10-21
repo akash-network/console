@@ -26,34 +26,39 @@ const saveBlobAs: (data: Blob, filename: string) => void = saveAs;
 // eslint-disable-next-line akash/dependencies-component-or-hook
 export const DEPENDENCIES = { CodeSnippet, generateSSHKeyPair, useSnackbar, saveAs: saveBlobAs, loadJSZip };
 
+type SshKeyScope = "deployment" | "service";
+
 type Props = {
   serviceIndex: number;
+  scope?: SshKeyScope;
   dependencies?: typeof DEPENDENCIES;
 };
 
-/** The key is deployment-wide, so it and its managed `SSH_PUBKEY` env var go to all services. */
-export function useApplySshKeyToAllServices() {
+/** A running deployment's key is changed per service, so an update never restarts a service that had no key. */
+function useApplySshKey(serviceIndex: number, scope: SshKeyScope) {
   const { setValue, getValues } = useFormContext<SdlBuilderFormValuesType>();
 
   return useCallback(
     (publicKey: string) => {
       const services = getValues("services") ?? [];
       services.forEach((service, index) => {
+        if (scope === "service" && index !== serviceIndex) return;
+
         const updated = withServiceSshKey(service, publicKey);
         setValue(`services.${index}.sshPubKey`, updated.sshPubKey, { shouldValidate: true, shouldDirty: true });
         setValue(`services.${index}.env`, updated.env, { shouldValidate: true, shouldDirty: true });
       });
     },
-    [getValues, setValue]
+    [getValues, setValue, scope, serviceIndex]
   );
 }
 
 /** The SSH public key input, filled by hand or by generating a keypair that downloads as a zip, with usage instructions alongside. */
-export const SshPublicKeyField: FC<Props> = ({ serviceIndex, dependencies: d = DEPENDENCIES }) => {
+export const SshPublicKeyField: FC<Props> = ({ serviceIndex, scope = "deployment", dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
   const sshPubKey = useController({ control, name: `services.${serviceIndex}.sshPubKey` });
-  const applyKeyToAllServices = useApplySshKeyToAllServices();
+  const applyKey = useApplySshKey(serviceIndex, scope);
 
   const generateKey = useCallback(async () => {
     if (!window.crypto?.subtle) {
@@ -71,13 +76,13 @@ export const SshPublicKeyField: FC<Props> = ({ serviceIndex, dependencies: d = D
       zip.file("id_rsa.pub", publicKey);
       zip.file("id_rsa", privatePem);
       d.saveAs(await zip.generateAsync({ type: "blob" }), "keypair.zip");
-      applyKeyToAllServices(publicKey);
+      applyKey(publicKey);
     } catch {
       enqueueSnackbar(<Snackbar title="SSH key cannot be generated" subTitle="Failed to generate or download the SSH keypair." iconVariant="error" />, {
         variant: "error"
       });
     }
-  }, [d, enqueueSnackbar, applyKeyToAllServices]);
+  }, [d, enqueueSnackbar, applyKey]);
 
   return (
     <Field className="gap-2">
@@ -88,7 +93,7 @@ export const SshPublicKeyField: FC<Props> = ({ serviceIndex, dependencies: d = D
           aria-label="SSH public key"
           placeholder="ssh-ed25519 AAAA… user@host"
           value={sshPubKey.field.value ?? ""}
-          onChange={event => applyKeyToAllServices(event.target.value || "")}
+          onChange={event => applyKey(event.target.value || "")}
           onBlur={sshPubKey.field.onBlur}
           error={!!sshPubKey.fieldState.error}
           inputClassName="h-9"

@@ -1,6 +1,5 @@
 import type { LeaseStatusDto } from "@src/queries/useLeaseQuery";
-import { SSH_PUBKEY_ENV_KEY } from "@src/types/sdlBuilder/sdlBuilder";
-import { isVmImage } from "@src/utils/sdl/vmImages";
+import { takesSshKey } from "@src/utils/sdl/sshKey";
 import { sshConnectCommand } from "@src/utils/sshKeyInstructions";
 import type { ManifestServiceDetail } from "../DeploymentPlacements/placementModel";
 
@@ -16,7 +15,7 @@ export interface SshCommand {
 }
 
 export function isSshService(service: ManifestServiceDetail): boolean {
-  return (!!service.image && isVmImage(service.image)) || !!service.env?.some(entry => entry.key === SSH_PUBKEY_ENV_KEY);
+  return takesSshKey(service);
 }
 
 export function buildSshCommands(

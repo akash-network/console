@@ -79,6 +79,8 @@ export const SSH_PUBKEY_ENV_KEY = "SSH_PUBKEY";
  */
 export const RESERVED_ENV_KEYS = [SSH_PUBKEY_ENV_KEY] as const;
 
+export const SSH_KEY_REQUIRED_MESSAGE = "SSH Public key is required.";
+
 export const RESERVED_ENV_VALUE_MESSAGE = 'Plain values may not start with "ac-", which the console reserves for secret references.';
 
 export const SECRET_NAME_MESSAGE = "A secret name may only contain letters, digits and underscores, cannot start with a digit and is at most 64 characters.";
@@ -685,7 +687,7 @@ export const SdlBuilderFormValuesSchema = z
       if (isVmImage(data.services[i].image) && !data.services[i].sshPubKey?.trim()) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "SSH Public key is required.",
+          message: SSH_KEY_REQUIRED_MESSAGE,
           path: ["services", i, "sshPubKey"],
           fatal: true
         });

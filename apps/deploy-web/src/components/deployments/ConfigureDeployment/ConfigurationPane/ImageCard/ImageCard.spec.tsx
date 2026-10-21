@@ -4,9 +4,10 @@ import { FormProvider, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { describe, expect, it } from "vitest";
 
-import type { SdlBuilderFormValuesType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
-import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { withServiceSshKey } from "@src/utils/sdl/sshKey";
 import { ImageCard } from "./ImageCard";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -314,11 +315,62 @@ describe(ImageCard.name, () => {
     expect(screen.getByRole("textbox", { name: "SSH public key" })).toBeDisabled();
   });
 
-  it("offers no ssh controls in the Docker card", () => {
-    setup({ image: "nginx:latest", hasSSHKey: true });
+  it("offers no ssh controls in the Docker card of a deployment without a key", () => {
+    setup({ image: "nginx:latest" });
 
     expect(screen.queryByRole("checkbox", { name: "Expose SSH" })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "SSH public key" })).not.toBeInTheDocument();
+  });
+
+  it("shows the key in the Docker card of a service loaded with one, so an imported placeholder can be replaced", () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:1", hasSSHKey: true, sshPubKey: "YOUR_KEY_HERE" });
+
+    expect(screen.getByRole("textbox", { name: "SSH public key" })).toHaveValue("YOUR_KEY_HERE");
+    expect(screen.queryByRole("checkbox", { name: "Expose SSH" })).not.toBeInTheDocument();
+  });
+
+  it("offers no key field on a container loaded without one, even when a sibling carries one", () => {
+    setup({ image: "nginx:latest", hasSSHKey: true, otherService: { image: "ghcr.io/akash-network/ubuntu-2404-ssh:1", sshPubKey: "ssh-ed25519 SIBLING" } });
+
+    expect(screen.queryByRole("textbox", { name: "SSH public key" })).not.toBeInTheDocument();
+  });
+
+  it("shows the key on the card of the container that carries it, whatever its position", () => {
+    setup({
+      image: "nginx:latest",
+      hasSSHKey: true,
+      otherService: { image: "ghcr.io/akash-network/ubuntu-2404-ssh:1", sshPubKey: "ssh-ed25519 SIBLING" },
+      serviceIndex: 1
+    });
+
+    expect(screen.getByRole("textbox", { name: "SSH public key" })).toHaveValue("ssh-ed25519 SIBLING");
+  });
+
+  it("leaves the key to the Operating System card when the deployment also runs a vm", () => {
+    setup({
+      image: "ghcr.io/akash-network/ubuntu-2404-ssh:1",
+      hasSSHKey: true,
+      sshPubKey: "ssh-ed25519 SHARED",
+      otherService: { image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", sshPubKey: "ssh-ed25519 SHARED" }
+    });
+
+    expect(screen.queryByRole("textbox", { name: "SSH public key" })).not.toBeInTheDocument();
+  });
+
+  it("changes only its own service's key, and keeps the field once the key is cleared", async () => {
+    const { getValues } = setup({
+      image: "ghcr.io/akash-network/ubuntu-2404-ssh:1",
+      hasSSHKey: true,
+      sshPubKey: "YOUR_KEY_HERE",
+      otherService: { image: "ghcr.io/akash-network/ubuntu-2404-ssh:1", sshPubKey: "ssh-ed25519 SIBLING" }
+    });
+
+    await userEvent.clear(screen.getByRole("textbox", { name: "SSH public key" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "SSH public key" }), "ssh-ed25519 NEW");
+
+    const [own, sibling] = getValues().services;
+    expect(own.env?.find(variable => variable.key === "SSH_PUBKEY")?.value).toBe("ssh-ed25519 NEW");
+    expect(sibling.env?.find(variable => variable.key === "SSH_PUBKEY")?.value).toBe("ssh-ed25519 SIBLING");
   });
 
   it("leaves Expose SSH out of the Operating System card, whose key is always required", () => {
@@ -361,18 +413,27 @@ describe(ImageCard.name, () => {
   function setup(input: {
     image?: string;
     hasSSHKey?: boolean;
+    sshPubKey?: string;
+    otherService?: { image: string; sshPubKey?: string };
+    serviceIndex?: number;
     hasCredentials?: boolean;
     credentials?: { host: string; username: string; password: string };
     resolver?: Resolver<SdlBuilderFormValuesType>;
     locked?: boolean;
   }) {
     const hasCredentials = input.hasCredentials ?? !!input.credentials;
+    const seeded = defaultServiceWithPlacement({
+      image: input.image ?? "",
+      hasCredentials,
+      credentials: hasCredentials ? input.credentials ?? { host: "docker.io", username: "", password: "" } : undefined
+    });
+    const withKey = (service: ServiceType, sshPubKey: string | undefined) => (sshPubKey ? withServiceSshKey(service, sshPubKey) : service);
+    const otherServices = input.otherService
+      ? [withKey(defaultService(seeded.placements[0].id, { title: "service-2", image: input.otherService.image }), input.otherService.sshPubKey)]
+      : [];
     const values: SdlBuilderFormValuesType = {
-      ...defaultServiceWithPlacement({
-        image: input.image ?? "",
-        hasCredentials,
-        credentials: hasCredentials ? input.credentials ?? { host: "docker.io", username: "", password: "" } : undefined
-      }),
+      ...seeded,
+      services: [withKey(seeded.services[0], input.sshPubKey), ...otherServices],
       hasSSHKey: input.hasSSHKey ?? false
     };
 
@@ -401,7 +462,7 @@ describe(ImageCard.name, () => {
 
     render(
       <Wrapper>
-        <ImageCard serviceIndex={0} locked={input.locked} />
+        <ImageCard serviceIndex={input.serviceIndex ?? 0} locked={input.locked} />
       </Wrapper>
     );
 
