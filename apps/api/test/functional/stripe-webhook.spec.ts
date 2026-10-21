@@ -109,6 +109,22 @@ describe("Stripe webhook", () => {
       expect(await response.json()).toMatchObject({ message: "Stripe signature is invalid" });
     });
 
+    it.each(["v1=", "v1"])("answers 400 to a signature header whose %s entry carries no signature", async signatureEntry => {
+      const payload = generateInvoicePayload({ id: `in_${faker.string.alphanumeric(24)}`, customer: `cus_${faker.string.alphanumeric(14)}` });
+
+      const response = await app.request("/v1/stripe-webhook", {
+        method: "POST",
+        body: payload,
+        headers: new Headers({
+          "Content-Type": "text/plain",
+          "Stripe-Signature": `t=${Math.floor(Date.now() / 1000)},${signatureEntry}`
+        })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ message: "Stripe signature is invalid" });
+    });
+
     describe("payment_intent.succeeded", () => {
       it("handles duplicate webhook deliveries idempotently", async () => {
         const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;

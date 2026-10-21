@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
 import Stripe from "stripe";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
@@ -10,6 +10,10 @@ import { create as StripeSeederCreate } from "@test/seeders/stripe.seeder";
 import { TEST_CONSTANTS } from "@test/seeders/stripe-test-data.seeder";
 
 describe(StripeService.name, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe("createSetupIntent", () => {
     it("creates setup intent with correct parameters when not a free trial", async () => {
       const { service, stripe } = setup();
@@ -165,6 +169,29 @@ describe(StripeService.name, () => {
         expect.objectContaining({ status: 400, message: "Stripe signature is invalid", cause: verificationError })
       );
     });
+
+    it("constructWebhookEvent returns the event from a header signed with the configured webhook secret", () => {
+      const { service, stripe, billingConfig } = setup();
+      const webhookSecret = `whsec_${faker.string.alphanumeric(32)}`;
+      billingConfig.get.mockReturnValue(webhookSecret);
+      const payload = JSON.stringify({ id: "evt_1", object: "event" });
+      const signature = stripe.webhooks.generateTestHeaderString({ payload, secret: webhookSecret });
+
+      const result = service.constructWebhookEvent(payload, signature);
+
+      expect(result).toEqual({ id: "evt_1", object: "event" });
+    });
+
+    it.each(["t=1700000000,v1=", "t=1700000000,v1", "t=1700000000,v1=abc,v1="])(
+      "constructWebhookEvent answers 400 to the signature header %s with an empty signature",
+      signature => {
+        const { service } = setup();
+
+        expect(() => service.constructWebhookEvent("raw-body", signature)).toThrow(
+          expect.objectContaining({ status: 400, message: "Stripe signature is invalid" })
+        );
+      }
+    );
 
     it("constructWebhookEvent rethrows errors other than a failed signature check", () => {
       const { service, stripe } = setup();

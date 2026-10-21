@@ -49,6 +49,10 @@ export class StripeService {
   }
 
   constructWebhookEvent(payload: string | Buffer, signature: string): Stripe.Event {
+    if (this.#hasEmptyExpectedSchemeSignature(signature)) {
+      throw createError(400, "Stripe signature is invalid");
+    }
+
     try {
       return this.stripe.webhooks.constructEvent(payload, signature, this.billingConfig.get("STRIPE_WEBHOOK_SECRET"));
     } catch (error) {
@@ -58,6 +62,16 @@ export class StripeService {
 
       throw error;
     }
+  }
+
+  /** stripe-node throws a plain Error instead of a signature verification error when an expected-scheme entry has no value. */
+  #hasEmptyExpectedSchemeSignature(signature: string) {
+    const { EXPECTED_SCHEME } = this.stripe.webhooks.signature;
+
+    return signature.split(",").some(item => {
+      const [scheme, value] = item.split("=");
+      return scheme === EXPECTED_SCHEME && !value;
+    });
   }
 
   async findPrices(): Promise<StripePrices[]> {
