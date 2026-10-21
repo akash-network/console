@@ -141,6 +141,15 @@ describe(renderEmailLayout.name, () => {
       );
     });
 
+    it("keeps the line breaks of a postal address configured over several lines", () => {
+      const { html } = setup({
+        unsubscribe: { url: "https://console.akash.network/unsubscribe?token=abc" },
+        postalAddress: "14205 N Mo Pac Expy Ste 570\r\nPMB 92121\nAustin, TX, 78728-6529, US"
+      });
+
+      expect(html).toContain(">14205 N Mo Pac Expy Ste 570<br>PMB 92121<br>Austin, TX, 78728-6529, US</p>");
+    });
+
     it("renders no postal address line when none is configured", () => {
       const { html } = setup({ unsubscribe: { url: "https://console.akash.network/unsubscribe?token=abc" } });
 

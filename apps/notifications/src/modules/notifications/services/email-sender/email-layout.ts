@@ -80,8 +80,10 @@ function renderFooterNotice({ unsubscribe, postalAddress }: { unsubscribe?: { ur
     return notice;
   }
 
+  const postalAddressLines = postalAddress.split(/\r?\n/).map(line => escape(line));
+
   return `${notice}
-          <p class="footer-text" style="margin:8px 0 0 0;${FOOTER_TEXT_STYLE}">${escape(postalAddress)}</p>`;
+          <p class="footer-text" style="margin:8px 0 0 0;${FOOTER_TEXT_STYLE}">${postalAddressLines.join("<br>")}</p>`;
 }
 
 /** The subject is user-controlled for alert emails, so it is escaped; content must already be sanitized by the caller. */
