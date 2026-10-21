@@ -32,6 +32,7 @@ import { createUser } from "@test/seeders/user.seeder";
 
 const ACTIONS = ["read", "create", "update", "delete", "sign"];
 const MANAGE = ACTIONS;
+const MANAGE_BUT_CREATE = ACTIONS.filter(action => action !== "create");
 const READ = ["read"];
 const READ_SIGN = ["read", "sign"];
 const NONE: string[] = [];
@@ -439,6 +440,25 @@ describe("ability rules", () => {
       expect(organizationRules(user, context)).toEqual(expect.arrayContaining(userKeyedRules));
     });
 
+    it.each(["owner", "admin", "member"] as const)("lets the %s role write to a teammate's deployment setting but not file one under the teammate", role => {
+      const { ability, organizationId, grantedProjectId } = setup({ role });
+
+      const teammateRow = actionsBySubject(ability, { organizationId, projectId: grantedProjectId, userId: faker.string.uuid() });
+
+      expect(pick(teammateRow, PROJECT_RESOURCES)).toEqual({
+        DeploymentSetting: MANAGE_BUT_CREATE,
+        Template: MANAGE,
+        Alert: MANAGE,
+        NotificationChannel: MANAGE
+      });
+    });
+
+    it.each(["owner", "admin", "member"] as const)("turns the deployment setting create rules of the %s role into a query", role => {
+      const { ability } = setup({ role });
+
+      expect(() => new DrizzleAbility(DeploymentSettings, ability, "create", "DeploymentSetting")).not.toThrow();
+    });
+
     it.each(ROLES)("names only columns that exist on each subject's table for the %s role", role => {
       const { ability } = setup({ role, projectScope: createProjectsScope([faker.string.uuid()]) });
       const readableSubjects = Object.keys(SUBJECT_TABLES).filter(subjectType => ability.can("read", subjectType));
@@ -490,6 +510,14 @@ describe("ability rules", () => {
           Alert: NONE,
           NotificationChannel: NONE
         });
+      });
+
+      it.each(["owner", "admin", "member"] as const)("keeps a %s key from filing a deployment setting under a teammate", role => {
+        const projectId = faker.string.uuid();
+        const { ability, organizationId, user } = setup({ role, projectScope: createProjectsScope([projectId]), apiKeyProjectId: projectId });
+
+        expect(ability.can("create", subject("DeploymentSetting", { organizationId, projectId, userId: user.id }))).toBe(true);
+        expect(ability.can("create", subject("DeploymentSetting", { organizationId, projectId, userId: faker.string.uuid() }))).toBe(false);
       });
 
       it.each(ROLES)("keeps a %s key to its project's activity, out of the organization's own", role => {
@@ -585,8 +613,18 @@ describe("ability rules", () => {
 
     it.each<[ProjectRole, Record<string, string[]>]>([
       ["viewer", READ_ONLY_IN_PROJECT],
-      ["member", { Project: READ, ProjectMember: READ, DeploymentSetting: MANAGE, Template: MANAGE, Alert: MANAGE, NotificationChannel: MANAGE }],
-      ["admin", { Project: ["read", "update"], ProjectMember: MANAGE, DeploymentSetting: MANAGE, Template: MANAGE, Alert: MANAGE, NotificationChannel: MANAGE }]
+      ["member", { Project: READ, ProjectMember: READ, DeploymentSetting: MANAGE_BUT_CREATE, Template: MANAGE, Alert: MANAGE, NotificationChannel: MANAGE }],
+      [
+        "admin",
+        {
+          Project: ["read", "update"],
+          ProjectMember: MANAGE,
+          DeploymentSetting: MANAGE_BUT_CREATE,
+          Template: MANAGE,
+          Alert: MANAGE,
+          NotificationChannel: MANAGE
+        }
+      ]
     ])("gives an organization member granted the %s project role these actions in that project", (projectRole, expected) => {
       const projectId = faker.string.uuid();
       const { ability, organizationId } = setup({ role: "member", projectScope: projectRoleScope(projectRole, projectId) });
@@ -612,13 +650,13 @@ describe("ability rules", () => {
 
     it("never writes to or administers a project the request cannot read, whatever the write levels name", () => {
       const [readable, unreadable] = [faker.string.uuid(), faker.string.uuid()];
-      const { ability, organizationId } = setup({
+      const { ability, organizationId, user } = setup({
         role: "member",
         projectScope: createProjectsScope([readable], { writableProjectIds: [readable, unreadable], adminProjectIds: [unreadable] })
       });
 
       const outside = actionsBySubject(ability, { organizationId, projectId: unreadable, userId: faker.string.uuid() });
-      const inside = actionsBySubject(ability, { organizationId, projectId: readable, userId: faker.string.uuid() });
+      const inside = actionsBySubject(ability, { organizationId, projectId: readable, userId: user.id });
 
       expect(pick(outside, ["Project", "ProjectMember", ...PROJECT_RESOURCES])).toEqual({
         Project: NONE,

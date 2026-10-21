@@ -327,7 +327,7 @@ describe(DeploymentProjectService.name, () => {
     const context = createOrganizationContext({ role: input?.role ?? "owner", mode: input?.mode ?? "organization", projectScope: input?.projectScope });
     const projectConditions = input?.scopedProjectIds ? { projectId: { $in: input.scopedProjectIds } } : {};
     const ability = createMongoAbility<MongoAbility>([
-      { action: "create", subject: "DeploymentSetting", conditions: { organizationId: context.organizationId, ...projectConditions } },
+      { action: "create", subject: "DeploymentSetting", conditions: { organizationId: context.organizationId, userId: user.id, ...projectConditions } },
       { action: "create", subject: "Template", conditions: { organizationId: context.organizationId, projectId: { $in: input?.templateProjectIds ?? [] } } }
     ]);
     const project = mock<ProjectOutput>({ id: faker.string.uuid(), organizationId: context.organizationId, name: faker.word.noun() });

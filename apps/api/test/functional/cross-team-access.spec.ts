@@ -211,7 +211,7 @@ const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
   { route: "GET /v2/deployment-settings/{dseq}", status: 404, ownerStatus: 200, request: team => get(`/v2/deployment-settings/${team.grantedDseq}`) },
   {
     route: "POST /v1/deployment-settings filing a deployment of the team under its owner",
-    status: 409,
+    status: 403,
     ownerStatus: 201,
     request: team => post("/v1/deployment-settings", { userId: team.ownerUserId, dseq: team.grantedDseq })
   },
@@ -227,6 +227,19 @@ const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
     ownerStatus: 201,
     request: team => post("/v2/deployment-settings", { dseq: team.grantedDseq }),
     echoes: ["grantedDseq"]
+  },
+  {
+    route: "POST /v2/deployment-settings filing a new deployment under the team's owner",
+    status: 403,
+    ownerStatus: 201,
+    request: team => post("/v2/deployment-settings", { userId: team.ownerUserId, dseq: faker.string.numeric({ length: 14, allowLeadingZeros: false }) })
+  },
+  {
+    route: "PATCH /v2/deployment-settings/{dseq} filing a new deployment under the team's owner",
+    status: 404,
+    ownerStatus: 200,
+    request: team =>
+      patch(`/v2/deployment-settings/${faker.string.numeric({ length: 14, allowLeadingZeros: false })}?userId=${team.ownerUserId}`, { autoTopUpEnabled: false })
   },
   {
     route: "PATCH /v2/deployment-settings/{dseq} filing a dseq of the team in the caller's own team",

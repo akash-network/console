@@ -67,11 +67,11 @@ export class ProjectService {
 
   /** Most recently active first; summaries and activity times only cover what the caller may read in each project. */
   async list(): Promise<ListedProject[]> {
-    const { ability } = this.authService;
+    const { ability, currentUser } = this.authService;
     const projects = await this.projectRepository.accessibleBy(ability, "read").findActiveWithLastActivity();
     const summaries = projects.length > 0 ? await this.projectDeploymentSummaryService.summarizeByProject(this.#activeOrganizationId()) : undefined;
 
-    return projects.map(project => listedFor(ability, project, summaries)).sort(mostRecentlyActiveFirst);
+    return projects.map(project => listedFor(ability, currentUser.id, project, summaries)).sort(mostRecentlyActiveFirst);
   }
 
   async get(id: string): Promise<ProjectWithCreator> {
@@ -187,6 +187,7 @@ export class ProjectService {
 /** Each project's own fields are checked against the ability, so a caller listing a project it cannot open learns nothing of what runs in it. */
 function listedFor(
   ability: AuthService["ability"],
+  userId: string,
   project: ProjectWithLastActivity,
   summaries: Map<string, ProjectDeploymentSummary> | undefined
 ): ListedProject {
@@ -199,7 +200,7 @@ function listedFor(
     lastActivityAt: readsActivity && project.lastActivityAt && project.lastActivityAt > project.createdAt ? project.lastActivityAt : project.createdAt,
     deployments: readsDeployments && summaries ? summaries.get(project.id) ?? NO_ACTIVE_DEPLOYMENTS : null,
     access: {
-      canDeploy: ability.can("create", subject("DeploymentSetting", { ...inProject })),
+      canDeploy: ability.can("create", subject("DeploymentSetting", { ...inProject, userId })),
       canManage: ability.can("update", subject("Project", { organizationId: project.organizationId, id: project.id }))
     }
   };

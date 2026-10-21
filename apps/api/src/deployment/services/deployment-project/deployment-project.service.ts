@@ -141,7 +141,9 @@ export class DeploymentProjectService {
   }
 
   #canFileInto(context: OrganizationContext, projectId: string, subjectType: ProjectFiledSubject): boolean {
-    return this.authService.ability.can("create", subject(subjectType, { organizationId: context.organizationId, projectId }));
+    const filing = { organizationId: context.organizationId, projectId, userId: this.authService.currentUser.id };
+
+    return this.authService.ability.can("create", subject(subjectType, filing));
   }
 
   #activeReach(): DeploymentReach {

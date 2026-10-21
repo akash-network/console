@@ -37,7 +37,7 @@ describe(ProjectService.name, () => {
       const summary = { activeCount: 1, preview: [{ dseq: "42", name: "web", status: "running" as const }] };
       const { service, projectRepository, projectDeploymentSummaryService, ability } = setup({
         context,
-        ability: abilityOf(context),
+        abilityOf: abilityOf(context),
         listed: [project],
         summaries: new Map([[project.id, summary]])
       });
@@ -59,7 +59,7 @@ describe(ProjectService.name, () => {
         listedProject({ ...inOrganization, id: "00000000-0000-4000-8000-000000000001", createdAt: at("02") }),
         listedProject({ ...inOrganization, id: "00000000-0000-4000-8000-000000000002", createdAt: at("02") })
       ];
-      const { service } = setup({ context, ability: abilityOf(context), listed: [second, older, newer, first, active] });
+      const { service } = setup({ context, abilityOf: abilityOf(context), listed: [second, older, newer, first, active] });
 
       const projects = await service.list();
 
@@ -71,7 +71,7 @@ describe(ProjectService.name, () => {
       const createdAt = new Date("2026-10-05");
       const { service } = setup({
         context,
-        ability: abilityOf(context),
+        abilityOf: abilityOf(context),
         listed: [
           listedProject({ organizationId: context.organizationId, createdAt, lastActivityAt: null }),
           listedProject({ organizationId: context.organizationId, createdAt, lastActivityAt: new Date("2026-10-04") })
@@ -89,7 +89,7 @@ describe(ProjectService.name, () => {
       const project = listedProject({ organizationId: context.organizationId, createdAt, lastActivityAt: new Date("2026-10-10") });
       const { service } = setup({
         context,
-        ability: abilityOf(context),
+        abilityOf: abilityOf(context),
         listed: [project],
         summaries: new Map([[project.id, { activeCount: 3, preview: [] }]])
       });
@@ -107,7 +107,7 @@ describe(ProjectService.name, () => {
       });
       const { service } = setup({
         context,
-        ability: abilityOf(context),
+        abilityOf: abilityOf(context),
         listed: [administered, written, viewed].map((id, index) =>
           listedProject({ id, organizationId: context.organizationId, createdAt: new Date(2026, 9, 3 - index) })
         )
@@ -127,7 +127,7 @@ describe(ProjectService.name, () => {
       const projectId = faker.string.uuid();
       const context = createOrganizationContext({ role: "owner", projectScope: createProjectsScope([projectId], { adminProjectIds: [projectId] }) });
       const project = listedProject({ id: projectId, organizationId: context.organizationId });
-      const { service } = setup({ context, ability: abilityOf(context, { projectId }), listed: [project] });
+      const { service } = setup({ context, abilityOf: abilityOf(context, { projectId }), listed: [project] });
 
       const [listed] = await service.list();
 
@@ -138,7 +138,7 @@ describe(ProjectService.name, () => {
       const context = createOrganizationContext();
       const { service } = setup({
         context,
-        ability: abilityOf(context),
+        abilityOf: abilityOf(context),
         listed: [listedProject({ organizationId: context.organizationId })],
         summaries: undefined
       });
@@ -150,7 +150,7 @@ describe(ProjectService.name, () => {
 
     it("reads no deployment when the caller reaches no project", async () => {
       const context = createOrganizationContext({ role: "member", projectScope: createProjectsScope([]) });
-      const { service, projectDeploymentSummaryService } = setup({ context, ability: abilityOf(context), listed: [] });
+      const { service, projectDeploymentSummaryService } = setup({ context, abilityOf: abilityOf(context), listed: [] });
 
       const projects = await service.list();
 
@@ -498,7 +498,7 @@ describe(ProjectService.name, () => {
   }
 
   function abilityOf(context: OrganizationContext, apiKey?: { projectId: string }) {
-    return createMongoAbility(organizationRules(createUser(), context, apiKey));
+    return (user: Parameters<typeof organizationRules>[0]) => createMongoAbility(organizationRules(user, context, apiKey));
   }
 
   function setup(
@@ -508,14 +508,14 @@ describe(ProjectService.name, () => {
       openDeployments?: OpenDeployment[];
       projectLimit?: number;
       liveProjectCount?: number;
-      ability?: AuthService["ability"];
+      abilityOf?: (user: Parameters<typeof organizationRules>[0]) => AuthService["ability"];
       listed?: ProjectWithLastActivity[];
       summaries?: Map<string, ProjectDeploymentSummary>;
     } = {}
   ) {
     const user = createUser({ username: input.username === undefined ? faker.internet.userName() : input.username });
     const context = input.context === undefined ? createOrganizationContext() : input.context;
-    const ability = input.ability ?? mock<AuthService["ability"]>();
+    const ability = input.abilityOf?.(user) ?? mock<AuthService["ability"]>();
     const project: ProjectWithCreator = { ...createProject({ organizationId: context?.organizationId }), createdBy: { id: user.id, username: user.username } };
     const projectRepository = mock<ProjectRepository>({
       findActiveWithCreator: vi.fn().mockResolvedValue([project]),
