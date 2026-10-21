@@ -631,6 +631,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "pagination.offset",
             "required": false,
             "schema": {
+              "maximum": 9007199254740991,
               "minimum": 0,
               "nullable": true,
               "type": "number",
@@ -651,6 +652,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "pagination.key",
             "required": false,
             "schema": {
+              "pattern": "^\\d{0,15}$",
               "type": "string",
             },
           },
@@ -1265,6 +1267,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "pagination.offset",
             "required": false,
             "schema": {
+              "maximum": 9007199254740991,
               "minimum": 0,
               "nullable": true,
               "type": "number",
@@ -2406,9 +2409,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "schema": {
               "description": "Deployments to skip",
               "example": 10,
+              "maximum": 9007199254740991,
               "minimum": 0,
               "nullable": true,
-              "type": "number",
+              "type": "integer",
             },
           },
           {
@@ -2420,7 +2424,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "example": 10,
               "maximum": 100,
               "minimum": 1,
-              "type": "number",
+              "type": "integer",
             },
           },
           {
@@ -2610,9 +2614,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "schema": {
               "description": "Transactions to skip",
               "example": 10,
+              "maximum": 9007199254740991,
               "minimum": 0,
               "nullable": true,
-              "type": "number",
+              "type": "integer",
             },
           },
           {
@@ -2624,7 +2629,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "example": 10,
               "maximum": 100,
               "minimum": 1,
-              "type": "number",
+              "type": "integer",
             },
           },
         ],
@@ -7957,6 +7962,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "schema": {
               "default": 0,
               "description": "Deployments to skip before the page begins.",
+              "maximum": 9007199254740991,
               "minimum": 0,
               "nullable": true,
               "type": "integer",
@@ -19631,9 +19637,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "schema": {
               "description": "Deployments to skip",
               "example": 10,
+              "maximum": 9007199254740991,
               "minimum": 0,
               "nullable": true,
-              "type": "number",
+              "type": "integer",
             },
           },
           {
@@ -19645,7 +19652,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
               "example": 10,
               "maximum": 100,
               "minimum": 1,
-              "type": "number",
+              "type": "integer",
             },
           },
           {

@@ -1,9 +1,12 @@
 import { Block } from "@akashnetwork/database/dbSchemas";
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
+import { minutesToSeconds } from "date-fns";
 import assert from "http-assert";
 import { Op, QueryTypes, Sequelize } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
+import { cacheResponse } from "@src/caching/helpers";
+import MemoryCacheEngine from "@src/caching/memoryCacheEngine";
 import { CHAIN_DB } from "@src/chain";
 import { ProviderEarningsQuery, ProviderEarningsResponse } from "@src/provider/http-schemas/provider-earnings.schema";
 
@@ -11,11 +14,22 @@ import { ProviderEarningsQuery, ProviderEarningsResponse } from "@src/provider/h
 export class ProviderEarningsService {
   readonly #chainDb: Sequelize;
 
+  readonly #earningsCache = new MemoryCacheEngine({ maxEntries: 500, name: "ProviderEarningsService#getProviderEarnings" });
+
   constructor(@inject(CHAIN_DB) chainDb: Sequelize) {
     this.#chainDb = chainDb;
   }
 
-  async getProviderEarnings(owner: string, { from, to }: ProviderEarningsQuery): Promise<ProviderEarningsResponse> {
+  async getProviderEarnings(owner: string, query: ProviderEarningsQuery): Promise<ProviderEarningsResponse> {
+    return cacheResponse(
+      minutesToSeconds(5),
+      `ProviderEarningsService#getProviderEarnings#${owner}#${query.from.toISOString()}#${query.to.toISOString()}`,
+      () => this.#getProviderEarningsUncached(owner, query),
+      this.#earningsCache
+    );
+  }
+
+  async #getProviderEarningsUncached(owner: string, { from, to }: ProviderEarningsQuery): Promise<ProviderEarningsResponse> {
     const provider = await Provider.findOne({
       where: {
         owner

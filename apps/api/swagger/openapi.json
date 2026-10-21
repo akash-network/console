@@ -8201,6 +8201,7 @@
               "type": "integer",
               "nullable": true,
               "minimum": 0,
+              "maximum": 9007199254740991,
               "default": 0,
               "description": "Deployments to skip before the page begins."
             },
@@ -10103,9 +10104,10 @@
           },
           {
             "schema": {
-              "type": "number",
+              "type": "integer",
               "nullable": true,
               "minimum": 0,
+              "maximum": 9007199254740991,
               "description": "Deployments to skip",
               "example": 10
             },
@@ -10115,7 +10117,7 @@
           },
           {
             "schema": {
-              "type": "number",
+              "type": "integer",
               "minimum": 1,
               "maximum": 100,
               "description": "Deployments to return",
@@ -10992,7 +10994,8 @@
             "schema": {
               "type": "number",
               "nullable": true,
-              "minimum": 0
+              "minimum": 0,
+              "maximum": 9007199254740991
             },
             "required": false,
             "name": "pagination.offset",
@@ -11010,7 +11013,8 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^\\d{0,15}$"
             },
             "required": false,
             "name": "pagination.key",
@@ -13436,7 +13440,9 @@
           {
             "schema": {
               "type": "number",
-              "nullable": true
+              "nullable": true,
+              "minimum": 0,
+              "maximum": 9007199254740991
             },
             "required": false,
             "name": "pagination.offset",
@@ -13445,7 +13451,8 @@
           {
             "schema": {
               "type": "number",
-              "nullable": true
+              "nullable": true,
+              "minimum": 0
             },
             "required": false,
             "name": "pagination.limit",
@@ -19237,9 +19244,10 @@
           },
           {
             "schema": {
-              "type": "number",
+              "type": "integer",
               "nullable": true,
               "minimum": 0,
+              "maximum": 9007199254740991,
               "description": "Deployments to skip",
               "example": 10
             },
@@ -19249,7 +19257,7 @@
           },
           {
             "schema": {
-              "type": "number",
+              "type": "integer",
               "minimum": 1,
               "maximum": 100,
               "description": "Deployments to return",
@@ -22818,9 +22826,10 @@
           },
           {
             "schema": {
-              "type": "number",
+              "type": "integer",
               "nullable": true,
               "minimum": 0,
+              "maximum": 9007199254740991,
               "description": "Transactions to skip",
               "example": 10
             },
@@ -22830,7 +22839,7 @@
           },
           {
             "schema": {
-              "type": "number",
+              "type": "integer",
               "minimum": 1,
               "maximum": 100,
               "description": "Transactions to return",
