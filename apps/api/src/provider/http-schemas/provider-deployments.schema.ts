@@ -10,11 +10,11 @@ export const ProviderDeploymentsParamsSchema = z.object({
     description: "Provider Address",
     example: openApiExampleProviderAddress
   }),
-  skip: z.coerce.number().min(0).openapi({
+  skip: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).openapi({
     description: "Deployments to skip",
     example: 10
   }),
-  limit: z.coerce.number().min(1).max(maxLimit).openapi({
+  limit: z.coerce.number().int().min(1).max(maxLimit).openapi({
     description: "Deployments to return",
     example: 10,
     maximum: maxLimit

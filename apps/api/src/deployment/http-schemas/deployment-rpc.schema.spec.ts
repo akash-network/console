@@ -42,4 +42,18 @@ describe("FallbackDeploymentListQuerySchema", () => {
       expect(result.success).toBe(false);
     });
   });
+
+  describe("pagination.key", () => {
+    it.each(["", "0", "100", "999999999999999"])("accepts %j", key => {
+      const result = FallbackDeploymentListQuerySchema.parse({ "pagination.key": key });
+
+      expect(result["pagination.key"]).toBe(key);
+    });
+
+    it.each(["-1", "abc", "1.5", "12abc", "1000000000000000"])("rejects %j", key => {
+      const result = FallbackDeploymentListQuerySchema.safeParse({ "pagination.key": key });
+
+      expect(result.success).toBe(false);
+    });
+  });
 });

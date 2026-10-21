@@ -154,7 +154,10 @@ export const FallbackDeploymentListQuerySchema = z.object({
     .min(0)
     .optional()
     .transform(limit => (limit === undefined ? undefined : Math.min(limit, MAX_FALLBACK_LIST_LIMIT))),
-  "pagination.key": z.string().optional(),
+  "pagination.key": z
+    .string()
+    .regex(/^\d{0,15}$/, "Must be a next_key returned by a previous page")
+    .optional(),
   "pagination.count_total": z
     .string()
     .optional()

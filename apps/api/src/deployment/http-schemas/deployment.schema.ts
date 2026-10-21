@@ -600,11 +600,11 @@ export const ListWithResourcesParamsSchema = z.object({
     description: "Wallet Address",
     example: openApiExampleAddress
   }),
-  skip: z.coerce.number().min(0).openapi({
+  skip: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).openapi({
     description: "Deployments to skip",
     example: 10
   }),
-  limit: z.coerce.number().min(1).max(deploymentListMaxLimit).openapi({
+  limit: z.coerce.number().int().min(1).max(deploymentListMaxLimit).openapi({
     description: "Deployments to return",
     example: 10
   })
