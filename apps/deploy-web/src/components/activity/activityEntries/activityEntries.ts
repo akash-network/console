@@ -13,6 +13,7 @@ export interface ActivityEntry {
   detail?: string;
   href: string;
   createdAt: string;
+  isUnseen: boolean;
 }
 
 type LabelDeployment = (dseq: string | undefined) => string;
@@ -58,18 +59,18 @@ export function activityEntriesOf(activities: Activity[], labelDeployment: Label
 
 export function activityEntryOf(activity: Activity, labelDeployment: LabelDeployment): ActivityEntry {
   const { id, type, status, initiator, meta, createdAt } = activity;
-  const { href } = activityDestinationOf(activity);
+  const common = { id, status, href: activityDestinationOf(activity).href, createdAt, isUnseen: isUnseen(activity) };
 
-  if (!isActionType(type)) return { id, status, ...alertWordingOf(type, meta, labelDeployment), href, createdAt };
+  if (!isActionType(type)) return { ...common, ...alertWordingOf(type, meta, labelDeployment) };
 
   const wording = ENTRY_WORDING[type];
   const deployment = labelDeployment(meta.dseq);
 
-  if (initiator === "system") return { id, status, ...systemCloseOf(deployment, meta.reason), href, createdAt };
-  if (status === "pending") return { id, status, title: `${wording.pending} ${deployment}`, href, createdAt };
-  if (status === "succeeded") return { id, status, title: `${wording.succeeded} ${deployment}`, href, createdAt };
+  if (initiator === "system") return { ...common, ...systemCloseOf(deployment, meta.reason) };
+  if (status === "pending") return { ...common, title: `${wording.pending} ${deployment}` };
+  if (status === "succeeded") return { ...common, title: `${wording.succeeded} ${deployment}` };
 
-  return { id, status, title: `${wording.failed} ${deployment}`, detail: meta.error?.message ?? wording.retry, href, createdAt };
+  return { ...common, title: `${wording.failed} ${deployment}`, detail: meta.error?.message ?? wording.retry };
 }
 
 function alertWordingOf(type: AlertType, { dseq, summary }: Activity["meta"], labelDeployment: LabelDeployment): Pick<ActivityEntry, "title" | "detail"> {
@@ -80,7 +81,7 @@ function alertWordingOf(type: AlertType, { dseq, summary }: Activity["meta"], la
 }
 
 function batchEntryOf(batchId: string, batch: Activity[], labelDeployment: LabelDeployment): ActivityEntry {
-  const common = { id: `batch:${batchId}`, href: SUMMARY_DESTINATION.href, createdAt: batch[0].createdAt };
+  const common = { id: `batch:${batchId}`, href: SUMMARY_DESTINATION.href, createdAt: batch[0].createdAt, isUnseen: batch.some(isUnseen) };
   const notClosed = batch.filter(activity => activity.status === "failed").map(activity => labelDeployment(activity.meta.dseq));
 
   if (batch.some(activity => activity.status === "pending")) return { ...common, status: "pending", title: `Closing ${batch.length} deployments` };
@@ -95,6 +96,10 @@ function batchEntryOf(batchId: string, batch: Activity[], labelDeployment: Label
     title: `Closed ${batch.length - notClosed.length} of ${batch.length} deployments`,
     detail: `Couldn't close ${listOf(notClosed)}.`
   };
+}
+
+function isUnseen(activity: Activity): boolean {
+  return activity.seenAt === null;
 }
 
 function isActionType(type: Activity["type"]): type is ActionType {

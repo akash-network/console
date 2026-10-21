@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import {
   Button,
   DropdownMenu,
@@ -45,21 +46,32 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
       queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
     }
   });
+  const [isOpen, setIsOpen] = useState(false);
+  const [unseenWhenOpened, setUnseenWhenOpened] = useState<ReadonlySet<string>>(new Set());
 
   if (!isShown) return null;
 
   const entries = activityEntriesOf(activities, dseq => deploymentLabelOf(getDeploymentName(dseq), dseq), MAX_LISTED_ENTRIES);
 
+  /** Marking seen refreshes the feed while the list is still open, so the highlight is a snapshot taken in the very render that opens it. */
+  function toggleActivityList(isOpening: boolean) {
+    setIsOpen(isOpening);
+    if (!isOpening) return;
+
+    setUnseenWhenOpened(new Set(entries.filter(entry => entry.isUnseen).map(entry => entry.id)));
+    markListedSeen();
+  }
+
   /** Marks up to the newest entry rather than up to now, so an action that lands while the list is open still counts as unseen. */
-  function markListedSeen(isOpen: boolean) {
+  function markListedSeen() {
     const upTo = feed?.newestCreatedAt;
-    if (!isOpen || unseenCount === 0 || !upTo) return;
+    if (unseenCount === 0 || !upTo) return;
 
     markSeen.mutate({ data: { upTo } });
   }
 
   return (
-    <DropdownMenu modal={false} onOpenChange={markListedSeen}>
+    <DropdownMenu modal={false} open={isOpen} onOpenChange={toggleActivityList}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative rounded-full" aria-label={unseenCount > 0 ? `Activity, ${unseenCount} unseen` : "Activity"}>
           <Bell className="h-5 w-5" />
@@ -76,7 +88,7 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
       <DropdownMenuContent align="end" collisionPadding={16} className="w-[min(22rem,calc(100vw-2rem))] p-0">
         <DropdownMenuLabel className="px-4 py-3">Activity</DropdownMenuLabel>
         <DropdownMenuSeparator className="m-0" />
-        <ActivityList entries={entries} isLoaded={!!feed} isError={isError} />
+        <ActivityList entries={entries} unseenWhenOpened={unseenWhenOpened} isLoaded={!!feed} isError={isError} />
         <DropdownMenuSeparator className="m-0" />
         <DropdownMenuItem asChild className="cursor-pointer justify-center rounded-none px-4 py-2.5 text-sm font-medium">
           <Link href={UrlService.activity()}>See all activity</Link>
@@ -86,7 +98,17 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
   );
 }
 
-function ActivityList({ entries, isLoaded, isError }: { entries: ActivityEntry[]; isLoaded: boolean; isError: boolean }) {
+function ActivityList({
+  entries,
+  unseenWhenOpened,
+  isLoaded,
+  isError
+}: {
+  entries: ActivityEntry[];
+  unseenWhenOpened: ReadonlySet<string>;
+  isLoaded: boolean;
+  isError: boolean;
+}) {
   const status = activityFeedStatusOf({ isLoaded, isError, entryCount: entries.length });
 
   if (status !== "listed") return <ActivityFeedNotice status={status} />;
@@ -94,18 +116,30 @@ function ActivityList({ entries, isLoaded, isError }: { entries: ActivityEntry[]
   return (
     <div className="max-h-[min(28rem,70vh)] overflow-y-auto py-1">
       {entries.map(entry => (
-        <ActivityEntryRow key={entry.id} entry={entry} />
+        <ActivityEntryRow key={entry.id} entry={entry} isUnseen={entry.isUnseen || unseenWhenOpened.has(entry.id)} />
       ))}
     </div>
   );
 }
 
-function ActivityEntryRow({ entry }: { entry: ActivityEntry }) {
+function ActivityEntryRow({ entry, isUnseen }: { entry: ActivityEntry; isUnseen: boolean }) {
   return (
-    <DropdownMenuItem asChild className="cursor-pointer items-start gap-3 rounded-none px-4 py-2.5">
+    <DropdownMenuItem
+      asChild
+      className="cursor-pointer items-start gap-3 rounded-none px-4 py-2.5 has-[[data-unseen]]:bg-accent/50 has-[[data-unseen]]:focus:bg-accent"
+    >
       <Link href={entry.href}>
         <ActivityEntryContent entry={entry} />
+        {isUnseen && <UnseenMarker />}
       </Link>
     </DropdownMenuItem>
+  );
+}
+
+function UnseenMarker() {
+  return (
+    <span data-unseen className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary">
+      <span className="sr-only">Unseen</span>
+    </span>
   );
 }

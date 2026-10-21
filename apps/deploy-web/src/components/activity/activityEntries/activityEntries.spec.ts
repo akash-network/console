@@ -10,7 +10,7 @@ describe(activityEntriesOf.name, () => {
     const activity = buildActivity({ status: "pending", meta: { dseq: "1234" } });
 
     expect(entriesOf([activity])).toEqual([
-      { id: activity.id, status: "pending", title: "Closing “web-1234”", href: "/deployments/1234", createdAt: activity.createdAt }
+      { id: activity.id, status: "pending", title: "Closing “web-1234”", href: "/deployments/1234", createdAt: activity.createdAt, isUnseen: true }
     ]);
   });
 
@@ -104,7 +104,7 @@ describe(activityEntriesOf.name, () => {
     });
 
     expect(entriesOf([activity])).toEqual([
-      { id: activity.id, status: "info", title: "“web-1234” was closed", href: "/deployments/1234", createdAt: activity.createdAt }
+      { id: activity.id, status: "info", title: "“web-1234” was closed", href: "/deployments/1234", createdAt: activity.createdAt, isUnseen: true }
     ]);
   });
 
@@ -145,7 +145,8 @@ describe(activityEntriesOf.name, () => {
         title: "“web-1234” is being reclaimed by the provider",
         detail: "Take action before the lease is closed.",
         href: "/deployments/1234",
-        createdAt: activity.createdAt
+        createdAt: activity.createdAt,
+        isUnseen: true
       }
     ]);
   });
@@ -155,7 +156,11 @@ describe(activityEntriesOf.name, () => {
       type: "wallet_balance_alert",
       status: "info",
       initiator: "system",
-      meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Wallet balance is below 10 AKT", organizationId: "9d3b8f0e-2c4a-4b1e-8f6d-7a5c3e1b9d2f" }
+      meta: {
+        alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b",
+        summary: "Wallet balance is below 10 AKT",
+        organizationId: "9d3b8f0e-2c4a-4b1e-8f6d-7a5c3e1b9d2f"
+      }
     });
 
     expect(entriesOf([activity])).toEqual([
@@ -164,7 +169,8 @@ describe(activityEntriesOf.name, () => {
         status: "info",
         title: "Wallet balance is below 10 AKT",
         href: "/billing?org=9d3b8f0e-2c4a-4b1e-8f6d-7a5c3e1b9d2f",
-        createdAt: activity.createdAt
+        createdAt: activity.createdAt,
+        isUnseen: true
       }
     ]);
   });
@@ -185,7 +191,8 @@ describe(activityEntriesOf.name, () => {
         title: "Console closed “web-1234”",
         detail: "Its provider stopped responding.",
         href: "/deployments/1234",
-        createdAt: activity.createdAt
+        createdAt: activity.createdAt,
+        isUnseen: true
       }
     ]);
   });
@@ -256,7 +263,7 @@ describe(activityEntriesOf.name, () => {
     const batch = [newest, buildActivity({ status: "succeeded", meta: { dseq: "2", batchId: "batch-1" } })];
 
     expect(entriesOf(batch)).toEqual([
-      { id: "batch:batch-1", status: "pending", title: "Closing 2 deployments", href: "/deployments", createdAt: newest.createdAt }
+      { id: "batch:batch-1", status: "pending", title: "Closing 2 deployments", href: "/deployments", createdAt: newest.createdAt, isUnseen: true }
     ]);
   });
 
@@ -285,6 +292,24 @@ describe(activityEntriesOf.name, () => {
     expect(entry).toMatchObject({ title: "Closed “web-1”", href: "/deployments/1" });
   });
 
+  it("tells an entry the user has already seen from one they haven't", () => {
+    const entries = entriesOf([buildActivity({ seenAt: null }), buildActivity({ seenAt: "2026-10-20T10:00:00.000Z" })]);
+
+    expect(entries.map(entry => entry.isUnseen)).toEqual([true, false]);
+  });
+
+  it("counts a bulk close as unseen while any close in it is", () => {
+    const [entry] = entriesOf([batchMember("1", "succeeded", "2026-10-20T10:00:00.000Z"), batchMember("2", "succeeded", null)]);
+
+    expect(entry.isUnseen).toBe(true);
+  });
+
+  it("counts a bulk close as seen once every close in it is", () => {
+    const [entry] = entriesOf([batchMember("1", "succeeded", "2026-10-20T10:00:00.000Z"), batchMember("2", "failed", "2026-10-20T10:00:00.000Z")]);
+
+    expect(entry.isUnseen).toBe(false);
+  });
+
   it("keeps the newest first and stops at the limit, counting a bulk close once", () => {
     const first = buildActivity({ meta: { dseq: "10" } });
     const third = buildActivity({ meta: { dseq: "30" } });
@@ -296,8 +321,8 @@ describe(activityEntriesOf.name, () => {
     expect(entries[1].title).toBe("Closed 2 deployments");
   });
 
-  function batchMember(dseq: string, status: Activity["status"]) {
-    return buildActivity({ status, meta: { dseq, batchId: "batch-1" } });
+  function batchMember(dseq: string, status: Activity["status"], seenAt: string | null = null) {
+    return buildActivity({ status, seenAt, meta: { dseq, batchId: "batch-1" } });
   }
 
   function entriesOf(activities: Activity[], limit = 10) {

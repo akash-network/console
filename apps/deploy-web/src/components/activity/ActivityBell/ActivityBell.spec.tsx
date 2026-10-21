@@ -211,6 +211,62 @@ describe(ActivityBell.name, () => {
     expect(markSeen).not.toHaveBeenCalled();
   });
 
+  it("marks seen once when the list opens, not again when it closes", async () => {
+    const { markSeen } = setup({ activities: [buildActivity()], unseenCount: 1 });
+
+    await open();
+    await close();
+
+    expect(markSeen).toHaveBeenCalledTimes(1);
+  });
+
+  it("highlights the entries the user hasn't seen yet", async () => {
+    setup({
+      activities: [buildActivity({ status: "succeeded", seenAt: null }), buildActivity({ status: "succeeded", seenAt: "2026-10-20T09:00:00.000Z" })],
+      unseenCount: 1
+    });
+
+    await open();
+
+    const [unseen, seen] = entryItems();
+    expect(within(unseen).getByText("Unseen")).toBeInTheDocument();
+    expect(within(seen).queryByText("Unseen")).not.toBeInTheDocument();
+  });
+
+  it("keeps highlighting what was unseen at opening while the list stays open, after it is marked seen", async () => {
+    const activity = buildActivity({ status: "succeeded", seenAt: null });
+    const { refreshFeed } = setup({ activities: [activity], unseenCount: 1 });
+
+    await open();
+    refreshFeed({ activities: [{ ...activity, seenAt: "2026-10-20T10:00:00.000Z" }], unseenCount: 0 });
+
+    expect(within(entryItems()[0]).getByText("Unseen")).toBeInTheDocument();
+  });
+
+  it("stops highlighting entries seen on an earlier opening", async () => {
+    const activity = buildActivity({ status: "succeeded", seenAt: null });
+    const { refreshFeed } = setup({ activities: [activity], unseenCount: 1 });
+
+    await open();
+    refreshFeed({ activities: [{ ...activity, seenAt: "2026-10-20T10:00:00.000Z" }], unseenCount: 0 });
+    await close();
+    await open();
+
+    expect(within(entryItems()[0]).queryByText("Unseen")).not.toBeInTheDocument();
+  });
+
+  it("highlights an entry that lands while the list is open", async () => {
+    const earlier = buildActivity({ status: "succeeded", seenAt: "2026-10-20T09:00:00.000Z" });
+    const { refreshFeed } = setup({ activities: [earlier], unseenCount: 0 });
+
+    await open();
+    refreshFeed({ activities: [buildActivity({ status: "succeeded", seenAt: null }), earlier], unseenCount: 1 });
+
+    const [landed, seen] = entryItems();
+    expect(within(landed).getByText("Unseen")).toBeInTheDocument();
+    expect(within(seen).queryByText("Unseen")).not.toBeInTheDocument();
+  });
+
   it("refreshes the feed once entries are marked seen", () => {
     const { api, queryClient } = setup({});
 
@@ -281,6 +337,14 @@ describe(ActivityBell.name, () => {
     await userEvent.click(screen.getByRole("button", { name: /^Activity/ }));
   }
 
+  async function close() {
+    await userEvent.keyboard("{Escape}");
+  }
+
+  function feedQueryOf(result: { data?: NonNullable<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>["data"]>; isError: boolean }) {
+    return Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), result);
+  }
+
   function setup(input: {
     isEnabled?: boolean;
     isSignedIn?: boolean;
@@ -303,7 +367,7 @@ describe(ActivityBell.name, () => {
       })) as typeof DEPENDENCIES.useDeploymentNames);
     const activities = input.activities ?? [buildActivity()];
     const useActivityFeedQuery = vi.fn((() =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), {
+      feedQueryOf({
         data: input.feed ? undefined : { activities, unseenCount: input.unseenCount ?? 0, newestCreatedAt: input.newestCreatedAt ?? activities[0]?.createdAt },
         isError: input.feed === "failed" || !!input.isRefreshFailing
       })) as typeof DEPENDENCIES.useActivityFeedQuery);
@@ -315,13 +379,23 @@ describe(ActivityBell.name, () => {
       useDeploymentNames,
       useQueryClient: () => queryClient
     };
+    const services = { api: () => api };
 
-    render(
-      <TestContainerProvider services={{ api: () => api }}>
+    const { rerender } = render(
+      <TestContainerProvider services={services}>
         <ActivityBell dependencies={dependencies} />
       </TestContainerProvider>
     );
 
-    return { markSeen, api, queryClient, useActivityFeedQuery, useDeploymentNames };
+    function refreshFeed(feed: { activities: Activity[]; unseenCount: number }) {
+      useActivityFeedQuery.mockImplementation(() => feedQueryOf({ data: { ...feed, newestCreatedAt: feed.activities[0]?.createdAt }, isError: false }));
+      rerender(
+        <TestContainerProvider services={services}>
+          <ActivityBell dependencies={dependencies} />
+        </TestContainerProvider>
+      );
+    }
+
+    return { markSeen, api, queryClient, useActivityFeedQuery, useDeploymentNames, refreshFeed };
   }
 });
