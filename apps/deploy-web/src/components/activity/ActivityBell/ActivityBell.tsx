@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import {
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -73,17 +72,21 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
   return (
     <DropdownMenu modal={false} open={isOpen} onOpenChange={toggleActivityList}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative rounded-full" aria-label={unseenCount > 0 ? `Activity, ${unseenCount} unseen` : "Activity"}>
-          <Bell className="h-5 w-5" />
+        <button
+          type="button"
+          className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border bg-background text-muted-foreground transition-colors data-[state=open]:bg-muted data-[state=open]:text-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={unseenCount > 0 ? `Activity, ${unseenCount} unseen` : "Activity"}
+        >
+          <Bell className="h-4 w-4" />
           {unseenCount > 0 && (
             <span
               aria-hidden="true"
-              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground"
+              className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground"
             >
               {unseenCount > MAX_COUNTED_UNSEEN ? `${MAX_COUNTED_UNSEEN}+` : unseenCount}
             </span>
           )}
-        </Button>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" collisionPadding={16} className="w-[min(22rem,calc(100vw-2rem))] p-0">
         <DropdownMenuLabel className="px-4 py-3">Activity</DropdownMenuLabel>
