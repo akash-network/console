@@ -124,11 +124,16 @@ export function organizationRules(user: RuleUser, context: OrganizationContext, 
   }
 
   const conditions = tenantConditionsOf(user, context);
-  const rules = [...userKeyedRules(user), ...everyMemberRules(conditions), ...ROLE_RULES[context.role](conditions, context)];
+  const rules = [...userKeyedRules(user), ...everyMemberRules(conditions), ...ROLE_RULES[context.role](conditions, context), ...deploymentFilingRules(user)];
 
   return apiKey?.projectId
     ? [...withoutOrganizationLevelSubjects(rules), ...projectBoundKeyRules(conditions)]
     : [...rules, ...organizationWideRules(conditions, context)];
+}
+
+/** Must follow the role rules it narrows: a member files deployment settings under their own id and only updates a teammate's. */
+function deploymentFilingRules(user: RuleUser): AbilityRule[] {
+  return [{ action: "create", subject: "DeploymentSetting", conditions: { userId: { $nin: [user.id] } }, inverted: true }];
 }
 
 function withoutOrganizationLevelSubjects(rules: AbilityRule[]): AbilityRule[] {
