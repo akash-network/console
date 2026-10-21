@@ -2,7 +2,7 @@ import "@hono/zod-openapi";
 
 import { describe, expect, it } from "vitest";
 
-import { ListWithResourcesParamsSchema, PatchDeploymentRequestSchema } from "./deployment.schema";
+import { ListDeploymentsQuerySchema, ListWithResourcesParamsSchema, PatchDeploymentRequestSchema } from "./deployment.schema";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
@@ -241,4 +241,20 @@ describe("ListWithResourcesParamsSchema", () => {
   function parse(input: { skip?: string; limit?: string }) {
     return ListWithResourcesParamsSchema.safeParse({ address: createAkashAddress(), skip: "0", limit: "10", ...input });
   }
+});
+
+describe("ListDeploymentsQuerySchema", () => {
+  describe("skip", () => {
+    it.each(["0", String(Number.MAX_SAFE_INTEGER)])("accepts %s", skip => {
+      const result = ListDeploymentsQuerySchema.safeParse({ skip });
+
+      expect(result.data?.skip).toBe(Number(skip));
+    });
+
+    it.each(["-1", "9007199254740992", "1e30"])("rejects %s", skip => {
+      const result = ListDeploymentsQuerySchema.safeParse({ skip });
+
+      expect(result.success).toBe(false);
+    });
+  });
 });

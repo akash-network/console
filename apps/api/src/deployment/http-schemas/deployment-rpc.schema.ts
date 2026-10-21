@@ -148,7 +148,7 @@ export const MAX_FALLBACK_LIST_LIMIT = 100;
 export const FallbackDeploymentListQuerySchema = z.object({
   "filters.owner": z.string().optional(),
   "filters.state": z.enum(["active", "closed"]).optional(),
-  "pagination.offset": z.coerce.number().finite().min(0).optional(),
+  "pagination.offset": z.coerce.number().finite().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
   "pagination.limit": z.coerce
     .number()
     .min(0)

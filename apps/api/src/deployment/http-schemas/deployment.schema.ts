@@ -533,7 +533,7 @@ export const ListDeploymentsQuerySchema = z.object({
       description:
         "Case-insensitive substring matched against each deployment's console name and its dseq. It spans every deployment in `state` before paging, so `total` and `hasMore` describe the matches rather than the state. A search of `active` deployments is refused past a cap on how many it spans; a search of the archive (`closed`) has no cap while the console's index answers."
     }),
-  skip: z.coerce.number().int().min(0).default(0).openapi({
+  skip: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).default(0).openapi({
     description: "Deployments to skip before the page begins."
   }),
   limit: z.coerce

@@ -631,6 +631,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "pagination.offset",
             "required": false,
             "schema": {
+              "maximum": 9007199254740991,
               "minimum": 0,
               "nullable": true,
               "type": "number",
@@ -1266,6 +1267,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "pagination.offset",
             "required": false,
             "schema": {
+              "maximum": 9007199254740991,
               "minimum": 0,
               "nullable": true,
               "type": "number",
@@ -7960,6 +7962,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "schema": {
               "default": 0,
               "description": "Deployments to skip before the page begins.",
+              "maximum": 9007199254740991,
               "minimum": 0,
               "nullable": true,
               "type": "integer",

@@ -8201,6 +8201,7 @@
               "type": "integer",
               "nullable": true,
               "minimum": 0,
+              "maximum": 9007199254740991,
               "default": 0,
               "description": "Deployments to skip before the page begins."
             },
@@ -10993,7 +10994,8 @@
             "schema": {
               "type": "number",
               "nullable": true,
-              "minimum": 0
+              "minimum": 0,
+              "maximum": 9007199254740991
             },
             "required": false,
             "name": "pagination.offset",
@@ -13439,7 +13441,8 @@
             "schema": {
               "type": "number",
               "nullable": true,
-              "minimum": 0
+              "minimum": 0,
+              "maximum": 9007199254740991
             },
             "required": false,
             "name": "pagination.offset",

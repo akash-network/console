@@ -67,7 +67,7 @@ export const FallbackLeaseListQuerySchema = z.object({
   "filters.oseq": z.coerce.number().optional(),
   "filters.provider": z.string().optional(),
   "filters.state": z.string().optional(),
-  "pagination.offset": z.coerce.number().finite().min(0).optional(),
+  "pagination.offset": z.coerce.number().finite().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
   "pagination.limit": z.coerce
     .number()
     .min(0)
