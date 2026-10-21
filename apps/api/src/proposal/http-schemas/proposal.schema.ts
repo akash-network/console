@@ -14,7 +14,7 @@ export const GetProposalListResponseSchema = z.array(
 export type GetProposalListResponse = z.infer<typeof GetProposalListResponseSchema>;
 
 export const GetProposalByIdParamsSchema = z.object({
-  id: z.coerce.number().openapi({
+  id: z.coerce.number().int().min(1).max(Number.MAX_SAFE_INTEGER).openapi({
     description: "Proposal ID",
     example: 1
   })

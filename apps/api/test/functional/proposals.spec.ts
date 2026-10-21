@@ -179,6 +179,14 @@ describe("Proposals", () => {
       expect(response.status).toBe(400);
     });
 
+    it.each(["-1", "0", "1.5", "9007199254740992"])("throws 400 for proposal id %s", async id => {
+      setup();
+
+      const response = await app.request(`/v1/proposals/${id}`);
+
+      expect(response.status).toBe(400);
+    });
+
     it("throws 404 for an unknown proposal", async () => {
       setup();
 
