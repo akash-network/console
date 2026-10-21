@@ -3,6 +3,8 @@ import { z } from "@hono/zod-openapi";
 import { openApiExampleAddress } from "@src/utils/constants";
 import { DseqSchema } from "@src/utils/schema";
 
+export const MAX_LEASES_DURATION_RESULTS = 2000;
+
 export const LeasesDurationParamsSchema = z.object({
   owner: z.string().openapi({ example: openApiExampleAddress })
 });

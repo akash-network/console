@@ -2,6 +2,7 @@ import { AkashBlock as Block } from "@akashnetwork/database/dbSchemas/akash";
 import { CosmosHttpService } from "@akashnetwork/http-sdk";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { differenceInSeconds, minutesToSeconds, subHours } from "date-fns";
+import assert from "http-assert";
 import uniqBy from "lodash/uniqBy";
 import { singleton } from "tsyringe";
 
@@ -10,7 +11,12 @@ import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-e
 import type { BmeDashboardDataResponse, BmePeriodData } from "@src/dashboard/http-schemas/bme-dashboard-data/bme-dashboard-data.schema";
 import { BmeStatusHistoryResponse } from "@src/dashboard/http-schemas/bme-status-history/bme-status-history.schema";
 import { GraphDataResponse } from "@src/dashboard/http-schemas/graph-data/graph-data.schema";
-import { LeasesDurationParams, LeasesDurationQuery, LeasesDurationResponse } from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
+import {
+  LeasesDurationParams,
+  LeasesDurationQuery,
+  LeasesDurationResponse,
+  MAX_LEASES_DURATION_RESULTS
+} from "@src/dashboard/http-schemas/leases-duration/leases-duration.schema";
 import { MarketDataParams } from "@src/dashboard/http-schemas/market-data/market-data.schema";
 import { StatsRepository } from "@src/dashboard/repositories/stats";
 import { ProviderCapacityStats, StatsItem } from "@src/types/provider";
@@ -574,7 +580,7 @@ export class StatsService {
   readonly getLeasesDuration = memoizeAsync(
     (owner: LeasesDurationParams["owner"], query: LeasesDurationQuery) => this.getLeasesDurationUncached(owner, query),
     {
-      cacheItemLimit: 500,
+      cacheItemLimit: 100,
       ttl: minutesToSeconds(5) * 1000,
       getCacheKey: (owner, query) => JSON.stringify([owner, query.dseq, query.startDate.toISOString(), query.endDate.toISOString()]),
       name: "StatsService#getLeasesDuration"
@@ -582,7 +588,12 @@ export class StatsService {
   );
 
   private async getLeasesDurationUncached(owner: LeasesDurationParams["owner"], query: LeasesDurationQuery): Promise<LeasesDurationResponse> {
-    const closedLeases = await this.statsRepository.findClosedLeases(owner, query);
+    const closedLeases = await this.statsRepository.findClosedLeases(owner, query, { limit: MAX_LEASES_DURATION_RESULTS + 1 });
+    assert(
+      closedLeases.length <= MAX_LEASES_DURATION_RESULTS,
+      400,
+      `More than ${MAX_LEASES_DURATION_RESULTS} closed leases match. Narrow the date range or filter by dseq.`
+    );
 
     const leases = closedLeases.map(x => ({
       dseq: x.dseq,
