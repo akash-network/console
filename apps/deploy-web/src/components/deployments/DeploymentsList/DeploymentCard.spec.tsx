@@ -73,10 +73,10 @@ describe("DeploymentCard", () => {
     const { DeploymentEndpoints, DeploymentRecoveryAction } = setup({
       deployment: { dseq: "100" },
       leases,
-      status: { label: "Deploy failed", launch: { phase: "failed", providers: [], hasLease: true } }
+      status: { label: "Deploy failed", launch: { phase: "failed", providers: [], recovery: "send-again" } }
     });
 
-    expect(DeploymentRecoveryAction).toHaveBeenCalledWith({ dseq: "100", hasLease: true, leases, isCompact: true }, expect.anything());
+    expect(DeploymentRecoveryAction).toHaveBeenCalledWith({ dseq: "100", recovery: "send-again", leases, isCompact: true }, expect.anything());
     expect(DeploymentEndpoints).not.toHaveBeenCalled();
   });
 
@@ -84,7 +84,7 @@ describe("DeploymentCard", () => {
     const { DeploymentEndpoints, DeploymentRecoveryAction } = setup({
       deployment: { dseq: "100" },
       canManage: false,
-      status: { label: "Deploy failed", launch: { phase: "failed", providers: [], hasLease: false } }
+      status: { label: "Deploy failed", launch: { phase: "failed", providers: [], recovery: "choose-provider" } }
     });
 
     expect(DeploymentRecoveryAction).not.toHaveBeenCalled();
@@ -95,10 +95,10 @@ describe("DeploymentCard", () => {
     const { DeploymentRecoveryAction } = setup({
       deployment: { dseq: "100" },
       reachability: { leases: undefined },
-      status: { launch: { phase: "failed", providers: [], hasLease: false } }
+      status: { launch: { phase: "failed", providers: [], recovery: "choose-provider" } }
     });
 
-    expect(DeploymentRecoveryAction).toHaveBeenCalledWith(expect.objectContaining({ hasLease: false, leases: [] }), expect.anything());
+    expect(DeploymentRecoveryAction).toHaveBeenCalledWith(expect.objectContaining({ recovery: "choose-provider", leases: [] }), expect.anything());
   });
 
   describe("reading the status the way the deployment page does", () => {

@@ -13,6 +13,7 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { type ApiPgDatabase, type EnqueueOptions, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { LEASE_CLOSED_BEFORE_MANIFEST_ERROR_CODE } from "@src/deployment/services/lease/lease.service";
 import { ACCESS_REVOKED_ERROR_CODE } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import { pendingLeaseActivityOf } from "@src/deployment/utils/lease-activity/lease-activity";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -20,6 +21,7 @@ import { CreateLeaseHandler } from "./create-lease.handler";
 import { CREATE_LEASE_RETRY_OPTIONS, CreateLease, createLeaseKeyFor, leaseWalletRefOf } from "./create-lease.job";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { createBid } from "@test/seeders/bid.seeder";
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedOrganizationWallet, seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
@@ -88,7 +90,7 @@ describe(CreateLeaseHandler.name, () => {
     const { createInBackground, findActivity, awaitCompleted, signerService, providerService } = await setup({
       inTeam: true,
       revoke: "membership",
-      landed: true
+      leaseOnChain: "active"
     });
 
     await createInBackground();
@@ -124,6 +126,27 @@ describe(CreateLeaseHandler.name, () => {
     expect(await findActivity()).toMatchObject({ status: "failed", meta: { error: { code: "manifest_not_delivered" } } });
   });
 
+  it("records that a lease closed before its provider received the manifest, rather than blaming its closed bid", async () => {
+    const { createInBackground, findActivity, awaitCompleted, bidHttpService, wallet, leases } = await setup({ leaseOnChain: "closed" });
+    const closedBid = createBid({ owner: wallet.address!, ...leases[0] });
+    closedBid.bid.state = "closed";
+    bidHttpService.list.mockResolvedValue([closedBid]);
+
+    await createInBackground();
+
+    const job = await awaitCompleted();
+    expect(job.retry_count).toBe(0);
+    expect(await findActivity()).toMatchObject({
+      status: "failed",
+      meta: {
+        error: {
+          code: LEASE_CLOSED_BEFORE_MANIFEST_ERROR_CODE,
+          message: `The lease for deployment ${leases[0].dseq} was created, but it closed before provider ${leases[0].provider} received its manifest. Close the deployment and deploy again.`
+        }
+      }
+    });
+  });
+
   it("keeps the activity pending while the lease still has retries to come", async () => {
     const { createInBackground, findActivity, waitForJobIn, providerService } = await setup();
     providerService.sendManifest.mockRejectedValue(createError(503, "Provider service is temporarily unavailable"));
@@ -134,7 +157,7 @@ describe(CreateLeaseHandler.name, () => {
     expect(await findActivity()).toMatchObject({ status: "pending" });
   });
 
-  async function setup(input: { inTeam?: boolean; revoke?: Revocation; landed?: boolean } = {}) {
+  async function setup(input: { inTeam?: boolean; revoke?: Revocation; leaseOnChain?: "active" | "closed" } = {}) {
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
     const { enqueue, startWorkers } = await jobWorkers();
     const activityRepository = container.resolve(ActivityRepository);
@@ -144,12 +167,13 @@ describe(CreateLeaseHandler.name, () => {
     const leases = [{ dseq, gseq: 1, oseq: 1, provider: createAkashAddress() }];
     const activity = await activityRepository.create(pendingLeaseActivityOf({ userId: actorId, leases }));
     const singletonKey = createLeaseKeyFor({ owner: wallet.address!, dseq });
-    const onChain = input.landed
-      ? [createLeaseApiResponse({ owner: wallet.address!, dseq, gseq: 1, oseq: 1, provider: leases[0].provider, state: "active" })]
+    const onChain = input.leaseOnChain
+      ? [createLeaseApiResponse({ owner: wallet.address!, dseq, gseq: 1, oseq: 1, provider: leases[0].provider, state: input.leaseOnChain })]
       : [];
 
     vi.spyOn(container.resolve(LeaseHttpService), "list").mockResolvedValue({ leases: onChain, pagination: { next_key: null, total: String(onChain.length) } });
-    vi.spyOn(container.resolve(BidHttpService), "list").mockResolvedValue([]);
+    const bidHttpService = container.resolve(BidHttpService);
+    vi.spyOn(bidHttpService, "list").mockResolvedValue([]);
     const signerService = container.resolve(ManagedSignerService);
     vi.spyOn(signerService, "assertCanBroadcastByUserWallet").mockResolvedValue(undefined);
     vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValue({ code: 0, hash: "ABCDEF", transactionHash: "ABCDEF", rawLog: "" });
@@ -162,6 +186,8 @@ describe(CreateLeaseHandler.name, () => {
     return {
       wallet,
       actorId,
+      leases,
+      bidHttpService: vi.mocked(bidHttpService),
       signerService: vi.mocked(signerService),
       providerService: vi.mocked(providerService),
       awaitCompleted: () => expectJobCompleted(CreateLease[JOB_NAME], { singletonKey }),

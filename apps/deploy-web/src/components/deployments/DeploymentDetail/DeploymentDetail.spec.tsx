@@ -319,7 +319,10 @@ describe("DeploymentDetail", () => {
 
       expect(router.replace).not.toHaveBeenCalled();
       expect(DeploymentLaunchState).toHaveBeenCalledWith(
-        expect.objectContaining({ launch: { phase: "failed", providers: [], hasLease: false, reason: "The lease was not created." }, canManage: true }),
+        expect.objectContaining({
+          launch: { phase: "failed", providers: [], recovery: "choose-provider", reason: "The lease was not created." },
+          canManage: true
+        }),
         expect.anything()
       );
       expect(screen.queryByText("placements")).not.toBeInTheDocument();
@@ -340,7 +343,7 @@ describe("DeploymentDetail", () => {
       });
 
       expect(DeploymentLaunchState).toHaveBeenCalledWith(
-        expect.objectContaining({ leases, launch: expect.objectContaining({ hasLease: true }) }),
+        expect.objectContaining({ leases, launch: expect.objectContaining({ recovery: "send-again" }) }),
         expect.anything()
       );
       expect(screen.getByText("placements")).toBeInTheDocument();

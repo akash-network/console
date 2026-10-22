@@ -117,10 +117,10 @@ describe("DeploymentRow", () => {
     const { DeploymentEndpoints, DeploymentRecoveryAction } = setup({
       deployment: { dseq: "100" },
       leases,
-      status: { launch: { phase: "failed", providers: [], hasLease: false } }
+      status: { launch: { phase: "failed", providers: [], recovery: "choose-provider" } }
     });
 
-    expect(DeploymentRecoveryAction).toHaveBeenCalledWith({ dseq: "100", hasLease: false, leases, isCompact: true }, expect.anything());
+    expect(DeploymentRecoveryAction).toHaveBeenCalledWith({ dseq: "100", recovery: "choose-provider", leases, isCompact: true }, expect.anything());
     expect(DeploymentEndpoints).not.toHaveBeenCalled();
   });
 
@@ -128,7 +128,7 @@ describe("DeploymentRow", () => {
     const { DeploymentEndpoints, DeploymentRecoveryAction } = setup({
       deployment: { dseq: "100" },
       canManage: false,
-      status: { launch: { phase: "failed", providers: [], hasLease: true } }
+      status: { launch: { phase: "failed", providers: [], recovery: "send-again" } }
     });
 
     expect(DeploymentRecoveryAction).not.toHaveBeenCalled();
@@ -139,7 +139,7 @@ describe("DeploymentRow", () => {
     const { DeploymentRecoveryAction } = setup({
       deployment: { dseq: "100" },
       leases: null,
-      status: { launch: { phase: "failed", providers: [], hasLease: true } }
+      status: { launch: { phase: "failed", providers: [], recovery: "send-again" } }
     });
 
     expect(DeploymentRecoveryAction).toHaveBeenCalledWith(expect.objectContaining({ leases: [] }), expect.anything());

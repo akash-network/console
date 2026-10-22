@@ -101,7 +101,7 @@ describe(useDeploymentStatus.name, () => {
       label: "Deploy failed",
       summaryLabel: "Deploy failed",
       tone: "warning",
-      launch: { phase: "failed", providers: [PROVIDER], hasLease: false, reason: "The lease was not created." }
+      launch: { phase: "failed", providers: [PROVIDER], recovery: "choose-provider", reason: "The lease was not created." }
     });
   });
 
@@ -112,13 +112,22 @@ describe(useDeploymentStatus.name, () => {
       workload: "loading"
     });
 
-    expect(result.current).toMatchObject({ label: "Deploy failed", launch: { phase: "failed", hasLease: true, reason: "Not sent." } });
+    expect(result.current).toMatchObject({ label: "Deploy failed", launch: { phase: "failed", recovery: "send-again", reason: "Not sent." } });
+  });
+
+  it("leads a lease its provider closed before getting the deployment to closing it, with the reason the api gave", () => {
+    const { result } = setup({
+      activities: [leaseCreation({ status: "failed", error: { code: "lease_closed_before_manifest", message: "Closed before it was sent." } })],
+      leases: []
+    });
+
+    expect(result.current).toMatchObject({ label: "Deploy failed", launch: { phase: "failed", recovery: "close", reason: "Closed before it was sent." } });
   });
 
   it("reports a failed lease with no reason and no providers", () => {
     const { result } = setup({ activities: [leaseCreation({ status: "failed" })], leases: [] });
 
-    expect(result.current.launch).toEqual({ phase: "failed", providers: [], hasLease: false, reason: undefined });
+    expect(result.current.launch).toEqual({ phase: "failed", providers: [], recovery: "choose-provider", reason: undefined });
   });
 
   it("follows the newest lease creation, so a retry replaces the attempt that failed", () => {
