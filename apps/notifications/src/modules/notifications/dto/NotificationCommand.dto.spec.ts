@@ -130,6 +130,24 @@ describe(NotificationCommandDto.name, () => {
     expect(result.error?.issues.map(issue => issue.path.join("."))).toEqual(["unsubscribe.oneClickUrl"]);
   });
 
+  it("keeps the one address a promotional email goes to", () => {
+    const result = NotificationCommandDto.schema.parse({ ...command({}), unsubscribe: UNSUBSCRIBE, recipient: "owner@example.com" });
+
+    expect(result.recipient).toBe("owner@example.com");
+  });
+
+  it("accepts a command without a recipient, which goes to every address on its channel", () => {
+    const result = NotificationCommandDto.schema.parse(command({}));
+
+    expect(result.recipient).toBeUndefined();
+  });
+
+  it("rejects a recipient that is not an email address", () => {
+    const result = NotificationCommandDto.schema.safeParse({ ...command({}), recipient: "owner" });
+
+    expect(result.error?.issues).toContainEqual(expect.objectContaining({ path: ["recipient"], validation: "email" }));
+  });
+
   function command(payload: { actions?: { label: string; url: string }[]; code?: string; feedEntry?: Record<string, string | null | undefined> }) {
     return {
       notificationChannelId: "channel-1",

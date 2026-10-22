@@ -19,7 +19,7 @@ describe(NotificationRouterService.name, () => {
     it("should send an email", async () => {
       const { service, emailSenderService, notificationChannelRepository } = await setup();
 
-      const notificationCommand = generateMock(NotificationCommandDto.schema);
+      const notificationCommand = { ...generateMock(NotificationCommandDto.schema), recipient: undefined };
       const notificationChannel = generateNotificationChannel({
         id: notificationCommand.notificationChannelId
       });
@@ -50,6 +50,18 @@ describe(NotificationRouterService.name, () => {
       await service.send(notificationCommand);
 
       expect(emailSenderService.send).toHaveBeenCalledWith(expect.objectContaining({ unsubscribe }));
+    });
+
+    it("sends a notification with a recipient to that address alone, leaving out the channel's other addresses", async () => {
+      const { service, emailSenderService, notificationChannelRepository } = await setup();
+      const notificationCommand: NotificationCommandDto = { ...createAlertCommand(), recipient: "owner@example.com" };
+      notificationChannelRepository.findById.mockResolvedValue(
+        generateNotificationChannel({ id: notificationCommand.notificationChannelId, config: { addresses: ["owner@example.com", "billing@example.com"] } })
+      );
+
+      await service.send(notificationCommand);
+
+      expect(emailSenderService.send).toHaveBeenCalledWith(expect.objectContaining({ addresses: ["owner@example.com"] }));
     });
 
     it("adds an alert that shows in the activity feed to the feed of the user who set it once its email is sent, whoever owns the channel", async () => {

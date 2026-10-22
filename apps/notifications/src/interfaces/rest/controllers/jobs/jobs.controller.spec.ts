@@ -118,7 +118,7 @@ describe(JobsController.name, () => {
       );
     });
 
-    it("publishes the unsubscribe links of a promotional notification with its job", async () => {
+    it("publishes the unsubscribe links and the one recipient of a promotional notification with its job", async () => {
       const channel = { ...generateMock(notificationChannelOutputSchema), organizationId: null };
       const module = await setup({ findDefault: vi.fn(async () => channel) });
       const unsubscribe = {
@@ -132,7 +132,8 @@ describe(JobsController.name, () => {
           description: "test",
           summary: "test"
         },
-        unsubscribe
+        unsubscribe,
+        recipient: "owner@example.com"
       });
 
       expect(module.get(BrokerService).publish).toHaveBeenCalledWith(
@@ -144,7 +145,8 @@ describe(JobsController.name, () => {
             description: "test",
             summary: "test"
           },
-          unsubscribe
+          unsubscribe,
+          recipient: "owner@example.com"
         },
         {
           singletonKey: "firstPurchaseBonusWindowOpened"

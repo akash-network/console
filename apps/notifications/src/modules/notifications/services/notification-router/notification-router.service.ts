@@ -29,7 +29,7 @@ export class NotificationRouterService {
     if (notificationChannel.type === "email") {
       await this.emailSenderService.send({
         userId: notificationChannel.userId,
-        addresses: notificationChannel.config.addresses,
+        addresses: notificationCommand.recipient ? [notificationCommand.recipient] : notificationChannel.config.addresses,
         subject: notificationCommand.payload.summary,
         content: notificationCommand.payload.description,
         actions: notificationCommand.payload.actions,
