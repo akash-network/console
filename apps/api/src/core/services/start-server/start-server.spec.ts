@@ -108,6 +108,44 @@ describe("startServer", () => {
     expect(container.dispose).toHaveBeenCalled();
   });
 
+  it("waits for `beforeDispose` to finish before disposing the container", async () => {
+    let finishBeforeDispose = () => {};
+    const beforeDispose = () => new Promise<void>(resolve => (finishBeforeDispose = resolve));
+    const { start, container, processEvents } = setup({ beforeDispose });
+
+    await start();
+    processEvents.emit("SIGTERM");
+    await delay(10);
+
+    expect(container.dispose).not.toHaveBeenCalled();
+
+    finishBeforeDispose();
+    await delay(10);
+
+    expect(container.dispose).toHaveBeenCalled();
+  });
+
+  it("disposes container when `beforeDispose` throws an error", async () => {
+    const { start, container, processEvents } = setup({ beforeDispose: vi.fn().mockRejectedValue(new Error("Failed to drain")) });
+
+    await start();
+    processEvents.emit("SIGTERM");
+    await delay(10);
+
+    expect(container.dispose).toHaveBeenCalled();
+  });
+
+  it("logs the error when `beforeDispose` throws an error", async () => {
+    const error = new Error("Failed to drain");
+    const { start, logger, processEvents } = setup({ beforeDispose: vi.fn().mockRejectedValue(error) });
+
+    await start();
+    processEvents.emit("SIGTERM");
+    await delay(10);
+
+    expect(logger.error).toHaveBeenCalledWith({ event: "BEFORE_DISPOSE_ERROR", error });
+  });
+
   it("disposes only once when process receives multiple signals", async () => {
     const { start, container, processEvents } = setup();
 
@@ -184,7 +222,12 @@ describe("startServer", () => {
   });
 
   let startedServer: ServerType | undefined;
-  function setup(input?: { beforeStart?: () => Promise<void>; port?: number; initializers?: Array<{ [ON_APP_START]: () => Promise<void> }> }) {
+  function setup(input?: {
+    beforeStart?: () => Promise<void>;
+    beforeDispose?: () => Promise<void>;
+    port?: number;
+    initializers?: Array<{ [ON_APP_START]: () => Promise<void> }>;
+  }) {
     const app = mock<Hono<any>>();
     const logger = mock<LoggerService>();
     const processEvents: EventEmitter & Pick<NodeJS.Process, "exitCode"> = Object.assign(new EventEmitter(), { exitCode: undefined });
@@ -195,6 +238,7 @@ describe("startServer", () => {
     const options = {
       port: input?.port ?? 0,
       beforeStart: input?.beforeStart,
+      beforeDispose: input?.beforeDispose,
       container
     };
 

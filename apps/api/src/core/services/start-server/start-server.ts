@@ -22,11 +22,16 @@ export async function startServer(
   options: {
     port: number;
     beforeStart?: () => Promise<void>;
+    /** The container disposes everything at once, database clients included, so work that still queries must finish here first. */
+    beforeDispose?: () => Promise<void>;
     container?: DependencyContainer;
   }
 ): Promise<ServerType | undefined> {
   const container = options.container ?? rootContainer;
-  const disposeContainerOnce = once(() => {
+  const disposeContainerOnce = once(async () => {
+    await options.beforeDispose?.().catch(error => {
+      logger.error({ event: "BEFORE_DISPOSE_ERROR", error });
+    });
     logger.info({ event: "DISPOSING_CONTAINER" });
     return Promise.resolve(container.dispose()).catch(error => {
       logger.error({ event: "CONTAINER_DISPOSE_ERROR", error });
