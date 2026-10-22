@@ -65,7 +65,8 @@ function renderCode(code?: string): string {
           </div>`;
 }
 
-const FOOTER_TEXT_STYLE = "font-size:13px;line-height:1.6;color:#71717a;";
+const FOOTER_TEXT_STYLE = "font-size:12px;line-height:1.6;color:#71717a;";
+const POSTAL_ADDRESS_STYLE = "font-size:11px;line-height:1.5;color:#71717a;";
 
 /** CAN-SPAM requires a promotional email to say how to opt out and to carry the sender's postal address. */
 function renderFooterNotice({ unsubscribe, postalAddress }: { unsubscribe?: { url: string }; postalAddress?: string }): string {
@@ -74,7 +75,7 @@ function renderFooterNotice({ unsubscribe, postalAddress }: { unsubscribe?: { ur
   }
 
   const unsubscribeLink = `<a href="${escape(unsubscribe.url)}" style="color:inherit;text-decoration:underline;">Unsubscribe</a>`;
-  const notice = `<p class="footer-text" style="margin:0;${FOOTER_TEXT_STYLE}">You're receiving this because you're subscribed to product updates from Akash Console. ${unsubscribeLink}</p>`;
+  const notice = `<p class="footer-text" style="margin:0;${FOOTER_TEXT_STYLE}">You're receiving this because you're subscribed to product updates from Akash Console.&nbsp;${unsubscribeLink}</p>`;
 
   if (!postalAddress) {
     return notice;
@@ -83,7 +84,7 @@ function renderFooterNotice({ unsubscribe, postalAddress }: { unsubscribe?: { ur
   const postalAddressLines = postalAddress.split(/\r?\n/).map(line => escape(line));
 
   return `${notice}
-          <p class="footer-text" style="margin:8px 0 0 0;${FOOTER_TEXT_STYLE}">${postalAddressLines.join("<br>")}</p>`;
+          <p class="footer-text" style="margin:8px 0 0 0;${POSTAL_ADDRESS_STYLE}">${postalAddressLines.join("<br>")}</p>`;
 }
 
 /** The subject is user-controlled for alert emails, so it is escaped; content must already be sanitized by the caller. */

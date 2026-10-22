@@ -107,7 +107,7 @@ describe(renderEmailLayout.name, () => {
   it("renders the footer", () => {
     const { html } = setup({});
     expect(html).toContain(
-      `<p class="footer-text" style="margin:0;font-size:13px;line-height:1.6;color:#71717a;">Sent by Akash Console. You're receiving this because you have an Akash Console account.</p>`
+      `<p class="footer-text" style="margin:0;font-size:12px;line-height:1.6;color:#71717a;">Sent by Akash Console. You're receiving this because you have an Akash Console account.</p>`
     );
   });
 
@@ -125,7 +125,7 @@ describe(renderEmailLayout.name, () => {
       const { html } = setup({ unsubscribe: { url: "https://console.akash.network/unsubscribe?token=abc" } });
 
       expect(html).toContain(
-        `<p class="footer-text" style="margin:0;font-size:13px;line-height:1.6;color:#71717a;">You're receiving this because you're subscribed to product updates from Akash Console. <a href="https://console.akash.network/unsubscribe?token=abc" style="color:inherit;text-decoration:underline;">Unsubscribe</a></p>`
+        `<p class="footer-text" style="margin:0;font-size:12px;line-height:1.6;color:#71717a;">You're receiving this because you're subscribed to product updates from Akash Console.&nbsp;<a href="https://console.akash.network/unsubscribe?token=abc" style="color:inherit;text-decoration:underline;">Unsubscribe</a></p>`
       );
       expect(html).not.toContain("because you have an Akash Console account");
     });
@@ -137,7 +137,7 @@ describe(renderEmailLayout.name, () => {
       });
 
       expect(html).toContain(
-        `<p class="footer-text" style="margin:8px 0 0 0;font-size:13px;line-height:1.6;color:#71717a;">1 Market St, San Francisco, CA 94105</p>`
+        `<p class="footer-text" style="margin:8px 0 0 0;font-size:11px;line-height:1.5;color:#71717a;">1 Market St, San Francisco, CA 94105</p>`
       );
     });
 
