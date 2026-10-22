@@ -26,9 +26,20 @@ describe("Notification jobs (internal)", () => {
     const response = await request(app.getHttpServer())
       .post("/internal/v1/jobs/notification")
       .set("x-user-id", userId)
-      .send({ ...notificationJob(), unsubscribe: UNSUBSCRIBE });
+      .send({ ...notificationJob(), unsubscribe: UNSUBSCRIBE, recipient: "owner@example.com" });
 
     expect(response.status).toBe(204);
+  });
+
+  it("rejects a notification whose recipient is not an email address before queueing it", async () => {
+    const { app, userId } = await setup();
+
+    const response = await request(app.getHttpServer())
+      .post("/internal/v1/jobs/notification")
+      .set("x-user-id", userId)
+      .send({ ...notificationJob(), unsubscribe: UNSUBSCRIBE, recipient: "owner" });
+
+    expect(response.status).toBe(400);
   });
 
   it.each([

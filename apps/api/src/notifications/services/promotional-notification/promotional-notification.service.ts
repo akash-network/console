@@ -8,7 +8,7 @@ import { createProductUpdateUnsubscribeToken } from "@src/user/lib/product-updat
 import { USER_CONFIG, type UserConfig } from "@src/user/providers/config.provider";
 import type { UserOutput } from "@src/user/repositories";
 
-export type PromotionalNotificationOutcome = "sent" | "unsubscribed" | "unsubscribe_unavailable";
+export type PromotionalNotificationOutcome = "sent" | "unsubscribed" | "no_email" | "unsubscribe_unavailable";
 
 @singleton()
 export class PromotionalNotificationService {
@@ -24,8 +24,10 @@ export class PromotionalNotificationService {
     this.#logger = createLogger({ context: PromotionalNotificationService.name });
   }
 
+  /** Goes to the account's own address alone, since that is the one that subscribed, never to the other addresses on its alert channel. */
   async send(user: UserOutput, notification: CreateNotificationInput): Promise<PromotionalNotificationOutcome> {
     if (user.productUpdatesUnsubscribedAt) return "unsubscribed";
+    if (!user.email) return "no_email";
 
     const secret = this.userConfig.EMAIL_UNSUBSCRIBE_SECRET;
     if (!secret) {
@@ -39,7 +41,8 @@ export class PromotionalNotificationService {
       unsubscribe: {
         url: `${this.deploymentConfig.get("DEPLOY_WEB_BASE_URL")}/unsubscribe?token=${token}`,
         oneClickUrl: `${this.coreConfig.get("SERVER_ORIGIN")}/v1/product-update-unsubscriptions?token=${token}`
-      }
+      },
+      recipient: user.email
     });
 
     return "sent";

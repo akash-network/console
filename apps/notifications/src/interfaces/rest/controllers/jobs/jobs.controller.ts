@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { eventKeyRegistry } from "@src/common/config/event-key-registry.config";
 import { BrokerService, PublishOptions } from "@src/infrastructure/broker/services/broker/broker.service";
-import { EmailUnsubscribeSchema } from "@src/modules/notifications/dto/NotificationCommand.dto";
+import { EmailRecipientSchema, EmailUnsubscribeSchema } from "@src/modules/notifications/dto/NotificationCommand.dto";
 import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 import { AuthService } from "../../services/auth/auth.service";
 
@@ -28,7 +28,8 @@ class NotificationJobDto extends createZodDto(
         )
         .optional()
     }),
-    unsubscribe: EmailUnsubscribeSchema.optional()
+    unsubscribe: EmailUnsubscribeSchema.optional(),
+    recipient: EmailRecipientSchema.optional()
   })
 ) {}
 
@@ -73,7 +74,8 @@ export class JobsController {
         payload: job.payload,
         notificationChannelId: notificationChannel.id,
         notificationId: job.notificationId,
-        unsubscribe: job.unsubscribe
+        unsubscribe: job.unsubscribe,
+        recipient: job.recipient
       },
       publishOptions
     );

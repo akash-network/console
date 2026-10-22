@@ -204,6 +204,11 @@
               "url",
               "oneClickUrl"
             ]
+          },
+          "recipient": {
+            "description": "Sends the email to this address alone in place of the channel's addresses",
+            "type": "string",
+            "format": "email"
           }
         },
         "required": [

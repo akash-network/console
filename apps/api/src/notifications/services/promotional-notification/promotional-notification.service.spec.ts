@@ -27,7 +27,7 @@ describe(PromotionalNotificationService.name, () => {
     const webUrl = new URL(sent.unsubscribe!.url);
     const oneClickUrl = new URL(sent.unsubscribe!.oneClickUrl);
     expect(outcome).toBe("sent");
-    expect(sent).toEqual({ ...notification, unsubscribe: expect.any(Object) });
+    expect(sent).toEqual({ ...notification, unsubscribe: expect.any(Object), recipient: user.email });
     expect(`${webUrl.origin}${webUrl.pathname}`).toBe(`${WEB_ORIGIN}/unsubscribe`);
     expect(`${oneClickUrl.origin}${oneClickUrl.pathname}`).toBe(`${API_ORIGIN}/v1/product-update-unsubscriptions`);
     expect(readProductUpdateUnsubscribeToken(SECRET, webUrl.searchParams.get("token")!)).toBe(user.id);
@@ -52,6 +52,16 @@ describe(PromotionalNotificationService.name, () => {
     const outcome = await service.send(user, notification);
 
     expect(outcome).toBe("unsubscribed");
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing to a user without an email, rather than to the other addresses on their alert channel", async () => {
+    const { service, notificationService, notification } = setup();
+    const user = createUser({ email: null, productUpdatesUnsubscribedAt: null });
+
+    const outcome = await service.send(user, notification);
+
+    expect(outcome).toBe("no_email");
     expect(notificationService.createNotification).not.toHaveBeenCalled();
   });
 

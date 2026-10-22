@@ -29,7 +29,7 @@ const jobWorkers = useJobWorkers(() => [container.resolve(FirstPurchaseBonusWind
 
 type SentNotification = {
   userId: string | undefined;
-  body: { notificationId: string; payload: { summary: string; description: string }; unsubscribe?: { url: string; oneClickUrl: string } };
+  body: { notificationId: string; payload: { summary: string; description: string }; unsubscribe?: { url: string; oneClickUrl: string }; recipient?: string };
 };
 
 describe(FirstPurchaseBonusWindowOpenedHandler.name, () => {
@@ -62,7 +62,8 @@ describe(FirstPurchaseBonusWindowOpenedHandler.name, () => {
           unsubscribe: {
             url: `${container.resolve(DeploymentConfigService).get("DEPLOY_WEB_BASE_URL")}/unsubscribe?token=${token}`,
             oneClickUrl: `${container.resolve(CoreConfigService).get("SERVER_ORIGIN")}/v1/product-update-unsubscriptions?token=${token}`
-          }
+          },
+          recipient: person.email
         })
       }
     ]);

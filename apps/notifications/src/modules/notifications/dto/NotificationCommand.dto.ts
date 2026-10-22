@@ -33,6 +33,8 @@ export const EmailUnsubscribeSchema = z
 
 export type EmailUnsubscribe = z.infer<typeof EmailUnsubscribeSchema>;
 
+export const EmailRecipientSchema = z.string().email().describe("Sends the email to this address alone in place of the channel's addresses");
+
 const NotificationCommandSchema = z.object({
   notificationChannelId: z.string(),
   notificationId: z.string().optional(),
@@ -50,7 +52,8 @@ const NotificationCommandSchema = z.object({
       .optional(),
     feedEntry: AlertFeedEntrySchema
   }),
-  unsubscribe: EmailUnsubscribeSchema.optional()
+  unsubscribe: EmailUnsubscribeSchema.optional(),
+  recipient: EmailRecipientSchema.optional()
 });
 
 export type AlertFeedEntry = NonNullable<z.infer<typeof AlertFeedEntrySchema>>;

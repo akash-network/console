@@ -100,6 +100,11 @@ export interface components {
          */
         oneClickUrl: string;
       };
+      /**
+       * Format: email
+       * @description Sends the email to this address alone in place of the channel's addresses
+       */
+      recipient?: string;
     };
     DepartedMemberInput: {
       data: {
