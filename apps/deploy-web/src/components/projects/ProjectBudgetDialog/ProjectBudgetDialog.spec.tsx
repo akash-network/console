@@ -10,7 +10,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ProjectBudgetDialog.name, () => {
-  it("sets a first budget with the default alert threshold and top-ups left running", async () => {
+  it("sets a first budget with the default alert threshold and running deployments left funded", async () => {
     const { createBudget, onClose, enqueueSnackbar } = setup({ budget: null });
 
     await userEvent.type(screen.getByLabelText("Monthly budget (USD)"), "750.5");
@@ -29,21 +29,21 @@ describe(ProjectBudgetDialog.name, () => {
     expect(screen.getByRole("heading", { name: "Set a monthly budget" })).toBeInTheDocument();
     expect(screen.getByText(/New deployments in storefront are refused once this month's deposits would pass the budget/)).toBeInTheDocument();
     expect(screen.getByText(/doesn't set money aside for the project or cap what running deployments use/)).toBeInTheDocument();
-    expect(screen.getByText(/Running deployments can then run out of funds and close\. Off by default\./)).toBeInTheDocument();
+    expect(screen.getByText(/Running deployments in this project normally stay funded past the budget/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remove budget" })).not.toBeInTheDocument();
   });
 
-  it("edits the existing budget, opting into stopping top-ups", async () => {
+  it("edits the existing budget, opting into cutting off running deployments", async () => {
     const { updateBudget, createBudget } = setup({ budget: budget() });
 
     expect(screen.getByRole("heading", { name: "Edit monthly budget" })).toBeInTheDocument();
     expect(screen.getByLabelText("Monthly budget (USD)")).toHaveValue("500");
     expect(screen.getByLabelText("Alert threshold (%)")).toHaveValue("90");
-    expect(screen.getByRole("switch", { name: "Stop top-ups when over budget" })).not.toBeChecked();
+    expect(screen.getByRole("switch", { name: "Stop funding running deployments at the budget" })).not.toBeChecked();
 
     await userEvent.clear(screen.getByLabelText("Alert threshold (%)"));
     await userEvent.type(screen.getByLabelText("Alert threshold (%)"), "75");
-    await userEvent.click(screen.getByRole("switch", { name: "Stop top-ups when over budget" }));
+    await userEvent.click(screen.getByRole("switch", { name: "Stop funding running deployments at the budget" }));
     await userEvent.click(screen.getByRole("button", { name: "Save budget" }));
 
     expect(updateBudget).toHaveBeenCalledWith({ id: "budget-1", data: { monthlyAmountUsd: 500, alertThresholdPercent: 75, stopTopUps: true } });

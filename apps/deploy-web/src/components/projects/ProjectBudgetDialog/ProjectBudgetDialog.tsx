@@ -165,11 +165,11 @@ export function ProjectBudgetDialog({ projectId, projectName, budget, onClose, d
             <div className="flex items-start justify-between gap-4 rounded-lg border border-border px-3.5 py-3">
               <div className="space-y-1">
                 <Label htmlFor={stopTopUpsId} className="text-[13px]">
-                  Stop top-ups when over budget
+                  Stop funding running deployments at the budget
                 </Label>
                 <p id={`${stopTopUpsId}-hint`} className="text-xs text-muted-foreground">
-                  Also refuse manual and automatic top-ups of this project&apos;s running deployments that would pass the budget. Running deployments can then
-                  run out of funds and close. Off by default.
+                  Running deployments in this project normally stay funded past the budget. Turn this on to cut them off at the budget too, so they can run out
+                  of funds and close.
                 </p>
               </div>
               <Switch id={stopTopUpsId} checked={stopTopUps} aria-describedby={`${stopTopUpsId}-hint`} onCheckedChange={setStopTopUps} />

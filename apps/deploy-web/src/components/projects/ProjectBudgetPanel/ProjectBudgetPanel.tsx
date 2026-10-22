@@ -74,8 +74,8 @@ export function ProjectBudgetPanel({ projectId, projectName, dependencies: d = D
         <p className="border-t border-border bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground">
           A budget limits new deposits into this project each month and doesn&apos;t set money aside.{" "}
           {budget?.stopTopUps
-            ? "Top-ups stop at the budget, so running deployments can run out of funds and close."
-            : "Running deployments keep their funding unless top-ups stop at the budget."}
+            ? "Running deployments stop being funded at the budget too, so they can run out of funds and close."
+            : "Running deployments keep their funding unless the budget is set to cut them off."}
         </p>
       </div>
 
@@ -142,7 +142,9 @@ function BudgetSettings({ budget, canManage, onEdit }: { budget: ProjectBudget |
 
   return (
     <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
-      <span className="text-xs text-muted-foreground">{budget.stopTopUps ? "Top-ups stop at the budget." : "Top-ups continue past the budget."}</span>
+      <span className="text-xs text-muted-foreground">
+        {budget.stopTopUps ? "Running deployments stop being funded at the budget." : "Running deployments stay funded past the budget."}
+      </span>
       {canManage && (
         <Button variant="outline" size="sm" className="text-xs" onClick={onEdit}>
           Edit budget
