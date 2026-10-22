@@ -64,9 +64,49 @@ describe(JobQueueService.name, () => {
       const handleFn2 = vi.fn().mockResolvedValue(undefined);
       const handler1 = new TestHandler(handleFn1);
       const handler2 = new TestHandler(handleFn2);
-      const { service } = setup();
+      const { service, pgBoss } = setup();
 
       await expect(service.registerHandlers([handler1, handler2])).rejects.toThrow("JobQueue does not support multiple handlers for the same queue: test");
+      expect(pgBoss.getQueues).not.toHaveBeenCalled();
+      expect(pgBoss.createQueue).not.toHaveBeenCalled();
+    });
+
+    it("creates only the queues that do not exist yet", async () => {
+      const { service, pgBoss } = setup({ queues: [liveQueue()] });
+
+      await service.registerHandlers([new TestHandler(vi.fn()), new AnotherTestHandler(vi.fn())]);
+
+      expect(pgBoss.createQueue).toHaveBeenCalledTimes(1);
+      expect(pgBoss.createQueue).toHaveBeenCalledWith("another", expect.objectContaining({ retryDelay: 30 }));
+    });
+
+    it("creates missing queues one at a time", async () => {
+      const { service, pgBoss } = setup();
+      let finishFirstCreation: () => void = () => {};
+      vi.mocked(pgBoss.createQueue).mockImplementationOnce(
+        () =>
+          new Promise<void>(resolve => {
+            finishFirstCreation = resolve;
+          })
+      );
+
+      const registration = service.registerHandlers([new TestHandler(vi.fn()), new AnotherTestHandler(vi.fn())]);
+      await new Promise(resolve => setImmediate(resolve));
+
+      expect(pgBoss.createQueue).toHaveBeenCalledTimes(1);
+      finishFirstCreation();
+      await registration;
+      expect(pgBoss.createQueue).toHaveBeenCalledTimes(2);
+    });
+
+    it("creates every queue when it cannot read which ones exist", async () => {
+      const { service, pgBoss } = setup();
+      vi.mocked(pgBoss.getQueues).mockRejectedValue(new Error("read failed"));
+
+      await service.registerHandlers([new TestHandler(vi.fn()), new AnotherTestHandler(vi.fn())]);
+
+      expect(pgBoss.createQueue).toHaveBeenCalledWith("test", expect.objectContaining({ retryDelay: 30 }));
+      expect(pgBoss.createQueue).toHaveBeenCalledWith("another", expect.objectContaining({ retryDelay: 30 }));
     });
 
     it("creates the queue with its handler's policy", async () => {
