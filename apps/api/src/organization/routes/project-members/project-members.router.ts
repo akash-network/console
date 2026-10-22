@@ -31,6 +31,7 @@ const listProjectMembersRoute = createRoute({
   request: { params: ProjectParamsSchema },
   responses: {
     200: { description: "The project's grants", content: { "application/json": { schema: ListProjectMembersResponseSchema } } },
+    400: { description: "The id is not a uuid" },
     401: UNAUTHORIZED,
     403: { description: "The caller's role in the active organization does not allow it" },
     404: { description: "No project with this id in the caller's reach" }
@@ -87,7 +88,7 @@ const updateProjectMemberRoute = createRoute({
   },
   responses: {
     200: { description: "The updated grant", content: { "application/json": { schema: ProjectMemberResponseSchema } } },
-    400: { description: "The body is not valid" },
+    400: { description: "The id is not a uuid, or the body is not valid" },
     401: UNAUTHORIZED,
     403: FORBIDDEN,
     404: GRANT_NOT_FOUND
@@ -112,6 +113,7 @@ const deleteProjectMemberRoute = createRoute({
   request: { params: ProjectMemberParamsSchema },
   responses: {
     204: { description: "The grant is revoked" },
+    400: { description: "The id is not a uuid" },
     401: UNAUTHORIZED,
     403: FORBIDDEN,
     404: GRANT_NOT_FOUND

@@ -16,6 +16,7 @@ import {
 export const organizationInvitationsRouter = new OpenApiHonoHandler();
 
 const invitationWriteErrorResponses = {
+  400: { description: "The id is not a uuid" },
   401: { description: "Unauthorized" },
   403: {
     description:
@@ -68,7 +69,7 @@ const createOrganizationInvitationsRoute = createRoute({
     401: { description: "Unauthorized" },
     403: {
       description:
-        "The caller cannot invite with this role (`owner_role_restricted`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`)"
+        "The caller cannot invite members, invites an owner or renews an expired owner invitation without being an owner (`owner_role_restricted`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`)"
     },
     409: { description: "An address belongs to a member of the organization (`already_member`)" },
     429: INVITATION_EMAIL_LIMIT_REACHED

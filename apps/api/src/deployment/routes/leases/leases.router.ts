@@ -76,6 +76,14 @@ const createLeaseRoute = createRoute({
         }
       }
     },
+    500: {
+      description: "With `code` `stored_secrets_unreadable`, the secrets stored for the deployment can no longer be decrypted, so a retry cannot help",
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema
+        }
+      }
+    },
     502: {
       description:
         "A provider could not be reached. With code `provider_unreachable` no lease was created, so choose another bid. With code `manifest_not_delivered` the lease exists, as described above.",

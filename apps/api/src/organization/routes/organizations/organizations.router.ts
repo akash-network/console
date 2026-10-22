@@ -82,7 +82,7 @@ const updateOrganizationRoute = createRoute({
   },
   responses: {
     200: { description: "The renamed organization", content: { "application/json": { schema: OrganizationResponseSchema } } },
-    400: { description: "The name is empty, too long or holds a control character" },
+    400: { description: "The id is not a uuid, or the name is empty, too long or holds a control character" },
     401: { description: "Unauthorized" },
     403: { description: "The caller cannot rename the organization, or it is a personal one (`personal_organization`)" },
     404: { description: "The organization is not the active one" },
@@ -111,7 +111,10 @@ const deleteOrganizationRoute = createRoute({
   },
   responses: {
     204: { description: "The organization was deleted" },
-    400: { description: "The organization holds more credits than the owner acknowledged forfeiting (`forfeit_acknowledgement_required`)" },
+    400: {
+      description:
+        "The id or the acknowledged amount is not valid, or the organization holds more credits than the owner acknowledged forfeiting (`forfeit_acknowledgement_required`)"
+    },
     401: { description: "Unauthorized" },
     403: {
       description:
@@ -143,6 +146,7 @@ const deleteOrganizationMembershipRoute = createRoute({
   },
   responses: {
     204: { description: "The caller left the organization" },
+    400: { description: "The id is not a uuid" },
     401: { description: "Unauthorized" },
     403: {
       description: "The organization is a personal one (`personal_organization`), or the request was not made from a signed-in session (`session_required`)"

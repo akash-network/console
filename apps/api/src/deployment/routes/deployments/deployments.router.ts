@@ -200,7 +200,7 @@ const postRoute = createRoute({
     },
     409: {
       description:
-        "Either the `sealedSecrets` value was sealed to a key the console no longer holds — refetch `GET /v1/sdl-secrets-context` and seal again — or, with `code` `inherited_secrets_unreadable`, the secrets recorded for the deployment named by `inheritSecretsFrom` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in `sealedSecrets` instead",
+        "Either the `sealedSecrets` value was sealed to a key the console no longer holds, so refetch `GET /v1/sdl-secrets-context` and seal again, or, with `code` `inherited_secrets_unreadable`, the secrets recorded for the deployment named by `inheritSecretsFrom` can no longer be decrypted. The second is permanent rather than transient, so a retry cannot help; supply the values in `sealedSecrets` instead",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -208,7 +208,8 @@ const postRoute = createRoute({
       }
     },
     503: {
-      description: "The key management service is temporarily unreachable. Transient and worth retrying, unlike the 409 above",
+      description:
+        "The key management service is temporarily unreachable, or, with `code` `deposit_price_unavailable`, the deposit could not be priced against its project's budget. Both are transient and worth retrying, unlike the 409 above",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -295,7 +296,7 @@ const depositRoute = createRoute({
       }
     },
     400: {
-      description: "With `code` `unsupported_deposit_denom`, the deposit is in a denomination a project budget cannot count",
+      description: "The dseq is malformed or the deposit is below the minimum",
       content: {
         "application/json": {
           schema: ErrorResponseSchema
@@ -910,6 +911,7 @@ const getDeploymentLocationRoute = createRoute({
   request: { params: DeploymentProjectParamsSchema },
   responses: {
     200: { description: "Where the deployment is filed", content: { "application/json": { schema: GetDeploymentLocationResponseSchema } } },
+    400: { description: "The dseq is malformed" },
     401: { description: "Unauthorized" },
     404: { description: "No deployment with this dseq in the caller's reach" }
   }
