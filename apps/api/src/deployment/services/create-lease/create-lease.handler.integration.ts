@@ -13,6 +13,7 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { type ApiPgDatabase, type EnqueueOptions, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { LEASE_CLOSED_BEFORE_MANIFEST_ERROR_CODE } from "@src/deployment/services/lease/lease.service";
 import { ACCESS_REVOKED_ERROR_CODE } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import { pendingLeaseActivityOf } from "@src/deployment/utils/lease-activity/lease-activity";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -125,20 +126,21 @@ describe(CreateLeaseHandler.name, () => {
     expect(await findActivity()).toMatchObject({ status: "failed", meta: { error: { code: "manifest_not_delivered" } } });
   });
 
-  it("records a lease its provider closed before receiving the manifest as undelivered on the last attempt, rather than as a closed bid", async () => {
-    const { createInBackground, findActivity, waitForJobIn, bidHttpService, wallet, leases } = await setup({ leaseOnChain: "closed" });
+  it("records that a lease closed before its provider received the manifest, rather than blaming its closed bid", async () => {
+    const { createInBackground, findActivity, awaitCompleted, bidHttpService, wallet, leases } = await setup({ leaseOnChain: "closed" });
     const closedBid = createBid({ owner: wallet.address!, ...leases[0] });
     closedBid.bid.state = "closed";
     bidHttpService.list.mockResolvedValue([closedBid]);
 
-    await createInBackground({ retryLimit: 0 });
+    await createInBackground();
 
-    await waitForJobIn("failed");
+    const job = await awaitCompleted();
+    expect(job.retry_count).toBe(0);
     expect(await findActivity()).toMatchObject({
       status: "failed",
       meta: {
         error: {
-          code: "manifest_not_delivered",
+          code: LEASE_CLOSED_BEFORE_MANIFEST_ERROR_CODE,
           message: `The lease for deployment ${leases[0].dseq} was created, but it closed before provider ${leases[0].provider} received its manifest. Close the deployment and deploy again.`
         }
       }

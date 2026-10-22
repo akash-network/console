@@ -16,6 +16,7 @@ import { type DeploymentResponse } from "@src/deployment/http-schemas/deployment
 import { type CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { CREATE_LEASE_RETRY_OPTIONS, CreateLease, createLeaseKeyFor, leaseWalletRefOf } from "@src/deployment/services/create-lease/create-lease.job";
 import { LeaseManifestService } from "@src/deployment/services/lease-manifest/lease-manifest.service";
+import { isAccessRevoked } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import { ReconcileLeaseCreate, reconcileLeaseCreateOptionsFor } from "@src/deployment/services/reconcile-lease-create/reconcile-lease-create.job";
 import { createdLeaseActivityOf, failedLeaseActivityOf, pendingLeaseActivityOf } from "@src/deployment/utils/lease-activity/lease-activity";
 import { isLeaseOn, isSamePlacementSet, type LeasePlacement } from "@src/deployment/utils/lease-placement/lease-placement";
@@ -23,6 +24,8 @@ import { ProviderService } from "@src/provider/services/provider/provider.servic
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 
 type Leases = CreateLeaseRequest["leases"];
+
+export const LEASE_CLOSED_BEFORE_MANIFEST_ERROR_CODE = "lease_closed_before_manifest";
 
 /** The wallet a lease is signed with and the member acting through it, who is not the wallet's user on a team wallet. */
 export type LeaseSigner = { wallet: WalletInitialized; userId: string };
@@ -94,7 +97,7 @@ export class LeaseService {
       const creation = await this.#planCreation(signer.wallet, leases, signer.assertMayStillSign);
       await this.#createOrAdoptLeases(signer, leases, creation);
     } catch (error) {
-      await this.#rethrowAsUndeliveredIfLeaseClosed(signer.wallet.address, leases, error);
+      await this.#rethrowAsClosedBeforeManifestIfLeaseClosed(signer.wallet.address, leases, error);
     }
 
     await this.#sendManifests(signer.wallet, leases, manifests);
@@ -114,15 +117,17 @@ export class LeaseService {
     return listed.flatMap(response => response.leases).map(({ lease }) => lease);
   }
 
-  /** The request refused closed bids before queueing, so a lease the chain now shows closed is one an earlier attempt created and its provider closed before taking the manifest. */
-  async #rethrowAsUndeliveredIfLeaseClosed(owner: string, leases: LeasePlacement[], error: unknown): Promise<never> {
+  /** The request refused closed bids before queueing, so a lease the chain now shows closed was created by an earlier attempt, while a member who lost access keeps that refusal. */
+  async #rethrowAsClosedBeforeManifestIfLeaseClosed(owner: string, leases: LeasePlacement[], error: unknown): Promise<never> {
+    if (isAccessRevoked(error)) throw error;
+
     const closed = await this.#placementWithClosedLease(owner, leases);
     if (!closed) throw error;
 
     throw createError(
       409,
       `The lease for deployment ${closed.dseq} was created, but it closed before provider ${closed.provider} received its manifest. Close the deployment and deploy again.`,
-      { errorCode: "manifest_not_delivered", data: { dseq: closed.dseq, provider: closed.provider }, originalError: error }
+      { errorCode: LEASE_CLOSED_BEFORE_MANIFEST_ERROR_CODE, data: { dseq: closed.dseq, provider: closed.provider }, originalError: error }
     );
   }
 

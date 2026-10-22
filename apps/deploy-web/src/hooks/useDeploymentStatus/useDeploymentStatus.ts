@@ -14,9 +14,16 @@ export const DEPENDENCIES = { useFlag, useUser, useActivityFeedQuery };
 
 export const MANIFEST_NOT_DELIVERED = "manifest_not_delivered";
 
+export const LEASE_CLOSED_BEFORE_MANIFEST = "lease_closed_before_manifest";
+
 const DEPLOY_FAILED_STATUS: DeploymentStatusView = { label: "Deploy failed", summaryLabel: "Deploy failed", tone: "warning" };
 
-export type DeploymentLaunch = { phase: "awaiting-lease"; providers: string[] } | { phase: "failed"; providers: string[]; hasLease: boolean; reason?: string };
+/** A lease that exists only lacks its manifest, while one its provider closed leaves its group paused, so no provider can bid on the deployment again. */
+export type DeploymentRecovery = "send-again" | "choose-provider" | "close";
+
+export type DeploymentLaunch =
+  | { phase: "awaiting-lease"; providers: string[] }
+  | { phase: "failed"; providers: string[]; recovery: DeploymentRecovery; reason?: string };
 
 export type ResolvedDeploymentStatus = DeploymentStatusView & { launch?: DeploymentLaunch };
 
@@ -126,10 +133,17 @@ export function deploymentLaunchOf({
   const providers = leaseCreation.meta.providers ?? [];
   const { error } = leaseCreation.meta;
   if (leaseCreation.status === "failed") {
-    return isUpdating ? undefined : { phase: "failed", providers, hasLease: error?.code === MANIFEST_NOT_DELIVERED, reason: error?.message };
+    return isUpdating ? undefined : { phase: "failed", providers, recovery: deploymentRecoveryOf(error?.code), reason: error?.message };
   }
   if (leases?.some(isLeaseLive)) return undefined;
   if (leaseCreation.status === "pending" || !leases?.length) return { phase: "awaiting-lease", providers };
 
   return undefined;
+}
+
+export function deploymentRecoveryOf(errorCode: string | undefined): DeploymentRecovery {
+  if (errorCode === MANIFEST_NOT_DELIVERED) return "send-again";
+  if (errorCode === LEASE_CLOSED_BEFORE_MANIFEST) return "close";
+
+  return "choose-provider";
 }

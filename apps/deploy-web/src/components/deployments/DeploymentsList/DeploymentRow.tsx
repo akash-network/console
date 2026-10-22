@@ -84,7 +84,7 @@ export const DeploymentRow: FC<DeploymentRowProps> = ({
         </TableCell>
         <TableCell>
           {status.launch?.phase === "failed" && canManage ? (
-            <d.DeploymentRecoveryAction dseq={deployment.dseq} hasLease={status.launch.hasLease} leases={leases ?? []} isCompact />
+            <d.DeploymentRecoveryAction dseq={deployment.dseq} recovery={status.launch.recovery} leases={leases ?? []} isCompact />
           ) : (
             <d.DeploymentEndpoints
               endpoints={endpoints}

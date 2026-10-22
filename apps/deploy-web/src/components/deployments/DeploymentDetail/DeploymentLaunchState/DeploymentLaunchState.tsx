@@ -40,8 +40,8 @@ export const DeploymentLaunchState: FC<DeploymentLaunchStateProps> = ({ dseq, la
     return (
       <section aria-label="Deployment failed" className={cn(PANEL_CLASS_NAME, className)}>
         <h3 className="text-lg font-medium">Couldn&apos;t deploy</h3>
-        <p className="text-sm text-muted-foreground">{launch.hasLease ? undeliveredMessage : launch.reason ?? LEASE_NOT_CREATED_MESSAGE}</p>
-        {canManage && <d.DeploymentRecoveryAction dseq={dseq} hasLease={launch.hasLease} leases={leases} />}
+        <p className="text-sm text-muted-foreground">{launch.recovery === "send-again" ? undeliveredMessage : launch.reason ?? LEASE_NOT_CREATED_MESSAGE}</p>
+        {canManage && <d.DeploymentRecoveryAction dseq={dseq} recovery={launch.recovery} leases={leases} />}
       </section>
     );
   }

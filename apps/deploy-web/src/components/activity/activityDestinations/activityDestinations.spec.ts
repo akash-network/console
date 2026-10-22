@@ -94,6 +94,16 @@ describe("activityDestinations", () => {
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
     });
 
+    it("leads a deploy whose provider closed its lease before receiving it to its deployment, which no provider can bid on again", () => {
+      const activity = buildActivity({
+        type: "lease_create",
+        status: "failed",
+        meta: { dseq: "1234", error: { code: "lease_closed_before_manifest", message: "Closed before it was sent." } }
+      });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
+    });
+
     it("leads a create about no particular deployment to the deployments list", () => {
       const activity = buildActivity({ type: "deployment_create", status: "failed", meta: {} });
 
@@ -164,7 +174,11 @@ describe("activityDestinations", () => {
       const activity = buildActivity({
         type: "wallet_balance_alert",
         status: "info",
-        meta: { alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b", summary: "Wallet balance is below 10 AKT", organizationId: "9d3b8f0e-2c4a-4b1e-8f6d-7a5c3e1b9d2f" }
+        meta: {
+          alertId: "4f1c2a8e-0b5d-4e6f-9a7b-1c2d3e4f5a6b",
+          summary: "Wallet balance is below 10 AKT",
+          organizationId: "9d3b8f0e-2c4a-4b1e-8f6d-7a5c3e1b9d2f"
+        }
       });
 
       expect(activityDestinationOf(activity)).toEqual({ href: "/billing?org=9d3b8f0e-2c4a-4b1e-8f6d-7a5c3e1b9d2f", label: "View billing" });

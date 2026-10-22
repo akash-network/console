@@ -64,36 +64,46 @@ describe(DeploymentLaunchState.name, () => {
     it("says why and offers to choose a provider again", () => {
       const leases: LeaseDto[] = [];
       const { DeploymentRecoveryAction } = setup({
-        launch: { phase: "failed", providers: [PROVIDER], hasLease: false, reason: "Not enough credits to create this lease" },
+        launch: { phase: "failed", providers: [PROVIDER], recovery: "choose-provider", reason: "Not enough credits to create this lease" },
         leases
       });
 
       expect(screen.getByRole("region", { name: "Deployment failed" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Couldn't deploy" })).toBeInTheDocument();
       expect(screen.getByText("Not enough credits to create this lease")).toBeInTheDocument();
-      expect(DeploymentRecoveryAction).toHaveBeenCalledWith({ dseq: "1234", hasLease: false, leases }, expect.anything());
+      expect(DeploymentRecoveryAction).toHaveBeenCalledWith({ dseq: "1234", recovery: "choose-provider", leases }, expect.anything());
     });
 
     it("says the lease was not created when the failure gives no reason", () => {
-      setup({ launch: { phase: "failed", providers: [], hasLease: false } });
+      setup({ launch: { phase: "failed", providers: [], recovery: "choose-provider" } });
 
       expect(screen.getByText("Its lease wasn't created.")).toBeInTheDocument();
     });
 
     it("says the lease exists but the deployment never reached its provider, whatever reason the api gave", () => {
       const { DeploymentRecoveryAction } = setup({
-        launch: { phase: "failed", providers: [PROVIDER], hasLease: true, reason: "Send the lease request again." }
+        launch: { phase: "failed", providers: [PROVIDER], recovery: "send-again", reason: "Send the lease request again." }
       });
 
       expect(screen.getByText(/Its lease exists, but the deployment wasn't sent to its provider/)).toHaveTextContent(
         "Its lease exists, but the deployment wasn't sent to its provider. Send it again, or close the deployment in Settings to stop paying for it."
       );
       expect(screen.queryByText("Send the lease request again.")).not.toBeInTheDocument();
-      expect(DeploymentRecoveryAction).toHaveBeenCalledWith(expect.objectContaining({ hasLease: true }), expect.anything());
+      expect(DeploymentRecoveryAction).toHaveBeenCalledWith(expect.objectContaining({ recovery: "send-again" }), expect.anything());
+    });
+
+    it("says why a lease its provider closed failed and offers to close the deployment", () => {
+      const { DeploymentRecoveryAction } = setup({
+        launch: { phase: "failed", providers: [PROVIDER], recovery: "close", reason: "Closed before it was sent. Close the deployment and deploy again." }
+      });
+
+      expect(screen.getByText("Closed before it was sent. Close the deployment and deploy again.")).toBeInTheDocument();
+      expect(screen.queryByText(/Its lease exists/)).not.toBeInTheDocument();
+      expect(DeploymentRecoveryAction).toHaveBeenCalledWith(expect.objectContaining({ recovery: "close" }), expect.anything());
     });
 
     it("says what went wrong without offering a way back to someone who cannot manage the deployment", () => {
-      const { DeploymentRecoveryAction } = setup({ launch: { phase: "failed", providers: [PROVIDER], hasLease: true }, canManage: false });
+      const { DeploymentRecoveryAction } = setup({ launch: { phase: "failed", providers: [PROVIDER], recovery: "send-again" }, canManage: false });
 
       expect(screen.getByText(/Its lease exists/)).toHaveTextContent(/^Its lease exists, but the deployment wasn't sent to its provider\.$/);
       expect(DeploymentRecoveryAction).not.toHaveBeenCalled();

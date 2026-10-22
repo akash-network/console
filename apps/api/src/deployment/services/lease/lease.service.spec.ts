@@ -20,7 +20,7 @@ import { ACCESS_REVOKED_ERROR_CODE } from "@src/deployment/services/member-deplo
 import { ReconcileLeaseCreate, reconcileLeaseCreateOptionsFor } from "@src/deployment/services/reconcile-lease-create/reconcile-lease-create.job";
 import { createdLeaseActivityOf, failedLeaseActivityOf, pendingLeaseActivityOf } from "@src/deployment/utils/lease-activity/lease-activity";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
-import { LeaseService } from "./lease.service";
+import { LEASE_CLOSED_BEFORE_MANIFEST_ERROR_CODE, LeaseService } from "./lease.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { createBid } from "@test/seeders/bid.seeder";
@@ -1111,7 +1111,7 @@ describe(LeaseService.name, () => {
       it.each([
         { failure: "the bid check refuses its closed bid", closedBid: true, broadcast: undefined },
         { failure: "the chain refuses the broadcast", closedBid: false, broadcast: LEASE_ON_CLOSED_BID }
-      ])("reports the manifest the provider never received when $failure", async ({ closedBid, broadcast }) => {
+      ])("reports the lease closed before its provider received the manifest when $failure", async ({ closedBid, broadcast }) => {
         const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
         const { service, signerService, providerService, wallet } = setup({
           onChain: owner => [leaseOnChain(owner, lease, "closed")],
@@ -1121,7 +1121,7 @@ describe(LeaseService.name, () => {
 
         await expect(service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign }, [lease])).rejects.toMatchObject({
           status: 409,
-          errorCode: "manifest_not_delivered",
+          errorCode: LEASE_CLOSED_BEFORE_MANIFEST_ERROR_CODE,
           message: `The lease for deployment 100 was created, but it closed before provider ${lease.provider} received its manifest. Close the deployment and deploy again.`,
           data: { dseq: "100", provider: lease.provider },
           originalError: LEASE_ON_CLOSED_BID
@@ -1138,7 +1138,7 @@ describe(LeaseService.name, () => {
         });
 
         await expect(service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign }, [pending, closed])).rejects.toMatchObject({
-          errorCode: "manifest_not_delivered",
+          errorCode: LEASE_CLOSED_BEFORE_MANIFEST_ERROR_CODE,
           data: { dseq: "100", provider: closed.provider }
         });
       });
@@ -1154,6 +1154,16 @@ describe(LeaseService.name, () => {
         });
 
         await expect(service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign }, [lease])).rejects.toBe(LEASE_ON_CLOSED_BID);
+      });
+
+      it("keeps the refusal of a member who lost access, so it stays final", async () => {
+        const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+        const { service, wallet } = setup({ onChain: owner => [leaseOnChain(owner, lease, "closed")] });
+        const lostAccess = vi.fn(async () => {
+          throw ACCESS_REVOKED;
+        });
+
+        await expect(service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign: lostAccess }, [lease])).rejects.toBe(ACCESS_REVOKED);
       });
 
       it("keeps the failure of following up a lease that is still live", async () => {

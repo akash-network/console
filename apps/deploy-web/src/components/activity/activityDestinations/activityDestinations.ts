@@ -1,4 +1,4 @@
-import { MANIFEST_NOT_DELIVERED } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
+import { deploymentRecoveryOf } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import { ACTIVE_ORGANIZATION_QUERY_PARAM } from "@src/lib/active-organization/active-organization-deep-link";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import { appendSearchParams, UrlService } from "@src/utils/urlUtils";
@@ -50,7 +50,8 @@ const DESTINATIONS: Record<Activity["type"], (activity: Activity) => ActivityDes
   },
   lease_create: ({ status, meta: { dseq, error } }) => {
     if (!dseq) return DEPLOYMENT_LIST;
-    if (status === "failed" && error?.code !== MANIFEST_NOT_DELIVERED) return { href: UrlService.configureDeployment({ dseq }), label: "Choose a provider" };
+    if (status === "failed" && deploymentRecoveryOf(error?.code) === "choose-provider")
+      return { href: UrlService.configureDeployment({ dseq }), label: "Choose a provider" };
 
     return { href: UrlService.deploymentDetails(dseq), label: "View deployment" };
   },
