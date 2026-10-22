@@ -58,11 +58,11 @@
   },
   "packageManager": "npm@11.11.0",
   "engines": {
-    "node": "^24.14.1",
+    "node": "^24.22.1",
     "npm": "^11.11.0"
   },
   "volta": {
-    "node": "24.14.1",
+    "node": "24.22.1",
     "npm": "11.11.0"
   },
   "overrides": {
