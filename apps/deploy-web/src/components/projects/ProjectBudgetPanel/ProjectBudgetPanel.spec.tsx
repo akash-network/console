@@ -107,16 +107,16 @@ describe(ProjectBudgetPanel.name, () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("says whether top-ups stop at the budget", () => {
+  it("says when running deployments stop being funded at the budget", () => {
     setup({ budget: budget({ stopTopUps: true }) });
 
-    expect(screen.getByText("Top-ups stop at the budget.")).toBeInTheDocument();
+    expect(screen.getByText("Running deployments stop being funded at the budget.")).toBeInTheDocument();
   });
 
-  it("says top-ups continue past the budget by default", () => {
+  it("says running deployments stay funded past the budget by default", () => {
     setup({ budget: budget({ stopTopUps: false }) });
 
-    expect(screen.getByText("Top-ups continue past the budget.")).toBeInTheDocument();
+    expect(screen.getByText("Running deployments stay funded past the budget.")).toBeInTheDocument();
   });
 
   it("lets an owner set a budget for a project without one", async () => {
@@ -170,7 +170,7 @@ describe(ProjectBudgetPanel.name, () => {
     expect(screen.getByText("$9.00")).toBeInTheDocument();
     expect(screen.queryByText(/monthly budget/)).not.toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Top-ups/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Running deployments/)).not.toBeInTheDocument();
   });
 
   it("does not mistake another member's admin grant for the caller's", () => {
@@ -198,17 +198,17 @@ describe(ProjectBudgetPanel.name, () => {
 
     expect(
       screen.getByText(
-        "A budget limits new deposits into this project each month and doesn't set money aside. Running deployments keep their funding unless top-ups stop at the budget."
+        "A budget limits new deposits into this project each month and doesn't set money aside. Running deployments keep their funding unless the budget is set to cut them off."
       )
     ).toBeInTheDocument();
   });
 
-  it("warns that running deployments can run out of funds once top-ups stop at the budget", () => {
+  it("warns that running deployments can run out of funds once they stop being funded at the budget", () => {
     setup({ budget: budget({ stopTopUps: true }) });
 
     expect(
       screen.getByText(
-        "A budget limits new deposits into this project each month and doesn't set money aside. Top-ups stop at the budget, so running deployments can run out of funds and close."
+        "A budget limits new deposits into this project each month and doesn't set money aside. Running deployments stop being funded at the budget too, so they can run out of funds and close."
       )
     ).toBeInTheDocument();
   });
@@ -216,7 +216,7 @@ describe(ProjectBudgetPanel.name, () => {
   it("keeps the default footnote for a project without a budget", () => {
     setup({ budget: null });
 
-    expect(screen.getByText(/Running deployments keep their funding unless top-ups stop at the budget\./)).toBeInTheDocument();
+    expect(screen.getByText(/Running deployments keep their funding unless the budget is set to cut them off\./)).toBeInTheDocument();
   });
 
   function setup(input: {

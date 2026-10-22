@@ -14,14 +14,14 @@ describe(projectBudgetAlertNotification.name, () => {
     expect(result.payload.summary).toBe("Project staging has committed 85% of its monthly budget");
     expect(result.payload.description).toBe(
       "Deposits committed for <strong>staging</strong> this month total <strong>$85.50</strong> of its <strong>$100.00</strong> monthly budget. " +
-        "New deployments in this project are refused once a deposit would go past the budget. Its running deployments keep being topped up. " +
+        "New deployments in this project are refused once a deposit would go past the budget. Its running deployments keep being funded. " +
         "An owner or admin can change the budget."
     );
     expect(result.payload.actions).toEqual([{ label: "View project", url: "https://console.akash.network/projects/project-1" }]);
     expect(result.user).toEqual({ id: "user-123", email: "user@example.com" });
   });
 
-  it("names the deposit that was not signed and says running deployments stop being topped up when that was chosen", () => {
+  it("names the deposit that was not signed and says running deployments stop being funded when that was chosen", () => {
     const user = createUser({ id: "user-123" });
 
     const result = projectBudgetAlertNotification(user, createVars({ committedUsd: 40, budgetUsd: 100, refusedUsd: 70, stopTopUps: true }));
@@ -30,8 +30,8 @@ describe(projectBudgetAlertNotification.name, () => {
     expect(result.payload.description).toContain(
       "monthly budget. A deposit of <strong>$70.00</strong> was not signed because it would have gone past the budget. New deployments"
     );
-    expect(result.payload.description).toContain("Top-ups of its running deployments stop at the budget too.");
-    expect(result.payload.description).not.toContain("keep being topped up");
+    expect(result.payload.description).toContain("Its running deployments stop being funded at the budget too.");
+    expect(result.payload.description).not.toContain("keep being funded");
   });
 
   it("escapes the project name in the markup and keeps it plain in the summary, which the email layout escapes", () => {
