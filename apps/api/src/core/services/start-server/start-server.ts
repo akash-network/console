@@ -29,9 +29,11 @@ export async function startServer(
 ): Promise<ServerType | undefined> {
   const container = options.container ?? rootContainer;
   const disposeContainerOnce = once(async () => {
-    await options.beforeDispose?.().catch(error => {
+    try {
+      await options.beforeDispose?.();
+    } catch (error) {
       logger.error({ event: "BEFORE_DISPOSE_ERROR", error });
-    });
+    }
     logger.info({ event: "DISPOSING_CONTAINER" });
     return Promise.resolve(container.dispose()).catch(error => {
       logger.error({ event: "CONTAINER_DISPOSE_ERROR", error });

@@ -108,6 +108,17 @@ describe("startServer", () => {
     expect(container.dispose).toHaveBeenCalled();
   });
 
+  it("disposes container without logging an error when no `beforeDispose` is given", async () => {
+    const { start, container, logger, processEvents } = setup();
+
+    await start();
+    processEvents.emit("SIGTERM");
+    await delay(10);
+
+    expect(container.dispose).toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
   it("waits for `beforeDispose` to finish before disposing the container", async () => {
     let finishBeforeDispose = () => {};
     const beforeDispose = () => new Promise<void>(resolve => (finishBeforeDispose = resolve));
@@ -132,6 +143,22 @@ describe("startServer", () => {
     processEvents.emit("SIGTERM");
     await delay(10);
 
+    expect(container.dispose).toHaveBeenCalled();
+  });
+
+  it("disposes container when `beforeDispose` throws before returning a promise", async () => {
+    const error = new Error("Failed to resolve the job queue");
+    const { start, container, logger, processEvents } = setup({
+      beforeDispose: () => {
+        throw error;
+      }
+    });
+
+    await start();
+    processEvents.emit("SIGTERM");
+    await delay(10);
+
+    expect(logger.error).toHaveBeenCalledWith({ event: "BEFORE_DISPOSE_ERROR", error });
     expect(container.dispose).toHaveBeenCalled();
   });
 
