@@ -201,8 +201,12 @@ describe(CertificateValidator.name, () => {
   });
 
   it("returns error if certificate does not have serial number", async () => {
-    const cert = Object.create((await createX509CertPair()).cert) as X509Certificate;
-    Object.defineProperty(cert, "serialNumber", { get: () => "" });
+    const { cert: validCert } = await createX509CertPair();
+    const cert = mock<X509Certificate>({
+      validFromDate: validCert.validFromDate,
+      validToDate: validCert.validToDate,
+      serialNumber: ""
+    });
     const validator = setup();
 
     const result = (await validator.validate(cert, "provider")) as CertValidationResultError;
