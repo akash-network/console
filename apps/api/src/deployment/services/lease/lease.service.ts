@@ -89,19 +89,52 @@ export class LeaseService {
   @Trace()
   public async createQueuedLeases(signer: QueuedLeaseSigner, leases: LeasePlacement[]): Promise<void> {
     const manifests = await this.#manifestsByDseq(leases, signer, undefined);
-    const creation = await this.#planCreation(signer.wallet, leases, signer.assertMayStillSign);
 
-    await this.#createOrAdoptLeases(signer, leases, creation);
+    try {
+      const creation = await this.#planCreation(signer.wallet, leases, signer.assertMayStillSign);
+      await this.#createOrAdoptLeases(signer, leases, creation);
+    } catch (error) {
+      await this.#rethrowAsUndeliveredIfLeaseClosed(signer.wallet.address, leases, error);
+    }
+
     await this.#sendManifests(signer.wallet, leases, manifests);
   }
 
   /** Matches each lease on its own placement and provider, since another live lease on the deployment says nothing about the one requested. */
   public async leasesExist(owner: string, leases: LeasePlacement[]): Promise<boolean> {
+    const live = (await this.#listLeases(owner, leases)).filter(lease => lease.state !== "closed");
+
+    return leases.every(placement => live.some(lease => isLeaseOn(lease.id, placement)));
+  }
+
+  async #listLeases(owner: string, leases: LeasePlacement[]) {
     const dseqs = [...new Set(leases.map(lease => lease.dseq))];
     const listed = await Promise.all(dseqs.map(dseq => this.leaseHttpService.list({ owner, dseq })));
-    const live = listed.flatMap(response => response.leases).filter(({ lease }) => lease.state !== "closed");
 
-    return leases.every(placement => live.some(({ lease }) => isLeaseOn(lease.id, placement)));
+    return listed.flatMap(response => response.leases).map(({ lease }) => lease);
+  }
+
+  /** The request refused closed bids before queueing, so a lease the chain now shows closed is one an earlier attempt created and its provider closed before taking the manifest. */
+  async #rethrowAsUndeliveredIfLeaseClosed(owner: string, leases: LeasePlacement[], error: unknown): Promise<never> {
+    const closed = await this.#placementWithClosedLease(owner, leases);
+    if (!closed) throw error;
+
+    throw createError(
+      409,
+      `The lease for deployment ${closed.dseq} was created, but it closed before provider ${closed.provider} received its manifest. Close the deployment and deploy again.`,
+      { errorCode: "manifest_not_delivered", data: { dseq: closed.dseq, provider: closed.provider }, originalError: error }
+    );
+  }
+
+  /** A read that fails is no sign the lease closed, so the failure that led here stays the answer. */
+  async #placementWithClosedLease(owner: string, leases: LeasePlacement[]): Promise<LeasePlacement | undefined> {
+    try {
+      const closed = (await this.#listLeases(owner, leases)).filter(lease => lease.state === "closed");
+      return leases.find(placement => closed.some(lease => isLeaseOn(lease.id, placement)));
+    } catch (error) {
+      this.#logger.warn({ event: "CLOSED_LEASE_LOOKUP_FAILED", dseq: leases[0].dseq, error });
+      return undefined;
+    }
   }
 
   async #queueLeases({ wallet, userId }: LeaseSigner, leases: Leases): Promise<{ activityId: string }> {

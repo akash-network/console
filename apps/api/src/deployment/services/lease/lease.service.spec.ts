@@ -1106,6 +1106,77 @@ describe(LeaseService.name, () => {
       expect(activityService.open).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
+
+    describe("when the provider closed a lease an earlier attempt created", () => {
+      it.each([
+        { failure: "the bid check refuses its closed bid", closedBid: true, broadcast: undefined },
+        { failure: "the chain refuses the broadcast", closedBid: false, broadcast: LEASE_ON_CLOSED_BID }
+      ])("reports the manifest the provider never received when $failure", async ({ closedBid, broadcast }) => {
+        const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+        const { service, signerService, providerService, wallet } = setup({
+          onChain: owner => [leaseOnChain(owner, lease, "closed")],
+          bids: owner => (closedBid ? [bidFor(owner, lease, "closed")] : [])
+        });
+        if (broadcast) signerService.executeDecodedTxByUserWallet.mockRejectedValue(broadcast);
+
+        await expect(service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign }, [lease])).rejects.toMatchObject({
+          status: 409,
+          errorCode: "manifest_not_delivered",
+          message: `The lease for deployment 100 was created, but it closed before provider ${lease.provider} received its manifest. Close the deployment and deploy again.`,
+          data: { dseq: "100", provider: lease.provider },
+          originalError: LEASE_ON_CLOSED_BID
+        });
+        expect(providerService.sendManifest).not.toHaveBeenCalled();
+      });
+
+      it("names the placement whose lease closed", async () => {
+        const pending = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+        const closed = { dseq: "100", gseq: 2, oseq: 1, provider: createAkashAddress() };
+        const { service, wallet } = setup({
+          onChain: owner => [leaseOnChain(owner, closed, "closed")],
+          bids: owner => [bidFor(owner, closed, "closed")]
+        });
+
+        await expect(service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign }, [pending, closed])).rejects.toMatchObject({
+          errorCode: "manifest_not_delivered",
+          data: { dseq: "100", provider: closed.provider }
+        });
+      });
+
+      it.each([
+        { chain: "shows no lease on the placement", onChain: [] },
+        { chain: "shows a closed lease only on another group", onChain: [{ dseq: "100", gseq: 2, oseq: 1 }] }
+      ])("keeps the refusal when the chain $chain", async ({ onChain }) => {
+        const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+        const { service, wallet } = setup({
+          onChain: owner => onChain.map(placement => leaseOnChain(owner, { ...placement, provider: lease.provider }, "closed")),
+          bids: owner => [bidFor(owner, lease, "closed")]
+        });
+
+        await expect(service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign }, [lease])).rejects.toBe(LEASE_ON_CLOSED_BID);
+      });
+
+      it("keeps the failure of following up a lease that is still live", async () => {
+        const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+        const { service, signerService, wallet } = setup({ onChain: owner => [leaseOnChain(owner, lease)] });
+        const followUpFailure = createError(503, "Follow-up failed");
+        signerService.followUpLandedLeases.mockRejectedValue(followUpFailure);
+
+        await expect(service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign }, [lease])).rejects.toBe(followUpFailure);
+      });
+
+      it("keeps the refusal, and logs why, when the leases cannot be read for a closed one", async () => {
+        const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+        const { service, leaseHttpService, logger, wallet } = setup({ bids: owner => [bidFor(owner, lease, "closed")] });
+        const readFailure = new Error("rpc unavailable");
+        const nothingOnChain = { leases: [], pagination: { next_key: null, total: "0" } };
+        leaseHttpService.list.mockResolvedValueOnce(nothingOnChain).mockResolvedValueOnce(nothingOnChain).mockRejectedValueOnce(readFailure);
+
+        await expect(service.createQueuedLeases({ wallet, userId: wallet.userId, assertMayStillSign }, [lease])).rejects.toBe(LEASE_ON_CLOSED_BID);
+
+        expect(logger.warn).toHaveBeenCalledWith({ event: "CLOSED_LEASE_LOOKUP_FAILED", dseq: "100", error: readFailure });
+      });
+    });
   });
 
   type TestLease = { dseq: string; gseq: number; oseq: number; provider: string };
