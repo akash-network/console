@@ -14,7 +14,10 @@ export async function bootstrap(): Promise<void> {
   app.use(container.resolve(RequestContextInterceptor).intercept());
   app.route("/", healthzRouter);
 
-  const server = await startServer(app, createOtelLogger({ context: "BACKGROUND_JOBS" }), process, { port: container.resolve(CORE_CONFIG).PORT });
+  const server = await startServer(app, createOtelLogger({ context: "BACKGROUND_JOBS" }), process, {
+    port: container.resolve(CORE_CONFIG).PORT,
+    beforeDispose: () => container.resolve(JobQueueService).dispose()
+  });
   if (server) {
     await container.resolve(JobQueueService).startWorkers();
   }
