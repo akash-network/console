@@ -37,6 +37,18 @@ function retryOptionsOf(queue: QueueRetryOptions) {
   return RETRY_OPTION_KEYS.map(key => [key, queue[key]] as const);
 }
 
+function assertOneHandlerPerQueue(handlers: JobHandler<Job>[]): void {
+  const seenQueueNames = new Set<string>();
+
+  for (const handler of handlers) {
+    const queueName = handler.accepts[JOB_NAME];
+    if (seenQueueNames.has(queueName)) {
+      throw new Error(`JobQueue does not support multiple handlers for the same queue: ${queueName}`);
+    }
+    seenQueueNames.add(queueName);
+  }
+}
+
 const NUL_BYTE = "\u0000";
 
 function withoutNulBytes(text: string): string {
@@ -107,24 +119,25 @@ export class JobQueueService implements Disposable {
   }
 
   async registerHandlers(handlers: JobHandler<Job>[]): Promise<void> {
-    const seenJobs = new Set<string>();
-    const promises = handlers.map(async handler => {
-      const queueName = handler.accepts[JOB_NAME];
-      if (seenJobs.has(queueName)) {
-        throw new Error(`JobQueue does not support multiple handlers for the same queue: ${queueName}`);
-      }
-      seenJobs.add(queueName);
-      await this.pgBoss.createQueue(queueName, { ...QUEUE_RETRY_OPTIONS, policy: handler.policy });
-    });
-    await Promise.all(promises);
-    await this.#convergeRetryOptions(handlers);
+    assertOneHandlerPerQueue(handlers);
+    const liveQueues = await this.#readLiveQueues(handlers);
+    await this.#createMissingQueues(handlers, liveQueues);
+    await this.#convergeRetryOptions(handlers, liveQueues);
     this.handlers = handlers.slice(0);
   }
 
-  /** `createQueue` never touches a queue that already exists, so settings corrected in code reach production only from here. */
-  async #convergeRetryOptions(handlers: JobHandler<Job>[]): Promise<void> {
-    const liveQueues = await this.#readLiveQueues(handlers);
+  /** Every API pod runs this on boot, so creating queues in parallel lets a rollout claim a full pg-boss pool per pod from the shared database. */
+  async #createMissingQueues(handlers: JobHandler<Job>[], liveQueues: Map<string, PgBossQueueResult>): Promise<void> {
+    for (const handler of handlers) {
+      const queueName = handler.accepts[JOB_NAME];
+      if (liveQueues.has(queueName)) continue;
 
+      await this.pgBoss.createQueue(queueName, { ...QUEUE_RETRY_OPTIONS, policy: handler.policy });
+    }
+  }
+
+  /** `createQueue` never touches a queue that already exists, so settings corrected in code reach production only from here. */
+  async #convergeRetryOptions(handlers: JobHandler<Job>[], liveQueues: Map<string, PgBossQueueResult>): Promise<void> {
     for (const handler of handlers) {
       const queue = liveQueues.get(handler.accepts[JOB_NAME]);
       if (!queue) continue;
@@ -166,7 +179,7 @@ export class JobQueueService implements Disposable {
     }
   }
 
-  /** Converging is drift correction, so a read that fails leaves every queue as it was rather than keeping the workers down. */
+  /** A failed read reports no live queues, so every queue is still created and drift correction waits for the next boot instead of keeping the workers down. */
   async #readLiveQueues(handlers: JobHandler<Job>[]): Promise<Map<string, PgBossQueueResult>> {
     try {
       const queues = await this.pgBoss.getQueues(handlers.map(handler => handler.accepts[JOB_NAME]));
