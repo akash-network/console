@@ -224,6 +224,19 @@ describe(AcceptInvitationPage.name, () => {
     expect(switchOrganization).not.toHaveBeenCalled();
   });
 
+  it("shows another invitation opened in the tab afresh instead of how the previous one ended", async () => {
+    const { user, acceptInvitation, openAnotherInvitation } = setup({});
+    acceptInvitation.mockImplementation((input, options) => options?.onError?.(refusal(409, "already_member"), input, undefined));
+    await user.click(screen.getByRole("button", { name: "Accept invitation" }));
+    await screen.findByRole("heading", { name: "You're already a member of Acme Corp" });
+
+    openAnotherInvitation({ token: "u".repeat(43), organizationName: "Northwind Labs" });
+
+    expect(screen.getByRole("heading", { name: "Join Northwind Labs" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Accept invitation" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /already a member/ })).not.toBeInTheDocument();
+  });
+
   it("explains that organizations are not available yet when accepting is not found for the account", async () => {
     const { user, acceptInvitation, forgetToken, enqueueSnackbar } = setup({});
     acceptInvitation.mockImplementation((input, options) => options?.onError?.(refusal(404, "not_found"), input, undefined));
@@ -292,20 +305,23 @@ describe(AcceptInvitationPage.name, () => {
             expiresAt: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
             ...input.preview
           };
-    const token = "token" in input ? input.token : TOKEN;
+    let shown = { token: "token" in input ? input.token : TOKEN, preview };
     const forgetToken = vi.fn();
     const acceptInvitation = vi.fn<ReturnType<typeof DEPENDENCIES.useAcceptInvitationMutation>["mutate"]>();
     const switchOrganization = vi.fn<ReturnType<typeof DEPENDENCIES.useActiveOrganization>["switchOrganization"]>().mockReturnValue(true);
     const confirm = vi.fn<ReturnType<typeof DEPENDENCIES.usePopup>["confirm"]>(async () => input.isConfirmed ?? true);
     const enqueueSnackbar = vi.fn();
     const useInvitationPreviewQuery = vi.fn((_token: string | null | undefined) =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useInvitationPreviewQuery>>({ isError: !!input.error }), { data: preview, error: input.error ?? null })
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useInvitationPreviewQuery>>({ isError: !!input.error }), {
+        data: shown.preview,
+        error: input.error ?? null
+      })
     );
     const isSignedIn = input.isSignedIn ?? true;
 
     const dependencies: typeof DEPENDENCIES = {
       Layout: ({ children }) => <>{children}</>,
-      useInvitationToken: () => ({ token, forgetToken }),
+      useInvitationToken: () => ({ token: shown.token, forgetToken }),
       useUser: () =>
         mock<ReturnType<typeof DEPENDENCIES.useUser>>({
           user: isSignedIn
@@ -320,9 +336,22 @@ describe(AcceptInvitationPage.name, () => {
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })
     };
 
-    render(<AcceptInvitationPage dependencies={dependencies} />);
+    const { rerender } = render(<AcceptInvitationPage dependencies={dependencies} />);
+    const openAnotherInvitation = (invitation: { token: string; organizationName: string }) => {
+      shown = { token: invitation.token, preview: preview && { ...preview, organizationName: invitation.organizationName } };
+      rerender(<AcceptInvitationPage dependencies={dependencies} />);
+    };
 
-    return { user: userEvent.setup(), acceptInvitation, switchOrganization, confirm, enqueueSnackbar, forgetToken, useInvitationPreviewQuery };
+    return {
+      user: userEvent.setup(),
+      acceptInvitation,
+      switchOrganization,
+      confirm,
+      enqueueSnackbar,
+      forgetToken,
+      useInvitationPreviewQuery,
+      openAnotherInvitation
+    };
   }
 });
 

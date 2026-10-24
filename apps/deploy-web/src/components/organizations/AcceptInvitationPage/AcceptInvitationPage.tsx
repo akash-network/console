@@ -82,7 +82,7 @@ export function AcceptInvitationPage({ dependencies: d = DEPENDENCIES }: Props =
             </div>
           )}
           {!isUnreadable && !preview.isError && preview.data && token && (
-            <InvitationView invitation={preview.data} token={token} onSettled={forgetToken} dependencies={d} />
+            <InvitationView key={token} invitation={preview.data} token={token} onSettled={forgetToken} dependencies={d} />
           )}
         </CardContent>
       </Card>
