@@ -18,6 +18,7 @@ import {
 import { useSnackbar } from "notistack";
 
 import { isProjectNameTakenError, useCreateProjectMutation } from "@src/queries/useProjectsQuery";
+import { isOrganizationForbiddenError } from "@src/services/stale-organization-recovery/stale-organization-recovery";
 import type { ProjectRecord } from "@src/types/project";
 import { MAX_PROJECT_DESCRIPTION_LENGTH } from "@src/types/project";
 import { describeProjectCreationFailure } from "../projectCreationFailure";
@@ -61,6 +62,7 @@ export function NewProjectModal({ organizationName, existingSlugs, onClose, onCr
         setRefusedSlugs(current => [...current, slug]);
         return;
       }
+      if (isOrganizationForbiddenError(error)) return;
       enqueueSnackbar(<Snackbar title="Couldn't create the project" subTitle={describeProjectCreationFailure(error)} iconVariant="error" />, {
         variant: "error"
       });
