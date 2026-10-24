@@ -1,11 +1,12 @@
 import React from "react";
+import type { Stripe } from "@stripe/stripe-js";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { DEPENDENCIES, PaymentMethodSourceHandle } from "./AddCreditsNewPaymentMethodFields";
 import { AddCreditsNewPaymentMethodFields } from "./AddCreditsNewPaymentMethodFields";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 describe(AddCreditsNewPaymentMethodFields.name, () => {
   it("shows a loading spinner when isLoading is true", () => {
@@ -31,16 +32,42 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     expect(screen.getByTestId("payment-element")).toBeInTheDocument();
   });
 
-  it("shows the unavailable message when Stripe cannot be loaded", () => {
-    const useServices: typeof DEPENDENCIES.useServices = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useServices>>({
-        stripeService: mock<ReturnType<typeof DEPENDENCIES.useServices>["stripeService"]>({
-          getStripe: () => null as unknown as ReturnType<ReturnType<typeof DEPENDENCIES.useServices>["stripeService"]["getStripe"]>
-        })
-      });
-    setup({ isLoading: false, clientSecret: "seti_secret", dependencies: { useServices } });
+  it("reports Stripe as unavailable when it loads as nothing, even before the client secret is ready", async () => {
+    const { onLoadFailed } = setup({ isLoading: true, stripe: null });
 
-    expect(screen.getByText(/Payment processing is not available at this time/i)).toBeInTheDocument();
+    await waitFor(() => expect(onLoadFailed).toHaveBeenCalledWith("stripe_unavailable"));
+    expect(onLoadFailed).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not report a failure when Stripe loads", async () => {
+    const { onLoadFailed, stripeLoaded } = setup({ isLoading: false, clientSecret: "seti_secret" });
+
+    await act(() => stripeLoaded);
+
+    expect(onLoadFailed).not.toHaveBeenCalled();
+  });
+
+  it("does not report Stripe as unavailable once the fields are gone", async () => {
+    const stripeLoad = Promise.withResolvers<null>();
+    const { onLoadFailed, unmount } = setup({ isLoading: false, clientSecret: "seti_secret", stripe: stripeLoad.promise });
+
+    unmount();
+    await act(async () => stripeLoad.resolve(null));
+
+    expect(onLoadFailed).not.toHaveBeenCalled();
+  });
+
+  it("reports when the payment element fails to load", () => {
+    const PaymentElement = ((props: { onLoadError?: () => void }) => (
+      <button type="button" onClick={() => props.onLoadError?.()}>
+        fail to load
+      </button>
+    )) as unknown as typeof DEPENDENCIES.PaymentElement;
+    const { onLoadFailed } = setup({ isLoading: false, clientSecret: "seti_secret", dependencies: { PaymentElement } });
+
+    fireEvent.click(screen.getByRole("button", { name: /fail to load/i }));
+
+    expect(onLoadFailed).toHaveBeenCalledWith("load_error");
   });
 
   it("addPaymentMethod returns the Stripe payment method id", async () => {
@@ -207,6 +234,7 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
   function setup(input: {
     isLoading: boolean;
     clientSecret?: string;
+    stripe?: Stripe | null | Promise<Stripe | null>;
     onPaymentTypeChange?: (type: string) => void;
     onReady?: () => void;
     dependencies?: Partial<typeof DEPENDENCIES>;
@@ -215,12 +243,10 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
       <div data-testid="stripe-elements">{children}</div>
     )) as unknown as typeof DEPENDENCIES.Elements;
 
-    const useServices: typeof DEPENDENCIES.useServices = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useServices>>({
-        stripeService: mock<ReturnType<typeof DEPENDENCIES.useServices>["stripeService"]>({
-          getStripe: () => Promise.resolve(mock<Awaited<ReturnType<ReturnType<typeof DEPENDENCIES.useServices>["stripeService"]["getStripe"]>>>())
-        })
-      });
+    const stripeLoaded = Promise.resolve(input.stripe === undefined ? mock<Stripe>() : input.stripe);
+    const stripeService = mock<ReturnType<typeof DEPENDENCIES.useServices>["stripeService"]>({ getStripe: () => stripeLoaded });
+    const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ stripeService });
+    const onLoadFailed = vi.fn();
 
     const useTheme: typeof DEPENDENCIES.useTheme = () => mock<ReturnType<typeof DEPENDENCIES.useTheme>>({ resolvedTheme: "light" });
 
@@ -237,6 +263,7 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
         disabled={disabled}
         onPaymentTypeChange={input.onPaymentTypeChange}
         onReady={input.onReady}
+        onLoadFailed={onLoadFailed}
         dependencies={{
           Elements,
           useServices,
@@ -251,6 +278,6 @@ describe(AddCreditsNewPaymentMethodFields.name, () => {
     );
     const view = render(renderFields());
 
-    return { ref, rerender: (disabled = false) => view.rerender(renderFields(disabled)) };
+    return { ref, onLoadFailed, stripeLoaded, unmount: view.unmount, rerender: (disabled = false) => view.rerender(renderFields(disabled)) };
   }
 });

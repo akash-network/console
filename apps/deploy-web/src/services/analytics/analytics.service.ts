@@ -114,6 +114,7 @@ export type AnalyticsEvent =
   | "fair_use_policy_accepted"
   | "add_credits_opened"
   | "add_credits_payment_form_ready"
+  | "add_credits_payment_form_load_failed"
   | "add_credits_amount_selected"
   | "add_credits_payment_method_selected"
   | "add_credits_payment_submitted"
