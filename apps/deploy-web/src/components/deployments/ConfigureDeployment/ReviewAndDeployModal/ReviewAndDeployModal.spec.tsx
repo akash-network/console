@@ -57,6 +57,36 @@ describe(ReviewAndDeployModal.name, () => {
     expect(screen.getByRole("button", { name: /back to marketplace/i })).toBeDisabled();
   });
 
+  it("tells the user a deploy is taking longer than usual and offers a retry and a way back to the bids instead of the pending deploy", () => {
+    setup({ isDeploying: true, isDeployTakingLong: true });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Taking longer than usual");
+    expect(screen.getByRole("button", { name: "Retry" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Back to bids" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Deploying…" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /back to marketplace/i })).not.toBeInTheDocument();
+  });
+
+  it("retries a deploy taking long with onRetryDeploy", async () => {
+    const onRetryDeploy = vi.fn();
+    setup({ isDeploying: true, isDeployTakingLong: true, onRetryDeploy });
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(onRetryDeploy).toHaveBeenCalled();
+  });
+
+  it("goes back to the bids from a deploy taking long with onBackToBids", async () => {
+    const onBackToBids = vi.fn();
+    const onBack = vi.fn();
+    setup({ isDeploying: true, isDeployTakingLong: true, onBackToBids, onBack });
+
+    await userEvent.click(screen.getByRole("button", { name: "Back to bids" }));
+
+    expect(onBackToBids).toHaveBeenCalled();
+    expect(onBack).not.toHaveBeenCalled();
+  });
+
   it("disables Confirm and deploy when a selected placement is no longer priced", () => {
     setup({
       rows: [
@@ -260,7 +290,10 @@ describe(ReviewAndDeployModal.name, () => {
     hasGpu?: boolean;
     onConfirm?: () => void;
     onBack?: () => void;
+    onRetryDeploy?: () => void;
+    onBackToBids?: () => void;
     isDeploying?: boolean;
+    isDeployTakingLong?: boolean;
     runtimeLimitHours?: number;
     storedRuntimeLimitHours?: number;
     isStoredSettingLoading?: boolean;
@@ -336,6 +369,7 @@ describe(ReviewAndDeployModal.name, () => {
       <ReviewAndDeployModal
         open
         isDeploying={input.isDeploying ?? false}
+        isDeployTakingLong={input.isDeployTakingLong ?? false}
         dseq="55"
         placements={[mock<PlacementType>({ id: "p1", name: "placement-1", regions: [] })]}
         selections={{ p1: "akash1a/55/1/2" }}
@@ -343,6 +377,8 @@ describe(ReviewAndDeployModal.name, () => {
         onRuntimeLimitHoursChange={vi.fn()}
         onConfirm={input.onConfirm ?? vi.fn()}
         onBack={input.onBack ?? vi.fn()}
+        onRetryDeploy={input.onRetryDeploy ?? vi.fn()}
+        onBackToBids={input.onBackToBids ?? vi.fn()}
         dependencies={{
           useReviewRows,
           PricePerTimeUnit,
