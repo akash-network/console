@@ -114,6 +114,30 @@ describe("AddCreditsHost", () => {
     expect(screen.getByTestId("add-credits-sheet")).toHaveAttribute("data-next-step", "Continue to deploy");
   });
 
+  it("suggests a first deployment for a request that names no next step of its own", () => {
+    const { open } = setup();
+
+    open({});
+
+    expect(screen.getByTestId("add-credits-sheet")).toHaveAttribute("data-suggest-first-deployment", "true");
+  });
+
+  it("leaves the next step to a call site that names its own", () => {
+    const { open } = setup();
+
+    open({ nextStepLabel: "Continue to deploy" });
+
+    expect(screen.getByTestId("add-credits-sheet")).toHaveAttribute("data-suggest-first-deployment", "false");
+  });
+
+  it("does not suggest a first deployment to a call site that interrupts a task", () => {
+    const { open } = setup();
+
+    open({ context: "review_funding_impact", suggestFirstDeployment: false });
+
+    expect(screen.getByTestId("add-credits-sheet")).toHaveAttribute("data-suggest-first-deployment", "false");
+  });
+
   function setup(input?: { AddCreditsSheet?: typeof DEPENDENCIES.AddCreditsSheet }) {
     const store = createStore();
     const AddCreditsSheet: typeof DEPENDENCIES.AddCreditsSheet = ({
@@ -124,9 +148,17 @@ describe("AddCreditsHost", () => {
       initialTab,
       description,
       context,
-      nextStepLabel
+      nextStepLabel,
+      suggestFirstDeployment
     }) => (
-      <div data-testid="add-credits-sheet" data-open={open} data-tab={initialTab} data-context={context} data-next-step={nextStepLabel}>
+      <div
+        data-testid="add-credits-sheet"
+        data-open={open}
+        data-tab={initialTab}
+        data-context={context}
+        data-next-step={nextStepLabel}
+        data-suggest-first-deployment={String(suggestFirstDeployment)}
+      >
         {description}
         <button onClick={() => onOpenChange(false)}>close</button>
         <button onClick={() => onDone(100, 10)}>done</button>

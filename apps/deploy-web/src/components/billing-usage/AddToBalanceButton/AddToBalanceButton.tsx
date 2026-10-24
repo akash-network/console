@@ -46,6 +46,7 @@ export const AddToBalanceButton: React.FunctionComponent<{ dependencies?: typeof
         onOpenChange={setShowAddCredits}
         initialTab="purchase"
         description="Buy credits or redeem a coupon to top up your balance."
+        suggestFirstDeployment
         onDone={() => setShowAddCredits(false)}
       />
     </>

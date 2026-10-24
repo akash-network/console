@@ -53,6 +53,12 @@ describe(AddToBalanceButton.name, () => {
     expect(screen.queryByTestId("add-credits-sheet")).not.toBeInTheDocument();
   });
 
+  it("asks the sheet to suggest a first deployment, since billing names no next step of its own", () => {
+    const { MockAddCreditsSheet } = setup({ searchParamsGet: () => null });
+
+    expect(MockAddCreditsSheet.mock.calls.at(-1)![0].suggestFirstDeployment).toBe(true);
+  });
+
   function setup(input: {
     searchParamsGet?: (key: string) => string | null;
     routerReplace?: ReturnType<typeof vi.fn>;

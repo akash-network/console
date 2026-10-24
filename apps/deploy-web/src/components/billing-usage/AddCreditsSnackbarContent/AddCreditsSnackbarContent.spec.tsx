@@ -30,8 +30,17 @@ describe("AddCreditsSnackbarContent", () => {
     expect(store.get(addCreditsRequestAtom)).toEqual({
       initialTab: "purchase",
       description: "Add credits to your balance to continue.",
-      context: "insufficient_funds_snackbar"
+      context: "insufficient_funds_snackbar",
+      suggestFirstDeployment: false
     });
+  });
+
+  it("keeps the user on the task that ran out of funds instead of suggesting a first deployment", () => {
+    const { store } = setup();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Funds" }));
+
+    expect(store.get(addCreditsRequestAtom)).toMatchObject({ suggestFirstDeployment: false });
   });
 
   it("attributes the request to the call site that raised the snackbar", () => {

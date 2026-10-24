@@ -32,6 +32,7 @@ export function AddCreditsHost({ dependencies: d = DEPENDENCIES }: { dependencie
       deploymentDailyCostUsd={request?.deploymentDailyCostUsd}
       context={request?.context}
       nextStepLabel={request?.nextStepLabel}
+      suggestFirstDeployment={request?.suggestFirstDeployment ?? !request?.nextStepLabel}
       onDone={closeSheetAfterPurchase}
       onRedeemed={closeSheet}
     />
