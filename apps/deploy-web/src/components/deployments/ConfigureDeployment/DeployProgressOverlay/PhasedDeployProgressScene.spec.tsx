@@ -17,6 +17,7 @@ describe(PhasedDeployProgressScene.name, () => {
   it("forwards the progress state and callbacks to the progress panel", () => {
     const PhasedDeploymentProgress = vi.fn(ComponentMock);
     const onTryAgain = vi.fn();
+    const onTryAnotherProvider = vi.fn();
     const onContactSupport = vi.fn();
     const onChooseProvider = vi.fn();
     const onAddFunds = vi.fn();
@@ -26,6 +27,7 @@ describe(PhasedDeployProgressScene.name, () => {
       state: { kind: "preparing" },
       progressPercent: 67,
       onTryAgain,
+      onTryAnotherProvider,
       onContactSupport,
       onChooseProvider,
       onAddFunds,
@@ -40,6 +42,7 @@ describe(PhasedDeployProgressScene.name, () => {
         progressPercent: 67,
         phases: PHASES,
         onTryAgain,
+        onTryAnotherProvider,
         onContactSupport,
         onChooseProvider,
         onAddFunds,
@@ -70,6 +73,7 @@ describe(PhasedDeployProgressScene.name, () => {
       focusedProviderAddress?: string | null;
       className?: string;
       onTryAgain?: () => void;
+      onTryAnotherProvider?: () => void;
       onContactSupport?: () => void;
       onChooseProvider?: () => void;
       onAddFunds?: () => void;
@@ -86,6 +90,7 @@ describe(PhasedDeployProgressScene.name, () => {
         focusedProviderAddress={input.focusedProviderAddress}
         className={input.className}
         onTryAgain={input.onTryAgain}
+        onTryAnotherProvider={input.onTryAnotherProvider}
         onContactSupport={input.onContactSupport}
         onChooseProvider={input.onChooseProvider}
         onAddFunds={input.onAddFunds}

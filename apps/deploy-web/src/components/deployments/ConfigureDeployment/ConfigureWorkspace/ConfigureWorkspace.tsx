@@ -204,6 +204,7 @@ export const ConfigureWorkspace: FC<Props> = ({
             <d.LeaveConfigureButton
               intent={intent}
               needsConfirmation={(!isEditable && !flow.isCreatingInBackground) || !!flow.pendingClose}
+              isLeaseInFlight={flow.isLeaseInFlight}
               deploymentName={deploymentName}
               serviceCount={services.filter(service => !isLogCollectorService(service)).length}
               placementCount={placements.length}

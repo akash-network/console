@@ -161,7 +161,28 @@ describe(LeaveConfigureButton.name, () => {
       const wasPrevented = clickAndReportPrevented(screen.getByRole("link", { name: "Back to onboarding" }));
 
       expect(wasPrevented).toBe(false);
-      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", { category: "onboarding", control: "back_link", discardedDeployment: false });
+      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", {
+        category: "onboarding",
+        control: "back_link",
+        discardedDeployment: false,
+        midLease: false
+      });
+    });
+
+    it("leaves without asking while the lease is in flight, keeping the deployment, and tracks leaving mid-lease", () => {
+      const { onDiscard, analyticsService, clickAndReportPrevented } = setup({ needsConfirmation: true, isLeaseInFlight: true, isOnboarded: false });
+
+      const wasPrevented = clickAndReportPrevented(screen.getByRole("link", { name: "Back to onboarding" }));
+
+      expect(wasPrevented).toBe(false);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(onDiscard).not.toHaveBeenCalled();
+      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", {
+        category: "onboarding",
+        control: "back_link",
+        discardedDeployment: false,
+        midLease: true
+      });
     });
 
     it("asks before discarding a pending deployment, then replaces the page with onboarding and tracks the discard", async () => {
@@ -174,7 +195,12 @@ describe(LeaveConfigureButton.name, () => {
 
       expect(onDiscard).toHaveBeenCalled();
       expect(router.replace).toHaveBeenCalledWith(UrlService.onboardingPicker());
-      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", { category: "onboarding", control: "back_link", discardedDeployment: true });
+      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", {
+        category: "onboarding",
+        control: "back_link",
+        discardedDeployment: true,
+        midLease: false
+      });
     });
 
     it("tracks nothing when the discard is declined", async () => {
@@ -198,6 +224,7 @@ describe(LeaveConfigureButton.name, () => {
   function setup(input: {
     intent?: ComponentProps<typeof LeaveConfigureButton>["intent"];
     needsConfirmation: boolean;
+    isLeaseInFlight?: boolean;
     deploymentName?: string;
     serviceCount?: number;
     placementCount?: number;
@@ -219,6 +246,7 @@ describe(LeaveConfigureButton.name, () => {
       <LeaveConfigureButton
         intent={input.intent ?? {}}
         needsConfirmation={input.needsConfirmation}
+        isLeaseInFlight={input.isLeaseInFlight ?? false}
         deploymentName={input.deploymentName ?? "my-app"}
         serviceCount={input.serviceCount ?? 1}
         placementCount={input.placementCount ?? 1}

@@ -18,7 +18,7 @@ type Props = {
 
 export function SkipOnboardingButton({ source, dependencies: d = DEPENDENCIES }: Props) {
   const { skip, isSkipping } = d.useSkipOnboarding();
-  const { isCreating, holdsUnleasedDeployment, discard } = d.useDeploymentLeaveGuard();
+  const { isCreating, holdsUnleasedDeployment, isLeaseInFlight, discard } = d.useDeploymentLeaveGuard();
   const { analyticsService } = d.useServices();
   const [isConfirming, setIsConfirming] = useState(false);
 
@@ -37,7 +37,7 @@ export function SkipOnboardingButton({ source, dependencies: d = DEPENDENCIES }:
   }
 
   function skipOnboarding(discardedDeployment: boolean) {
-    analyticsService.track("onboarding_left", { category: "onboarding", control: "skip_button", discardedDeployment });
+    analyticsService.track("onboarding_left", { category: "onboarding", control: "skip_button", discardedDeployment, midLease: isLeaseInFlight });
     void skip(source);
   }
 
