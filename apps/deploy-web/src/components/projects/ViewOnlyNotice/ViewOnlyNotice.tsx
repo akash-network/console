@@ -1,7 +1,9 @@
 "use client";
 import { Eye, FolderLock } from "lucide-react";
+import Link from "next/link";
 
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
+import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = { useActiveOrganization };
 
@@ -31,8 +33,22 @@ export function ViewOnlyNotice({ reason, dependencies: d = DEPENDENCIES }: Props
         <>
           <h2 className="text-xl font-semibold text-foreground">You have view-only access</h2>
           <p className="max-w-md text-[13.5px] text-muted-foreground">
-            You can see deployments here but not create, close or fund them. Ask an owner or admin of {activeOrganization?.name ?? "your organization"} if you
-            need more access.
+            {activeOrganization?.role === "billing" ? (
+              <>
+                As a billing member you can&apos;t see deployments, but you can open{" "}
+                <Link href={UrlService.billing()} className="font-medium text-foreground underline">
+                  Billing
+                </Link>{" "}
+                and{" "}
+                <Link href={UrlService.usage()} className="font-medium text-foreground underline">
+                  Usage
+                </Link>
+                .
+              </>
+            ) : (
+              "You can see deployments here but not create, close or fund them."
+            )}{" "}
+            Ask an owner or admin of {activeOrganization?.name ?? "your organization"} if you need more access.
           </p>
         </>
       )}
