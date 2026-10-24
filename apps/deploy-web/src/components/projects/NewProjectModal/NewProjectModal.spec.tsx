@@ -104,6 +104,18 @@ describe(NewProjectModal.name, () => {
     expect(onCreated).not.toHaveBeenCalled();
   });
 
+  it("leaves the notice to the organization when it no longer has the user", async () => {
+    const { user, createProject, enqueueSnackbar, onCreated } = setup({
+      createError: new ApiError(403, { code: "organization_forbidden" }, "POST /v1/projects -> 403")
+    });
+
+    await user.type(screen.getByLabelText("Project name"), "storefront{Enter}");
+
+    await vi.waitFor(() => expect(createProject).toHaveBeenCalledOnce());
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+    expect(onCreated).not.toHaveBeenCalled();
+  });
+
   it("tells the organization's project limit when it is reached", async () => {
     const { user, enqueueSnackbar, onCreated } = setup({
       createError: new ApiError(403, { code: "project_limit_reached", data: { limit: 10 } }, "POST /v1/projects -> 403")
