@@ -1,9 +1,11 @@
 "use client";
 import type { ReactNode } from "react";
 import React, { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Snackbar } from "@akashnetwork/ui/components";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStore } from "jotai";
 import { useRouter } from "next/router";
+import { useSnackbar } from "notistack";
 
 import { isProjectsUiEnabled } from "@src/components/organizations/organizationAccess";
 import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
@@ -22,7 +24,7 @@ import { resetOrganizationScopedState } from "@src/store/organizationScopedState
 import type { OrganizationOutput } from "@src/types/organization";
 import { resolveOrganizationSwitchDestination } from "./organizationSwitchDestination";
 
-export const DEPENDENCIES = { useFlag, useFeatureFlagsReady, useUser, useOrganizationsQuery, useRouter, useQueryClient, useStore, BootLoading };
+export const DEPENDENCIES = { useFlag, useFeatureFlagsReady, useUser, useOrganizationsQuery, useRouter, useQueryClient, useStore, useSnackbar, BootLoading };
 
 export type SwitchOrganizationOptions = {
   /** Where to land after the switch instead of the page rule, e.g. the members page of a just-created organization. */
@@ -70,6 +72,7 @@ export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES 
   const router = d.useRouter();
   const queryClient = d.useQueryClient();
   const store = d.useStore();
+  const { enqueueSnackbar } = d.useSnackbar();
   const { staleOrganizationRecovery, tabOrganization } = useServices();
   const { data: loadedOrganizations, isLoading, isError } = d.useOrganizationsQuery({ enabled: isEnabled && !!user?.id });
   const [knownOrganizations, setKnownOrganizations] = useState<OrganizationOutput[]>([]);
@@ -85,6 +88,8 @@ export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES 
     () => organizations.find(organization => organization.id === awaitedOrganizationId) ?? organizations.find(organization => organization.isActive),
     [organizations, awaitedOrganizationId]
   );
+  const organizationsRef = useRef(organizations);
+  organizationsRef.current = organizations;
 
   useEffect(
     function rememberLoadedOrganizations() {
@@ -107,13 +112,22 @@ export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES 
 
   useEffect(
     function fallBackWhenOrganizationIsRefused() {
-      return staleOrganizationRecovery.subscribe(() => {
+      return staleOrganizationRecovery.subscribe(refusedOrganizationId => {
+        const refused = organizationsRef.current.find(organization => organization.id === refusedOrganizationId || organization.slug === refusedOrganizationId);
+        enqueueSnackbar(
+          <Snackbar
+            title={`You're no longer a member of ${refused?.name ?? "that organization"}`}
+            subTitle="You've been moved to an organization you belong to."
+            iconVariant="warning"
+          />,
+          { variant: "warning", persist: true }
+        );
         setPendingSwitch(undefined);
         setKnownOrganizations([]);
         restartOrganizationScope();
       });
     },
-    [staleOrganizationRecovery, restartOrganizationScope]
+    [staleOrganizationRecovery, restartOrganizationScope, enqueueSnackbar]
   );
 
   const switchOrganization = useCallback(
@@ -153,13 +167,20 @@ export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES 
       const urlWithoutParam = removeActiveOrganizationQueryParam(router.asPath);
       const serverActive = loadedOrganizations.find(organization => organization.isActive);
 
+      if (!targetId) {
+        enqueueSnackbar(
+          <Snackbar title="The organization in this link isn't available to you" subTitle="You're still in your current organization." iconVariant="warning" />,
+          { variant: "warning", persist: true }
+        );
+      }
+
       if (targetId && targetId !== serverActive?.id) {
         switchOrganization(targetId, { destination: urlWithoutParam });
       } else {
         router.replace(urlWithoutParam, undefined, { shallow: true });
       }
     },
-    [isEnabled, router, loadedOrganizations, isAwaitingMemberships, switchOrganization]
+    [isEnabled, router, loadedOrganizations, isAwaitingMemberships, switchOrganization, enqueueSnackbar]
   );
 
   const value = useMemo<ActiveOrganization>(() => {

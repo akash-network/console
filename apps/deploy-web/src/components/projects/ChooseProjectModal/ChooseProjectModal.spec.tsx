@@ -145,6 +145,20 @@ describe(ChooseProjectModal.name, () => {
     expect(onChosen).not.toHaveBeenCalled();
   });
 
+  it("leaves the notice to the organization when it no longer has the user", async () => {
+    const { createProject, onChosen, enqueueSnackbar } = setup({
+      projects: [],
+      createError: new ApiError(403, { code: "organization_forbidden" }, "POST /v1/projects -> 403")
+    });
+
+    await userEvent.type(screen.getByLabelText("Project name"), "billing");
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(createProject).toHaveBeenCalledOnce();
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+    expect(onChosen).not.toHaveBeenCalled();
+  });
+
   it("tells the organization's project limit when it is reached", async () => {
     const { onChosen, enqueueSnackbar } = setup({
       projects: [],
