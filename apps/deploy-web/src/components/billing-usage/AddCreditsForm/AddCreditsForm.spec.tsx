@@ -1,5 +1,5 @@
 import React, { useContext, useImperativeHandle } from "react";
-import type { PaymentMethod } from "@akashnetwork/http-sdk";
+import type { BillingTransaction, PaymentMethod } from "@akashnetwork/http-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import type { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +12,7 @@ import { handleStripeError } from "@src/utils/stripeErrorHandler";
 import { AddCreditsAmountFields } from "../AddCreditsAmountFields/AddCreditsAmountFields";
 import type { PaymentMethodSourceHandle } from "../AddCreditsNewPaymentMethodFields/AddCreditsNewPaymentMethodFields";
 import { useTopUpAttemptKey } from "./useTopUpAttemptKey/useTopUpAttemptKey";
+import { waitForSettledTransaction } from "./waitForSettledTransaction/waitForSettledTransaction";
 import type { DEPENDENCIES } from "./AddCreditsForm";
 import { AddCreditsForm } from "./AddCreditsForm";
 
@@ -462,35 +463,94 @@ describe(AddCreditsForm.name, () => {
     await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, 0));
   });
 
-  it("passes the granted first-purchase bonus to onDone", async () => {
-    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
-    const onDone = vi.fn();
-    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1" });
-    const getCustomerTransactions = vi.fn().mockResolvedValue({ transactions: [{ status: "succeeded", amount: 10000, bonusAmount: 1000 }] });
-    const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
-
-    const { rerender } = setup({
-      status: "success",
-      clientSecret: "seti_secret",
-      confirmPayment,
-      onDone,
+  it("waits for the payment's own row to settle before reporting its bonus", async () => {
+    const getCustomerTransactions = vi
+      .fn()
+      .mockResolvedValueOnce({ transactions: [{ id: "tx_1", status: "created", amount: 10000, bonusAmount: 0 }] })
+      .mockResolvedValue({ transactions: [{ id: "tx_1", status: "succeeded", amount: 10000, bonusAmount: 1000 }] });
+    const { onDone } = await purchaseUntilPollingSettles({
+      confirmPayment: vi.fn().mockResolvedValue({ success: true, transactionId: "tx_1", transactionStatus: "created" }),
       getCustomerTransactions,
-      isTrialing: true,
-      isPolling: false,
-      dependencies: { AddCreditsNewPaymentMethodFields }
+      dependencies: { waitForSettledTransaction }
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: "100" }));
+    await waitFor(() => expect(onDone).toHaveBeenCalled(), { timeout: 3_000 });
+    expect(onDone).toHaveBeenCalledWith(100, 10);
+    expect(getCustomerTransactions).toHaveBeenCalledTimes(2);
+  });
+
+  it("completes without a bonus when the payment's own row does not settle in time", async () => {
+    const waitForSettledTransaction = vi.fn<typeof DEPENDENCIES.waitForSettledTransaction>().mockResolvedValue(undefined);
+    const { onDone } = await purchaseUntilPollingSettles({
+      confirmPayment: vi.fn().mockResolvedValue({ success: true, transactionId: "tx_1", transactionStatus: "created" }),
+      dependencies: { waitForSettledTransaction }
+    });
+
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, 0));
+    expect(waitForSettledTransaction).toHaveBeenCalledWith(expect.anything(), "tx_1");
+  });
+
+  it("completes without waiting when the charge reports no transaction", async () => {
+    const waitForSettledTransaction = vi.fn<typeof DEPENDENCIES.waitForSettledTransaction>();
+    const { onDone } = await purchaseUntilPollingSettles({
+      confirmPayment: vi.fn().mockResolvedValue({ success: true }),
+      dependencies: { waitForSettledTransaction }
+    });
+
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, 0));
+    expect(waitForSettledTransaction).not.toHaveBeenCalled();
+  });
+
+  it("waits for the payment's own row after a 3D Secure challenge", async () => {
+    const settled = transaction({ id: "tx_3ds", bonusAmount: 500 });
+    const waitForSettledTransaction = vi.fn<typeof DEPENDENCIES.waitForSettledTransaction>().mockResolvedValue(settled);
+    const { use3DSecure, threeDSecureOptions } = capture3DSecure();
+    const onDone = vi.fn();
+    const input: SetupInput = {
+      status: "idle",
+      confirmPayment: vi.fn().mockResolvedValue({ requiresAction: true, clientSecret: "pi_secret", paymentIntentId: "pi_1", transactionId: "tx_3ds" }),
+      onDone,
+      paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })],
+      dependencies: { use3DSecure, waitForSettledTransaction }
+    };
+    const { rerender } = setup(input);
+
+    await submitWithAmount("100");
+    await act(async () => {
+      threeDSecureOptions()?.onSuccess?.();
+    });
+    rerender({ ...input, isPolling: true });
+    rerender({ ...input, isPolling: false });
+
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, 5));
+    expect(waitForSettledTransaction).toHaveBeenCalledWith(expect.anything(), "tx_3ds");
+  });
+
+  it("refreshes the payment history once the payment's own row settles", async () => {
+    const invalidateQueries = vi.fn().mockResolvedValue(undefined);
+    let settle: (transaction: BillingTransaction) => void = () => {};
+    const waitForSettledTransaction = vi.fn<typeof DEPENDENCIES.waitForSettledTransaction>(
+      () =>
+        new Promise(resolve => {
+          settle = resolve;
+        })
+    );
+    const { onDone } = await purchaseUntilPollingSettles({
+      confirmPayment: vi.fn().mockResolvedValue({ success: true, transactionId: "tx_1", transactionStatus: "created" }),
+      invalidateQueries,
+      dependencies: { waitForSettledTransaction }
+    });
+
+    await waitFor(() => expect(waitForSettledTransaction).toHaveBeenCalled());
+    expect(invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ["v1", "listStripeTransactions"] });
+    expect(onDone).not.toHaveBeenCalled();
 
     await act(async () => {
-      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
+      settle(transaction({ id: "tx_1" }));
     });
 
-    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: true, isPolling: true });
-    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: false, isPolling: false });
-
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, 10));
-    expect(getCustomerTransactions).toHaveBeenCalledWith({ limit: 1 });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listStripeTransactions"] });
+    expect(onDone).toHaveBeenCalledWith(100, 0);
   });
 
   it("refreshes the first-purchase bonus offer once the payment settles", async () => {
@@ -521,66 +581,6 @@ describe(AddCreditsForm.name, () => {
     rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, invalidateQueries, isTrialing: false, isPolling: false });
 
     await waitFor(() => expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "getFirstPurchaseBonus"] }));
-  });
-
-  it("reports a zero bonus when the latest transaction does not match the charge", async () => {
-    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
-    const onDone = vi.fn();
-    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1" });
-    const getCustomerTransactions = vi.fn().mockResolvedValue({ transactions: [{ status: "succeeded", amount: 5000, bonusAmount: 1000 }] });
-    const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
-
-    const { rerender } = setup({
-      status: "success",
-      clientSecret: "seti_secret",
-      confirmPayment,
-      onDone,
-      getCustomerTransactions,
-      isTrialing: true,
-      isPolling: false,
-      dependencies: { AddCreditsNewPaymentMethodFields }
-    });
-
-    fireEvent.click(screen.getByRole("radio", { name: "100" }));
-
-    await act(async () => {
-      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
-    });
-
-    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: true, isPolling: true });
-    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: false, isPolling: false });
-
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, 0));
-  });
-
-  it("completes with a zero bonus when the transaction lookup fails", async () => {
-    const confirmPayment = vi.fn().mockResolvedValue({ success: true });
-    const onDone = vi.fn();
-    const addPaymentMethod = vi.fn().mockResolvedValue({ paymentMethodId: "pm_1" });
-    const getCustomerTransactions = vi.fn().mockRejectedValue(new Error("boom"));
-    const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
-
-    const { rerender } = setup({
-      status: "success",
-      clientSecret: "seti_secret",
-      confirmPayment,
-      onDone,
-      getCustomerTransactions,
-      isTrialing: true,
-      isPolling: false,
-      dependencies: { AddCreditsNewPaymentMethodFields }
-    });
-
-    fireEvent.click(screen.getByRole("radio", { name: "100" }));
-
-    await act(async () => {
-      fireEvent.submit(screen.getByRole("button", { name: /purchase credits/i }).closest("form")!);
-    });
-
-    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: true, isPolling: true });
-    rerender({ status: "success", clientSecret: "seti_secret", confirmPayment, onDone, getCustomerTransactions, isTrialing: false, isPolling: false });
-
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, 0));
   });
 
   it("shows an error when polling confirms payment but the trial does not flip", async () => {
@@ -1787,6 +1787,22 @@ describe(AddCreditsForm.name, () => {
     });
   });
 
+  async function purchaseUntilPollingSettles(overrides: Partial<SetupInput>) {
+    const onDone = vi.fn();
+    const input: SetupInput = { status: "idle", onDone, paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })], ...overrides };
+    const { rerender } = setup(input);
+
+    await submitWithAmount("100");
+    rerender({ ...input, isPolling: true });
+    rerender({ ...input, isPolling: false });
+
+    return { onDone };
+  }
+
+  function transaction(overrides: Partial<BillingTransaction>): BillingTransaction {
+    return { id: "tx_1", type: "payment_intent", amount: 10000, amountRefunded: 0, currency: "usd", status: "succeeded", created: 0, ...overrides };
+  }
+
   async function submitWithAmount(amount: string) {
     fireEvent.click(screen.getByRole("radio", { name: amount }));
 
@@ -1945,7 +1961,9 @@ describe(AddCreditsForm.name, () => {
     const refreshPaymentMethods = input.refreshPaymentMethods ?? vi.fn().mockResolvedValue(undefined);
     const useRefreshPaymentMethods: typeof DEPENDENCIES.useRefreshPaymentMethods = () => refreshPaymentMethods;
 
-    const api = createProxy({ v1: { getFirstPurchaseBonus: vi.fn() } }) as unknown as ReturnType<typeof DEPENDENCIES.useServices>["api"];
+    const api = createProxy({ v1: { getFirstPurchaseBonus: vi.fn(), listStripeTransactions: vi.fn() } }) as unknown as ReturnType<
+      typeof DEPENDENCIES.useServices
+    >["api"];
     const useServices: typeof DEPENDENCIES.useServices = () => {
       const services = mock<ReturnType<typeof DEPENDENCIES.useServices>>({
         stripe: mock<ReturnType<typeof DEPENDENCIES.useServices>["stripe"]>({
@@ -2008,6 +2026,7 @@ describe(AddCreditsForm.name, () => {
           useTopUpAttemptKey,
           getPaymentMethodDisplay,
           handleStripeError: input.handleStripeError ?? (() => ({ message: "fallback", userAction: undefined })),
+          waitForSettledTransaction: vi.fn().mockResolvedValue(undefined),
           ...input.dependencies
         }}
       />
