@@ -13698,7 +13698,7 @@ export interface operations {
       content: {
         "application/json": {
           data: {
-            /** @description Unique, ignoring case, among the organizations the caller belongs to. */
+            /** @description Creating or renaming is refused when the caller already belongs to another organization of this name, ignoring case. Organizations joined by invitation may share a name. */
             name: string;
           };
         };
@@ -13844,7 +13844,7 @@ export interface operations {
       content: {
         "application/json": {
           data: {
-            /** @description Unique, ignoring case, among the organizations the caller belongs to. */
+            /** @description Creating or renaming is refused when the caller already belongs to another organization of this name, ignoring case. Organizations joined by invitation may share a name. */
             name: string;
           };
         };

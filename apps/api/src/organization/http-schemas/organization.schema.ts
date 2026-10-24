@@ -27,7 +27,8 @@ export const OrganizationResponseSchema = z.object({
 });
 
 const OrganizationNameSchema = readableName(z.string().trim().min(1).max(MAX_ORGANIZATION_NAME_LENGTH)).openapi({
-  description: "Unique, ignoring case, among the organizations the caller belongs to."
+  description:
+    "Creating or renaming is refused when the caller already belongs to another organization of this name, ignoring case. Organizations joined by invitation may share a name."
 });
 
 export const CreateOrganizationRequestSchema = z.object({

@@ -41,6 +41,7 @@ export function OrganizationSwitcher({ dependencies: d = DEPENDENCIES, layout = 
   const personalOrganization = organizations.find(organization => organization.type === "personal");
   const teamOrganizations = organizations.filter(organization => organization.type === "team");
   const hasTeams = teamOrganizations.length > 0;
+  const idsOfTeamsSharingAName = idsOfOrganizationsSharingAName(teamOrganizations);
 
   if (!activeOrganization || (!hasTeams && !onCreateOrganization)) return null;
 
@@ -54,7 +55,10 @@ export function OrganizationSwitcher({ dependencies: d = DEPENDENCIES, layout = 
     return (
       <DropdownMenuItem key={organization.id} role="menuitemradio" aria-checked={isCurrent} className={ROW_CLASSES} onSelect={() => select(organization)}>
         <OrganizationAvatar organization={organization} size={20} />
-        <span className="min-w-0 flex-1 truncate">{organization.name}</span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate">{organization.name}</span>
+          {idsOfTeamsSharingAName.has(organization.id) && <span className="truncate text-xs font-normal text-muted-foreground">{organization.slug}</span>}
+        </span>
         {organization.type === "team" && (
           <span className="shrink-0 text-xs font-normal text-muted-foreground">{ORGANIZATION_ROLE_LABELS[organization.role]}</span>
         )}
@@ -104,4 +108,18 @@ export function OrganizationSwitcher({ dependencies: d = DEPENDENCIES, layout = 
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/** Teams a person joins may share a name, ignoring case, with one they already belong to. */
+function idsOfOrganizationsSharingAName(organizations: OrganizationOutput[]): Set<string> {
+  const namesSeen = new Set<string>();
+  const sharedNames = new Set<string>();
+
+  for (const { name } of organizations) {
+    const comparableName = name.toLowerCase();
+    if (namesSeen.has(comparableName)) sharedNames.add(comparableName);
+    namesSeen.add(comparableName);
+  }
+
+  return new Set(organizations.filter(({ name }) => sharedNames.has(name.toLowerCase())).map(({ id }) => id));
 }

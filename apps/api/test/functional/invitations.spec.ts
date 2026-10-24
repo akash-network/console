@@ -224,6 +224,19 @@ describe("Invitations", () => {
       expect(await membershipsOf(invitee)).toEqual([expect.objectContaining({ role: "viewer" })]);
     });
 
+    it("lets an invitee join a team named, whatever its case, like a team they already belong to", async () => {
+      const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
+      const invitee = await seedInvitee();
+      const { organization: ownTeam } = await seedOrganizationWithOwner({ name: organization.name.toUpperCase() });
+      await seedOrganizationMember({ organizationId: ownTeam.id, userId: invitee.id, role: "member" });
+      const { token } = await invite({ email: invitee.email!, role: "viewer" });
+
+      const response = await request("/v1/invitations/accept", { asUser: invitee, body: { data: { token } } });
+
+      expect(response.status).toBe(200);
+      expect(await membershipsOf(invitee)).toEqual([expect.objectContaining({ role: "viewer" })]);
+    });
+
     it("refuses a member who confirmed another address and leaves the invitation pending", async () => {
       const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
       const member = await seedInvitee();
