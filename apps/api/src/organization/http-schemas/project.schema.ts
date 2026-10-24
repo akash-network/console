@@ -1,18 +1,17 @@
 import { z } from "@hono/zod-openapi";
 
+import { readableName, readableText } from "@src/core/lib/readable-text/readable-text";
 import type { ProjectDeploymentStatus } from "@src/deployment/services/project-deployment-summary/project-deployment-summary.service";
 import { MAX_PROJECT_DESCRIPTION_LENGTH, MAX_PROJECT_NAME_LENGTH } from "@src/organization/model-schemas/project/project.schema";
 
 const PROJECT_DEPLOYMENT_STATUSES = ["pending", "running", "degraded"] as const satisfies readonly ProjectDeploymentStatus[];
 
-const ProjectNameSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(MAX_PROJECT_NAME_LENGTH)
-  .openapi({ description: "Unique within the organization, whatever its case.", example: "checkout-api" });
+const ProjectNameSchema = readableName(z.string().trim().min(1).max(MAX_PROJECT_NAME_LENGTH)).openapi({
+  description: "Unique within the organization, whatever its case.",
+  example: "checkout-api"
+});
 
-const ProjectDescriptionSchema = z.string().trim().max(MAX_PROJECT_DESCRIPTION_LENGTH);
+const ProjectDescriptionSchema = readableText(z.string().trim().max(MAX_PROJECT_DESCRIPTION_LENGTH));
 
 export const ProjectSchema = z.object({
   id: z.string().uuid(),

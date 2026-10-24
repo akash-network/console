@@ -13880,7 +13880,8 @@
                     "type": "object",
                     "properties": {
                       "name": {
-                        "type": "string"
+                        "type": "string",
+                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$"
                       },
                       "expiresAt": {
                         "type": "string",
@@ -14158,7 +14159,8 @@
                     "type": "object",
                     "properties": {
                       "name": {
-                        "type": "string"
+                        "type": "string",
+                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$"
                       }
                     }
                   }
@@ -25607,7 +25609,7 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]+$",
+                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
                         "description": "Unique, ignoring case, among the organizations the caller belongs to."
                       }
                     },
@@ -25764,7 +25766,7 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]+$",
+                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
                         "description": "Unique, ignoring case, among the organizations the caller belongs to."
                       }
                     },
@@ -26179,12 +26181,14 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
+                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
                         "description": "Unique within the organization, whatever its case.",
                         "example": "checkout-api"
                       },
                       "description": {
                         "type": "string",
-                        "maxLength": 140
+                        "maxLength": 140,
+                        "pattern": "^(?:[^\\p{Cc}\\p{Bidi_Control}]|[\\t\\n\\r])*$"
                       }
                     },
                     "required": [
@@ -26450,13 +26454,15 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
+                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
                         "description": "Unique within the organization, whatever its case.",
                         "example": "checkout-api"
                       },
                       "description": {
                         "type": "string",
                         "nullable": true,
-                        "maxLength": 140
+                        "maxLength": 140,
+                        "pattern": "^(?:[^\\p{Cc}\\p{Bidi_Control}]|[\\t\\n\\r])*$"
                       }
                     }
                   }
