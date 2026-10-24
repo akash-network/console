@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 import {
   expireActiveOrganizationCookie,
   readActiveOrganizationCookie,
+  readActiveOrganizationHeader,
   serializeActiveOrganizationCookie,
   serializeActiveOrganizationCookieRemoval
 } from "./active-organization-cookie";
@@ -48,6 +49,24 @@ describe(readActiveOrganizationCookie.name, () => {
     ["a percent sign", "acme%20corp"]
   ])("drops a console_org cookie containing %s", (_, value) => {
     expect(readActiveOrganizationCookie(`console_org=${value}`)).toBeUndefined();
+  });
+});
+
+describe(readActiveOrganizationHeader.name, () => {
+  it("returns an organization id or slug", () => {
+    expect(readActiveOrganizationHeader("0b8f6b2e-3d7c-4a4d-9e1f-2c3a4b5c6d7e")).toBe("0b8f6b2e-3d7c-4a4d-9e1f-2c3a4b5c6d7e");
+    expect(readActiveOrganizationHeader("acme-corp")).toBe("acme-corp");
+  });
+
+  it.each([
+    ["no header", undefined],
+    ["an empty header", ""],
+    ["a header sent twice", ["acme-corp", "globex"]],
+    ["a header given as a list", ["acme-corp"]],
+    ["an uppercase letter", "Acme"],
+    ["a value longer than 64 characters", "a".repeat(65)]
+  ])("returns undefined for %s", (_, value) => {
+    expect(readActiveOrganizationHeader(value)).toBeUndefined();
   });
 });
 

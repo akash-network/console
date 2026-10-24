@@ -19,6 +19,10 @@ export function readActiveOrganizationCookie(cookieHeader: string | null | undef
   return value && ACTIVE_ORGANIZATION_ID_PATTERN.test(value) ? value : undefined;
 }
 
+export function readActiveOrganizationHeader(headerValue: string | string[] | undefined): string | undefined {
+  return typeof headerValue === "string" && ACTIVE_ORGANIZATION_ID_PATTERN.test(headerValue) ? headerValue : undefined;
+}
+
 export function serializeActiveOrganizationCookie(organizationId: string, location: Pick<Location, "protocol"> = window.location): string {
   const cookie = `${ACTIVE_ORGANIZATION_COOKIE_NAME}=${organizationId}; Path=/; Max-Age=${ACTIVE_ORGANIZATION_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
 

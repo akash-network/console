@@ -28,7 +28,6 @@ import { SUPPORT_EMAIL } from "@src/config/ui.config";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
-import { serializeActiveOrganizationCookie } from "@src/lib/active-organization/active-organization-cookie";
 import { useCreateOrganizationInvitationsMutation, useCreateOrganizationMutation } from "@src/queries/useOrganizationQueries";
 import { ORGANIZATION_LIMIT_REACHED_ERROR_CODE, ORGANIZATION_NAME_TAKEN_ERROR_CODE } from "@src/types/organization";
 import { readRefusedLimit } from "@src/utils/refusedLimit";
@@ -70,7 +69,7 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
   const { organizations, switchOrganization } = d.useActiveOrganization();
   const { user } = d.useUser();
   const { enqueueSnackbar } = d.useSnackbar();
-  const { stripe, errorHandler } = useServices();
+  const { stripe, errorHandler, tabOrganization } = useServices();
   const { mutateAsync: createOrganization } = d.useCreateOrganizationMutation();
   const { mutateAsync: inviteToActiveOrganization } = d.useCreateOrganizationInvitationsMutation();
   const [name, setName] = useState("");
@@ -162,14 +161,14 @@ export const CreateOrganizationDialog: FC<Props> = ({ onClose, dependencies: d =
   /** The API files a team's new card, and makes its first one the default, when a member next reads the team's cards. */
   const recordCardAsDefault = () => stripe.getPaymentMethods().catch(reportBillingError);
 
-  /** The proxy reads the organization of every request from its cookie only, so this saves the card on the new team's own customer. */
-  const saveCardToOrganization = async (card: NewCardHandle, organizationId: string) => {
-    document.cookie = serializeActiveOrganizationCookie(organizationId);
-    const cardFailure = await confirmCard(card);
-    if (!cardFailure) await recordCardAsDefault();
+  /** Runs in the new team before the tab switches into it, so the card is saved on the team's own customer. */
+  const saveCardToOrganization = (card: NewCardHandle, organizationId: string) =>
+    tabOrganization.actIn(organizationId, async () => {
+      const cardFailure = await confirmCard(card);
+      if (!cardFailure) await recordCardAsDefault();
 
-    return cardFailure;
-  };
+      return cardFailure;
+    });
 
   const createAndEnterOrganization = async () => {
     const card = cardRef.current;

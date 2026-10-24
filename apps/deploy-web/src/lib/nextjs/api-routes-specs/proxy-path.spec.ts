@@ -60,16 +60,28 @@ describe("proxy [...path] handler", () => {
     expect(getForwardedHeaders(proxyRequest)["x-organization-id"]).toBeUndefined();
   });
 
-  it("never lets a client-supplied x-organization-id through", async () => {
-    const { upstreamFetch } = await setup({ session: null, headers: { "x-organization-id": "other-org" } });
+  it("sends the organization the tab names instead of the one the console_org cookie holds", async () => {
+    const { upstreamFetch } = await setup({ session: null, headers: { cookie: "console_org=acme-corp", "x-organization-id": "globex" } });
 
-    expect(getUpstreamHeaders(upstreamFetch).has("x-organization-id")).toBe(false);
+    expect(getUpstreamHeaders(upstreamFetch).get("x-organization-id")).toBe("globex");
   });
 
-  it("sends the console_org cookie value to the API instead of a client-supplied x-organization-id", async () => {
-    const { upstreamFetch } = await setup({ session: null, headers: { cookie: "console_org=acme-corp", "x-organization-id": "other-org" } });
+  it("sends the organization the tab names when there is no console_org cookie", async () => {
+    const { upstreamFetch } = await setup({ session: null, headers: { "x-organization-id": "globex" } });
+
+    expect(getUpstreamHeaders(upstreamFetch).get("x-organization-id")).toBe("globex");
+  });
+
+  it("falls back to the console_org cookie when the tab names something that is not an organization id", async () => {
+    const { upstreamFetch } = await setup({ session: null, headers: { cookie: "console_org=acme-corp", "x-organization-id": "Globex Inc" } });
 
     expect(getUpstreamHeaders(upstreamFetch).get("x-organization-id")).toBe("acme-corp");
+  });
+
+  it("never passes on a named organization that is not an organization id", async () => {
+    const { upstreamFetch } = await setup({ session: null, headers: { "x-organization-id": "Globex Inc" } });
+
+    expect(getUpstreamHeaders(upstreamFetch).has("x-organization-id")).toBe(false);
   });
 
   function getForwardedHeaders(proxyRequest: Mock): Record<string, string> {
