@@ -650,6 +650,7 @@ describe(useAutoDeploymentFlow.name, () => {
         deploySucceeded,
         isDeployedInBackground: false,
         showsDeployProgress: false,
+        isDeployTakingLong: false,
         noBidsReceived,
         deployError,
         error,

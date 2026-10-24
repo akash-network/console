@@ -345,6 +345,12 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
     setReviewOpen(false);
   }
 
+  function deployFormValues() {
+    const values = form.getValues();
+    const secrets = resolveSdlSecrets(values, { sealSecrets: true });
+    flow.actions.deploy(regenerateSdl(values, liveSdl), { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
+  }
+
   /**
    * Replaces the whole configuration with an imported SDL. Resets the form first (clearing dirty/touched/errors
    * so stale validation can't leak), then explicitly syncs the live SDL and selection; both setters are batched
@@ -373,8 +379,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   }, [analyticsService, applyImportedState, startingSdl, intent.vm]);
   /** Import is only meaningful while the deployment is still editable; export stays available in every phase. */
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
-  /** The review stays up, its deploy pending, until the api has the deploy, which also keeps Edit and Leave out of reach. */
-  const isHandingOffDeploy = flow.phase === "deploying" && !flow.showsDeployProgress;
+  /** The review stays up, its deploy pending, until the api has the deploy, and comes back once that takes too long, which also keeps Edit and Leave out of reach. */
+  const isHandingOffDeploy = flow.phase === "deploying" && (!flow.showsDeployProgress || flow.isDeployTakingLong);
 
   return (
     <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
@@ -443,7 +449,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
                   </div>
                 </>
               )}
-              {flow.phase === "deploying" && flow.showsDeployProgress && (
+              {flow.phase === "deploying" && !isHandingOffDeploy && (
                 <d.DeployProgressOverlay
                   providerAddress={firstSelectedProviderAddress(flow.selections)}
                   activePhase={flow.deploySucceeded ? "success" : "preparing"}
@@ -454,6 +460,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
             <d.ReviewAndDeployModal
               open={isReviewOpen || isHandingOffDeploy}
               isDeploying={isHandingOffDeploy}
+              isDeployTakingLong={flow.isDeployTakingLong}
               dseq={flow.dseq}
               placements={placements}
               selections={flow.selections}
@@ -463,10 +470,10 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
               onConfirm={() => {
                 analyticsService.track("review_deploy_confirmed", { category: "deployments", dseq: flow.dseq });
                 setReviewOpen(false);
-                const values = form.getValues();
-                const secrets = resolveSdlSecrets(values, { sealSecrets: true });
-                flow.actions.deploy(regenerateSdl(values, liveSdl), { secrets: secrets.values, unresolvedSecrets: secrets.unresolved });
+                deployFormValues();
               }}
+              onRetryDeploy={deployFormValues}
+              onBackToBids={flow.actions.refreshQuotes}
             />
           </InheritedSecretsProvider>
         </PlacementManagerProvider>

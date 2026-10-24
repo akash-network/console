@@ -46,6 +46,7 @@ export const DEPENDENCIES = {
 interface Props {
   open: boolean;
   isDeploying: boolean;
+  isDeployTakingLong: boolean;
   dseq: string | null;
   placements: PlacementType[];
   selections: Record<string, string>;
@@ -54,6 +55,9 @@ interface Props {
   onRuntimeLimitHoursChange: (value: number | undefined) => void;
   onConfirm: () => void;
   onBack: () => void;
+  /** Re-sends the deploy for the same deployment and never creates another, since the slow request may still lease this one. */
+  onRetryDeploy: () => void;
+  onBackToBids: () => void;
   dependencies?: typeof DEPENDENCIES;
 }
 
@@ -64,6 +68,7 @@ interface Props {
 export const ReviewAndDeployModal: FC<Props> = ({
   open,
   isDeploying,
+  isDeployTakingLong,
   dseq,
   placements,
   selections,
@@ -71,6 +76,8 @@ export const ReviewAndDeployModal: FC<Props> = ({
   onRuntimeLimitHoursChange,
   onConfirm,
   onBack,
+  onRetryDeploy,
+  onBackToBids,
   dependencies: d = DEPENDENCIES
 }) => {
   const { rows, pricedCount, totalCount } = d.useReviewRows({ dseq, placements, selections });
@@ -226,26 +233,46 @@ export const ReviewAndDeployModal: FC<Props> = ({
           )}
         </DialogV2Body>
 
-        <DialogV2Footer>
-          <Button variant="ghost" onClick={onBack} disabled={updateSetting.isPending || isDeploying}>
-            Back to marketplace
-          </Button>
-          {isDeploying ? (
-            <Button className="gap-2" disabled>
-              Deploying…
-              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+        {isDeployTakingLong ? (
+          <TakingLongFooter onRetryDeploy={onRetryDeploy} onBackToBids={onBackToBids} />
+        ) : (
+          <DialogV2Footer>
+            <Button variant="ghost" onClick={onBack} disabled={updateSetting.isPending || isDeploying}>
+              Back to marketplace
             </Button>
-          ) : (
-            <Button onClick={confirmAndDeploy} className="gap-2" disabled={!canConfirm || updateSetting.isPending}>
-              Confirm and deploy
-              {updateSetting.isPending || isStoredRuntimeLimitLoading ? <Spinner size="small" /> : <Rocket className="h-4 w-4" />}
-            </Button>
-          )}
-        </DialogV2Footer>
+            {isDeploying ? (
+              <Button className="gap-2" disabled>
+                Deploying…
+                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+              </Button>
+            ) : (
+              <Button onClick={confirmAndDeploy} className="gap-2" disabled={!canConfirm || updateSetting.isPending}>
+                Confirm and deploy
+                {updateSetting.isPending || isStoredRuntimeLimitLoading ? <Spinner size="small" /> : <Rocket className="h-4 w-4" />}
+              </Button>
+            )}
+          </DialogV2Footer>
+        )}
       </DialogV2Content>
     </DialogV2>
   );
 };
+
+function TakingLongFooter({ onRetryDeploy, onBackToBids }: { onRetryDeploy: () => void; onBackToBids: () => void }) {
+  return (
+    <DialogV2Footer className="sm:justify-between">
+      <p role="status" className="self-center text-sm text-muted-foreground">
+        Taking longer than usual
+      </p>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row">
+        <Button variant="ghost" onClick={onBackToBids}>
+          Back to bids
+        </Button>
+        <Button onClick={onRetryDeploy}>Retry</Button>
+      </div>
+    </DialogV2Footer>
+  );
+}
 
 /**
  * Sums the selected offers' per-block prices and renders the USD total through the shared price component,
