@@ -73,6 +73,39 @@ describe(OrganizationSwitcher.name, () => {
     expect(within(menu).queryByText(/not in any organizations/)).not.toBeInTheDocument();
   });
 
+  it("shows the slug under the name of each organization whose name another one shares, whatever its case", async () => {
+    const { user } = setup({
+      activeId: "org-2",
+      teams: [
+        { id: "org-2", name: "Dup-x", slug: "dup-x", role: "owner" },
+        { id: "org-3", name: "dup-x", slug: "dup-x-2", role: "member" },
+        { id: "org-4", name: "Northwind Labs", slug: "northwind-labs", role: "member" }
+      ]
+    });
+
+    await user.click(screen.getByRole("button", { name: /switch organization/ }));
+
+    const menu = await screen.findByRole("menu");
+    expect(
+      within(menu)
+        .getAllByRole("menuitemradio")
+        .map(item => item.textContent)
+    ).toEqual(["A" + "alice", "D" + "Dup-x" + "dup-x" + "Owner", "D" + "dup-x" + "dup-x-2" + "Member", "N" + "Northwind Labs" + "Member"]);
+  });
+
+  it("leaves the slug out for an organization named like the personal account, which sits in its own section", async () => {
+    const { user } = setup({ activeId: "org-2", teams: [{ id: "org-2", name: "Alice", slug: "alice", role: "owner" }] });
+
+    await user.click(screen.getByRole("button", { name: /switch organization/ }));
+
+    const menu = await screen.findByRole("menu");
+    expect(
+      within(menu)
+        .getAllByRole("menuitemradio")
+        .map(item => item.textContent)
+    ).toEqual(["A" + "alice", "A" + "Alice" + "Owner"]);
+  });
+
   it("switches to the chosen organization", async () => {
     const { user, switchOrganization, onNavigate } = setup({ activeId: "org-1" });
 
@@ -123,7 +156,7 @@ describe(OrganizationSwitcher.name, () => {
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
-  function setup(input: { activeId?: string; teams?: OrganizationOutput[]; canCreate?: boolean }) {
+  function setup(input: { activeId?: string; teams?: Pick<OrganizationOutput, "id" | "name" | "slug" | "role">[]; canCreate?: boolean }) {
     const personal: OrganizationOutput = {
       id: "org-1",
       name: "alice",
@@ -134,10 +167,12 @@ describe(OrganizationSwitcher.name, () => {
       hasPaymentMethod: null,
       createdAt: "2026-01-01T00:00:00Z"
     };
-    const teams = input.teams ?? [
-      { ...personal, id: "org-2", name: "Acme Corp", slug: "acme-corp", type: "team", role: "admin" },
-      { ...personal, id: "org-3", name: "Northwind Labs", slug: "northwind-labs", type: "team", role: "member" }
-    ];
+    const teams = (
+      input.teams ?? [
+        { id: "org-2", name: "Acme Corp", slug: "acme-corp", role: "admin" },
+        { id: "org-3", name: "Northwind Labs", slug: "northwind-labs", role: "member" }
+      ]
+    ).map((team): OrganizationOutput => ({ ...personal, ...team, type: "team" }));
     const organizations = [personal, ...teams].map(organization => ({ ...organization, isActive: organization.id === input.activeId }));
     const switchOrganization = vi.fn();
     const onCreateOrganization = vi.fn();
