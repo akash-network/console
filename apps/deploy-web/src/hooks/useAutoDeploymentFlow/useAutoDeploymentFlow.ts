@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { DeploymentFlow, DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import type { DeployError, DeploymentFlow, DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { NO_BIDS_TIMEOUT_MS, NO_PROVIDERS_MESSAGE } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { useQuoteExpiry } from "@src/components/deployments/ConfigureDeployment/useQuoteExpiry/useQuoteExpiry";
 import { useServices } from "@src/context/ServicesProvider";
@@ -48,10 +48,14 @@ type Result = {
    * "Choose my provider", so the deployment can be handed to the manual configure form (which shares the same flow)
    * without the autopilot leasing it out from under them. The deployment creation is deliberately left to finish, so
    * the hand-off always inherits a live, quoting deployment rather than a dangling one. Scoped to this auto session —
-   * a fresh attempt (a remount, or `tryAgain`) re-enables it.
+   * a fresh attempt (a remount, or `tryAgain`) re-enables it. The providers it picked are dropped too, since the manual
+   * form would otherwise lease them alongside the user's own pick.
    */
   stopAutopilot: () => void;
 };
+
+/** The one retry a failed lease gets: the providers it skips, and whether the next provider is still being matched. */
+type NextProviderRetry = { skippedProviders: string[]; isMatching: boolean };
 
 /** Everything left once bids are in — probe, select, lease — is seconds of work, so 90s of no progress means it is not coming. */
 const MATCH_DEADLINE_MS = 90 * 1000;
@@ -117,6 +121,12 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   // quoting deployment to drive rather than being handed a dangling one.
   const [autopilotStopped, setAutopilotStopped] = useState(false);
 
+  const [nextProviderRetry, setNextProviderRetry] = useState<NextProviderRetry | null>(null);
+  const isMatchingNextProvider = !!nextProviderRetry?.isMatching;
+
+  /** The lease failure a retry is already past is no longer the scene's to show. */
+  const hasDeployFailed = !!flow.deployError && !isMatchingNextProvider;
+
   const dseq = flow.dseq;
 
   // The live (non-closed) leases keyed by group sequence, resolved upfront by the `ResumeDeploymentGuard` so a resumed
@@ -150,9 +160,13 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   // Bids come straight off the flow's own query, scoped to the group currently being matched: the flow is the single
   // owner of the bids subscription, the autopilot only reads them to match a provider for that group.
   const openBids =
-    flow.phase === "quoting" && matchingGseq !== undefined ? flow.bids.filter(bid => bid.bid.state === "open" && bid.bid.id.gseq === matchingGseq) : [];
+    flow.phase === "quoting" && matchingGseq !== undefined
+      ? flow.bids.filter(
+          bid => bid.bid.state === "open" && bid.bid.id.gseq === matchingGseq && !nextProviderRetry?.skippedProviders.includes(bid.bid.id.provider)
+        )
+      : [];
 
-  const { data: providers } = dependencies.useProvidersByAddresses(
+  const { data: providers, isLoading: isLookingUpProviders } = dependencies.useProvidersByAddresses(
     openBids.map(bid => bid.bid.id.provider),
     { enabled: flow.phase === "quoting" }
   );
@@ -160,14 +174,15 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     .map(bid => providers.find(provider => provider.owner === bid.bid.id.provider))
     .filter((provider): provider is ApiProviderList => !!provider);
 
-  /** Keyed per placement, not per candidate list: bids keep arriving mid-probe and a candidate-derived key would restart it. */
-  const placementKey = dseq && matchingGseq !== undefined ? `${dseq}/${matchingGseq}` : null;
+  /** Keyed per placement and retry, not per candidate list: bids keep arriving mid-probe and a candidate-derived key would restart it. */
+  const placementKey = dseq && matchingGseq !== undefined ? `${dseq}/${matchingGseq}${nextProviderRetry ? "/next-provider" : ""}` : null;
   const reachableProviderQuery = dependencies.useFirstReachableProvider(placementKey, candidateProviders, {
     enabled: flow.phase === "quoting" && candidateProviders.length > 0,
     refetchInterval: BID_POLL_INTERVAL
   });
   const reachableProvider = reachableProviderQuery.data;
   const activeBid = reachableProvider ? openBids.find(bid => bid.bid.id.provider === reachableProvider.owner) : undefined;
+  const hasNoCandidateLeft = !isLookingUpProviders && (candidateProviders.length === 0 || reachableProvider === null);
 
   /** Keyed off what the flow holds, so a dropped selection is matched again while one that still stands is never re-recorded. */
   const selectionTargets = useMemo<LeaseId[]>(() => {
@@ -196,14 +211,14 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
 
   useEffect(
     function recordSelections() {
-      if (autopilotStopped || flow.phase !== "quoting" || flow.deployError) return;
+      if (autopilotStopped || flow.phase !== "quoting" || hasDeployFailed) return;
       for (const target of selectionTargets) {
         const bidId = formatBidId(target);
         flow.actions.selectProvider(bidId, bidId);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [flow.phase, flow.deployError, selectionTargets, autopilotStopped]
+    [flow.phase, hasDeployFailed, selectionTargets, autopilotStopped]
   );
 
   // A multi-placement deployment leases all its groups together, so deploy waits until every required group has a
@@ -219,9 +234,9 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
 
   useEffect(
     function fireDeploy() {
-      // deploy moves the flow off "quoting" synchronously; a failure drops it back with a `deployError`, which this guard
-      // treats as terminal (the auto flow has no manual "pick another provider" step). Together they fire deploy exactly
-      // once per attempt, so no separate one-shot ref is needed.
+      // deploy moves the flow off "quoting" synchronously; a failure drops it back with a `deployError`, which holds this
+      // guard until the next provider's selection clears it. Together they fire deploy exactly once per selection, so no
+      // separate one-shot ref is needed.
       if (autopilotStopped || flow.phase !== "quoting" || !allGroupsSelected || flow.deployError) return;
       flow.actions.deploy(sdlRef.current, { isAutoDeploy: true });
     },
@@ -295,7 +310,30 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     [isWaitingForLateBids, dependencies.lateBidWaitMs, analyticsService, dseq]
   );
 
-  const projected = projectPhase(flow.phase, flow.deploySucceeded, !!flow.deployError);
+  /** Skips every provider the failed lease went to, and only retries when each placement still has an open bid from someone else. */
+  useEffect(
+    function retryAFailedLeaseWithTheNextProvider() {
+      if (!canTryAnotherProvider(flow.deployError) || nextProviderRetry || autopilotStopped || hasLeasedBid || leasesByGseq.size > 0) return;
+      const failedProviders = Object.values(flow.selections).map(bidId => parseBidId(bidId).provider);
+      const hasNextProvider = requiredGseqs.every(gseq =>
+        flow.bids.some(({ bid }) => bid.state === "open" && bid.id.gseq === gseq && !failedProviders.includes(bid.id.provider))
+      );
+      if (!hasNextProvider) return;
+      setNextProviderRetry({ skippedProviders: failedProviders, isMatching: true });
+      dropSelections();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [flow.deployError]
+  );
+
+  useEffect(
+    function finishMatchingTheNextProvider() {
+      if (nextProviderRetry?.isMatching && (!flow.deployError || hasNoCandidateLeft)) setNextProviderRetry({ ...nextProviderRetry, isMatching: false });
+    },
+    [nextProviderRetry, flow.deployError, hasNoCandidateLeft]
+  );
+
+  const projected = projectPhase(flow.phase, flow.deploySucceeded, hasDeployFailed);
 
   const phaseIndex = getPhaseIndex(projected);
   const { progressPercent, phases } = useDeployPhaseProgress(phaseIndex, { succeeded: projected === "success", resetKey: retryToken });
@@ -308,12 +346,18 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     // re-leasing the same one.
     setRetryToken(previous => previous + 1);
     setAutopilotStopped(false);
+    setNextProviderRetry(null);
     flow.actions.cancelAndEdit();
   }
 
   // Hand-off for "Choose my provider": stop the autopilot so the manual form can drive the shared flow instead.
   function stopAutopilot() {
     setAutopilotStopped(true);
+    dropSelections();
+  }
+
+  function dropSelections() {
+    for (const placementId of Object.keys(flow.selections)) flow.actions.clearSelection(placementId);
   }
 
   return {
@@ -329,8 +373,13 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
 
 type ProjectedPhase = DeployPhaseId | "success" | "error";
 
+/** Another provider cannot make up for missing funds, so only a lease refused for any other reason is worth taking elsewhere. */
+function canTryAnotherProvider(deployError: DeployError | undefined): boolean {
+  return !!deployError?.leaseErrorKind && deployError.leaseErrorKind !== "insufficient_funds";
+}
+
 function failureOf(flow: DeploymentFlow): DeployFailure {
-  if (flow.deployError) return { message: flow.deployError.message };
+  if (flow.deployError) return { message: flow.deployError.message, reason: canTryAnotherProvider(flow.deployError) ? "lease-failed" : undefined };
 
   const { message, kind, shortfall, projectId } = flow.error ?? {};
   const reason = kind === "needs-funds" || kind === "top-up-pending" || kind === "budget-exceeded" ? kind : undefined;

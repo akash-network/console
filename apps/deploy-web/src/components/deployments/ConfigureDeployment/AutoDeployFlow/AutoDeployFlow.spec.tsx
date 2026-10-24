@@ -152,6 +152,19 @@ describe(AutoDeployFlow.name, () => {
     expect(setBidStrategy).toHaveBeenCalledWith("select");
   });
 
+  it("stops the autopilot and switches to manual bid selection when the user tries another provider after a failed lease", () => {
+    const stopAutopilot = vi.fn();
+    const setBidStrategy = vi.fn();
+    const flow = mock<DeploymentFlow>({ actions: mock<DeploymentFlow["actions"]>({ setBidStrategy }) });
+    const { sceneProps, analyticsService } = setup({ flow, autopilot: { stopAutopilot, state: { kind: "error", reason: "lease-failed" } } });
+
+    sceneProps().onTryAnotherProvider?.();
+
+    expect(stopAutopilot).toHaveBeenCalledTimes(1);
+    expect(setBidStrategy).toHaveBeenCalledWith("select");
+    expect(analyticsService.track).not.toHaveBeenCalledWith("onboarding_choose_provider_click", expect.anything());
+  });
+
   it("tracks the choose-provider click with the template name when the user switches to manual selection", () => {
     const flow = mock<DeploymentFlow>({ actions: mock<DeploymentFlow["actions"]>({ setBidStrategy: vi.fn() }) });
     const { sceneProps, analyticsService } = setup({ flow, templateName: "my-app" });

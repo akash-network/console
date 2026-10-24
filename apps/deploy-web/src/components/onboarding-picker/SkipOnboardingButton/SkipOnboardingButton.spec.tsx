@@ -31,7 +31,28 @@ describe(SkipOnboardingButton.name, () => {
 
     fireEvent.click(screen.getByRole("button", { name: /skip/i }));
 
-    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", { category: "onboarding", control: "skip_button", discardedDeployment: false });
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", {
+      category: "onboarding",
+      control: "skip_button",
+      discardedDeployment: false,
+      midLease: false
+    });
+  });
+
+  it("skips without asking while the lease is in flight, keeping the deployment, and tracks leaving mid-lease", () => {
+    const { skip, discard, analyticsService } = setup({ source: "auto_deploy", isLeaseInFlight: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip onboarding - Explore Console" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(discard).not.toHaveBeenCalled();
+    expect(skip).toHaveBeenCalledWith("auto_deploy");
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", {
+      category: "onboarding",
+      control: "skip_button",
+      discardedDeployment: false,
+      midLease: true
+    });
   });
 
   it("disables the button while a skip is in progress", () => {
@@ -79,7 +100,12 @@ describe(SkipOnboardingButton.name, () => {
 
       expect(discard).toHaveBeenCalled();
       expect(skip).toHaveBeenCalledWith("auto_deploy");
-      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", { category: "onboarding", control: "skip_button", discardedDeployment: true });
+      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", {
+        category: "onboarding",
+        control: "skip_button",
+        discardedDeployment: true,
+        midLease: false
+      });
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
@@ -92,24 +118,60 @@ describe(SkipOnboardingButton.name, () => {
 
       expect(discard).not.toHaveBeenCalled();
       expect(skip).toHaveBeenCalledWith("auto_deploy");
-      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", { category: "onboarding", control: "skip_button", discardedDeployment: false });
+      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", {
+        category: "onboarding",
+        control: "skip_button",
+        discardedDeployment: false,
+        midLease: false
+      });
+    });
+
+    it("keeps a deployment whose lease went out while the dialog was open, and tracks leaving mid-lease", async () => {
+      const { skip, discard, analyticsService, rerenderWith } = setup({ source: "auto_deploy", holdsUnleasedDeployment: true });
+      fireEvent.click(screen.getByRole("button", { name: "Skip onboarding - Explore Console" }));
+      rerenderWith({ holdsUnleasedDeployment: false, isLeaseInFlight: true });
+
+      await userEvent.click(screen.getByRole("button", { name: "Skip anyway" }));
+
+      expect(discard).not.toHaveBeenCalled();
+      expect(skip).toHaveBeenCalledWith("auto_deploy");
+      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_left", {
+        category: "onboarding",
+        control: "skip_button",
+        discardedDeployment: false,
+        midLease: true
+      });
     });
   });
 
-  function setup(input: { source: SkipOnboardingSource; isSkipping?: boolean; isCreating?: boolean; holdsUnleasedDeployment?: boolean }) {
+  function setup(input: {
+    source: SkipOnboardingSource;
+    isSkipping?: boolean;
+    isCreating?: boolean;
+    holdsUnleasedDeployment?: boolean;
+    isLeaseInFlight?: boolean;
+  }) {
     const skip = vi.fn(async () => {});
     const discard = vi.fn();
     const analyticsService = mock<AnalyticsService>();
-    const dependenciesWith = (guard: { holdsUnleasedDeployment: boolean }): typeof DEPENDENCIES => ({
+    const dependenciesWith = (guard: { holdsUnleasedDeployment: boolean; isLeaseInFlight?: boolean }): typeof DEPENDENCIES => ({
       useSkipOnboarding: () => mock<ReturnType<typeof DEPENDENCIES.useSkipOnboarding>>({ skip, isSkipping: input.isSkipping ?? false }),
-      useDeploymentLeaveGuard: () => ({ isCreating: input.isCreating ?? false, holdsUnleasedDeployment: guard.holdsUnleasedDeployment, discard }),
+      useDeploymentLeaveGuard: () => ({
+        isCreating: input.isCreating ?? false,
+        holdsUnleasedDeployment: guard.holdsUnleasedDeployment,
+        isLeaseInFlight: guard.isLeaseInFlight ?? false,
+        discard
+      }),
       useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService })
     });
 
     const { rerender } = render(
-      <SkipOnboardingButton source={input.source} dependencies={dependenciesWith({ holdsUnleasedDeployment: input.holdsUnleasedDeployment ?? false })} />
+      <SkipOnboardingButton
+        source={input.source}
+        dependencies={dependenciesWith({ holdsUnleasedDeployment: input.holdsUnleasedDeployment ?? false, isLeaseInFlight: input.isLeaseInFlight })}
+      />
     );
-    const rerenderWith = (guard: { holdsUnleasedDeployment: boolean }) =>
+    const rerenderWith = (guard: { holdsUnleasedDeployment: boolean; isLeaseInFlight?: boolean }) =>
       rerender(<SkipOnboardingButton source={input.source} dependencies={dependenciesWith(guard)} />);
 
     return { skip, discard, analyticsService, rerenderWith };

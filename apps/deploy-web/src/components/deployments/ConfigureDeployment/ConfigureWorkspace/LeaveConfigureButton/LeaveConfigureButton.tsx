@@ -17,6 +17,8 @@ export const DEPENDENCIES = { useRouter, useIsKnownNotOnboarded, useServices, Ur
 type Props = {
   intent: Pick<DeploymentIntent, "templateId" | "userTemplateId">;
   needsConfirmation: boolean;
+  /** A lease already sent may still land once the page is gone, so leaving keeps the deployment without asking. */
+  isLeaseInFlight: boolean;
   deploymentName: string;
   serviceCount: number;
   placementCount: number;
@@ -30,6 +32,7 @@ type Props = {
 export const LeaveConfigureButton: FC<Props> = ({
   intent,
   needsConfirmation,
+  isLeaseInFlight,
   deploymentName,
   serviceCount,
   placementCount,
@@ -46,7 +49,7 @@ export const LeaveConfigureButton: FC<Props> = ({
 
   function confirmBeforeLeaving(event: MouseEvent<HTMLAnchorElement>) {
     if (isOpeningElsewhere(event)) return;
-    if (!needsConfirmation) {
+    if (!needsConfirmation || isLeaseInFlight) {
       trackLeavingOnboarding(false);
       return;
     }
@@ -63,7 +66,7 @@ export const LeaveConfigureButton: FC<Props> = ({
 
   function trackLeavingOnboarding(discardedDeployment: boolean) {
     if (!isKnownNotOnboarded) return;
-    analyticsService.track("onboarding_left", { category: "onboarding", control: "back_link", discardedDeployment });
+    analyticsService.track("onboarding_left", { category: "onboarding", control: "back_link", discardedDeployment, midLease: isLeaseInFlight });
   }
 
   return (
