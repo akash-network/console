@@ -68,15 +68,10 @@ describe(ProjectBudgetRefusal.name, () => {
     render(
       <ProjectBudgetRefusal
         projectId={input.projectId}
+        organizationRole={input.role}
+        projectsEnabled={input.projectsEnabled ?? true}
         onNavigate={onNavigate}
-        dependencies={{
-          useActiveOrganization: () =>
-            mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
-              projectsEnabled: input.projectsEnabled ?? true,
-              activeOrganization: { id: "org-1", name: "Acme Corp", slug: "acme-corp", type: "team", role: input.role, isActive: true, createdAt: "" }
-            }),
-          useProjectsQuery
-        }}
+        dependencies={{ useProjectsQuery }}
       />
     );
 
