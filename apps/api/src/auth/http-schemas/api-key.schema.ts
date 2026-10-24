@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { isWithinMaxApiKeyLifetime, MAX_API_KEY_LIFETIME_DAYS } from "@src/auth/lib/api-key-lifetime/api-key-lifetime";
+import { readableName } from "@src/core/lib/readable-text/readable-text";
 
 export const ApiKeyHiddenSchema = z.object({
   id: z.string().uuid(),
@@ -20,8 +21,10 @@ export const ApiKeyVisibleSchema = ApiKeyHiddenSchema.extend({
   apiKey: z.string()
 });
 
+const ApiKeyNameSchema = readableName(z.string());
+
 export const CreateApiKeySchema = z.object({
-  name: z.string(),
+  name: ApiKeyNameSchema,
   expiresAt: z
     .string()
     .datetime()
@@ -40,7 +43,7 @@ export const CreateApiKeySchema = z.object({
 });
 
 export const UpdateApiKeySchema = z.object({
-  name: z.string().optional()
+  name: ApiKeyNameSchema.optional()
 });
 
 export const FindApiKeyParamsSchema = z.object({
