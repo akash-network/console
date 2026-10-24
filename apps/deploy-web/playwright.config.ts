@@ -12,6 +12,8 @@ const slowMo = Number(process.env.PW_SLOW_MO) || 0;
 const isRecording = process.env.PW_RECORD === "1" || slowMo > 0;
 /** ~16" MacBook Pro logical viewport (16:10). Use { width: 1512, height: 945 } for a 14"/15" feel. */
 const RECORDING_VIEWPORT = { width: 1728, height: 1080 };
+/** The organizations release checklist takes about 30 minutes on beta, so deploy gates skip it and `test:e2e:orgs-release` runs it on demand. */
+const isOrganizationsReleaseRun = process.env.PW_ORGS_RELEASE === "1";
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -19,7 +21,7 @@ const RECORDING_VIEWPORT = { width: 1728, height: 1080 };
 export default defineConfig({
   testDir: "./tests/ui",
   /* Vitest owns *.unit.spec.ts files colocated in tests/ui (see vitest.config.ts "unit-e2e-helpers" project). */
-  testIgnore: "**/*.unit.spec.ts",
+  testIgnore: isOrganizationsReleaseRun ? "**/*.unit.spec.ts" : ["**/*.unit.spec.ts", "**/organizations-release/**"],
   globalTeardown: "./tests/ui/fixture/global-teardown.ts",
   fullyParallel: false,
   workers: 1,

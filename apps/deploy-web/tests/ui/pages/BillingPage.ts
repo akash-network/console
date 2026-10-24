@@ -23,6 +23,15 @@ export class BillingPage {
     return this.page.locator('[aria-label="Available balance"]');
   }
 
+  /** Rendered only while the active organization's wallet is on a free trial. */
+  trialPanel() {
+    return this.page.getByRole("region", { name: "Free trial" });
+  }
+
+  emptyPaymentHistoryNotice() {
+    return this.page.getByText("No payments in this period", { exact: true });
+  }
+
   /** A card payment is listed under the card's brand and last four digits. */
   cardPayment(cardLast4: string) {
     return this.page

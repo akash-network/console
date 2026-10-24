@@ -15,12 +15,12 @@ export class ProjectsPage {
   }
 
   /** Takes a name that is already a slug, so the project is created under exactly that name. */
-  async createProject(name: string) {
+  async createProject(name: string, options: { waitForClose?: boolean } = {}) {
     await this.page.getByRole("button", { name: "New project" }).first().click();
     const dialog = this.page.getByRole("dialog", { name: "New project" });
     await dialog.getByLabel("Project name").fill(name);
     await dialog.getByRole("button", { name: "Create project" }).click();
-    await dialog.waitFor({ state: "hidden" });
+    if (options.waitForClose ?? true) await dialog.waitFor({ state: "hidden" });
   }
 
   projectFolder(name: string) {
