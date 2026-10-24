@@ -22,6 +22,7 @@
     "test": "npm run test:unit",
     "test:cov": "NODE_ENV=test DEPLOYMENT_ENV=staging vitest run --coverage --reporter=default --reporter=junit",
     "test:e2e": "playwright test",
+    "test:e2e:orgs-release": "PW_ORGS_RELEASE=1 playwright test tests/ui/organizations-release",
     "test:unit": "NODE_ENV=test DEPLOYMENT_ENV=staging vitest run",
     "type-check": "tsc",
     "validate:types": "tsc --noEmit -p tsconfig.build.json"

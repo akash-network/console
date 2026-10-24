@@ -2,6 +2,8 @@ import type { Page } from "@playwright/test";
 
 import { testEnvConfig } from "../fixture/test-env.config";
 
+export type InvitedRole = "Member" | "Viewer" | "Billing" | "Admin";
+
 export class MembersPage {
   constructor(readonly page: Page) {}
 
@@ -14,12 +16,12 @@ export class MembersPage {
   }
 
   /** Without a project, the member is invited to every project, which the dialog offers by default. */
-  async inviteMember(input: { organizationName: string; email: string; projectName?: string }) {
+  async inviteMember(input: { organizationName: string; email: string; projectName?: string; role?: InvitedRole }) {
     await this.page.getByRole("button", { name: "Invite members" }).click();
     const dialog = this.page.getByRole("dialog", { name: `Invite to ${input.organizationName}` });
     await dialog.getByLabel("Email addresses").fill(input.email);
     await dialog.getByLabel("Email addresses").press("Enter");
-    await dialog.getByRole("radio", { name: /^Member/ }).check();
+    await dialog.getByRole("radio", { name: new RegExp(`^${input.role ?? "Member"}`) }).check();
     if (input.projectName) {
       await dialog.getByRole("radio", { name: /^Specific projects/ }).check();
       await dialog.getByRole("combobox", { name: "Add a project" }).click();
@@ -38,6 +40,28 @@ export class MembersPage {
     await this.page.getByText("Invite link copied").waitFor();
 
     return await this.page.evaluate(() => navigator.clipboard.readText());
+  }
+
+  inviteButton() {
+    return this.page.getByRole("button", { name: "Invite members" });
+  }
+
+  pendingInvite(email: string) {
+    return this.page.getByRole("list", { name: "Pending invitations" }).getByRole("listitem").filter({ hasText: email });
+  }
+
+  async resendInvite(email: string) {
+    await this.pendingInvite(email)
+      .getByRole("button", { name: `Actions for the invite to ${email}` })
+      .click();
+    await this.page.getByRole("menuitem", { name: "Resend invite" }).click();
+  }
+
+  async revokeInvite(email: string) {
+    await this.pendingInvite(email)
+      .getByRole("button", { name: `Actions for the invite to ${email}` })
+      .click();
+    await this.page.getByRole("menuitem", { name: "Revoke invite" }).click();
   }
 
   /** Rows are named after the username when the member has one, so a member is found by the email every row shows. */

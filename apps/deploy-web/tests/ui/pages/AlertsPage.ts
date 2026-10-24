@@ -1,7 +1,22 @@
 import type { Locator, Page } from "@playwright/test";
 
+import { testEnvConfig } from "../fixture/test-env.config";
+
 export class AlertsPage {
   constructor(readonly page: Page) {}
+
+  async goto() {
+    await this.page.goto(`${testEnvConfig.BASE_URL}/alerts`);
+  }
+
+  /** The list once it has loaded, whether it holds alerts or none. */
+  loadedAlertList() {
+    return this.page.getByRole("table", { name: "Deployment alerts" }).or(this.page.getByText("No alerts yet", { exact: true }));
+  }
+
+  alertRowsOf(dseq: string) {
+    return this.page.getByRole("row").filter({ hasText: dseq });
+  }
 
   async waitForPage() {
     await this.page.waitForURL(/\/alerts/);

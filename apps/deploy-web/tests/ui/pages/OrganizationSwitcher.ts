@@ -11,13 +11,14 @@ export class OrganizationSwitcher {
     return this.page.getByRole("button", { name });
   }
 
-  async createOrganization(name: string) {
+  async createOrganization(name: string, options: { doubleClick?: boolean } = {}) {
     await new AppNav(this.page).accountMenuButton().click();
     await this.page.getByRole("menuitem", { name: "Create organization" }).click();
     const dialog = this.page.getByRole("dialog", { name: "Create an organization" });
     await dialog.getByLabel("Organization name").fill(name);
     await dialog.getByRole("radio", { name: /^Set up later/ }).click();
-    await dialog.getByRole("button", { name: "Create organization" }).click();
+    const submit = dialog.getByRole("button", { name: "Create organization" });
+    await (options.doubleClick ? submit.dblclick() : submit.click());
   }
 
   async switchTo(organizationName: string) {
