@@ -21,6 +21,7 @@ import { UrlReturnToStack } from "@src/hooks/useReturnTo/UrlReturnToStack";
 import { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { retryOnServerError, shouldReportError } from "@src/services/query-error-policy/query-error-policy";
 import { StaleOrganizationRecovery } from "@src/services/stale-organization-recovery/stale-organization-recovery";
+import { createTabOrganizationInterceptor, TabOrganization } from "@src/services/tab-organization/tab-organization";
 import networkStore from "@src/store/networkStore";
 import { registry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
@@ -52,13 +53,19 @@ export const createAppRootContainer = (config: ServicesConfig) => {
       return (axiosInstance, interceptors?) => {
         axiosInstance.interceptors.response.use(undefined, createSessionExpiryResponseInterceptor(container.sessionExpiryNotifier));
         return withInterceptors(axiosInstance, {
-          request: [config.globalRequestMiddleware, otelInterceptor, ...(interceptors?.request || [])],
+          request: [
+            config.globalRequestMiddleware,
+            otelInterceptor,
+            createTabOrganizationInterceptor(container.tabOrganization),
+            ...(interceptors?.request || [])
+          ],
           response: [...(interceptors?.response || [])]
         });
       };
     },
     sessionExpiryNotifier: () => new SessionExpiryNotifier(),
-    staleOrganizationRecovery: () => new StaleOrganizationRecovery(),
+    tabOrganization: () => new TabOrganization(),
+    staleOrganizationRecovery: () => new StaleOrganizationRecovery(container.tabOrganization),
     stripe: () =>
       new HttpStripeService(
         container.applyAxiosInterceptors(createHttpClient(apiConfig), {
@@ -164,14 +171,19 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         },
         queryCache: new QueryCache({
           onError: (error, query) => {
-            if (container.staleOrganizationRecovery.recover(error, queryClient)) return;
+            const isDropped = queryClient.getQueryCache().get(query.queryHash) !== query;
+            if (container.staleOrganizationRecovery.recover(error, queryClient, { isDropped })) return;
             if (!shouldReportError(error, query.meta)) return;
             container.errorHandler.reportError({ error });
           }
         }),
         mutationCache: new MutationCache({
           onError: (error, _variables, _context, mutation) => {
-            if (container.staleOrganizationRecovery.recover(error, queryClient)) return;
+            const isDropped = !queryClient
+              .getMutationCache()
+              .getAll()
+              .some(cached => cached.mutationId === mutation.mutationId);
+            if (container.staleOrganizationRecovery.recover(error, queryClient, { isDropped })) return;
             if (!shouldReportError(error, mutation.meta)) return;
             container.errorHandler.reportError({ error });
           }

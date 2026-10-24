@@ -3,6 +3,7 @@ import { extractApiErrorCode, isApiError } from "@akashnetwork/openapi-sdk";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { readActiveOrganizationCookie, serializeActiveOrganizationCookieRemoval } from "@src/lib/active-organization/active-organization-cookie";
+import type { TabOrganization } from "@src/services/tab-organization/tab-organization";
 import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/types/organization";
 
 const FORBIDDEN_STATUS = 403;
@@ -19,16 +20,30 @@ export function isOrganizationForbiddenError(error: unknown): boolean {
   return false;
 }
 
-/** Drops an active organization the API refuses so it falls back to its own choice; subscribers reset what they hold for the dropped one. */
+/** A call an earlier recovery or switch dropped named an organization the tab already left, so its refusal needs no new recovery. */
+type RefusedCall = { isDropped: boolean };
+
+/** Drops an organization the API refuses for this tab so the tab falls back to the cookie or the API's choice; subscribers reset what they hold for it. */
 export class StaleOrganizationRecovery {
   static readonly #EVENT_TYPE = "stale-organization";
   readonly #target = new EventTarget();
+  readonly #tabOrganization: TabOrganization;
 
-  /** Acts only while the cookie is set, so an API that keeps refusing after the fallback cannot clear the cache in a loop. */
-  recover(error: unknown, queryClient: QueryClient): boolean {
-    if (typeof document === "undefined" || !isOrganizationForbiddenError(error) || !readActiveOrganizationCookie(document.cookie)) return false;
+  constructor(tabOrganization: TabOrganization) {
+    this.#tabOrganization = tabOrganization;
+  }
 
-    document.cookie = serializeActiveOrganizationCookieRemoval();
+  /** Acts only while the tab or the cookie names an organization, so an API that keeps refusing after the fallback cannot clear the cache in a loop. */
+  recover(error: unknown, queryClient: QueryClient, call: RefusedCall): boolean {
+    if (typeof document === "undefined" || !isOrganizationForbiddenError(error)) return false;
+    if (call.isDropped) return true;
+
+    const cookieOrganizationId = readActiveOrganizationCookie(document.cookie);
+    const refusedOrganizationId = this.#tabOrganization.organizationId ?? cookieOrganizationId;
+    if (!refusedOrganizationId) return false;
+
+    this.#tabOrganization.show(undefined);
+    if (cookieOrganizationId === refusedOrganizationId) document.cookie = serializeActiveOrganizationCookieRemoval();
     queryClient.clear();
     this.#target.dispatchEvent(new Event(StaleOrganizationRecovery.#EVENT_TYPE));
     return true;

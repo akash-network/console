@@ -9,6 +9,7 @@ import type { NewCardHandle } from "@src/components/organizations/NewCardFields/
 import { CARD_SAVE_FAILED_REASON } from "@src/components/organizations/NewCardFields/NewCardFields";
 import { OrganizationBillingField } from "@src/components/organizations/OrganizationBillingField/OrganizationBillingField";
 import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
+import { TabOrganization } from "@src/services/tab-organization/tab-organization";
 import type { OrganizationOutput } from "@src/types/organization";
 import type { DEPENDENCIES } from "./CreateOrganizationDialog";
 import { CreateOrganizationDialog, INVALID_ORGANIZATION_NAME_MESSAGE, ORGANIZATION_NAME_TAKEN_MESSAGE, OWN_EMAIL_MESSAGE } from "./CreateOrganizationDialog";
@@ -143,11 +144,19 @@ describe("CreateOrganizationDialog", () => {
   });
 
   it("saves the card on the new organization, makes it the default and only then switches into it", async () => {
-    const { user, createOrganization, stripe, card, switchOrganization, enqueueSnackbar } = setup({});
-    let cookieWhileSettingUp = "";
+    const { user, createOrganization, stripe, card, switchOrganization, enqueueSnackbar, tabOrganization } = setup({});
+    const namedOrganizations: Record<string, string | undefined> = {};
     stripe.createSetupIntent.mockImplementation(async () => {
-      cookieWhileSettingUp = document.cookie;
+      namedOrganizations.settingUp = tabOrganization.organizationId;
       return { clientSecret: "seti_secret" };
+    });
+    stripe.getPaymentMethods.mockImplementation(async () => {
+      namedOrganizations.recordingDefault = tabOrganization.organizationId;
+      return [];
+    });
+    switchOrganization.mockImplementation(() => {
+      namedOrganizations.switching = tabOrganization.organizationId;
+      return true;
     });
 
     await user.type(screen.getByLabelText("Organization name"), "Harborline");
@@ -156,7 +165,7 @@ describe("CreateOrganizationDialog", () => {
     await user.click(screen.getByRole("button", { name: "Create organization" }));
 
     await waitFor(() => expect(switchOrganization).toHaveBeenCalledExactlyOnceWith("org-9", { destination: "/members" }));
-    expect(cookieWhileSettingUp).toContain("console_org=org-9");
+    expect(namedOrganizations).toEqual({ settingUp: "org-9", recordingDefault: "org-9", switching: "org-1" });
     expect(stripe.createSetupIntent).toHaveBeenCalledExactlyOnceWith({ cardOnly: true });
     expect(card.save).toHaveBeenCalledExactlyOnceWith("seti_secret");
     expect(stripe.getPaymentMethods).toHaveBeenCalledOnce();
@@ -494,6 +503,8 @@ describe("CreateOrganizationDialog", () => {
     stripe.createSetupIntent.mockResolvedValue({ clientSecret: "seti_secret" });
     stripe.getPaymentMethods.mockResolvedValue([]);
     const errorHandler = mock<ErrorHandlerService>();
+    const tabOrganization = new TabOrganization();
+    tabOrganization.show("org-1");
     const card = mock<NewCardHandle>();
     card.validate.mockResolvedValue(true);
     card.save.mockResolvedValue(undefined);
@@ -519,7 +530,7 @@ describe("CreateOrganizationDialog", () => {
     };
 
     render(
-      <TestContainerProvider services={{ stripe: () => stripe, errorHandler: () => errorHandler }}>
+      <TestContainerProvider services={{ stripe: () => stripe, errorHandler: () => errorHandler, tabOrganization: () => tabOrganization }}>
         <CreateOrganizationDialog onClose={onClose} dependencies={dependencies} />
       </TestContainerProvider>
     );
@@ -533,6 +544,7 @@ describe("CreateOrganizationDialog", () => {
       onClose,
       stripe,
       errorHandler,
+      tabOrganization,
       card
     };
   }

@@ -1,4 +1,8 @@
-import { ACTIVE_ORGANIZATION_HEADER_NAME, readActiveOrganizationCookie } from "@src/lib/active-organization/active-organization-cookie";
+import {
+  ACTIVE_ORGANIZATION_HEADER_NAME,
+  readActiveOrganizationCookie,
+  readActiveOrganizationHeader
+} from "@src/lib/active-organization/active-organization-cookie";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
 import { sentryTraceToW3C } from "@src/services/error-handler/error-handler.service";
 
@@ -35,7 +39,7 @@ export default defineApiHandler({
       headers.authorization = `Bearer ${session.accessToken}`;
     }
 
-    const activeOrganizationId = readActiveOrganizationCookie(req.headers.cookie);
+    const activeOrganizationId = readActiveOrganizationHeader(req.headers[ACTIVE_ORGANIZATION_HEADER_NAME]) ?? readActiveOrganizationCookie(req.headers.cookie);
     if (activeOrganizationId) {
       headers[ACTIVE_ORGANIZATION_HEADER_NAME] = activeOrganizationId;
     }
