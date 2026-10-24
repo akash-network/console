@@ -37,7 +37,9 @@ describe(ProjectSpendService.name, () => {
         { projectId: defaultProject.id, amountCents: 1000 },
         { projectId: null, amountCents: 300 }
       ]);
-      deploymentSpendRepository.findDepositedByDeployment.mockResolvedValue([{ owner: "a", dseq: "2", depositedMicroUsd: "5004999" }]);
+      deploymentSpendRepository.findDeposits.mockResolvedValue([
+        { owner: "a", dseq: "2", kind: "deployment_create", txHash: null, depositedMicroUsd: "5004999" }
+      ]);
       deploymentSpendRepository.findConsumedByDeployment.mockResolvedValue([
         { owner: "a", dseq: "1", settledMicroUsd: "2000000", accruedMicroUsd: "15000" },
         { owner: "a", dseq: "2", settledMicroUsd: "1000000", accruedMicroUsd: "0" },
@@ -151,8 +153,59 @@ describe(ProjectSpendService.name, () => {
       await service.report(RANGE);
 
       expect(deploymentDepositRepository.sumCommittedByProject).toHaveBeenCalledWith(organizationId, { from: RANGE_START, to: RANGE_END });
-      expect(deploymentSpendRepository.findDepositedByDeployment).toHaveBeenCalledWith({ owners: [wallet.address], from: RANGE_START, to: firstRecordedAt });
+      expect(deploymentSpendRepository.findDeposits).toHaveBeenCalledWith({ owners: [wallet.address], from: RANGE_START, to: firstRecordedAt });
       expect(deploymentSpendRepository.findConsumedByDeployment).toHaveBeenCalledWith({ owners: [wallet.address], ...RANGE });
+    });
+
+    it("leaves to the ledger every deposit it counts, even one the chain index dates before the ledger's first record", async () => {
+      const { service, organizationId, projects, deploymentDepositRepository, deploymentSpendRepository, deploymentSettingRepository } = setup({
+        role: "owner"
+      });
+      const [defaultProject] = projects;
+      deploymentDepositRepository.findFirstRecordedAt.mockResolvedValue(new Date("2026-10-12T08:00:02.600Z"));
+      deploymentDepositRepository.sumCommittedByProject.mockResolvedValue([{ projectId: defaultProject.id, amountCents: 150 }]);
+      deploymentSpendRepository.findDeposits.mockResolvedValue([
+        { owner: "a", dseq: "1", kind: "deployment_create", txHash: null, depositedMicroUsd: "1000000" },
+        { owner: "a", dseq: "1", kind: "top_up", txHash: "H1", depositedMicroUsd: "500000" }
+      ]);
+      deploymentDepositRepository.findCountedDeposits.mockResolvedValue([
+        { owner: "a", dseq: "1", kind: "deployment_create", txHash: "H0" },
+        { owner: "a", dseq: "1", kind: "top_up", txHash: "H1" }
+      ]);
+      deploymentSettingRepository.findProjectIdsInOrganizationByDseqs.mockResolvedValue(new Map([["1", defaultProject.id]]));
+
+      const report = await service.report(RANGE);
+
+      expect(report.projects[0]).toMatchObject({ project: defaultProject, committedCents: 150 });
+      expect(report.total?.committedCents).toBe(150);
+      expect(deploymentDepositRepository.findCountedDeposits).toHaveBeenCalledWith(organizationId, ["1", "1"]);
+    });
+
+    it("reads from the chain index each deposit the ledger does not count", async () => {
+      const { service, projects, deploymentDepositRepository, deploymentSpendRepository, deploymentSettingRepository } = setup({ role: "owner" });
+      const [, staging] = projects;
+      deploymentDepositRepository.findFirstRecordedAt.mockResolvedValue(new Date("2026-10-12T08:00:00.000Z"));
+      deploymentSpendRepository.findDeposits.mockResolvedValue([
+        { owner: "a", dseq: "1", kind: "top_up", txHash: "H1", depositedMicroUsd: "10000000" },
+        { owner: "a", dseq: "1", kind: "top_up", txHash: "H2", depositedMicroUsd: "500000" },
+        { owner: "a", dseq: "2", kind: "deployment_create", txHash: null, depositedMicroUsd: "1000000" },
+        { owner: "b", dseq: "1", kind: "deployment_create", txHash: null, depositedMicroUsd: "250000" }
+      ]);
+      deploymentDepositRepository.findCountedDeposits.mockResolvedValue([
+        { owner: "a", dseq: "1", kind: "deployment_create", txHash: null },
+        { owner: "a", dseq: "1", kind: "top_up", txHash: "H1" },
+        { owner: "a", dseq: "2", kind: "top_up", txHash: null }
+      ]);
+      deploymentSettingRepository.findProjectIdsInOrganizationByDseqs.mockResolvedValue(
+        new Map([
+          ["1", staging.id],
+          ["2", staging.id]
+        ])
+      );
+
+      const report = await service.report(RANGE);
+
+      expect(report.projects[1]).toMatchObject({ project: staging, committedCents: 175 });
     });
 
     it.each([
@@ -165,7 +218,7 @@ describe(ProjectSpendService.name, () => {
 
       await service.report(RANGE);
 
-      expect(deploymentSpendRepository.findDepositedByDeployment).toHaveBeenCalledWith({ owners: [wallet.address], from: RANGE_START, to: RANGE_END });
+      expect(deploymentSpendRepository.findDeposits).toHaveBeenCalledWith({ owners: [wallet.address], from: RANGE_START, to: RANGE_END });
     });
 
     it("also reads the earlier address of a wallet made before the derivation migration", async () => {
@@ -450,6 +503,7 @@ describe(ProjectSpendService.name, () => {
     const userWalletRepository = mock<UserWalletRepository>({ findOneBy: vi.fn().mockResolvedValue(wallet) });
     const deploymentDepositRepository = mock<DeploymentDepositRepository>({
       findFirstRecordedAt: vi.fn().mockResolvedValue(undefined),
+      findCountedDeposits: vi.fn().mockResolvedValue([]),
       sumCommittedByProject: vi.fn().mockResolvedValue([])
     });
     const deploymentSettingRepository = mock<DeploymentSettingRepository>({
@@ -457,7 +511,7 @@ describe(ProjectSpendService.name, () => {
       findNamedFilingsInOrganizationByDseqs: vi.fn().mockResolvedValue(new Map())
     });
     const deploymentSpendRepository = mock<DeploymentSpendRepository>({
-      findDepositedByDeployment: vi.fn().mockResolvedValue([]),
+      findDeposits: vi.fn().mockResolvedValue([]),
       findConsumedByDeployment: vi.fn().mockResolvedValue([]),
       findDailyConsumption: vi.fn().mockResolvedValue([]),
       findGpuUsage: vi.fn().mockResolvedValue([])
