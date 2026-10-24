@@ -1,13 +1,15 @@
 import { QueryTypes, type Sequelize } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
+import type { DeploymentDepositKind } from "@src/billing/model-schemas/deployment-deposit/deployment-deposit.schema";
 import { CHAIN_DB } from "@src/chain/providers/sequelize.provider";
 import { averageBlockTime } from "@src/utils/constants";
 
 /** Micro-USD amounts as numeric text, so nothing is rounded before a caller sums whole cents. */
 export type DeploymentConsumption = { owner: string; dseq: string; settledMicroUsd: string; accruedMicroUsd: string };
 
-export type DeploymentDeposited = { owner: string; dseq: string; depositedMicroUsd: string };
+/** A create's own deposit has no transaction hash, since a deployment is created once and its owner and dseq name it. */
+export type DeploymentDeposited = { owner: string; dseq: string; kind: DeploymentDepositKind; txHash: string | null; depositedMicroUsd: string };
 
 export type DailyDeploymentConsumption = { dseq: string; date: string; consumedMicroUsd: string; hours: number };
 
@@ -236,15 +238,16 @@ export class DeploymentSpendRepository {
   }
 
   /** A create's own deposit is what the deployment holds beyond its top-ups, dated by the block that created it; top-ups are dated by theirs. */
-  async findDepositedByDeployment({ owners, from, to }: { owners: string[]; from: Date; to: Date }): Promise<DeploymentDeposited[]> {
+  async findDeposits({ owners, from, to }: { owners: string[]; from: Date; to: Date }): Promise<DeploymentDeposited[]> {
     if (!owners.length || from >= to) return [];
 
     return await this.#chainDb.query<DeploymentDeposited>(
       `/* project-spend:deposited */
       WITH deposits AS (
-        SELECT dep.owner, dep.dseq, dep.denom, m.amount, d."aktPrice" AS akt_price
+        SELECT dep.owner, dep.dseq, 'top_up' AS kind, t.hash AS tx_hash, dep.denom, m.amount, d."aktPrice" AS akt_price
         FROM message m
         INNER JOIN deployment dep ON dep.id = m."relatedDeploymentId"
+        INNER JOIN transaction t ON t.id = m."txId"
         INNER JOIN block b ON b.height = m.height
         INNER JOIN day d ON d.id = b."dayId"
         WHERE dep.owner IN (:owners) AND m.type IN (:depositTypes) AND b.datetime >= :from AND b.datetime < :to
@@ -252,6 +255,8 @@ export class DeploymentSpendRepository {
         SELECT
           dep.owner,
           dep.dseq,
+          'deployment_create',
+          NULL,
           dep.denom,
           dep.deposit - COALESCE(
             (SELECT SUM(top_up.amount) FROM message top_up WHERE top_up."relatedDeploymentId" = dep.id AND top_up.type IN (:depositTypes)),
@@ -263,9 +268,9 @@ export class DeploymentSpendRepository {
         INNER JOIN day d ON d.id = b."dayId"
         WHERE dep.owner IN (:owners) AND b.datetime >= :from AND b.datetime < :to
       )
-      SELECT owner, dseq, SUM(GREATEST(amount, 0) * ${MICRO_USD_PER_UNIT})::text AS "depositedMicroUsd"
+      SELECT owner, dseq, kind, tx_hash AS "txHash", SUM(GREATEST(amount, 0) * ${MICRO_USD_PER_UNIT})::text AS "depositedMicroUsd"
       FROM deposits
-      GROUP BY owner, dseq`,
+      GROUP BY owner, dseq, kind, tx_hash`,
       { type: QueryTypes.SELECT, replacements: { owners, from, to, depositTypes: DEPOSIT_MESSAGE_TYPES } }
     );
   }

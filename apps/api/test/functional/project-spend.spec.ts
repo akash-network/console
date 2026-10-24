@@ -173,6 +173,55 @@ describe("Project spend", () => {
       expect(responses.map(({ status }) => status)).toEqual([400, 400, 400]);
     });
 
+    it("commits a team's deposits once when the blocks holding them are stamped before the ledger recorded them", async () => {
+      const { team, owner, address, staging, defaultProject, actAs } = await setup({ hasSpendHistory: false });
+      const dseq = faker.string.numeric(12);
+      const deployment = await seedChainDeployment({
+        owner: address,
+        dseq,
+        createdHeight: 2000,
+        deposit: 1_500_000,
+        lease: { createdHeight: 2000, closedHeight: 2000 }
+      });
+      const topUp = await createTransaction({ height: 2000, hash: faker.string.hexadecimal({ length: 64, prefix: "", casing: "upper" }) });
+      await createAkashMessage({
+        txId: topUp.id,
+        height: 2000,
+        type: "/akash.escrow.v1.MsgAccountDeposit",
+        amount: "500000",
+        relatedDeploymentId: deployment.id
+      });
+      await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: defaultProject.id, dseq });
+      await seedDeploymentDeposit({
+        organizationId: team.id,
+        projectId: defaultProject.id,
+        owner: address,
+        dseq,
+        kind: "deployment_create",
+        amountCents: 100,
+        createdAt: new Date("2026-09-02T00:00:02.600Z")
+      });
+      await seedDeploymentDeposit({
+        organizationId: team.id,
+        projectId: defaultProject.id,
+        owner: address,
+        dseq,
+        kind: "top_up",
+        amountCents: 50,
+        txHash: topUp.hash,
+        createdAt: new Date("2026-09-02T00:00:04.000Z")
+      });
+
+      const response = await actAs(owner)(`/v1/project-spend?${RANGE}`);
+      const { data } = (await response.json()) as ListProjectSpendResponse;
+
+      expect(data.projects.map(({ projectId, committedUsd }) => ({ projectId, committedUsd }))).toEqual([
+        { projectId: defaultProject.id, committedUsd: 1.5 },
+        { projectId: staging.id, committedUsd: 0 }
+      ]);
+      expect(data.total?.committedUsd).toBe(1.5);
+    });
+
     it("answers 404 while organizations are off for the caller", async () => {
       const { owner, actAs } = await setup({ organizationsOn: false });
 
@@ -288,7 +337,7 @@ describe("Project spend", () => {
     return { userId: `auth0|${faker.string.alphanumeric(24)}`, username: `user-${faker.string.alphanumeric(12)}`, email: faker.internet.email() };
   }
 
-  async function setup(input: { organizationsOn?: boolean } = {}) {
+  async function setup(input: { organizationsOn?: boolean; hasSpendHistory?: boolean } = {}) {
     const { user: owner, organization: team, project: defaultProject } = await seedOrganizationWithOwner({ user: createSignedUpUserInput() });
     const staging = await seedProject({ organizationId: team.id, createdAt: new Date(Date.now() + 1000) });
     const address = createAkashAddress();
@@ -296,7 +345,10 @@ describe("Project spend", () => {
       .resolve<ApiPgDatabase>(POSTGRES_DB)
       .insert(resolveTable("UserWallets"))
       .values({ userId: owner.id, organizationId: team.id, address, deploymentAllowance: "0", feeAllowance: "0", isTrialing: false });
-    await seedOrganizationSpend({ organizationId: team.id, ownerId: owner.id, address, stagingId: staging.id, defaultProjectId: defaultProject.id });
+
+    if (input.hasSpendHistory !== false) {
+      await seedOrganizationSpend({ organizationId: team.id, ownerId: owner.id, address, stagingId: staging.id, defaultProjectId: defaultProject.id });
+    }
     const tokens = new Map<string, string>();
 
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(
@@ -324,6 +376,6 @@ describe("Project spend", () => {
       return user;
     };
 
-    return { team, owner, staging, defaultProject, actAs, addMember };
+    return { team, owner, address, staging, defaultProject, actAs, addMember };
   }
 });
