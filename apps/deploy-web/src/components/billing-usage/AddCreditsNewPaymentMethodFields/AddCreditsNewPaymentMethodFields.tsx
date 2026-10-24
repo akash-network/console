@@ -1,6 +1,6 @@
 "use client";
 
-import React, { forwardRef, useImperativeHandle, useMemo, useState } from "react";
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { Alert, AlertDescription, Spinner } from "@akashnetwork/ui/components";
 import { AddressElement, Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
@@ -18,6 +18,8 @@ export interface PaymentMethodSetupFailure {
 }
 
 export type PaymentMethodSetupResult = { paymentMethodId: string } | { failure: PaymentMethodSetupFailure };
+
+export type PaymentFormLoadError = "stripe_unavailable" | "load_error";
 
 /**
  * Imperative contract exposed by a payment-method source so an orchestrator
@@ -54,17 +56,34 @@ interface AddCreditsNewPaymentMethodFieldsProps {
   /** Reports the payment-method type (card, bank, …) the user selects in the Stripe payment element, for analytics. */
   onPaymentTypeChange?: (type: string) => void;
   onReady?: () => void;
+  onLoadFailed: (error: PaymentFormLoadError) => void;
   dependencies?: typeof DEPENDENCIES;
 }
 
 export const AddCreditsNewPaymentMethodFields = forwardRef<PaymentMethodSourceHandle, AddCreditsNewPaymentMethodFieldsProps>(
-  function AddCreditsNewPaymentMethodFields({ clientSecret, isLoading, disabled, onPaymentTypeChange, onReady, dependencies: d = DEPENDENCIES }, ref) {
+  function AddCreditsNewPaymentMethodFields(
+    { clientSecret, isLoading, disabled, onPaymentTypeChange, onReady, onLoadFailed, dependencies: d = DEPENDENCIES },
+    ref
+  ) {
     const { stripeService } = d.useServices();
     const { resolvedTheme } = d.useTheme();
 
     const stripePromise = useMemo(() => stripeService.getStripe(), [stripeService]);
     const isDarkMode = useMemo(() => resolvedTheme === "dark", [resolvedTheme]);
     const stripeAppearance = useMemo(() => buildStripeAppearance(isDarkMode), [isDarkMode]);
+
+    useEffect(
+      function reportUnavailableStripe() {
+        let isCurrentLoad = true;
+        void stripePromise.then(stripe => {
+          if (isCurrentLoad && !stripe) onLoadFailed("stripe_unavailable");
+        });
+        return () => {
+          isCurrentLoad = false;
+        };
+      },
+      [stripePromise, onLoadFailed]
+    );
 
     if (isLoading) {
       return (
@@ -80,21 +99,21 @@ export const AddCreditsNewPaymentMethodFields = forwardRef<PaymentMethodSourceHa
 
     return (
       <ErrorBoundary fallback={<div>Failed to load payment form</div>}>
-        {stripePromise ? (
-          <d.Elements key={clientSecret} stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance }}>
-            <div
-              ref={element => {
-                if (element) element.inert = !!disabled;
-              }}
-            >
-              <StripePaymentMethodFields ref={ref} dependencies={d} onPaymentTypeChange={onPaymentTypeChange} onReady={onReady} />
-            </div>
-          </d.Elements>
-        ) : (
-          <div className="p-4 text-center text-muted-foreground">
-            Payment processing is not available at this time. Please try again later or contact support if the issue persists.
+        <d.Elements key={clientSecret} stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance }}>
+          <div
+            ref={element => {
+              if (element) element.inert = !!disabled;
+            }}
+          >
+            <StripePaymentMethodFields
+              ref={ref}
+              dependencies={d}
+              onPaymentTypeChange={onPaymentTypeChange}
+              onReady={onReady}
+              onLoadError={() => onLoadFailed("load_error")}
+            />
           </div>
-        )}
+        </d.Elements>
       </ErrorBoundary>
     );
   }
@@ -104,10 +123,11 @@ interface StripePaymentMethodFieldsProps {
   dependencies: typeof DEPENDENCIES;
   onPaymentTypeChange?: (type: string) => void;
   onReady?: () => void;
+  onLoadError: () => void;
 }
 
 const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePaymentMethodFieldsProps>(function StripePaymentMethodFields(
-  { dependencies: d, onPaymentTypeChange, onReady },
+  { dependencies: d, onPaymentTypeChange, onReady, onLoadError },
   ref
 ) {
   const stripe = d.useStripe();
@@ -167,6 +187,7 @@ const StripePaymentMethodFields = forwardRef<PaymentMethodSourceHandle, StripePa
           options={{ layout: "tabs", paymentMethodOrder: ["card", "link"] }}
           onChange={event => onPaymentTypeChange?.(event.value.type)}
           onReady={onReady}
+          onLoadError={onLoadError}
         />
       </div>
 

@@ -20,6 +20,7 @@ import type { AddCreditsAmountValue } from "@src/components/billing-usage/AddCre
 import { AddCreditsAmountFields } from "@src/components/billing-usage/AddCreditsAmountFields/AddCreditsAmountFields";
 import { suggestedPresetAmountUsd } from "@src/components/billing-usage/AddCreditsAmountFields/presetAmounts";
 import type {
+  PaymentFormLoadError,
   PaymentMethodSetupFailure,
   PaymentMethodSetupResult,
   PaymentMethodSourceHandle
@@ -50,6 +51,8 @@ const BANK_REFUSAL_CODE = "card_declined";
 const NEW_CARD_REFUSALS_BEFORE_RESET = 2;
 
 const BANK_REFUSED_MESSAGE = "Your bank refused this card. Try a different card or payment method.";
+
+const PAYMENT_FORM_LOAD_TIMEOUT_MS = 10_000;
 
 export const DEPENDENCIES = {
   AddCreditsAmountFields,
@@ -101,6 +104,13 @@ interface PaymentAnalytics {
 type ThreeDSecureResult = "succeeded" | "failed";
 
 type PaymentFailureStage = "payment_method_setup" | "charge_declined" | "charge_error" | "three_d_secure" | "confirmation_timeout" | "trial_activation_timeout";
+
+type PaymentFormLoadFailure = PaymentFormLoadError | "timeout";
+
+interface PaymentFormLoad {
+  attempt: number;
+  status: "loading" | "ready" | "failed";
+}
 
 interface PaymentFailureDetails extends PaymentMethodSetupFailure {
   httpStatus?: number;
@@ -158,6 +168,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   const [isProcessing, setIsProcessing] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [walletMethod, setWalletMethod] = useState<{ paymentMethodId: string; type: string } | null>(null);
+  const [paymentFormLoad, setPaymentFormLoad] = useState<PaymentFormLoad>({ attempt: 0, status: "loading" });
   const submittingRef = useRef(false);
 
   const paymentMethodRef = useRef<PaymentMethodSourceHandle>(null);
@@ -177,6 +188,8 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   const amountError = amount > 0 && amount < topUpMinAmountUsd ? `Minimum amount is $${topUpMinAmountUsd}` : undefined;
   const isSetupLoading = setupIntentStatus === "pending" || setupIntentStatus === "idle";
   const isNewCard = selectedMethodId === NEW_CARD || (selectedMethodId === undefined && !isLoadingMethods && !paymentMethods?.length);
+  const isPaymentFormLoading = isNewCard && setupIntentStatus !== "error" && paymentFormLoad.status === "loading";
+  const hasPaymentFormFailed = isNewCard && paymentFormLoad.status === "failed";
   const isBusy = isProcessing || isWalletOpen;
   const pendingWallet = user?.id ? attempt.getWalletAttempt({ userId: user.id, amount }) : null;
   const pendingWalletId = pendingWallet?.paymentMethodId;
@@ -224,6 +237,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
     lastPaymentTypeRef.current = null;
     confirmedNewCardRef.current = null;
     resetSetupIntent();
+    setPaymentFormLoad(restartPaymentFormLoad);
     setSelectedMethodId(NEW_CARD);
   }, [resetSetupIntent]);
 
@@ -503,6 +517,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
     (methodId: string) => {
       if (methodId === NEW_CARD) {
         lastPaymentTypeRef.current = null;
+        setPaymentFormLoad(restartPaymentFormLoad);
         if (confirmedNewCardRef.current) {
           confirmedNewCardRef.current = null;
           resetSetupIntent();
@@ -526,7 +541,8 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
     [analyticsService]
   );
 
-  const trackPaymentFormReady = useCallback(() => {
+  const markPaymentFormReady = useCallback(() => {
+    setPaymentFormLoad(load => ({ ...load, status: "ready" }));
     if (paymentFormReadyTrackedRef.current) return;
     paymentFormReadyTrackedRef.current = true;
     analyticsService.track("add_credits_payment_form_ready", {
@@ -536,6 +552,28 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
       context
     });
   }, [analyticsService, openedAt, context]);
+
+  const failPaymentFormLoad = useCallback(
+    (reason: PaymentFormLoadFailure) => {
+      setPaymentFormLoad(load => ({ ...load, status: "failed" }));
+      analyticsService.track("add_credits_payment_form_load_failed", {
+        category: "billing",
+        reason,
+        msSinceOpen: Math.round(performance.now() - openedAt),
+        context
+      });
+    },
+    [analyticsService, openedAt, context]
+  );
+
+  useEffect(
+    function failPaymentFormLoadAfterTimeout() {
+      if (!isPaymentFormLoading) return;
+      const timeout = setTimeout(() => failPaymentFormLoad("timeout"), PAYMENT_FORM_LOAD_TIMEOUT_MS);
+      return () => clearTimeout(timeout);
+    },
+    [isPaymentFormLoading, failPaymentFormLoad]
+  );
 
   const trackPaymentTypeSelected = useCallback(
     (type: string) => {
@@ -611,7 +649,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
             )
           )}
 
-          {isNewCard && setupIntentStatus === "error" && (
+          {isNewCard && setupIntentStatus === "error" && !hasPaymentFormFailed && (
             <Alert variant="destructive">
               <AlertDescription>We couldn&apos;t load the payment form. Please try again.</AlertDescription>
               <Button type="button" variant="outline" onClick={() => createSetupIntent()} className="mt-2">
@@ -620,14 +658,25 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
             </Alert>
           )}
 
-          {isNewCard && (
+          {hasPaymentFormFailed && (
+            <Alert variant="destructive">
+              <AlertDescription>The card form didn&apos;t load</AlertDescription>
+              <Button type="button" variant="outline" onClick={leadWithNewPaymentMethod} className="mt-2">
+                Retry
+              </Button>
+            </Alert>
+          )}
+
+          {isNewCard && !hasPaymentFormFailed && (
             <d.AddCreditsNewPaymentMethodFields
+              key={paymentFormLoad.attempt}
               ref={paymentMethodRef}
               clientSecret={setupIntent?.clientSecret}
               isLoading={isSetupLoading}
               disabled={isBusy || !!confirmedNewCardRef.current}
               onPaymentTypeChange={trackPaymentTypeSelected}
-              onReady={trackPaymentFormReady}
+              onReady={markPaymentFormReady}
+              onLoadFailed={failPaymentFormLoad}
             />
           )}
 
@@ -655,9 +704,9 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
             type="submit"
             className="w-full"
             loading={isProcessing}
-            disabled={isBusy || amount < topUpMinAmountUsd || isLoadingMethods || (isNewCard && (isSetupLoading || setupIntentStatus === "error"))}
+            disabled={isBusy || amount < topUpMinAmountUsd || isLoadingMethods || (isNewCard && paymentFormLoad.status !== "ready")}
           >
-            Purchase Credits
+            {isPaymentFormLoading ? "Loading card form…" : "Purchase Credits"}
           </LoadingButton>
         </fieldset>
       </form>
@@ -678,6 +727,10 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
       )}
     </>
   );
+}
+
+function restartPaymentFormLoad({ attempt }: PaymentFormLoad): PaymentFormLoad {
+  return { attempt: attempt + 1, status: "loading" };
 }
 
 function isBankRefusal(failure: PaymentMethodSetupFailure): boolean {
