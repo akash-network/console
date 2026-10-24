@@ -11,6 +11,7 @@ import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCred
 import Layout from "@src/components/layout/Layout";
 import { ConfigureDeployTargetChip } from "@src/components/projects/ConfigureDeployTargetChip/ConfigureDeployTargetChip";
 import { ProjectBudgetRefusal } from "@src/components/projects/ProjectBudgetRefusal/ProjectBudgetRefusal";
+import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
@@ -67,6 +68,7 @@ export const DEPENDENCIES = {
   useServices,
   useSnackbar,
   useFlag,
+  useActiveOrganization,
   Snackbar
 };
 
@@ -107,6 +109,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const isDiscardingRef = useRef(false);
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const { analyticsService } = d.useServices();
+  const { activeOrganization, projectsEnabled } = d.useActiveOrganization();
+  const organizationRole = activeOrganization?.role;
   /** A restored draft's working SDL already holds the user's edits, so the SDL a reset restores is read back from the draft instead. */
   const [startingSdl] = useState(() => (draft.persistedSdl === undefined ? initialSdl : draft.persistedStartingSdl));
   const [inheritedSecrets, setInheritedSecrets] = useState<InheritedSecrets | null>(() => inheritedSecretsOf(draft.persistedInheritSecretsFrom, initialSdl));
@@ -247,7 +251,14 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
           const key = enqueueSnackbar(
             <d.Snackbar
               title="Project budget reached"
-              subTitle={<d.ProjectBudgetRefusal projectId={flow.error.projectId} onNavigate={() => closeSnackbar(key)} />}
+              subTitle={
+                <d.ProjectBudgetRefusal
+                  projectId={flow.error.projectId}
+                  organizationRole={organizationRole}
+                  projectsEnabled={projectsEnabled}
+                  onNavigate={() => closeSnackbar(key)}
+                />
+              }
               iconVariant="warning"
             />,
             { variant: "warning", autoHideDuration: NEEDS_FUNDS_TOAST_DURATION_MS }
@@ -264,7 +275,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       }
       lastToastedFlowError.current = flow.error;
     },
-    [flow.error, enqueueSnackbar, closeSnackbar, requestQuotesAgainAfterCredits, d]
+    [flow.error, enqueueSnackbar, closeSnackbar, requestQuotesAgainAfterCredits, organizationRole, projectsEnabled, d]
   );
 
   useEffect(

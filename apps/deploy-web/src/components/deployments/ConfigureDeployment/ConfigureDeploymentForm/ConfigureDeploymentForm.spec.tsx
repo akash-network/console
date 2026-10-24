@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { PlacementType, SdlBuilderFormValuesType } from "@src/types";
+import type { OrganizationRole } from "@src/types/organization";
 import { defaultService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
@@ -636,6 +637,24 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(closeSnackbar).toHaveBeenCalled();
   });
 
+  it.each([
+    ["owner", true],
+    ["member", false]
+  ] as const)(
+    "hands the budget refusal toast the caller's %s role and projects flag, since the toast cannot read the organization itself",
+    (organizationRole, projectsEnabled) => {
+      const { enqueueSnackbar } = setup({
+        initialSdl: undefined,
+        organizationRole,
+        projectsEnabled,
+        flowError: { message: "over budget", kind: "budget-exceeded", projectId: "storefront" }
+      });
+
+      const toast = enqueueSnackbar.mock.calls[0][0] as { props: { subTitle: { props: Record<string, unknown> } } };
+      expect(toast.props.subTitle.props).toMatchObject({ projectId: "storefront", organizationRole, projectsEnabled });
+    }
+  );
+
   it("dismisses the add funds toast once the add credits sheet is open", () => {
     const { enqueueSnackbar, closeSnackbar } = setup({ initialSdl: undefined, flowError: { message: "Not enough balance", kind: "needs-funds" } });
 
@@ -1137,6 +1156,8 @@ describe(ConfigureDeploymentForm.name, () => {
     persistedInheritSecretsFrom?: string;
     persistedSdl?: string;
     persistedStartingSdl?: string;
+    organizationRole?: OrganizationRole;
+    projectsEnabled?: boolean;
   }) {
     const ConfigureDeploymentPanes = vi.fn(
       input.Panes ?? (({ configurationActions }: ProbePanesProps) => <div data-testid="panes-mock">{configurationActions}</div>)
@@ -1217,6 +1238,13 @@ describe(ConfigureDeploymentForm.name, () => {
       useDeploymentName,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar, closeSnackbar }),
       useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),
+      useActiveOrganization: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
+          projectsEnabled: input.projectsEnabled ?? false,
+          activeOrganization: input.organizationRole
+            ? { id: "org-1", name: "Acme Corp", slug: "acme-corp", type: "team", role: input.organizationRole, isActive: true, createdAt: "" }
+            : undefined
+        }),
       Snackbar: Snackbar as never,
       ReviewAndDeployModal: ReviewAndDeployModal as never,
       DeployProgressOverlay,
