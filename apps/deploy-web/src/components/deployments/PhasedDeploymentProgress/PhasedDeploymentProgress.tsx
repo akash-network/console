@@ -16,6 +16,9 @@ const BAR_MAX_PERCENT = 100;
 const CREATE_FAILED_FALLBACK_MESSAGE =
   "Something went wrong while creating your deployment. You can try again from the start, or contact support if the problem keeps happening.";
 
+const LEASE_FAILED_FALLBACK_MESSAGE =
+  "The provider couldn't start your deployment. Pick another provider from the bids you received, or try again from the start.";
+
 const NEEDS_FUNDS_FALLBACK_MESSAGE = "Your balance doesn't cover this deployment yet. Add funds, then try again.";
 
 const BUDGET_EXCEEDED_MESSAGE = "Starting this deployment would take the project past its monthly budget. An owner or admin can raise the budget.";
@@ -39,6 +42,7 @@ type DeployProgressOverlayProps = {
   phases: [DeploymentPhase, DeploymentPhase, DeploymentPhase];
   onChooseProvider?: () => void;
   onTryAgain?: () => void;
+  onTryAnotherProvider?: () => void;
   onContactSupport?: () => void;
   onAddFunds?: () => void;
   onViewProject?: () => void;
@@ -51,6 +55,7 @@ export function PhasedDeploymentProgress({
   phases,
   onChooseProvider,
   onTryAgain,
+  onTryAnotherProvider,
   onContactSupport,
   onAddFunds,
   onViewProject
@@ -61,6 +66,7 @@ export function PhasedDeploymentProgress({
         templateName={templateName}
         failure={state}
         onTryAgain={onTryAgain}
+        onTryAnotherProvider={onTryAnotherProvider}
         onContactSupport={onContactSupport}
         onAddFunds={onAddFunds}
         onViewProject={onViewProject}
@@ -84,12 +90,13 @@ type DeployErrorPanelProps = {
   templateName: string;
   failure: DeployFailure;
   onTryAgain?: () => void;
+  onTryAnotherProvider?: () => void;
   onContactSupport?: () => void;
   onAddFunds?: () => void;
   onViewProject?: () => void;
 };
 
-function DeployErrorPanel({ templateName, failure, onTryAgain, onContactSupport, onAddFunds, onViewProject }: DeployErrorPanelProps) {
+function DeployErrorPanel({ templateName, failure, onTryAgain, onTryAnotherProvider, onContactSupport, onAddFunds, onViewProject }: DeployErrorPanelProps) {
   const { title, description } = errorCopyOf(templateName, failure);
 
   return (
@@ -111,6 +118,13 @@ function DeployErrorPanel({ templateName, failure, onTryAgain, onContactSupport,
           ) : failure.reason === "budget-exceeded" && onViewProject ? (
             <>
               <Button onClick={onViewProject}>View project</Button>
+              <Button variant="outline" onClick={onTryAgain}>
+                Try again
+              </Button>
+            </>
+          ) : failure.reason === "lease-failed" && onTryAnotherProvider ? (
+            <>
+              <Button onClick={onTryAnotherProvider}>Try another provider</Button>
               <Button variant="outline" onClick={onTryAgain}>
                 Try again
               </Button>
@@ -142,7 +156,10 @@ function errorCopyOf(templateName: string, { reason, message, shortfall }: Deplo
   if (reason === "budget-exceeded") {
     return { title: "This project is at its monthly budget", description: BUDGET_EXCEEDED_MESSAGE };
   }
-  return { title: `We couldn't deploy ${templateName}`, description: message ?? CREATE_FAILED_FALLBACK_MESSAGE };
+  return {
+    title: `We couldn't deploy ${templateName}`,
+    description: message ?? (reason === "lease-failed" ? LEASE_FAILED_FALLBACK_MESSAGE : CREATE_FAILED_FALLBACK_MESSAGE)
+  };
 }
 
 type DeployProgressPanelProps = {

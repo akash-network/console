@@ -30,6 +30,8 @@ import { isWalletProvisioning, WALLET_PROVISIONING_ERROR_CODE, walletProvisionin
 import { aggregateDeploymentResources } from "../DeploymentResourceSummary/deploymentResources";
 import type { DepositShortfall } from "../depositShortfall/depositShortfall";
 import { extractDepositShortfall, isBalanceTopUpPending } from "../depositShortfall/depositShortfall";
+import type { DeployErrorKind } from "./deployErrorKind";
+import { deployErrorKindOf } from "./deployErrorKind";
 import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
 export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "deploying" | "error";
@@ -43,6 +45,9 @@ export type FlowErrorKind = "create" | "close" | "no-providers" | "needs-funds" 
 export type FlowError = { message?: string; kind?: FlowErrorKind; shortfall?: DepositShortfall; projectId?: string };
 
 export type AbandonedAttemptKind = Extract<FlowErrorKind, "no-match" | "no-providers">;
+
+/** `leaseErrorKind` is set only when the lease request itself failed, not when the deploy stopped before sending one. */
+export type DeployError = { message?: string; leaseErrorKind?: DeployErrorKind };
 
 /** The live bids the flow polls while quoting (react-query-backed). Element shape derived from the shared `listBids` query. */
 export type DeploymentBids = NonNullable<ReturnType<typeof useListBids>["data"]>["data"];
@@ -66,12 +71,14 @@ export interface DeploymentFlowState {
   showsDeployProgress: boolean;
   /** True once the wait for a first bid ran out with none; cleared when a bid lands or the deployment goes away. */
   noBidsReceived: boolean;
-  deployError?: { message?: string };
+  deployError?: DeployError;
   error?: FlowError;
   /** The cancelled deployment closing in the background. Orthogonal to `phase`: the form stays editable throughout. */
   pendingClose: PendingClose | null;
   /** True once the api has accepted the create and finishes it in the background, so leaving the page no longer loses the deployment. */
   isCreatingInBackground: boolean;
+  /** True from sending the lease request until it answers; the api finishes a lease it has been sent even once the page is gone. */
+  isLeaseInFlight: boolean;
 }
 
 export interface RequestQuotesOptions {
@@ -112,7 +119,7 @@ export interface DeploymentFlowActions {
   closeAndFail: (message: string, kind?: AbandonedAttemptKind) => void;
   /** Re-closes a deployment a background close left open. No-op while a close is in flight. */
   retryClose: () => void;
-  /** Gives the attempt up for good before leaving the page: the phase stays put so nothing flashes while the page navigates away, and nothing leases it meanwhile. */
+  /** Gives the attempt up for good before leaving the page: the phase stays put so nothing flashes while the page navigates away, and nothing leases it meanwhile. No-op while a lease is in flight, since that lease may still land. */
   discard: () => void;
   setBidStrategy: (strategy: BidStrategy) => void;
   refreshQuotes: () => void;
@@ -239,12 +246,13 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const [manifest, setManifest] = useState<string | null>(null);
   /** The SDL the create sent, which a quoting-window edit is diffed against; null on a session that never saw the create. */
   const [createdSdl, setCreatedSdl] = useState<string | null>(null);
-  const [deployError, setDeployError] = useState<{ message?: string } | undefined>(undefined);
+  const [deployError, setDeployError] = useState<DeployError | undefined>(undefined);
   const [deploySucceeded, setDeploySucceeded] = useState(false);
   const [isDeployedInBackground, setIsDeployedInBackground] = useState(false);
   const [showsDeployProgress, setShowsDeployProgress] = useState(false);
   /** The api answers a lease it takes on with a 202 and one it creates during the request with a 200, and the page can't tell which beforehand. */
   const [isAwaitingLeaseHandoff, setIsAwaitingLeaseHandoff] = useState(false);
+  const [isLeaseInFlight, setIsLeaseInFlight] = useState(false);
   const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
   const [noBidsReceived, setNoBidsReceived] = useState(false);
 
@@ -817,14 +825,14 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
   const discard = useCallback(
     function discard() {
-      if (discardedRef.current) return;
+      if (discardedRef.current || isLeaseInFlight) return;
       discardedRef.current = true;
       createAttemptRef.current += 1;
       queuedCreateRef.current = null;
       const dseqToClose = createdDseq ?? strandedDseq;
       if (dseqToClose && closingDseqRef.current !== dseqToClose) startClose(dseqToClose, "in-background");
     },
-    [createdDseq, strandedDseq, startClose]
+    [createdDseq, strandedDseq, startClose, isLeaseInFlight]
   );
 
   const setBidStrategy = useCallback(
@@ -947,7 +955,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
 
       function failDeploy(stage: DeployFailureStage, cause: unknown) {
         trackDeployFailed(stage, cause);
-        setDeployError({ message: extractApiErrorMessage(cause) ?? undefined });
+        setDeployError({
+          message: extractApiErrorMessage(cause) ?? undefined,
+          leaseErrorKind: stage === "lease_create" ? deployErrorKindOf(cause) : undefined
+        });
         setPhase("quoting");
       }
 
@@ -959,11 +970,13 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         const lease = keepsStoredReference ? { leases } : { manifest: activeManifest, leases };
         forgetEarlierOutcomes("lease_create", activeDseq);
         setIsAwaitingLeaseHandoff(isRunningInBackground);
+        setIsLeaseInFlight(true);
         createLease.mutate(
           { ...lease, ...backgroundQueryFor(isRunningInBackground) },
           {
             onSuccess: function completeOrFollowDeploy(result) {
               setIsAwaitingLeaseHandoff(false);
+              setIsLeaseInFlight(false);
               const activityId = acceptedActivityIdOf(result.data);
               if (activityId) {
                 void followDeployInBackground(activityId);
@@ -974,6 +987,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
             },
             onError: function markAndFailDeploy(cause: unknown) {
               setIsAwaitingLeaseHandoff(false);
+              setIsLeaseInFlight(false);
               markOutcomeHandled("lease_create", activeDseq, "failed");
               failDeploy("lease_create", cause);
             }
@@ -1082,6 +1096,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     error,
     pendingClose,
     isCreatingInBackground: backgroundCreate?.dseq === dseq,
+    isLeaseInFlight,
     actions: {
       requestQuotes,
       requestQuotesAgain,
@@ -1199,7 +1214,8 @@ function deployFailedEventOf(stage: DeployFailureStage, attempt: DeployAttempt, 
       stage,
       ...attempt,
       errorCode: extractApiErrorCode(cause) ?? undefined,
-      errorStatus: isApiError(cause) ? cause.status : undefined
+      errorStatus: isApiError(cause) ? cause.status : undefined,
+      errorKind: cause === undefined ? undefined : deployErrorKindOf(cause)
     }
   };
 }
