@@ -123,6 +123,7 @@ export type AnalyticsEvent =
   | "add_credits_purchased"
   | "add_credits_cancelled"
   | "add_credits_resumed_deploy"
+  | "add_credits_next_step_clicked"
   | "configure_page_viewed"
   | "deployment_copies_checked"
   | "configure_preset_selected"

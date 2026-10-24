@@ -27,7 +27,14 @@ export const AddCreditsSnackbarContent: React.FC<Props> = ({ message, context = 
         className="mt-2 text-xs"
         onClick={() => {
           analyticsService.track("add_funds_btn_clk");
-          openAddCredits({ initialTab: "purchase", description: ADD_CREDITS_DESCRIPTION, context, nextStepLabel, onCreditsAdded });
+          openAddCredits({
+            initialTab: "purchase",
+            description: ADD_CREDITS_DESCRIPTION,
+            context,
+            nextStepLabel,
+            onCreditsAdded,
+            suggestFirstDeployment: false
+          });
           onAction?.();
         }}
       >

@@ -96,7 +96,8 @@ export const FundingImpactReviewSection: FC<Props> = ({ rows, runtimeLimitHours,
             initialTab: "purchase",
             description: ADD_CREDITS_DESCRIPTION,
             context: "review_funding_impact",
-            deploymentDailyCostUsd: impact.dailyCostUsd
+            deploymentDailyCostUsd: impact.dailyCostUsd,
+            suggestFirstDeployment: false
           })
         }
       >
