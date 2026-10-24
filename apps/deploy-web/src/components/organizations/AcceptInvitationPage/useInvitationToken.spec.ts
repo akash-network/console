@@ -77,6 +77,60 @@ describe(useInvitationToken.name, () => {
     expect(window.sessionStorage.getItem(INVITATION_TOKEN_STORAGE_KEY)).toBeNull();
   });
 
+  it("follows another invitation link opened in the same tab", () => {
+    const { result, replace } = setup({ url: `/invitations#token=${TOKEN}` });
+
+    act(() => openInSameTab(`/invitations#token=${OTHER_TOKEN}`));
+
+    expect(result.current.token).toBe(OTHER_TOKEN);
+    expect(window.sessionStorage.getItem(INVITATION_TOKEN_STORAGE_KEY)).toBe(OTHER_TOKEN);
+    expect(replace).toHaveBeenCalledTimes(2);
+    expect(replace).toHaveBeenLastCalledWith("/invitations", undefined, { shallow: true });
+  });
+
+  it("follows a link opened in the tab after it fell back to the kept token", () => {
+    const { result } = setup({ url: "/invitations", storedToken: TOKEN });
+
+    act(() => openInSameTab(`/invitations#token=${OTHER_TOKEN}`));
+
+    expect(result.current.token).toBe(OTHER_TOKEN);
+  });
+
+  it("keeps the invitation it shows when the fragment changes without a token", () => {
+    const { result, replace } = setup({ url: `/invitations#token=${TOKEN}` });
+
+    act(() => openInSameTab("/invitations#section=details"));
+
+    expect(result.current.token).toBe(TOKEN);
+    expect(window.sessionStorage.getItem(INVITATION_TOKEN_STORAGE_KEY)).toBe(TOKEN);
+    expect(replace).toHaveBeenCalledOnce();
+  });
+
+  it("cleans the route of a later link through the router of the current route", () => {
+    const { rerender, replace } = setup({ url: `/invitations#token=${TOKEN}` });
+    const currentReplace = vi.fn(async () => true);
+    rerender({ router: mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace: currentReplace }) });
+
+    act(() => openInSameTab(`/invitations#token=${OTHER_TOKEN}`));
+
+    expect(currentReplace).toHaveBeenCalledExactlyOnceWith("/invitations", undefined, { shallow: true });
+    expect(replace).toHaveBeenCalledOnce();
+  });
+
+  it("stops following links once the page is gone", () => {
+    const { unmount } = setup({ url: `/invitations#token=${TOKEN}` });
+
+    unmount();
+    openInSameTab(`/invitations#token=${OTHER_TOKEN}`);
+
+    expect(window.sessionStorage.getItem(INVITATION_TOKEN_STORAGE_KEY)).toBe(TOKEN);
+  });
+
+  function openInSameTab(url: string) {
+    window.history.replaceState(null, "", url);
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  }
+
   function setup(input: { url: string; storedToken?: string; isStorageBlocked?: boolean }) {
     window.sessionStorage.clear();
     if (input.storedToken) window.sessionStorage.setItem(INVITATION_TOKEN_STORAGE_KEY, input.storedToken);
@@ -88,13 +142,14 @@ describe(useInvitationToken.name, () => {
     }
     const replace = vi.fn(async () => true);
 
-    const { result, rerender } = renderHook(
+    const { result, rerender, unmount } = renderHook(
       ({ router }: { router: ReturnType<typeof DEPENDENCIES.useRouter> }) => useInvitationToken({ dependencies: { useRouter: () => router } }),
       { initialProps: { router: mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace }) } }
     );
 
-    return { result, rerender, replace };
+    return { result, rerender, unmount, replace };
   }
 });
 
 const TOKEN = "Abc_def-ghi".padEnd(43, "x");
+const OTHER_TOKEN = "Other_token".padEnd(43, "y");
