@@ -23,7 +23,7 @@ describe(AccountDeletedNotice.name, () => {
       expect.objectContaining({ props: expect.objectContaining({ title: "Your account has been deleted", iconVariant: "success" }) }),
       { variant: "success" }
     );
-    expect(window.sessionStorage.length).toBe(0);
+    expect(window.sessionStorage.getItem("accountDeleted")).toBeNull();
   });
 
   it("stays quiet when no account was deleted", () => {

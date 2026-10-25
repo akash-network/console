@@ -10,6 +10,7 @@ import { act, renderHook } from "@testing-library/react";
 describe(useInvitationToken.name, () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    window.sessionStorage.clear();
   });
 
   it("takes the token from the fragment, keeps it for the tab and replaces the route with the clean invitations path", () => {
