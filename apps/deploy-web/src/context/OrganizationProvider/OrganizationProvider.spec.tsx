@@ -428,11 +428,15 @@ describe(OrganizationProvider.name, () => {
       );
     });
 
-    it("ignores a parameter given more than once", () => {
-      const { router } = setup({ asPath: "/deployments?org=acme-corp&org=org-3", query: { org: ["acme-corp", "org-3"] } });
+    it("stays in the current organization and says the link's organization isn't available when the parameter is given more than once", () => {
+      const { router, enqueueSnackbar } = setup({ asPath: "/deployments?org=acme-corp&org=org-3", query: { org: ["acme-corp", "org-3"] } });
 
       expect(document.cookie).not.toContain(`${ACTIVE_ORGANIZATION_COOKIE_NAME}=`);
       expect(router.replace).toHaveBeenCalledExactlyOnceWith("/deployments", undefined, { shallow: true });
+      expect(enqueueSnackbar).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ props: expect.objectContaining({ title: "The organization in this link isn't available to you" }) }),
+        { variant: "warning", persist: true }
+      );
     });
 
     it("covers the page while the memberships that could match it are loading", () => {
