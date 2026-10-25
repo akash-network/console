@@ -1,8 +1,8 @@
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { APIRequestContext } from "@playwright/test";
 
 import { signInPasswordless } from "./actions/auth";
-import { closeAllActiveDeployments } from "./actions/deployment-janitor";
 import { acceptFairUsePolicyIfPrompted } from "./actions/fair-use-policy";
+import { createNames, createProjects, deleteTeam, deleteTeamsLeftBehind, listProjects, type OrganizationList } from "./actions/organization";
 import { buyMinimumCredits, createTeam } from "./actions/team";
 import { expect, getUserAgent, openSignedOutPage, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
@@ -18,15 +18,6 @@ import { ProjectPage } from "./pages/ProjectPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { createInboxClient } from "./services/email-verification";
 import { waitForInvitationEmail } from "./services/invitation-inbox";
-
-type ProjectList = { data: { id: string; name: string }[] };
-
-type OrganizationList = { data: { id: string; name: string; type: "personal" | "team"; role: string; isActive: boolean }[] };
-
-type DeletionRefusal = { data?: { balanceUsd?: number } };
-
-/** The app's proxy takes the organization a request runs in from this cookie only. */
-const ACTIVE_ORGANIZATION_COOKIE = "console_org";
 
 test.describe("Team organizations", () => {
   test.use({ userType: "new" });
@@ -312,71 +303,3 @@ test.describe("Team organizations", () => {
     }
   });
 });
-
-/** Every name doubles as its slug, so a project is created under exactly that name and a team is linked to by it. */
-function createNames() {
-  const suffix = crypto.randomUUID().slice(0, 8);
-
-  return { team: `e2e-team-${suffix}`, sharedProject: `shared-${suffix}`, hiddenProject: `hidden-${suffix}`, deployment: `e2e-deploy-${suffix}` };
-}
-
-/** Deleting the team the owner works in moves them back to their personal account. */
-async function deleteTeam(page: Page, team: string) {
-  const settings = new OrganizationSettingsPage(page);
-  const switcher = new OrganizationSwitcher(page);
-
-  await settings.goto();
-  await settings.deleteOrganization(team);
-  await expect(page.getByText(`Deleted ${team}`)).toBeVisible();
-  await page.waitForURL(url => url.pathname !== "/organization");
-  await expect(switcher.trigger(team)).toBeHidden();
-
-  const organizations = await listOrganizations(page.request);
-  expect(organizations.data.map(organization => organization.name)).not.toContain(team);
-  expect(organizations.data.find(organization => organization.isActive)?.type).toBe("personal");
-}
-
-/** Deleted straight through the api, so a run that fails before deleting its team in the UI leaves no team behind on beta. */
-async function deleteTeamsLeftBehind(page: Page) {
-  await deleteOwnedTeams(page).catch(() => undefined);
-}
-
-async function deleteOwnedTeams(page: Page) {
-  const organizationsUrl = `${testEnvConfig.BASE_URL}/api/proxy/v1/organizations`;
-  await page.context().clearCookies({ name: ACTIVE_ORGANIZATION_COOKIE });
-  const ownedTeams = (await listOrganizations(page.request)).data.filter(organization => organization.type === "team" && organization.role === "owner");
-
-  try {
-    for (const { id } of ownedTeams) {
-      await page.context().addCookies([{ name: ACTIVE_ORGANIZATION_COOKIE, value: id, url: testEnvConfig.BASE_URL }]);
-      await closeAllActiveDeployments(page, testEnvConfig.BASE_URL);
-      const refusal = await page.request.delete(`${organizationsUrl}/${id}`, { failOnStatusCode: false });
-      const balanceUsd = ((await refusal.json().catch(() => ({}))) as DeletionRefusal).data?.balanceUsd;
-      if (balanceUsd) await page.request.delete(`${organizationsUrl}/${id}`, { params: { acknowledgedForfeitUsd: balanceUsd }, failOnStatusCode: false });
-    }
-  } finally {
-    await page.context().clearCookies({ name: ACTIVE_ORGANIZATION_COOKIE });
-  }
-}
-
-async function listOrganizations(request: APIRequestContext) {
-  const response = await request.get(`${testEnvConfig.BASE_URL}/api/proxy/v1/organizations`);
-
-  return (await response.json()) as OrganizationList;
-}
-
-async function createProjects(page: Page, names: string[]) {
-  const projects = new ProjectsPage(page);
-  await projects.goto();
-  for (const name of names) {
-    await projects.createProject(name);
-    await expect(projects.projectFolder(name)).toBeVisible();
-  }
-}
-
-async function listProjects(request: APIRequestContext, url: string) {
-  const response = await request.get(url);
-  expect(response.status()).toBe(200);
-
-  return (await response.json()) as ProjectList;
-}

@@ -13,4 +13,9 @@ export class DeploymentListPage {
   listedDeployment(deploymentName: string) {
     return this.page.getByRole("checkbox", { name: `Select deployment ${deploymentName}` });
   }
+
+  /** Takes the list's place once it has loaded with no active deployment, so an absence is only read after the list answered. */
+  emptyNotice() {
+    return this.page.getByRole("heading", { name: /^Deploy your (first|next) workload$/ });
+  }
 }

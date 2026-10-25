@@ -18,4 +18,17 @@ export class ProjectPage {
   listedDeployment(deploymentName: string) {
     return this.page.getByRole("checkbox", { name: `Select deployment ${deploymentName}` });
   }
+
+  /** Found by its link inside the project's deployment list, for someone who cannot select a deployment to close it. */
+  deploymentLink(deploymentName: string) {
+    return this.page.getByRole("region", { name: "Deployments" }).getByRole("link", { name: deploymentName, exact: true });
+  }
+
+  newDeploymentLink() {
+    return this.page.getByRole("link", { name: "New deployment" });
+  }
+
+  restrictedAccessNotice() {
+    return this.page.getByRole("heading", { name: /^You have (view-only|billing) access$/ });
+  }
 }

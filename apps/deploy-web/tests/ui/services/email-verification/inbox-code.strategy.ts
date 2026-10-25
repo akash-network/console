@@ -154,7 +154,7 @@ export class InboxCodeVerificationStrategy implements EmailVerificationStrategy 
     const errorAlert = page.locator(`[role="alert"]:not(${NEXT_ROUTE_ANNOUNCER_SELECTOR})`).filter({ hasText: /\S/ }).first();
 
     const whenNavigatedAway = page
-      .waitForURL(url => !url.pathname.includes("/login"), { timeout: SUBMIT_TIMEOUT_MS })
+      .waitForURL(url => !url.pathname.includes("/login"), { timeout: SUBMIT_TIMEOUT_MS, waitUntil: "commit" })
       .then<SubmitOutcome>(() => ({ kind: "success" }));
 
     const whenAlertShown = errorAlert.waitFor({ state: "visible", timeout: SUBMIT_TIMEOUT_MS }).then<SubmitOutcome>(async () => {

@@ -9,7 +9,7 @@ import { OrganizationSwitcher } from "../pages/OrganizationSwitcher";
 
 const STANDARD_TOP_UP_MIN_AMOUNT_USD = "20";
 
-const TEST_CARD_NUMBER = "4242424242424242";
+export const TEST_CARD_NUMBER = "4242424242424242";
 
 export const TEST_CARD_LAST4 = TEST_CARD_NUMBER.slice(-4);
 
