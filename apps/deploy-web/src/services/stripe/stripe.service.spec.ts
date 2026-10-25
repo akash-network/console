@@ -41,13 +41,28 @@ describe("StripeService", () => {
         publishableKey: "pk_test_mock_key"
       });
 
-      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation();
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
       mockLoadStripe.mockRejectedValue(new Error("Stripe load failed"));
 
       const result = await stripeService.getStripe();
 
       expect(result).toBeNull();
       expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to load Stripe:", expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
+
+    it("loads Stripe again after a failed load", async () => {
+      const { stripeService, mockLoadStripe, mockStripeInstance } = setup({
+        publishableKey: "pk_test_mock_key"
+      });
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      mockLoadStripe.mockRejectedValueOnce(new Error("Stripe load failed")).mockResolvedValue(mockStripeInstance);
+
+      await stripeService.getStripe();
+      const result = await stripeService.getStripe();
+
+      expect(mockLoadStripe).toHaveBeenCalledTimes(2);
+      expect(result).toBe(mockStripeInstance);
       consoleErrorSpy.mockRestore();
     });
   });
