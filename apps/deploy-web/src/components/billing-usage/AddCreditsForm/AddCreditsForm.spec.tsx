@@ -1903,6 +1903,30 @@ describe(AddCreditsForm.name, () => {
       expect(loadFailedEvents(analyticsService)).toHaveLength(2);
     });
 
+    it("loads the card form once a setup intent that took longer than 10 seconds arrives", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      const { rerender } = setup({ status: "pending", dependencies: { AddCreditsNewPaymentMethodFields } });
+      act(() => vi.advanceTimersByTime(10_000));
+      expect(screen.getByRole("alert")).toHaveTextContent("The card form didn't load");
+
+      rerender({ status: "success", clientSecret: "seti_secret" });
+
+      expect(screen.queryByText("The card form didn't load")).not.toBeInTheDocument();
+      expect(screen.getByTestId("new-payment-method-fields")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Loading card form…" })).toBeDisabled();
+    });
+
+    it("keeps loading the same card form when its setup intent arrives in time", () => {
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      const { rerender } = setup({ status: "pending", dependencies: { AddCreditsNewPaymentMethodFields } });
+      const fields = screen.getByTestId("new-payment-method-fields");
+
+      rerender({ status: "success", clientSecret: "seti_secret" });
+
+      expect(screen.getByTestId("new-payment-method-fields")).toBe(fields);
+    });
+
     it("hides a failed card form once a saved method is picked and loads it afresh when the user comes back", () => {
       const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
       setup({ status: "success", clientSecret: "seti_secret", paymentMethods: [paymentMethod()], dependencies: { AddCreditsNewPaymentMethodFields } });

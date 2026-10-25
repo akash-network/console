@@ -575,6 +575,13 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
     [isPaymentFormLoading, failPaymentFormLoad]
   );
 
+  useEffect(
+    function reloadACardFormThatFailedBeforeItsSetupIntentArrived() {
+      setPaymentFormLoad(load => (load.status === "failed" ? restartPaymentFormLoad(load) : load));
+    },
+    [setupIntent?.clientSecret]
+  );
+
   const trackPaymentTypeSelected = useCallback(
     (type: string) => {
       const normalizedType = toPaymentMethodType(type);
