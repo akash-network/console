@@ -3,10 +3,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@akashnetwork/ui/components";
 import { CheckCircle2 } from "lucide-react";
+import Link from "next/link";
 
 import { type AddCreditsTab, AddCreditsTabs } from "@src/components/billing-usage/AddCreditsTabs/AddCreditsTabs";
 import { useServices } from "@src/context/ServicesProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
+import { useUserApiKeys } from "@src/queries/useApiKeysQuery";
+import { useLeaseExistenceQuery } from "@src/queries/useLeaseQuery";
+import { helloWorldTemplate } from "@src/utils/templates";
+import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = {
   Sheet,
@@ -16,8 +22,19 @@ export const DEPENDENCIES = {
   SheetDescription,
   AddCreditsTabs,
   useServices,
-  useWalletBalance
+  useWalletBalance,
+  useWallet,
+  useLeaseExistenceQuery,
+  useUserApiKeys
 };
+
+type NextStepChoice = "deploy_now" | "api_key" | "done";
+
+type FirstDeploymentOffer = { offersDeployNow: boolean; offersApiKey: boolean };
+
+const NO_FIRST_DEPLOYMENT_OFFER: FirstDeploymentOffer = { offersDeployNow: false, offersApiKey: false };
+
+const DEPLOY_HELLO_WORLD_URL = UrlService.configureDeployment({ templateId: helloWorldTemplate.code, sdlStrategy: "default", bidStrategy: "auto" });
 
 const DEFAULT_DESCRIPTION =
   "This template needs a top-tier GPU, which isn't covered by your free trial. Add credits to unlock high-end GPUs, longer runtimes, and the full Console.";
@@ -32,6 +49,7 @@ interface AddCreditsSheetProps {
   /** Where the sheet was opened from (e.g. the onboarding reason); sent with the lifecycle and payment events for funnel segmentation. */
   context?: string;
   nextStepLabel?: string;
+  suggestFirstDeployment?: boolean;
   deploymentDailyCostUsd?: number;
   dependencies?: typeof DEPENDENCIES;
 }
@@ -46,6 +64,7 @@ export function AddCreditsSheet({
   description = DEFAULT_DESCRIPTION,
   context,
   nextStepLabel = "Done",
+  suggestFirstDeployment = false,
   deploymentDailyCostUsd,
   dependencies: d = DEPENDENCIES
 }: AddCreditsSheetProps) {
@@ -94,6 +113,33 @@ export function AddCreditsSheet({
     onRedeemed?.();
   };
 
+  const continueWithNextStep = (choice: NextStepChoice) => {
+    analyticsService.track("add_credits_next_step_clicked", { category: "billing", context, choice });
+    requestOpenChange(false);
+  };
+
+  const renderBody = (firstDeploymentOffer: FirstDeploymentOffer) =>
+    purchase ? (
+      <PurchaseSuccess
+        amount={purchase.amount}
+        bonusAmount={purchase.bonusAmount}
+        nextStepLabel={nextStepLabel}
+        firstDeploymentOffer={firstDeploymentOffer}
+        onDone={() => requestOpenChange(false)}
+        onNextStep={continueWithNextStep}
+        dependencies={d}
+      />
+    ) : (
+      <d.AddCreditsTabs
+        initialTab={initialTab}
+        context={context}
+        deploymentDailyCostUsd={deploymentDailyCostUsd}
+        onDone={completePurchase}
+        onRedeemed={completeRedemption}
+        onProcessingChange={setIsProcessing}
+      />
+    );
+
   return (
     <d.Sheet open={open} onOpenChange={requestOpenChange}>
       <d.SheetContent side="right" hideCloseButton={isProcessing} className="w-full space-y-6 overflow-y-auto p-6 sm:max-w-[546px]">
@@ -104,45 +150,56 @@ export function AddCreditsSheet({
           </d.SheetDescription>
         </d.SheetHeader>
 
-        {open && purchase && (
-          <PurchaseSuccess
-            amount={purchase.amount}
-            bonusAmount={purchase.bonusAmount}
-            nextStepLabel={nextStepLabel}
-            onDone={() => requestOpenChange(false)}
-            dependencies={d}
-          />
-        )}
-
-        {open && !purchase && (
-          <d.AddCreditsTabs
-            initialTab={initialTab}
-            context={context}
-            deploymentDailyCostUsd={deploymentDailyCostUsd}
-            onDone={completePurchase}
-            onRedeemed={completeRedemption}
-            onProcessingChange={setIsProcessing}
-          />
-        )}
+        {open &&
+          (suggestFirstDeployment ? (
+            <FirstDeploymentOfferLookup dependencies={d}>{renderBody}</FirstDeploymentOfferLookup>
+          ) : (
+            renderBody(NO_FIRST_DEPLOYMENT_OFFER)
+          ))}
       </d.SheetContent>
     </d.Sheet>
   );
+}
+
+/** Wraps the purchase form too, so the lookups settle before the success screen and the offer never shows up late. */
+function FirstDeploymentOfferLookup({
+  children,
+  dependencies: d
+}: {
+  children: (firstDeploymentOffer: FirstDeploymentOffer) => React.ReactNode;
+  dependencies: Pick<typeof DEPENDENCIES, "useWallet" | "useLeaseExistenceQuery" | "useUserApiKeys">;
+}) {
+  const { address, hasWallet } = d.useWallet();
+  const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: hasWallet && !!address });
+  const hasNoLease = leaseExistenceQuery.isSuccess && leaseExistenceQuery.data === false;
+  const apiKeysQuery = d.useUserApiKeys({ enabled: hasNoLease, refetchInterval: false, retry: false });
+  const isApiKeysSettled = apiKeysQuery.isSuccess || apiKeysQuery.isError;
+
+  return children({
+    offersDeployNow: hasNoLease && isApiKeysSettled,
+    offersApiKey: hasNoLease && apiKeysQuery.isSuccess && !!apiKeysQuery.data?.length
+  });
 }
 
 function PurchaseSuccess({
   amount,
   bonusAmount,
   nextStepLabel,
+  firstDeploymentOffer,
   onDone,
+  onNextStep,
   dependencies: d
 }: {
   amount: number;
   bonusAmount?: number;
   nextStepLabel: string;
+  firstDeploymentOffer: FirstDeploymentOffer;
   onDone: () => void;
+  onNextStep: (choice: NextStepChoice) => void;
   dependencies: Pick<typeof DEPENDENCIES, "useWalletBalance">;
 }) {
   const { balance, isLoading } = d.useWalletBalance();
+  const { offersDeployNow, offersApiKey } = firstDeploymentOffer;
 
   return (
     <div className="space-y-6">
@@ -153,8 +210,42 @@ function PurchaseSuccess({
         <p className="text-sm text-muted-foreground">New balance</p>
         <p className="text-3xl font-semibold">{balance && !isLoading ? formatUsd(balance.totalUsd) : "Updating balance…"}</p>
       </div>
-      <Button className="w-full" onClick={onDone}>
-        {nextStepLabel}
+      {offersDeployNow ? (
+        <FirstDeploymentNextSteps offersApiKey={offersApiKey} doneLabel={nextStepLabel} onNextStep={onNextStep} />
+      ) : (
+        <Button className="w-full" onClick={onDone}>
+          {nextStepLabel}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function FirstDeploymentNextSteps({
+  offersApiKey,
+  doneLabel,
+  onNextStep
+}: {
+  offersApiKey: boolean;
+  doneLabel: string;
+  onNextStep: (choice: NextStepChoice) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <Button asChild className="w-full">
+        <Link href={DEPLOY_HELLO_WORLD_URL} onClick={() => onNextStep("deploy_now")}>
+          Deploy now
+        </Link>
+      </Button>
+      {offersApiKey && (
+        <Button asChild variant="outline" className="w-full">
+          <Link href={UrlService.userApiKeys()} onClick={() => onNextStep("api_key")}>
+            Deploy with your API key or agent
+          </Link>
+        </Button>
+      )}
+      <Button variant="ghost" className="w-full" onClick={() => onNextStep("done")}>
+        {doneLabel}
       </Button>
     </div>
   );
