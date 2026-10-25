@@ -56,10 +56,10 @@ export function AcceptInvitationPage({ dependencies: d = DEPENDENCIES }: Props =
   const isSettled = isUnreadable || (!!preview.data && preview.data.status !== "pending");
 
   useEffect(
-    function forgetSettledInvitation() {
+    function forgetEachSettledInvitation() {
       if (isSettled) forgetToken();
     },
-    [isSettled, forgetToken]
+    [isSettled, token, forgetToken]
   );
 
   return (
@@ -82,7 +82,7 @@ export function AcceptInvitationPage({ dependencies: d = DEPENDENCIES }: Props =
             </div>
           )}
           {!isUnreadable && !preview.isError && preview.data && token && (
-            <InvitationView invitation={preview.data} token={token} onSettled={forgetToken} dependencies={d} />
+            <InvitationView key={token} invitation={preview.data} token={token} onSettled={forgetToken} dependencies={d} />
           )}
         </CardContent>
       </Card>
