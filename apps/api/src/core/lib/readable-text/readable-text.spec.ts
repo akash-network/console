@@ -31,6 +31,12 @@ describe(readableName.name, () => {
   it("keeps the checks of the schema it extends", () => {
     expect(readableName(z.string().max(3)).safeParse("Acme").success).toBe(false);
   });
+
+  it("publishes a pattern that keeps its meaning when compiled without flags", () => {
+    const pattern = publishedPatternOf(readableName(z.string()));
+
+    expect(["Acme Corp", "Acme\u0000Corp", "Acme\u202eproc"].map(name => pattern.test(name))).toEqual([true, false, false]);
+  });
 });
 
 describe(readableText.name, () => {
@@ -52,4 +58,16 @@ describe(readableText.name, () => {
       expect.objectContaining({ message: "The text cannot contain control characters other than line breaks and tabs" })
     ]);
   });
+
+  it("publishes a pattern that keeps its meaning when compiled without flags", () => {
+    const pattern = publishedPatternOf(readableText(z.string()));
+
+    expect(["Storefront\r\n\tand checkout", "about\u0000it", "about\u202eit"].map(text => pattern.test(text))).toEqual([true, false, false]);
+  });
 });
+
+function publishedPatternOf(schema: z.ZodString) {
+  const [firstRegex] = schema._def.checks.flatMap(check => (check.kind === "regex" ? [check.regex] : []));
+
+  return new RegExp(firstRegex.source);
+}

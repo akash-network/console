@@ -13881,7 +13881,7 @@
                     "properties": {
                       "name": {
                         "type": "string",
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$"
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
                       },
                       "expiresAt": {
                         "type": "string",
@@ -14160,7 +14160,7 @@
                     "properties": {
                       "name": {
                         "type": "string",
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$"
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
                       }
                     }
                   }
@@ -25609,7 +25609,7 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "description": "Unique, ignoring case, among the organizations the caller belongs to."
                       }
                     },
@@ -25766,7 +25766,7 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "description": "Unique, ignoring case, among the organizations the caller belongs to."
                       }
                     },
@@ -26181,14 +26181,14 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "description": "Unique within the organization, whatever its case.",
                         "example": "checkout-api"
                       },
                       "description": {
                         "type": "string",
                         "maxLength": 140,
-                        "pattern": "^(?:[^\\p{Cc}\\p{Bidi_Control}]|[\\t\\n\\r])*$"
+                        "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
                       }
                     },
                     "required": [
@@ -26454,7 +26454,7 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 64,
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "description": "Unique within the organization, whatever its case.",
                         "example": "checkout-api"
                       },
@@ -26462,7 +26462,7 @@
                         "type": "string",
                         "nullable": true,
                         "maxLength": 140,
-                        "pattern": "^(?:[^\\p{Cc}\\p{Bidi_Control}]|[\\t\\n\\r])*$"
+                        "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$"
                       }
                     }
                   }

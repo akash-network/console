@@ -2867,7 +2867,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "string",
                       },
                       "name": {
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "type": "string",
                       },
                       "projectId": {
@@ -3187,7 +3187,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "name": {
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "type": "string",
                       },
                     },
@@ -17194,7 +17194,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "description": "Unique, ignoring case, among the organizations the caller belongs to.",
                         "maxLength": 64,
                         "minLength": 1,
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "type": "string",
                       },
                     },
@@ -17399,7 +17399,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "description": "Unique, ignoring case, among the organizations the caller belongs to.",
                         "maxLength": 64,
                         "minLength": 1,
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "type": "string",
                       },
                     },
@@ -19310,7 +19310,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                     "properties": {
                       "description": {
                         "maxLength": 140,
-                        "pattern": "^(?:[^\\p{Cc}\\p{Bidi_Control}]|[\\t\\n\\r])*$",
+                        "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "type": "string",
                       },
                       "name": {
@@ -19318,7 +19318,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "example": "checkout-api",
                         "maxLength": 64,
                         "minLength": 1,
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "type": "string",
                       },
                     },
@@ -19628,7 +19628,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       "description": {
                         "maxLength": 140,
                         "nullable": true,
-                        "pattern": "^(?:[^\\p{Cc}\\p{Bidi_Control}]|[\\t\\n\\r])*$",
+                        "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "type": "string",
                       },
                       "name": {
@@ -19636,7 +19636,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "example": "checkout-api",
                         "maxLength": 64,
                         "minLength": 1,
-                        "pattern": "^[^\\p{Cc}\\p{Bidi_Control}]*$",
+                        "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u202a-\\u202e\\u2066-\\u2069]*$",
                         "type": "string",
                       },
                     },
