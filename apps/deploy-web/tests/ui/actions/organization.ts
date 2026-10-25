@@ -9,18 +9,15 @@ import { OrganizationSwitcher } from "../pages/OrganizationSwitcher";
 import { ProjectsPage } from "../pages/ProjectsPage";
 import type { Auth0ManagementService } from "../services/auth0-management.service";
 import { signInPasswordless } from "./auth";
-import { closeAllActiveDeployments } from "./deployment-janitor";
+import { deleteOwnedTeams } from "./team-janitor";
+
+export { ACTIVE_ORGANIZATION_COOKIE } from "./team-janitor";
 
 export type ProjectList = { data: { id: string; name: string }[] };
 
 export type OrganizationList = { data: { id: string; name: string; type: "personal" | "team"; role: string; isActive: boolean }[] };
 
-type DeletionRefusal = { data?: { balanceUsd?: number } };
-
 type CreatedApiKey = { data: { id: string; apiKey: string; organizationId: string | null; projectId: string | null } };
-
-/** The app's proxy takes the organization a request runs in from this cookie only. */
-export const ACTIVE_ORGANIZATION_COOKIE = "console_org";
 
 export const PROXY_API_URL = `${testEnvConfig.BASE_URL}/api/proxy`;
 
@@ -110,25 +107,7 @@ export async function deleteTeam(page: Page, team: string) {
 
 /** Deleted straight through the api, so a run that fails before deleting its team in the UI leaves no team behind on beta. */
 export async function deleteTeamsLeftBehind(page: Page) {
-  await deleteOwnedTeams(page).catch(() => undefined);
-}
-
-async function deleteOwnedTeams(page: Page) {
-  const organizationsUrl = `${PROXY_API_URL}/v1/organizations`;
-  await page.context().clearCookies({ name: ACTIVE_ORGANIZATION_COOKIE });
-  const ownedTeams = (await listOrganizations(page.request)).data.filter(organization => organization.type === "team" && organization.role === "owner");
-
-  try {
-    for (const { id } of ownedTeams) {
-      await page.context().addCookies([{ name: ACTIVE_ORGANIZATION_COOKIE, value: id, url: testEnvConfig.BASE_URL }]);
-      await closeAllActiveDeployments(page, testEnvConfig.BASE_URL);
-      const refusal = await page.request.delete(`${organizationsUrl}/${id}`, { failOnStatusCode: false });
-      const balanceUsd = ((await refusal.json().catch(() => ({}))) as DeletionRefusal).data?.balanceUsd;
-      if (balanceUsd) await page.request.delete(`${organizationsUrl}/${id}`, { params: { acknowledgedForfeitUsd: balanceUsd }, failOnStatusCode: false });
-    }
-  } finally {
-    await page.context().clearCookies({ name: ACTIVE_ORGANIZATION_COOKIE });
-  }
+  await deleteOwnedTeams(page, testEnvConfig.BASE_URL);
 }
 
 export async function deleteAuth0UserQuietly(auth0: Auth0ManagementService, email: string) {
