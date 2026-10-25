@@ -10,6 +10,7 @@ import { mock } from "vitest-mock-extended";
 import { ACTIVE_ORGANIZATION_COOKIE_NAME } from "@src/lib/active-organization/active-organization-cookie";
 import { ORGANIZATIONS_QUERY_KEY } from "@src/queries/useOrganizationQueries";
 import { StaleOrganizationRecovery } from "@src/services/stale-organization-recovery/stale-organization-recovery";
+import { TabOrganization } from "@src/services/tab-organization/tab-organization";
 import { settingsIdAtom } from "@src/store/settingsStore";
 import type { OrganizationOutput } from "@src/types/organization";
 import type { DEPENDENCIES } from "./OrganizationProvider";
@@ -39,6 +40,28 @@ describe(OrganizationProvider.name, () => {
 
     expect(result.current.organizations.map(organization => organization.name)).toEqual(["alice", "Acme Corp", "Northwind Labs"]);
     expect(result.current.activeOrganization?.id).toBe("org-1");
+  });
+
+  it("names the organization it shows on the calls of its tab", () => {
+    const { tabOrganization } = setup({ activeId: "org-2" });
+
+    expect(tabOrganization.organizationId).toBe("org-2");
+  });
+
+  it("keeps naming the organization it shows after another tab picks another one", () => {
+    const { tabOrganization, organizationsQuery, rerender, buildOrganizations } = setup({});
+
+    document.cookie = `${ACTIVE_ORGANIZATION_COOKIE_NAME}=org-3; path=/`;
+    organizationsQuery.mockReturnValue(loadedResult(buildOrganizations("org-1")));
+    rerender();
+
+    expect(tabOrganization.organizationId).toBe("org-1");
+  });
+
+  it("names no organization while the feature is off", () => {
+    const { tabOrganization } = setup({ isEnabled: false });
+
+    expect(tabOrganization.organizationId).toBeUndefined();
   });
 
   it("is loading until the first memberships arrive", () => {
@@ -93,6 +116,19 @@ describe(OrganizationProvider.name, () => {
       expect(store.get(settingsIdAtom)).toBeNull();
     });
 
+    it("names the chosen organization on the calls of its tab before anything reloads", async () => {
+      const { result, queryClient, tabOrganization } = setup({});
+      let namedWhileReloading: string | undefined;
+      vi.mocked(queryClient.clear).mockImplementation(() => {
+        namedWhileReloading = tabOrganization.organizationId;
+      });
+
+      await act(async () => result.current.switchOrganization("org-2"));
+
+      expect(namedWhileReloading).toBe("org-2");
+      expect(tabOrganization.organizationId).toBe("org-2");
+    });
+
     it("covers the page until the navigation into the new organization has landed", async () => {
       let landSwitch: (landed: boolean) => void = () => undefined;
       const { result, isPageCovered, onMount } = setup({ replaceResult: new Promise<boolean>(resolve => (landSwitch = resolve)) });
@@ -138,6 +174,16 @@ describe(OrganizationProvider.name, () => {
       });
 
       expect(answers).toEqual([false, true]);
+    });
+
+    it("switches into an organization the memberships gained after they first loaded", async () => {
+      const { result, organizationsQuery, rerender, buildOrganizations } = setup({ organizations: [] });
+      organizationsQuery.mockReturnValue(loadedResult(buildOrganizations("org-1")));
+      rerender();
+
+      await act(async () => {
+        expect(result.current.switchOrganization("org-3")).toBe(true);
+      });
     });
 
     it("ignores an organization the user does not belong to", async () => {
@@ -261,7 +307,7 @@ describe(OrganizationProvider.name, () => {
       store.set(settingsIdAtom, "akash1refused");
 
       act(() => {
-        recovery.recover(new ApiError(403, { code: "organization_forbidden" }, "GET /v1/deployments → 403"), queryClient);
+        recovery.recover(new ApiError(403, { code: "organization_forbidden" }, "GET /v1/deployments → 403"), queryClient, { isDropped: false });
       });
 
       expect(document.cookie).not.toContain(`${ACTIVE_ORGANIZATION_COOKIE_NAME}=`);
@@ -272,18 +318,20 @@ describe(OrganizationProvider.name, () => {
     });
 
     it("follows the organization the API picks once the memberships reload", async () => {
-      const { result, recovery, queryClient, organizationsQuery, rerender, buildOrganizations } = setup({});
+      const { result, recovery, queryClient, organizationsQuery, rerender, buildOrganizations, tabOrganization } = setup({});
       await act(async () => result.current.switchOrganization("org-2"));
       organizationsQuery.mockReturnValue(loadingResult());
       rerender();
 
       act(() => {
-        recovery.recover(new ApiError(403, { code: "organization_forbidden" }, "GET /v1/deployments → 403"), queryClient);
+        recovery.recover(new ApiError(403, { code: "organization_forbidden" }, "GET /v1/deployments → 403"), queryClient, { isDropped: false });
       });
+      expect(tabOrganization.organizationId).toBeUndefined();
       organizationsQuery.mockReturnValue(loadedResult(buildOrganizations("org-1")));
       rerender();
 
       expect(result.current.activeOrganization?.id).toBe("org-1");
+      expect(tabOrganization.organizationId).toBe("org-1");
     });
   });
 
@@ -402,7 +450,8 @@ describe(OrganizationProvider.name, () => {
     vi.spyOn(queryClient, "clear");
     const store = createStore();
     store.set(settingsIdAtom, "akash1previous");
-    const recovery = new StaleOrganizationRecovery();
+    const tabOrganization = new TabOrganization();
+    const recovery = new StaleOrganizationRecovery(tabOrganization);
     const onMount = vi.fn();
     let coveringCount = 0;
 
@@ -432,14 +481,26 @@ describe(OrganizationProvider.name, () => {
       },
       {
         wrapper: ({ children }) => (
-          <TestContainerProvider services={{ staleOrganizationRecovery: () => recovery }}>
+          <TestContainerProvider services={{ staleOrganizationRecovery: () => recovery, tabOrganization: () => tabOrganization }}>
             <OrganizationProvider dependencies={dependencies}>{children}</OrganizationProvider>
           </TestContainerProvider>
         )
       }
     );
 
-    return { result, rerender, organizationsQuery, router, queryClient, store, recovery, onMount, buildOrganizations, isPageCovered: () => coveringCount > 0 };
+    return {
+      result,
+      rerender,
+      organizationsQuery,
+      router,
+      queryClient,
+      store,
+      recovery,
+      tabOrganization,
+      onMount,
+      buildOrganizations,
+      isPageCovered: () => coveringCount > 0
+    };
   }
 
   function loadedResult(data: OrganizationOutput[]): UseQueryResult<OrganizationOutput[]> {

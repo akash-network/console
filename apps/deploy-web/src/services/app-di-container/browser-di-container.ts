@@ -11,6 +11,7 @@ import { DeploymentNameBackfillService } from "../deployment-name-backfill/deplo
 import { DeploymentStorageService } from "../deployment-storage/deployment-storage.service";
 import { ProviderLookupService } from "../provider-lookup/provider-lookup.service";
 import { createSessionExpiryFetch } from "../session-expiry-notifier/session-expiry-notifier.service";
+import { createTabOrganizationFetch } from "../tab-organization/tab-organization";
 import { createAppRootContainer } from "./app-di-container";
 
 const rootContainer = createAppRootContainer({
@@ -22,7 +23,13 @@ const rootContainer = createAppRootContainer({
 });
 
 export const services = createChildContainer(rootContainer, {
-  api: () => createProxy(createApiSdk({ baseUrl: PROXY_API_BASE_URL, fetch: createSessionExpiryFetch(services.sessionExpiryNotifier) })),
+  api: () =>
+    createProxy(
+      createApiSdk({
+        baseUrl: PROXY_API_BASE_URL,
+        fetch: createTabOrganizationFetch(services.tabOrganization, createSessionExpiryFetch(services.sessionExpiryNotifier))
+      })
+    ),
   internalApiHttpClient: () => services.createAxios(),
   consoleApiHttpClient: () =>
     services.applyAxiosInterceptors(services.createAxios({ baseURL: services.publicConfig.NEXT_PUBLIC_BASE_API_MAINNET_URL }), {

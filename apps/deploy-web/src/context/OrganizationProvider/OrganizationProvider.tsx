@@ -70,7 +70,7 @@ export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES 
   const router = d.useRouter();
   const queryClient = d.useQueryClient();
   const store = d.useStore();
-  const { staleOrganizationRecovery } = useServices();
+  const { staleOrganizationRecovery, tabOrganization } = useServices();
   const { data: loadedOrganizations, isLoading, isError } = d.useOrganizationsQuery({ enabled: isEnabled && !!user?.id });
   const [knownOrganizations, setKnownOrganizations] = useState<OrganizationOutput[]>([]);
   const [pendingSwitch, setPendingSwitch] = useState<PendingSwitch>();
@@ -123,6 +123,7 @@ export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES 
       if (!target) return false;
 
       document.cookie = serializeActiveOrganizationCookie(target.id);
+      tabOrganization.show(target.id);
       setKnownOrganizations(memberships);
       setPendingSwitch({ organizationId: target.id, replacedMemberships: loadedOrganizations });
       queryClient.clear();
@@ -132,7 +133,7 @@ export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES 
       router.replace(options?.destination ?? resolveOrganizationSwitchDestination(router.asPath, target)).then(uncoverPage, uncoverPage);
       return true;
     },
-    [queryClient, organizations, loadedOrganizations, restartOrganizationScope, router]
+    [queryClient, organizations, loadedOrganizations, tabOrganization, restartOrganizationScope, router]
   );
 
   useEffect(
@@ -173,6 +174,13 @@ export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES 
       projectsEnabled: !!activeOrganization && isProjectsUiEnabled(activeOrganization)
     };
   }, [isEnabled, areFeatureFlagsReady, organizations, activeOrganization, isLoading, isError, switchOrganization]);
+
+  useEffect(
+    function actInTheShownOrganization() {
+      tabOrganization.show(value.activeOrganization?.id);
+    },
+    [tabOrganization, value.activeOrganization?.id]
+  );
 
   const isOpeningRequestedOrganization = isEnabled && isLoading && router.query[ACTIVE_ORGANIZATION_QUERY_PARAM] !== undefined;
 
