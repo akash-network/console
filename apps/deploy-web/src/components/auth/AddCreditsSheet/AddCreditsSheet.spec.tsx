@@ -307,8 +307,9 @@ describe(AddCreditsSheet.name, () => {
     });
 
     it.each([
-      { state: "loading", leaseExistence: { data: undefined } },
-      { state: "failed", leaseExistence: { data: undefined, isError: true } }
+      { state: "loading", leaseExistence: { data: undefined, isSuccess: false } },
+      { state: "failed", leaseExistence: { data: undefined, isSuccess: false, isError: true } },
+      { state: "failed a refetch after an earlier answer", leaseExistence: { data: false, isSuccess: false, isError: true } }
     ])("keeps only Done while the lease lookup has $state", ({ leaseExistence }) => {
       const { purchase } = setup({ open: true, suggestFirstDeployment: true, leaseExistence });
 
@@ -329,6 +330,15 @@ describe(AddCreditsSheet.name, () => {
 
     it("still offers to deploy Hello World when the API key lookup fails", () => {
       const { purchase } = setup({ open: true, suggestFirstDeployment: true, apiKeys: { data: undefined, isSuccess: false, isError: true } });
+
+      purchase(100);
+
+      expect(screen.getByRole("link", { name: "Deploy now" })).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Deploy with your API key or agent" })).not.toBeInTheDocument();
+    });
+
+    it("drops the API key path, but still offers to deploy, when a refetch of the API key lookup fails", () => {
+      const { purchase } = setup({ open: true, suggestFirstDeployment: true, apiKeys: { data: [buildApiKey()], isSuccess: false, isError: true } });
 
       purchase(100);
 
@@ -391,7 +401,7 @@ describe(AddCreditsSheet.name, () => {
     suggestFirstDeployment?: boolean;
     deploymentDailyCostUsd?: number;
     wallet?: { address: string; hasWallet: boolean };
-    leaseExistence?: { data?: boolean; isError?: boolean };
+    leaseExistence?: { data?: boolean; isSuccess?: boolean; isError?: boolean };
     apiKeys?: { data?: ApiKeyResponse[]; isSuccess?: boolean; isError?: boolean };
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
@@ -405,7 +415,7 @@ describe(AddCreditsSheet.name, () => {
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWallet>>(input.wallet ?? { address: "akash1owner", hasWallet: true });
     const useLeaseExistenceQuery = vi.fn<typeof DEPENDENCIES.useLeaseExistenceQuery>(() =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLeaseExistenceQuery>>(), { data: false, isError: false, ...input.leaseExistence })
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLeaseExistenceQuery>>(), { data: false, isSuccess: true, isError: false, ...input.leaseExistence })
     );
     const useUserApiKeys = vi.fn<typeof DEPENDENCIES.useUserApiKeys>(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useUserApiKeys>>(), { data: [], isSuccess: true, isError: false, ...input.apiKeys })

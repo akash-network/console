@@ -171,13 +171,13 @@ function FirstDeploymentOfferLookup({
 }) {
   const { address, hasWallet } = d.useWallet();
   const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: hasWallet && !!address });
-  const hasNoLease = leaseExistenceQuery.data === false;
+  const hasNoLease = leaseExistenceQuery.isSuccess && leaseExistenceQuery.data === false;
   const apiKeysQuery = d.useUserApiKeys({ enabled: hasNoLease, refetchInterval: false, retry: false });
   const isApiKeysSettled = apiKeysQuery.isSuccess || apiKeysQuery.isError;
 
   return children({
     offersDeployNow: hasNoLease && isApiKeysSettled,
-    offersApiKey: hasNoLease && !!apiKeysQuery.data?.length
+    offersApiKey: hasNoLease && apiKeysQuery.isSuccess && !!apiKeysQuery.data?.length
   });
 }
 
