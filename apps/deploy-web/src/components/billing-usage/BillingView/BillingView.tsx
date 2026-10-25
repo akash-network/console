@@ -53,7 +53,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const COLUMN_HEADERS = ["Date", "Amount", "Account source", "Status"];
 
-const TEAM_COLUMN_HEADERS = ["Date", "Amount", "Account source", "Made by", "Status"];
+const TEAM_COLUMN_HEADERS = ["Date", "Amount", "Account source", "Initiated by", "Status"];
 
 /** Phones lay a row out as date and amount over source, status and documents, with who made it last in a team; wider screens give each its own column. */
 const ROW_GRID =
@@ -275,7 +275,7 @@ const TransactionSource: React.FC<{ transaction: BillingTransaction }> = ({ tran
 
 const TransactionInitiator: React.FC<{ transaction: BillingTransaction }> = ({ transaction: { initiatedBy } }) => (
   <span className="block truncate">
-    <span className="sm:hidden">Made by </span>
+    <span className="sm:hidden">Initiated by </span>
     {initiatedBy ? getMemberDisplayName(initiatedBy) : DELETED_ACCOUNT_LABEL}
   </span>
 );

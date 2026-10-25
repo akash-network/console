@@ -37,7 +37,7 @@ describe(BillingView.name, () => {
         "Date",
         "Amount",
         "Account source",
-        "Made by",
+        "Initiated by",
         "Status",
         "Receipt"
       ]);
@@ -47,19 +47,19 @@ describe(BillingView.name, () => {
     it("names the member who made each payment", () => {
       setup({ organizationType: "team", data: [createMockTransaction({ initiatedBy: { id: "user-1", username: "alice", email: "alice@example.com" } })] });
 
-      expect(cell(0, "Made by")).toHaveTextContent(/^Made by alice$/);
+      expect(cell(0, "Initiated by")).toHaveTextContent(/^Initiated by alice$/);
     });
 
     it("names the member by email when they have no username", () => {
       setup({ organizationType: "team", data: [createMockTransaction({ initiatedBy: { id: "user-1", username: null, email: "alice@example.com" } })] });
 
-      expect(cell(0, "Made by")).toHaveTextContent(/^Made by alice@example\.com$/);
+      expect(cell(0, "Initiated by")).toHaveTextContent(/^Initiated by alice@example\.com$/);
     });
 
     it("credits a payment whose member deleted their account to a deleted account", () => {
       setup({ organizationType: "team", data: [createMockTransaction({ initiatedBy: null })] });
 
-      expect(cell(0, "Made by")).toHaveTextContent(/^Made by Deleted account$/);
+      expect(cell(0, "Initiated by")).toHaveTextContent(/^Initiated by Deleted account$/);
     });
   });
 
