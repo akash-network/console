@@ -38,6 +38,7 @@ import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { usePaymentMethodsQuery, usePaymentMutations, useRefreshPaymentMethods, useSetupIntentMutation } from "@src/queries";
 import { handleStripeError } from "@src/utils/stripeErrorHandler";
 import { useTopUpAttemptKey } from "./useTopUpAttemptKey/useTopUpAttemptKey";
+import { waitForSettledTransaction } from "./waitForSettledTransaction/waitForSettledTransaction";
 
 /** Sentinel Select value for entering a new card instead of charging a saved method. */
 const NEW_CARD = "new";
@@ -77,7 +78,9 @@ export const DEPENDENCIES = {
   // eslint-disable-next-line akash/dependencies-component-or-hook
   getPaymentMethodDisplay,
   // eslint-disable-next-line akash/dependencies-component-or-hook
-  handleStripeError
+  handleStripeError,
+  // eslint-disable-next-line akash/dependencies-component-or-hook
+  waitForSettledTransaction
 };
 
 interface AddCreditsFormProps {
@@ -110,6 +113,7 @@ interface PendingCharge {
   status: "pending" | "charging";
   idempotencyKey: string;
   analytics: PaymentAnalytics;
+  transactionId?: string;
 }
 
 /**
@@ -373,6 +377,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
           amount: pending.amount,
           idempotencyKey: pending.idempotencyKey
         });
+        setCharge(current => current && { ...current, transactionId: chargeResult.transactionId });
 
         if (chargeResult.requiresAction && chargeResult.clientSecret && chargeResult.paymentIntentId) {
           threeDSecureAnalyticsRef.current = pending.analytics;
@@ -461,21 +466,11 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
       analyticsService.track("add_credits_purchased", { category: "billing", ...charge.analytics });
       void queryClient.invalidateQueries({ queryKey: api.v1.getFirstPurchaseBonus.getKey() });
 
-      const { amount } = charge;
-      void (async function completeWithGrantedBonus() {
-        // Polling settles only after the webhook topped up the wallet, so the granted
-        // first-purchase bonus is already recorded on the latest transaction.
-        let bonusAmount = 0;
-        try {
-          const { transactions } = await stripe.getCustomerTransactions({ limit: 1 });
-          const latest = transactions[0];
-          if (latest?.status === "succeeded" && latest.amount === Math.round(amount * 100)) {
-            bonusAmount = (latest.bonusAmount ?? 0) / 100;
-          }
-        } catch {
-          // Bonus display is best-effort; completion must proceed without it.
-        }
-        onDone(amount, bonusAmount);
+      const { amount, transactionId } = charge;
+      void (async function completeOnceThePaymentSettles() {
+        const settledTransaction = transactionId ? await d.waitForSettledTransaction(stripe, transactionId) : undefined;
+        void queryClient.invalidateQueries({ queryKey: api.v1.listStripeTransactions.getKey() });
+        onDone(amount, (settledTransaction?.bonusAmount ?? 0) / 100);
         setIsProcessing(false);
       })();
     },
@@ -492,7 +487,8 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
       stripe,
       analyticsService,
       api,
-      queryClient
+      queryClient,
+      d
     ]
   );
 
