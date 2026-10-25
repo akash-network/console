@@ -28,7 +28,7 @@ export class ProjectPage {
     return this.page.getByRole("link", { name: "New deployment" });
   }
 
-  viewOnlyNotice() {
-    return this.page.getByRole("heading", { name: "You have view-only access" });
+  restrictedAccessNotice() {
+    return this.page.getByRole("heading", { name: /^You have (view-only|billing) access$/ });
   }
 }

@@ -420,7 +420,7 @@ test.describe("Teams and people in the app", () => {
         await expect(billingPage.getByRole("button", { name: "New project" })).toBeHidden();
 
         await projects.openProject(sharedProject);
-        await expect(project.viewOnlyNotice()).toBeVisible({ timeout: 60_000 });
+        await expect(project.restrictedAccessNotice()).toBeVisible({ timeout: 60_000 });
         await expect(project.deploymentLink(deployment)).toBeHidden();
         await expect(project.newDeploymentLink()).toBeHidden();
       });
