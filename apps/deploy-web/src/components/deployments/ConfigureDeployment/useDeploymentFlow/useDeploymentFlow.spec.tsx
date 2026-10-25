@@ -2706,14 +2706,83 @@ describe(useDeploymentFlow.name, () => {
       }
     });
 
+    it("leaves the flow to a retry still patching when the deploy it replaced fails its lease", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, lease, patch, markOutcomeHandled } = await renderRetrySentWhilePatching({ hasReplacedDeployReachedLease: true });
+
+        act(() => lease.calls[0].options.onError?.(new Error("boom")));
+
+        expect(result.current.phase).toBe("deploying");
+        expect(result.current.deployError).toBeUndefined();
+        expect(markOutcomeHandled).not.toHaveBeenCalledWith("lease_create", "555", "failed");
+
+        act(() => patch.calls[1].options.onSuccess?.({}));
+        act(() => lease.calls[1].options.onSuccess?.(deployedResult("akash1owner")));
+
+        expect(result.current.deploySucceeded).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("leaves the flow to a retry still patching when the deploy it replaced fails its patch", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, patch, analyticsService } = await renderRetrySentWhilePatching({ hasReplacedDeployReachedLease: false });
+
+        act(() => patch.calls[0].options.onError?.(new Error("boom")));
+
+        expect(result.current.phase).toBe("deploying");
+        expect(result.current.deployError).toBeUndefined();
+        expect(analyticsService.track).not.toHaveBeenCalledWith("deploy_failed", expect.objectContaining({ stage: "patch" }));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("finishes the deploy once, through the retry, when the deploy it replaced lands its lease while the retry patches", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, lease, patch, router } = await renderRetrySentWhilePatching({ hasReplacedDeployReachedLease: true });
+
+        act(() => lease.calls[0].options.onSuccess?.(deployedResult("akash1owner")));
+
+        expect(result.current.deploySucceeded).toBe(false);
+
+        act(() => patch.calls[1].options.onSuccess?.({}));
+        act(() => lease.calls[1].options.onSuccess?.(deployedResult("akash1owner")));
+        act(() => vi.advanceTimersByTime(1_200));
+
+        expect(result.current.deploySucceeded).toBe(true);
+        expect(router.replace.mock.calls.filter(([url]) => url === UrlService.deploymentDetails("555", "EVENTS", "events"))).toHaveLength(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     function timeoutsReportedBy(analyticsService: ReturnType<typeof renderFlow>["analyticsService"]) {
       return analyticsService.track.mock.calls.filter(
         ([name, properties]) => name === "deploy_failed" && (properties as Record<string, unknown>).stage === "lease_timeout"
       );
     }
 
-    async function renderDeployingFlow(input: { isAutoDeploy?: boolean } & NonNullable<Parameters<typeof renderFlow>[0]> = {}) {
-      const { isAutoDeploy, ...flowInput } = input;
+    async function renderRetrySentWhilePatching(input: { hasReplacedDeployReachedLease: boolean }) {
+      const secrets = { API_KEY: "x" };
+      const patch = deferredMutate();
+      const flow = await renderDeployingFlow({ patchDeployment: mockMutation(patch.mutate), servicesPatchBetween: () => ({}), secrets });
+      await act(async () => {});
+      if (input.hasReplacedDeployReachedLease) act(() => patch.calls[0].options.onSuccess?.({}));
+      act(() => vi.advanceTimersByTime(30_000));
+      act(() => flow.result.current.actions.deploy("sdl", { secrets }));
+      await act(async () => {});
+      return { ...flow, patch };
+    }
+
+    async function renderDeployingFlow(
+      input: { isAutoDeploy?: boolean; secrets?: Record<string, string> } & NonNullable<Parameters<typeof renderFlow>[0]> = {}
+    ) {
+      const { isAutoDeploy, secrets, ...flowInput } = input;
       const lease = deferredMutate();
       const createDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } })));
       const closeDeployment = mockMutation();
@@ -2721,7 +2790,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => flow.result.current.actions.requestQuotes("sdl"));
       await settleSeal();
       act(() => flow.result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
-      act(() => flow.result.current.actions.deploy("sdl", { isAutoDeploy }));
+      act(() => flow.result.current.actions.deploy("sdl", { isAutoDeploy, secrets }));
       return { ...flow, lease, createDeployment, closeDeployment };
     }
   });

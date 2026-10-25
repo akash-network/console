@@ -151,6 +151,7 @@ const DEPLOY_SUCCESS_DWELL_MS = 1200;
 /** Must stay above the second or so the api takes to hand a lease to the background, and below the 5 s or more it needs to create one during the request. */
 const BACKGROUND_HANDOFF_WAIT_MS = 3000;
 
+/** Retry is offered once this passes, so it must stay well above the 5 s or more the api needs to create a lease during the request. */
 const SLOW_DEPLOY_TIMEOUT_MS = 30 * 1000;
 
 /** How long a first bid may take before the user is told none came yet; the deployment stays open, since a late bid can still land. */
@@ -296,6 +297,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    * success auto-close the just-created deployment instead of resuming.
    */
   const createAttemptRef = useRef(0);
+
+  /** A Retry can go out while the deploy it replaces is still running, so only the newest attempt may settle the flow. */
+  const deployAttemptRef = useRef(0);
 
   /** The dseq of the close in flight. Read synchronously so a create can never overlap one and open a second deployment. */
   const closingDseqRef = useRef<string | null>(null);
@@ -933,6 +937,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       const hasTypedSecrets = Object.keys(options.secrets ?? {}).length > 0;
       const keepsStoredReference = hasSdlReference(sdl);
       const deployEvents = deployEventsOf(activeDseq, dependencies.deploymentResourcesFromSdl(sdl));
+      const attemptNumber = ++deployAttemptRef.current;
+      const isReplaced = () => attemptNumber !== deployAttemptRef.current;
       setDeployError(undefined);
       setDeploySucceeded(false);
       setShowsDeployProgress(!isRunningInBackground);
@@ -973,6 +979,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       }
 
       function failDeploy(stage: DeployFailureStage, cause: unknown) {
+        if (isReplaced()) return;
         trackDeployFailed(stage, cause);
         setDeployError({ message: extractApiErrorMessage(cause) ?? undefined });
         setPhase("quoting");
@@ -990,6 +997,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
           { ...lease, ...backgroundQueryFor(isRunningInBackground) },
           {
             onSuccess: function completeOrFollowDeploy(result) {
+              if (isReplaced()) return;
               setIsAwaitingLeaseHandoff(false);
               const activityId = acceptedActivityIdOf(result.data);
               if (activityId) {
@@ -1000,6 +1008,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
               completeDeploy(result.data.deployment.id.owner);
             },
             onError: function markAndFailDeploy(cause: unknown) {
+              if (isReplaced()) return;
               setIsAwaitingLeaseHandoff(false);
               markOutcomeHandled("lease_create", activeDseq, "failed");
               failDeploy("lease_create", cause);
