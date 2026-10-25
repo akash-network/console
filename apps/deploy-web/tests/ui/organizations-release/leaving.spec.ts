@@ -570,6 +570,7 @@ test.describe("The personal account and the trial", () => {
         await page.goto(`${testEnvConfig.BASE_URL}/`, { waitUntil: "commit" });
         await page.waitForURL(/\/onboarding/, { timeout: 60_000 });
         await picker.deployImage();
+        await expect(configure.dockerImageInput()).toBeVisible({ timeout: 30_000 });
         await configure.fillImageName("nginx:latest");
         await configure.requestQuotes();
         await page.waitForURL(/\/new-deployment\/configure\/\d+/, { timeout: 180_000 });
