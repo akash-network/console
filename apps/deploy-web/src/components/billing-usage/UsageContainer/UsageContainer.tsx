@@ -102,18 +102,19 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
   const [customRange, setCustomRange] = useState<UsageDateRange>(() => getUsagePresetRange(DEFAULT_USAGE_DATE_PRESET));
   const dateRange = resolveDateRange(datePreset, customRange);
   const previousPeriod = getPreviousPeriod(dateRange);
+  const spendRange = toSpendRange(dateRange);
+  const previousSpendRange = getPreviousSpendRange(spendRange);
   const { address } = d.useWallet();
 
-  const usageHistory = d.useUsage({ address, startDate: dateRange.from, endDate: dateRange.to });
-  const usageStats = d.useUsageStats({ address, startDate: dateRange.from, endDate: dateRange.to });
-  const previousPeriodStats = d.useUsageStats({ address, startDate: previousPeriod.from, endDate: previousPeriod.to });
+  const usageHistory = d.useUsage({ address, ...spendRange });
+  const usageStats = d.useUsageStats({ address, ...spendRange });
+  const previousPeriodStats = d.useUsageStats({ address, ...previousSpendRange });
   const { perBlockUsdByDseq, perHourUsd, isLoading: isSpendRateLoading, isError: isSpendRateError } = d.useCurrentSpendRate();
   const { activeOrganization, projectsEnabled } = d.useActiveOrganization();
   const isTeamUsage = projectsEnabled && !!activeOrganization && canViewBillingAndUsage(activeOrganization.role);
   const [projectScope, setProjectScope] = useState<ProjectScope>(null);
-  const spendRange = toSpendRange(dateRange);
   const teamSpend = d.useDeploymentSpendQuery(spendRange, { enabled: isTeamUsage });
-  const previousTeamSpend = d.useDeploymentSpendQuery(getPreviousSpendRange(spendRange), { enabled: isTeamUsage });
+  const previousTeamSpend = d.useDeploymentSpendQuery(previousSpendRange, { enabled: isTeamUsage });
   const projectSpend = d.useProjectSpendQuery(spendRange, { enabled: isTeamUsage });
   const projects = d.useProjectsQuery({ enabled: isTeamUsage });
   const scopedUsage = teamSpend.data && scopeUsage(teamSpend.data, projectScope);

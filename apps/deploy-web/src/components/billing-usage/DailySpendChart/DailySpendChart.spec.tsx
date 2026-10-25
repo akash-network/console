@@ -1,8 +1,8 @@
 import React, { type ComponentPropsWithoutRef, forwardRef, type ReactElement } from "react";
 import { IntlProvider } from "react-intl";
-import { format, startOfToday, subDays } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Bar, type BarProps } from "recharts";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { DailySpend, SpendSeries } from "./DailySpendChart";
 import { DailySpendChart, DailySpendTooltip, DEPENDENCIES } from "./DailySpendChart";
@@ -41,16 +41,29 @@ describe(DailySpendChart.name, () => {
   it("labels the first and middle days and calls the last one today", () => {
     setup({ days: Array.from({ length: 30 }, (_, index) => buildDay(29 - index, 1)) });
 
-    expect(screen.getByText(format(subDays(startOfToday(), 29), "MMM d"))).toBeInTheDocument();
-    expect(screen.getByText(format(subDays(startOfToday(), 14), "MMM d"))).toBeInTheDocument();
+    expect(screen.getByText(format(parseISO(utcDateDaysAgo(29)), "MMM d"))).toBeInTheDocument();
+    expect(screen.getByText(format(parseISO(utcDateDaysAgo(14)), "MMM d"))).toBeInTheDocument();
     expect(screen.getByText("Today")).toBeInTheDocument();
   });
 
   it("labels the last day by its date when the range ends before today", () => {
     setup({ days: [buildDay(10, 1), buildDay(9, 1), buildDay(8, 1)] });
 
-    expect(screen.getByText(format(subDays(startOfToday(), 8), "MMM d"))).toBeInTheDocument();
+    expect(screen.getByText(format(parseISO(utcDateDaysAgo(8)), "MMM d"))).toBeInTheDocument();
     expect(screen.queryByText("Today")).not.toBeInTheDocument();
+  });
+
+  it("calls the last day today when it is today's UTC date, as it is west of UTC in the evening", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-24T03:00:00.000Z"));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+
+    setup({ days: ["2026-10-22", "2026-10-23", "2026-10-24"].map(date => ({ date, dailyUsdSpent: 1 })) });
+
+    expect(screen.getByText("Oct 22")).toBeInTheDocument();
+    expect(screen.getByText("Today")).toBeInTheDocument();
   });
 
   it("labels a single day once", () => {
@@ -261,5 +274,9 @@ describe(DailySpendTooltip.name, () => {
 });
 
 function buildDay(daysAgo: number, dailyUsdSpent: number, spendBySeries?: Record<string, number>): DailySpend {
-  return { date: format(subDays(startOfToday(), daysAgo), "yyyy-MM-dd"), dailyUsdSpent, spendBySeries };
+  return { date: utcDateDaysAgo(daysAgo), dailyUsdSpent, spendBySeries };
+}
+
+function utcDateDaysAgo(daysAgo: number) {
+  return new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }

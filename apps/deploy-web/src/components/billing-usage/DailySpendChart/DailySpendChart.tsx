@@ -1,11 +1,12 @@
 "use client";
 import React, { type FC, type ReactNode, useId } from "react";
 import { Card, type ChartConfig, ChartContainer, ChartTooltip, Skeleton } from "@akashnetwork/ui/components";
-import { format, isToday, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
 import { spendShade } from "@src/components/billing-usage/spendShade";
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
+import { getDayStr } from "@src/utils/dateUtils";
 
 export type DailySpend = { date: string; dailyUsdSpent: number; spendBySeries?: Record<string, number> };
 
@@ -162,12 +163,13 @@ const SeriesLegend: FC<{ series: SpendSeries[] }> = ({ series }) => (
   </ul>
 );
 
+/** Rows are UTC days, so the last one reads Today when it is today's UTC date, which west of UTC is ahead of the local one every evening. */
 function getTickLabels(days: DailySpend[]) {
   const lastIndex = days.length - 1;
   const tickIndexes = [...new Set([0, Math.round(lastIndex / 2), lastIndex])];
 
   return tickIndexes.map(index => {
-    const date = parseISO(days[index].date);
-    return index === lastIndex && isToday(date) ? "Today" : format(date, "MMM d");
+    const { date } = days[index];
+    return index === lastIndex && date === getDayStr() ? "Today" : format(parseISO(date), "MMM d");
   });
 }

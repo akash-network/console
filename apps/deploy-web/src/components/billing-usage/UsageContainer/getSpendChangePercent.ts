@@ -1,8 +1,7 @@
-import { isToday, parseISO } from "date-fns";
-
 import type { DailySpend } from "@src/components/billing-usage/DailySpendChart/DailySpendChart";
+import { getDayStr } from "@src/utils/dateUtils";
 
-/** Today's row only holds spend up to the latest block, so the comparison uses completed days on both sides. */
+/** Rows are UTC days and today's only holds spend up to the latest block, so the comparison uses completed days on both sides. */
 export function getSpendChangePercent({
   history,
   previousTotalSpent,
@@ -12,7 +11,8 @@ export function getSpendChangePercent({
   previousTotalSpent: number | null;
   previousDays: number;
 }) {
-  const completedDays = history.filter(day => !isToday(parseISO(day.date)));
+  const today = getDayStr();
+  const completedDays = history.filter(day => day.date !== today);
   if (!previousTotalSpent || completedDays.length === 0) return null;
 
   const dailyRate = completedDays.reduce((sum, day) => sum + day.dailyUsdSpent, 0) / completedDays.length;
