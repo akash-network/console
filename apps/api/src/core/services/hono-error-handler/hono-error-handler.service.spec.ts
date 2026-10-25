@@ -1,5 +1,6 @@
 import { HTTPException } from "hono/http-exception";
 import createHttpError from "http-errors";
+import { PostgresError } from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
@@ -148,6 +149,42 @@ describe(HonoErrorHandlerService.name, () => {
       );
     });
   });
+
+  describe("when the database refuses a character it cannot store", () => {
+    it.each([
+      { case: "thrown by the driver", error: postgresError("22021") },
+      { case: "wrapped by the query builder", error: new Error("Failed query", { cause: postgresError("22021") }) }
+    ])("answers a validation error when $case", async ({ error }) => {
+      const { service, mockContext, json } = setup();
+
+      await service.handle(error, mockContext);
+
+      expect(json).toHaveBeenCalledWith(
+        {
+          error: "BadRequestError",
+          message: "The request holds a character that cannot be stored",
+          code: "validation_error",
+          type: "validation_error"
+        },
+        { status: 400 }
+      );
+    });
+  });
+
+  it.each([
+    { case: "another database error", error: postgresError("23505") },
+    { case: "an error it does not recognize", error: new Error("Unexpected") }
+  ])("answers an internal server error for $case", async ({ error }) => {
+    const { service, mockContext, json } = setup();
+
+    await service.handle(error, mockContext);
+
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ code: "internal_server_error", type: "server_error" }), { status: 500 });
+  });
+
+  function postgresError(code: string) {
+    return Object.assign(new PostgresError(""), { code });
+  }
 
   function setup() {
     const service = new HonoErrorHandlerService();

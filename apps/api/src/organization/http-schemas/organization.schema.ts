@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
+import { readableName } from "@src/core/lib/readable-text/readable-text";
 import { MAX_ORGANIZATION_NAME_LENGTH, organizationTypeEnum } from "@src/organization/model-schemas/organization/organization.schema";
 import { organizationRoleEnum } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 
@@ -25,14 +26,9 @@ export const OrganizationResponseSchema = z.object({
   data: OrganizationSchema
 });
 
-const OrganizationNameSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(MAX_ORGANIZATION_NAME_LENGTH)
-  .regex(/^[^\p{Cc}\p{Bidi_Control}]+$/u, "The name cannot contain control characters")
-  .regex(/[^\s\p{Z}\p{Cf}\p{Default_Ignorable_Code_Point}\u2800]/u, "The name needs at least one visible character")
-  .openapi({ description: "Unique, ignoring case, among the organizations the caller belongs to." });
+const OrganizationNameSchema = readableName(z.string().trim().min(1).max(MAX_ORGANIZATION_NAME_LENGTH)).openapi({
+  description: "Unique, ignoring case, among the organizations the caller belongs to."
+});
 
 export const CreateOrganizationRequestSchema = z.object({
   data: z.object({

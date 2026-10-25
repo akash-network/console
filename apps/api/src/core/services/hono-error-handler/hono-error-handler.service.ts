@@ -6,7 +6,10 @@ import { ConnectionAcquireTimeoutError, ConnectionError } from "sequelize";
 import { singleton } from "tsyringe";
 import { ZodError } from "zod";
 
+import { getPostgresError } from "@src/core/repositories/base.repository";
 import type { AppContext } from "../../types/app-context";
+
+const CHARACTER_NOT_IN_REPERTOIRE_CODE = "22021";
 
 @singleton()
 export class HonoErrorHandlerService {
@@ -88,6 +91,18 @@ export class HonoErrorHandlerService {
           type: "service_unavailable"
         },
         { status: 502 }
+      );
+    }
+
+    if (getPostgresError(error)?.code === CHARACTER_NOT_IN_REPERTOIRE_CODE) {
+      return c.json(
+        {
+          error: "BadRequestError",
+          message: "The request holds a character that cannot be stored",
+          code: "validation_error",
+          type: "validation_error"
+        },
+        { status: 400 }
       );
     }
 

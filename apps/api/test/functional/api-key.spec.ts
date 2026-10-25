@@ -378,6 +378,23 @@ describe("API Keys", () => {
         apiKey: expect.stringMatching(FULL_API_KEY_PATTERN)
       });
     });
+
+    it.each([
+      { case: "holding a null character", name: "Test\u0000key" },
+      { case: "of only invisible characters", name: "\u200b\u2060" }
+    ])("refuses a name $case without creating a key", async ({ name }) => {
+      const { token, user } = await setup();
+
+      const response = await app.request("/v1/api-keys", {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ data: { name } })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "validation_error" });
+      expect(await apiKeyRepository.find({ userId: user.id })).toEqual([]);
+    });
   });
 
   describe("PATCH /v1/api-keys/{id}", () => {
@@ -434,6 +451,27 @@ describe("API Keys", () => {
       expect(updatedApiKey).toMatchObject({
         name: "Updated key"
       });
+    });
+
+    it("refuses a name holding a null character and keeps the old one", async () => {
+      const { token, user, apiKeyGenerator } = await setup();
+      const apiKey = apiKeyGenerator.generateApiKey();
+      const createdKey = await apiKeyRepository.create({
+        userId: user.id,
+        hashedKey: await apiKeyGenerator.hashApiKey(apiKey),
+        keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
+        name: "Test key"
+      });
+
+      const response = await app.request(`/v1/api-keys/${createdKey.id}`, {
+        method: "PATCH",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({ data: { name: "Updated\u0000key" } })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "validation_error" });
+      expect(await apiKeyRepository.findOneBy({ id: createdKey.id })).toMatchObject({ name: "Test key" });
     });
   });
 

@@ -261,6 +261,29 @@ describe("Projects", () => {
       expect(await response.json()).toMatchObject({ data: { name: "プロジェクト", slug: expect.stringMatching(/^project-[0-9a-f]{8}$/) } });
     });
 
+    it.each([
+      { case: "a name holding a null character", data: { name: "web\u0000app" } },
+      { case: "a name of only invisible characters", data: { name: "\u200b\u2060\u2800" } },
+      { case: "a description holding a null character", data: { name: "web", description: "about\u0000it" } }
+    ])("refuses $case without creating a project", async ({ data }) => {
+      const { request, team, defaultProject } = await setupCaller({ role: "owner" });
+
+      const response = await request("/v1/projects", { method: "POST", body: { data } });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "validation_error" });
+      expect(await liveProjectNamesOf(team.id)).toEqual([defaultProject.name]);
+    });
+
+    it("keeps the line breaks and tabs of a description written over several lines", async () => {
+      const { request } = await setupCaller({ role: "owner" });
+
+      const response = await request("/v1/projects", { method: "POST", body: { data: { name: "web", description: "Storefront\r\n\tand checkout" } } });
+
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({ data: { description: "Storefront\r\n\tand checkout" } });
+    });
+
     it("answers like an unknown path while organizations are off for the caller", async () => {
       const { request } = await setupCaller({ role: "owner", organizationsOn: false });
 
@@ -355,6 +378,21 @@ describe("Projects", () => {
 
       expect(response.status).toBe(404);
       expect(await projectRow(foreign.id)).toMatchObject({ name: foreign.name });
+    });
+
+    it.each([
+      { case: "a name holding a null character", data: { name: "web\u0000app" } },
+      { case: "a name of only invisible characters", data: { name: "\u200b" } },
+      { case: "a description holding a null character", data: { description: "about\u0000it" } }
+    ])("refuses $case and leaves the project unchanged", async ({ data }) => {
+      const { request, team } = await setupCaller({ role: "owner" });
+      const project = await seedProject({ organizationId: team.id, description: "Old" });
+
+      const response = await request(`/v1/projects/${project.id}`, { method: "PATCH", body: { data } });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "validation_error" });
+      expect(await projectRow(project.id)).toMatchObject({ name: project.name, description: "Old" });
     });
 
     it("answers like an unknown path while organizations are off for the caller", async () => {
