@@ -1685,7 +1685,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
       act(() => result.current.actions.deploy("sdl-b", { secrets: { API_KEY: "x" } }));
 
-      await waitFor(() => expect(result.current.deployError).toEqual({ message: STALE_KEY_MESSAGE }));
+      await waitFor(() => expect(result.current.deployError).toEqual({ message: STALE_KEY_MESSAGE, canLeaseElsewhere: false }));
       expect(patchDeployment.mutate).toHaveBeenCalledTimes(2);
       expect(createLease.mutate).not.toHaveBeenCalled();
     });
@@ -1773,7 +1773,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
       act(() => result.current.actions.deploy("sdl-b"));
 
-      await waitFor(() => expect(result.current.deployError).toEqual({ message: "Invalid SDL" }));
+      await waitFor(() => expect(result.current.deployError).toEqual({ message: "Invalid SDL", canLeaseElsewhere: false }));
       expect(result.current.phase).toBe("quoting");
       expect(createLease.mutate).not.toHaveBeenCalled();
     });
@@ -1937,7 +1937,7 @@ describe(useDeploymentFlow.name, () => {
         act(() => vi.advanceTimersByTime(3_000));
 
         expect(result.current.phase).toBe("quoting");
-        expect(result.current.deployError).toEqual({ message: "The bid is closed", leaseErrorKind: "chain_error" });
+        expect(result.current.deployError).toEqual({ message: "The bid is closed", canLeaseElsewhere: true });
         expect(result.current.showsDeployProgress).toBe(false);
       } finally {
         vi.useRealTimers();
@@ -2129,7 +2129,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.deploy("sdl"));
 
       expect(result.current.phase).toBe("quoting");
-      expect(result.current.deployError).toEqual({ message: "A lease is already being created for this deployment", leaseErrorKind: "chain_error" });
+      expect(result.current.deployError).toEqual({ message: "A lease is already being created for this deployment", canLeaseElsewhere: false });
       expect(router.replace).not.toHaveBeenCalledWith(UrlService.deploymentList());
       expect(holdActivityEvents).not.toHaveBeenCalled();
       expect(markOutcomeHandled).toHaveBeenCalledWith("lease_create", "555", "failed");
@@ -2889,13 +2889,13 @@ describe(useDeploymentFlow.name, () => {
       expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "555" }, expect.any(Object));
     });
 
-    it("tells why the lease request failed, so the autopilot can judge whether another provider may get past it", async () => {
+    it("lets the autopilot lease another provider once the api says the provider could not be reached", async () => {
       const refusal = new ApiError(502, { code: "provider_unreachable", message: "Provider could not be reached" }, "POST /v1/leases → 502");
       const { result } = await renderReadyToLease({ createLease: mockMutation(vi.fn((_i, o) => o.onError(refusal))) });
 
       act(() => result.current.actions.deploy("sdl"));
 
-      expect(result.current.deployError).toEqual({ message: "Provider could not be reached", leaseErrorKind: "provider_unreachable" });
+      expect(result.current.deployError).toEqual({ message: "Provider could not be reached", canLeaseElsewhere: true });
     });
 
     it("gives no lease failure to a deploy that failed before sending its lease", async () => {
@@ -2913,7 +2913,7 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => result.current.actions.deploy("sdl-b"));
 
-      await waitFor(() => expect(result.current.deployError).toEqual({ message: "Invalid SDL" }));
+      await waitFor(() => expect(result.current.deployError).toEqual({ message: "Invalid SDL", canLeaseElsewhere: false }));
     });
 
     async function renderReadyToLease(input: NonNullable<Parameters<typeof renderFlow>[0]>) {

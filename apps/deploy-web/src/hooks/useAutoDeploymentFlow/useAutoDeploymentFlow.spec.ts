@@ -2,7 +2,6 @@ import { useCallback, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { DeployErrorKind } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/deployErrorKind";
 import type {
   AbandonedAttemptKind,
   DeployError,
@@ -12,6 +11,7 @@ import type {
   FlowError
 } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { NO_PROVIDERS_MESSAGE } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import { BID_POLL_INTERVAL } from "@src/queries/useListBids";
 import { useFirstReachableProvider } from "@src/queries/useProvidersQuery";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import type { ApiProviderList } from "@src/types/provider";
@@ -421,32 +421,67 @@ describe(useAutoDeploymentFlow.name, () => {
       const { flow } = setup({ ...withNextProvider(), holdDeploy: true });
 
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(1));
-      act(() => flow.setDeployError("lease failed", "provider_unreachable"));
+      act(() => flow.setDeployError("lease failed", true));
 
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(2));
       expect(flow.actions.clearSelection).toHaveBeenCalledWith(BID_ID);
       expect(flow.actions.selectProvider).toHaveBeenLastCalledWith(NEXT_BID_ID, NEXT_BID_ID);
     });
 
-    it("keeps the match in progress rather than showing the failure while it probes the next provider", async () => {
-      const providerProxyRequest = vi.fn((_path: string, options: { providerIdentity: { owner: string } }) =>
-        options.providerIdentity.owner === NEXT_PROVIDER ? new Promise(() => undefined) : Promise.resolve({ data: {} })
-      );
-      const { result, flow } = setup({ ...withNextProvider(), holdDeploy: true, providerProxyRequest });
+    it("keeps matching the next provider through a probe that fails before it answers", async () => {
+      vi.useFakeTimers();
+      let isNextProviderUp = false;
+      const probeNextProvider = vi.fn(() => (isNextProviderUp ? Promise.resolve({ data: {} }) : Promise.reject(new Error("unreachable"))));
+      const { result, flow } = setup({ ...withNextProvider(), holdDeploy: true, providerProxyRequest: probeProviders(probeNextProvider) });
 
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(1));
-      act(() => flow.setDeployError("lease failed", "provider_unreachable"));
-
+      probeNextProvider.mockClear();
+      act(() => flow.setDeployError("lease failed", true));
+      await vi.waitFor(() => expect(probeNextProvider).toHaveBeenCalledTimes(1));
+      await act(() => vi.advanceTimersByTimeAsync(BID_POLL_INTERVAL / 2));
       expect(result.current.state.kind).toBe("matching");
+
+      isNextProviderUp = true;
+      await act(() => vi.advanceTimersByTimeAsync(BID_POLL_INTERVAL));
+
+      await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(2));
+      expect(flow.actions.selectProvider).toHaveBeenLastCalledWith(NEXT_BID_ID, NEXT_BID_ID);
     });
+
+    it.each([
+      { scenario: "its probe never answers", probeNextProvider: () => new Promise(() => undefined), hasNextProviderRecord: true },
+      { scenario: "its probe keeps failing", probeNextProvider: () => Promise.reject(new Error("unreachable")), hasNextProviderRecord: true },
+      { scenario: "it has no provider record to probe", probeNextProvider: () => Promise.resolve({ data: {} }), hasNextProviderRecord: false }
+    ])(
+      "shows the failure, leaving the deployment for a manual pick, when the next provider is unmatched at the deadline because $scenario",
+      async ({ probeNextProvider, hasNextProviderRecord }) => {
+        vi.useFakeTimers();
+        const { result, flow } = setup({
+          ...withNextProvider({ hasNextProviderRecord }),
+          holdDeploy: true,
+          providerProxyRequest: probeProviders(probeNextProvider),
+          matchDeadlineMs: DEADLINE_PAST_WAIT_FOR_MS
+        });
+
+        await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(1));
+        act(() => flow.setDeployError("lease failed", true));
+        await act(() => vi.advanceTimersByTimeAsync(DEADLINE_PAST_WAIT_FOR_MS - 1));
+        expect(result.current.state.kind).toBe("matching");
+
+        await act(() => vi.advanceTimersByTimeAsync(1));
+        expect(result.current.state).toEqual({ kind: "error", message: "lease failed", reason: "lease-failed" });
+        expect(flow.actions.deploy).toHaveBeenCalledTimes(1);
+        expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
+      }
+    );
 
     it("shows the failure with another provider to pick once the next provider's lease fails too", async () => {
       const { result, flow } = setup({ ...withNextProvider(), holdDeploy: true });
 
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(1));
-      act(() => flow.setDeployError("lease failed", "provider_unreachable"));
+      act(() => flow.setDeployError("lease failed", true));
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(2));
-      act(() => flow.setDeployError("lease failed again", "chain_error"));
+      act(() => flow.setDeployError("lease failed again", true));
       await new Promise(resolve => setTimeout(resolve, 50));
 
       expect(result.current.state).toEqual({ kind: "error", message: "lease failed again", reason: "lease-failed" });
@@ -457,40 +492,17 @@ describe(useAutoDeploymentFlow.name, () => {
       const { result, flow } = setup({ holdDeploy: true });
 
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(1));
-      act(() => flow.setDeployError("lease failed", "provider_unreachable"));
+      act(() => flow.setDeployError("lease failed", true));
 
       expect(result.current.state).toEqual({ kind: "error", message: "lease failed", reason: "lease-failed" });
       expect(flow.actions.clearSelection).not.toHaveBeenCalled();
-    });
-
-    it("shows the failure once no other provider that bid answers", async () => {
-      const providerProxyRequest = vi.fn((_path: string, options: { providerIdentity: { owner: string } }) =>
-        options.providerIdentity.owner === NEXT_PROVIDER ? Promise.reject(new Error("unreachable")) : Promise.resolve({ data: {} })
-      );
-      const { result, flow } = setup({ ...withNextProvider(), holdDeploy: true, providerProxyRequest });
-
-      await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(1));
-      act(() => flow.setDeployError("lease failed", "provider_unreachable"));
-
-      await vi.waitFor(() => expect(result.current.state).toEqual({ kind: "error", message: "lease failed", reason: "lease-failed" }));
-      expect(flow.actions.deploy).toHaveBeenCalledTimes(1);
-    });
-
-    it("shows the failure once the provider left to try has no provider record to probe", async () => {
-      const { result, flow } = setup({ ...withNextProvider({ hasNextProviderRecord: false }), holdDeploy: true });
-
-      await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(1));
-      act(() => flow.setDeployError("lease failed", "provider_unreachable"));
-
-      await vi.waitFor(() => expect(result.current.state).toEqual({ kind: "error", message: "lease failed", reason: "lease-failed" }));
-      expect(flow.actions.deploy).toHaveBeenCalledTimes(1);
     });
 
     it("does not count a closed bid as another provider to try", async () => {
       const { result, flow } = setup({ ...withNextProvider({ nextBidState: "closed" }), holdDeploy: true });
 
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(1));
-      act(() => flow.setDeployError("lease failed", "provider_unreachable"));
+      act(() => flow.setDeployError("lease failed", true));
 
       expect(result.current.state).toEqual({ kind: "error", message: "lease failed", reason: "lease-failed" });
       expect(flow.actions.clearSelection).not.toHaveBeenCalled();
@@ -501,20 +513,20 @@ describe(useAutoDeploymentFlow.name, () => {
       const { result, flow } = setup({ ...withNextProvider(), initialDseq: DSEQ, resumeLeases, holdDeploy: true });
 
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(1));
-      act(() => flow.setDeployError("manifest not delivered", "provider_unreachable"));
+      act(() => flow.setDeployError("lease failed", true));
 
-      expect(result.current.state).toEqual({ kind: "error", message: "manifest not delivered", reason: "lease-failed" });
+      expect(result.current.state).toEqual({ kind: "error", message: "lease failed", reason: "lease-failed" });
       expect(flow.actions.clearSelection).not.toHaveBeenCalled();
     });
 
-    it("does not take a lease refused for missing funds to another provider", async () => {
+    it("keeps a lease the api has not ruled out landing with its provider, offering no other provider to pick", async () => {
       const { result, flow } = setup({ ...withNextProvider(), holdDeploy: true });
 
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(1));
-      act(() => flow.setDeployError("insufficient balance", "insufficient_funds"));
+      act(() => flow.setDeployError("still being processed", false));
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      expect(result.current.state).toStrictEqual({ kind: "error", message: "insufficient balance", reason: undefined });
+      expect(result.current.state).toStrictEqual({ kind: "error", message: "still being processed", reason: undefined });
       expect(flow.actions.clearSelection).not.toHaveBeenCalled();
       expect(flow.actions.deploy).toHaveBeenCalledTimes(1);
     });
@@ -534,9 +546,9 @@ describe(useAutoDeploymentFlow.name, () => {
       const { result, flow } = setup({ ...withNextProvider(), holdDeploy: true });
 
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(1));
-      act(() => flow.setDeployError("lease failed", "provider_unreachable"));
+      act(() => flow.setDeployError("lease failed", true));
       await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(2));
-      act(() => flow.setDeployError("lease failed again", "provider_unreachable"));
+      act(() => flow.setDeployError("lease failed again", true));
       await vi.waitFor(() => expect(result.current.state.kind).toBe("error"));
       act(() => result.current.tryAgain());
 
@@ -552,6 +564,12 @@ describe(useAutoDeploymentFlow.name, () => {
       });
       const providers = input?.hasNextProviderRecord === false ? [provider] : [provider, nextProvider];
       return { providers, bids: [openBid(), nextBid] };
+    }
+
+    function probeProviders(probeNextProvider: () => Promise<unknown>) {
+      return vi.fn((_path: string, options: { providerIdentity: { owner: string } }) =>
+        options.providerIdentity.owner === NEXT_PROVIDER ? probeNextProvider() : Promise.resolve({ data: {} })
+      );
     }
   });
 
@@ -704,7 +722,7 @@ describe(useAutoDeploymentFlow.name, () => {
     const flowControls: {
       setPhaseError: (message?: string) => void;
       setFlowError: (error: FlowError) => void;
-      setDeployError: (message?: string, leaseErrorKind?: DeployErrorKind) => void;
+      setDeployError: (message?: string, canLeaseElsewhere?: boolean) => void;
       setCreating: () => void;
       dropSelections: () => void;
       replaceDseq: (next: string) => void;
@@ -742,8 +760,8 @@ describe(useAutoDeploymentFlow.name, () => {
         setError(flowError);
         setPhase("error");
       };
-      flowControls.setDeployError = (message?: string, leaseErrorKind?: DeployErrorKind) => {
-        setDeployError({ message, leaseErrorKind });
+      flowControls.setDeployError = (message?: string, canLeaseElsewhere?: boolean) => {
+        setDeployError({ message, canLeaseElsewhere });
         setPhase("quoting");
       };
       flowControls.setCreating = () => setPhase("creating");

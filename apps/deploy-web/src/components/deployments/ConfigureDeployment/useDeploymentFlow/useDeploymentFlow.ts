@@ -30,8 +30,7 @@ import { isWalletProvisioning, WALLET_PROVISIONING_ERROR_CODE, walletProvisionin
 import { aggregateDeploymentResources } from "../DeploymentResourceSummary/deploymentResources";
 import type { DepositShortfall } from "../depositShortfall/depositShortfall";
 import { extractDepositShortfall, isBalanceTopUpPending } from "../depositShortfall/depositShortfall";
-import type { DeployErrorKind } from "./deployErrorKind";
-import { deployErrorKindOf } from "./deployErrorKind";
+import { canLeaseElsewhere, deployErrorKindOf } from "./deployErrorKind";
 import type { BidStrategy, DeploymentIntent } from "./deploymentIntent";
 
 export type DeploymentFlowPhase = "configuring" | "creating" | "quoting" | "deploying" | "error";
@@ -46,8 +45,7 @@ export type FlowError = { message?: string; kind?: FlowErrorKind; shortfall?: De
 
 export type AbandonedAttemptKind = Extract<FlowErrorKind, "no-match" | "no-providers">;
 
-/** `leaseErrorKind` is set only when the lease request itself failed, not when the deploy stopped before sending one. */
-export type DeployError = { message?: string; leaseErrorKind?: DeployErrorKind };
+export type DeployError = { message?: string; canLeaseElsewhere?: boolean };
 
 /** The live bids the flow polls while quoting (react-query-backed). Element shape derived from the shared `listBids` query. */
 export type DeploymentBids = NonNullable<ReturnType<typeof useListBids>["data"]>["data"];
@@ -991,7 +989,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         trackDeployFailed(stage, cause);
         setDeployError({
           message: extractApiErrorMessage(cause) ?? undefined,
-          leaseErrorKind: stage === "lease_create" ? deployErrorKindOf(cause) : undefined
+          canLeaseElsewhere: stage === "lease_create" && canLeaseElsewhere(cause)
         });
         setPhase("quoting");
       }

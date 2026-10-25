@@ -1,7 +1,7 @@
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { describe, expect, it } from "vitest";
 
-import { deployErrorKindOf } from "./deployErrorKind";
+import { canLeaseElsewhere, deployErrorKindOf } from "./deployErrorKind";
 
 describe(deployErrorKindOf.name, () => {
   it.each([
@@ -37,8 +37,37 @@ describe(deployErrorKindOf.name, () => {
   it("reads a failure the api never answered as unknown", () => {
     expect(deployErrorKindOf(new TypeError("Failed to fetch"))).toBe("unknown");
   });
-
-  function apiError(status: number, body: unknown) {
-    return new ApiError(status, body, `POST /v1/leases → ${status}`);
-  }
 });
+
+describe(canLeaseElsewhere.name, () => {
+  it.each([
+    ["the provider could not be reached", 502, "provider_unreachable"],
+    ["its transaction expired before it landed", 502, "tx_not_included"],
+    ["the chain refused it", 400, "bad_request"]
+  ])("allows another provider once the lease failed because %s", (_, status, code) => {
+    expect(canLeaseElsewhere(apiError(status, { code }))).toBe(true);
+  });
+
+  it.each([
+    ["its transaction may still land", 504, "tx_outcome_unknown"],
+    ["the lease landed but the provider refused the manifest", 502, "manifest_not_delivered"],
+    ["the lease landed but the provider rejected the manifest as invalid", 400, "manifest_not_delivered"],
+    ["the user has to pay their way out of it", 402, "payment_required"],
+    ["another request is already leasing the deployment", 409, "conflict"],
+    ["the api failed without ruling out the lease", 500, "internal_server_error"]
+  ])("keeps the provider when the lease failed because %s", (_, status, code) => {
+    expect(canLeaseElsewhere(apiError(status, { code }))).toBe(false);
+  });
+
+  it("keeps the provider when a gateway gave up before the api answered", () => {
+    expect(canLeaseElsewhere(apiError(504, "<html>Gateway Timeout</html>"))).toBe(false);
+  });
+
+  it("keeps the provider when the failure did not come from the api, even with a refusal's status", () => {
+    expect(canLeaseElsewhere(Object.assign(new TypeError("Failed to fetch"), { status: 400 }))).toBe(false);
+  });
+});
+
+function apiError(status: number, body: unknown) {
+  return new ApiError(status, body, `POST /v1/leases → ${status}`);
+}

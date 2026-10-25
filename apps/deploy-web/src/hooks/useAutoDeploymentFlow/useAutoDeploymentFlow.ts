@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { DeployError, DeploymentFlow, DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import type { DeploymentFlow, DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { NO_BIDS_TIMEOUT_MS, NO_PROVIDERS_MESSAGE } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { useQuoteExpiry } from "@src/components/deployments/ConfigureDeployment/useQuoteExpiry/useQuoteExpiry";
 import { useServices } from "@src/context/ServicesProvider";
@@ -166,7 +166,7 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
         )
       : [];
 
-  const { data: providers, isLoading: isLookingUpProviders } = dependencies.useProvidersByAddresses(
+  const { data: providers } = dependencies.useProvidersByAddresses(
     openBids.map(bid => bid.bid.id.provider),
     { enabled: flow.phase === "quoting" }
   );
@@ -182,7 +182,6 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   });
   const reachableProvider = reachableProviderQuery.data;
   const activeBid = reachableProvider ? openBids.find(bid => bid.bid.id.provider === reachableProvider.owner) : undefined;
-  const hasNoCandidateLeft = !isLookingUpProviders && (candidateProviders.length === 0 || reachableProvider === null);
 
   /** Keyed off what the flow holds, so a dropped selection is matched again while one that still stands is never re-recorded. */
   const selectionTargets = useMemo<LeaseId[]>(() => {
@@ -313,7 +312,7 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   /** Skips every provider the failed lease went to, and only retries when each placement still has an open bid from someone else. */
   useEffect(
     function retryAFailedLeaseWithTheNextProvider() {
-      if (!canTryAnotherProvider(flow.deployError) || nextProviderRetry || autopilotStopped || hasLeasedBid || leasesByGseq.size > 0) return;
+      if (!flow.deployError?.canLeaseElsewhere || nextProviderRetry || autopilotStopped || hasLeasedBid || leasesByGseq.size > 0) return;
       const failedProviders = Object.values(flow.selections).map(bidId => parseBidId(bidId).provider);
       const hasNextProvider = requiredGseqs.every(gseq =>
         flow.bids.some(({ bid }) => bid.state === "open" && bid.id.gseq === gseq && !failedProviders.includes(bid.id.provider))
@@ -326,11 +325,23 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     [flow.deployError]
   );
 
+  /** Waits out the same deadline as the first match, since a probe can fail once and answer on its next poll. */
   useEffect(
     function finishMatchingTheNextProvider() {
-      if (nextProviderRetry?.isMatching && (!flow.deployError || hasNoCandidateLeft)) setNextProviderRetry({ ...nextProviderRetry, isMatching: false });
+      if (!nextProviderRetry?.isMatching) return;
+      const finishedMatching = { ...nextProviderRetry, isMatching: false };
+      if (!flow.deployError) {
+        setNextProviderRetry(finishedMatching);
+        return;
+      }
+      const timer = setTimeout(function showTheLeaseFailure() {
+        setNextProviderRetry(finishedMatching);
+      }, dependencies.matchDeadlineMs);
+      return function cancelNextProviderDeadline() {
+        clearTimeout(timer);
+      };
     },
-    [nextProviderRetry, flow.deployError, hasNoCandidateLeft]
+    [nextProviderRetry, flow.deployError, dependencies.matchDeadlineMs]
   );
 
   const projected = projectPhase(flow.phase, flow.deploySucceeded, hasDeployFailed);
@@ -373,13 +384,8 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
 
 type ProjectedPhase = DeployPhaseId | "success" | "error";
 
-/** Another provider cannot make up for missing funds, so only a lease refused for any other reason is worth taking elsewhere. */
-function canTryAnotherProvider(deployError: DeployError | undefined): boolean {
-  return !!deployError?.leaseErrorKind && deployError.leaseErrorKind !== "insufficient_funds";
-}
-
 function failureOf(flow: DeploymentFlow): DeployFailure {
-  if (flow.deployError) return { message: flow.deployError.message, reason: canTryAnotherProvider(flow.deployError) ? "lease-failed" : undefined };
+  if (flow.deployError) return { message: flow.deployError.message, reason: flow.deployError.canLeaseElsewhere ? "lease-failed" : undefined };
 
   const { message, kind, shortfall, projectId } = flow.error ?? {};
   const reason = kind === "needs-funds" || kind === "top-up-pending" || kind === "budget-exceeded" ? kind : undefined;
