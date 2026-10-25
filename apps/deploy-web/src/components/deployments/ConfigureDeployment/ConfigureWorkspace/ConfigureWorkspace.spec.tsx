@@ -399,6 +399,12 @@ describe(ConfigureWorkspace.name, () => {
     expect(leaveProps()).toMatchObject({ needsConfirmation: true });
   });
 
+  it.each([true, false])("tells the back link whether the lease is in flight (%s), so leaving never discards one that may still land", isLeaseInFlight => {
+    const { leaveProps } = setup({ phase: "deploying", isLeaseInFlight });
+
+    expect(leaveProps()).toMatchObject({ isLeaseInFlight });
+  });
+
   it("follows the bid window in a toast", () => {
     const { dependencies } = setup({ phase: "quoting", expired: true });
 
@@ -486,6 +492,7 @@ describe(ConfigureWorkspace.name, () => {
     bidCount?: number;
     pendingClose?: DeploymentFlow["pendingClose"];
     isCreatingInBackground?: boolean;
+    isLeaseInFlight?: boolean;
     selectedServiceId?: string;
     noBidsReceived?: boolean;
     apiGpuModels?: string[];
@@ -549,6 +556,7 @@ describe(ConfigureWorkspace.name, () => {
         dseq: "42",
         pendingClose: input.pendingClose ?? null,
         isCreatingInBackground: input.isCreatingInBackground ?? false,
+        isLeaseInFlight: input.isLeaseInFlight ?? false,
         deployError: undefined,
         noBidsReceived: input.noBidsReceived ?? false,
         bids: Array.from({ length: input.bidCount ?? 0 }, () => mock<DeploymentFlow["bids"][number]>()),

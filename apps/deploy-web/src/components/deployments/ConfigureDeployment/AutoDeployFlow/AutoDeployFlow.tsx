@@ -72,6 +72,12 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
     }
   });
 
+  /** Halts the autopilot first, since the bid-strategy change only unmounts this flow once the URL propagates. */
+  function handOffToManualPick() {
+    stopAutopilot();
+    flow.actions.setBidStrategy("select");
+  }
+
   return (
     <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
       <d.PhasedDeployProgressScene
@@ -81,6 +87,7 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
         phases={phases}
         focusedProviderAddress={matchedProviderAddress}
         onTryAgain={tryAgain}
+        onTryAnotherProvider={handOffToManualPick}
         onAddFunds={() => {
           openAddCredits({
             initialTab: "purchase",
@@ -96,10 +103,7 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
         }}
         onChooseProvider={() => {
           analyticsService.track("onboarding_choose_provider_click", { category: "onboarding", templateName });
-          // Halt the autopilot before flipping to manual: the bid-strategy change only unmounts this flow once the URL
-          // propagates, so stopping here keeps the autopilot from leasing the shared deployment during that window.
-          stopAutopilot();
-          flow.actions.setBidStrategy("select");
+          handOffToManualPick();
         }}
       />
     </d.Layout>

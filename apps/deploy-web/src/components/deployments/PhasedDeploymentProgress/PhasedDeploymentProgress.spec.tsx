@@ -134,6 +134,43 @@ describe(PhasedDeploymentProgress.name, () => {
     });
   });
 
+  describe("when the lease failed with no provider left to try on its own", () => {
+    it("sends the user to the bids to pick another provider, keeping Try again to start over", () => {
+      const onTryAnotherProvider = vi.fn();
+      const onTryAgain = vi.fn();
+      setup({ state: { kind: "error", reason: "lease-failed" }, onTryAnotherProvider, onTryAgain, onContactSupport: vi.fn() });
+
+      fireEvent.click(screen.getByRole("button", { name: "Try another provider" }));
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+      expect(onTryAnotherProvider).toHaveBeenCalledTimes(1);
+      expect(onTryAgain).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("button", { name: "Contact support" })).not.toBeInTheDocument();
+    });
+
+    it("shows the reason the api gave", () => {
+      setup({ state: { kind: "error", reason: "lease-failed", message: "Provider could not be reached." }, onTryAnotherProvider: vi.fn() });
+
+      expect(screen.getByText("We couldn't deploy test-template")).toBeInTheDocument();
+      expect(screen.getByText("Provider could not be reached.")).toBeInTheDocument();
+    });
+
+    it("points at the bids when the api gave no reason", () => {
+      setup({ state: { kind: "error", reason: "lease-failed" }, onTryAnotherProvider: vi.fn() });
+
+      expect(
+        screen.getByText("The provider couldn't start your deployment. Pick another provider from the bids you received, or try again from the start.")
+      ).toBeInTheDocument();
+    });
+
+    it("offers the usual way out where there are no bids to go to", () => {
+      setup({ state: { kind: "error", reason: "lease-failed" } });
+
+      expect(screen.queryByRole("button", { name: "Try another provider" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Contact support" })).toBeInTheDocument();
+    });
+  });
+
   describe("when a top up is already on its way", () => {
     it("asks the user to wait for the top up", () => {
       setup({ state: { kind: "error", reason: "top-up-pending" } });
@@ -242,6 +279,7 @@ describe(PhasedDeploymentProgress.name, () => {
         phases={input?.phases ?? PHASES}
         onChooseProvider={input?.onChooseProvider}
         onTryAgain={input?.onTryAgain}
+        onTryAnotherProvider={input?.onTryAnotherProvider}
         onContactSupport={input?.onContactSupport}
         onAddFunds={input?.onAddFunds}
         onViewProject={input?.onViewProject}

@@ -7,7 +7,7 @@ export type DeployPhase = { id: DeployPhaseId; label: string; status: DeployPhas
 
 export type DeployFailure = {
   message?: string;
-  reason?: "needs-funds" | "top-up-pending" | "budget-exceeded";
+  reason?: "needs-funds" | "top-up-pending" | "budget-exceeded" | "lease-failed";
   shortfall?: DepositShortfall;
   projectId?: string;
 };

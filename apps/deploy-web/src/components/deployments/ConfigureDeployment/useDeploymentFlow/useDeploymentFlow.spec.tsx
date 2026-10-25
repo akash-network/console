@@ -1685,7 +1685,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
       act(() => result.current.actions.deploy("sdl-b", { secrets: { API_KEY: "x" } }));
 
-      await waitFor(() => expect(result.current.deployError).toEqual({ message: STALE_KEY_MESSAGE }));
+      await waitFor(() => expect(result.current.deployError).toEqual({ message: STALE_KEY_MESSAGE, canLeaseElsewhere: false }));
       expect(patchDeployment.mutate).toHaveBeenCalledTimes(2);
       expect(createLease.mutate).not.toHaveBeenCalled();
     });
@@ -1773,7 +1773,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
       act(() => result.current.actions.deploy("sdl-b"));
 
-      await waitFor(() => expect(result.current.deployError).toEqual({ message: "Invalid SDL" }));
+      await waitFor(() => expect(result.current.deployError).toEqual({ message: "Invalid SDL", canLeaseElsewhere: false }));
       expect(result.current.phase).toBe("quoting");
       expect(createLease.mutate).not.toHaveBeenCalled();
     });
@@ -1937,7 +1937,7 @@ describe(useDeploymentFlow.name, () => {
         act(() => vi.advanceTimersByTime(3_000));
 
         expect(result.current.phase).toBe("quoting");
-        expect(result.current.deployError).toEqual({ message: "The bid is closed" });
+        expect(result.current.deployError).toEqual({ message: "The bid is closed", canLeaseElsewhere: true });
         expect(result.current.showsDeployProgress).toBe(false);
       } finally {
         vi.useRealTimers();
@@ -2129,7 +2129,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.deploy("sdl"));
 
       expect(result.current.phase).toBe("quoting");
-      expect(result.current.deployError).toEqual({ message: "A lease is already being created for this deployment" });
+      expect(result.current.deployError).toEqual({ message: "A lease is already being created for this deployment", canLeaseElsewhere: false });
       expect(router.replace).not.toHaveBeenCalledWith(UrlService.deploymentList());
       expect(holdActivityEvents).not.toHaveBeenCalled();
       expect(markOutcomeHandled).toHaveBeenCalledWith("lease_create", "555", "failed");
@@ -2378,7 +2378,7 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => result.current.actions.deploy("sdl-b"));
 
-      await waitFor(() => expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "seal" }));
+      await waitFor(() => expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "seal", errorKind: "unknown" }));
     });
 
     it("tracks deploy_failed at the patch stage with the api's code and status but not its message when the patch is refused", async () => {
@@ -2388,7 +2388,13 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.deploy("sdl-b"));
 
       await waitFor(() =>
-        expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "patch", errorCode: "invalid_sdl", errorStatus: 400 })
+        expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", {
+          ...FAILED_DEPLOY,
+          stage: "patch",
+          errorCode: "invalid_sdl",
+          errorStatus: 400,
+          errorKind: "chain_error"
+        })
       );
     });
 
@@ -2397,7 +2403,7 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => result.current.actions.deploy("sdl-b"));
 
-      await waitFor(() => expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "patch" }));
+      await waitFor(() => expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "patch", errorKind: "unknown" }));
     });
 
     it("tracks deploy_failed at the update stage with the api's status when the whole SDL cannot be resubmitted", async () => {
@@ -2411,7 +2417,9 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => result.current.actions.deploy("sdl-b"));
 
-      await waitFor(() => expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "update", errorStatus: 400 }));
+      await waitFor(() =>
+        expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "update", errorStatus: 400, errorKind: "chain_error" })
+      );
     });
 
     it("tracks deploy_failed at the lease_create stage with the api's code and status when the lease is refused", async () => {
@@ -2424,7 +2432,8 @@ describe(useDeploymentFlow.name, () => {
         ...FAILED_DEPLOY,
         stage: "lease_create",
         errorCode: "insufficient_funds",
-        errorStatus: 402
+        errorStatus: 402,
+        errorKind: "insufficient_funds"
       });
     });
 
@@ -2433,7 +2442,12 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => result.current.actions.deploy("sdl", { isAutoDeploy: true }));
 
-      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "lease_create", isAutoDeploy: true });
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", {
+        ...FAILED_DEPLOY,
+        stage: "lease_create",
+        isAutoDeploy: true,
+        errorKind: "unknown"
+      });
     });
 
     it("tells a lease the api was asked to finish in the background apart from one made during the request", async () => {
@@ -2444,7 +2458,21 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => result.current.actions.deploy("sdl"));
 
-      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "lease_create", inBackground: true });
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", {
+        ...FAILED_DEPLOY,
+        stage: "lease_create",
+        inBackground: true,
+        errorKind: "unknown"
+      });
+    });
+
+    it("classifies a lease that timed out at the gateway, which answers without the api's error code", async () => {
+      const gatewayTimeout = new ApiError(504, "<html>Gateway Timeout</html>", "POST /v1/leases → 504");
+      const { result, analyticsService } = await renderLeasingFlow({ createLease: mockMutation(vi.fn((_i, o) => o.onError(gatewayTimeout))) });
+
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, stage: "lease_create", errorStatus: 504, errorKind: "timeout" });
     });
 
     it("tracks one deploy_failed per failed attempt", async () => {
@@ -2621,10 +2649,16 @@ describe(useDeploymentFlow.name, () => {
       }
     });
 
-    it("stops timing a deployment the user discarded", async () => {
+    it("stops timing a deployment the user discarded before its lease was sent", async () => {
       vi.useFakeTimers();
       try {
-        const { result, analyticsService } = await renderDeployingFlow();
+        const patch = deferredMutate();
+        const { result, analyticsService } = await renderDeployingFlow({
+          patchDeployment: mockMutation(patch.mutate),
+          servicesPatchBetween: () => ({}),
+          secrets: { API_KEY: "x" }
+        });
+        await act(async () => {});
 
         act(() => result.current.actions.discard());
         act(() => vi.advanceTimersByTime(30_000));
@@ -2767,6 +2801,22 @@ describe(useDeploymentFlow.name, () => {
       );
     }
 
+    it("stops reporting a lease in flight once the deploy it replaced answers, after the retry failed its patch", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, lease, patch } = await renderRetrySentWhilePatching({ hasReplacedDeployReachedLease: true });
+
+        act(() => patch.calls[1].options.onError?.(new Error("boom")));
+        expect(result.current.isLeaseInFlight).toBe(true);
+
+        act(() => lease.calls[0].options.onError?.(new Error("boom")));
+
+        expect(result.current.isLeaseInFlight).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     async function renderRetrySentWhilePatching(input: { hasReplacedDeployReachedLease: boolean }) {
       const secrets = { API_KEY: "x" };
       const patch = deferredMutate();
@@ -2793,6 +2843,89 @@ describe(useDeploymentFlow.name, () => {
       act(() => flow.result.current.actions.deploy("sdl", { isAutoDeploy, secrets }));
       return { ...flow, lease, createDeployment, closeDeployment };
     }
+  });
+
+  describe("leasing", () => {
+    it("reports a lease in flight from sending it until it answers", async () => {
+      const { mutate } = deferredMutate();
+      const { result } = await renderReadyToLease({ createLease: mockMutation(mutate) });
+      expect(result.current.isLeaseInFlight).toBe(false);
+
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(result.current.isLeaseInFlight).toBe(true);
+    });
+
+    it.each([
+      ["is created", (options: SettledBy) => options.onSuccess?.(deployedResult("akash1owner"))],
+      ["fails", (options: SettledBy) => options.onError?.(new Error("network"))]
+    ])("reports no lease in flight once the lease %s", async (_, settle) => {
+      const { mutate, calls } = deferredMutate();
+      const { result } = await renderReadyToLease({ createLease: mockMutation(mutate) });
+      act(() => result.current.actions.deploy("sdl"));
+
+      act(() => settle(calls[0].options));
+
+      expect(result.current.isLeaseInFlight).toBe(false);
+    });
+
+    it("keeps the deployment open when discarded while its lease is in flight, since the lease may still land", async () => {
+      const closeDeployment = mockMutation();
+      const { result } = await renderReadyToLease({ createLease: mockMutation(), closeDeployment });
+      act(() => result.current.actions.deploy("sdl"));
+
+      act(() => result.current.actions.discard());
+
+      expect(closeDeployment.mutate).not.toHaveBeenCalled();
+    });
+
+    it("closes the deployment when discarded once its lease has failed", async () => {
+      const closeDeployment = mockMutation();
+      const { result } = await renderReadyToLease({ createLease: mockMutation(vi.fn((_i, o) => o.onError(new Error("network")))), closeDeployment });
+      act(() => result.current.actions.deploy("sdl"));
+
+      act(() => result.current.actions.discard());
+
+      expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "555" }, expect.any(Object));
+    });
+
+    it("lets the autopilot lease another provider once the api says the provider could not be reached", async () => {
+      const refusal = new ApiError(502, { code: "provider_unreachable", message: "Provider could not be reached" }, "POST /v1/leases → 502");
+      const { result } = await renderReadyToLease({ createLease: mockMutation(vi.fn((_i, o) => o.onError(refusal))) });
+
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(result.current.deployError).toEqual({ message: "Provider could not be reached", canLeaseElsewhere: true });
+    });
+
+    it("gives no lease failure to a deploy that failed before sending its lease", async () => {
+      const refusal = new ApiError(400, { code: "invalid_sdl", message: "Invalid SDL" }, "PATCH /v1/deployments/555 → 400");
+      const { result } = renderFlow({
+        intent: { dseq: "555" },
+        getDeployment: mockMutation(
+          vi.fn(),
+          vi.fn(async () => ({ data: { consoleSettings: { sdl: "stored-sdl" } } }))
+        ),
+        patchDeployment: mockMutation(vi.fn((_i, o) => o.onError(refusal))),
+        servicesPatchBetween: () => ({ web: { image: "nginx:2" } })
+      });
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+
+      act(() => result.current.actions.deploy("sdl-b"));
+
+      await waitFor(() => expect(result.current.deployError).toEqual({ message: "Invalid SDL", canLeaseElsewhere: false }));
+    });
+
+    async function renderReadyToLease(input: NonNullable<Parameters<typeof renderFlow>[0]>) {
+      const createDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } })));
+      const flow = renderFlow({ createDeployment, ...input });
+      act(() => flow.result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => flow.result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      return flow;
+    }
+
+    type SettledBy = ReturnType<typeof deferredMutate>["calls"][number]["options"];
   });
 
   describe("discard", () => {
