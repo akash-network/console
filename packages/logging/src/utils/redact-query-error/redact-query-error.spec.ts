@@ -60,6 +60,16 @@ describe(redactQueryError.name, () => {
     expect(cause.stack).not.toContain("sealed-token");
   });
 
+  it("redacts a string element of a bound array that the driver error quotes in its message", () => {
+    const driverError = new Error('invalid input syntax for type uuid: "sealed-token"');
+    const error = new DrizzleQueryError('select "id" from "projects" where "id" = any($1)', [["first-id", ["sealed-token"]]], driverError);
+
+    const cause = (redactQueryError(error) as DrizzleQueryError).cause as Error;
+
+    expect(cause.message).toBe('invalid input syntax for type uuid: "<redacted string>"');
+    expect(cause.stack).not.toContain("sealed-token");
+  });
+
   it("gives the driver error no code when it had none", () => {
     const cause = (redactQueryError(failedInsert(new Error("Connection terminated unexpectedly"))) as DrizzleQueryError).cause;
 

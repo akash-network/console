@@ -25,8 +25,9 @@ function copyDriverError(error: DriverError, params: unknown[]): DriverError {
 
 /** Postgres quotes a value it cannot accept in its error message, so a bound parameter can reappear there. */
 function redactQuotedParams(message: string, params: unknown[]): string {
-  const redactions = redactQueryParams(params);
-  return params.reduce<string>((redacted, param, index) => redacted.replaceAll(`"${String(param)}"`, `"${redactions[index]}"`), message);
+  const values = params.flat(Infinity);
+  const redactions = redactQueryParams(values);
+  return values.reduce<string>((redacted, value, index) => redacted.replaceAll(`"${String(value)}"`, `"${redactions[index]}"`), message);
 }
 
 function copyError(error: Error, message: string): Error {
