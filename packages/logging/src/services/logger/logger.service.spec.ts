@@ -323,22 +323,15 @@ describe("LoggerService", () => {
       const PROJECT_NAME = "Quarterly launch";
       const REDACTED_MESSAGE = `Failed query: ${UPDATE_PROJECT}\\nparams: <redacted string>, 42`;
 
-      it("logs the error message without the query's parameter values", () => {
-        const { logger, logs } = setup();
+      (["info", "error", "warn", "debug", "fatal"] satisfies Array<keyof Logger>).forEach(method => {
+        it(`logs the error message without the query's parameter values at ${method} level`, () => {
+          const { logger, logs } = setup();
 
-        logger.error(failedUpdate());
+          logger[method](failedUpdate());
 
-        expect(logs[0]).toEqual(expect.objectContaining({ msg: REDACTED_MESSAGE }));
-        expect(JSON.stringify(logs[0])).not.toContain(PROJECT_NAME);
-      });
-
-      it("logs the error message without the query's parameter values at any level", () => {
-        const { logger, logs } = setup();
-
-        logger.warn(failedUpdate());
-
-        expect(logs[0]).toEqual(expect.objectContaining({ level: "warn", msg: REDACTED_MESSAGE }));
-        expect(JSON.stringify(logs[0])).not.toContain(PROJECT_NAME);
+          expect(logs[0]).toEqual(expect.objectContaining({ msg: REDACTED_MESSAGE }));
+          expect(JSON.stringify(logs[0])).not.toContain(PROJECT_NAME);
+        });
       });
 
       it("logs the error message without the query's parameter values when the error is passed as err", () => {
@@ -368,6 +361,7 @@ describe("LoggerService", () => {
     function setup() {
       const logs: unknown[] = [];
       const logger = new LoggerService({
+        level: "debug",
         createPino: options =>
           pino(
             options,

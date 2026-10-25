@@ -51,6 +51,15 @@ describe(redactQueryError.name, () => {
     expect(cause).not.toHaveProperty("detail");
   });
 
+  it("redacts a bound string that the driver error quotes in its message", () => {
+    const driverError = Object.assign(new Error('invalid input syntax for type uuid: "sealed-token"'), { code: "22P02" });
+
+    const cause = (redactQueryError(failedInsert(driverError)) as DrizzleQueryError).cause as typeof driverError;
+
+    expect(cause.message).toBe('invalid input syntax for type uuid: "<redacted string>"');
+    expect(cause.stack).not.toContain("sealed-token");
+  });
+
   it("gives the driver error no code when it had none", () => {
     const cause = (redactQueryError(failedInsert(new Error("Connection terminated unexpectedly"))) as DrizzleQueryError).cause;
 
