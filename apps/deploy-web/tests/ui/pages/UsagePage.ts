@@ -14,9 +14,4 @@ export class UsagePage {
   projectRow(projectName: string) {
     return this.page.getByRole("region", { name: "Spend by project" }).getByRole("listitem").filter({ hasText: projectName });
   }
-
-  /** The summary card at the head of the page, such as "Total spend". */
-  statCard(label: string) {
-    return this.page.getByRole("group", { name: label });
-  }
 }
