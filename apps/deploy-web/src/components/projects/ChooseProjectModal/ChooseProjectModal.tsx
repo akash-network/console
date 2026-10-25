@@ -17,6 +17,7 @@ import { RefreshCw } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { isProjectNameTakenError, useCreateProjectMutation } from "@src/queries/useProjectsQuery";
+import { isOrganizationForbiddenError } from "@src/services/stale-organization-recovery/stale-organization-recovery";
 import type { Project, ProjectRecord } from "@src/types/project";
 import { describeProjectCreationFailure } from "../projectCreationFailure";
 import { toProjectSlug } from "../ProjectNameField/ProjectNameField";
@@ -79,6 +80,7 @@ export function ChooseProjectModal({
         setRefusedSlugs(current => [...current, newProjectSlug]);
         return;
       }
+      if (isOrganizationForbiddenError(error)) return;
       enqueueSnackbar(<Snackbar title="Couldn't create the project" subTitle={describeProjectCreationFailure(error)} iconVariant="error" />, {
         variant: "error"
       });

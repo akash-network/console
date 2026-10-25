@@ -17,7 +17,7 @@ describe(StaleOrganizationRecovery.name, () => {
       expect(isRecovered).toBe(true);
       expect(document.cookie).not.toContain(`${ACTIVE_ORGANIZATION_COOKIE_NAME}=`);
       expect(queryClient.clear).toHaveBeenCalledOnce();
-      expect(listener).toHaveBeenCalledOnce();
+      expect(listener).toHaveBeenCalledExactlyOnceWith("org-stale");
     });
 
     it("drops the organization the tab shows and keeps the one another tab picked last", () => {
@@ -29,7 +29,7 @@ describe(StaleOrganizationRecovery.name, () => {
       expect(tabOrganization.organizationId).toBeUndefined();
       expect(document.cookie).toContain(`${ACTIVE_ORGANIZATION_COOKIE_NAME}=org-picked`);
       expect(queryClient.clear).toHaveBeenCalledOnce();
-      expect(listener).toHaveBeenCalledOnce();
+      expect(listener).toHaveBeenCalledExactlyOnceWith("org-shown");
     });
 
     it("drops the cookie too when it names the organization the tab shows", () => {

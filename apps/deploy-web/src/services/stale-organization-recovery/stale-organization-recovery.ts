@@ -45,14 +45,15 @@ export class StaleOrganizationRecovery {
     this.#tabOrganization.show(undefined);
     if (cookieOrganizationId === refusedOrganizationId) document.cookie = serializeActiveOrganizationCookieRemoval();
     queryClient.clear();
-    this.#target.dispatchEvent(new Event(StaleOrganizationRecovery.#EVENT_TYPE));
+    this.#target.dispatchEvent(new CustomEvent(StaleOrganizationRecovery.#EVENT_TYPE, { detail: refusedOrganizationId }));
     return true;
   }
 
-  subscribe(listener: () => void): () => void {
-    this.#target.addEventListener(StaleOrganizationRecovery.#EVENT_TYPE, listener);
+  subscribe(listener: (refusedOrganizationId: string) => void): () => void {
+    const onRecovered = (event: Event) => listener((event as CustomEvent<string>).detail);
+    this.#target.addEventListener(StaleOrganizationRecovery.#EVENT_TYPE, onRecovered);
     return () => {
-      this.#target.removeEventListener(StaleOrganizationRecovery.#EVENT_TYPE, listener);
+      this.#target.removeEventListener(StaleOrganizationRecovery.#EVENT_TYPE, onRecovered);
     };
   }
 }

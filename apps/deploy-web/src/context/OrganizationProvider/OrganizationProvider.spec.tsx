@@ -317,6 +317,55 @@ describe(OrganizationProvider.name, () => {
       expect(onMount).toHaveBeenCalledTimes(3);
     });
 
+    it("tells the user they are no longer a member of the organization it refused", async () => {
+      const { result, recovery, queryClient, enqueueSnackbar } = setup({});
+      await act(async () => result.current.switchOrganization("org-2"));
+
+      act(() => {
+        recovery.recover(organizationForbiddenError(), queryClient, { isDropped: false });
+      });
+
+      expect(enqueueSnackbar).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          props: expect.objectContaining({
+            title: "You're no longer a member of Acme Corp",
+            subTitle: "You've been moved to an organization you belong to.",
+            iconVariant: "warning"
+          })
+        }),
+        { variant: "warning", persist: true }
+      );
+    });
+
+    it("names the refused organization when the cookie holds its slug", () => {
+      const { recovery, queryClient, enqueueSnackbar, tabOrganization } = setup({});
+      tabOrganization.show(undefined);
+      document.cookie = `${ACTIVE_ORGANIZATION_COOKIE_NAME}=northwind-labs; path=/`;
+
+      act(() => {
+        recovery.recover(organizationForbiddenError(), queryClient, { isDropped: false });
+      });
+
+      expect(enqueueSnackbar).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ props: expect.objectContaining({ title: "You're no longer a member of Northwind Labs" }) }),
+        { variant: "warning", persist: true }
+      );
+    });
+
+    it("tells the user they are no longer a member of an organization it does not know", () => {
+      const { recovery, queryClient, enqueueSnackbar } = setup({ organizations: undefined, isQueryLoading: true });
+      document.cookie = `${ACTIVE_ORGANIZATION_COOKIE_NAME}=org-gone; path=/`;
+
+      act(() => {
+        recovery.recover(organizationForbiddenError(), queryClient, { isDropped: false });
+      });
+
+      expect(enqueueSnackbar).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ props: expect.objectContaining({ title: "You're no longer a member of that organization" }) }),
+        { variant: "warning", persist: true }
+      );
+    });
+
     it("follows the organization the API picks once the memberships reload", async () => {
       const { result, recovery, queryClient, organizationsQuery, rerender, buildOrganizations, tabOrganization } = setup({});
       await act(async () => result.current.switchOrganization("org-2"));
@@ -337,8 +386,9 @@ describe(OrganizationProvider.name, () => {
 
   describe("when the URL names an organization", () => {
     it("switches to it and drops the parameter from the URL", () => {
-      const { router, queryClient } = setup({ asPath: "/deployments/123?org=acme-corp&tab=logs", query: { org: "acme-corp", tab: "logs" } });
+      const { router, queryClient, enqueueSnackbar } = setup({ asPath: "/deployments/123?org=acme-corp&tab=logs", query: { org: "acme-corp", tab: "logs" } });
 
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
       expect(document.cookie).toContain(`${ACTIVE_ORGANIZATION_COOKIE_NAME}=org-2`);
       expect(queryClient.clear).toHaveBeenCalledOnce();
       expect(router.replace).toHaveBeenCalledExactlyOnceWith("/deployments/123?tab=logs");
@@ -351,26 +401,42 @@ describe(OrganizationProvider.name, () => {
     });
 
     it("only drops the parameter when it names the organization already in use", () => {
-      const { router, queryClient } = setup({ asPath: "/deployments?org=org-1", query: { org: "org-1" } });
+      const { router, queryClient, enqueueSnackbar } = setup({ asPath: "/deployments?org=org-1", query: { org: "org-1" } });
 
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
       expect(document.cookie).not.toContain(`${ACTIVE_ORGANIZATION_COOKIE_NAME}=`);
       expect(queryClient.clear).not.toHaveBeenCalled();
       expect(router.replace).toHaveBeenCalledExactlyOnceWith("/deployments", undefined, { shallow: true });
     });
 
-    it("ignores an organization the user does not belong to", () => {
-      const { router, queryClient } = setup({ asPath: "/deployments?org=globex", query: { org: "globex" } });
+    it("stays in the current organization and says the linked one isn't available when the user does not belong to it", () => {
+      const { router, queryClient, enqueueSnackbar, result } = setup({ asPath: "/deployments?org=globex", query: { org: "globex" } });
 
       expect(document.cookie).not.toContain(`${ACTIVE_ORGANIZATION_COOKIE_NAME}=`);
       expect(queryClient.clear).not.toHaveBeenCalled();
       expect(router.replace).toHaveBeenCalledExactlyOnceWith("/deployments", undefined, { shallow: true });
+      expect(result.current.activeOrganization?.id).toBe("org-1");
+      expect(enqueueSnackbar).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          props: expect.objectContaining({
+            title: "The organization in this link isn't available to you",
+            subTitle: "You're still in your current organization.",
+            iconVariant: "warning"
+          })
+        }),
+        { variant: "warning", persist: true }
+      );
     });
 
-    it("ignores a parameter given more than once", () => {
-      const { router } = setup({ asPath: "/deployments?org=acme-corp&org=org-3", query: { org: ["acme-corp", "org-3"] } });
+    it("stays in the current organization and says the link's organization isn't available when the parameter is given more than once", () => {
+      const { router, enqueueSnackbar } = setup({ asPath: "/deployments?org=acme-corp&org=org-3", query: { org: ["acme-corp", "org-3"] } });
 
       expect(document.cookie).not.toContain(`${ACTIVE_ORGANIZATION_COOKIE_NAME}=`);
       expect(router.replace).toHaveBeenCalledExactlyOnceWith("/deployments", undefined, { shallow: true });
+      expect(enqueueSnackbar).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ props: expect.objectContaining({ title: "The organization in this link isn't available to you" }) }),
+        { variant: "warning", persist: true }
+      );
     });
 
     it("covers the page while the memberships that could match it are loading", () => {
@@ -453,6 +519,7 @@ describe(OrganizationProvider.name, () => {
     const tabOrganization = new TabOrganization();
     const recovery = new StaleOrganizationRecovery(tabOrganization);
     const onMount = vi.fn();
+    const enqueueSnackbar = vi.fn();
     let coveringCount = 0;
 
     const dependencies: typeof DEPENDENCIES = {
@@ -463,6 +530,7 @@ describe(OrganizationProvider.name, () => {
       useRouter: () => router,
       useQueryClient: () => queryClient,
       useStore: () => store,
+      useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       BootLoading: function CoverPage() {
         useEffect(() => {
           coveringCount += 1;
@@ -497,10 +565,15 @@ describe(OrganizationProvider.name, () => {
       store,
       recovery,
       tabOrganization,
+      enqueueSnackbar,
       onMount,
       buildOrganizations,
       isPageCovered: () => coveringCount > 0
     };
+  }
+
+  function organizationForbiddenError() {
+    return new ApiError(403, { code: "organization_forbidden" }, "POST /v1/projects → 403");
   }
 
   function loadedResult(data: OrganizationOutput[]): UseQueryResult<OrganizationOutput[]> {
