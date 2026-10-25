@@ -56,10 +56,10 @@ export function AcceptInvitationPage({ dependencies: d = DEPENDENCIES }: Props =
   const isSettled = isUnreadable || (!!preview.data && preview.data.status !== "pending");
 
   useEffect(
-    function forgetSettledInvitation() {
+    function forgetEachSettledInvitation() {
       if (isSettled) forgetToken();
     },
-    [isSettled, forgetToken]
+    [isSettled, token, forgetToken]
   );
 
   return (

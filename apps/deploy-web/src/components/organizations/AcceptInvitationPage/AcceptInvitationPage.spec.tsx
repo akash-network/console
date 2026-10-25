@@ -230,11 +230,20 @@ describe(AcceptInvitationPage.name, () => {
     await user.click(screen.getByRole("button", { name: "Accept invitation" }));
     await screen.findByRole("heading", { name: "You're already a member of Acme Corp" });
 
-    openAnotherInvitation({ token: "u".repeat(43), organizationName: "Northwind Labs" });
+    openAnotherInvitation({ token: "u".repeat(43), preview: { organizationName: "Northwind Labs" } });
 
     expect(screen.getByRole("heading", { name: "Join Northwind Labs" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Accept invitation" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /already a member/ })).not.toBeInTheDocument();
+  });
+
+  it("forgets the token of another settled invitation opened in the tab after a settled one", () => {
+    const { forgetToken, openAnotherInvitation } = setup({ preview: { status: "expired" } });
+
+    openAnotherInvitation({ token: "u".repeat(43), preview: { organizationName: "Northwind Labs", status: "revoked" } });
+
+    expect(screen.getByRole("heading", { name: "This invitation was revoked" })).toBeInTheDocument();
+    expect(forgetToken).toHaveBeenCalledTimes(2);
   });
 
   it("explains that organizations are not available yet when accepting is not found for the account", async () => {
@@ -337,8 +346,8 @@ describe(AcceptInvitationPage.name, () => {
     };
 
     const { rerender } = render(<AcceptInvitationPage dependencies={dependencies} />);
-    const openAnotherInvitation = (invitation: { token: string; organizationName: string }) => {
-      shown = { token: invitation.token, preview: preview && { ...preview, organizationName: invitation.organizationName } };
+    const openAnotherInvitation = (invitation: { token: string; preview: Partial<InvitationPreviewOutput> }) => {
+      shown = { token: invitation.token, preview: preview && { ...preview, ...invitation.preview } };
       rerender(<AcceptInvitationPage dependencies={dependencies} />);
     };
 
