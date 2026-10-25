@@ -22,8 +22,11 @@ import { Calendar, Download, FileText } from "lucide-react";
 import { HISTORY_DATE_PRESETS, type HistoryDatePreset, type HistoryDateRange } from "@src/components/billing-usage/BillingContainer/historyDatePresets";
 import { TransactionInvoiceButton } from "@src/components/billing-usage/TransactionInvoiceButton/TransactionInvoiceButton";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
+import { getMemberDisplayName } from "@src/components/organizations/organizationRoles";
+import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import type { BillingTransaction } from "@src/queries";
+import { DELETED_ACCOUNT_LABEL } from "@src/utils/deletedAccount";
 import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
 export const DEPENDENCIES = {
@@ -31,7 +34,8 @@ export const DEPENDENCIES = {
   DateRangePicker,
   CustomPagination,
   TransactionInvoiceButton,
-  useFlag
+  useFlag,
+  useActiveOrganization
 };
 
 const TRANSACTION_TYPE_LABELS: Record<BillingTransaction["type"], string> = {
@@ -49,9 +53,11 @@ const STATUS_LABELS: Record<string, string> = {
 
 const COLUMN_HEADERS = ["Date", "Amount", "Account source", "Status"];
 
-/** Phones lay a row out as date and amount over source, status and documents; wider screens give each its own column. */
+const TEAM_COLUMN_HEADERS = ["Date", "Amount", "Account source", "Initiated by", "Status"];
+
+/** Phones lay a row out as date and amount over source, status and documents, with who made it last in a team; wider screens give each its own column. */
 const ROW_GRID =
-  "grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1.5 px-5 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_72px] sm:gap-y-0";
+  "grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1.5 px-5 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)_72px] sm:gap-y-0 sm:group-data-[team]/history:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(0,1fr)_72px]";
 
 /** Coupon claims and manual credits top up the wallet, so their amount reads as money in (green +). */
 const isCreditTransaction = (type: BillingTransaction["type"]) => type === "coupon_claim" || type === "manual_credit";
@@ -90,6 +96,8 @@ export const BillingView: React.FC<BillingViewProps> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const isInvoicesEnabled = d.useFlag("invoices");
+  const { activeOrganization } = d.useActiveOrganization();
+  const isTeam = activeOrganization?.type === "team";
 
   if (isError) {
     return (
@@ -118,10 +126,16 @@ export const BillingView: React.FC<BillingViewProps> = ({
             <p className="text-xs text-muted-foreground">Payments, coupons and credits added to your balance show up here.</p>
           </div>
         ) : (
-          <div role="table" aria-label="Payment history" aria-busy={isFetching} className="transition-opacity duration-150 aria-busy:opacity-60">
+          <div
+            role="table"
+            aria-label="Payment history"
+            aria-busy={isFetching}
+            data-team={isTeam || undefined}
+            className="group/history transition-opacity duration-150 aria-busy:opacity-60"
+          >
             <div role="rowgroup" className="hidden sm:block">
               <div role="row" className={`${ROW_GRID} py-3.5`}>
-                {[...COLUMN_HEADERS, isInvoicesEnabled ? "Documents" : "Receipt"].map(header => (
+                {[...(isTeam ? TEAM_COLUMN_HEADERS : COLUMN_HEADERS), isInvoicesEnabled ? "Documents" : "Receipt"].map(header => (
                   <span key={header} role="columnheader" className="text-[13px] font-medium">
                     {header}
                   </span>
@@ -140,6 +154,14 @@ export const BillingView: React.FC<BillingViewProps> = ({
                   <span role="cell" className="min-w-0 text-sm">
                     <TransactionSource transaction={transaction} />
                   </span>
+                  {isTeam && (
+                    <span
+                      role="cell"
+                      className="order-last col-span-3 min-w-0 text-xs text-muted-foreground sm:order-none sm:col-span-1 sm:text-sm sm:text-foreground"
+                    >
+                      <TransactionInitiator transaction={transaction} />
+                    </span>
+                  )}
                   <span role="cell" className="justify-self-end sm:justify-self-start">
                     <span
                       data-status={transaction.status}
@@ -250,6 +272,13 @@ const TransactionSource: React.FC<{ transaction: BillingTransaction }> = ({ tran
     </>
   );
 };
+
+const TransactionInitiator: React.FC<{ transaction: BillingTransaction }> = ({ transaction: { initiatedBy } }) => (
+  <span className="block truncate">
+    <span className="sm:hidden">Initiated by </span>
+    {initiatedBy ? getMemberDisplayName(initiatedBy) : DELETED_ACCOUNT_LABEL}
+  </span>
+);
 
 const BillingTableSkeleton: React.FC = () => (
   <div data-testid="billing-history-skeleton">

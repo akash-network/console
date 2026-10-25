@@ -1,6 +1,8 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
+import type { OrganizationOutput } from "@src/types/organization";
 import { BillingView, type DEPENDENCIES } from "./BillingView";
 
 import { fireEvent, render, screen, within } from "@testing-library/react";
@@ -25,6 +27,54 @@ describe(BillingView.name, () => {
     setup({ isInvoicesEnabled: true });
 
     expect(screen.getAllByRole("columnheader").map(header => header.textContent)).toEqual(["Date", "Amount", "Account source", "Status", "Documents"]);
+  });
+
+  describe("in a team", () => {
+    it("adds a column for who made each payment", () => {
+      setup({ organizationType: "team" });
+
+      expect(screen.getAllByRole("columnheader").map(header => header.textContent)).toEqual([
+        "Date",
+        "Amount",
+        "Account source",
+        "Initiated by",
+        "Status",
+        "Receipt"
+      ]);
+      expect(screen.getByRole("table")).toHaveAttribute("data-team", "true");
+    });
+
+    it("names the member who made each payment", () => {
+      setup({ organizationType: "team", data: [createMockTransaction({ initiatedBy: { id: "user-1", username: "alice", email: "alice@example.com" } })] });
+
+      expect(cell(0, "Initiated by")).toHaveTextContent(/^Initiated by alice$/);
+    });
+
+    it("names the member by email when they have no username", () => {
+      setup({ organizationType: "team", data: [createMockTransaction({ initiatedBy: { id: "user-1", username: null, email: "alice@example.com" } })] });
+
+      expect(cell(0, "Initiated by")).toHaveTextContent(/^Initiated by alice@example\.com$/);
+    });
+
+    it("credits a payment whose member deleted their account to a deleted account", () => {
+      setup({ organizationType: "team", data: [createMockTransaction({ initiatedBy: null })] });
+
+      expect(cell(0, "Initiated by")).toHaveTextContent(/^Initiated by Deleted account$/);
+    });
+  });
+
+  it("leaves who made each payment out of a personal account's history", () => {
+    setup({ data: [createMockTransaction({ initiatedBy: { id: "user-1", username: "alice", email: null } })] });
+
+    expect(screen.getAllByRole("columnheader").map(header => header.textContent)).toEqual(["Date", "Amount", "Account source", "Status", "Receipt"]);
+    expect(screen.getByRole("table")).not.toHaveAttribute("data-team");
+    expect(screen.queryByText(/alice/)).not.toBeInTheDocument();
+  });
+
+  it("leaves who made each payment out while no organization is active", () => {
+    setup({ organizationType: null });
+
+    expect(screen.getAllByRole("columnheader").map(header => header.textContent)).toEqual(["Date", "Amount", "Account source", "Status", "Receipt"]);
   });
 
   it("puts the invoice of each payment next to its receipt", () => {
@@ -238,13 +288,18 @@ describe(BillingView.name, () => {
   });
 
   function cell(rowIndex: number, column: string) {
-    const columnIndex = ["Date", "Amount", "Account source", "Status", "Receipt"].indexOf(column);
+    const columnIndex = screen.getAllByRole("columnheader").findIndex(header => header.textContent === column);
     const rows = screen.getAllByRole("row").slice(1);
     return within(rows[rowIndex]).getAllByRole("cell")[columnIndex];
   }
 
-  function setup(input: Partial<Omit<React.ComponentProps<typeof BillingView>, "dependencies">> & { isInvoicesEnabled?: boolean } = {}) {
-    const { isInvoicesEnabled = false, ...viewProps } = input;
+  function setup(
+    input: Partial<Omit<React.ComponentProps<typeof BillingView>, "dependencies">> & {
+      isInvoicesEnabled?: boolean;
+      organizationType?: OrganizationOutput["type"] | null;
+    } = {}
+  ) {
+    const { isInvoicesEnabled = false, organizationType = "personal", ...viewProps } = input;
     const CustomPagination = vi.fn<typeof DEPENDENCIES.CustomPagination>(() => <div data-testid="pagination" />);
     const DateRangePicker = vi.fn<typeof DEPENDENCIES.DateRangePicker>(() => <div />);
     const FormattedNumber = vi.fn((({ value }: { value: number }) => <>{value.toFixed(2)}</>) as typeof DEPENDENCIES.FormattedNumber);
@@ -252,6 +307,10 @@ describe(BillingView.name, () => {
       <button>{`Invoice of ${transaction.id}`}</button>
     ));
     const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag => flag === "invoices" && isInvoicesEnabled);
+    const useActiveOrganization: typeof DEPENDENCIES.useActiveOrganization = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
+        activeOrganization: organizationType ? mock<OrganizationOutput>({ type: organizationType }) : undefined
+      });
 
     const props: React.ComponentProps<typeof BillingView> = {
       data: [createMockTransaction()],
@@ -268,7 +327,7 @@ describe(BillingView.name, () => {
       datePreset: "last3Months",
       onDatePresetChange: vi.fn(),
       ...viewProps,
-      dependencies: { CustomPagination, DateRangePicker, FormattedNumber, TransactionInvoiceButton, useFlag }
+      dependencies: { CustomPagination, DateRangePicker, FormattedNumber, TransactionInvoiceButton, useFlag, useActiveOrganization }
     };
 
     render(<BillingView {...props} />);
