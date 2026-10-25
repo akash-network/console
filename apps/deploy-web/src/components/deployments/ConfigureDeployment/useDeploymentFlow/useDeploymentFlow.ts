@@ -64,6 +64,8 @@ export interface DeploymentFlowState {
   isDeployedInBackground: boolean;
   /** Whether the deploy progress screen shows while deploying; held back while the api may still take the lease on in the background. */
   showsDeployProgress: boolean;
+  /** True once a deploy the user confirmed has gone without a lease or an activity for longer than one takes, so they can retry or go back to the bids. */
+  isDeployTakingLong: boolean;
   /** True once the wait for a first bid ran out with none; cleared when a bid lands or the deployment goes away. */
   noBidsReceived: boolean;
   deployError?: { message?: string };
@@ -148,6 +150,9 @@ const DEPLOY_SUCCESS_DWELL_MS = 1200;
 
 /** Must stay above the second or so the api takes to hand a lease to the background, and below the 5 s or more it needs to create one during the request. */
 const BACKGROUND_HANDOFF_WAIT_MS = 3000;
+
+/** Retry is offered once this passes, so it must stay well above the 5 s or more the api needs to create a lease during the request. */
+const SLOW_DEPLOY_TIMEOUT_MS = 30 * 1000;
 
 /** How long a first bid may take before the user is told none came yet; the deployment stays open, since a late bid can still land. */
 export const NO_BIDS_TIMEOUT_MS = 60 * 1000;
@@ -245,6 +250,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const [showsDeployProgress, setShowsDeployProgress] = useState(false);
   /** The api answers a lease it takes on with a 202 and one it creates during the request with a 200, and the page can't tell which beforehand. */
   const [isAwaitingLeaseHandoff, setIsAwaitingLeaseHandoff] = useState(false);
+  /** The deploy the user confirmed, timed until it gets a lease or an activity; an autopilot's deploy is not timed here. */
+  const [watchedDeploy, setWatchedDeploy] = useState<{ attempt: DeployAttempt; hasTimedOut: boolean } | null>(null);
   const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
   const [noBidsReceived, setNoBidsReceived] = useState(false);
 
@@ -291,6 +298,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    */
   const createAttemptRef = useRef(0);
 
+  /** A Retry can go out while the deploy it replaces is still running, so only the newest attempt may settle the flow. */
+  const deployAttemptRef = useRef(0);
+
   /** The dseq of the close in flight. Read synchronously so a create can never overlap one and open a second deployment. */
   const closingDseqRef = useRef<string | null>(null);
 
@@ -323,6 +333,22 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       };
     },
     [isAwaitingLeaseHandoff]
+  );
+
+  useEffect(
+    function reportADeployThatTakesTooLong() {
+      if (!watchedDeploy || watchedDeploy.hasTimedOut || phase !== "deploying" || deploySucceeded) return;
+      const timer = setTimeout(function timeOutWithoutALease() {
+        if (discardedRef.current) return;
+        const { event, properties } = deployFailedEventOf("lease_timeout", watchedDeploy.attempt);
+        analyticsService.track(event, properties);
+        setWatchedDeploy({ ...watchedDeploy, hasTimedOut: true });
+      }, SLOW_DEPLOY_TIMEOUT_MS);
+      return function stopTimingTheDeploy() {
+        clearTimeout(timer);
+      };
+    },
+    [watchedDeploy, phase, deploySucceeded, analyticsService]
   );
 
   useEffect(
@@ -872,9 +898,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
    */
   const deploy = useCallback(
     function deploy(sdl: string, options: DeployOptions = {}) {
-      if (!dseq || discardedRef.current) return;
-      const activeDseq = dseq;
-      const attempt: DeployAttempt = { dseq: activeDseq, isAutoDeploy: !!options.isAutoDeploy, inBackground: isRunningInBackground };
+      if (discardedRef.current) return;
+      const attempt: DeployAttempt = { dseq, isAutoDeploy: !!options.isAutoDeploy, inBackground: isRunningInBackground };
 
       function trackDeployFailed(stage: DeployFailureStage, cause?: unknown) {
         const { event, properties } = deployFailedEventOf(stage, attempt, cause);
@@ -886,6 +911,11 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         setDeployError({ message });
       }
 
+      if (!dseq) {
+        trackDeployFailed("not_started");
+        return;
+      }
+      const activeDseq = dseq;
       const nextManifest = dependencies.manifestFromSdl(sdl);
       const leases = Object.values(selections).map(parseBidId);
       if (!nextManifest) {
@@ -907,10 +937,13 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       const hasTypedSecrets = Object.keys(options.secrets ?? {}).length > 0;
       const keepsStoredReference = hasSdlReference(sdl);
       const deployEvents = deployEventsOf(activeDseq, dependencies.deploymentResourcesFromSdl(sdl));
+      const attemptNumber = ++deployAttemptRef.current;
+      const isReplaced = () => attemptNumber !== deployAttemptRef.current;
       setDeployError(undefined);
       setDeploySucceeded(false);
       setShowsDeployProgress(!isRunningInBackground);
       setPhase("deploying");
+      setWatchedDeploy(options.isAutoDeploy ? null : { attempt, hasTimedOut: false });
 
       /**
        * The onboarding gate reads "onboarded" off the leases cache, empty until this first deploy, so refreshing it
@@ -946,6 +979,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       }
 
       function failDeploy(stage: DeployFailureStage, cause: unknown) {
+        if (isReplaced()) return;
         trackDeployFailed(stage, cause);
         setDeployError({ message: extractApiErrorMessage(cause) ?? undefined });
         setPhase("quoting");
@@ -963,6 +997,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
           { ...lease, ...backgroundQueryFor(isRunningInBackground) },
           {
             onSuccess: function completeOrFollowDeploy(result) {
+              if (isReplaced()) return;
               setIsAwaitingLeaseHandoff(false);
               const activityId = acceptedActivityIdOf(result.data);
               if (activityId) {
@@ -973,6 +1008,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
               completeDeploy(result.data.deployment.id.owner);
             },
             onError: function markAndFailDeploy(cause: unknown) {
+              if (isReplaced()) return;
               setIsAwaitingLeaseHandoff(false);
               markOutcomeHandled("lease_create", activeDseq, "failed");
               failDeploy("lease_create", cause);
@@ -1077,6 +1113,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     deploySucceeded,
     isDeployedInBackground,
     showsDeployProgress,
+    isDeployTakingLong: !!watchedDeploy?.hasTimedOut && phase === "deploying" && !deploySucceeded,
     noBidsReceived,
     deployError,
     error,
@@ -1186,9 +1223,19 @@ function deployEventsOf(dseq: string, resources: ReturnType<typeof deploymentRes
   ];
 }
 
-type DeployFailureStage = "manifest_build" | "no_selection" | "unresolved_secret" | "seal" | "patch" | "update" | "lease_create" | "background_lease";
+type DeployFailureStage =
+  | "not_started"
+  | "manifest_build"
+  | "no_selection"
+  | "unresolved_secret"
+  | "seal"
+  | "patch"
+  | "update"
+  | "lease_create"
+  | "background_lease"
+  | "lease_timeout";
 
-type DeployAttempt = { dseq: string; isAutoDeploy: boolean; inBackground: boolean };
+type DeployAttempt = { dseq: string | null; isAutoDeploy: boolean; inBackground: boolean };
 
 /** Leaves the api's error message out, since it can echo what the user typed. */
 function deployFailedEventOf(stage: DeployFailureStage, attempt: DeployAttempt, cause?: unknown): HeldActivityEvent {

@@ -2465,6 +2465,27 @@ describe(useDeploymentFlow.name, () => {
       expect(analyticsService.track).not.toHaveBeenCalledWith("deploy_failed", expect.anything());
     });
 
+    it("tracks deploy_failed at the not_started stage when there is no deployment to deploy yet", () => {
+      const createLease = mockMutation();
+      const { result, analyticsService } = renderFlow({ createLease });
+
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", { ...FAILED_DEPLOY, dseq: null, stage: "not_started" });
+      expect(createLease.mutate).not.toHaveBeenCalled();
+      expect(result.current.phase).toBe("configuring");
+    });
+
+    it("tracks no deploy_failed for a deploy of a deployment the user discarded", () => {
+      const { result, analyticsService } = renderFlow({ intent: { dseq: "555" } });
+      act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => result.current.actions.discard());
+
+      act(() => result.current.actions.deploy("sdl"));
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("deploy_failed", expect.anything());
+    });
+
     function renderResumedFlow(input: NonNullable<Parameters<typeof renderFlow>[0]>) {
       const flow = renderFlow({
         intent: { dseq: "555" },
@@ -2487,6 +2508,290 @@ describe(useDeploymentFlow.name, () => {
       await settleSeal();
       act(() => flow.result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
       return flow;
+    }
+  });
+
+  describe("when a deploy the user confirmed takes too long", () => {
+    const TIMED_OUT_DEPLOY = { category: "deployments", stage: "lease_timeout", dseq: "555", isAutoDeploy: false, inBackground: false };
+    const LEASE_REQUEST = { manifest: "M", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] };
+
+    it("reports the timeout and tells the user once 30 s pass with neither a lease nor an activity", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, analyticsService } = await renderDeployingFlow();
+
+        act(() => vi.advanceTimersByTime(29_999));
+
+        expect(result.current.isDeployTakingLong).toBe(false);
+        expect(analyticsService.track).not.toHaveBeenCalledWith("deploy_failed", expect.anything());
+
+        act(() => vi.advanceTimersByTime(1));
+
+        expect(result.current.isDeployTakingLong).toBe(true);
+        expect(result.current.phase).toBe("deploying");
+        expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", TIMED_OUT_DEPLOY);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("reports the timeout once however long the deploy keeps running", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, analyticsService } = await renderDeployingFlow();
+
+        act(() => vi.advanceTimersByTime(30_000));
+        act(() => vi.advanceTimersByTime(120_000));
+
+        expect(result.current.isDeployTakingLong).toBe(true);
+        expect(timeoutsReportedBy(analyticsService)).toHaveLength(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("times a deploy held up before its lease is even requested", async () => {
+      vi.useFakeTimers();
+      try {
+        const patch = deferredMutate();
+        const { result, lease } = await renderDeployingFlow({
+          patchDeployment: mockMutation(patch.mutate),
+          manifestFromSdl: () => "M2",
+          servicesPatchBetween: () => ({ web: { env: { FOO: "bar" } } })
+        });
+        await act(async () => {});
+
+        act(() => vi.advanceTimersByTime(30_000));
+
+        expect(patch.calls).toHaveLength(1);
+        expect(lease.calls).toHaveLength(0);
+        expect(result.current.isDeployTakingLong).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("leaves an auto deploy untimed, since the autopilot follows its own deploy", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, analyticsService } = await renderDeployingFlow({ isAutoDeploy: true });
+
+        act(() => vi.advanceTimersByTime(30_000));
+
+        expect(result.current.isDeployTakingLong).toBe(false);
+        expect(timeoutsReportedBy(analyticsService)).toHaveLength(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it.each([
+      { case: "the lease is created", isActivityCenterOn: false, answer: deployedResult("akash1owner") },
+      { case: "the api takes the lease on in the background", isActivityCenterOn: true, answer: { data: { activityId: "activity-1" } } }
+    ])("stops timing once $case", async ({ isActivityCenterOn, answer }) => {
+      vi.useFakeTimers();
+      try {
+        const { result, analyticsService, lease } = await renderDeployingFlow({ isActivityCenterOn });
+        act(() => vi.advanceTimersByTime(29_000));
+
+        await act(async () => lease.calls[0].options.onSuccess?.(answer));
+        act(() => vi.advanceTimersByTime(30_000));
+
+        expect(result.current.isDeployTakingLong).toBe(false);
+        expect(timeoutsReportedBy(analyticsService)).toHaveLength(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("stops timing once the lease request fails, which the deploy error already reports", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, analyticsService, lease } = await renderDeployingFlow();
+        act(() => vi.advanceTimersByTime(29_000));
+
+        act(() => lease.calls[0].options.onError?.(new Error("network")));
+        act(() => vi.advanceTimersByTime(30_000));
+
+        expect(result.current.phase).toBe("quoting");
+        expect(result.current.isDeployTakingLong).toBe(false);
+        expect(timeoutsReportedBy(analyticsService)).toHaveLength(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("stops timing a deployment the user discarded", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, analyticsService } = await renderDeployingFlow();
+
+        act(() => result.current.actions.discard());
+        act(() => vi.advanceTimersByTime(30_000));
+
+        expect(result.current.isDeployTakingLong).toBe(false);
+        expect(timeoutsReportedBy(analyticsService)).toHaveLength(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("stops timing once the page is gone", async () => {
+      vi.useFakeTimers();
+      try {
+        const { unmount, analyticsService } = await renderDeployingFlow();
+
+        unmount();
+        act(() => vi.advanceTimersByTime(30_000));
+
+        expect(timeoutsReportedBy(analyticsService)).toHaveLength(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("finishes the deploy when the slow lease lands after all", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, lease } = await renderDeployingFlow();
+        act(() => vi.advanceTimersByTime(30_000));
+
+        act(() => lease.calls[0].options.onSuccess?.(deployedResult("akash1owner")));
+
+        expect(result.current.deploySucceeded).toBe(true);
+        expect(result.current.isDeployTakingLong).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("goes back to the bids of the same deployment without closing it", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, closeDeployment } = await renderDeployingFlow();
+        act(() => vi.advanceTimersByTime(30_000));
+
+        act(() => result.current.actions.refreshQuotes());
+
+        expect(result.current.phase).toBe("quoting");
+        expect(result.current.dseq).toBe("555");
+        expect(result.current.selections).toEqual({ "placement-1": "akash1a/555/1/3" });
+        expect(result.current.isDeployTakingLong).toBe(false);
+        expect(closeDeployment.mutate).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("sends the same lease for the same deployment again on retry, and times the retry afresh", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, lease, createDeployment, analyticsService } = await renderDeployingFlow();
+        act(() => vi.advanceTimersByTime(30_000));
+
+        act(() => result.current.actions.deploy("sdl"));
+
+        expect(result.current.isDeployTakingLong).toBe(false);
+        expect(createDeployment.mutate).toHaveBeenCalledTimes(1);
+        expect(lease.calls.map(call => call.args)).toEqual([LEASE_REQUEST, LEASE_REQUEST]);
+
+        act(() => vi.advanceTimersByTime(29_999));
+        expect(result.current.isDeployTakingLong).toBe(false);
+
+        act(() => vi.advanceTimersByTime(1));
+        expect(result.current.isDeployTakingLong).toBe(true);
+        expect(timeoutsReportedBy(analyticsService)).toHaveLength(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("leaves the flow to a retry still patching when the deploy it replaced fails its lease", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, lease, patch, markOutcomeHandled } = await renderRetrySentWhilePatching({ hasReplacedDeployReachedLease: true });
+
+        act(() => lease.calls[0].options.onError?.(new Error("boom")));
+
+        expect(result.current.phase).toBe("deploying");
+        expect(result.current.deployError).toBeUndefined();
+        expect(markOutcomeHandled).not.toHaveBeenCalledWith("lease_create", "555", "failed");
+
+        act(() => patch.calls[1].options.onSuccess?.({}));
+        act(() => lease.calls[1].options.onSuccess?.(deployedResult("akash1owner")));
+
+        expect(result.current.deploySucceeded).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("leaves the flow to a retry still patching when the deploy it replaced fails its patch", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, patch, analyticsService } = await renderRetrySentWhilePatching({ hasReplacedDeployReachedLease: false });
+
+        act(() => patch.calls[0].options.onError?.(new Error("boom")));
+
+        expect(result.current.phase).toBe("deploying");
+        expect(result.current.deployError).toBeUndefined();
+        expect(analyticsService.track).not.toHaveBeenCalledWith("deploy_failed", expect.objectContaining({ stage: "patch" }));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("finishes the deploy once, through the retry, when the deploy it replaced lands its lease while the retry patches", async () => {
+      vi.useFakeTimers();
+      try {
+        const { result, lease, patch, router } = await renderRetrySentWhilePatching({ hasReplacedDeployReachedLease: true });
+
+        act(() => lease.calls[0].options.onSuccess?.(deployedResult("akash1owner")));
+
+        expect(result.current.deploySucceeded).toBe(false);
+
+        act(() => patch.calls[1].options.onSuccess?.({}));
+        act(() => lease.calls[1].options.onSuccess?.(deployedResult("akash1owner")));
+        act(() => vi.advanceTimersByTime(1_200));
+
+        expect(result.current.deploySucceeded).toBe(true);
+        expect(router.replace.mock.calls.filter(([url]) => url === UrlService.deploymentDetails("555", "EVENTS", "events"))).toHaveLength(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    function timeoutsReportedBy(analyticsService: ReturnType<typeof renderFlow>["analyticsService"]) {
+      return analyticsService.track.mock.calls.filter(
+        ([name, properties]) => name === "deploy_failed" && (properties as Record<string, unknown>).stage === "lease_timeout"
+      );
+    }
+
+    async function renderRetrySentWhilePatching(input: { hasReplacedDeployReachedLease: boolean }) {
+      const secrets = { API_KEY: "x" };
+      const patch = deferredMutate();
+      const flow = await renderDeployingFlow({ patchDeployment: mockMutation(patch.mutate), servicesPatchBetween: () => ({}), secrets });
+      await act(async () => {});
+      if (input.hasReplacedDeployReachedLease) act(() => patch.calls[0].options.onSuccess?.({}));
+      act(() => vi.advanceTimersByTime(30_000));
+      act(() => flow.result.current.actions.deploy("sdl", { secrets }));
+      await act(async () => {});
+      return { ...flow, patch };
+    }
+
+    async function renderDeployingFlow(
+      input: { isAutoDeploy?: boolean; secrets?: Record<string, string> } & NonNullable<Parameters<typeof renderFlow>[0]> = {}
+    ) {
+      const { isAutoDeploy, secrets, ...flowInput } = input;
+      const lease = deferredMutate();
+      const createDeployment = mockMutation(vi.fn((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } })));
+      const closeDeployment = mockMutation();
+      const flow = renderFlow({ createDeployment, closeDeployment, createLease: mockMutation(lease.mutate), ...flowInput });
+      act(() => flow.result.current.actions.requestQuotes("sdl"));
+      await settleSeal();
+      act(() => flow.result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      act(() => flow.result.current.actions.deploy("sdl", { isAutoDeploy, secrets }));
+      return { ...flow, lease, createDeployment, closeDeployment };
     }
   });
 

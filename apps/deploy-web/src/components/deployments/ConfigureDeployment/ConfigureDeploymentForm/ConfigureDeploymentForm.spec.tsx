@@ -451,6 +451,39 @@ describe(ConfigureDeploymentForm.name, () => {
       expect(ReviewAndDeployModal).toHaveBeenLastCalledWith(expect.objectContaining({ open: false, isDeploying: false }), expect.anything());
       expect(DeployProgressOverlay).not.toHaveBeenCalled();
     });
+
+    it.each([true, false])("brings the review back with the deploy taking long, over any progress screen (progress shown: %s)", showsDeployProgress => {
+      const { ReviewAndDeployModal, DeployProgressOverlay } = setup({
+        initialSdl: undefined,
+        phase: "deploying",
+        showsDeployProgress,
+        isDeployTakingLong: true
+      });
+
+      expect(ReviewAndDeployModal).toHaveBeenLastCalledWith(
+        expect.objectContaining({ open: true, isDeploying: true, isDeployTakingLong: true }),
+        expect.anything()
+      );
+      expect(DeployProgressOverlay).not.toHaveBeenCalled();
+    });
+
+    it("sends the deploy again from the form values when the user retries a deploy taking long", async () => {
+      const { flow, analyticsService, ConfigureDeploymentPanes } = setup({ initialSdl: VALID_SDL, phase: "deploying", isDeployTakingLong: true });
+
+      await userEvent.click(screen.getByRole("button", { name: "retry" }));
+
+      expect(flow.actions.deploy).toHaveBeenCalledWith(lastPanesProps(ConfigureDeploymentPanes).sdl, { secrets: {}, unresolvedSecrets: [] });
+      expect(analyticsService.track).not.toHaveBeenCalledWith("review_deploy_confirmed", expect.anything());
+    });
+
+    it("goes back to the bids of the same deployment when the user leaves a deploy taking long", async () => {
+      const { flow } = setup({ initialSdl: VALID_SDL, phase: "deploying", isDeployTakingLong: true });
+
+      await userEvent.click(screen.getByRole("button", { name: "back to bids" }));
+
+      expect(flow.actions.refreshQuotes).toHaveBeenCalled();
+      expect(flow.actions.discard).not.toHaveBeenCalled();
+    });
   });
 
   it("seeds the deployment name from initialName", () => {
@@ -1146,6 +1179,7 @@ describe(ConfigureDeploymentForm.name, () => {
     deploySucceeded?: boolean;
     isDeployedInBackground?: boolean;
     showsDeployProgress?: boolean;
+    isDeployTakingLong?: boolean;
     flowError?: FlowError;
     noBidsReceived?: boolean;
     vm?: boolean;
@@ -1175,17 +1209,24 @@ describe(ConfigureDeploymentForm.name, () => {
     const requestQuotes = vi.fn();
     const setDeploymentName = vi.fn();
     const DeployProgressOverlay = vi.fn(() => null);
-    const ReviewAndDeployModal = vi.fn((props: { open: boolean; onBack: () => void; onConfirm: () => void }) =>
-      props.open ? (
-        <div>
-          <button type="button" onClick={props.onBack}>
-            back to marketplace
-          </button>
-          <button type="button" onClick={props.onConfirm}>
-            confirm and deploy
-          </button>
-        </div>
-      ) : null
+    const ReviewAndDeployModal = vi.fn(
+      (props: { open: boolean; onBack: () => void; onConfirm: () => void; onRetryDeploy: () => void; onBackToBids: () => void }) =>
+        props.open ? (
+          <div>
+            <button type="button" onClick={props.onBack}>
+              back to marketplace
+            </button>
+            <button type="button" onClick={props.onConfirm}>
+              confirm and deploy
+            </button>
+            <button type="button" onClick={props.onRetryDeploy}>
+              retry
+            </button>
+            <button type="button" onClick={props.onBackToBids}>
+              back to bids
+            </button>
+          </div>
+        ) : null
     );
     const useConfigureDraft = vi.fn(() =>
       Object.assign(
@@ -1217,6 +1258,7 @@ describe(ConfigureDeploymentForm.name, () => {
         deploySucceeded: input.deploySucceeded ?? false,
         isDeployedInBackground: input.isDeployedInBackground ?? false,
         showsDeployProgress: input.showsDeployProgress ?? false,
+        isDeployTakingLong: input.isDeployTakingLong ?? false,
         noBidsReceived: input.noBidsReceived ?? false,
         pendingClose: input.pendingClose ?? null,
         actions: mock<DeploymentFlow["actions"]>({ requestQuotes })
