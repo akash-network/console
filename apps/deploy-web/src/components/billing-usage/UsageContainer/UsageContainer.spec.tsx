@@ -1,5 +1,5 @@
 import React from "react";
-import { endOfDay, format, startOfDay, startOfToday, subDays } from "date-fns";
+import { endOfDay, startOfDay } from "date-fns";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -13,7 +13,7 @@ import { buildProjectUsageCsv, buildUsageCsv } from "./buildUsageCsv";
 import { deploymentRowsOf, projectSpendRowsOf, scopeUsage } from "./teamUsage";
 import type { ChildrenProps, DEPENDENCIES } from "./UsageContainer";
 import { UsageContainer } from "./UsageContainer";
-import { getPreviousPeriod, getUsagePresetRange } from "./usageDatePresets";
+import { getPreviousSpendRange, getUsagePresetRange, toSpendRange } from "./usageDatePresets";
 
 import { act, render } from "@testing-library/react";
 import { buildProjectSpend, buildProjectSpendReport, buildSpendAmounts } from "@tests/seeders/projectSpend";
@@ -27,7 +27,21 @@ describe(UsageContainer.name, () => {
 
     expect(child.datePreset).toBe("last30Days");
     expect(child.dateRange).toEqual(last30Days);
-    expect(useUsage).toHaveBeenLastCalledWith({ address: "akash1abc", startDate: last30Days.from, endDate: last30Days.to });
+    expect(useUsage).toHaveBeenLastCalledWith({ address: "akash1abc", ...toSpendRange(last30Days) });
+  });
+
+  it("reads a person's usage over UTC days ending today's, so spend from a west of UTC evening is in range", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-24T03:00:00.000Z"));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+
+    const { useUsage, useUsageStats } = await setup();
+
+    expect(useUsage).toHaveBeenLastCalledWith({ address: "akash1abc", startDate: "2026-09-25", endDate: "2026-10-24" });
+    expect(useUsageStats).toHaveBeenCalledWith({ address: "akash1abc", startDate: "2026-09-25", endDate: "2026-10-24" });
+    expect(useUsageStats).toHaveBeenCalledWith({ address: "akash1abc", startDate: "2026-08-26", endDate: "2026-09-24" });
   });
 
   it("passes the usage of the range on screen", async () => {
@@ -42,9 +56,9 @@ describe(UsageContainer.name, () => {
       usageHistory: [buildDay(2, 10), buildDay(1, 10)],
       previousStats: buildUsageHistoryStats({ totalSpent: 240 })
     });
-    const previousPeriod = getPreviousPeriod(getUsagePresetRange("last30Days"));
+    const previousPeriod = getPreviousSpendRange(toSpendRange(getUsagePresetRange("last30Days")));
 
-    expect(useUsageStats).toHaveBeenCalledWith({ address: "akash1abc", startDate: previousPeriod.from, endDate: previousPeriod.to });
+    expect(useUsageStats).toHaveBeenCalledWith({ address: "akash1abc", ...previousPeriod });
     expect(child.spendChangePercent).toBeCloseTo(25, 6);
   });
 
@@ -101,8 +115,8 @@ describe(UsageContainer.name, () => {
     const updated = await childCapturer.awaitChild(next => next.datePreset === "last7Days");
 
     expect(updated.dateRange).toEqual(last7Days);
-    expect(useUsage).toHaveBeenLastCalledWith({ address: "akash1abc", startDate: last7Days.from, endDate: last7Days.to });
-    expect(useUsageStats).toHaveBeenCalledWith({ address: "akash1abc", startDate: last7Days.from, endDate: last7Days.to });
+    expect(useUsage).toHaveBeenLastCalledWith({ address: "akash1abc", ...toSpendRange(last7Days) });
+    expect(useUsageStats).toHaveBeenCalledWith({ address: "akash1abc", ...toSpendRange(last7Days) });
   });
 
   it("starts a custom range from the range on screen", async () => {
@@ -123,7 +137,7 @@ describe(UsageContainer.name, () => {
     const updated = await childCapturer.awaitChild(next => next.datePreset === "custom");
 
     expect(updated.dateRange).toEqual({ from: startOfDay(new Date(2026, 5, 1)), to: endOfDay(new Date(2026, 5, 20)) });
-    expect(useUsage).toHaveBeenLastCalledWith({ address: "akash1abc", startDate: updated.dateRange.from, endDate: updated.dateRange.to });
+    expect(useUsage).toHaveBeenLastCalledWith({ address: "akash1abc", startDate: "2026-06-01", endDate: "2026-06-20" });
   });
 
   it.each(["owner", "admin", "billing"] satisfies OrganizationRole[])("shows a team's %s the spend by project over the range on screen", async role => {
@@ -131,7 +145,7 @@ describe(UsageContainer.name, () => {
     const last30Days = getUsagePresetRange("last30Days");
 
     expect(child.projectSpend).not.toBeNull();
-    expect(useProjectSpendQuery).toHaveBeenLastCalledWith(spendRangeOf(last30Days), { enabled: true });
+    expect(useProjectSpendQuery).toHaveBeenLastCalledWith(toSpendRange(last30Days), { enabled: true });
 
     act(() => child.onDateRangeChange({ from: new Date(2026, 5, 1), to: new Date(2026, 5, 20) }));
     await childCapturer.awaitChild(next => next.datePreset === "custom");
@@ -220,14 +234,27 @@ describe(UsageContainer.name, () => {
       deploymentSpend: report,
       previousDeploymentSpend: buildDeploymentSpend(1, 0.5)
     });
-    const last30Days = getUsagePresetRange("last30Days");
-    const previousPeriod = getPreviousPeriod(last30Days);
+    const last30Days = toSpendRange(getUsagePresetRange("last30Days"));
 
-    expect(useDeploymentSpendQuery).toHaveBeenCalledWith(spendRangeOf(last30Days), { enabled: true });
-    expect(useDeploymentSpendQuery).toHaveBeenCalledWith(spendRangeOf(previousPeriod), { enabled: true });
+    expect(useDeploymentSpendQuery).toHaveBeenCalledWith(last30Days, { enabled: true });
+    expect(useDeploymentSpendQuery).toHaveBeenCalledWith(getPreviousSpendRange(last30Days), { enabled: true });
     expect(child.usageHistoryData).toEqual(scopeUsage(report, null).dailySpend);
     expect(child.usageHistoryStatsData).toEqual(scopeUsage(report, null).stats);
     expect(child.spendChangePercent).not.toBeNull();
+  });
+
+  it("reads a team's spend over UTC days ending today's, so spend from a west of UTC evening is in range", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-24T03:00:00.000Z"));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+
+    const { useDeploymentSpendQuery, useProjectSpendQuery } = await setup(TEAM_OWNER);
+
+    expect(useProjectSpendQuery).toHaveBeenLastCalledWith({ startDate: "2026-09-25", endDate: "2026-10-24" }, { enabled: true });
+    expect(useDeploymentSpendQuery).toHaveBeenCalledWith({ startDate: "2026-09-25", endDate: "2026-10-24" }, { enabled: true });
+    expect(useDeploymentSpendQuery).toHaveBeenCalledWith({ startDate: "2026-08-26", endDate: "2026-09-24" }, { enabled: true });
   });
 
   it("offers a team's projects to narrow the page to, starting on every project", async () => {
@@ -517,9 +544,8 @@ describe(UsageContainer.name, () => {
       isError: input.isStatsError ?? false
     });
     const previousStatsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useUsageStats>>(), { data: previousStats });
-    const useUsageStats = vi.fn<typeof DEPENDENCIES.useUsageStats>(params =>
-      params.endDate && params.endDate < startOfToday() ? previousStatsQuery : statsQuery
-    );
+    const utcToday = new Date().toISOString().slice(0, 10);
+    const useUsageStats = vi.fn<typeof DEPENDENCIES.useUsageStats>(params => (params.endDate && params.endDate < utcToday ? previousStatsQuery : statsQuery));
 
     const spendRate = Object.assign(
       mock<ReturnType<typeof DEPENDENCIES.useCurrentSpendRate>>(),
@@ -532,7 +558,6 @@ describe(UsageContainer.name, () => {
     const useActiveOrganization: typeof DEPENDENCIES.useActiveOrganization = () =>
       mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ activeOrganization, projectsEnabled: input.projectsEnabled ?? false });
 
-    const today = format(startOfToday(), "yyyy-MM-dd");
     const deploymentSpendQuery = (data: DeploymentSpendReport | undefined) =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useDeploymentSpendQuery>>(), {
         data,
@@ -540,7 +565,7 @@ describe(UsageContainer.name, () => {
         isError: input.isDeploymentSpendError ?? false
       });
     const useDeploymentSpendQuery = vi.fn<typeof DEPENDENCIES.useDeploymentSpendQuery>(range =>
-      deploymentSpendQuery(range.endDate < today ? input.previousDeploymentSpend : input.deploymentSpend)
+      deploymentSpendQuery(range.endDate < utcToday ? input.previousDeploymentSpend : input.deploymentSpend)
     );
     const projectSpend = "projectSpend" in input ? input.projectSpend : buildProjectSpendReport({ unassigned: buildSpendAmounts() });
     const useProjectSpendQuery = vi.fn<typeof DEPENDENCIES.useProjectSpendQuery>(() =>
@@ -581,17 +606,12 @@ describe(UsageContainer.name, () => {
 
 const TEAM_OWNER = { organization: { type: "team", role: "owner" }, projectsEnabled: true } as const;
 
-function spendRangeOf(range: { from: Date; to: Date }) {
-  return { startDate: format(range.from, "yyyy-MM-dd"), endDate: format(range.to, "yyyy-MM-dd") };
-}
-
 function buildDeploymentSpend(periodsAgo: number, scale = 1): DeploymentSpendReport {
-  const range = getUsagePresetRange("last30Days");
-  const { from, to } = periodsAgo ? getPreviousPeriod(range) : range;
-  const day = format(subDays(startOfToday(), 30 * periodsAgo + 2), "yyyy-MM-dd");
+  const range = toSpendRange(getUsagePresetRange("last30Days"));
+  const day = utcDateDaysAgo(30 * periodsAgo + 2);
 
   return {
-    ...spendRangeOf({ from, to }),
+    ...(periodsAgo ? getPreviousSpendRange(range) : range),
     projects: [],
     days: [
       { date: day, projectId: "storefront", consumedUsd: 4 * scale },
@@ -624,5 +644,9 @@ function buildReportProject(projectId: string, name: string): DeploymentSpendRep
 }
 
 function buildDay(daysAgo: number, dailyUsdSpent: number) {
-  return buildUsageHistoryItem({ date: format(subDays(startOfToday(), daysAgo), "yyyy-MM-dd"), dailyUsdSpent });
+  return buildUsageHistoryItem({ date: utcDateDaysAgo(daysAgo), dailyUsdSpent });
+}
+
+function utcDateDaysAgo(daysAgo: number) {
+  return new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }

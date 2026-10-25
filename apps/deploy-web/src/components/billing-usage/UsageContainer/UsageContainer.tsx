@@ -1,5 +1,4 @@
 import React, { type FC, useState } from "react";
-import { format } from "date-fns";
 
 import type { DailySpend, SpendSeries } from "@src/components/billing-usage/DailySpendChart/DailySpendChart";
 import type { DeploymentSpendSection } from "@src/components/billing-usage/DeploymentSpendList/DeploymentSpendList";
@@ -14,7 +13,6 @@ import { useProjectsQuery } from "@src/queries/useProjectsQuery";
 import type { UsageHistory, UsageHistoryStats } from "@src/types";
 import type { DeploymentSpendReport } from "@src/types/deployment-spend";
 import { MAX_PROJECT_SLUG_LENGTH, type Project } from "@src/types/project";
-import type { SpendRange } from "@src/types/project-budget";
 import { createDateRange } from "@src/utils/dateUtils";
 import { downloadCsv } from "@src/utils/domUtils";
 import { slugify } from "@src/utils/slugify";
@@ -25,7 +23,9 @@ import {
   countDaysInRange,
   DEFAULT_USAGE_DATE_PRESET,
   getPreviousPeriod,
+  getPreviousSpendRange,
   getUsagePresetRange,
+  toSpendRange,
   type UsageDatePreset,
   type UsageDateRange
 } from "./usageDatePresets";
@@ -102,18 +102,20 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
   const [customRange, setCustomRange] = useState<UsageDateRange>(() => getUsagePresetRange(DEFAULT_USAGE_DATE_PRESET));
   const dateRange = resolveDateRange(datePreset, customRange);
   const previousPeriod = getPreviousPeriod(dateRange);
+  const spendRange = toSpendRange(dateRange);
+  const previousSpendRange = getPreviousSpendRange(spendRange);
   const { address } = d.useWallet();
 
-  const usageHistory = d.useUsage({ address, startDate: dateRange.from, endDate: dateRange.to });
-  const usageStats = d.useUsageStats({ address, startDate: dateRange.from, endDate: dateRange.to });
-  const previousPeriodStats = d.useUsageStats({ address, startDate: previousPeriod.from, endDate: previousPeriod.to });
+  const usageHistory = d.useUsage({ address, ...spendRange });
+  const usageStats = d.useUsageStats({ address, ...spendRange });
+  const previousPeriodStats = d.useUsageStats({ address, ...previousSpendRange });
   const { perBlockUsdByDseq, perHourUsd, isLoading: isSpendRateLoading, isError: isSpendRateError } = d.useCurrentSpendRate();
   const { activeOrganization, projectsEnabled } = d.useActiveOrganization();
   const isTeamUsage = projectsEnabled && !!activeOrganization && canViewBillingAndUsage(activeOrganization.role);
   const [projectScope, setProjectScope] = useState<ProjectScope>(null);
-  const teamSpend = d.useDeploymentSpendQuery(toSpendRange(dateRange), { enabled: isTeamUsage });
-  const previousTeamSpend = d.useDeploymentSpendQuery(toSpendRange(previousPeriod), { enabled: isTeamUsage });
-  const projectSpend = d.useProjectSpendQuery(toSpendRange(dateRange), { enabled: isTeamUsage });
+  const teamSpend = d.useDeploymentSpendQuery(spendRange, { enabled: isTeamUsage });
+  const previousTeamSpend = d.useDeploymentSpendQuery(previousSpendRange, { enabled: isTeamUsage });
+  const projectSpend = d.useProjectSpendQuery(spendRange, { enabled: isTeamUsage });
   const projects = d.useProjectsQuery({ enabled: isTeamUsage });
   const scopedUsage = teamSpend.data && scopeUsage(teamSpend.data, projectScope);
   const scopeProjects = (projects.data ?? []).map(({ id, name }) => ({ id, name }));
@@ -285,8 +287,4 @@ function projectUsageExportOf({
     filename: `${USAGE_EXPORT_FILENAME}_${slugify(project.name, MAX_PROJECT_SLUG_LENGTH) || project.slug}`,
     buildCsv: () => buildProjectUsageCsv(usage.dailySpend, usage.stats)
   };
-}
-
-function toSpendRange({ from, to }: UsageDateRange): SpendRange {
-  return { startDate: format(from, "yyyy-MM-dd"), endDate: format(to, "yyyy-MM-dd") };
 }

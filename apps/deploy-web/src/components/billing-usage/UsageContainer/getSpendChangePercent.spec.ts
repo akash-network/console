@@ -1,9 +1,10 @@
-import { format, startOfToday, subDays } from "date-fns";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { getSpendChangePercent } from "./getSpendChangePercent";
 
 import { buildUsageHistoryItem } from "@tests/seeders/usage";
+
+const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
 
 describe(getSpendChangePercent.name, () => {
   it("compares the daily spend rate against the previous period", () => {
@@ -14,6 +15,21 @@ describe(getSpendChangePercent.name, () => {
 
   it("leaves today's partial spend out of the comparison", () => {
     const history = [buildDay(2, 10), buildDay(1, 10), buildDay(0, 2)];
+
+    expect(getSpendChangePercent({ history, previousTotalSpent: 30, previousDays: 3 })).toBeCloseTo(0, 6);
+  });
+
+  it("leaves today's partial UTC day out of the comparison in the evening west of UTC", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-24T03:00:00.000Z"));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const history = [
+      buildUsageHistoryItem({ date: "2026-10-22", dailyUsdSpent: 10 }),
+      buildUsageHistoryItem({ date: "2026-10-23", dailyUsdSpent: 10 }),
+      buildUsageHistoryItem({ date: "2026-10-24", dailyUsdSpent: 2 })
+    ];
 
     expect(getSpendChangePercent({ history, previousTotalSpent: 30, previousDays: 3 })).toBeCloseTo(0, 6);
   });
@@ -42,5 +58,5 @@ describe(getSpendChangePercent.name, () => {
 });
 
 function buildDay(daysAgo: number, dailyUsdSpent: number) {
-  return buildUsageHistoryItem({ date: format(subDays(startOfToday(), daysAgo), "yyyy-MM-dd"), dailyUsdSpent });
+  return buildUsageHistoryItem({ date: new Date(Date.now() - daysAgo * MILLISECONDS_IN_DAY).toISOString().slice(0, 10), dailyUsdSpent });
 }
