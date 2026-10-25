@@ -17,6 +17,7 @@ interface Props {
 /** Stands in for a deploy prompt the caller could not act on, and says who can change that. */
 export function ViewOnlyNotice({ reason, dependencies: d = DEPENDENCIES }: Props) {
   const { activeOrganization } = d.useActiveOrganization();
+  const isBillingMember = activeOrganization?.role === "billing";
   const Icon = reason === "no_projects" ? FolderLock : Eye;
 
   return (
@@ -31,9 +32,9 @@ export function ViewOnlyNotice({ reason, dependencies: d = DEPENDENCIES }: Props
         </>
       ) : (
         <>
-          <h2 className="text-xl font-semibold text-foreground">You have view-only access</h2>
+          <h2 className="text-xl font-semibold text-foreground">{isBillingMember ? "You have billing access" : "You have view-only access"}</h2>
           <p className="max-w-md text-[13.5px] text-muted-foreground">
-            {activeOrganization?.role === "billing" ? (
+            {isBillingMember ? (
               <>
                 As a billing member you can&apos;t see deployments, but you can open{" "}
                 <Link href={UrlService.billing()} className="font-medium text-foreground underline">

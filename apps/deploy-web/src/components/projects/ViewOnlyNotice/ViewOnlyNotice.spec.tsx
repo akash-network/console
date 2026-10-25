@@ -22,7 +22,8 @@ describe(ViewOnlyNotice.name, () => {
   it("tells a billing member they cannot see deployments and takes them to billing and usage instead", () => {
     setup({ organizationName: "Acme Corp", role: "billing" });
 
-    expect(screen.getByRole("heading", { name: "You have view-only access" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "You have billing access" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "You have view-only access" })).not.toBeInTheDocument();
     expect(screen.getByText(/As a billing member/)).toHaveTextContent(
       "As a billing member you can't see deployments, but you can open Billing and Usage. Ask an owner or admin of Acme Corp if you need more access."
     );
