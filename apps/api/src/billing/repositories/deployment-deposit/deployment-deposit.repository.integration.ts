@@ -157,6 +157,43 @@ describe(DeploymentDepositRepository.name, () => {
     });
   });
 
+  describe("findCountedDeposits", () => {
+    it("returns the organization's pending and confirmed deposits into the deployments asked about, whenever they were recorded", async () => {
+      const { repository, organization } = await setup();
+      const { organization: other } = await seedOrganizationWithOwner();
+      const owner = createAkashAddress();
+      await seedDeploymentDeposit({
+        organizationId: organization.id,
+        owner,
+        dseq: "1",
+        kind: "deployment_create",
+        status: "confirmed",
+        createdAt: new Date("2025-01-01")
+      });
+      await seedDeploymentDeposit({ organizationId: organization.id, owner, dseq: "1", kind: "top_up", status: "pending", txHash: "A".repeat(64) });
+      await seedDeploymentDeposit({ organizationId: organization.id, owner, dseq: "1", kind: "top_up", status: "void", txHash: "B".repeat(64) });
+      await seedDeploymentDeposit({ organizationId: organization.id, owner, dseq: "2", kind: "deployment_create" });
+      await seedDeploymentDeposit({ organizationId: other.id, owner, dseq: "1", kind: "top_up", txHash: "C".repeat(64) });
+
+      const counted = await repository.findCountedDeposits(organization.id, ["1", "3"]);
+
+      expect(counted).toHaveLength(2);
+      expect(counted).toEqual(
+        expect.arrayContaining([
+          { owner, dseq: "1", kind: "deployment_create", txHash: null },
+          { owner, dseq: "1", kind: "top_up", txHash: "A".repeat(64) }
+        ])
+      );
+    });
+
+    it("reads nothing for no deployment", async () => {
+      const { repository, organization } = await setup();
+      await seedDeploymentDeposit({ organizationId: organization.id });
+
+      expect(await repository.findCountedDeposits(organization.id, [])).toEqual([]);
+    });
+  });
+
   describe("sumCommittedByProject", () => {
     it("sums the pending and confirmed deposits of the window per project, unassigned ones under no project", async () => {
       const { repository, organization, project } = await setup();

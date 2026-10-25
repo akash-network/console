@@ -13,6 +13,8 @@ export type DeploymentDepositOutput = Table["$inferSelect"];
 
 export type CommittedSpend = { projectId: string | null; amountCents: number };
 
+export type CountedDeposit = Pick<DeploymentDepositOutput, "owner" | "dseq" | "kind" | "txHash">;
+
 export type SpendWindow = { from: Date; to: Date };
 
 type SettledStatus = Exclude<DeploymentDepositStatus, "pending">;
@@ -182,6 +184,16 @@ export class DeploymentDepositRepository extends OrgScopedRepository<Table, Depl
       .where(this.whereInOrganization(eq(this.table.organizationId, organizationId)));
 
     return row?.firstRecordedAt ?? undefined;
+  }
+
+  /** Not bounded by when a row was written, since the block holding its deposit can be stamped earlier or later. */
+  async findCountedDeposits(organizationId: string, dseqs: string[]): Promise<CountedDeposit[]> {
+    if (!dseqs.length) return [];
+
+    return await this.cursor
+      .select({ owner: this.table.owner, dseq: this.table.dseq, kind: this.table.kind, txHash: this.table.txHash })
+      .from(this.table)
+      .where(this.whereInOrganization(and(eq(this.table.organizationId, organizationId), inArray(this.table.dseq, dseqs), ne(this.table.status, "void"))));
   }
 
   async sumCommittedInProject(organizationId: string, projectId: string, { from, to }: SpendWindow): Promise<number> {

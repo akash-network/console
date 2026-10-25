@@ -4,9 +4,10 @@ import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
-import { DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
+import { type CountedDeposit, DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
 import {
   type DailyDeploymentConsumption,
+  type DeploymentDeposited,
   type DeploymentGpuUsage,
   DeploymentSpendRepository
 } from "@src/billing/repositories/deployment-spend/deployment-spend.repository";
@@ -139,14 +140,14 @@ export class ProjectSpendService {
     return { seesOrganization, projects };
   }
 
-  /** Every figure is rounded to whole cents per deployment before it is summed, so the projects and the remainder add up to the total exactly. */
+  /** Committed spend is rounded to whole cents per deposit and consumed spend per deployment before either is summed, so the projects and the remainder add up to the total exactly. */
   async #spendByProject(organizationId: string, { startDate, endDate }: SpendRange): Promise<SpendByProject> {
     const from = new Date(`${startDate}T00:00:00.000Z`);
     const to = addDays(new Date(`${endDate}T00:00:00.000Z`), 1);
     const [owners, firstRecordedAt] = await Promise.all([this.#ownersOf(organizationId), this.deploymentDepositRepository.findFirstRecordedAt(organizationId)]);
     const [recorded, deposited, consumed] = await Promise.all([
       this.deploymentDepositRepository.sumCommittedByProject(organizationId, { from, to }),
-      this.deploymentSpendRepository.findDepositedByDeployment({ owners, from, to: firstRecordedAt && firstRecordedAt < to ? firstRecordedAt : to }),
+      this.#depositsOutsideLedger(organizationId, { owners, from, to: firstRecordedAt && firstRecordedAt < to ? firstRecordedAt : to }),
       this.deploymentSpendRepository.findConsumedByDeployment({ owners, startDate, endDate })
     ]);
     const projectIds = await this.deploymentSettingRepository.findProjectIdsInOrganizationByDseqs(
@@ -164,6 +165,18 @@ export class ProjectSpendService {
     });
 
     return spend;
+  }
+
+  /** A block can be stamped before the ledger row of a deposit it holds, so the chain index fills in only the deposits the ledger does not count. */
+  async #depositsOutsideLedger(organizationId: string, window: { owners: string[]; from: Date; to: Date }): Promise<DeploymentDeposited[]> {
+    const deposits = await this.deploymentSpendRepository.findDeposits(window);
+    const counted = await this.deploymentDepositRepository.findCountedDeposits(
+      organizationId,
+      deposits.map(({ dseq }) => dseq)
+    );
+    const countedKeys = new Set(counted.map(depositKeyOf));
+
+    return deposits.filter(deposit => !countedKeys.has(depositKeyOf(deposit)));
   }
 
   /** A wallet made before the derivation migration also spent from its earlier address, as the usage history counts it. */
@@ -193,6 +206,11 @@ export class ProjectSpendService {
 
     return context.organizationId;
   }
+}
+
+/** A deployment is created once, so its owner and dseq alone name its create. */
+function depositKeyOf({ owner, dseq, kind, txHash }: CountedDeposit): string {
+  return kind === "deployment_create" ? `${owner}/${dseq}` : `${owner}/${dseq}/${txHash}`;
 }
 
 function toCents(microUsd: string | number): number {
