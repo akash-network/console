@@ -9,7 +9,7 @@ export function redactQueryError<T>(error: T): T | Error {
 
   const params = redactQueryParams(error.params).join(", ");
   const redacted = Object.assign(copyError(error, `Failed query: ${error.query}\nparams: ${params}`), { query: error.query });
-  if (error.cause instanceof Error) redacted.cause = copyDriverError(error.cause);
+  if (error.cause instanceof Error) redacted.cause = copyDriverError(error.cause, error.params);
 
   return redacted;
 }
@@ -18,9 +18,16 @@ function isFailedQueryError(error: unknown): error is FailedQueryError {
   return error instanceof Error && "query" in error && typeof error.query === "string" && "params" in error && Array.isArray(error.params);
 }
 
-function copyDriverError(error: DriverError): DriverError {
-  const copy = copyError(error, error.message);
+function copyDriverError(error: DriverError, params: unknown[]): DriverError {
+  const copy = copyError(error, redactQuotedParams(error.message, params));
   return error.code === undefined ? copy : Object.assign(copy, { code: error.code });
+}
+
+/** Postgres quotes a value it cannot accept in its error message, so a bound parameter can reappear there. */
+function redactQuotedParams(message: string, params: unknown[]): string {
+  const values = params.flat(Infinity);
+  const redactions = redactQueryParams(values);
+  return values.reduce<string>((redacted, value, index) => redacted.replaceAll(`"${String(value)}"`, `"${redactions[index]}"`), message);
 }
 
 function copyError(error: Error, message: string): Error {

@@ -1,3 +1,4 @@
+import { DrizzleQueryError } from "drizzle-orm";
 import createHttpError from "http-errors";
 import { Transform, Writable } from "node:stream";
 import type { LoggerOptions } from "pino";
@@ -309,9 +310,58 @@ describe("LoggerService", () => {
       );
     });
 
+    it("logs an empty message when given null", () => {
+      const { logger, logs } = setup();
+
+      logger.error(null);
+
+      expect(logs[0]).toEqual(expect.objectContaining({ level: "error", msg: "" }));
+    });
+
+    describe("when a database query fails", () => {
+      const UPDATE_PROJECT = 'update "projects" set "name" = $1 where "id" = $2';
+      const PROJECT_NAME = "Quarterly launch";
+      const REDACTED_MESSAGE = `Failed query: ${UPDATE_PROJECT}\\nparams: <redacted string>, 42`;
+
+      (["info", "error", "warn", "debug", "fatal"] satisfies Array<keyof Logger>).forEach(method => {
+        it(`logs the error message without the query's parameter values at ${method} level`, () => {
+          const { logger, logs } = setup();
+
+          logger[method](failedUpdate());
+
+          expect(logs[0]).toEqual(expect.objectContaining({ msg: REDACTED_MESSAGE }));
+          expect(JSON.stringify(logs[0])).not.toContain(PROJECT_NAME);
+        });
+      });
+
+      it("logs the error message without the query's parameter values when the error is passed as err", () => {
+        const { logger, logs } = setup();
+
+        logger.error({ event: "PROJECT_UPDATE_FAILED", err: failedUpdate() });
+
+        expect(logs[0]).toEqual(expect.objectContaining({ event: "PROJECT_UPDATE_FAILED", msg: REDACTED_MESSAGE }));
+        expect(JSON.stringify(logs[0])).not.toContain(PROJECT_NAME);
+      });
+
+      it("keeps the query and the database error code in the logged error", () => {
+        const { logger, logs } = setup();
+
+        logger.error(failedUpdate());
+
+        expect(logs[0]).toEqual(expect.objectContaining({ err: expect.stringContaining(`Failed query: ${UPDATE_PROJECT}`) }));
+        expect(logs[0]).toEqual(expect.objectContaining({ err: expect.stringContaining("(code: 23505)") }));
+      });
+
+      function failedUpdate() {
+        const driverError = Object.assign(new Error("duplicate key value violates unique constraint"), { code: "23505" });
+        return new DrizzleQueryError(UPDATE_PROJECT, [PROJECT_NAME, 42], driverError);
+      }
+    });
+
     function setup() {
       const logs: unknown[] = [];
       const logger = new LoggerService({
+        level: "debug",
         createPino: options =>
           pino(
             options,

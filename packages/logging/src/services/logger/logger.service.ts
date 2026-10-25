@@ -5,6 +5,7 @@ import pino from "pino";
 import type { Config } from "../../config";
 import { config as envConfig } from "../../config";
 import { collectFullErrorStack, sanitizeString } from "../../utils/collect-full-error-stack/collect-full-error-stack";
+import { redactQueryError } from "../../utils/redact-query-error/redact-query-error";
 
 export type LogMessage = string | (Record<string, unknown> & { error?: unknown; message?: string; event?: string });
 type LogFn = {
@@ -137,7 +138,7 @@ export class LoggerService implements Logger {
   info(message: Error): void;
   info(message: unknown): void;
   info(message: unknown): void {
-    return this.pino.info(message);
+    return this.pino.info(redactFailedQuery(message));
   }
 
   error(message: LogMessage): void;
@@ -145,9 +146,9 @@ export class LoggerService implements Logger {
   error(message: unknown): void;
   error(message: unknown): void {
     if (message && message instanceof Error) {
-      this.pino.error({ err: message });
+      this.pino.error({ err: redactQueryError(message) });
     } else {
-      this.pino.error(message);
+      this.pino.error(redactFailedQuery(message));
     }
   }
 
@@ -155,22 +156,29 @@ export class LoggerService implements Logger {
   fatal(message: Error): void;
   fatal(message: unknown): void;
   fatal(message: unknown): void {
-    this.pino.fatal(message);
+    this.pino.fatal(redactFailedQuery(message));
   }
 
   warn(message: LogMessage): void;
   warn(message: Error): void;
   warn(message: unknown): void;
   warn(message: unknown): void {
-    return this.pino.warn(message);
+    return this.pino.warn(redactFailedQuery(message));
   }
 
   debug(message: LogMessage): void;
   debug(message: Error): void;
   debug(message: unknown): void;
   debug(message: unknown): void {
-    return this.pino.debug(message);
+    return this.pino.debug(redactFailedQuery(message));
   }
+}
+
+/** Pino copies an error's message into msg without passing it through the err serializer, so a failed query is redacted before pino gets it. */
+function redactFailedQuery(message: unknown): unknown {
+  if (message instanceof Error) return redactQueryError(message);
+  if (typeof message === "object" && message !== null && "err" in message) return { ...message, err: redactQueryError(message.err) };
+  return message;
 }
 
 function logError(error: Error | undefined | null) {
