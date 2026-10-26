@@ -1,4 +1,5 @@
 import type { SDLInput } from "@akashnetwork/chain-sdk";
+import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
 import { deploymentChangesOf } from "./deployment-changes";
@@ -63,7 +64,7 @@ describe(deploymentChangesOf.name, () => {
           image: "nginx",
           command: ["bash"],
           args: ["-c", "new"],
-          credentials: { host: "ghcr.io", username: "user", password: "password" },
+          credentials: { host: "ghcr.io", username: faker.internet.userName(), password: faker.internet.password() },
           expose: [{ port: 8080, as: 80, to: [{ global: true }] }]
         }
       }
