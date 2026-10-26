@@ -1251,7 +1251,7 @@ export class DeploymentWriterService {
     const { userId, wallet, dseq, from, to } = rename;
     if (!from || !to || from === to) return;
 
-    await this.activityService.record(renamedActivityOf({ userId, dseq, from, to }));
+    await this.activityService.record({ ...renamedActivityOf({ userId, dseq, from, to }), organizationId: wallet.organizationId });
     await this.deploymentOrganizationActivityService.recordRenamed({ wallet, dseq }, userId, { from, to });
   }
 

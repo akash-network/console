@@ -3869,7 +3869,10 @@ describe(DeploymentWriterService.name, () => {
 
         await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
 
-        expect(activityService.record).toHaveBeenCalledWith(renamedActivityOf({ userId: "user-1", dseq: "1234", from: "web-update", to: "renamed" }));
+        expect(activityService.record).toHaveBeenCalledWith({
+          ...renamedActivityOf({ userId: "user-1", dseq: "1234", from: "web-update", to: "renamed" }),
+          organizationId: "personal-organization-1"
+        });
         expect(deploymentOrganizationActivityService.recordRenamed).toHaveBeenCalledWith(
           { wallet: expect.objectContaining({ id: 7 }), dseq: "1234" },
           "user-1",
@@ -4110,9 +4113,10 @@ describe(DeploymentWriterService.name, () => {
 
         await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, name: "renamed" }, ability);
 
-        expect(activityService.record).toHaveBeenCalledWith(
-          updatedActivityOf({ ...SAVED, changes: { name: { from: "web-update", to: "renamed" }, services: [{ service: "web", image: "x" }] } })
-        );
+        expect(activityService.record).toHaveBeenCalledWith({
+          ...updatedActivityOf({ ...SAVED, changes: { name: { from: "web-update", to: "renamed" }, services: [{ service: "web", image: "x" }] } }),
+          organizationId: "personal-organization-1"
+        });
       });
 
       it("records an update that changed nothing it can name without changes, as a rotation of secret values does", async () => {
