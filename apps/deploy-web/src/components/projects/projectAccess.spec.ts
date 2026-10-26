@@ -1,9 +1,57 @@
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { describe, expect, it } from "vitest";
 
-import { getGrantableProjectRoles, getProjectAccessErrorMessage, holdsProjectGrants } from "./projectAccess";
+import type { OrganizationMemberOutput } from "@src/types/organizationMembership";
+import { getGrantableProjectRoles, getMembersOnEveryProject, getProjectAccessErrorMessage, holdsProjectGrants } from "./projectAccess";
 
 describe("projectAccess", () => {
+  describe(getMembersOnEveryProject.name, () => {
+    it("lists the owners, then the admins, then the members and viewers on all projects", () => {
+      const members = [
+        member("frank", "member", "all"),
+        member("ada", "admin"),
+        member("grace", "viewer", "all"),
+        member("olga", "owner"),
+        member("bea", "admin")
+      ];
+
+      expect(names(getMembersOnEveryProject(members, new Set()))).toEqual(["olga", "ada", "bea", "frank", "grace"]);
+    });
+
+    it("leaves out members and viewers on selected projects, and billing members", () => {
+      const members = [member("dave", "member", "selected"), member("erin", "viewer", "selected"), member("bill", "billing", "all")];
+
+      expect(getMembersOnEveryProject(members, new Set())).toEqual([]);
+    });
+
+    it("leaves out anyone listed with their grant on the project", () => {
+      const members = [member("ada", "admin"), member("frank", "member", "all")];
+
+      expect(names(getMembersOnEveryProject(members, new Set(["user-ada", "user-frank"])))).toEqual([]);
+    });
+
+    function member(
+      name: string,
+      role: OrganizationMemberOutput["role"],
+      projectAccess: OrganizationMemberOutput["projectAccess"] = null
+    ): OrganizationMemberOutput {
+      return {
+        id: `member-${name}`,
+        userId: `user-${name}`,
+        username: name,
+        email: null,
+        role,
+        projectAccess,
+        projectCount: null,
+        createdAt: "2026-01-01T00:00:00Z"
+      };
+    }
+
+    function names(members: OrganizationMemberOutput[]) {
+      return members.map(({ username }) => username);
+    }
+  });
+
   describe(getGrantableProjectRoles.name, () => {
     it("grants a viewer the viewer project role only", () => {
       expect(getGrantableProjectRoles("viewer")).toEqual(["viewer"]);

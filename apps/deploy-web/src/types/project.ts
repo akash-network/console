@@ -37,9 +37,6 @@ export type ProjectMember = operationDefs["listProjectMembers"]["responses"][200
 
 export type ProjectRole = ProjectMember["role"];
 
-export type ProjectMemberWithAllProjects =
-  operationDefs["listProjectMembers"]["responses"][200]["content"]["application/json"]["membersWithAllProjects"][number];
-
 /** Where a deployment is filed; `projectId` is null for one the console has not filed into a project yet. */
 export type DeploymentLocation = operationDefs["getDeploymentLocation"]["responses"][200]["content"]["application/json"]["data"];
 

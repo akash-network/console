@@ -23,33 +23,45 @@ import {
   Snackbar
 } from "@akashnetwork/ui/components";
 import { usePopup } from "@akashnetwork/ui/context";
-import { UserMinus } from "lucide-react";
+import { Pencil, UserMinus } from "lucide-react";
 import { useSnackbar } from "notistack";
 
+import { EditMemberDialog } from "@src/components/organizations/EditMemberDialog/EditMemberDialog";
+import { canManageMembers } from "@src/components/organizations/organizationAccess";
+import type { AssignableRole } from "@src/components/organizations/organizationRoles";
 import { getMemberDisplayName } from "@src/components/organizations/organizationRoles";
 import { useOrganizationMembersQuery } from "@src/queries/useOrganizationMembersQueries";
 import {
   useCreateProjectMemberMutation,
   useDeleteProjectMemberMutation,
   useProjectMembersQuery,
-  useProjectMembersWithAllProjectsQuery,
   useUpdateProjectMemberMutation
 } from "@src/queries/useProjectMembersQuery";
-import type { ProjectMember, ProjectMemberWithAllProjects, ProjectRole } from "@src/types/project";
+import type { OrganizationMemberOutput } from "@src/types/organizationMembership";
+import type { ProjectMember, ProjectRole } from "@src/types/project";
 import { initialsOf } from "@src/utils/initials";
-import { getProjectAccessErrorMessage, holdsProjectGrants, PROJECT_ROLE_DESCRIPTIONS, PROJECT_ROLE_LABELS, PROJECT_ROLES } from "../projectAccess";
+import {
+  getMembersOnEveryProject,
+  getProjectAccessErrorMessage,
+  holdsProjectGrants,
+  PROJECT_ROLE_DESCRIPTIONS,
+  PROJECT_ROLE_LABELS,
+  PROJECT_ROLES
+} from "../projectAccess";
 import { SectionLabel } from "../SectionLabel/SectionLabel";
 
 export const DEPENDENCIES = {
   usePopup,
   useSnackbar,
   useProjectMembersQuery,
-  useProjectMembersWithAllProjectsQuery,
   useOrganizationMembersQuery,
   useCreateProjectMemberMutation,
   useUpdateProjectMemberMutation,
-  useDeleteProjectMemberMutation
+  useDeleteProjectMemberMutation,
+  EditMemberDialog
 };
+
+type EditableMember = OrganizationMemberOutput & { role: AssignableRole };
 
 const DEFAULT_GRANT_ROLE: ProjectRole = "member";
 
@@ -65,26 +77,31 @@ interface Props {
   dependencies?: typeof DEPENDENCIES;
 }
 
-/** Who may open a project beyond the owners and admins, and the controls to grant, change and revoke that access. */
+/** Who may open a project, with the controls to grant, change and revoke that access and to edit the members who reach every project. */
 export function ProjectAccessDialog({ project, organizationName, viewerUserId, onClose, dependencies: d = DEPENDENCIES }: Props) {
   const formId = useId();
   const { confirm } = d.usePopup();
   const { enqueueSnackbar } = d.useSnackbar();
   const grantsQuery = d.useProjectMembersQuery(project.id);
-  const { data: membersWithAllProjects = [] } = d.useProjectMembersWithAllProjectsQuery(project.id);
   const organizationMembersQuery = d.useOrganizationMembersQuery({ enabled: true });
   const { mutate: createGrant, isPending: isGranting } = d.useCreateProjectMemberMutation();
   const { mutate: updateGrant } = d.useUpdateProjectMemberMutation();
   const { mutate: deleteGrant } = d.useDeleteProjectMemberMutation();
   const [granteeUserId, setGranteeUserId] = useState("");
   const [grantRole, setGrantRole] = useState<ProjectRole>(DEFAULT_GRANT_ROLE);
+  const [editedMember, setEditedMember] = useState<EditableMember>();
 
   const grants = grantsQuery.data ?? [];
-  const peopleCount = grants.length + membersWithAllProjects.length;
   const organizationMembers = organizationMembersQuery.data ?? [];
   const isLoadingAccess = grantsQuery.isLoading || organizationMembersQuery.isLoading;
   const organizationViewerIds = new Set(organizationMembers.filter(member => member.role === "viewer").map(member => member.userId));
   const grantedUserIds = new Set(grants.map(grant => grant.userId));
+  const membersOnEveryProject = getMembersOnEveryProject(organizationMembers, grantedUserIds);
+  const peopleCount = grants.length + membersOnEveryProject.length;
+  const viewerRole = organizationMembers.find(member => member.userId === viewerUserId)?.role;
+  const canEditMembers = !!viewerRole && canManageMembers(viewerRole);
+  const isEditable = (member: OrganizationMemberOutput): member is EditableMember =>
+    canEditMembers && member.userId !== viewerUserId && member.role !== "owner";
   const grantableMembers = organizationMembers.filter(
     member => holdsProjectGrants(member.role) && member.projectAccess !== "all" && member.userId !== viewerUserId && !grantedUserIds.has(member.userId)
   );
@@ -148,6 +165,10 @@ export function ProjectAccessDialog({ project, organizationName, viewerUserId, o
     );
   };
 
+  if (editedMember) {
+    return <d.EditMemberDialog member={editedMember} organizationName={organizationName} onClose={() => setEditedMember(undefined)} />;
+  }
+
   return (
     <DialogV2 open onOpenChange={isOpen => (!isOpen ? onClose() : undefined)}>
       <DialogV2Content className="max-w-[560px]">
@@ -198,7 +219,7 @@ export function ProjectAccessDialog({ project, organizationName, viewerUserId, o
           <div>
             <SectionLabel
               rightSlot={
-                !grantsQuery.isLoading && (
+                !isLoadingAccess && (
                   <span className="whitespace-nowrap text-xs text-muted-foreground">
                     {peopleCount} {peopleCount === 1 ? "person" : "people"}
                   </span>
@@ -207,7 +228,7 @@ export function ProjectAccessDialog({ project, organizationName, viewerUserId, o
             >
               People with access
             </SectionLabel>
-            {grantsQuery.isLoading ? (
+            {isLoadingAccess ? (
               <div aria-label="Loading people with access" className="flex flex-col gap-3 rounded-[10px] border border-border px-3.5 py-3">
                 {LOADING_ROWS.map(row => (
                   <div key={row} className="flex items-center gap-3">
@@ -233,13 +254,15 @@ export function ProjectAccessDialog({ project, organizationName, viewerUserId, o
                     onRevoke={() => revokeAccess(grant)}
                   />
                 ))}
-                {membersWithAllProjects.map(member => (
-                  <AllProjectsRow key={member.userId} member={member} />
+                {membersOnEveryProject.map(member => (
+                  <EveryProjectRow
+                    key={member.userId}
+                    member={member}
+                    isCaller={member.userId === viewerUserId}
+                    onEdit={isEditable(member) ? () => setEditedMember(member) : undefined}
+                  />
                 ))}
               </ul>
-            )}
-            {membersWithAllProjects.length > 0 && (
-              <p className="mt-2 text-xs text-muted-foreground">Change access for people on all projects on the Members page.</p>
             )}
           </div>
         </DialogV2Body>
@@ -300,7 +323,13 @@ function GrantRow({ grant, isCaller, isOrganizationViewer, onChangeRole, onRevok
   );
 }
 
-function AllProjectsRow({ member }: { member: ProjectMemberWithAllProjects }) {
+interface EveryProjectRowProps {
+  member: OrganizationMemberOutput;
+  isCaller: boolean;
+  onEdit?: () => void;
+}
+
+function EveryProjectRow({ member, isCaller, onEdit }: EveryProjectRowProps) {
   const name = getMemberDisplayName(member);
 
   return (
@@ -311,11 +340,23 @@ function AllProjectsRow({ member }: { member: ProjectMemberWithAllProjects }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="flex items-center gap-1.5 truncate text-[13px] font-medium">
           {name}
+          {isCaller && <RowTag>You</RowTag>}
           <RowTag>All projects</RowTag>
         </span>
         {member.email && member.email !== name && <span className="truncate text-xs text-muted-foreground">{member.email}</span>}
       </div>
-      <span className="px-3 text-sm">{PROJECT_ROLE_LABELS[member.role]}</span>
+      {onEdit && (
+        <Button
+          type="button"
+          aria-label={`Edit ${name}`}
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 shrink-0 rounded-md text-muted-foreground"
+          onClick={onEdit}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+      )}
     </li>
   );
 }
