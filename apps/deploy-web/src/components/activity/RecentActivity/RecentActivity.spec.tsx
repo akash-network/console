@@ -52,6 +52,51 @@ describe(RecentActivity.name, () => {
     expect(within(finished).queryByRole("status")).not.toBeInTheDocument();
   });
 
+  it("shows the member's initials beside what they did", () => {
+    setup({ activities: [buildActivity({ status: "succeeded", initiator: "user" })], username: "marcus chen" });
+
+    expect(within(entryLinks()[0]).getByText("MC")).toBeInTheDocument();
+  });
+
+  it.each<[string, Activity, string]>([
+    ["a close for its runtime limit", buildActivity({ status: "succeeded", initiator: "system", meta: { reason: "runtime_limit_reached" } }), "clock"],
+    ["a close for an ended trial", buildActivity({ status: "succeeded", initiator: "system", meta: { reason: "trial_ended" } }), "wallet"],
+    ["any other close Console made", buildActivity({ status: "succeeded", initiator: "system", meta: {} }), "activity"],
+    ["a deployment alert", buildActivity({ type: "deployment_closed_alert", status: "info", initiator: "system", meta: {} }), "bell-ring"],
+    ["a wallet alert", buildActivity({ type: "wallet_balance_alert", status: "info", initiator: "system", meta: {} }), "wallet"]
+  ])("shows what caused %s in place of the member's initials", (_, activity, icon) => {
+    setup({ activities: [activity], username: "marcus chen" });
+
+    const [entry] = entryLinks();
+    expect(entry.querySelector(`svg.lucide-${icon}`)).not.toBeNull();
+    expect(within(entry).queryByText("MC")).not.toBeInTheDocument();
+  });
+
+  it("marks a failed entry with a cross and a partly done bulk close with a warning", () => {
+    setup({
+      activities: [
+        buildActivity({ status: "failed", meta: { dseq: "1" } }),
+        buildActivity({ status: "succeeded", meta: { dseq: "2", batchId: "batch-1" } }),
+        buildActivity({ status: "failed", meta: { dseq: "3", batchId: "batch-1" } })
+      ]
+    });
+
+    const [failed, partial] = entryLinks();
+    expect(failed.querySelector("svg.lucide-circle-x")).not.toBeNull();
+    expect(partial.querySelector("svg.lucide-triangle-alert")).not.toBeNull();
+    expect(partial.querySelector("svg.lucide-circle-x")).toBeNull();
+  });
+
+  it("marks nothing on an entry that went as expected", () => {
+    setup({
+      activities: [buildActivity({ status: "succeeded" }), buildActivity({ type: "deployment_closed_alert", status: "info", initiator: "system", meta: {} })]
+    });
+
+    for (const entry of entryLinks()) {
+      expect(entry.querySelector("svg.lucide-circle-x, svg.lucide-triangle-alert, svg.lucide-circle-check")).toBeNull();
+    }
+  });
+
   it("shows how long ago each entry happened", () => {
     setup({ activities: [buildActivity({ status: "succeeded", createdAt: new Date(Date.now() - 5 * 60_000).toISOString() })] });
 
@@ -99,6 +144,23 @@ describe(RecentActivity.name, () => {
     expect(entry).toHaveTextContent("Couldn't close deployment 1");
     expect(entry).toHaveTextContent("The deployment is still open.");
     expect(entry).toHaveAttribute("href", "/deployments/1?tab=SETTINGS");
+  });
+
+  it("names what an update changed beneath it", () => {
+    setup({
+      activities: [
+        buildActivity({
+          type: "deployment_update",
+          status: "succeeded",
+          meta: { dseq: "1", changes: { services: [{ service: "web", changedEnv: ["API_URL"] }] } }
+        })
+      ],
+      names: { "1": "web-update" }
+    });
+
+    const [entry] = entryLinks();
+    expect(entry).toHaveTextContent("Updated “web-update”");
+    expect(within(entry).getByText("Changed API_URL in web.")).toBeInTheDocument();
   });
 
   it("sums up a bulk close in one entry that opens the deployments list", () => {
@@ -167,6 +229,7 @@ describe(RecentActivity.name, () => {
     isSignedIn?: boolean;
     activities?: Activity[];
     names?: Record<string, string>;
+    username?: string;
     feed?: "loading" | "failed";
     isRefreshFailing?: boolean;
   }) {
@@ -184,7 +247,7 @@ describe(RecentActivity.name, () => {
 
     const dependencies: typeof DEPENDENCIES = {
       useFlag: flag => flag === "notifications_activity_center" && (input.isEnabled ?? true),
-      useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : buildUser() }),
+      useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : buildUser({ username: input.username }) }),
       useActivityFeedQuery,
       useDeploymentNames
     };

@@ -4,10 +4,10 @@ import { Avatar, AvatarFallback, Button } from "@akashnetwork/ui/components";
 import { Activity, Clock, User, Wallet } from "lucide-react";
 import Link from "next/link";
 
-import type { OrganizationActivity, OrganizationActivityActor } from "@src/types/organization-activity";
+import { MemberAvatar, SystemAvatar } from "@src/components/activity/ActivityAvatar/ActivityAvatar";
+import type { OrganizationActivity } from "@src/types/organization-activity";
 import type { Project } from "@src/types/project";
 import { DELETED_ACCOUNT_LABEL } from "@src/utils/deletedAccount";
-import { initialsOf } from "@src/utils/initials";
 import { formatRelativeTime } from "@src/utils/relativeTime";
 import { UrlService } from "@src/utils/urlUtils";
 import { SectionLabel } from "../SectionLabel/SectionLabel";
@@ -80,21 +80,18 @@ function isByDeletedAccount(activity: OrganizationActivity): boolean {
 }
 
 function ActivityItem({ activity, projectName }: { activity: OrganizationActivity; projectName: string | undefined }) {
-  const { segments, systemIcon } = describeActivity(activity);
-  const SystemIcon = SYSTEM_ICONS[systemIcon];
+  const { segments, systemIcon, changeSummary } = describeActivity(activity);
   const isDeletedAccountSubject = isByDeletedAccount(activity);
   const hasSubject = !!activity.actor || isDeletedAccountSubject;
 
   return (
     <li className="flex gap-3 px-4 py-3.5">
       {activity.actor ? (
-        <ActorAvatar actor={activity.actor} />
+        <MemberAvatar name={activity.actor.username} />
       ) : isDeletedAccountSubject ? (
         <DeletedAccountAvatar />
       ) : (
-        <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border border-border bg-muted">
-          <SystemIcon className="h-3.5 w-3.5 text-muted-foreground" />
-        </span>
+        <SystemAvatar icon={SYSTEM_ICONS[systemIcon]} />
       )}
 
       <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
@@ -108,6 +105,7 @@ function ActivityItem({ activity, projectName }: { activity: OrganizationActivit
             </span>
           ))}
         </p>
+        {changeSummary && <p className="break-words text-[11px] leading-4 text-muted-foreground/80">{changeSummary}</p>}
 
         <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           <span>{formatRelativeTime(activity.createdAt)}</span>
@@ -135,14 +133,6 @@ function Segment({ segment }: { segment: ActivitySegment }) {
   }
   if (segment.kind === "strong") return <strong className="font-semibold text-foreground">{segment.text}</strong>;
   return <>{segment.text}</>;
-}
-
-function ActorAvatar({ actor }: { actor: OrganizationActivityActor }) {
-  return (
-    <Avatar className="h-[30px] w-[30px]">
-      <AvatarFallback className="text-[11px] font-semibold">{initialsOf(actor.username ?? "?")}</AvatarFallback>
-    </Avatar>
-  );
 }
 
 function DeletedAccountAvatar() {

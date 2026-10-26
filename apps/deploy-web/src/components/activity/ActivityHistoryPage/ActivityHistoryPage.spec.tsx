@@ -9,6 +9,7 @@ import { ActivityHistoryPage, DEPENDENCIES } from "./ActivityHistoryPage";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildActivity, buildActivityOfUnknownType } from "@tests/seeders/activity";
+import { buildUser } from "@tests/seeders/user";
 import { jsonResponse } from "@tests/unit/jsonResponse";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -26,6 +27,12 @@ describe(ActivityHistoryPage.name, () => {
     expect(entries[0]).toHaveTextContent("Closed “web-api”");
     expect(entries[1]).toHaveTextContent("Closing deployment 2");
     expect(useDeploymentNames).toHaveBeenCalledWith(["1", "2"]);
+  });
+
+  it("shows the member's initials beside what they did", () => {
+    setup({ pages: { first: { activities: [buildActivity({ status: "succeeded", initiator: "user" })] } }, username: "marcus chen" });
+
+    expect(within(entryItems()[0]).getByText("MC")).toBeInTheDocument();
   });
 
   it("shows a spinner on an entry still running", () => {
@@ -299,6 +306,7 @@ describe(ActivityHistoryPage.name, () => {
 
       const dependencies: typeof DEPENDENCIES = {
         Layout: ({ children }) => <>{children}</>,
+        useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: buildUser() }),
         useActivityHistoryQuery: DEPENDENCIES.useActivityHistoryQuery,
         useDeploymentNames: () => mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>({ getDeploymentName: () => null, isLoading: false })
       };
@@ -323,6 +331,7 @@ describe(ActivityHistoryPage.name, () => {
   function setup(input: {
     pages?: Record<string, { activities: Activity[]; nextCursor?: string | null; isPlaceholderData?: boolean }>;
     names?: Record<string, string>;
+    username?: string;
     isLoading?: boolean;
     isError?: boolean;
   }) {
@@ -346,6 +355,7 @@ describe(ActivityHistoryPage.name, () => {
 
     const dependencies: typeof DEPENDENCIES = {
       Layout: ({ children }) => <>{children}</>,
+      useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: buildUser({ username: input.username }) }),
       useActivityHistoryQuery,
       useDeploymentNames
     };

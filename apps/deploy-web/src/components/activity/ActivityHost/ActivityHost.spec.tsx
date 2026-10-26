@@ -468,6 +468,15 @@ describe(ActivityHost.name, () => {
     expect(invalidatedKeysOf(queryClient)).toEqual(expect.arrayContaining([api.v1.listDeployments.getKey(), QueryKeys.getLeasesKey(OWNER, "1234")]));
   });
 
+  it("announces nothing for a rename, which the dialog that made it already confirmed, but refreshes its data", () => {
+    const { enqueueSnackbar, queryClient, receive, api } = setup({ activities: [] });
+
+    receive([buildActivity({ type: "deployment_rename", status: "succeeded", meta: { dseq: "1234", changes: { name: { from: "web", to: "web-update" } } } })]);
+
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
+    expect(invalidatedKeysOf(queryClient)).toEqual(expect.arrayContaining([api.v1.getDeployment.getKey({ dseq: "1234" })]));
+  });
+
   it("leads a failed deploy back to choosing a provider for it from its toast, and dismisses the toast", async () => {
     const pending = buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234" } });
     const { receive, followToastAction, push, closeSnackbar } = setup({ activities: [pending] });

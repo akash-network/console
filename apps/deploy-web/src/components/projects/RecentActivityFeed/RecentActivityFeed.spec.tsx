@@ -24,6 +24,21 @@ describe(RecentActivityFeed.name, () => {
     expect(within(item).getByRole("link", { name: "acme-storefront" })).toHaveAttribute("href", "/deployments/3140");
   });
 
+  it("tells what a member's update changed beneath it", () => {
+    setup({
+      activities: [
+        activity({
+          type: "deployment_updated",
+          payload: { dseq: "3140", name: "web-update", changes: { services: [{ service: "web", changedEnv: ["API_URL"] }] } }
+        })
+      ]
+    });
+
+    const item = screen.getByRole("listitem");
+    expect(item).toHaveTextContent("marcus updated web-update");
+    expect(within(item).getByText("Changed API_URL in web.", { selector: "p" })).toBeInTheDocument();
+  });
+
   it("shows a system icon instead of an avatar for an event nobody caused", () => {
     const { container } = setup({
       activities: [activity({ actor: null, type: "deployment_closed", payload: { dseq: "2987", name: "session-cache", reason: "runtime_limit_reached" } })]

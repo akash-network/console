@@ -78,6 +78,7 @@ const ANNOUNCEMENTS: Record<FinishedActivity["type"], (activity: FinishedActivit
       ? { title: `${upperFirst(deployment)} updated`, subTitle: "The new configuration is being applied to it.", variant: "success" }
       : { title: `Couldn't update ${deployment}`, subTitle: meta.error?.message ?? "Try updating it again.", variant: "error" };
   },
+  deployment_rename: () => undefined,
   lease_create: ({ status, meta }, labelDeployment) => {
     if (status === "succeeded") return undefined;
 

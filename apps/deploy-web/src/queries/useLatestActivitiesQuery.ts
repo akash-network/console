@@ -12,6 +12,7 @@ const KNOWN_ACTIVITY_TYPES: Record<Activity["type"], true> = {
   deployment_close: true,
   deployment_create: true,
   deployment_update: true,
+  deployment_rename: true,
   lease_create: true,
   wallet_balance_alert: true,
   deployment_closed_alert: true,

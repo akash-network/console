@@ -34,7 +34,7 @@ export function RecentActivity({ dependencies: d = DEPENDENCIES }: { dependencie
       <SectionLabel>Recent activity</SectionLabel>
 
       <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-        <RecentActivityList entries={entries} isLoaded={!!feed} isError={isError} />
+        <RecentActivityList entries={entries} actorName={user?.username} isLoaded={!!feed} isError={isError} />
         {entries.length > 0 && (
           <Link
             href={UrlService.activity()}
@@ -48,7 +48,17 @@ export function RecentActivity({ dependencies: d = DEPENDENCIES }: { dependencie
   );
 }
 
-function RecentActivityList({ entries, isLoaded, isError }: { entries: ActivityEntry[]; isLoaded: boolean; isError: boolean }) {
+function RecentActivityList({
+  entries,
+  actorName,
+  isLoaded,
+  isError
+}: {
+  entries: ActivityEntry[];
+  actorName: string | undefined;
+  isLoaded: boolean;
+  isError: boolean;
+}) {
   const status = activityFeedStatusOf({ isLoaded, isError, entryCount: entries.length });
 
   if (status !== "listed") return <ActivityFeedNotice status={status} />;
@@ -58,7 +68,7 @@ function RecentActivityList({ entries, isLoaded, isError }: { entries: ActivityE
       {entries.map(entry => (
         <li key={entry.id}>
           <Link href={entry.href} className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/50">
-            <ActivityEntryContent entry={entry} />
+            <ActivityEntryContent entry={entry} actorName={actorName} />
           </Link>
         </li>
       ))}
