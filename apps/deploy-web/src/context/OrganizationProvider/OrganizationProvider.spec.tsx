@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import type { QueryObserverLoadingErrorResult, QueryObserverLoadingResult, QueryObserverSuccessResult, UseQueryResult } from "@tanstack/react-query";
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, useQuery } from "@tanstack/react-query";
 import { createStore } from "jotai";
 import type { NextRouter } from "next/router";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { ACTIVE_ORGANIZATION_COOKIE_NAME } from "@src/lib/active-organization/active-organization-cookie";
+import { ACTIVE_ORGANIZATION_COOKIE_NAME, readActiveOrganizationCookie } from "@src/lib/active-organization/active-organization-cookie";
 import { ORGANIZATIONS_QUERY_KEY } from "@src/queries/useOrganizationQueries";
 import { StaleOrganizationRecovery } from "@src/services/stale-organization-recovery/stale-organization-recovery";
 import { TabOrganization } from "@src/services/tab-organization/tab-organization";
@@ -16,7 +16,7 @@ import type { OrganizationOutput } from "@src/types/organization";
 import type { DEPENDENCIES } from "./OrganizationProvider";
 import { OrganizationProvider, useActiveOrganization } from "./OrganizationProvider";
 
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(OrganizationProvider.name, () => {
@@ -394,6 +394,19 @@ describe(OrganizationProvider.name, () => {
       expect(router.replace).toHaveBeenCalledExactlyOnceWith("/deployments/123?tab=logs");
     });
 
+    it("stays in the linked organization once the memberships reload after the page opens on the link", async () => {
+      const { result, organizationsNamedByMembershipCalls } = setup({
+        asPath: "/projects?org=acme-corp",
+        query: { org: "acme-corp" },
+        loadsMembershipsFromApi: true
+      });
+
+      await waitFor(() => expect(result.current.organizations.find(organization => organization.isActive)?.id).toBe("org-2"));
+
+      expect(result.current.activeOrganization?.id).toBe("org-2");
+      expect(organizationsNamedByMembershipCalls).toEqual([undefined, "org-2"]);
+    });
+
     it("accepts the organization id as well as its slug", () => {
       setup({ asPath: "/deployments?org=org-3", query: { org: "org-3" } });
 
@@ -493,6 +506,7 @@ describe(OrganizationProvider.name, () => {
     query?: NextRouter["query"];
     isRouterReady?: boolean;
     replaceResult?: Promise<boolean>;
+    loadsMembershipsFromApi?: boolean;
   }) {
     document.cookie = `${ACTIVE_ORGANIZATION_COOKIE_NAME}=; path=/; Max-Age=0`;
 
@@ -518,6 +532,21 @@ describe(OrganizationProvider.name, () => {
     store.set(settingsIdAtom, "akash1previous");
     const tabOrganization = new TabOrganization();
     const recovery = new StaleOrganizationRecovery(tabOrganization);
+    const organizationsNamedByMembershipCalls: (string | undefined)[] = [];
+    const useMembershipsFromApi: typeof DEPENDENCIES.useOrganizationsQuery = ({ enabled }) =>
+      useQuery(
+        {
+          queryKey: ORGANIZATIONS_QUERY_KEY,
+          queryFn: async () => {
+            const namedOrganizationId = tabOrganization.organizationId ?? readActiveOrganizationCookie(document.cookie);
+            organizationsNamedByMembershipCalls.push(namedOrganizationId);
+            return { data: buildOrganizations(namedOrganizationId ?? input.activeId ?? "org-1") };
+          },
+          select: response => response.data,
+          enabled
+        },
+        queryClient
+      );
     const onMount = vi.fn();
     const enqueueSnackbar = vi.fn();
     let coveringCount = 0;
@@ -526,7 +555,7 @@ describe(OrganizationProvider.name, () => {
       useFlag: () => input.isEnabled ?? true,
       useFeatureFlagsReady: () => input.areFeatureFlagsReady ?? true,
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.hasUser === false ? undefined : { id: "user-1", userId: "auth0|user-1" } }),
-      useOrganizationsQuery: organizationsQuery,
+      useOrganizationsQuery: input.loadsMembershipsFromApi ? useMembershipsFromApi : organizationsQuery,
       useRouter: () => router,
       useQueryClient: () => queryClient,
       useStore: () => store,
@@ -565,6 +594,7 @@ describe(OrganizationProvider.name, () => {
       store,
       recovery,
       tabOrganization,
+      organizationsNamedByMembershipCalls,
       enqueueSnackbar,
       onMount,
       buildOrganizations,
