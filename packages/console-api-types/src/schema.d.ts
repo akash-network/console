@@ -12995,7 +12995,8 @@ export interface operations {
           | "lease_create"
           | "wallet_balance_alert"
           | "deployment_closed_alert"
-          | "deployment_reclaim_alert";
+          | "deployment_reclaim_alert"
+          | "deployment_rename";
       };
       header?: {
         /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
@@ -13031,7 +13032,8 @@ export interface operations {
                   | "lease_create"
                   | "wallet_balance_alert"
                   | "deployment_closed_alert"
-                  | "deployment_reclaim_alert";
+                  | "deployment_reclaim_alert"
+                  | "deployment_rename";
                 /**
                  * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome.
                  * @enum {string}
@@ -13075,6 +13077,28 @@ export interface operations {
                    * @description The organization the alert is filed in, on an alert set in one.
                    */
                   organizationId?: string;
+                  /** @description What an update or a rename changed, on `deployment_update` and `deployment_rename`. Names variables and never their values. Absent on an update that only replaced secret values. */
+                  changes?: {
+                    /** @description The deployment's name before and after. */
+                    name?: {
+                      from: string | null;
+                      to: string;
+                    };
+                    services?: {
+                      /** @description The service the update changed. */
+                      service: string;
+                      /** @description The image the service now runs, when the update changed it. */
+                      image?: string;
+                      /** @description Environment variables the update added, by name. */
+                      addedEnv?: string[];
+                      /** @description Environment variables the update gave a new value, by name. */
+                      changedEnv?: string[];
+                      /** @description Environment variables the update removed, by name. */
+                      removedEnv?: string[];
+                      /** @description The other fields of the service the update changed, named as a patch names them. */
+                      settings?: ("command" | "args" | "credentials" | "expose" | "storage")[];
+                    }[];
+                  };
                 };
                 /**
                  * Format: date-time
@@ -13152,7 +13176,8 @@ export interface operations {
                 | "lease_create"
                 | "wallet_balance_alert"
                 | "deployment_closed_alert"
-                | "deployment_reclaim_alert";
+                | "deployment_reclaim_alert"
+                | "deployment_rename";
               /**
                * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome.
                * @enum {string}
@@ -13196,6 +13221,28 @@ export interface operations {
                  * @description The organization the alert is filed in, on an alert set in one.
                  */
                 organizationId?: string;
+                /** @description What an update or a rename changed, on `deployment_update` and `deployment_rename`. Names variables and never their values. Absent on an update that only replaced secret values. */
+                changes?: {
+                  /** @description The deployment's name before and after. */
+                  name?: {
+                    from: string | null;
+                    to: string;
+                  };
+                  services?: {
+                    /** @description The service the update changed. */
+                    service: string;
+                    /** @description The image the service now runs, when the update changed it. */
+                    image?: string;
+                    /** @description Environment variables the update added, by name. */
+                    addedEnv?: string[];
+                    /** @description Environment variables the update gave a new value, by name. */
+                    changedEnv?: string[];
+                    /** @description Environment variables the update removed, by name. */
+                    removedEnv?: string[];
+                    /** @description The other fields of the service the update changed, named as a patch names them. */
+                    settings?: ("command" | "args" | "credentials" | "expose" | "storage")[];
+                  }[];
+                };
               };
               /**
                * Format: date-time
@@ -14407,7 +14454,9 @@ export interface operations {
                 | "member_granted"
                 | "member_revoked"
                 | "member_updated"
-                | "organization_renamed";
+                | "organization_renamed"
+                | "deployment_updated"
+                | "deployment_renamed";
               /** @description The names and values the client renders the activity text with, per type. */
               payload: {
                 [key: string]: unknown;
