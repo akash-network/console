@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { spendShade } from "@src/components/billing-usage/spendShade";
 import type { DeploymentSpend, DeploymentSpendReport } from "@src/types/deployment-spend";
@@ -77,29 +77,18 @@ function buildReportWithGpuUsage(): DeploymentSpendReport {
 
 describe(projectSeriesOf.name, () => {
   it("lists the projects and the unassigned deployments that spent in the range, biggest spender first", () => {
-    const series = projectSeriesOf(buildReport(), vi.fn());
-
-    expect(series.map(({ key, label }) => ({ key, label }))).toEqual([
+    expect(projectSeriesOf(buildReport())).toEqual([
       { key: "storefront", label: "Storefront" },
       { key: "marketing", label: "Marketing" },
       { key: "unassigned", label: "Unassigned" }
     ]);
-    expect(series[2].onSelect).toBeUndefined();
   });
 
-  it("narrows the page to the project of the series picked", () => {
-    const onSelect = vi.fn();
-
-    projectSeriesOf(buildReport(), onSelect)[1].onSelect!();
-
-    expect(onSelect).toHaveBeenCalledWith("marketing");
-  });
-
-  it("labels a deleted project that spent in the range and offers no way to narrow to it", () => {
+  it("labels a deleted project that spent in the range", () => {
     const report = buildReport();
     report.projects[1] = { ...report.projects[1], name: "Old storefront", isDeleted: true };
 
-    const series = projectSeriesOf(report, vi.fn());
+    const series = projectSeriesOf(report);
 
     expect(series[0]).toEqual({ key: "storefront", label: "Old storefront (deleted)" });
   });
@@ -188,9 +177,7 @@ describe(deploymentRowsOf.name, () => {
 
 describe(projectSpendRowsOf.name, () => {
   it("ranks the projects and the unassigned spend by consumption, with each one's deployments, hours and committed spend", () => {
-    const rows = projectSpendRowsOf(buildSpend(), buildReport(), vi.fn());
-
-    expect(rows.map(({ onSelect, ...row }) => row)).toEqual([
+    expect(projectSpendRowsOf(buildSpend(), buildReport())).toEqual([
       {
         key: "storefront",
         label: "Storefront",
@@ -223,42 +210,33 @@ describe(projectSpendRowsOf.name, () => {
       },
       { key: "idle", label: "Idle", deploymentCount: 0, hours: 0, consumedUsd: 0, committedUsd: 0, sharePercent: 0, shade: null }
     ]);
-    expect(rows[2].onSelect).toBeUndefined();
   });
 
-  it("narrows the page to the project of the row picked", () => {
-    const onSelect = vi.fn();
-
-    projectSpendRowsOf(buildSpend(), buildReport(), onSelect)[1].onSelect!();
-
-    expect(onSelect).toHaveBeenCalledWith("marketing");
-  });
-
-  it("labels a deleted project and offers no way to narrow to it", () => {
+  it("labels a deleted project", () => {
     const spend = buildSpend();
     spend.projects[0] = { ...spend.projects[0], isDeleted: true };
 
-    const marketing = projectSpendRowsOf(spend, buildReport(), vi.fn()).find(({ key }) => key === "marketing");
+    const marketing = projectSpendRowsOf(spend, buildReport()).find(({ key }) => key === "marketing");
 
-    expect(marketing).toEqual(expect.objectContaining({ label: "Marketing (deleted)", onSelect: undefined }));
+    expect(marketing).toEqual(expect.objectContaining({ label: "Marketing (deleted)" }));
   });
 
   it("lists the unassigned spend while it holds committed spend alone", () => {
-    const rows = projectSpendRowsOf(buildSpend({ unassigned: buildSpendAmounts({ committedUsd: 2 }) }), undefined, vi.fn());
+    const rows = projectSpendRowsOf(buildSpend({ unassigned: buildSpendAmounts({ committedUsd: 2 }) }), undefined);
 
     expect(rows.map(({ key }) => key)).toContain("unassigned");
   });
 
   it("leaves out unassigned spend that is empty or hidden from the caller", () => {
     const keysOf = (unassigned: ReturnType<typeof buildSpendAmounts> | null) =>
-      projectSpendRowsOf(buildSpend({ unassigned }), buildReport(), vi.fn()).map(({ key }) => key);
+      projectSpendRowsOf(buildSpend({ unassigned }), buildReport()).map(({ key }) => key);
 
     expect(keysOf(buildSpendAmounts())).not.toContain("unassigned");
     expect(keysOf(null)).not.toContain("unassigned");
   });
 
   it("counts no deployment nor shade until the deployments are read, and shares nothing out of no consumption", () => {
-    const rows = projectSpendRowsOf(buildProjectSpendReport({ projects: [buildProjectSpend({ projectId: "storefront" })] }), undefined, vi.fn());
+    const rows = projectSpendRowsOf(buildProjectSpendReport({ projects: [buildProjectSpend({ projectId: "storefront" })] }), undefined);
 
     expect(rows).toEqual([expect.objectContaining({ deploymentCount: 0, hours: 0, sharePercent: 0, shade: null })]);
   });

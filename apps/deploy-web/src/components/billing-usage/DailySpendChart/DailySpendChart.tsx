@@ -10,7 +10,7 @@ import { getDayStr } from "@src/utils/dateUtils";
 
 export type DailySpend = { date: string; dailyUsdSpent: number; spendBySeries?: Record<string, number> };
 
-export type SpendSeries = { key: string; label: string; onSelect?: () => void };
+export type SpendSeries = { key: string; label: string };
 
 export const DEPENDENCIES = {
   Card,
@@ -141,25 +141,12 @@ export const DailySpendTooltip: FC<{ active?: boolean; payload?: Array<{ payload
 
 const SeriesLegend: FC<{ series: SpendSeries[] }> = ({ series }) => (
   <ul aria-label="Legend" className="mb-3 flex flex-wrap gap-x-3.5 gap-y-1.5 font-mono text-[11.5px] text-muted-foreground">
-    {series.map(({ key, label, onSelect }, index) => {
-      const swatch = <span aria-hidden className="h-2 w-2 shrink-0 rounded-sm" style={{ background: spendShade(index, series.length) }} />;
-
-      return (
-        <li key={key}>
-          {onSelect ? (
-            <button type="button" onClick={onSelect} title={`Show only ${label}`} className="inline-flex items-center gap-1.5 hover:text-foreground">
-              {swatch}
-              {label}
-            </button>
-          ) : (
-            <span className="inline-flex items-center gap-1.5">
-              {swatch}
-              {label}
-            </span>
-          )}
-        </li>
-      );
-    })}
+    {series.map(({ key, label }, index) => (
+      <li key={key} className="inline-flex items-center gap-1.5">
+        <span aria-hidden className="h-2 w-2 shrink-0 rounded-sm" style={{ background: spendShade(index, series.length) }} />
+        {label}
+      </li>
+    ))}
   </ul>
 );
 

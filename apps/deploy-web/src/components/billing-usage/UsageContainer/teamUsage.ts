@@ -29,7 +29,6 @@ export type DeploymentSpendRow = {
 export type ProjectSpendRow = {
   key: string;
   label: string;
-  onSelect?: () => void;
   deploymentCount: number;
   hours: number;
   consumedUsd: number;
@@ -77,14 +76,10 @@ export function scopeUsage(report: DeploymentSpendReport, scope: ProjectScope): 
 }
 
 /** The biggest spender of the range comes first and so gets the darkest shade, as in the spend by project rows. */
-export function projectSeriesOf(report: DeploymentSpendReport, onSelect: (projectId: string) => void): SpendSeries[] {
+export function projectSeriesOf(report: DeploymentSpendReport): SpendSeries[] {
   const spendByKey = new Map<string, number>();
   report.days.forEach(({ projectId, consumedUsd }) => spendByKey.set(seriesKeyOf(projectId), (spendByKey.get(seriesKeyOf(projectId)) ?? 0) + consumedUsd));
-  const projectSeries = report.projects.map(project =>
-    project.isDeleted
-      ? { key: project.projectId, label: projectLabelOf(project) }
-      : { key: project.projectId, label: projectLabelOf(project), onSelect: () => onSelect(project.projectId) }
-  );
+  const projectSeries = report.projects.map(project => ({ key: project.projectId, label: projectLabelOf(project) }));
 
   return [...projectSeries, { key: UNASSIGNED_SERIES_KEY, label: UNASSIGNED_LABEL }]
     .filter(({ key }) => spendByKey.has(key))
@@ -109,17 +104,12 @@ export function deploymentRowsOf(report: DeploymentSpendReport, scope: ProjectSc
 }
 
 /** Each row takes the shade of its project's stack in the daily chart, and the biggest consumer comes first. */
-export function projectSpendRowsOf(
-  projectSpend: ProjectSpendReport,
-  deploymentSpend: DeploymentSpendReport | undefined,
-  onSelect: (projectId: string) => void
-): ProjectSpendRow[] {
-  const seriesKeys = deploymentSpend ? projectSeriesOf(deploymentSpend, onSelect).map(({ key }) => key) : [];
+export function projectSpendRowsOf(projectSpend: ProjectSpendReport, deploymentSpend: DeploymentSpendReport | undefined): ProjectSpendRow[] {
+  const seriesKeys = deploymentSpend ? projectSeriesOf(deploymentSpend).map(({ key }) => key) : [];
   const usageByKey = deploymentUsageByKeyOf(deploymentSpend?.deployments ?? []);
-  const entries: Array<Pick<ProjectSpendRow, "key" | "label" | "onSelect"> & { amounts: SpendAmounts }> = projectSpend.projects.map(project => ({
+  const entries: Array<Pick<ProjectSpendRow, "key" | "label"> & { amounts: SpendAmounts }> = projectSpend.projects.map(project => ({
     key: project.projectId,
     label: projectLabelOf(project),
-    onSelect: project.isDeleted ? undefined : () => onSelect(project.projectId),
     amounts: project
   }));
   const unassigned = projectSpend.unassigned;

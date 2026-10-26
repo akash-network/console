@@ -187,7 +187,7 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
         projectSpend:
           isTeamUsage && !isScopedToProject
             ? {
-                rows: projectSpend.data ? projectSpendRowsOf(projectSpend.data, teamSpend.data, setProjectScope) : [],
+                rows: projectSpend.data ? projectSpendRowsOf(projectSpend.data, teamSpend.data) : [],
                 isEstimated: !!projectSpend.data?.isEstimated,
                 isPartial: !!projectSpend.data && !projectSpend.data.total,
                 isLoading: projectSpend.isLoading || teamSpend.isLoading,
@@ -195,7 +195,7 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
               }
             : null,
         projectScope: isTeamUsage ? { projects: scopeProjects, selected: projectScope, onChange: setProjectScope } : null,
-        dailySpendBreakdown: isTeamUsage ? dailySpendBreakdownOf({ report: teamSpend.data, scopedProjectName, onSelect: setProjectScope }) : null,
+        dailySpendBreakdown: isTeamUsage ? dailySpendBreakdownOf({ report: teamSpend.data, scopedProjectName }) : null,
         deploymentSpend: isTeamUsage
           ? {
               title: scopedProjectName === null ? "Spend by deployment" : `Spend by deployment · ${scopedProjectName}`,
@@ -239,18 +239,16 @@ function teamFiguresOf({
 
 function dailySpendBreakdownOf({
   report,
-  scopedProjectName,
-  onSelect
+  scopedProjectName
 }: {
   report: DeploymentSpendReport | undefined;
   scopedProjectName: string | null;
-  onSelect: (projectId: string) => void;
 }): DailySpendBreakdown {
   if (scopedProjectName !== null) {
     return { caption: `Each bar is one day's total for ${scopedProjectName}`, series: [] };
   }
 
-  return { caption: "Each bar is one day's total, split by project", series: report ? projectSeriesOf(report, onSelect) : [] };
+  return { caption: "Each bar is one day's total, split by project", series: report ? projectSeriesOf(report) : [] };
 }
 
 function walletUsageExportOf({

@@ -2,17 +2,12 @@
 import React, { type FC } from "react";
 import { FormattedNumber } from "react-intl";
 import { Badge, Card, Skeleton } from "@akashnetwork/ui/components";
-import { ChevronRight } from "lucide-react";
 
 import type { ProjectSpendRow } from "@src/components/billing-usage/UsageContainer/teamUsage";
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 import { SectionLabel } from "@src/components/projects/SectionLabel/SectionLabel";
 
 const LOADING_ROW_COUNT = 3;
-
-const ROW_CLASS_NAME = "group flex w-full items-center gap-3.5 px-4 py-3.5 text-left";
-
-const SELECTABLE_ROW_CLASS_NAME = `${ROW_CLASS_NAME} hover:bg-muted/60`;
 
 export type ProjectSpendSection = {
   rows: ProjectSpendRow[];
@@ -45,24 +40,8 @@ export const ProjectSpendList: FC<ProjectSpendListProps> = ({ rows, isEstimated,
         <>
           <ul className="divide-y divide-border">
             {rows.map(row => (
-              <li key={row.key}>
-                {row.onSelect ? (
-                  <button
-                    type="button"
-                    onClick={row.onSelect}
-                    title={`Show only ${row.label}`}
-                    data-idle={row.consumedUsd === 0}
-                    className={SELECTABLE_ROW_CLASS_NAME}
-                  >
-                    <ProjectSpendCells row={row} />
-                    <ChevronRight aria-hidden className="h-[13px] w-[13px] shrink-0 text-muted-foreground" />
-                  </button>
-                ) : (
-                  <div data-idle={row.consumedUsd === 0} className={ROW_CLASS_NAME}>
-                    <ProjectSpendCells row={row} />
-                    <span aria-hidden className="w-[13px] shrink-0" />
-                  </div>
-                )}
+              <li key={row.key} data-idle={row.consumedUsd === 0} className="group flex items-center gap-3.5 px-4 py-3.5">
+                <ProjectSpendCells row={row} />
               </li>
             ))}
           </ul>

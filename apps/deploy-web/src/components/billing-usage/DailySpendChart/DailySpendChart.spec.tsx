@@ -8,7 +8,6 @@ import type { DailySpend, SpendSeries } from "./DailySpendChart";
 import { DailySpendChart, DailySpendTooltip, DEPENDENCIES } from "./DailySpendChart";
 
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
 describe(DailySpendChart.name, () => {
@@ -146,16 +145,11 @@ describe(DailySpendChart.name, () => {
     expect(bars()[0].fill).toBe(shadeOf(100));
   });
 
-  it("lists the series in a legend and narrows the page to the one picked", async () => {
-    const series = buildSeries();
-    setup({ days: [buildDay(0, 2.5, { storefront: 2, marketing: 0.5 })], series });
-
-    await userEvent.click(screen.getByRole("button", { name: "Marketing" }));
+  it("lists the series in a legend that leaves narrowing to a project to the project picker", () => {
+    setup({ days: [buildDay(0, 2.5, { storefront: 2, marketing: 0.5 })], series: buildSeries() });
 
     expect(screen.getByRole("list", { name: "Legend" })).toHaveTextContent("StorefrontMarketingUnassigned");
-    expect(screen.getByRole("button", { name: "Storefront" })).toHaveAttribute("title", "Show only Storefront");
-    expect(screen.queryByRole("button", { name: "Unassigned" })).not.toBeInTheDocument();
-    expect(series[1].onSelect).toHaveBeenCalled();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("leaves the legend out of a range without spend", () => {
@@ -200,8 +194,8 @@ describe(DailySpendChart.name, () => {
 
   function buildSeries(): SpendSeries[] {
     return [
-      { key: "storefront", label: "Storefront", onSelect: vi.fn() },
-      { key: "marketing", label: "Marketing", onSelect: vi.fn() },
+      { key: "storefront", label: "Storefront" },
+      { key: "marketing", label: "Marketing" },
       { key: "unassigned", label: "Unassigned" }
     ];
   }

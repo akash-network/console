@@ -182,19 +182,8 @@ describe(UsageContainer.name, () => {
     });
     const { child } = await setup({ ...TEAM_OWNER, deploymentSpend, projectSpend });
 
-    const withoutSelect = (rows: ReturnType<typeof projectSpendRowsOf>) => rows.map(({ onSelect, ...row }) => row);
-    expect(withoutSelect(child.projectSpend!.rows)).toEqual(withoutSelect(projectSpendRowsOf(projectSpend, deploymentSpend, vi.fn())));
+    expect(child.projectSpend!.rows).toEqual(projectSpendRowsOf(projectSpend, deploymentSpend));
     expect(child.projectSpend).toEqual(expect.objectContaining({ isEstimated: false, isPartial: false, isLoading: false, isError: false }));
-  });
-
-  it("narrows the page to the project picked from the spend by project", async () => {
-    const projectSpend = buildProjectSpendReport({ projects: [buildProjectSpend({ projectId: "marketing", consumedUsd: 6 })] });
-    const { child, childCapturer } = await setup({ ...TEAM_OWNER, deploymentSpend: buildDeploymentSpend(0), projectSpend });
-
-    act(() => child.projectSpend!.rows[0].onSelect!());
-    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "marketing");
-
-    expect(narrowed.projectSpend).toBeNull();
   });
 
   it("flags an estimated spend by project and one limited to the projects the caller can open", async () => {
@@ -335,16 +324,6 @@ describe(UsageContainer.name, () => {
 
     expect(child.dailySpendBreakdown?.caption).toBe("Each bar is one day's total, split by project");
     expect(child.dailySpendBreakdown?.series.map(({ label }) => label)).toEqual(["Marketing", "Storefront"]);
-  });
-
-  it("narrows the page to the project picked from the daily spend", async () => {
-    const report = { ...buildDeploymentSpend(0), projects: [buildReportProject("marketing", "Marketing")] };
-    const { child, childCapturer } = await setup({ ...TEAM_OWNER, deploymentSpend: report });
-
-    act(() => child.dailySpendBreakdown!.series[0].onSelect!());
-    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "marketing");
-
-    expect(narrowed.usageHistoryData).toEqual(scopeUsage(report, "marketing").dailySpend);
   });
 
   it("splits nothing while a team's deployment spend loads", async () => {
