@@ -5,19 +5,20 @@ import { UserCog } from "lucide-react";
 
 import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import { useUser } from "@src/hooks/useUser";
-import { useProjectMembersQuery, useProjectMembersWithAllProjectsQuery } from "@src/queries/useProjectMembersQuery";
-import type { ProjectMember } from "@src/types/project";
+import { useOrganizationMembersQuery } from "@src/queries/useOrganizationMembersQueries";
+import { useProjectMembersQuery } from "@src/queries/useProjectMembersQuery";
+import type { ProjectMember, ProjectRole } from "@src/types/project";
 import { initialsOf } from "@src/utils/initials";
 import { pluralize } from "@src/utils/stringUtils";
-import { PROJECT_ROLE_LABELS } from "../projectAccess";
+import { getMembersOnEveryProject, PROJECT_ROLE_LABELS } from "../projectAccess";
 import { ProjectAccessDialog } from "../ProjectAccessDialog/ProjectAccessDialog";
 import { SectionLabel } from "../SectionLabel/SectionLabel";
 
-export const DEPENDENCIES = { useProjectMembersQuery, useProjectMembersWithAllProjectsQuery, useProjectAccess, useUser, ProjectAccessDialog };
+export const DEPENDENCIES = { useProjectMembersQuery, useOrganizationMembersQuery, useProjectAccess, useUser, ProjectAccessDialog };
 
 export const MAX_PREVIEWED_MEMBERS = 5;
 
-type PreviewedMember = Pick<ProjectMember, "userId" | "username" | "email" | "role"> & { isOnAllProjects: boolean };
+type PreviewedMember = Pick<ProjectMember, "userId" | "username" | "email"> & { projectRole?: ProjectRole };
 
 interface Props {
   project: { id: string; name: string };
@@ -25,16 +26,20 @@ interface Props {
   dependencies?: typeof DEPENDENCIES;
 }
 
-/** Who was granted the project or is on every project, a few at a time; owners and admins reach it too, so they are named only in the footnote. */
+/** Who can open the project, a few at a time: the members granted it with their role, then everyone who reaches every project. */
 export function ProjectMembersPreview({ project, organizationName, dependencies: d = DEPENDENCIES }: Props) {
-  const { data: grants = [], isLoading, isError } = d.useProjectMembersQuery(project.id);
-  const { data: membersWithAllProjects = [] } = d.useProjectMembersWithAllProjectsQuery(project.id);
+  const grantsQuery = d.useProjectMembersQuery(project.id);
+  const organizationMembersQuery = d.useOrganizationMembersQuery({ enabled: true });
   const { canManageAccess } = d.useProjectAccess();
   const { user } = d.useUser();
   const [isManagingAccess, setIsManagingAccess] = useState(false);
+  const isLoading = grantsQuery.isLoading || organizationMembersQuery.isLoading;
+  const isError = grantsQuery.isError || organizationMembersQuery.isError;
+  const grants = grantsQuery.data ?? [];
+  const membersOnEveryProject = getMembersOnEveryProject(organizationMembersQuery.data ?? [], new Set(grants.map(grant => grant.userId)));
   const members: PreviewedMember[] = [
-    ...grants.map(grant => ({ ...grant, isOnAllProjects: false })),
-    ...membersWithAllProjects.map(member => ({ ...member, isOnAllProjects: true }))
+    ...grants.map(({ userId, username, email, role }) => ({ userId, username, email, projectRole: role })),
+    ...membersOnEveryProject.map(({ userId, username, email }) => ({ userId, username, email }))
   ];
   const previewedMembers = members.slice(0, MAX_PREVIEWED_MEMBERS);
   const hiddenCount = members.length - previewedMembers.length;
@@ -61,13 +66,13 @@ export function ProjectMembersPreview({ project, organizationName, dependencies:
                 </Avatar>
                 <span className="flex min-w-0 flex-1 items-center gap-1.5">
                   <span className="truncate text-[13px] font-medium">{member.username || member.email || "A member"}</span>
-                  {member.isOnAllProjects && (
+                  {!member.projectRole && (
                     <span className="shrink-0 rounded-md border border-border bg-muted px-1.5 py-px text-[11px] font-medium text-muted-foreground">
                       All projects
                     </span>
                   )}
                 </span>
-                <span className="text-xs text-muted-foreground">{PROJECT_ROLE_LABELS[member.role]}</span>
+                {member.projectRole && <span className="text-xs text-muted-foreground">{PROJECT_ROLE_LABELS[member.projectRole]}</span>}
               </li>
             ))}
           </ul>

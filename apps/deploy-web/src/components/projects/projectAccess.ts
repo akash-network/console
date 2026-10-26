@@ -1,6 +1,8 @@
 import { extractApiErrorCode } from "@akashnetwork/openapi-sdk";
 
+import { getRoleRank } from "@src/components/organizations/organizationRoles";
 import type { OrganizationRole } from "@src/types/organization";
+import type { OrganizationMemberOutput } from "@src/types/organizationMembership";
 import type { ProjectRole } from "@src/types/project";
 import { PROJECT_ACCESS_ERROR_CODES } from "@src/types/project";
 
@@ -18,6 +20,14 @@ export const PROJECT_ROLE_DESCRIPTIONS: Record<ProjectRole, string> = {
 const GRANTED_ORGANIZATION_ROLES: ReadonlySet<OrganizationRole> = new Set(["member", "viewer"]);
 
 export const holdsProjectGrants = (role: OrganizationRole): boolean => GRANTED_ORGANIZATION_ROLES.has(role);
+
+const reachesEveryProject = (member: OrganizationMemberOutput): boolean =>
+  member.role === "owner" || member.role === "admin" || (holdsProjectGrants(member.role) && member.projectAccess === "all");
+
+/** Someone who also holds a grant on the project is listed with that grant instead. */
+export function getMembersOnEveryProject(members: OrganizationMemberOutput[], grantedUserIds: ReadonlySet<string>): OrganizationMemberOutput[] {
+  return members.filter(member => reachesEveryProject(member) && !grantedUserIds.has(member.userId)).sort((a, b) => getRoleRank(a.role) - getRoleRank(b.role));
+}
 
 const VIEWER_GRANT_ROLES: ProjectRole[] = ["viewer"];
 

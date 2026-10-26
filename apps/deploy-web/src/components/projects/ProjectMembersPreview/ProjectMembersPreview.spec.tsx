@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { ProjectMember, ProjectMemberWithAllProjects, ProjectRole } from "@src/types/project";
+import type { OrganizationMemberOutput } from "@src/types/organizationMembership";
+import type { ProjectMember, ProjectRole } from "@src/types/project";
 import type { DEPENDENCIES } from "./ProjectMembersPreview";
 import { MAX_PREVIEWED_MEMBERS, ProjectMembersPreview } from "./ProjectMembersPreview";
 
@@ -18,22 +19,41 @@ describe(ProjectMembersPreview.name, () => {
     expect(useProjectMembersQuery).toHaveBeenCalledWith("project-1");
   });
 
-  it("lists the members on every project after the grants, tagged and counted", () => {
-    const { useProjectMembersWithAllProjectsQuery } = setup({
+  it("lists everyone on every project after the grants, owners first, tagged and counted without a role", () => {
+    const { useOrganizationMembersQuery } = setup({
       members: [member("1", "jane", "admin")],
-      membersWithAllProjects: [memberOnAllProjects("frank", "member"), memberOnAllProjects(null, "viewer")]
+      organizationMembers: [
+        organizationMember("frank", "member", "all"),
+        organizationMember("ada", "admin"),
+        organizationMember(null, "viewer", "all"),
+        organizationMember("olga", "owner"),
+        organizationMember("dave", "member", "selected")
+      ]
     });
 
     const rows = within(screen.getByRole("list")).getAllByRole("listitem");
-    expect(rows.map(row => row.textContent)).toEqual(["JjaneAdmin", "FfrankAll projectsMember", "STsam@acme.testAll projectsViewer"]);
-    expect(screen.getByText("3 members")).toBeInTheDocument();
-    expect(useProjectMembersWithAllProjectsQuery).toHaveBeenCalledWith("project-1");
+    expect(rows.map(row => row.textContent)).toEqual([
+      "JjaneAdmin",
+      "OolgaAll projects",
+      "AadaAll projects",
+      "FfrankAll projects",
+      "STsam@acme.testAll projects"
+    ]);
+    expect(screen.getByText("5 members")).toBeInTheDocument();
+    expect(useOrganizationMembersQuery).toHaveBeenCalledWith({ enabled: true });
+  });
+
+  it("lists someone on every project who also holds a grant with the grant only", () => {
+    setup({ members: [member("frank", "frank", "viewer")], organizationMembers: [organizationMember("frank", "member", "all")] });
+
+    const rows = within(screen.getByRole("list")).getAllByRole("listitem");
+    expect(rows.map(row => row.textContent)).toEqual(["FfrankViewer"]);
   });
 
   it("previews the members on every project within the same few", () => {
     setup({
       members: Array.from({ length: MAX_PREVIEWED_MEMBERS - 1 }, (_, index) => member(String(index), `user${index}`, "member")),
-      membersWithAllProjects: [memberOnAllProjects("frank", "member"), memberOnAllProjects("grace", "viewer")]
+      organizationMembers: [organizationMember("frank", "member", "all"), organizationMember("grace", "viewer", "all")]
     });
 
     const rows = within(screen.getByRole("list")).getAllByRole("listitem");
@@ -76,12 +96,27 @@ describe(ProjectMembersPreview.name, () => {
     expect(screen.queryByText("No one has been granted this project yet.")).not.toBeInTheDocument();
   });
 
+  it("says the members could not be loaded when the organization's members fail to load", () => {
+    setup({ members: [member("1", "jane", "admin")], isOrganizationMembersError: true });
+
+    expect(screen.getByText("Couldn't load the members.")).toBeInTheDocument();
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+
   it("shows placeholders instead of an empty project while the members load", () => {
     setup({ members: [], isLoading: true });
 
     expect(screen.getByRole("status", { name: "Loading the members" })).toBeInTheDocument();
     expect(screen.queryByText("No one has been granted this project yet.")).not.toBeInTheDocument();
     expect(screen.queryByText("0 members")).not.toBeInTheDocument();
+  });
+
+  it("shows placeholders while the organization's members load", () => {
+    setup({ members: [member("1", "jane", "admin")], isLoadingOrganizationMembers: true });
+
+    expect(screen.getByRole("status", { name: "Loading the members" })).toBeInTheDocument();
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+    expect(screen.queryByText("1 member")).not.toBeInTheDocument();
   });
 
   it("explains that owners and admins reach every project", () => {
@@ -118,9 +153,11 @@ describe(ProjectMembersPreview.name, () => {
 
   function setup(input: {
     members: ProjectMember[];
-    membersWithAllProjects?: ProjectMemberWithAllProjects[];
+    organizationMembers?: OrganizationMemberOutput[];
     isLoading?: boolean;
     isError?: boolean;
+    isLoadingOrganizationMembers?: boolean;
+    isOrganizationMembersError?: boolean;
     canManageAccess?: boolean;
   }) {
     const useProjectMembersQuery = vi.fn<typeof DEPENDENCIES.useProjectMembersQuery>(() =>
@@ -130,8 +167,12 @@ describe(ProjectMembersPreview.name, () => {
           ? mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: undefined, isLoading: false, isError: true })
           : mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: input.members, isLoading: false, isError: false })
     );
-    const useProjectMembersWithAllProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectMembersWithAllProjectsQuery>(() =>
-      mock<ReturnType<typeof DEPENDENCIES.useProjectMembersWithAllProjectsQuery>>({ data: input.membersWithAllProjects })
+    const useOrganizationMembersQuery = vi.fn<typeof DEPENDENCIES.useOrganizationMembersQuery>(() =>
+      input.isLoadingOrganizationMembers
+        ? mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({ data: undefined, isLoading: true, isError: false })
+        : input.isOrganizationMembersError
+          ? mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({ data: undefined, isLoading: false, isError: true })
+          : mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({ data: input.organizationMembers ?? [], isLoading: false, isError: false })
     );
     const canManageAccess = vi.fn(() => input.canManageAccess ?? false);
     const ProjectAccessDialog = vi.fn<typeof DEPENDENCIES.ProjectAccessDialog>(({ onClose }) => (
@@ -146,7 +187,7 @@ describe(ProjectMembersPreview.name, () => {
         organizationName="Acme Corp"
         dependencies={{
           useProjectMembersQuery,
-          useProjectMembersWithAllProjectsQuery,
+          useOrganizationMembersQuery,
           useProjectAccess: () => mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({ canManageAccess }),
           useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: { id: "user-me" } }),
           ProjectAccessDialog
@@ -154,14 +195,27 @@ describe(ProjectMembersPreview.name, () => {
       />
     );
 
-    return { useProjectMembersQuery, useProjectMembersWithAllProjectsQuery, canManageAccess, ProjectAccessDialog };
+    return { useProjectMembersQuery, useOrganizationMembersQuery, canManageAccess, ProjectAccessDialog };
   }
 
   function member(id: string, username: string | null, role: ProjectRole): ProjectMember {
     return { id, projectId: "project-1", userId: `user-${id}`, username, email: "sam@acme.test", role, createdAt: "2026-01-01T12:00:00.000Z" };
   }
 
-  function memberOnAllProjects(username: string | null, role: ProjectRole): ProjectMemberWithAllProjects {
-    return { userId: `user-${username ?? "unnamed"}`, username, email: "sam@acme.test", role, createdAt: "2026-01-01T12:00:00.000Z" };
+  function organizationMember(
+    username: string | null,
+    role: OrganizationMemberOutput["role"],
+    projectAccess: OrganizationMemberOutput["projectAccess"] = null
+  ): OrganizationMemberOutput {
+    return {
+      id: `member-${username ?? "unnamed"}`,
+      userId: `user-${username ?? "unnamed"}`,
+      username,
+      email: "sam@acme.test",
+      role,
+      projectAccess,
+      projectCount: null,
+      createdAt: "2026-01-01T12:00:00.000Z"
+    };
   }
 });

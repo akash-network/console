@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
-import type { ProjectMember, ProjectMemberWithAllProjects } from "@src/types/project";
+import type { ProjectMember } from "@src/types/project";
 import { ORGANIZATION_ACTIVITIES_QUERY_KEY } from "./useOrganizationActivitiesQuery";
 
 /** Equals `api.v1.listProjectMembers.getKey()`, the prefix of every project's grant list. */
@@ -49,11 +49,4 @@ export function useDeleteProjectMemberMutation() {
 /** A grant changes who the project lists and what its activity feed records. */
 function invalidateProjectAccessQueries(queryClient: QueryClient) {
   return Promise.all([PROJECT_MEMBERS_QUERY_KEY, ORGANIZATION_ACTIVITIES_QUERY_KEY].map(queryKey => queryClient.invalidateQueries({ queryKey })));
-}
-
-/** Members and viewers on every project of the organization, who reach this one without a grant. */
-export function useProjectMembersWithAllProjectsQuery(projectId: string) {
-  const { api } = useServices();
-
-  return api.v1.listProjectMembers.useQuery({ id: projectId }, { select: (response): ProjectMemberWithAllProjects[] => response.membersWithAllProjects });
 }
