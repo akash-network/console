@@ -226,9 +226,17 @@ describe(DeploymentWriterService.name, () => {
   };
 
   const resolvedManifestValue = {
-    groups: [{ name: "resolved-group", services: [{ name: "web" }] }],
+    groups: [{ name: "resolved-group", services: [{ name: "web", expose: [{ global: true }] }] }],
     groupSpecs: [{ name: "resolved-group", resources: [] }]
   };
+
+  const INTERNAL_ONLY_MANIFEST = mock<SdlManifest>({
+    groups: [{ name: "resolved-group", services: [{ name: "web", expose: [{ global: false }] }] }],
+    groupSpecs: [{ name: "resolved-group", resources: [] }]
+  });
+
+  const NO_GLOBAL_EXPOSURE_REFUSAL =
+    "Invalid SDL: at least one service must expose a port with `global: true`, because providers refuse a deployment that exposes none";
 
   const parsedSdlValue = { services: { web: { image: "nginx" } } };
 
@@ -510,6 +518,17 @@ describe(DeploymentWriterService.name, () => {
       await expect(service.create({ userId: "user-1", sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400, message: `Invalid SDL: ${refusal}` });
 
       expect(staleDeploymentsCleaner.cleanUpForWallet).not.toHaveBeenCalled();
+      expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+
+    it("answers 400 before sealing, recording or broadcasting anything when no service exposes a port globally", async () => {
+      const { service, sdlService, sdlSecretsService, deploymentSettingRepository, signerService } = setup();
+      sdlService.generateResolvedManifest.mockResolvedValue({ ok: true, value: { manifest: INTERNAL_ONLY_MANIFEST, manifestVersion: new Uint8Array(0) } });
+
+      await expect(service.create({ userId: "user-1", sdl: "valid-sdl" })).rejects.toMatchObject({ status: 400, message: NO_GLOBAL_EXPOSURE_REFUSAL });
+
       expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
       expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
@@ -2755,6 +2774,20 @@ describe(DeploymentWriterService.name, () => {
       expect(providerService.sendManifest).not.toHaveBeenCalled();
     });
 
+    it("answers 400 before recording, broadcasting or pushing anything when no service exposes a port globally", async () => {
+      const { service, sdlService, deploymentSettingRepository, signerService, providerService } = setup();
+      sdlService.generateResolvedManifest.mockResolvedValue({ ok: true, value: { manifest: INTERNAL_ONLY_MANIFEST, manifestVersion: new Uint8Array(0) } });
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: "valid-sdl" })).rejects.toMatchObject({
+        status: 400,
+        message: NO_GLOBAL_EXPOSURE_REFUSAL
+      });
+
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+      expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+      expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
     it("answers a bad reference with 400 even for a deployment it cannot find", async () => {
       const { service, sdlService, deploymentReaderService } = setup();
       sdlService.generateResolvedManifest.mockResolvedValue({ ok: false, value: [{ message: "no value supplied" }] } as any);
@@ -3414,6 +3447,18 @@ describe(DeploymentWriterService.name, () => {
         await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { api: { image: "x" } } }, ability)).rejects.toThrow();
         expect(sdlSecretsService.openStored).not.toHaveBeenCalled();
         expect(sdlSecretsService.sealForStorage).not.toHaveBeenCalled();
+      });
+
+      it("answers 400 and writes or pushes nothing when the patched sdl exposes no port globally", async () => {
+        const { service, ability, sdlService, deploymentSettingRepository, providerService } = setup();
+        sdlService.generateResolvedManifest.mockResolvedValue({ ok: true, value: { manifest: INTERNAL_ONLY_MANIFEST, manifestVersion: new Uint8Array(0) } });
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toMatchObject({
+          status: 400,
+          message: NO_GLOBAL_EXPOSURE_REFUSAL
+        });
+        expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+        expect(providerService.sendManifest).not.toHaveBeenCalled();
       });
 
       it("answers 400 naming the reference it holds no value for", async () => {
@@ -4299,7 +4344,13 @@ describe(DeploymentWriterService.name, () => {
 
       const resolved: GenerateResolvedManifestResult = input?.resolveErrors
         ? { ok: false, value: input.resolveErrors }
-        : { ok: true, value: { manifestVersion, manifest: mock<SdlManifest>({ groups: [], groupSpecs: [] }) } };
+        : {
+            ok: true,
+            value: {
+              manifestVersion,
+              manifest: mock<SdlManifest>({ groups: [{ name: "patched-group", services: [{ name: "web", expose: [{ global: true }] }] }], groupSpecs: [] })
+            }
+          };
       const sdlService = mock<SdlService>();
       sdlService.generateResolvedManifest.mockResolvedValue(resolved);
 
@@ -5077,7 +5128,7 @@ describe(DeploymentWriterService.name, () => {
     sdlService.generateManifest.mockResolvedValue({ ok: true, value: manifestValue } as any);
     sdlService.generateManifestVersion.mockResolvedValue(new Uint8Array([4, 5, 6]));
     const resolvedManifest = input?.serviceNames
-      ? { ...resolvedManifestValue, groups: [{ name: "resolved-group", services: input.serviceNames.map(name => ({ name })) }] }
+      ? { ...resolvedManifestValue, groups: [{ name: "resolved-group", services: input.serviceNames.map(name => ({ name, expose: [{ global: true }] })) }] }
       : resolvedManifestValue;
     sdlService.generateResolvedManifest.mockResolvedValue({
       ok: true,

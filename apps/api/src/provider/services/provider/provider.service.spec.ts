@@ -3,7 +3,7 @@ import type { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 import { AxiosError } from "axios";
-import type { HttpError } from "http-errors";
+import createError, { type HttpError } from "http-errors";
 import { Ok } from "ts-results";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
@@ -20,7 +20,7 @@ import type { ProviderAttributesSchemaService } from "../provider-attributes-sch
 import type { ProviderGpuDriverService } from "../provider-gpu-driver/provider-gpu-driver.service";
 import type { ProviderInventoryHttpService } from "../provider-inventory-http/provider-inventory-http.service";
 import type { ProviderJwtTokenService } from "../provider-jwt-token/provider-jwt-token.service";
-import { ProviderService } from "./provider.service";
+import { isManifestInvalid, ProviderService } from "./provider.service";
 import type { ProviderProxyService } from "./provider-proxy.service";
 
 const schemaDetail = { key: "test", type: "string" as const, required: false, description: "test", values: null };
@@ -533,6 +533,87 @@ describe(ProviderService.name, () => {
       });
     });
 
+    it("answers 422 once, with a stable code and the provider's reason, when the provider refuses the manifest itself as invalid", async () => {
+      const { service, providerRepository, providerProxyService } = setup();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = createUserWallet();
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      providerProxyService.request.mockRejectedValue(invalidManifestRefusal());
+
+      const error = await service
+        .sendManifest({
+          provider: provider.owner,
+          dseq: faker.string.numeric(6),
+          manifest: '{"quantity":{"val":"1"}}',
+          auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+        })
+        .catch(error => error);
+
+      expect(error).toMatchObject({
+        status: 422,
+        errorCode: "provider_manifest_invalid",
+        data: { reason: "invalid manifest: zero global services" },
+        message: `Provider ${provider.owner} refused the manifest (invalid manifest: zero global services). Sending it again cannot help: correct the SDL and update the deployment.`
+      });
+      expect(isManifestInvalid(error)).toBe(true);
+      expect(providerProxyService.request).toHaveBeenCalledTimes(1);
+    });
+
+    it("logs which provider refused the manifest as invalid and why", async () => {
+      const { service, providerRepository, providerProxyService, logger } = setup();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = createUserWallet();
+      const dseq = faker.string.numeric(6);
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      providerProxyService.request.mockRejectedValue(invalidManifestRefusal());
+
+      await service
+        .sendManifest({
+          provider: provider.owner,
+          dseq,
+          manifest: '{"quantity":{"val":"1"}}',
+          auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+        })
+        .catch(() => undefined);
+
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "PROVIDER_MANIFEST_INVALID",
+        provider: provider.owner,
+        hostUri: provider.hostUri,
+        dseq,
+        reason: "invalid manifest: zero global services"
+      });
+    });
+
+    it.each([
+      { case: "carries the invalid manifest text under another status", status: 400, body: "invalid manifest: zero global services\n" },
+      { case: "mentions an invalid manifest anywhere but at its start", status: 422, body: "provider says invalid manifest: zero global services\n" }
+    ])("keeps a refusal that $case as an ordinary provider error", async ({ status, body }) => {
+      const { service, providerRepository, providerProxyService } = setup();
+
+      const provider = createProviderSeed() as unknown as Provider;
+      const wallet = createUserWallet();
+
+      providerRepository.findActiveByAddress.mockResolvedValue(provider);
+      providerProxyService.request.mockRejectedValue(invalidManifestRefusal({ status, body }));
+
+      const error = await service
+        .sendManifest({
+          provider: provider.owner,
+          dseq: faker.string.numeric(6),
+          manifest: '{"quantity":{"val":"1"}}',
+          auth: await service.toProviderAuth({ walletId: wallet.id, provider: provider.owner })
+        })
+        .catch(error => error);
+
+      expect(error).toMatchObject({ status, message: body });
+      expect(isManifestInvalid(error)).toBe(false);
+    });
+
     it.each([502, 503, 504])("passes status %i through so an unreachable provider is not reported as a console fault", async upstreamStatus => {
       const { service, jwtTokenService, providerRepository, providerProxyService } = setup();
 
@@ -835,6 +916,19 @@ describe(ProviderService.name, () => {
     });
   });
 
+  function invalidManifestRefusal(input?: { status?: number; body?: string }) {
+    const status = input?.status ?? 422;
+    const axiosError = new AxiosError(`Request failed with status code ${status}`);
+    axiosError.response = {
+      status,
+      statusText: "Unprocessable Entity",
+      data: input?.body ?? "invalid manifest: zero global services\n",
+      headers: {},
+      config: {} as any
+    };
+    return axiosError;
+  }
+
   function staleVersionRefusal(input?: { status?: number }) {
     const status = input?.status ?? 422;
     const axiosError = new AxiosError(`Request failed with status code ${status}`);
@@ -884,4 +978,12 @@ describe(ProviderService.name, () => {
       providerProxyService
     };
   }
+});
+
+describe(isManifestInvalid.name, () => {
+  it("recognises only an http error carrying the invalid manifest code", () => {
+    expect(isManifestInvalid(createError(422, "refused", { errorCode: "provider_manifest_invalid" }))).toBe(true);
+    expect(isManifestInvalid(createError(422, "refused", { errorCode: "provider_manifest_version_stale" }))).toBe(false);
+    expect(isManifestInvalid(Object.assign(new Error("refused"), { errorCode: "provider_manifest_invalid" }))).toBe(false);
+  });
 });

@@ -6,6 +6,7 @@ import type { JobHandler, JobMeta, JobPayload, JobPermissions } from "@src/core"
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { isAccessRevoked, MemberDeploymentAccessService } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import { failedUpdateActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
+import { isManifestInvalid } from "@src/provider/services/provider/provider.service";
 import { ApplyDeploymentUpdate } from "./apply-deployment-update.job";
 
 type UpdateKey = { userId: string; dseq: string; manifestVersion: string };
@@ -48,9 +49,9 @@ export class ApplyDeploymentUpdateHandler implements JobHandler<ApplyDeploymentU
     await this.activityService.settle(activityId, updatedActivityOf(update));
   }
 
-  /** An apply is safe to repeat and skips a version a newer save replaced, so a failure is retried and settles the activity only on the last attempt, except for access the member lost, which no retry gives back. */
+  /** An apply is safe to repeat and skips a version a newer save replaced, so a failure is retried and settles the activity only on the last attempt, except for access the member lost or a manifest the provider found invalid, which no retry changes. */
   async #settleFailure(activityId: string, update: UpdateKey, error: unknown, job?: JobMeta): Promise<void> {
-    if (isAccessRevoked(error)) return await this.activityService.settle(activityId, failedUpdateActivityOf(update, error));
+    if (isAccessRevoked(error) || isManifestInvalid(error)) return await this.activityService.settle(activityId, failedUpdateActivityOf(update, error));
     if (isLastAttempt(job)) await this.activityService.settle(activityId, failedUpdateActivityOf(update, error));
 
     throw error;

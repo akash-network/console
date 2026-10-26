@@ -14523,7 +14523,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/leases": {
       "post": {
-        "description": "Creates the leases, then sends each provider its manifest. If a provider refuses the manifest once its lease exists, the error carries code \`manifest_not_delivered\` and the status the provider path produced. Send the same request again to retry the manifest, or close the deployment to stop paying for it.",
+        "description": "Creates the leases, then sends each provider its manifest. If a provider refuses the manifest once its lease exists, the error carries code \`manifest_not_delivered\` and the status the provider path produced. Send the same request again to retry the manifest, or close the deployment to stop paying for it. If the provider found the manifest itself invalid, the error carries code \`provider_manifest_invalid\` with status 422 instead, and sending it again cannot help.",
         "operationId": "createLease",
         "parameters": [
           {

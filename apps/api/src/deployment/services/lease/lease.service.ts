@@ -20,7 +20,12 @@ import { isAccessRevoked } from "@src/deployment/services/member-deployment-acce
 import { ReconcileLeaseCreate, reconcileLeaseCreateOptionsFor } from "@src/deployment/services/reconcile-lease-create/reconcile-lease-create.job";
 import { createdLeaseActivityOf, failedLeaseActivityOf, pendingLeaseActivityOf } from "@src/deployment/utils/lease-activity/lease-activity";
 import { isLeaseOn, isSamePlacementSet, type LeasePlacement } from "@src/deployment/utils/lease-placement/lease-placement";
-import { ProviderService } from "@src/provider/services/provider/provider.service";
+import {
+  type InvalidManifestError,
+  isManifestInvalid,
+  PROVIDER_MANIFEST_INVALID_ERROR_CODE,
+  ProviderService
+} from "@src/provider/services/provider/provider.service";
 import { DeploymentReaderService } from "../deployment-reader/deployment-reader.service";
 
 type Leases = CreateLeaseRequest["leases"];
@@ -250,6 +255,7 @@ export class LeaseService {
         auth: await this.providerService.toProviderAuth({ walletId: wallet.id, provider: lease.provider })
       });
     } catch (error) {
+      if (isManifestInvalid(error)) throw this.#invalidManifestError(lease, error);
       if (!isHttpError(error)) throw error;
 
       throw createError(
@@ -258,6 +264,17 @@ export class LeaseService {
         { errorCode: "manifest_not_delivered", data: { dseq: lease.dseq, provider: lease.provider, reason: error.message }, originalError: error }
       );
     }
+  }
+
+  /** Keeps the provider's code rather than inviting a retry, because a manifest refused as invalid is refused again however often it is sent. */
+  #invalidManifestError(lease: Leases[number], error: InvalidManifestError) {
+    const { reason } = error.data;
+
+    return createError(
+      error.status,
+      `The lease for deployment ${lease.dseq} exists, but provider ${lease.provider} refused its manifest (${reason}). Sending it again cannot help: close the deployment to stop paying for it, and deploy again with a corrected SDL.`,
+      { errorCode: PROVIDER_MANIFEST_INVALID_ERROR_CODE, data: { dseq: lease.dseq, provider: lease.provider, reason }, originalError: error }
+    );
   }
 
   /** Joins the lease already queued for the deployment only when the same member asked for the same leases, since anyone else would be answered with an outcome they did not ask for and an activity outside their feed. */

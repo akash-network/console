@@ -89,6 +89,7 @@ import {
 import { deriveDeploymentName } from "@src/deployment/utils/deployment-name/deployment-name";
 import type { StorableSdl, StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
+import { findMissingGlobalExposure } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 import { failedUpdateActivityOf, pendingUpdateActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
@@ -351,7 +352,10 @@ export class DeploymentWriterService {
     const stored = this.#storedSecretsOf({ inherited, supplied, derived }, storedDocument);
 
     const dseq = Date.now().toString();
-    const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: { ...inherited, ...supplied }, isTrialing: !!wallet.isTrialing });
+    const { manifestVersion, manifest } = await this.#resolveDeployableSdl(input.sdl, {
+      secrets: { ...inherited, ...supplied },
+      isTrialing: !!wallet.isTrialing
+    });
     const unresolvedManifest = await this.#unresolvedManifestOf(input.sdl);
     const message = this.rpcMessageService.getCreateDeploymentMsg({
       owner: wallet.address,
@@ -860,7 +864,7 @@ export class DeploymentWriterService {
     const supplied = input.sealedSecrets ? await this.#receiveSecrets(input, {}) : {};
     const stored = this.#storedSecretsOf({ inherited: {}, supplied, derived }, storedDocument);
 
-    const { manifestVersion, manifest } = await this.#resolveSdl(input.sdl, { secrets: supplied, isTrialing: !!wallet.isTrialing });
+    const { manifestVersion, manifest } = await this.#resolveDeployableSdl(input.sdl, { secrets: supplied, isTrialing: !!wallet.isTrialing });
     const { deployment, groupSpecs } = await this.deploymentReaderService.findWithGroupSpecsByWalletAndDseq(wallet, dseq);
     this.#assertResourcesUnchanged(manifest.groupSpecs, groupSpecs);
     const sealedSecrets = await this.sdlSecretsService.sealForStorage({ userId: filedUserId, teamId: teamIdOf(wallet), dseq, secrets: stored });
@@ -1010,7 +1014,7 @@ export class DeploymentWriterService {
     ]);
     const merged = this.#mergeAndPrune({ held, supplied, derived }, document);
 
-    const { manifestVersion, manifest } = await this.#resolveSdl(patchedSdl, { secrets: merged, isTrialing: !!wallet.isTrialing });
+    const { manifestVersion, manifest } = await this.#resolveDeployableSdl(patchedSdl, { secrets: merged, isTrialing: !!wallet.isTrialing });
     const { deployment, groupSpecs } = await this.deploymentReaderService.findWithGroupSpecsByWalletAndDseq(wallet, dseq);
     this.#assertResourcesUnchanged(manifest.groupSpecs, groupSpecs);
 
@@ -1287,6 +1291,18 @@ export class DeploymentWriterService {
     }
 
     return result.value;
+  }
+
+  /** Held only to a document a caller submits to run, so recording the definition of a deployment that already runs is never refused for it. */
+  async #resolveDeployableSdl(sdl: string, options: { secrets?: SdlSecrets; isTrialing?: boolean }) {
+    const resolved = await this.#resolveSdl(sdl, options);
+    const missingGlobalExposure = findMissingGlobalExposure(resolved.manifest.groups);
+
+    if (missingGlobalExposure) {
+      throw this.#rejectInvalidSdl([missingGlobalExposure]);
+    }
+
+    return resolved;
   }
 
   /** Reports through the same channel every other reference mistake uses, so a missing value reads identically whether the intake or substitution found it. */
