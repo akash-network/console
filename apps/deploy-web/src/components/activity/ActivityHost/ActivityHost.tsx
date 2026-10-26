@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { Snackbar } from "@akashnetwork/ui/components";
 import type { QueryKey } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import upperFirst from "lodash/upperFirst";
@@ -39,6 +40,15 @@ type FinishedActivity = Activity & { type: Exclude<Activity["type"], `${string}_
 type Announcement = { title: string; subTitle: string; variant: "success" | "info" | "warning" | "error" };
 
 type LabelDeployment = (dseq: string | undefined) => string;
+
+type ProgressNotice = { title: string; subTitle: string };
+
+const PROGRESS_NOTICES: Partial<Record<Activity["type"], (activity: Activity, labelDeployment: LabelDeployment) => ProgressNotice>> = {
+  deployment_update: ({ meta }, labelDeployment) => ({
+    title: `Updating ${labelDeployment(meta.dseq)}`,
+    subTitle: "This finishes in the background. We'll let you know when it's done."
+  })
+};
 
 /** Undefined for an outcome told elsewhere: a deploy that went through is announced once its services are ready. */
 const ANNOUNCEMENTS: Record<FinishedActivity["type"], (activity: FinishedActivity, labelDeployment: LabelDeployment) => Announcement | undefined> = {
@@ -95,7 +105,7 @@ const BATCH_ANNOUNCEMENTS: Partial<Record<FinishedActivity["type"], (batch: Fini
   }
 };
 
-/** Tells the user when one of their background actions finishes, wherever they are in the app, and refreshes the data it changed. */
+/** Tells the user while an update runs in the background and when any background action finishes, wherever they are in the app, and refreshes the data it changed. */
 export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES }) {
   const isEnabled = d.useFlag("notifications_activity_center");
   const { user } = d.useUser();
@@ -111,6 +121,51 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   const takeHeldActivityEvents = d.useTakeHeldActivityEvents();
   const lastSeenStatuses = useRef<Map<string, Activity["status"]>>();
   const batchesToSumUp = useRef(new Set<string>());
+  /** Only actions started after this read get a progress toast, so one stuck pending for hours doesn't greet the user with a spinner on every page load. */
+  const activityIdsAtFirstRead = useRef<ReadonlySet<string>>();
+  /** Dismissed when the host unmounts, because an organization switch remounts it while the snackbar provider above keeps every toast. */
+  const progressToastKeys = useRef(new Map<string, SnackbarKey>());
+  const labelDeployment = useCallback((dseq: string | undefined) => deploymentLabelOf(getDeploymentName(dseq), dseq), [getDeploymentName]);
+
+  useEffect(
+    function dismissProgressToastsWhenUnmounted() {
+      const keys = progressToastKeys.current;
+
+      return function dismissProgressToasts() {
+        for (const key of keys.values()) closeSnackbar(key);
+        keys.clear();
+      };
+    },
+    [closeSnackbar]
+  );
+
+  useEffect(
+    function showActionsInProgress() {
+      if (!activities) return;
+
+      const atFirstRead = (activityIdsAtFirstRead.current ??= new Set(activities.map(({ id }) => id)));
+      const startedSinceFirstRead = activities.filter(activity => activity.status === "pending" && !atFirstRead.has(activity.id));
+      const runningIds = new Set(startedSinceFirstRead.map(({ id }) => id));
+
+      for (const [activityId, key] of progressToastKeys.current) {
+        if (runningIds.has(activityId)) continue;
+        closeSnackbar(key);
+        progressToastKeys.current.delete(activityId);
+      }
+
+      if (isLoadingDeploymentNames) return;
+
+      for (const activity of startedSinceFirstRead) {
+        const progressNoticeOf = PROGRESS_NOTICES[activity.type];
+        if (!progressNoticeOf || progressToastKeys.current.has(activity.id)) continue;
+
+        const { title, subTitle } = progressNoticeOf(activity, labelDeployment);
+        const key = enqueueSnackbar(<Snackbar title={title} subTitle={subTitle} showLoading />, { variant: "info", persist: true });
+        progressToastKeys.current.set(activity.id, key);
+      }
+    },
+    [activities, isLoadingDeploymentNames, labelDeployment, enqueueSnackbar, closeSnackbar]
+  );
 
   useEffect(
     function announceFinishedActivities() {
@@ -177,10 +232,6 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         }
       }
 
-      function labelDeployment(dseq: string | undefined) {
-        return deploymentLabelOf(getDeploymentName(dseq), dseq);
-      }
-
       function queryKeysChangedBy({ meta: { dseq } }: Activity): QueryKey[] {
         return [
           api.v1.listDeployments.getKey(),
@@ -196,7 +247,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
     [
       activities,
       isLoadingDeploymentNames,
-      getDeploymentName,
+      labelDeployment,
       closeBatchesBeingSent,
       isOutcomeHandled,
       isFollowedOnItsPage,
