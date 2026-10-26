@@ -64,7 +64,7 @@ describe("stale test databases", () => {
 
     it("returns a template whose last use is older than the cutoff, even if it was created recently", async () => {
       const name = await createTemplate(templateName());
-      await markLastUsed(admin, name, new Date(Date.now() - 30 * 24 * HOUR));
+      await markLastUsed(admin, name, twoHoursAgo());
 
       expect(await findStaleTestDatabases(admin, cutoffs({ template: oneHourAgo() }))).toContain(name);
     });
@@ -85,7 +85,7 @@ describe("stale test databases", () => {
 
     it("keeps the templates the current run needs, however old", async () => {
       const name = await createTemplate(templateName());
-      await markLastUsed(admin, name, new Date(Date.now() - 30 * 24 * HOUR));
+      await markLastUsed(admin, name, twoHoursAgo());
 
       expect(await findStaleTestDatabases(admin, cutoffs({ template: inOneHour(), keepTemplates: [name] }))).not.toContain(name);
     });
@@ -121,13 +121,16 @@ describe("stale test databases", () => {
       const busy = await createDatabase(perFileName());
       const idle = await createDatabase(perFileName());
       const client = postgres(`${POSTGRES_URI}/${busy}`, { max: 1 });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       try {
         await client`SELECT 1`;
 
         expect(await dropDatabases(admin, [busy, idle])).toEqual([idle]);
         expect(await existing([busy, idle])).toEqual([busy]);
+        expect(warn).toHaveBeenCalledWith(`Skipped dropping stale test database ${busy}:`, expect.any(Error));
       } finally {
+        warn.mockRestore();
         await client.end();
       }
     });
@@ -212,5 +215,10 @@ describe("stale test databases", () => {
 
   function oneHourAgo() {
     return new Date(Date.now() - HOUR);
+  }
+
+  /** Stale against the cutoffs these tests pass, but fresh to the real sweep global-setup-db.integration.ts runs in parallel. */
+  function twoHoursAgo() {
+    return new Date(Date.now() - 2 * HOUR);
   }
 });

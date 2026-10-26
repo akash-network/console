@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { type AddressInfo, createServer, type Socket } from "node:net";
 import { Client } from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -26,23 +27,23 @@ describe("stale test databases", () => {
 
   describe(findStaleTestDatabases.name, () => {
     it.each(["event_broker", "notifications"])("returns a %s database whose run started before the cutoff", async kind => {
-      const name = await createDatabase(perFileName({ kind, startedAt: Date.now() - 7 * HOUR }));
+      const name = await createDatabase(perFileName({ kind, startedAt: Date.now() - 2 * HOUR }));
 
-      expect(await findStaleTestDatabases(admin, new Date(Date.now() - 6 * HOUR))).toContain(name);
+      expect(await findStaleTestDatabases(admin, new Date(Date.now() - HOUR))).toContain(name);
     });
 
     it("keeps a database whose run started after the cutoff", async () => {
-      const name = await createDatabase(perFileName({ startedAt: Date.now() - 5 * HOUR }));
+      const name = await createDatabase(perFileName({ startedAt: Date.now() }));
 
-      expect(await findStaleTestDatabases(admin, new Date(Date.now() - 6 * HOUR))).not.toContain(name);
+      expect(await findStaleTestDatabases(admin, new Date(Date.now() - HOUR))).not.toContain(name);
     });
 
     it("keeps a database that a run is still connected to", async () => {
-      const name = await createDatabase(perFileName({ startedAt: Date.now() - 7 * HOUR }));
+      const name = await createDatabase(perFileName({ startedAt: Date.now() - 2 * HOUR }));
       const client = await connectTo(name);
 
       try {
-        expect(await findStaleTestDatabases(admin, new Date(Date.now() - 6 * HOUR))).not.toContain(name);
+        expect(await findStaleTestDatabases(admin, new Date(Date.now() - HOUR))).not.toContain(name);
       } finally {
         await client.end();
       }
@@ -58,10 +59,10 @@ describe("stale test databases", () => {
     );
 
     it("lists the oldest runs first", async () => {
-      const newer = await createDatabase(perFileName({ startedAt: Date.now() - 8 * HOUR }));
-      const older = await createDatabase(perFileName({ startedAt: Date.now() - 9 * HOUR }));
+      const newer = await createDatabase(perFileName({ startedAt: Date.now() - 2 * HOUR }));
+      const older = await createDatabase(perFileName({ startedAt: Date.now() - 3 * HOUR }));
 
-      const stale = await findStaleTestDatabases(admin, new Date(Date.now() - 6 * HOUR));
+      const stale = await findStaleTestDatabases(admin, new Date(Date.now() - HOUR));
 
       expect(stale.indexOf(older)).toBeLessThan(stale.indexOf(newer));
     });
@@ -87,11 +88,14 @@ describe("stale test databases", () => {
       const busy = await createDatabase(perFileName());
       const idle = await createDatabase(perFileName());
       const client = await connectTo(busy);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       try {
         expect(await dropDatabases(admin, [busy, idle])).toEqual([idle]);
         expect(await existing([busy, idle])).toEqual([busy]);
+        expect(warn).toHaveBeenCalledWith(`Skipped dropping stale test database ${busy}:`, expect.any(Error));
       } finally {
+        warn.mockRestore();
         await client.end();
       }
     });
@@ -120,6 +124,22 @@ describe("stale test databases", () => {
         expect(warn).toHaveBeenCalledWith("Skipped dropping stale test databases:", expect.any(Error));
       } finally {
         warn.mockRestore();
+      }
+    });
+
+    it("gives up instead of stalling the run when Postgres accepts the connection but never answers", async () => {
+      const sockets: Socket[] = [];
+      const silent = createServer(socket => sockets.push(socket));
+      await new Promise<void>(resolve => silent.listen(0, "127.0.0.1", resolve));
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      try {
+        await expect(sweepStaleTestDatabases(`postgres://127.0.0.1:${(silent.address() as AddressInfo).port}`)).resolves.toBeUndefined();
+        expect(warn).toHaveBeenCalledWith("Skipped dropping stale test databases:", expect.any(Error));
+      } finally {
+        warn.mockRestore();
+        sockets.forEach(socket => socket.destroy());
+        await new Promise(resolve => silent.close(resolve));
       }
     });
   });

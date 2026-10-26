@@ -87,8 +87,9 @@ export async function dropDatabases(admin: postgres.Sql, names: string[], deadli
       await admin`ALTER DATABASE ${admin(name)} WITH IS_TEMPLATE false ALLOW_CONNECTIONS true`;
       await admin`DROP DATABASE ${admin(name)}`;
       dropped.push(name);
-    } catch {
-      // A run connected after the scan; a later sweep will retry it.
+    } catch (error) {
+      // Usually a run connected after the scan; a later sweep retries it.
+      console.warn(`Skipped dropping stale test database ${name}:`, error);
     }
   }
 

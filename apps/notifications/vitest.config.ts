@@ -50,6 +50,7 @@ export default defineConfig({
         test: {
           name: "unit",
           include: ["src/**/*.spec.ts"],
+          globalSetup: ["./test/global-setup-db.ts"],
           setupFiles: ["./test/setup-env.ts"]
         }
       },

@@ -19,7 +19,7 @@ export function staleCutoff(now: Date): Date {
  */
 export async function sweepStaleTestDatabases(postgresUri: string): Promise<void> {
   const deadline = Date.now() + SWEEP_TIME_BUDGET_MS;
-  const admin = new Client({ connectionString: postgresUri });
+  const admin = new Client({ connectionString: postgresUri, connectionTimeoutMillis: SWEEP_TIME_BUDGET_MS });
 
   try {
     await admin.connect();
@@ -62,10 +62,12 @@ export async function dropDatabases(admin: Client, names: string[], deadline = N
     if (Date.now() >= deadline) break;
 
     try {
-      await admin.query(`DROP DATABASE ${admin.escapeIdentifier(name)}`);
+      // IF EXISTS: nothing serializes sweeps here, so a concurrent run's sweep may have dropped it first.
+      await admin.query(`DROP DATABASE IF EXISTS ${admin.escapeIdentifier(name)}`);
       dropped.push(name);
-    } catch {
-      // A run connected after the scan; a later sweep will retry it.
+    } catch (error) {
+      // Usually a run connected after the scan; a later sweep retries it.
+      console.warn(`Skipped dropping stale test database ${name}:`, error);
     }
   }
 
