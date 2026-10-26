@@ -34,3 +34,5 @@ export const INVITATION_ALREADY_ACCEPTED_ERROR_CODE = "invitation_already_accept
 export const SESSION_REQUIRED_ERROR_CODE = "session_required";
 
 export const OWNER_CANNOT_LEAVE_ERROR_CODE = "owner_cannot_leave";
+
+export const ADMIN_ACCESS_REQUEST_LIMIT_REACHED_ERROR_CODE = "admin_access_request_limit_reached";

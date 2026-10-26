@@ -76,3 +76,9 @@ export function useLeaveOrganizationMutation() {
 
   return api.v1.deleteOrganizationMembership.useMutation({ meta: SKIP_REPORTING_REFUSED_INPUT });
 }
+
+export function useRequestAdminAccessMutation() {
+  const { api } = useServices();
+
+  return api.v1.createOrganizationAdminAccessRequest.useMutation({ meta: SKIP_REPORTING_REFUSED_INPUT });
+}

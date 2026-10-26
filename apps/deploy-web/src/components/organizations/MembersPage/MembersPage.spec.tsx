@@ -11,10 +11,12 @@ import { MockComponents } from "@tests/unit/mocks";
 
 describe(MembersPage.name, () => {
   it("lets an admin invite people and manage the roster and the pending invitations", () => {
-    const { MemberRoster, PendingInvitationList, useOrganizationMembersQuery, useOrganizationInvitationsQuery } = setup({ role: "admin" });
+    const { MemberRoster, PendingInvitationList, AdminAccessRequestNotice, useOrganizationMembersQuery, useOrganizationInvitationsQuery } = setup({
+      role: "admin"
+    });
 
     expect(screen.getByRole("button", { name: "Invite members" })).toBeInTheDocument();
-    expect(screen.queryByText(/Only admins can invite people/)).not.toBeInTheDocument();
+    expect(AdminAccessRequestNotice).not.toHaveBeenCalled();
     expect(MemberRoster.mock.lastCall?.[0]).toEqual(
       expect.objectContaining({
         members: [BOB],
@@ -59,12 +61,12 @@ describe(MembersPage.name, () => {
     expect(InviteMembersDialog.mock.lastCall?.[0]).toEqual(expect.objectContaining({ memberEmails: [], invitedEmails: [] }));
   });
 
-  it.each(["member", "viewer", "billing"] as const)("shows a %s a read-only roster without invitations", role => {
-    const { PendingInvitationList, useOrganizationInvitationsQuery } = setup({ role });
+  it.each(["member", "viewer", "billing"] as const)("shows a %s a read-only roster without invitations, with a way to ask for admin access", role => {
+    const { PendingInvitationList, AdminAccessRequestNotice, useOrganizationInvitationsQuery } = setup({ role });
 
     expect(screen.queryByRole("button", { name: "Invite members" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Only admins can invite people or change roles\./)).toHaveTextContent(
-      `You're a ${role.charAt(0).toUpperCase()}${role.slice(1)} of Acme Corp. Only admins can invite people or change roles.`
+    expect(AdminAccessRequestNotice.mock.lastCall?.[0]).toEqual(
+      expect.objectContaining({ organization: expect.objectContaining({ id: "org-2", role }), adminOnlyAction: "invite people or change roles" })
     );
     expect(PendingInvitationList).not.toHaveBeenCalled();
     expect(useOrganizationInvitationsQuery).toHaveBeenCalledWith({ enabled: false });
@@ -134,6 +136,7 @@ describe(MembersPage.name, () => {
         Close dialog
       </button>
     ));
+    const AdminAccessRequestNotice = vi.fn<typeof DEPENDENCIES.AdminAccessRequestNotice>(() => null);
     const useOrganizationMembersQuery = vi.fn(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({ isLoading: false, isError: false }), {
         data: "members" in input ? input.members : [BOB]
@@ -151,6 +154,7 @@ describe(MembersPage.name, () => {
       MemberRoster,
       PendingInvitationList,
       InviteMembersDialog,
+      AdminAccessRequestNotice,
       useFlag: () => input.isEnabled ?? true,
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
@@ -172,6 +176,7 @@ describe(MembersPage.name, () => {
       MemberRoster,
       PendingInvitationList,
       InviteMembersDialog,
+      AdminAccessRequestNotice,
       useOrganizationMembersQuery,
       useOrganizationInvitationsQuery
     };

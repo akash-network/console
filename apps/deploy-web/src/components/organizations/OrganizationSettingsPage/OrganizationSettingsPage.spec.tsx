@@ -9,13 +9,13 @@ import { MockComponents } from "@tests/unit/mocks";
 
 describe(OrganizationSettingsPage.name, () => {
   it("lets the owner rename the organization and transfer its ownership", () => {
-    const { OrganizationNameSetting, OwnershipTransferSetting, SettingsLayout } = setup({ role: "owner" });
+    const { OrganizationNameSetting, OwnershipTransferSetting, SettingsLayout, AdminAccessRequestNotice } = setup({ role: "owner" });
 
     expect(SettingsLayout.mock.lastCall?.[0]).toEqual(expect.objectContaining({ title: "General" }));
     expect(OrganizationNameSetting.mock.lastCall?.[0]).toEqual(expect.objectContaining({ organization: expect.objectContaining({ id: "org-2" }) }));
     expect(OwnershipTransferSetting.mock.lastCall?.[0]).toEqual(expect.objectContaining({ organization: expect.objectContaining({ name: "Acme Corp" }) }));
     expect(screen.getByRole("heading", { name: "Ownership" })).toBeInTheDocument();
-    expect(screen.queryByText(/Only admins can rename it/)).not.toBeInTheDocument();
+    expect(AdminAccessRequestNotice).not.toHaveBeenCalled();
   });
 
   it.each(["owner", "admin", "member", "viewer", "billing"] as const)("offers a %s to leave the organization in the danger zone", role => {
@@ -36,22 +36,23 @@ describe(OrganizationSettingsPage.name, () => {
   });
 
   it("lets an admin rename the organization but not transfer it", () => {
-    const { OrganizationNameSetting, OwnershipTransferSetting } = setup({ role: "admin" });
+    const { OrganizationNameSetting, OwnershipTransferSetting, AdminAccessRequestNotice } = setup({ role: "admin" });
 
     expect(OrganizationNameSetting).toHaveBeenCalled();
     expect(OwnershipTransferSetting).not.toHaveBeenCalled();
     expect(screen.queryByRole("heading", { name: "Ownership" })).not.toBeInTheDocument();
+    expect(AdminAccessRequestNotice).not.toHaveBeenCalled();
   });
 
-  it.each(["member", "viewer", "billing"] as const)("shows a %s the name as plain text with a note on who can rename it", role => {
-    const { OrganizationNameSetting, OwnershipTransferSetting } = setup({ role });
+  it.each(["member", "viewer", "billing"] as const)("shows a %s the name as plain text with a way to ask for admin access", role => {
+    const { OrganizationNameSetting, OwnershipTransferSetting, AdminAccessRequestNotice } = setup({ role });
 
     expect(OrganizationNameSetting).not.toHaveBeenCalled();
     expect(OwnershipTransferSetting).not.toHaveBeenCalled();
     expect(screen.getByText("Acme Corp", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByText("Shown to members across Console and in invitations.")).toBeInTheDocument();
-    expect(screen.getByText(/Only admins can rename it\./)).toHaveTextContent(
-      `You're a ${role.charAt(0).toUpperCase()}${role.slice(1)} of Acme Corp. Only admins can rename it.`
+    expect(AdminAccessRequestNotice.mock.lastCall?.[0]).toEqual(
+      expect.objectContaining({ organization: expect.objectContaining({ id: "org-2", role }), adminOnlyAction: "rename it" })
     );
   });
 
@@ -99,6 +100,7 @@ describe(OrganizationSettingsPage.name, () => {
     const SettingsLayout = vi.fn<typeof DEPENDENCIES.SettingsLayout>(({ children }) => <>{children}</>);
     const OrganizationNameSetting = vi.fn<typeof DEPENDENCIES.OrganizationNameSetting>(() => null);
     const OwnershipTransferSetting = vi.fn<typeof DEPENDENCIES.OwnershipTransferSetting>(() => null);
+    const AdminAccessRequestNotice = vi.fn<typeof DEPENDENCIES.AdminAccessRequestNotice>(() => null);
     const LeaveOrganizationSetting = vi.fn<typeof DEPENDENCIES.LeaveOrganizationSetting>(() => null);
     const DeleteTeamSetting = vi.fn<typeof DEPENDENCIES.DeleteTeamSetting>(() => null);
 
@@ -107,6 +109,7 @@ describe(OrganizationSettingsPage.name, () => {
       SettingsLayout,
       OrganizationNameSetting,
       OwnershipTransferSetting,
+      AdminAccessRequestNotice,
       LeaveOrganizationSetting,
       DeleteTeamSetting,
       useFlag: () => input.isEnabled ?? true,
@@ -120,6 +123,15 @@ describe(OrganizationSettingsPage.name, () => {
 
     render(<OrganizationSettingsPage dependencies={dependencies} />);
 
-    return { replace, Layout, SettingsLayout, OrganizationNameSetting, OwnershipTransferSetting, LeaveOrganizationSetting, DeleteTeamSetting };
+    return {
+      replace,
+      Layout,
+      SettingsLayout,
+      OrganizationNameSetting,
+      OwnershipTransferSetting,
+      AdminAccessRequestNotice,
+      LeaveOrganizationSetting,
+      DeleteTeamSetting
+    };
   }
 });
