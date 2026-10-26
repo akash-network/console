@@ -4,6 +4,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { format } from "date-fns";
 import { Plus } from "lucide-react";
 
+import { TOUR_TARGET } from "@src/components/whats-new/tourTargets";
 import type { Project, ProjectDeploymentPreview, ProjectDeploymentStatus } from "@src/types/project";
 import { pluralize } from "@src/utils/stringUtils";
 import { isProblemStatus, selectFolderSheets } from "../projectSummary";
@@ -54,6 +55,7 @@ export function ProjectFolder({ project, onOpen, onSelectDeployment, onNewDeploy
     <div
       role="link"
       tabIndex={0}
+      data-tour-target={TOUR_TARGET.projectFolder}
       className={styles.folder}
       onClick={onOpen}
       onKeyDown={openOnEnterOrSpace}

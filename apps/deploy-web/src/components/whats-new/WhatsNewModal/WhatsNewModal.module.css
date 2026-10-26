@@ -1,0 +1,35 @@
+.card {
+  width: calc(100vw - 48px);
+  max-width: max(380px, min(580px, calc((100vh - 300px) * 1.7778)));
+  max-height: calc(100vh - 48px);
+}
+
+.slideCopy {
+  animation: slide-copy-in 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes slide-copy-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.segment {
+  flex: 1;
+  overflow: hidden;
+  background: hsl(var(--border));
+}
+
+.segmentFill {
+  display: block;
+  height: 100%;
+  background: hsl(var(--foreground));
+  transform-origin: 0 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slideCopy {
+    animation: none;
+  }
+}

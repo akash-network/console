@@ -33,6 +33,7 @@ import { PageHead } from "@src/components/layout/PageHead";
 import { RequireOnboarding } from "@src/components/onboarding/RequireOnboarding/RequireOnboarding";
 import { AccountDeletedNotice } from "@src/components/user/AccountDeletedNotice/AccountDeletedNotice";
 import { UserProviders } from "@src/components/user/UserProviders/UserProviders";
+import { WhatsNewHost } from "@src/components/whats-new/WhatsNewHost/WhatsNewHost";
 import { BlockchainStatusProvider } from "@src/context/BlockchainStatusProvider";
 import { BootLoadingProvider } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { ColorModeProvider } from "@src/context/CustomThemeContext";
@@ -83,6 +84,7 @@ const App: React.FunctionComponent<Props> = props => {
                     <CloseDeploymentConfirmHost />
                     <ActivityHost />
                     <DeploymentReadyHost />
+                    <WhatsNewHost />
                     <NavigationGuardProvider>
                       <RequireOnboarding isPublic={isPublic}>
                         <WaitForFeatureFlags>

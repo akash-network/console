@@ -1,0 +1,33 @@
+.scene {
+  --scene-folder-back: color-mix(in oklab, hsl(var(--foreground)) 9%, hsl(var(--card)));
+  --scene-folder-sheet: hsl(var(--card));
+  --scene-folder-sheet-line: hsl(var(--border));
+  --scene-folder-front: color-mix(in oklab, hsl(var(--foreground)) 2.5%, hsl(var(--card)));
+  --scene-folder-front-line: color-mix(in oklab, hsl(var(--foreground)) 11%, transparent);
+  position: relative;
+  overflow: hidden;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  line-height: normal;
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+  pointer-events: none;
+  user-select: none;
+}
+
+:global(.dark) .scene {
+  --scene-folder-back: color-mix(in oklab, hsl(var(--foreground)) 13%, hsl(var(--card)));
+  --scene-folder-sheet: color-mix(in oklab, hsl(var(--foreground)) 17%, hsl(var(--card)));
+  --scene-folder-sheet-line: color-mix(in oklab, hsl(var(--foreground)) 16%, transparent);
+  --scene-folder-front: color-mix(in oklab, hsl(var(--foreground)) 7%, hsl(var(--card)));
+  --scene-folder-front-line: color-mix(in oklab, hsl(var(--foreground)) 13%, transparent);
+}
+
+.scene * {
+  box-sizing: border-box;
+  transition: none;
+}
+
+.scene span {
+  white-space: nowrap;
+}

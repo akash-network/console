@@ -10,6 +10,7 @@ import {
 import { cn } from "@akashnetwork/ui/utils";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 
+import { TOUR_TARGET } from "@src/components/whats-new/tourTargets";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import type { OrganizationOutput } from "@src/types/organization";
 import { ORGANIZATION_ROLE_LABELS } from "../organizationAccess";
@@ -69,7 +70,11 @@ export function OrganizationSwitcher({ dependencies: d = DEPENDENCIES, layout = 
 
   return (
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger aria-label={`${activeOrganization.name}, switch organization`} className={cn(TRIGGER_CLASSES, layout === "sheet" && "w-full")}>
+      <DropdownMenuTrigger
+        aria-label={`${activeOrganization.name}, switch organization`}
+        data-tour-target={TOUR_TARGET.organizationSwitcher}
+        className={cn(TRIGGER_CLASSES, layout === "sheet" && "w-full")}
+      >
         <OrganizationAvatar organization={activeOrganization} size={22} />
         <span className={cn("truncate", layout === "header" ? "hidden max-w-[180px] sm:block" : "min-w-0 flex-1 text-left")}>{activeOrganization.name}</span>
         <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -93,6 +98,7 @@ export function OrganizationSwitcher({ dependencies: d = DEPENDENCIES, layout = 
             <DropdownMenuSeparator className="my-[5px] bg-border" />
             <DropdownMenuItem
               className={ROW_CLASSES}
+              data-tour-target={TOUR_TARGET.createOrganization}
               onSelect={() => {
                 onCreateOrganization();
                 onNavigate?.();
