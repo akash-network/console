@@ -6,6 +6,7 @@ import { keepPreviousData, useQueries, useQueryClient } from "@tanstack/react-qu
 
 import { useServices } from "@src/context/ServicesProvider";
 import { usePacedValue } from "@src/hooks/usePacedValue/usePacedValue";
+import { getBrowserTimezoneOrUtc } from "@src/lib/browser-timezone/browser-timezone";
 import { AUDITOR } from "@src/utils/deploymentData/v1beta3";
 import { isInPickedRegions } from "@src/utils/sdl/placementRegions";
 
@@ -189,7 +190,7 @@ export function useHasPlacementWithoutProviders(sdl: string, placements: Readonl
 export function toScreeningRequest(sdl: string, placementName: string): ScreeningRequest | null {
   const placementRequest = buildPlacementScreeningRequest(sdl, placementName);
   if (!placementRequest) return null;
-  return { ...placementRequest, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+  return { ...placementRequest, timezone: getBrowserTimezoneOrUtc() };
 }
 
 /**

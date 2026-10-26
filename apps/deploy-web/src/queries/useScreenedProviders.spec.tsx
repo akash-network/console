@@ -1,6 +1,6 @@
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { keepPreviousData, type QueryObserverBaseResult } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { AUDITOR } from "@src/utils/deploymentData/v1beta3";
@@ -22,6 +22,7 @@ import {
 
 import { act, waitFor } from "@testing-library/react";
 import { buildScreenedProvider } from "@tests/seeders/screenedProvider";
+import { stubResolvedTimezone } from "@tests/unit/stubResolvedTimezone";
 
 const HELLO_WORLD_SDL = `---
 version: "2.0"
@@ -401,10 +402,25 @@ describe("buildCatalogScreeningRequest", () => {
 });
 
 describe(toScreeningRequest.name, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("adds the client's timezone to the placement's screening request", () => {
+    stubResolvedTimezone("America/Vancouver");
+
     expect(toScreeningRequest(HELLO_WORLD_SDL, "dcloud")).toEqual({
       ...buildPlacementScreeningRequest(HELLO_WORLD_SDL, "dcloud"),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      timezone: "America/Vancouver"
+    });
+  });
+
+  it("screens in UTC when the browser resolves no timezone", () => {
+    stubResolvedTimezone(undefined);
+
+    expect(toScreeningRequest(HELLO_WORLD_SDL, "dcloud")).toEqual({
+      ...buildPlacementScreeningRequest(HELLO_WORLD_SDL, "dcloud"),
+      timezone: "UTC"
     });
   });
 

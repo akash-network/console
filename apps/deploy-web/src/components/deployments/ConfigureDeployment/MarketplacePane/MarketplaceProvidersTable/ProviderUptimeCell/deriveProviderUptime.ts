@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 
+import { getBrowserTimezoneOrUtc } from "@src/lib/browser-timezone/browser-timezone";
+
 export type BucketStatus = "online" | "partial" | "offline";
 
 export interface DayBucket {
@@ -35,7 +37,7 @@ interface DeriveOptions {
 export function useProvidersUptime(providers: Array<{ owner: string; incidents: DailyIncident[] }>): Map<string, ProviderUptime> {
   return useMemo(() => {
     const now = Date.now();
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const timeZone = getBrowserTimezoneOrUtc();
     return new Map(providers.map(provider => [provider.owner, deriveProviderUptime(provider.incidents, now, timeZone)]));
   }, [providers]);
 }
