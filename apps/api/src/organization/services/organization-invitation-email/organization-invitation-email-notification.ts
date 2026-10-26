@@ -6,7 +6,7 @@ import type { CreateNotificationInput } from "@src/notifications/services/notifi
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { OrganizationInvitationOutput } from "@src/organization/repositories/organization-invitation/organization-invitation.repository";
 
-const ROLE_DESCRIPTIONS: Record<OrganizationRole, string> = {
+export const ROLE_DESCRIPTIONS: Record<OrganizationRole, string> = {
   owner: "an owner",
   admin: "an admin",
   member: "a member",

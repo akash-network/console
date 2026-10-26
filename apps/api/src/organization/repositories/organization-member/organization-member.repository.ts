@@ -93,6 +93,15 @@ export class OrganizationMemberRepository extends OrgScopedRepository<Table, Org
     return member;
   }
 
+  async findWithUserByUserId(
+    organizationId: OrganizationMemberOutput["organizationId"],
+    userId: OrganizationMemberOutput["userId"]
+  ): Promise<OrganizationMemberWithUser | undefined> {
+    const [member] = await this.#selectWithUsers(and(eq(this.table.organizationId, organizationId), eq(this.table.userId, userId)));
+
+    return member;
+  }
+
   /** The members and viewers who reach every project of the organization without a grant. */
   async findWithAccessToEveryProject(organizationId: OrganizationMemberOutput["organizationId"]): Promise<OrganizationMemberWithUser[]> {
     return await this.#selectWithUsers(
