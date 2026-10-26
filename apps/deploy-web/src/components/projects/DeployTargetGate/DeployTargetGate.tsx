@@ -80,12 +80,7 @@ export function DeployTargetGate({ filedDseq, fallback, children, dependencies: 
   const projects = useMemo(() => (projectsQuery.data ?? []).filter(project => access.canManageDeployments(project.id)), [projectsQuery.data, access]);
   const filedProjectId = isProjectForgotten ? undefined : filedLocationQuery.data?.projectId;
   const chosenProjectId = filedProjectId ?? projectId;
-  const mayTakeTheOnlyProject = !isFiled && !isProjectForgotten;
-  const project = !isRequired
-    ? undefined
-    : mayTakeTheOnlyProject
-      ? resolveDeployProject(projects, chosenProjectId)
-      : projects.find(candidate => candidate.id === chosenProjectId);
+  const project = isRequired ? resolveDeployProject(projects, chosenProjectId, !isFiled && !isProjectForgotten) : undefined;
   const isLoading = isRequired && (projectsQuery.isLoading || access.isLoading || (isFiled && filedLocationQuery.isLoading));
   const isMissing = isRequired && !isLoading && !project;
   const isUnreadable = isRequired && !isLoading && ((!projectsQuery.data && projectsQuery.isError) || access.isError);
@@ -103,6 +98,13 @@ export function DeployTargetGate({ filedDseq, fallback, children, dependencies: 
     setNotice(reason);
     setIsPickerDismissed(false);
   }, []);
+
+  useEffect(
+    function keepTheOnlyProjectTakenAsTheChoice() {
+      if (project && !chosenProjectId) setProjectId(project.id);
+    },
+    [project, chosenProjectId]
+  );
 
   const target = useMemo<DeployTarget>(
     () => ({
