@@ -715,6 +715,13 @@
       "when": 1793046232737,
       "tag": "0101_deployment_change_activities",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1793056550592,
+      "tag": "0102_activities_organization_id",
+      "breakpoints": true
     }
   ]
 }

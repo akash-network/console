@@ -4,13 +4,14 @@ import createError from "http-errors";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { ACTIVITIES_DEDUPE_KEY_INDEX, type NewActivity } from "@src/activity/model-schemas";
+import { ACTIVITIES_DEDUPE_KEY_INDEX, type FiledActivity } from "@src/activity/model-schemas";
 import type { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import type { ActivityInstrumentationService } from "@src/activity/services/activity-instrumentation/activity-instrumentation.service";
 import { PurgeExpiredActivities } from "@src/activity/services/purge-expired-activities/purge-expired-activities.job";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { CreateLogger, JobQueueService, TxService } from "@src/core";
 import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
+import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { type OrganizationContextResolver, PROJECT_FORBIDDEN_ERROR_CODE } from "@src/organization/services/organization-context/organization-context.resolver";
 import type { OrganizationContext, ProjectScope } from "@src/organization/types/organization-context";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -168,6 +169,7 @@ describe(ActivityService.name, () => {
 
       expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledWith({
         userId: alert.userId,
+        organizationId: null,
         type: "wallet_balance_alert",
         status: "info",
         initiator: "system",
@@ -192,7 +194,7 @@ describe(ActivityService.name, () => {
       expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledWith(expect.objectContaining({ userId: user.id, dedupeKey: alert.dedupeKey }));
     });
 
-    it("keeps the organization an alert is filed in on its entry, so the entry can lead to that organization", async () => {
+    it("files the alert's entry in the organization the alert is filed in and keeps that organization on it, so the entry can lead there", async () => {
       const { service, activityRepository, user } = setup({ access: { kind: "all" } });
       const alert = createNewAlertActivity({ userId: user.id, projectId: null });
       activityRepository.createUnlessDuplicate.mockResolvedValue(createActivity());
@@ -201,6 +203,7 @@ describe(ActivityService.name, () => {
 
       expect(activityRepository.createUnlessDuplicate).toHaveBeenCalledWith({
         userId: user.id,
+        organizationId: alert.organizationId,
         type: "wallet_balance_alert",
         status: "info",
         initiator: "system",
@@ -544,7 +547,7 @@ describe(ActivityService.name, () => {
       const page = await service.list({ limit: 2 });
 
       expect(activityRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
-      expect(readRepository.findPage).toHaveBeenCalledWith({ limit: 3, after: undefined, status: undefined, type: undefined });
+      expect(readRepository.findPage).toHaveBeenCalledWith({ limit: 3, after: undefined, status: undefined, type: undefined, feed: undefined });
       expect(page).toEqual({ activities: rows.slice(0, 2), hasMore: true, nextCursor: encodeActivityCursor(rows[1]) });
     });
 
@@ -563,7 +566,25 @@ describe(ActivityService.name, () => {
 
       await service.list({ limit: 20, cursor: encodeActivityCursor(position), status: "failed", type: "deployment_close" });
 
-      expect(readRepository.findPage).toHaveBeenCalledWith({ limit: 21, after: position, status: "failed", type: "deployment_close" });
+      expect(readRepository.findPage).toHaveBeenCalledWith({ limit: 21, after: position, status: "failed", type: "deployment_close", feed: undefined });
+    });
+
+    it("reads only the feed of the organization the request runs in, in organization mode", async () => {
+      const { service, readRepository, organizationContext } = setup({ requestContext: { mode: "organization", organizationType: "team" } });
+      readRepository.findPage.mockResolvedValue([]);
+
+      await service.list({ limit: 20 });
+
+      expect(readRepository.findPage).toHaveBeenCalledWith(expect.objectContaining({ feed: organizationContext }));
+    });
+
+    it("reads the user's whole feed for a request on the legacy rules", async () => {
+      const { service, readRepository } = setup({ requestContext: { mode: "legacy", organizationType: "personal" } });
+      readRepository.findPage.mockResolvedValue([]);
+
+      await service.list({ limit: 20 });
+
+      expect(readRepository.findPage).toHaveBeenCalledWith(expect.objectContaining({ feed: undefined }));
     });
 
     it("refuses a cursor it cannot read before querying", async () => {
@@ -594,6 +615,15 @@ describe(ActivityService.name, () => {
 
       expect(await service.countUnseen()).toBe(4);
       expect(activityRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
+      expect(readRepository.countUnseen).toHaveBeenCalledWith(undefined);
+    });
+
+    it("counts only the unseen activities of the organization the request runs in, in organization mode", async () => {
+      const { service, readRepository, organizationContext } = setup({ requestContext: { mode: "organization", organizationType: "personal" } });
+      readRepository.countUnseen.mockResolvedValue(2);
+
+      expect(await service.countUnseen()).toBe(2);
+      expect(readRepository.countUnseen).toHaveBeenCalledWith(organizationContext);
     });
   });
 
@@ -606,13 +636,25 @@ describe(ActivityService.name, () => {
       expect(await service.markSeen(selection)).toBe(1);
 
       expect(activityRepository.accessibleBy).toHaveBeenCalledWith(ability, "update");
-      expect(updateRepository.markSeen).toHaveBeenCalledWith(selection);
+      expect(updateRepository.markSeen).toHaveBeenCalledWith(selection, undefined);
+    });
+
+    it("marks seen and counts only within the organization the request runs in, in organization mode", async () => {
+      const { service, updateRepository, readRepository, organizationContext } = setup({ requestContext: { mode: "organization", organizationType: "team" } });
+      readRepository.countUnseen.mockResolvedValue(0);
+      const selection = { upTo: "2026-10-26T10:00:00.000Z" };
+
+      await service.markSeen(selection);
+
+      expect(updateRepository.markSeen).toHaveBeenCalledWith(selection, organizationContext);
+      expect(readRepository.countUnseen).toHaveBeenCalledWith(organizationContext);
     });
   });
 
-  function createNewActivity(overrides: Partial<NewActivity> = {}): NewActivity {
+  function createNewActivity(overrides: Partial<FiledActivity> = {}): FiledActivity {
     return {
       userId: faker.string.uuid(),
+      organizationId: faker.string.uuid(),
       type: "deployment_close",
       status: "succeeded",
       initiator: "user",
@@ -641,7 +683,13 @@ describe(ActivityService.name, () => {
     return { kind: "projects", projectIds, writableProjectIds: projectIds, adminProjectIds: [] };
   }
 
-  function setup(input: { access?: ProjectScope | "not_a_member" | "no_context" | Error; userExists?: boolean } = {}) {
+  function setup(
+    input: {
+      access?: ProjectScope | "not_a_member" | "no_context" | Error;
+      userExists?: boolean;
+      requestContext?: Pick<OrganizationContext, "mode" | "organizationType">;
+    } = {}
+  ) {
     const activityRepository = mock<ActivityRepository>();
     const readRepository = mock<ActivityRepository>();
     const updateRepository = mock<ActivityRepository>();
@@ -673,6 +721,11 @@ describe(ActivityService.name, () => {
       organizationContextResolver.resolveBoundTo.mockResolvedValue(mock<OrganizationContext>({ projectScope: access }));
     }
 
+    const organizationContext = input.requestContext && mock<OrganizationContext>({ organizationId: faker.string.uuid(), ...input.requestContext });
+    const executionContextService = mock<ExecutionContextService>({
+      get: vi.fn((key: string) => (key === "ORGANIZATION_CONTEXT" ? organizationContext : undefined)) as ExecutionContextService["get"]
+    });
+
     const service = new ActivityService(
       activityRepository,
       authService,
@@ -681,6 +734,7 @@ describe(ActivityService.name, () => {
       organizationContextResolver,
       userRepository,
       txService,
+      executionContextService,
       createLogger
     );
 
@@ -697,7 +751,8 @@ describe(ActivityService.name, () => {
       txService,
       logger,
       createLogger,
-      ability
+      ability,
+      organizationContext
     };
   }
 });

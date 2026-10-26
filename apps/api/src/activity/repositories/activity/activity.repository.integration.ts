@@ -8,6 +8,8 @@ import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 import { ActivityRepository, isDedupeKeyTaken, isUnknownUser, type PendingActivitySummary } from "./activity.repository";
 
+import { seedOrganization } from "@test/seeders/db/organization.seeder";
+
 describe(ActivityRepository.name, () => {
   const OWNER = "akash1personal";
 
@@ -55,6 +57,28 @@ describe(ActivityRepository.name, () => {
 
       expect(page.map(activity => activity.id)).toEqual([failed.id]);
     });
+
+    it("lists only the activities filed in a team in that team's feed", async () => {
+      const { repository, createUser, seedFeeds } = setup();
+      const owner = await createUser();
+      const { team, inTeam } = await seedFeeds(owner.id);
+
+      const page = await repository.accessibleBy(owner.ability, "read").findPage({ limit: 10, feed: { organizationId: team.id, organizationType: "team" } });
+
+      expect(page.map(activity => activity.id)).toEqual([inTeam.id]);
+    });
+
+    it("lists the personal organization's activities and those recorded before activities named one in the personal feed", async () => {
+      const { repository, createUser, seedFeeds } = setup();
+      const owner = await createUser();
+      const { personal, inPersonal, unfiled } = await seedFeeds(owner.id);
+
+      const page = await repository
+        .accessibleBy(owner.ability, "read")
+        .findPage({ limit: 10, feed: { organizationId: personal.id, organizationType: "personal" } });
+
+      expect(page.map(activity => activity.id)).toEqual([unfiled.id, inPersonal.id]);
+    });
   });
 
   describe("countUnseen", () => {
@@ -68,6 +92,16 @@ describe(ActivityRepository.name, () => {
       await seed(stranger.id);
 
       expect(await repository.accessibleBy(owner.ability, "read").countUnseen()).toBe(2);
+    });
+
+    it("counts only the unseen activities of the feed it is given", async () => {
+      const { repository, createUser, seedFeeds } = setup();
+      const owner = await createUser();
+      const { team, personal } = await seedFeeds(owner.id);
+      const scoped = repository.accessibleBy(owner.ability, "read");
+
+      expect(await scoped.countUnseen({ organizationId: team.id, organizationType: "team" })).toBe(1);
+      expect(await scoped.countUnseen({ organizationId: personal.id, organizationType: "personal" })).toBe(2);
     });
   });
 
@@ -110,6 +144,20 @@ describe(ActivityRepository.name, () => {
       await repository.accessibleBy(owner.ability, "update").markSeen({ ids: [seen.id] });
 
       expect((await repository.findById(seen.id))?.seenAt).toBe(firstSeenAt.toISOString());
+    });
+
+    it("marks seen only the activities of the feed it is given", async () => {
+      const { repository, createUser, seedFeeds } = setup();
+      const owner = await createUser();
+      const { team, inTeam, inPersonal, unfiled } = await seedFeeds(owner.id);
+
+      await repository
+        .accessibleBy(owner.ability, "update")
+        .markSeen({ upTo: new Date().toISOString() }, { organizationId: team.id, organizationType: "team" });
+
+      expect((await repository.findById(inTeam.id))?.seenAt).not.toBeNull();
+      expect((await repository.findById(inPersonal.id))?.seenAt).toBeNull();
+      expect((await repository.findById(unfiled.id))?.seenAt).toBeNull();
     });
   });
 
@@ -465,12 +513,23 @@ describe(ActivityRepository.name, () => {
         seenAt?: Date;
         meta?: { dseq: string };
         dedupeKey?: string;
+        organizationId?: string;
       } = {}
     ) {
       return await repository.create({ userId, type: "deployment_close", status: "succeeded", meta: { dseq: faker.string.numeric(6) }, ...overrides });
     }
 
-    return { repository, createUser, seed };
+    async function seedFeeds(userId: string) {
+      const team = await seedOrganization({ type: "team" });
+      const personal = await seedOrganization({ type: "personal", createdByUserId: userId });
+      const inTeam = await seed(userId, { organizationId: team.id, createdAt: new Date("2026-10-05T10:00:00.000Z") });
+      const inPersonal = await seed(userId, { organizationId: personal.id, createdAt: new Date("2026-10-05T11:00:00.000Z") });
+      const unfiled = await seed(userId, { createdAt: new Date("2026-10-05T12:00:00.000Z") });
+
+      return { team, personal, inTeam, inPersonal, unfiled };
+    }
+
+    return { repository, createUser, seed, seedFeeds };
   }
 
   function alertOf(userId: string, { type, dedupeKey, dseq }: { type: AlertActivityType; dedupeKey: string; dseq?: string }) {

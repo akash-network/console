@@ -17,7 +17,7 @@ describe(ActivityService.name, () => {
       const userId = await createUser();
 
       await service.addAlert(closedAlertOf(userId, "1001"));
-      await service.record(systemClosedActivityOf({ userId, owner: OWNER, dseq: "1001", reason: "trial_ended" }));
+      await service.record({ ...systemClosedActivityOf({ userId, owner: OWNER, dseq: "1001", reason: "trial_ended" }), organizationId: null });
 
       expect(await findActivities(userId)).toEqual([
         expect.objectContaining({
@@ -34,7 +34,7 @@ describe(ActivityService.name, () => {
       const { service, createUser, closedAlertOf, findActivities } = setup();
       const userId = await createUser();
 
-      await service.record(closedActivityOf({ userId, owner: OWNER, dseq: "1001" }));
+      await service.record({ ...closedActivityOf({ userId, owner: OWNER, dseq: "1001" }), organizationId: null });
       await service.addAlert(closedAlertOf(userId, "1001"));
 
       expect(await findActivities(userId)).toEqual([
@@ -94,7 +94,7 @@ describe(ActivityService.name, () => {
         dedupeKey: `deployment_reclaim_alert.${faker.string.uuid()}`
       });
 
-      await service.record(closedActivityOf({ userId, owner: OWNER, dseq: "1001" }));
+      await service.record({ ...closedActivityOf({ userId, owner: OWNER, dseq: "1001" }), organizationId: null });
 
       expect((await findActivities(userId)).map(activity => activity.type).sort()).toEqual([
         "deployment_close",
