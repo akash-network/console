@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { deriveProviderUptime } from "./deriveProviderUptime";
+import { deriveProviderUptime, useProvidersUptime } from "./deriveProviderUptime";
+
+import { renderHook } from "@testing-library/react";
+import { stubResolvedTimezone } from "@tests/unit/stubResolvedTimezone";
 
 const NOW = Date.parse("2026-06-15T12:00:00.000Z");
 const SECONDS_PER_DAY = 24 * 60 * 60;
@@ -69,4 +72,32 @@ describe("deriveProviderUptime", () => {
     expect(result.buckets[6].isLiveDown).toBe(true);
     expect(result.buckets[6].status).toBe("offline");
   });
+});
+
+describe(useProvidersUptime.name, () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("ends each provider's buckets on today in the browser's timezone", () => {
+    const { result } = setup({ timeZone: "Pacific/Kiritimati", now: "2026-06-15T12:00:00.000Z" });
+
+    expect(result.current.get("akash1provider")?.buckets.at(-1)?.date).toBe("2026-06-16");
+  });
+
+  it("ends each provider's buckets on today in UTC when the browser resolves no timezone", () => {
+    const { result } = setup({ timeZone: undefined, now: "2026-06-15T01:00:00.000Z" });
+
+    expect(result.current.get("akash1provider")?.buckets.at(-1)?.date).toBe("2026-06-15");
+  });
+
+  function setup(input: { timeZone: string | undefined; now: string }) {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(input.now));
+    stubResolvedTimezone(input.timeZone);
+    const providers = [{ owner: "akash1provider", incidents: [] }];
+
+    return renderHook(() => useProvidersUptime(providers));
+  }
 });

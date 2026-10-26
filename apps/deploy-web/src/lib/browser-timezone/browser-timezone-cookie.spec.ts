@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { BROWSER_TIMEZONE_COOKIE_NAME, readBrowserTimezone, rememberBrowserTimezone, serializeBrowserTimezoneCookie } from "./browser-timezone-cookie";
+
+import { stubResolvedTimezone } from "@tests/unit/stubResolvedTimezone";
 
 describe(serializeBrowserTimezoneCookie.name, () => {
   it("keeps the timezone for a year on every path", () => {
@@ -15,12 +17,26 @@ describe(serializeBrowserTimezoneCookie.name, () => {
 });
 
 describe(rememberBrowserTimezone.name, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("writes the timezone the browser resolves", () => {
+    stubResolvedTimezone("America/Vancouver");
     const document = { cookie: "" };
 
     rememberBrowserTimezone(document, { protocol: "https:" });
 
-    expect(document.cookie).toBe(serializeBrowserTimezoneCookie(Intl.DateTimeFormat().resolvedOptions().timeZone, { protocol: "https:" }));
+    expect(document.cookie).toBe(serializeBrowserTimezoneCookie("America/Vancouver", { protocol: "https:" }));
+  });
+
+  it("writes no cookie when the browser resolves no timezone", () => {
+    stubResolvedTimezone(undefined);
+    const document = { cookie: "" };
+
+    rememberBrowserTimezone(document, { protocol: "https:" });
+
+    expect(document.cookie).toBe("");
   });
 });
 

@@ -13,6 +13,7 @@ import { BillingContainer } from "./BillingContainer";
 import { act, render } from "@testing-library/react";
 import { createMockTransaction } from "@tests/seeders/payment";
 import { createContainerTestingChildCapturer } from "@tests/unit/container-testing-child-capturer";
+import { stubResolvedTimezone } from "@tests/unit/stubResolvedTimezone";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(BillingContainer.name, () => {
@@ -139,6 +140,23 @@ describe(BillingContainer.name, () => {
       );
       expect(clickDownloadLink).toHaveBeenCalledTimes(1);
     } finally {
+      clickDownloadLink.mockRestore();
+    }
+  });
+
+  it("exports in UTC when the browser resolves no timezone", async () => {
+    const stripe = mock<StripeService>({ exportTransactionsCsv: vi.fn().mockResolvedValue(new Blob(["csv"])) });
+    const clickDownloadLink = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    const resolvedOptions = stubResolvedTimezone(undefined);
+    try {
+      const { child } = await setup({ services: { stripe: () => stripe } });
+
+      await act(() => child.onExport());
+
+      expect(stripe.exportTransactionsCsv).toHaveBeenCalledWith(expect.objectContaining({ timezone: "UTC" }));
+      expect(clickDownloadLink).toHaveBeenCalledTimes(1);
+    } finally {
+      resolvedOptions.mockRestore();
       clickDownloadLink.mockRestore();
     }
   });

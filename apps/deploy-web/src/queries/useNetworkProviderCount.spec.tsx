@@ -1,5 +1,5 @@
 import type { UseQueryResult } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { setupQuery } from "../../tests/unit/query-client";
@@ -8,13 +8,25 @@ import type { ScreenedProvider, ScreenedProvidersResponse } from "./useScreenedP
 import { buildCatalogScreeningRequest } from "./useScreenedProviders";
 
 import { buildScreenedProvider } from "@tests/seeders/screenedProvider";
+import { stubResolvedTimezone } from "@tests/unit/stubResolvedTimezone";
 
 describe(useNetworkProviderCount.name, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   it("counts the providers an empty resource spec screens to, which is every online audited provider", () => {
     const { result, useQuery } = setup({ providers: [buildScreenedProvider(), buildScreenedProvider(), buildScreenedProvider()] });
 
     expect(result.current).toEqual({ count: 3, isLoading: false });
     expect(useQuery).toHaveBeenCalledWith({ ...buildCatalogScreeningRequest(), timezone: expect.any(String) }, expect.anything());
+  });
+
+  it("screens in UTC when the browser resolves no timezone", () => {
+    stubResolvedTimezone(undefined);
+
+    const { useQuery } = setup({});
+
+    expect(useQuery).toHaveBeenCalledWith({ ...buildCatalogScreeningRequest(), timezone: "UTC" }, expect.anything());
   });
 
   it("keeps the count for five minutes and skips refetching when the window regains focus", () => {

@@ -5,6 +5,7 @@ import type { PaginationState } from "@tanstack/react-table";
 import axios from "axios";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { getBrowserTimezoneOrUtc } from "@src/lib/browser-timezone/browser-timezone";
 import type { BillingTransaction } from "@src/queries";
 import { usePaymentTransactionsQuery } from "@src/queries";
 import { createDateRange } from "@src/utils/dateUtils";
@@ -93,7 +94,7 @@ export const BillingContainer: React.FC<BillingContainerProps> = ({ children, de
     const { from: startDate, to: endDate } = resolveDateRange(datePreset, customRange);
 
     try {
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const timezone = getBrowserTimezoneOrUtc();
 
       const csv = await stripe.exportTransactionsCsv({
         startDate,
