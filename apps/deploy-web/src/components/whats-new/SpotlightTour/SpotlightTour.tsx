@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@akashnetwork/ui/components";
 import { useMediaQuery } from "@akashnetwork/ui/hooks";
@@ -50,6 +50,8 @@ const ADVANCE_AFTER_CLICK_MS = 30;
 const CARD_MAX_WIDTH = 320;
 const CARD_ESTIMATED_HEIGHT = 190;
 const ANOTHER_OPEN_DIALOG = '[role="dialog"][data-state="open"]:not([data-whats-new]), [role="alertdialog"][data-state="open"]';
+/** Radix closes a menu once focus leaves it, which would hide the very control the step points at. */
+const OPEN_MENU = '[role="menu"]';
 
 const HINT_ICON = { hover: MousePointer, click: MousePointerClick };
 
@@ -73,6 +75,7 @@ function OpenSpotlightTour({ steps, origin, onEnd, dependencies: d = DEPENDENCIE
   const targetRef = useRef<HTMLElement | null>(null);
   const stepIndexRef = useRef(stepIndex);
   const cardRef = useRef<HTMLDivElement>(null);
+  const bodyId = useId();
   const step = steps[Math.min(stepIndex, steps.length - 1)];
 
   useEffect(
@@ -189,6 +192,14 @@ function OpenSpotlightTour({ steps, origin, onEnd, dependencies: d = DEPENDENCIE
     if (height && Math.abs(height - cardHeight) > 1) setCardHeight(height);
   });
 
+  useEffect(
+    function focusTheCardOnEachStep() {
+      if (!hasArrived || document.activeElement?.closest(OPEN_MENU)) return;
+      cardRef.current?.focus({ preventScroll: true });
+    },
+    [hasArrived, stepIndex]
+  );
+
   if (isBehindAnotherDialog) return null;
 
   const cardWidth = Math.min(CARD_MAX_WIDTH, viewport.width - 16);
@@ -226,6 +237,8 @@ function OpenSpotlightTour({ steps, origin, onEnd, dependencies: d = DEPENDENCIE
           ref={cardRef}
           role="dialog"
           aria-label={step.title}
+          aria-describedby={bodyId}
+          tabIndex={-1}
           data-whats-new=""
           data-side={placement.side}
           className={styles.coach}
@@ -250,7 +263,9 @@ function OpenSpotlightTour({ steps, origin, onEnd, dependencies: d = DEPENDENCIE
 
           <div key={step.id} className={styles.stepCopy}>
             <h2 className="text-balance text-[15px] font-semibold leading-[1.3] tracking-[-0.01em]">{step.title}</h2>
-            <p className="mt-1 text-pretty text-[13px] leading-[19px] text-muted-foreground">{step.body}</p>
+            <p id={bodyId} className="mt-1 text-pretty text-[13px] leading-[19px] text-muted-foreground">
+              {step.body}
+            </p>
             <div className="mt-3 flex items-center gap-2 rounded-lg bg-muted px-2.5 py-2 text-[12.5px] leading-[17px]">
               <HintIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1">{step.hint}</span>

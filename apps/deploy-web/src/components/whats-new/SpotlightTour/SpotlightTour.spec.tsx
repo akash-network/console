@@ -40,6 +40,33 @@ describe(SpotlightTour.name, () => {
     );
   });
 
+  it("moves focus to the card and describes the step to assistive tech", async () => {
+    setup();
+
+    const card = await screen.findByRole("dialog", { name: "First step" });
+
+    expect(card).toHaveFocus();
+    expect(card).toHaveAccessibleDescription("What the first control does");
+  });
+
+  it("moves focus to the card again on the next step", async () => {
+    setup();
+    await screen.findByRole("dialog", { name: "First step" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(await screen.findByRole("dialog", { name: "Second step" })).toHaveFocus();
+  });
+
+  it("leaves focus in an open menu, so the menu the step points into stays open", async () => {
+    setup({ isMenuOpen: true });
+    screen.getByRole("menuitem", { name: "Menu item" }).focus();
+
+    await screen.findByRole("dialog", { name: "First step" });
+
+    expect(screen.getByRole("menuitem", { name: "Menu item" })).toHaveFocus();
+  });
+
   it("anchors the card on the step's preferred side of the control", async () => {
     setup();
 
@@ -290,6 +317,7 @@ describe(SpotlightTour.name, () => {
       origin?: Box;
       prefersReducedMotion?: boolean;
       viewportWidth?: number;
+      isMenuOpen?: boolean;
       firstStepOnTargetClick?: TourStep["onTargetClick"];
       firstControl?: "shown" | "missing" | "zero-width";
       prepareFirstStep?: "shows-the-control" | "does-nothing";
@@ -352,6 +380,13 @@ describe(SpotlightTour.name, () => {
         </button>
         <button type="button">Second control</button>
         <button type="button">Unrelated control</button>
+        {input.isMenuOpen && (
+          <div role="menu">
+            <button type="button" role="menuitem">
+              Menu item
+            </button>
+          </div>
+        )}
         {state.isOtherDialogOpen && <div role={state.otherDialogRole} data-state={state.otherDialogState} aria-label="Other dialog" />}
         <SpotlightTour
           steps={steps}
