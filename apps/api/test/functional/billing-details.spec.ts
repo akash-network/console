@@ -44,7 +44,7 @@ describe("Billing details", () => {
       const response = await app.request("/v1/billing-details", { headers: headersOf(owner) });
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ data: { legalName: null, address: null, taxId: null } });
+      expect(await response.json()).toEqual({ data: { legalName: null, companyName: null, address: null, taxId: null } });
       expect(stripeCalls.isDone()).toBe(false);
     });
 
@@ -59,6 +59,8 @@ describe("Billing details", () => {
           id: customerId,
           object: "customer",
           name: "Acme GmbH",
+          individual_name: "Jane Doe",
+          business_name: "Acme GmbH",
           address: { line1: "Hauptstr. 1", line2: null, city: "Berlin", state: null, postal_code: "10115", country: "DE" },
           tax_ids: { object: "list", data: [taxIdOf(customerId, { id: "txi_1", value: "DE123456789", status: "verified" })], has_more: false }
         });
@@ -68,7 +70,8 @@ describe("Billing details", () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
         data: {
-          legalName: "Acme GmbH",
+          legalName: "Jane Doe",
+          companyName: "Acme GmbH",
           address: { line1: "Hauptstr. 1", line2: null, city: "Berlin", state: null, postalCode: "10115", country: "DE" },
           taxId: { type: "eu_vat", value: "DE123456789", verificationStatus: "verified" }
         }
@@ -77,7 +80,7 @@ describe("Billing details", () => {
   });
 
   describe("PUT /v1/billing-details", () => {
-    it("lets a billing member set the team's legal name, address and VAT number", async () => {
+    it("lets a billing member bill the team's company with a contact, address and VAT number", async () => {
       const { team, headersOf, memberWith } = await setup();
       const billingMember = await memberWith("billing");
       const customerId = await setTeamCustomer(team.id);
@@ -96,6 +99,10 @@ describe("Billing details", () => {
           `/v1/customers/${customerId}`,
           body =>
             body.name === "Acme GmbH" &&
+            body.individual_name === "Jane Doe" &&
+            body.business_name === "Acme GmbH" &&
+            body["invoice_settings[custom_fields][0][name]"] === "Billing contact" &&
+            body["invoice_settings[custom_fields][0][value]"] === "Jane Doe" &&
             body["address[line1]"] === "Hauptstr. 1" &&
             body["address[line2]"] === "" &&
             body["address[city]"] === "Berlin" &&
@@ -108,6 +115,8 @@ describe("Billing details", () => {
           id: customerId,
           object: "customer",
           name: "Acme GmbH",
+          individual_name: "Jane Doe",
+          business_name: "Acme GmbH",
           address: { line1: "Hauptstr. 1", line2: null, city: "Berlin", state: null, postal_code: "10115", country: "DE" },
           tax_ids: { object: "list", data: [taxIdOf(customerId, { id: "txi_new", value: "DE123456789", status: "pending" })], has_more: false }
         });
@@ -117,7 +126,8 @@ describe("Billing details", () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
         data: {
-          legalName: "Acme GmbH",
+          legalName: "Jane Doe",
+          companyName: "Acme GmbH",
           address: { line1: "Hauptstr. 1", line2: null, city: "Berlin", state: null, postalCode: "10115", country: "DE" },
           taxId: { type: "eu_vat", value: "DE123456789", verificationStatus: "pending" }
         }
@@ -166,7 +176,8 @@ describe("Billing details", () => {
   });
 
   const VALID_INPUT = {
-    legalName: "Acme GmbH",
+    legalName: "Jane Doe",
+    companyName: "Acme GmbH",
     address: { line1: "Hauptstr. 1", line2: null, city: "Berlin", state: null, postalCode: "10115", country: "DE" },
     taxId: { type: "eu_vat", value: "DE123456789" }
   };

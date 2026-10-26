@@ -20,7 +20,9 @@ export const TAX_ID_TYPES = [
   "za_vat"
 ] as const satisfies readonly Stripe.CustomerCreateTaxIdParams.Type[];
 
-const MAX_LEGAL_NAME_LENGTH = 256;
+/** Next to a company name the legal name prints as an invoice custom field, which Stripe caps at 140 characters. */
+const MAX_LEGAL_NAME_LENGTH = 140;
+const MAX_COMPANY_NAME_LENGTH = 150;
 const MAX_ADDRESS_LINE_LENGTH = 200;
 const MAX_POSTAL_CODE_LENGTH = 20;
 const MAX_TAX_ID_VALUE_LENGTH = 64;
@@ -45,7 +47,15 @@ const TaxIdInputSchema = z.object({
 });
 
 const BillingDetailsInputSchema = z.object({
-  legalName: z.string().trim().min(1).max(MAX_LEGAL_NAME_LENGTH).openapi({ description: "The name printed on invoices" }),
+  legalName: z.string().trim().min(1).max(MAX_LEGAL_NAME_LENGTH).openapi({ description: "The payer's full legal name, printed on invoices" }),
+  companyName: z
+    .string()
+    .trim()
+    .min(1)
+    .max(MAX_COMPANY_NAME_LENGTH)
+    .nullable()
+    .optional()
+    .openapi({ description: "The company invoices are billed to, with the legal name as its billing contact. Null or omitted bills the legal name" }),
   address: BillingAddressInputSchema,
   taxId: TaxIdInputSchema.nullable()
     .optional()
@@ -72,6 +82,7 @@ const TaxIdOutputSchema = z.object({
 
 const BillingDetailsOutputSchema = z.object({
   legalName: z.string().nullable(),
+  companyName: z.string().nullable(),
   address: BillingAddressOutputSchema.nullable(),
   taxId: TaxIdOutputSchema.nullable()
 });

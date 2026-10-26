@@ -9221,6 +9221,7 @@ export interface operations {
           "application/json": {
             data: {
               legalName: string | null;
+              companyName: string | null;
               address: {
                 line1: string | null;
                 line2: string | null;
@@ -9281,8 +9282,10 @@ export interface operations {
       content: {
         "application/json": {
           data: {
-            /** @description The name printed on invoices */
+            /** @description The payer's full legal name, printed on invoices */
             legalName: string;
+            /** @description The company invoices are billed to, with the legal name as its billing contact. Null or omitted bills the legal name */
+            companyName?: string | null;
             address: {
               line1: string;
               line2: string | null;
@@ -9331,6 +9334,7 @@ export interface operations {
           "application/json": {
             data: {
               legalName: string | null;
+              companyName: string | null;
               address: {
                 line1: string | null;
                 line2: string | null;

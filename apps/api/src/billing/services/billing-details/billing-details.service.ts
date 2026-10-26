@@ -9,9 +9,11 @@ import type { Payer } from "@src/billing/services/payer/payer";
 
 type TaxIdInput = NonNullable<BillingDetailsInput["taxId"]>;
 
-const NO_BILLING_DETAILS: BillingDetailsOutput = { legalName: null, address: null, taxId: null };
+const NO_BILLING_DETAILS: BillingDetailsOutput = { legalName: null, companyName: null, address: null, taxId: null };
 
 const MAX_STRIPE_PAGE_SIZE = 100;
+
+export const BILLING_CONTACT_FIELD_NAME = "Billing contact";
 
 export const INVALID_TAX_ID_MESSAGE = "This tax ID is not valid for the selected type";
 
@@ -46,7 +48,7 @@ export class BillingDetailsService {
     }
 
     const customer = await this.stripe.customers.update(customerId, {
-      name: input.legalName,
+      ...toStripeNames(input),
       address: toStripeAddress(input.address),
       expand: ["tax_ids"]
     });
@@ -80,7 +82,8 @@ export class BillingDetailsService {
 
 function toBillingDetails(customer: Stripe.Customer, taxId: Stripe.TaxId | undefined): BillingDetailsOutput {
   return {
-    legalName: customer.name ?? null,
+    legalName: customer.individual_name ?? null,
+    companyName: customer.business_name ?? null,
     address: customer.address
       ? {
           line1: customer.address.line1,
@@ -92,6 +95,16 @@ function toBillingDetails(customer: Stripe.Customer, taxId: Stripe.TaxId | undef
         }
       : null,
     taxId: taxId ? { type: taxId.type, value: taxId.value, verificationStatus: taxId.verification?.status ?? null } : null
+  };
+}
+
+/** Invoices print only the customer name, so a company takes it and the legal name moves to a custom field. */
+function toStripeNames({ legalName, companyName }: BillingDetailsInput): Stripe.CustomerUpdateParams {
+  return {
+    name: companyName ?? legalName,
+    individual_name: legalName,
+    business_name: companyName ?? "",
+    invoice_settings: { custom_fields: companyName ? [{ name: BILLING_CONTACT_FIELD_NAME, value: legalName }] : "" }
   };
 }
 
