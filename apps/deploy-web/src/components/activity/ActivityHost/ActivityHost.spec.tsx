@@ -424,6 +424,16 @@ describe(ActivityHost.name, () => {
       expect(closeSnackbar).toHaveBeenCalledTimes(1);
       expect(closeSnackbar).toHaveBeenCalledWith(TOAST_KEY);
     });
+
+    it("dismisses the progress toast when it unmounts, as an organization switch remounts it", () => {
+      const { closeSnackbar, receive, unmount } = setup({ activities: [] });
+
+      receive([pendingUpdate()]);
+      unmount();
+
+      expect(closeSnackbar).toHaveBeenCalledTimes(1);
+      expect(closeSnackbar).toHaveBeenCalledWith(TOAST_KEY);
+    });
   });
 
   it("names the deployment a close finished for", () => {
@@ -1072,7 +1082,7 @@ describe(ActivityHost.name, () => {
         <ActivityHost dependencies={dependencies} />
       </TestContainerProvider>
     );
-    const { rerender } = render(host());
+    const { rerender, unmount } = render(host());
 
     const receive = (next: Activity[], options: { isLoadingNames?: boolean; names?: Record<string, string>; closeBatchesBeingSent?: string[] } = {}) => {
       activities = next;
@@ -1100,6 +1110,7 @@ describe(ActivityHost.name, () => {
       forgetHandledOutcome,
       receive,
       followToastAction,
+      unmount,
       analyticsService,
       takeHeldActivityEvents
     };

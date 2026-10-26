@@ -123,8 +123,21 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   const batchesToSumUp = useRef(new Set<string>());
   /** Only actions started after this read get a progress toast, so one stuck pending for hours doesn't greet the user with a spinner on every page load. */
   const activityIdsAtFirstRead = useRef<ReadonlySet<string>>();
+  /** Dismissed when the host unmounts, because an organization switch remounts it while the snackbar provider above keeps every toast. */
   const progressToastKeys = useRef(new Map<string, SnackbarKey>());
   const labelDeployment = useCallback((dseq: string | undefined) => deploymentLabelOf(getDeploymentName(dseq), dseq), [getDeploymentName]);
+
+  useEffect(
+    function dismissProgressToastsWhenUnmounted() {
+      const keys = progressToastKeys.current;
+
+      return function dismissProgressToasts() {
+        for (const key of keys.values()) closeSnackbar(key);
+        keys.clear();
+      };
+    },
+    [closeSnackbar]
+  );
 
   useEffect(
     function showActionsInProgress() {
