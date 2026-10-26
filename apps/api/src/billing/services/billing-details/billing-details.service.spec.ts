@@ -5,7 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { BillingDetailsInput } from "@src/billing/http-schemas/billing-details.schema";
 import type { CustomerService } from "@src/billing/services/customer/customer.service";
-import { BillingDetailsService, INVALID_TAX_ID_ERROR_CODE, INVALID_TAX_ID_MESSAGE } from "./billing-details.service";
+import { BILLING_CONTACT_FIELD_NAME, BillingDetailsService, INVALID_TAX_ID_ERROR_CODE, INVALID_TAX_ID_MESSAGE } from "./billing-details.service";
 
 import { createUserPayer } from "@test/seeders/payer.seeder";
 import { createStripeAddress, createStripeCustomer, createStripeTaxId } from "@test/seeders/stripe-customer.seeder";
@@ -18,11 +18,11 @@ describe(BillingDetailsService.name, () => {
 
       const result = await service.getBillingDetails({ stripeCustomerId: null });
 
-      expect(result).toEqual({ legalName: null, address: null, taxId: null });
+      expect(result).toEqual({ legalName: null, companyName: null, address: null, taxId: null });
       expect(retrieve).not.toHaveBeenCalled();
     });
 
-    it("returns the customer's name, address and first tax ID", async () => {
+    it("returns the customer's legal name, company name, address and first tax ID", async () => {
       const { service, stripe } = setup();
       const address = createStripeAddress();
       const taxId = createStripeTaxId({
@@ -32,6 +32,8 @@ describe(BillingDetailsService.name, () => {
       });
       const customer = createStripeCustomer({
         name: "Acme GmbH",
+        individual_name: "Jane Doe",
+        business_name: "Acme GmbH",
         address,
         tax_ids: { object: "list", data: [taxId, createStripeTaxId()], has_more: false, url: "" }
       });
@@ -41,7 +43,8 @@ describe(BillingDetailsService.name, () => {
 
       expect(retrieve).toHaveBeenCalledWith(customer.id, { expand: ["tax_ids"] });
       expect(result).toEqual({
-        legalName: "Acme GmbH",
+        legalName: "Jane Doe",
+        companyName: "Acme GmbH",
         address: {
           line1: address.line1,
           line2: address.line2,
@@ -61,7 +64,17 @@ describe(BillingDetailsService.name, () => {
 
       const result = await service.getBillingDetails({ stripeCustomerId: customer.id });
 
-      expect(result).toEqual({ legalName: null, address: null, taxId: null });
+      expect(result).toEqual({ legalName: null, companyName: null, address: null, taxId: null });
+    });
+
+    it("leaves the legal name empty for a customer named after the payer's username", async () => {
+      const { service, stripe } = setup();
+      const customer = createStripeCustomer({ name: faker.internet.userName(), address: null, tax_ids: undefined });
+      vi.spyOn(stripe.customers, "retrieve").mockResolvedValue(customer);
+
+      const result = await service.getBillingDetails({ stripeCustomerId: customer.id });
+
+      expect(result.legalName).toBeNull();
     });
 
     it("reports no verification status for a tax ID type Stripe does not verify", async () => {
@@ -87,26 +100,152 @@ describe(BillingDetailsService.name, () => {
 
       const result = await service.getBillingDetails({ stripeCustomerId: customerId });
 
-      expect(result).toEqual({ legalName: null, address: null, taxId: null });
+      expect(result).toEqual({ legalName: null, companyName: null, address: null, taxId: null });
     });
   });
 
   describe("updateBillingDetails", () => {
-    it("saves the legal name and address on the payer's customer, sending cleared fields as empty strings", async () => {
+    it("bills the legal name without a company, clearing the company, its contact field and empty address fields", async () => {
       const { service, stripe, customerService, payer, customerId } = setup();
       const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
 
       await service.updateBillingDetails(
         payer,
-        createInput({ legalName: "Acme GmbH", address: { line1: "Hauptstr. 1", line2: null, city: null, state: null, postalCode: null, country: "DE" } })
+        createInput({
+          legalName: "Jane Doe",
+          companyName: null,
+          address: { line1: "Hauptstr. 1", line2: null, city: null, state: null, postalCode: null, country: "DE" }
+        })
       );
 
       expect(customerService.getStripeCustomerId).toHaveBeenCalledWith(payer);
       expect(update).toHaveBeenCalledWith(customerId, {
-        name: "Acme GmbH",
+        name: "Jane Doe",
+        individual_name: "Jane Doe",
+        business_name: "",
+        invoice_settings: { custom_fields: "" },
         address: { line1: "Hauptstr. 1", line2: "", city: "", state: "", postal_code: "", country: "DE" },
         expand: ["tax_ids"]
       });
+    });
+
+    it("bills the legal name when no company is sent", async () => {
+      const { service, stripe, payer, customerId } = setup();
+      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
+      const { companyName: _, ...input } = createInput({ legalName: "Jane Doe" });
+
+      await service.updateBillingDetails(payer, input);
+
+      expect(update).toHaveBeenCalledWith(
+        customerId,
+        expect.objectContaining({ name: "Jane Doe", individual_name: "Jane Doe", business_name: "", invoice_settings: { custom_fields: "" } })
+      );
+    });
+
+    it("bills the company and prints the legal name as its billing contact", async () => {
+      const { service, stripe, payer, customerId } = setup();
+      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
+
+      await service.updateBillingDetails(payer, createInput({ legalName: "Jane Doe", companyName: "Acme GmbH" }));
+
+      expect(update).toHaveBeenCalledWith(
+        customerId,
+        expect.objectContaining({
+          name: "Acme GmbH",
+          individual_name: "Jane Doe",
+          business_name: "Acme GmbH",
+          invoice_settings: { custom_fields: [{ name: BILLING_CONTACT_FIELD_NAME, value: "Jane Doe" }] }
+        })
+      );
+    });
+
+    it("keeps the invoice fields added in the Stripe Dashboard after the billing contact", async () => {
+      const { service, stripe, payer, customerId } = setup({ customFields: [{ name: "PO number", value: "PO-42" }] });
+      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
+
+      await service.updateBillingDetails(payer, createInput({ legalName: "Jane Doe", companyName: "Acme GmbH" }));
+
+      expect(update).toHaveBeenCalledWith(
+        customerId,
+        expect.objectContaining({
+          invoice_settings: {
+            custom_fields: [
+              { name: BILLING_CONTACT_FIELD_NAME, value: "Jane Doe" },
+              { name: "PO number", value: "PO-42" }
+            ]
+          }
+        })
+      );
+    });
+
+    it("replaces the billing contact on file instead of adding a second one", async () => {
+      const { service, stripe, payer, customerId } = setup({
+        customFields: [
+          { name: BILLING_CONTACT_FIELD_NAME, value: "John Roe" },
+          { name: "PO number", value: "PO-42" }
+        ]
+      });
+      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
+
+      await service.updateBillingDetails(payer, createInput({ legalName: "Jane Doe", companyName: "Acme GmbH" }));
+
+      expect(update).toHaveBeenCalledWith(
+        customerId,
+        expect.objectContaining({
+          invoice_settings: {
+            custom_fields: [
+              { name: BILLING_CONTACT_FIELD_NAME, value: "Jane Doe" },
+              { name: "PO number", value: "PO-42" }
+            ]
+          }
+        })
+      );
+    });
+
+    it("removes only the billing contact when the company is cleared", async () => {
+      const { service, stripe, payer, customerId } = setup({
+        customFields: [
+          { name: BILLING_CONTACT_FIELD_NAME, value: "Jane Doe" },
+          { name: "PO number", value: "PO-42" }
+        ]
+      });
+      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
+
+      await service.updateBillingDetails(payer, createInput({ legalName: "Jane Doe", companyName: null }));
+
+      expect(update).toHaveBeenCalledWith(
+        customerId,
+        expect.objectContaining({ invoice_settings: { custom_fields: [{ name: "PO number", value: "PO-42" }] } })
+      );
+    });
+
+    it("drops the last Dashboard field to fit the billing contact within Stripe's four invoice fields", async () => {
+      const dashboardFields = ["PO number", "Cost center", "Project", "Department"].map(name => ({ name, value: faker.string.alphanumeric(8) }));
+      const { service, stripe, payer, customerId } = setup({ customFields: dashboardFields });
+      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
+
+      await service.updateBillingDetails(payer, createInput({ legalName: "Jane Doe", companyName: "Acme GmbH" }));
+
+      expect(update).toHaveBeenCalledWith(
+        customerId,
+        expect.objectContaining({
+          invoice_settings: { custom_fields: [{ name: BILLING_CONTACT_FIELD_NAME, value: "Jane Doe" }, ...dashboardFields.slice(0, 3)] }
+        })
+      );
+    });
+
+    it("lets Stripe's error through for a customer deleted in Stripe", async () => {
+      const { service, stripe, payer, customerId } = setup();
+      vi.spyOn(stripe.customers, "retrieve").mockResolvedValue({
+        id: customerId,
+        object: "customer",
+        deleted: true,
+        lastResponse: { headers: {}, requestId: "req_1", statusCode: 200 }
+      });
+      const error = new Stripe.errors.StripeInvalidRequestError({ type: "invalid_request_error", code: "resource_missing", message: "No such customer" });
+      vi.spyOn(stripe.customers, "update").mockRejectedValue(error);
+
+      await expect(service.updateBillingDetails(payer, createInput())).rejects.toBe(error);
     });
 
     it("sends every address field it was given", async () => {
@@ -118,11 +257,12 @@ describe(BillingDetailsService.name, () => {
         createInput({ address: { line1: "1 Main St", line2: "Suite 2", city: "Springfield", state: "IL", postalCode: "62701", country: "US" } })
       );
 
-      expect(update).toHaveBeenCalledWith(customerId, {
-        name: expect.any(String),
-        address: { line1: "1 Main St", line2: "Suite 2", city: "Springfield", state: "IL", postal_code: "62701", country: "US" },
-        expand: ["tax_ids"]
-      });
+      expect(update).toHaveBeenCalledWith(
+        customerId,
+        expect.objectContaining({
+          address: { line1: "1 Main St", line2: "Suite 2", city: "Springfield", state: "IL", postal_code: "62701", country: "US" }
+        })
+      );
     });
 
     it("leaves the tax IDs on file untouched when no tax ID is sent", async () => {
@@ -149,7 +289,14 @@ describe(BillingDetailsService.name, () => {
         verification: { status: "verified", verified_address: null, verified_name: null }
       });
       vi.spyOn(stripe.customers, "update").mockResolvedValue(
-        createStripeCustomer({ id: customerId, name: "Acme GmbH", address, tax_ids: createTaxIdList([created]) })
+        createStripeCustomer({
+          id: customerId,
+          name: "Acme GmbH",
+          individual_name: "Jane Doe",
+          business_name: "Acme GmbH",
+          address,
+          tax_ids: createTaxIdList([created])
+        })
       );
       stubTaxIds(stripe, []);
       vi.spyOn(stripe.customers, "createTaxId").mockResolvedValue(created);
@@ -157,7 +304,8 @@ describe(BillingDetailsService.name, () => {
       const result = await service.updateBillingDetails(payer, createInput({ taxId: { type: "gb_vat", value: "GB123456789" } }));
 
       expect(result).toEqual({
-        legalName: "Acme GmbH",
+        legalName: "Jane Doe",
+        companyName: "Acme GmbH",
         address: {
           line1: address.line1,
           line2: address.line2,
@@ -292,7 +440,8 @@ describe(BillingDetailsService.name, () => {
 
   function createInput(overrides: Partial<BillingDetailsInput> = {}): BillingDetailsInput {
     return {
-      legalName: faker.company.name(),
+      legalName: faker.person.fullName(),
+      companyName: faker.company.name(),
       address: {
         line1: faker.location.streetAddress(),
         line2: null,
@@ -305,10 +454,16 @@ describe(BillingDetailsService.name, () => {
     };
   }
 
-  function setup() {
+  function setup(input: { customFields?: Stripe.Customer.InvoiceSettings.CustomField[] } = {}) {
     const payer = createUserPayer();
     const customerId = payer.stripeCustomerId;
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
+    vi.spyOn(stripe.customers, "retrieve").mockResolvedValue(
+      createStripeCustomer({
+        id: customerId,
+        invoice_settings: { custom_fields: input.customFields ?? null, default_payment_method: null, footer: null, rendering_options: null }
+      })
+    );
     const customerService = mock<CustomerService>();
     customerService.getStripeCustomerId.mockResolvedValue(customerId);
     const service = new BillingDetailsService(stripe, customerService);

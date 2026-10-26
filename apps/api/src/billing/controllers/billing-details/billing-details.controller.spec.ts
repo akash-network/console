@@ -51,13 +51,15 @@ describe(BillingDetailsController.name, () => {
   });
 
   const INPUT: BillingDetailsInput = {
-    legalName: "Acme GmbH",
+    legalName: "Jane Doe",
+    companyName: "Acme GmbH",
     address: { line1: "Hauptstr. 1", line2: null, city: "Berlin", state: null, postalCode: "10115", country: "DE" },
     taxId: { type: "eu_vat", value: "DE123456789" }
   };
 
   const DETAILS: BillingDetailsOutput = {
-    legalName: "Acme GmbH",
+    legalName: "Jane Doe",
+    companyName: "Acme GmbH",
     address: { line1: "Hauptstr. 1", line2: null, city: "Berlin", state: null, postalCode: "10115", country: "DE" },
     taxId: { type: "eu_vat", value: "DE123456789", verificationStatus: "pending" }
   };

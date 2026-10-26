@@ -1983,6 +1983,10 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "companyName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "address": {
                           "type": "object",
                           "nullable": true,
@@ -2052,6 +2056,7 @@
                       },
                       "required": [
                         "legalName",
+                        "companyName",
                         "address",
                         "taxId"
                       ]
@@ -2111,8 +2116,15 @@
                       "legalName": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 256,
-                        "description": "The name printed on invoices"
+                        "maxLength": 140,
+                        "description": "The payer's full legal name, printed on invoices"
+                      },
+                      "companyName": {
+                        "type": "string",
+                        "nullable": true,
+                        "minLength": 1,
+                        "maxLength": 150,
+                        "description": "The company invoices are billed to, with the legal name as its billing contact. Null or omitted bills the legal name"
                       },
                       "address": {
                         "type": "object",
@@ -2224,6 +2236,10 @@
                           "type": "string",
                           "nullable": true
                         },
+                        "companyName": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "address": {
                           "type": "object",
                           "nullable": true,
@@ -2293,6 +2309,7 @@
                       },
                       "required": [
                         "legalName",
+                        "companyName",
                         "address",
                         "taxId"
                       ]
