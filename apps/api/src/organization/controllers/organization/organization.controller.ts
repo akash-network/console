@@ -11,6 +11,7 @@ import type {
   SingleOrganizationResponse,
   UpdateOrganizationRequest
 } from "@src/organization/http-schemas/organization.schema";
+import { AdminAccessRequestService } from "@src/organization/services/admin-access-request/admin-access-request.service";
 import { type CallerOrganization, OrganizationService } from "@src/organization/services/organization/organization.service";
 import { OrganizationMemberService } from "@src/organization/services/organization-member/organization-member.service";
 import { TeamOrganizationService } from "@src/organization/services/team-organization/team-organization.service";
@@ -22,7 +23,8 @@ export class OrganizationController {
     private readonly organizationService: OrganizationService,
     private readonly teamOrganizationService: TeamOrganizationService,
     private readonly teamOrganizationDeletionService: TeamOrganizationDeletionService,
-    private readonly organizationMemberService: OrganizationMemberService
+    private readonly organizationMemberService: OrganizationMemberService,
+    private readonly adminAccessRequestService: AdminAccessRequestService
   ) {}
 
   @Protected()
@@ -61,6 +63,13 @@ export class OrganizationController {
     assert(origin.authMethod === "bearer", 403, "An organization can only be left from a signed-in Console session.", { errorCode: "session_required" });
 
     await this.organizationMemberService.leave(id);
+  }
+
+  @Protected()
+  async requestAdminAccess(id: string, origin: { authMethod?: AuthMethod }): Promise<void> {
+    assert(origin.authMethod === "bearer", 403, "Admin access can only be requested from a signed-in Console session.", { errorCode: "session_required" });
+
+    await this.adminAccessRequestService.request(id);
   }
 }
 

@@ -32,6 +32,7 @@ import { ScreenUserGpuDeploymentHandler } from "@src/deployment/services/screen-
 import { HardwareRequestEmailHandler } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertHandler } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
+import { AdminAccessRequestEmailHandler } from "@src/organization/services/admin-access-request-email/admin-access-request-email.handler";
 import { StopTeamAlertsToDepartedMemberHandler } from "@src/organization/services/departed-member-alerts/stop-team-alerts-to-departed-member.handler";
 import { OrganizationInvitationEmailHandler } from "@src/organization/services/organization-invitation-email/organization-invitation-email.handler";
 import { ProjectBudgetAlertHandler } from "@src/organization/services/project-budget-alert/project-budget-alert.handler";
@@ -107,6 +108,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(PurgeDeletedAccountHandler),
     container.resolve(ExpireConfigureDraftHandler),
     container.resolve(OrganizationInvitationEmailHandler),
+    container.resolve(AdminAccessRequestEmailHandler),
     container.resolve(PurgeOrganizationInvitationEmailsHandler),
     container.resolve(TeamOrganizationDeletedHandler),
     container.resolve(MoveDeploymentAlertsHandler),

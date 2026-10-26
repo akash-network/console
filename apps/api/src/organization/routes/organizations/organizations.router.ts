@@ -163,3 +163,35 @@ organizationsRouter.openapi(deleteOrganizationMembershipRoute, async function ro
 
   return c.body(null, 204);
 });
+
+const createOrganizationAdminAccessRequestRoute = createRoute({
+  method: "post",
+  path: "/v1/organizations/{id}/admin-access-requests",
+  operationId: "createOrganizationAdminAccessRequest",
+  summary: "Ask the owners of the active team organization to make the caller an admin, which emails each owner at most once a day",
+  tags: ["Organizations"],
+  security: SECURITY_BEARER,
+  featureFlag: FeatureFlags.ORGANIZATIONS,
+  request: {
+    params: OrganizationParamsSchema
+  },
+  responses: {
+    204: { description: "The owners are being emailed" },
+    400: { description: "The id is not a uuid" },
+    401: { description: "Unauthorized" },
+    403: {
+      description: "The organization is a personal one (`personal_organization`), or the request was not made from a signed-in session (`session_required`)"
+    },
+    404: { description: "The organization is not the active one" },
+    409: { description: "The caller is already an owner or admin (`already_admin`)" },
+    429: { description: "The caller already asked today; `Retry-After` tells when they can ask again (`admin_access_request_limit_reached`)" }
+  }
+});
+
+organizationsRouter.openapi(createOrganizationAdminAccessRequestRoute, async function routeCreateOrganizationAdminAccessRequest(c) {
+  const { id } = c.req.valid("param");
+
+  await container.resolve(OrganizationController).requestAdminAccess(id, { authMethod: c.get("authMethod") });
+
+  return c.body(null, 204);
+});
