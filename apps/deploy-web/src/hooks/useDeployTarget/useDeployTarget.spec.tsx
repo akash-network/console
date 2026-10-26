@@ -60,6 +60,13 @@ describe(useDeployTarget.name, () => {
     expect(result.current.projects.map(project => project.id)).toEqual(["storefront"]);
   });
 
+  it("targets the only project the caller may deploy into when the page names none", () => {
+    const { result } = setup({ viewedProjectId: "marketing" });
+
+    expect(result.current.project?.id).toBe("storefront");
+    expect(result.current.isMissing).toBe(false);
+  });
+
   it("asks for another project when the page names one the caller only views", () => {
     const { result } = setup({ requestedProjectId: "marketing", viewedProjectId: "marketing" });
 

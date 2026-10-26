@@ -160,6 +160,31 @@ describe(DeployTargetGate.name, () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
+  it("takes the only project the caller may deploy into without asking", () => {
+    const { flowTarget, ChooseProjectModal } = setup({ viewedProjectId: "marketing" });
+
+    expect(screen.getByText("flow")).toBeInTheDocument();
+    expect(flowTarget()).toMatchObject({ isMissing: false, project: { id: "storefront" } });
+    expect(ChooseProjectModal).not.toHaveBeenCalled();
+  });
+
+  it("asks for a project when the one handed over is not the organization's, even with only one to offer", () => {
+    setup({ projectNames: ["storefront"], handedOverProjectId: "elsewhere" });
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByText("flow")).not.toBeInTheDocument();
+  });
+
+  it("asks again, saying why, when the only project is refused", () => {
+    const { flowTarget, ChooseProjectModal } = setup({ projectNames: ["storefront"] });
+
+    act(() => flowTarget().forgetProject("Choose another one."));
+
+    expect(screen.getByText("flow")).toBeInTheDocument();
+    expect(flowTarget().project).toBeUndefined();
+    expect(ChooseProjectModal.mock.lastCall?.[0]).toMatchObject({ notice: "Choose another one." });
+  });
+
   it("lets the flow through once a project is picked", async () => {
     const { flowTarget } = setup({});
 
@@ -211,9 +236,9 @@ describe(DeployTargetGate.name, () => {
   });
 
   it("offers the picker only the projects the caller may deploy into", () => {
-    const { ChooseProjectModal } = setup({ viewedProjectId: "marketing" });
+    const { ChooseProjectModal } = setup({ projectNames: ["storefront", "marketing", "billing"], viewedProjectId: "marketing" });
 
-    expect(ChooseProjectModal.mock.lastCall?.[0].projects.map(candidate => candidate.id)).toEqual(["storefront"]);
+    expect(ChooseProjectModal.mock.lastCall?.[0].projects.map(candidate => candidate.id)).toEqual(["storefront", "billing"]);
   });
 
   it("asks again for a project handed over that the caller only views", () => {
@@ -231,6 +256,7 @@ describe(DeployTargetGate.name, () => {
   });
 
   function setup(input: {
+    projectNames?: string[];
     handedOverProjectId?: string;
     filedDseq?: string;
     filedProjectId?: string;
@@ -249,7 +275,7 @@ describe(DeployTargetGate.name, () => {
     const retryAccess = vi.fn();
     const organization = { isLoading: input.isOrganizationLoading ?? false };
     const push = vi.fn();
-    const projects = [project("storefront"), project("marketing")];
+    const projects = (input.projectNames ?? ["storefront", "marketing"]).map(name => project(name));
     const store = createStore();
     if (input.handedOverProjectId) store.set(deployTargetProjectIdAtom, input.handedOverProjectId);
     const ChooseProjectModal = vi.fn<typeof DEPENDENCIES.ChooseProjectModal>(({ onChosen, onCancel }) => (

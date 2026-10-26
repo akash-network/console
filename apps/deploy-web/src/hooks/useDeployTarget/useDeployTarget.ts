@@ -32,7 +32,13 @@ export interface DeployTarget {
   retry?: () => void;
 }
 
-/** The project the new deployment page hands to Configure: the one it was opened for, else none, so the picker asks. */
+/** The project chosen, else, when none was, the only one the caller can deploy into, so a lone project needs no picking. */
+export function resolveDeployProject(projects: Project[], chosenProjectId: string | null | undefined): Project | undefined {
+  if (chosenProjectId) return projects.find(candidate => candidate.id === chosenProjectId);
+  return projects.length === 1 ? projects[0] : undefined;
+}
+
+/** The project the new deployment page hands to Configure: the one it was opened for, else the caller's only one, else none, so the picker asks. */
 export function useDeployTarget(
   { requestedProjectId }: { requestedProjectId?: string | null } = {},
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
@@ -45,7 +51,7 @@ export function useDeployTarget(
 
   const projects = useMemo(() => (projectsQuery.data ?? []).filter(project => access.canManageDeployments(project.id)), [projectsQuery.data, access]);
   const targetProjectId = requestedProjectId || chosenProjectId;
-  const project = isRequired ? projects.find(candidate => candidate.id === targetProjectId) : undefined;
+  const project = isRequired ? resolveDeployProject(projects, targetProjectId) : undefined;
   const isLoading = isRequired && (projectsQuery.isLoading || access.isLoading);
   const isUnreadable = isRequired && !isLoading && ((!projectsQuery.data && projectsQuery.isError) || access.isError);
   const forgetProject = useCallback(() => setChosenProjectId(null), [setChosenProjectId]);
