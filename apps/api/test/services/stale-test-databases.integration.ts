@@ -165,7 +165,7 @@ describe("stale test databases", () => {
   describe(markLastUsed.name, () => {
     it("records when a template was last used", async () => {
       const name = await createTemplate(templateName());
-      const at = new Date("2026-01-02T03:04:05.000Z");
+      const at = twoHoursAgo();
 
       await markLastUsed(admin, name, at);
 
