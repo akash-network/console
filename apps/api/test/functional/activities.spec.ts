@@ -12,7 +12,7 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 
 type ActivityBody = {
   id: string;
@@ -120,9 +120,10 @@ describe("Activities", () => {
       const { organization: team } = await seedOrganizationWithOwner();
       await seedOrganizationMember({ organizationId: team.id, userId: user.id });
       vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
-      const teamClose = await activityRepository.create(
-        systemClosedActivityOf({ userId: user.id, owner: createAkashAddress(), dseq: "1004", reason: "runtime_limit_reached" })
-      );
+      const teamClose = await activityRepository.create({
+        ...systemClosedActivityOf({ userId: user.id, owner: createAkashAddress(), dseq: "1004", reason: "runtime_limit_reached" }),
+        organizationId: team.id
+      });
 
       const response = await request("/v1/activities", token, undefined, { organizationId: team.id });
       const { data } = (await response.json()) as PageBody;
@@ -131,6 +132,34 @@ describe("Activities", () => {
       expect(data.activities).toEqual([
         expect.objectContaining({ id: teamClose.id, initiator: "system", meta: { dseq: "1004", reason: "runtime_limit_reached" } })
       ]);
+    });
+
+    it("lists and counts only what the caller did in the team the request runs in", async () => {
+      const { user, token, seed } = await setup();
+      const { team, personal } = await joinOrganizations(user.id);
+      const inTeam = await seed({ organizationId: team.id });
+      await seed({ organizationId: personal.id });
+      await seed();
+
+      const response = await request("/v1/activities", token, undefined, { organizationId: team.id });
+      const { data } = (await response.json()) as PageBody;
+
+      expect(data.activities.map(activity => activity.id)).toEqual([inTeam.id]);
+      expect(data.unseenCount).toBe(1);
+    });
+
+    it("lists what the caller did in their personal organization along with what was recorded before activities named one", async () => {
+      const { user, token, seed } = await setup();
+      const { team, personal } = await joinOrganizations(user.id);
+      await seed({ organizationId: team.id });
+      const inPersonal = await seed({ organizationId: personal.id, createdAt: new Date("2026-10-05T10:00:00.000Z") });
+      const unfiled = await seed({ createdAt: new Date("2026-10-05T11:00:00.000Z") });
+
+      const response = await request("/v1/activities", token, undefined, { organizationId: personal.id });
+      const { data } = (await response.json()) as PageBody;
+
+      expect(data.activities.map(activity => activity.id)).toEqual([unfiled.id, inPersonal.id]);
+      expect(data.unseenCount).toBe(2);
     });
 
     it("shows an alert that fired for the caller as an unseen info entry with its summary and the organization it is filed in", async () => {
@@ -288,6 +317,21 @@ describe("Activities", () => {
       expect((await activityRepository.findById(later.id))?.seenAt).toBeNull();
     });
 
+    it("marks seen only the activities of the organization the request runs in", async () => {
+      const { user, token, seed } = await setup();
+      const { team, personal } = await joinOrganizations(user.id);
+      const inTeam = await seed({ organizationId: team.id });
+      const inPersonal = await seed({ organizationId: personal.id });
+      const unfiled = await seed();
+
+      const response = await request("/v1/activities/seen", token, { upTo: new Date().toISOString() }, { organizationId: team.id });
+
+      expect(await response.json()).toEqual({ data: { unseenCount: 0 } });
+      expect((await activityRepository.findById(inTeam.id))?.seenAt).toEqual(expect.any(String));
+      expect((await activityRepository.findById(inPersonal.id))?.seenAt).toBeNull();
+      expect((await activityRepository.findById(unfiled.id))?.seenAt).toBeNull();
+    });
+
     it("leaves another user's activities unseen even when their ids are named", async () => {
       const { token } = await setup();
       const stranger = await setup();
@@ -330,7 +374,7 @@ describe("Activities", () => {
       header.replace(/^Bearer +/i, "") === token ? user.userId! : (await otherTokens?.(header)) ?? null
     );
 
-    async function seed(overrides: { status?: ActivityStatus; createdAt?: Date; seenAt?: Date; meta?: Record<string, unknown> } = {}) {
+    async function seed(overrides: { status?: ActivityStatus; createdAt?: Date; seenAt?: Date; meta?: Record<string, unknown>; organizationId?: string } = {}) {
       return await activityRepository.create({
         userId: user.id,
         type: "deployment_close",
@@ -341,5 +385,15 @@ describe("Activities", () => {
     }
 
     return { user, token, seed };
+  }
+
+  async function joinOrganizations(userId: string) {
+    const personal = await seedOrganization({ type: "personal", createdByUserId: userId });
+    await seedOrganizationMember({ organizationId: personal.id, userId, role: "owner" });
+    const { organization: team } = await seedOrganizationWithOwner();
+    await seedOrganizationMember({ organizationId: team.id, userId });
+    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
+
+    return { personal, team };
   }
 });

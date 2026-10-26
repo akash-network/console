@@ -214,6 +214,7 @@ describe(DeploymentWriterService.name, () => {
   const wallet: WalletInitialized = {
     id: 1,
     userId: "user-1",
+    organizationId: "personal-organization-1",
     address: "akash1testaddr",
     creditAmount: 100,
     deploymentAllowance: 50,
@@ -311,7 +312,10 @@ describe(DeploymentWriterService.name, () => {
       await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS });
 
       expect(activityService.record).toHaveBeenCalledTimes(1);
-      expect(activityService.record).toHaveBeenCalledWith(createdActivityOf({ userId: "user-1", dseq: ACCEPTED_DSEQ }));
+      expect(activityService.record).toHaveBeenCalledWith({
+        ...createdActivityOf({ userId: "user-1", dseq: ACCEPTED_DSEQ }),
+        organizationId: wallet.organizationId
+      });
     });
 
     it("records nothing in the activity feed for a create refused before it is recorded", async () => {
@@ -333,7 +337,10 @@ describe(DeploymentWriterService.name, () => {
       await expect(service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS })).rejects.toBe(refusal);
 
       expect(activityService.record).toHaveBeenCalledTimes(1);
-      expect(activityService.record).toHaveBeenCalledWith(failedCreateActivityOf({ userId: "user-1", dseq: ACCEPTED_DSEQ }, refusal));
+      expect(activityService.record).toHaveBeenCalledWith({
+        ...failedCreateActivityOf({ userId: "user-1", dseq: ACCEPTED_DSEQ }, refusal),
+        organizationId: wallet.organizationId
+      });
       expect(activityService.open).not.toHaveBeenCalled();
     });
 
@@ -347,7 +354,7 @@ describe(DeploymentWriterService.name, () => {
       await expect(created).rejects.toBe(undecided);
 
       const [[opened]] = activityService.open.mock.calls;
-      expect(opened).toEqual({ id: expect.any(String), ...failedCreateActivityOf(accepted, undecided) });
+      expect(opened).toEqual({ id: expect.any(String), ...failedCreateActivityOf(accepted, undecided), organizationId: wallet.organizationId });
       expect(opened.meta).toEqual({ dseq: ACCEPTED_DSEQ, txHash: "ABCDEF" });
       expect(jobQueueService.enqueue).toHaveBeenLastCalledWith(
         new ReconcileDeploymentCreate({ ...accepted, activityId: opened.id }),
@@ -367,7 +374,7 @@ describe(DeploymentWriterService.name, () => {
       await expect(created).rejects.toBe(followUpFailure);
 
       const [[opened]] = activityService.open.mock.calls;
-      expect(opened).toEqual({ id: expect.any(String), ...creatingActivityOf(accepted) });
+      expect(opened).toEqual({ id: expect.any(String), ...creatingActivityOf(accepted), organizationId: wallet.organizationId });
       expect(jobQueueService.enqueue).toHaveBeenLastCalledWith(
         new ReconcileDeploymentCreate({ ...accepted, activityId: opened.id }),
         reconcileDeploymentCreateOptionsFor(opened.id, new Date(Number(ACCEPTED_DSEQ)))
@@ -1892,6 +1899,7 @@ describe(DeploymentWriterService.name, () => {
       expect(activityService.open).toHaveBeenCalledWith({
         id: activityId,
         userId: "user-1",
+        organizationId: wallet.organizationId,
         type: "deployment_create",
         status: "pending",
         initiator: "user",
@@ -2056,7 +2064,10 @@ describe(DeploymentWriterService.name, () => {
       expect(signerService.assertCanBroadcast).toHaveBeenCalledWith("user-1", [closeMsg]);
       expect(signerService.executeDecodedTxByUserWallet).toHaveBeenCalledWith(wallet, [closeMsg], { actingUserId: "user-1" });
       expect(signerService.assertCanBroadcast.mock.invocationCallOrder[0]).toBeLessThan(signerService.executeDecodedTxByUserWallet.mock.invocationCallOrder[0]);
-      expect(activityService.record).toHaveBeenCalledWith(closedActivityOf({ userId: "user-1", owner: wallet.address, dseq: "100" }));
+      expect(activityService.record).toHaveBeenCalledWith({
+        ...closedActivityOf({ userId: "user-1", owner: wallet.address, dseq: "100" }),
+        organizationId: wallet.organizationId
+      });
     });
 
     it("records nothing when a refusal stops the close", async () => {
@@ -2100,7 +2111,10 @@ describe(DeploymentWriterService.name, () => {
 
       await expect(service.closeByUserIdAndDseq("user-1", "100")).rejects.toBe(failure);
 
-      expect(activityService.record).toHaveBeenCalledWith(failedCloseActivityOf({ userId: "user-1", owner: wallet.address, dseq: "100" }, failure));
+      expect(activityService.record).toHaveBeenCalledWith({
+        ...failedCloseActivityOf({ userId: "user-1", owner: wallet.address, dseq: "100" }, failure),
+        organizationId: wallet.organizationId
+      });
     });
 
     it("records the bulk close the close was part of", async () => {
@@ -2108,7 +2122,10 @@ describe(DeploymentWriterService.name, () => {
 
       await service.closeByUserIdAndDseq("user-1", "100", { batchId: "batch-1" });
 
-      expect(activityService.record).toHaveBeenCalledWith(closedActivityOf({ userId: "user-1", owner: wallet.address, dseq: "100", batchId: "batch-1" }));
+      expect(activityService.record).toHaveBeenCalledWith({
+        ...closedActivityOf({ userId: "user-1", owner: wallet.address, dseq: "100", batchId: "batch-1" }),
+        organizationId: wallet.organizationId
+      });
     });
 
     it("records the bulk close a failed close was part of", async () => {
@@ -2119,9 +2136,10 @@ describe(DeploymentWriterService.name, () => {
 
       await expect(service.closeByUserIdAndDseq("user-1", "100", { batchId: "batch-1" })).rejects.toBe(failure);
 
-      expect(activityService.record).toHaveBeenCalledWith(
-        failedCloseActivityOf({ userId: "user-1", owner: wallet.address, dseq: "100", batchId: "batch-1" }, failure)
-      );
+      expect(activityService.record).toHaveBeenCalledWith({
+        ...failedCloseActivityOf({ userId: "user-1", owner: wallet.address, dseq: "100", batchId: "batch-1" }, failure),
+        organizationId: wallet.organizationId
+      });
     });
 
     it("settles the background close already running for the deployment instead of recording a second entry for the same close", async () => {
@@ -2206,7 +2224,8 @@ describe(DeploymentWriterService.name, () => {
       const [[opened]] = activityService.open.mock.calls;
       expect(opened).toEqual({
         id: expect.any(String),
-        ...failedCloseActivityOf({ userId: "user-1", owner: wallet.address, dseq: "100", batchId: "batch-1" }, undecided)
+        ...failedCloseActivityOf({ userId: "user-1", owner: wallet.address, dseq: "100", batchId: "batch-1" }, undecided),
+        organizationId: wallet.organizationId
       });
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         new ReconcileDeploymentClose({ userId: "user-1", owner: wallet.address, dseq: "100", activityId: opened.id, batchId: "batch-1" }),
@@ -2270,6 +2289,7 @@ describe(DeploymentWriterService.name, () => {
       expect(activityService.open).toHaveBeenCalledWith({
         id: queued!.activityId,
         userId: "user-1",
+        organizationId: wallet.organizationId,
         type: "deployment_close",
         status: "pending",
         initiator: "user",
@@ -4026,7 +4046,7 @@ describe(DeploymentWriterService.name, () => {
         await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
 
         expect(activityService.record).toHaveBeenCalledTimes(1);
-        expect(activityService.record).toHaveBeenCalledWith(updatedActivityOf(SAVED));
+        expect(activityService.record).toHaveBeenCalledWith({ ...updatedActivityOf(SAVED), organizationId: "personal-organization-1" });
         expect(providerService.sendManifest.mock.invocationCallOrder[0]).toBeLessThan(activityService.record.mock.invocationCallOrder[0]);
       });
 
@@ -4035,7 +4055,7 @@ describe(DeploymentWriterService.name, () => {
 
         await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
 
-        expect(activityService.record).toHaveBeenCalledWith(updatedActivityOf(SAVED));
+        expect(activityService.record).toHaveBeenCalledWith({ ...updatedActivityOf(SAVED), organizationId: "personal-organization-1" });
       });
 
       it("records nothing when a refusal stops the patch before its write", async () => {
@@ -4136,7 +4156,7 @@ describe(DeploymentWriterService.name, () => {
         await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toBe(failure);
 
         expect(activityService.record).toHaveBeenCalledTimes(1);
-        expect(activityService.record).toHaveBeenCalledWith(failedUpdateActivityOf(SAVED, failure));
+        expect(activityService.record).toHaveBeenCalledWith({ ...failedUpdateActivityOf(SAVED, failure), organizationId: "personal-organization-1" });
       });
 
       it("opens an update left undecided as pending with a check on it in one transaction, and still answers with the failure", async () => {
@@ -4148,7 +4168,7 @@ describe(DeploymentWriterService.name, () => {
         await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toBe(undecided);
 
         const [[opened]] = activityService.open.mock.calls;
-        expect(opened).toEqual({ id: expect.any(String), ...failedUpdateActivityOf(SAVED, undecided) });
+        expect(opened).toEqual({ id: expect.any(String), ...failedUpdateActivityOf(SAVED, undecided), organizationId: "personal-organization-1" });
         expect(jobQueueService.enqueue).toHaveBeenCalledWith(
           new ReconcileDeploymentUpdate({ ...SAVED, owner: "akash1owner", activityId: opened.id }),
           reconcileDeploymentUpdateOptionsFor(opened.id, new Date("2026-01-01T00:00:00.000Z"))
@@ -4190,6 +4210,7 @@ describe(DeploymentWriterService.name, () => {
         expect(activityService.open).toHaveBeenCalledWith({
           id: (accepted as { activityId: string }).activityId,
           userId: "user-1",
+          organizationId: "personal-organization-1",
           type: "deployment_update",
           status: "pending",
           initiator: "user",
@@ -4230,7 +4251,7 @@ describe(DeploymentWriterService.name, () => {
       describe("a deployment of an organization's wallet", () => {
         const organizationWallet: WalletInitialized = { ...wallet, id: 42, address: "akash1team", userId: null, organizationId: "organization-1" };
 
-        it("saves it under the member who filed it and reports it in the feed of the member who saved it", async () => {
+        it("saves it under the member who filed it and reports it in the organization's feed of the member who saved it", async () => {
           const { service, ability, walletReaderService, signerService, deploymentSettingRepository, activityService } = setup({
             organizationId: "organization-1"
           });
@@ -4244,7 +4265,8 @@ describe(DeploymentWriterService.name, () => {
           );
           expect(activityService.open).toHaveBeenCalledWith({
             id: (accepted as { activityId: string }).activityId,
-            ...pendingUpdateActivityOf({ userId: "user-1", dseq: "1234", manifestVersion: SAVED_VERSION, changes: CHANGES })
+            ...pendingUpdateActivityOf({ userId: "user-1", dseq: "1234", manifestVersion: SAVED_VERSION, changes: CHANGES }),
+            organizationId: "organization-1"
           });
         });
 
@@ -4433,7 +4455,13 @@ describe(DeploymentWriterService.name, () => {
 
       const walletReaderService = mock<WalletReaderService>();
       walletReaderService.getWalletByUserId.mockResolvedValue(
-        mock<WalletInitialized>({ id: 7, userId: "user-1", address: "akash1owner", isTrialing: input?.isTrialing ?? false })
+        mock<WalletInitialized>({
+          id: 7,
+          userId: "user-1",
+          organizationId: "personal-organization-1",
+          address: "akash1owner",
+          isTrialing: input?.isTrialing ?? false
+        })
       );
 
       const deploymentSettingRepository = mock<DeploymentSettingRepository>();

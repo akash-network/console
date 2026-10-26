@@ -11,14 +11,15 @@ import { SystemCloseActivityService } from "./system-close-activity.service";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 
 describe(SystemCloseActivityService.name, () => {
-  it("records the close in the feed of the member a team deployment was filed under", async () => {
+  it("records the close in the team's feed of the member a team deployment was filed under", async () => {
     const { service, activityService, teamWallet } = setup({ filedUnder: "member-1" });
 
     await service.record({ wallet: teamWallet, dseq: "100", reason: "runtime_limit_reached" });
 
-    expect(activityService.record).toHaveBeenCalledWith(
-      systemClosedActivityOf({ userId: "member-1", owner: teamWallet.address, dseq: "100", reason: "runtime_limit_reached" })
-    );
+    expect(activityService.record).toHaveBeenCalledWith({
+      ...systemClosedActivityOf({ userId: "member-1", owner: teamWallet.address, dseq: "100", reason: "runtime_limit_reached" }),
+      organizationId: teamWallet.organizationId
+    });
   });
 
   it("looks the deployment up past the active organization, for the wallet that owns it", async () => {
@@ -35,9 +36,10 @@ describe(SystemCloseActivityService.name, () => {
 
     await service.record({ wallet: personalWallet, dseq: "100", reason: "trial_ended" });
 
-    expect(activityService.record).toHaveBeenCalledWith(
-      systemClosedActivityOf({ userId: personalWallet.userId, owner: personalWallet.address, dseq: "100", reason: "trial_ended" })
-    );
+    expect(activityService.record).toHaveBeenCalledWith({
+      ...systemClosedActivityOf({ userId: personalWallet.userId, owner: personalWallet.address, dseq: "100", reason: "trial_ended" }),
+      organizationId: personalWallet.organizationId
+    });
   });
 
   it.each([
@@ -136,9 +138,10 @@ describe(SystemCloseActivityService.name, () => {
 
     await expect(service.record({ wallet: teamWallet, dseq: "100", reason: "no_lease" })).resolves.toBeUndefined();
 
-    expect(activityService.record).toHaveBeenCalledWith(
-      systemClosedActivityOf({ userId: "member-1", owner: teamWallet.address, dseq: "100", reason: "no_lease" })
-    );
+    expect(activityService.record).toHaveBeenCalledWith({
+      ...systemClosedActivityOf({ userId: "member-1", owner: teamWallet.address, dseq: "100", reason: "no_lease" }),
+      organizationId: teamWallet.organizationId
+    });
     expect(logger.error.mock.calls).toEqual([
       [
         {

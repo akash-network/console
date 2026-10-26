@@ -117,9 +117,15 @@ describe(PurgeExpiredActivitiesHandler.name, () => {
     }
 
     async function recordActivity() {
-      await container
-        .resolve(ActivityService)
-        .record({ userId: member.id, type: "deployment_close", status: "failed", initiator: "user", meta: { dseq: createDseq() }, dedupeKey: null });
+      await container.resolve(ActivityService).record({
+        userId: member.id,
+        organizationId: null,
+        type: "deployment_close",
+        status: "failed",
+        initiator: "user",
+        meta: { dseq: createDseq() },
+        dedupeKey: null
+      });
     }
 
     async function findOrganizationActivity(id: string) {

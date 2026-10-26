@@ -71,7 +71,7 @@ export class LeaseService {
       await this.#createOrAdoptLeases(signer, leases, creation);
       const deployment = await this.deploymentReaderService.findByWalletAndDseqWithoutProviderStatus(signer.wallet, leases[0].dseq);
       await this.#sendManifests(signer.wallet, leases, manifests);
-      await this.activityService.record(createdLeaseActivityOf({ userId, leases }));
+      await this.activityService.record({ ...createdLeaseActivityOf({ userId, leases }), organizationId: signer.wallet.organizationId });
 
       return deployment;
     } catch (error) {
@@ -156,7 +156,7 @@ export class LeaseService {
     });
     if (!jobId) return { activityId: await this.#leaseInFlight({ owner: wallet.address, userId }, leases) };
 
-    await this.activityService.open({ id: activityId, ...pendingLeaseActivityOf({ userId, leases }) });
+    await this.activityService.open({ id: activityId, ...pendingLeaseActivityOf({ userId, leases }), organizationId: wallet.organizationId });
     await this.jobQueueService.enqueue(
       new ReconcileLeaseCreate({ userId, ...walletRef, owner: wallet.address, leases, activityId, createLeaseJobId: jobId }),
       reconcileLeaseCreateOptionsFor(activityId, new Date())
@@ -289,7 +289,7 @@ export class LeaseService {
 
   /** An undecided lease opens its pending activity with a later check in one transaction, so it settles once its outcome is known; as with `record`, failing to write either is only logged. */
   async #recordFailedLeases({ wallet, userId }: LeaseSigner, leases: Leases, error: unknown): Promise<void> {
-    const activity = failedLeaseActivityOf({ userId, leases }, error);
+    const activity = { ...failedLeaseActivityOf({ userId, leases }, error), organizationId: wallet.organizationId };
     if (activity.status !== "pending") return await this.activityService.record(activity);
 
     try {

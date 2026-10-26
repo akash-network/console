@@ -80,7 +80,7 @@ import { SdlSecretsInheritanceService } from "@src/deployment/services/sdl-secre
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { UserGpuBidCheckService } from "@src/deployment/services/user-gpu-bid-check/user-gpu-bid-check.service";
 import { findGroupWithChangedResources, type OnChainGroupSpec } from "@src/deployment/utils/changed-group-resources/changed-group-resources";
-import { closedActivityOf, failedCloseActivityOf, pendingCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
+import { closedActivityOf, type CloseKey, failedCloseActivityOf, pendingCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { createdActivityOf, creatingActivityOf, failedCreateActivityOf } from "@src/deployment/utils/create-activity/create-activity";
 import {
   type CreateDeploymentMessage,
@@ -277,8 +277,8 @@ export class DeploymentWriterService {
   }
 
   public async create(input: CreateDeploymentRequest["data"] & CreateDeploymentRequester): Promise<CreateDeploymentResponse["data"]> {
-    const { accepted, manifest } = await this.acceptCreate(input);
-    const signTx = await this.#createOnChainRecordingOutcome(accepted);
+    const { accepted, manifest, organizationId } = await this.acceptCreate(input);
+    const signTx = await this.#createOnChainRecordingOutcome(accepted, organizationId);
     if (input.recordGpuBids) await this.userGpuBidCheckService.scheduleFor(accepted);
 
     return { dseq: accepted.dseq, manifest, signTx };
@@ -286,7 +286,7 @@ export class DeploymentWriterService {
 
   /** Refusals answer before anything is recorded; a create that passes them is queued in the same transaction as its pending activity and a later check on it, so the activity settles even if the create job is lost. */
   public async createInBackground(input: CreateDeploymentRequest["data"] & CreateDeploymentRequester): Promise<CreateDeploymentAcceptedResponse["data"]> {
-    const { accepted, manifest } = await this.acceptCreate(input);
+    const { accepted, manifest, organizationId } = await this.acceptCreate(input);
 
     const activityId = await this.txService.transaction(async () => {
       const activityId = randomUUID();
@@ -296,7 +296,7 @@ export class DeploymentWriterService {
       });
       if (!jobId) throw createError(409, "This deployment is already being created");
 
-      await this.activityService.open({ id: activityId, ...creatingActivityOf(accepted) });
+      await this.activityService.open({ id: activityId, ...creatingActivityOf(accepted), organizationId });
       await this.jobQueueService.enqueue(
         new ReconcileDeploymentCreate({ ...accepted, activityId, createJobId: jobId }),
         reconcileDeploymentCreateOptionsFor(activityId, new Date())
@@ -308,24 +308,24 @@ export class DeploymentWriterService {
   }
 
   /** The outcome of a create that passed every refusal is recorded either way, so the feed holds the creates made from any client. */
-  async #createOnChainRecordingOutcome(accepted: AcceptedDeploymentCreate): Promise<CreateDeploymentTx> {
+  async #createOnChainRecordingOutcome(accepted: AcceptedDeploymentCreate, organizationId: string | null): Promise<CreateDeploymentTx> {
     let tx: CreateDeploymentTx;
 
     try {
       tx = await this.createOnChain(accepted);
     } catch (error) {
-      await this.#recordFailedCreate(accepted, error);
+      await this.#recordFailedCreate(accepted, organizationId, error);
       throw error;
     }
 
-    await this.activityService.record(createdActivityOf(accepted));
+    await this.activityService.record({ ...createdActivityOf(accepted), organizationId });
 
     return tx;
   }
 
   /** An undecided create opens its pending activity with a later check in one transaction, so it settles once its outcome is known; as with `record`, failing to write either is only logged. */
-  async #recordFailedCreate(accepted: AcceptedDeploymentCreate, error: unknown): Promise<void> {
-    const activity = failedCreateActivityOf(accepted, error);
+  async #recordFailedCreate(accepted: AcceptedDeploymentCreate, organizationId: string | null, error: unknown): Promise<void> {
+    const activity = { ...failedCreateActivityOf(accepted, error), organizationId };
     if (activity.status !== "pending") return await this.activityService.record(activity);
 
     try {
@@ -343,7 +343,9 @@ export class DeploymentWriterService {
   }
 
   /** The dseq is minted once everything that can refuse the submitted document has run, because the token written below names it and a client sealing beforehand cannot; a refusal that needs the resolved document (a sealed registry password below the schema's minimum, say) can only come after it, and spends a dseq nothing is written under. */
-  public async acceptCreate(input: CreateDeploymentRequest["data"] & { userId: string }): Promise<{ accepted: AcceptedDeploymentCreate; manifest: string }> {
+  public async acceptCreate(
+    input: CreateDeploymentRequest["data"] & { userId: string }
+  ): Promise<{ accepted: AcceptedDeploymentCreate; manifest: string; organizationId: string | null }> {
     /** SDL for storage ONLY, and the values taken out of it. Never stands in for the submitted document anywhere a hash is taken. */
     const { sdl, storedDocument, derived } = this.#storedSdlOf(input.sdl, storedValuesFor(input));
 
@@ -393,7 +395,8 @@ export class DeploymentWriterService {
 
     return {
       accepted: { userId: input.userId, walletId: wallet.id, dseq, message: encodeCreateDeploymentMessage(message.value) },
-      manifest: unresolvedManifest
+      manifest: unresolvedManifest,
+      organizationId: wallet.organizationId
     };
   }
 
@@ -704,17 +707,17 @@ export class DeploymentWriterService {
 
     try {
       const closed = await this.#closeOpen(wallet, deployment, { actingUserId: userId });
-      if (closed) await this.#recordClosed({ userId, owner: wallet.address, dseq, batchId }, backgroundClose);
+      if (closed) await this.#recordClosed({ userId, owner: wallet.address, dseq, batchId }, wallet.organizationId, backgroundClose);
       return closed;
     } catch (error) {
-      if (!backgroundClose) await this.#recordFailedClose({ userId, owner: wallet.address, dseq, batchId }, error);
+      if (!backgroundClose) await this.#recordFailedClose({ userId, owner: wallet.address, dseq, batchId }, wallet.organizationId, error);
       throw error;
     }
   }
 
   /** The deployment is closed by now, so this close outranks a background close that already gave up on it, and as with `record` a failed write is only logged. */
-  async #recordClosed(close: { userId: string; owner: string; dseq: string; batchId?: string }, backgroundClose?: CloseDeployment["data"]): Promise<void> {
-    if (!backgroundClose) return await this.activityService.record(closedActivityOf(close));
+  async #recordClosed(close: CloseKey, organizationId: string | null, backgroundClose?: CloseDeployment["data"]): Promise<void> {
+    if (!backgroundClose) return await this.activityService.record({ ...closedActivityOf(close), organizationId });
 
     try {
       await this.activityService.settle(backgroundClose.activityId, closedActivityOf({ ...close, batchId: backgroundClose.batchId }), {
@@ -726,8 +729,8 @@ export class DeploymentWriterService {
   }
 
   /** An undecided close opens its pending activity with a later check in one transaction, so it settles once its outcome is known; another close of the deployment already holding the entry settles it instead, and as with `record`, failing to write either is only logged. */
-  async #recordFailedClose(close: { userId: string; owner: string; dseq: string; batchId?: string }, error: unknown): Promise<void> {
-    const activity = failedCloseActivityOf(close, error);
+  async #recordFailedClose(close: CloseKey, organizationId: string | null, error: unknown): Promise<void> {
+    const activity = { ...failedCloseActivityOf(close, error), organizationId };
     if (activity.status !== "pending") return await this.activityService.record(activity);
 
     try {
@@ -773,7 +776,7 @@ export class DeploymentWriterService {
       });
       if (!jobId) return { activityId: await this.#closeInFlight(userId, dseq) };
 
-      await this.activityService.open({ id: activityId, ...pendingCloseActivityOf({ userId, owner, dseq, batchId }) });
+      await this.activityService.open({ id: activityId, ...pendingCloseActivityOf({ userId, owner, dseq, batchId }), organizationId: wallet.organizationId });
       await this.jobQueueService.enqueue(
         new ReconcileDeploymentClose({ userId, owner, dseq, activityId, batchId, closeJobId: jobId }),
         reconcileDeploymentCloseOptionsFor(activityId, new Date())
@@ -930,7 +933,7 @@ export class DeploymentWriterService {
       await this.#savePatch(write, ability);
       const { saved, organizationId, prepared } = write;
       const activityId = randomUUID();
-      await this.activityService.open({ id: activityId, ...pendingUpdateActivityOf(saved) });
+      await this.activityService.open({ id: activityId, ...pendingUpdateActivityOf(saved), organizationId: prepared.wallet.organizationId });
       const update = {
         userId,
         dseq,
@@ -982,19 +985,20 @@ export class DeploymentWriterService {
       }
     } catch (error) {
       const { userId, dseq, manifestVersion, changes } = saved;
-      await this.#recordFailedUpdate({ userId, owner: prepared.wallet.address, dseq, manifestVersion, changes }, error);
+      await this.#recordFailedUpdate({ userId, owner: prepared.wallet.address, dseq, manifestVersion, changes }, prepared.wallet.organizationId, error);
       throw error;
     }
 
-    await this.activityService.record(updatedActivityOf(saved));
+    await this.activityService.record({ ...updatedActivityOf(saved), organizationId: prepared.wallet.organizationId });
   }
 
   /** An undecided update opens its pending activity with a later check in one transaction, so it settles once its outcome is known; as with `record`, failing to write either is only logged. */
   async #recordFailedUpdate(
     update: { userId: string; owner: string; dseq: string; manifestVersion: string; changes?: DeploymentChanges },
+    organizationId: string | null,
     error: unknown
   ): Promise<void> {
-    const activity = failedUpdateActivityOf(update, error);
+    const activity = { ...failedUpdateActivityOf(update, error), organizationId };
     if (activity.status !== "pending") return await this.activityService.record(activity);
 
     try {

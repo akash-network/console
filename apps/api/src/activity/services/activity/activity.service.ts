@@ -2,8 +2,9 @@ import createError, { isHttpError } from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { decodeActivityCursor, encodeActivityCursor } from "@src/activity/lib/activity-cursor/activity-cursor";
-import type { ActivityStatus, ActivityType, AlertActivityType, NewActivity } from "@src/activity/model-schemas";
+import type { ActivityStatus, ActivityType, AlertActivityType, FiledActivity, NewActivity } from "@src/activity/model-schemas";
 import {
+  type ActivityFeed,
   type ActivityOutput,
   ActivityRepository,
   type ActivitySelection,
@@ -15,6 +16,7 @@ import { PurgeExpiredActivities, purgeExpiredActivitiesOptionsFor } from "@src/a
 import { AuthService } from "@src/auth/services/auth.service";
 import { type CreateLogger, JobQueueService, LOGGER_FACTORY, TxService } from "@src/core";
 import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { isProjectInScope, readableProjectIdsOf } from "@src/organization/lib/project-scope/project-scope";
 import { OrganizationContextResolver } from "@src/organization/services/organization-context/organization-context.resolver";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
@@ -45,13 +47,14 @@ export class ActivityService {
     private readonly organizationContextResolver: OrganizationContextResolver,
     private readonly userRepository: UserRepository,
     private readonly txService: TxService,
+    private readonly executionContextService: ExecutionContextService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: ActivityService.name });
   }
 
   /** The action has already happened by the time it is recorded, so a failed write is logged rather than failing the request that performed it. */
-  async record(activity: NewActivity): Promise<void> {
+  async record(activity: FiledActivity): Promise<void> {
     try {
       const create = async () => await this.activityRepository.createUnlessDuplicate(activity);
       const recorded = (await create()) ?? (activity.dedupeKey ? await this.#replacingClosedAlert(activity, create) : undefined);
@@ -81,6 +84,7 @@ export class ActivityService {
     try {
       const added = await this.activityRepository.createUnlessDuplicate({
         ...alert,
+        organizationId,
         meta: organizationId ? { ...alert.meta, organizationId } : alert.meta,
         initiator: "system"
       });
@@ -113,7 +117,7 @@ export class ActivityService {
   }
 
   /** Not best-effort, unlike `record`: an activity opened for work still to come must fail the transaction that queues that work, including when another row already holds its dedupe key. */
-  async open(activity: NewActivity & { id: string }): Promise<void> {
+  async open(activity: FiledActivity & { id: string }): Promise<void> {
     await this.activityRepository.create(activity);
     this.activityInstrumentation.trackOpened(activity);
     await this.#keepPurgeQueued();
@@ -189,7 +193,9 @@ export class ActivityService {
 
   async list({ limit, cursor, status, type }: { limit: number; cursor?: string; status?: ActivityStatus; type?: ActivityType }): Promise<ActivityPage> {
     const after = cursor ? decodeActivityCursor(cursor) : undefined;
-    const rows = await this.activityRepository.accessibleBy(this.authService.ability, "read").findPage({ limit: limit + 1, after, status, type });
+    const rows = await this.activityRepository
+      .accessibleBy(this.authService.ability, "read")
+      .findPage({ limit: limit + 1, after, status, type, feed: this.#activeFeed });
     const activities = rows.slice(0, limit);
     const hasMore = rows.length > limit;
 
@@ -201,11 +207,18 @@ export class ActivityService {
   }
 
   async countUnseen(): Promise<number> {
-    return await this.activityRepository.accessibleBy(this.authService.ability, "read").countUnseen();
+    return await this.activityRepository.accessibleBy(this.authService.ability, "read").countUnseen(this.#activeFeed);
   }
 
   async markSeen(selection: ActivitySelection): Promise<number> {
-    await this.activityRepository.accessibleBy(this.authService.ability, "update").markSeen(selection);
+    await this.activityRepository.accessibleBy(this.authService.ability, "update").markSeen(selection, this.#activeFeed);
     return await this.countUnseen();
+  }
+
+  /** Narrowed only in organization mode, like every organization-scoped read, so a user on the legacy rules keeps their whole feed. */
+  get #activeFeed(): ActivityFeed | undefined {
+    const context = this.executionContextService.get("ORGANIZATION_CONTEXT");
+
+    return context?.mode === "organization" ? context : undefined;
   }
 }

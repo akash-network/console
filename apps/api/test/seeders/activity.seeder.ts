@@ -5,6 +5,7 @@ import type { ActivityOutput } from "@src/activity/repositories/activity/activit
 export function createActivity({
   id = faker.string.uuid(),
   userId = faker.string.uuid(),
+  organizationId = null,
   type = "deployment_close",
   status = "succeeded",
   initiator = "user",
@@ -14,5 +15,5 @@ export function createActivity({
   createdAt = faker.date.recent().toISOString(),
   updatedAt = createdAt
 }: Partial<ActivityOutput> = {}): ActivityOutput {
-  return { id, userId, type, status, initiator, meta, dedupeKey, seenAt, createdAt, updatedAt };
+  return { id, userId, organizationId, type, status, initiator, meta, dedupeKey, seenAt, createdAt, updatedAt };
 }

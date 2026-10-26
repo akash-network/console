@@ -50,7 +50,7 @@ export class SystemCloseActivityService {
         return;
       }
 
-      await this.activityService.record(systemClosedActivityOf({ userId, owner: wallet.address, dseq, reason }));
+      await this.activityService.record({ ...systemClosedActivityOf({ userId, owner: wallet.address, dseq, reason }), organizationId: wallet.organizationId });
     } catch (error) {
       this.#logger.error({ event: "SYSTEM_CLOSE_ACTIVITY_RECORD_FAILED", ...logFieldsOf(close), error });
     }

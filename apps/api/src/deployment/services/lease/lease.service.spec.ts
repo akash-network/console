@@ -1,6 +1,7 @@
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import type { Bid, BidHttpService, LeaseHttpService, RpcLease } from "@akashnetwork/http-sdk";
 import type { LoggerService } from "@akashnetwork/logging";
+import { faker } from "@faker-js/faker";
 import createError from "http-errors";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
@@ -696,7 +697,10 @@ describe(LeaseService.name, () => {
 
       await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId });
 
-      expect(activityService.record).toHaveBeenCalledWith(createdLeaseActivityOf({ userId: wallet.userId, leases: [lease] }));
+      expect(activityService.record).toHaveBeenCalledWith({
+        ...createdLeaseActivityOf({ userId: wallet.userId, leases: [lease] }),
+        organizationId: wallet.organizationId
+      });
     });
 
     it.each([
@@ -733,7 +737,10 @@ describe(LeaseService.name, () => {
 
       const failure = await service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId }).catch(error => error);
 
-      expect(activityService.record).toHaveBeenCalledWith(failedLeaseActivityOf({ userId: wallet.userId, leases: [lease] }, failure));
+      expect(activityService.record).toHaveBeenCalledWith({
+        ...failedLeaseActivityOf({ userId: wallet.userId, leases: [lease] }, failure),
+        organizationId: wallet.organizationId
+      });
       expect(activityService.record).toHaveBeenCalledWith(
         expect.objectContaining({ status: "failed", meta: expect.objectContaining({ error: expect.objectContaining({ code: "manifest_not_delivered" }) }) })
       );
@@ -753,7 +760,11 @@ describe(LeaseService.name, () => {
       await expect(service.createLeasesAndSendManifest({ leases: [lease], manifest: MANIFEST, userId: wallet.userId })).rejects.toBe(undecided);
 
       const [[opened]] = activityService.open.mock.calls;
-      expect(opened).toEqual({ id: expect.any(String), ...failedLeaseActivityOf({ userId: wallet.userId, leases: [lease] }, undecided) });
+      expect(opened).toEqual({
+        id: expect.any(String),
+        ...failedLeaseActivityOf({ userId: wallet.userId, leases: [lease] }, undecided),
+        organizationId: wallet.organizationId
+      });
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         new ReconcileLeaseCreate({ userId: wallet.userId, walletId: wallet.id, owner: wallet.address, leases: [lease], activityId: opened.id }),
         reconcileLeaseCreateOptionsFor(opened.id, new Date("2026-01-01T00:00:00.000Z"))
@@ -761,7 +772,7 @@ describe(LeaseService.name, () => {
       expect(activityService.record).not.toHaveBeenCalled();
     });
 
-    it("checks a team wallet's lease left undecided against that wallet, in the feed of the member who asked", async () => {
+    it("checks a team wallet's lease left undecided against that wallet, in the team's feed of the member who asked", async () => {
       const undecided = new TxOutcomeUnknownError("ABCDEF");
       const teamWallet = createOrganizationWallet();
       const { service, signerService, activityService, jobQueueService, wallet } = setup({ activeWallet: teamWallet });
@@ -772,6 +783,7 @@ describe(LeaseService.name, () => {
 
       const [[opened]] = activityService.open.mock.calls;
       expect(opened.userId).toBe(wallet.userId);
+      expect(opened.organizationId).toBe(teamWallet.organizationId);
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         new ReconcileLeaseCreate({
           userId: wallet.userId,
@@ -818,7 +830,11 @@ describe(LeaseService.name, () => {
           ...CREATE_LEASE_RETRY_OPTIONS
         }
       );
-      expect(activityService.open).toHaveBeenCalledWith({ id: queued!.activityId, ...pendingLeaseActivityOf({ userId: wallet.userId, leases: [lease] }) });
+      expect(activityService.open).toHaveBeenCalledWith({
+        id: queued!.activityId,
+        ...pendingLeaseActivityOf({ userId: wallet.userId, leases: [lease] }),
+        organizationId: wallet.organizationId
+      });
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
       expect(providerService.sendManifest).not.toHaveBeenCalled();
     });
@@ -1234,7 +1250,7 @@ describe(LeaseService.name, () => {
       queuedJobId?: string | null;
     } = {}
   ) {
-    const wallet = input.wallet ?? createInitializedUserWallet();
+    const wallet = input.wallet ?? createInitializedUserWallet({ organizationId: faker.string.uuid() });
     const activeWallet = input.activeWallet ?? wallet;
 
     const signerService = mock<ManagedSignerService>();

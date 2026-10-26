@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { index, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
+import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import { Users } from "@src/user/model-schemas";
 
 export const ALERT_ACTIVITY_TYPES = ["wallet_balance_alert", "deployment_closed_alert", "deployment_reclaim_alert"] as const;
@@ -67,6 +68,9 @@ export type NewActivity = {
   dedupeKey: string | null;
 };
 
+/** `organizationId` is the organization of the wallet the action went through, whose feed lists it. */
+export type FiledActivity = NewActivity & { organizationId: string | null };
+
 export const ACTIVITIES_DEDUPE_KEY_INDEX = "activities_user_id_dedupe_key_idx";
 
 export const Activities = pgTable(
@@ -79,6 +83,8 @@ export const Activities = pgTable(
     userId: uuid("user_id")
       .references(() => Users.id, { onDelete: "cascade" })
       .notNull(),
+    /** Null on activities recorded before they named one, which the personal organization's feed lists. */
+    organizationId: uuid("organization_id").references(() => Organizations.id, { onDelete: "cascade" }),
     type: activityTypeEnum("type").notNull(),
     status: activityStatusEnum("status").notNull(),
     initiator: activityInitiatorEnum("initiator").notNull().default("user"),
@@ -93,6 +99,9 @@ export const Activities = pgTable(
   table => ({
     userIdCreatedAtIdIdx: index("activities_user_id_created_at_id_idx").on(table.userId, table.createdAt, table.id),
     createdAtIdx: index("activities_created_at_idx").on(table.createdAt),
+    organizationIdIdx: index("activities_organization_id_idx")
+      .on(table.organizationId)
+      .where(sql`${table.organizationId} IS NOT NULL`),
     userIdUnseenIdx: index("activities_user_id_unseen_idx")
       .on(table.userId)
       .where(sql`${table.seenAt} IS NULL`),

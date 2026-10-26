@@ -6,6 +6,7 @@ import { ACTIVITIES_DEDUPE_KEY_INDEX, type ActivityStatus, type ActivityType } f
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository, getPostgresError, isUniqueViolation } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import type { OrganizationContext } from "@src/organization/types/organization-context";
 
 type Table = ApiPgTables["Activities"];
 export type ActivityInput = Partial<Table["$inferInsert"]>;
@@ -18,6 +19,9 @@ export type ActivityOutput = Omit<ActivityDbOutput, "seenAt" | "createdAt" | "up
 };
 
 export type ActivitySelection = { ids: string[] } | { upTo: string };
+
+/** One organization's feed, which leaves out what the user did in their other organizations. */
+export type ActivityFeed = Pick<OrganizationContext, "organizationId" | "organizationType">;
 
 export type PendingActivitySummary = { type: ActivityType; count: number; oldestCreatedAt: Date };
 
@@ -63,19 +67,26 @@ export class ActivityRepository extends BaseRepository<Table, ActivityInput, Act
     limit,
     after,
     status,
-    type
+    type,
+    feed
   }: {
     limit: number;
     after?: ActivityPosition;
     status?: ActivityStatus;
     type?: ActivityType;
+    feed?: ActivityFeed;
   }): Promise<ActivityOutput[]> {
     const rows = await this.cursor
       .select()
       .from(this.table)
       .where(
         this.whereAccessibleBy(
-          and(status ? eq(this.table.status, status) : undefined, type ? eq(this.table.type, type) : undefined, after ? this.#isOlderThan(after) : undefined)
+          and(
+            status ? eq(this.table.status, status) : undefined,
+            type ? eq(this.table.type, type) : undefined,
+            after ? this.#isOlderThan(after) : undefined,
+            this.#isListedIn(feed)
+          )
         )
       )
       .orderBy(desc(this.table.createdAt), desc(this.table.id))
@@ -84,22 +95,22 @@ export class ActivityRepository extends BaseRepository<Table, ActivityInput, Act
     return this.toOutputList(rows);
   }
 
-  async countUnseen(): Promise<number> {
+  async countUnseen(feed?: ActivityFeed): Promise<number> {
     const [result] = await this.cursor
       .select({ count: count() })
       .from(this.table)
-      .where(this.whereAccessibleBy(isNull(this.table.seenAt)));
+      .where(this.whereAccessibleBy(and(isNull(this.table.seenAt), this.#isListedIn(feed))));
 
     return result.count;
   }
 
-  async markSeen(selection: ActivitySelection): Promise<void> {
+  async markSeen(selection: ActivitySelection, feed?: ActivityFeed): Promise<void> {
     const selected = "ids" in selection ? inArray(this.table.id, selection.ids) : lte(this.table.createdAt, new Date(selection.upTo));
 
     await this.cursor
       .update(this.table)
       .set({ seenAt: sql`now()`, updatedAt: sql`now()` })
-      .where(this.whereAccessibleBy(and(isNull(this.table.seenAt), selected)));
+      .where(this.whereAccessibleBy(and(isNull(this.table.seenAt), selected, this.#isListedIn(feed))));
   }
 
   async updateByIdIfStatusIn(id: string, statuses: ActivityStatus[], payload: ActivityInput): Promise<ActivityOutput | undefined> {
@@ -151,6 +162,14 @@ export class ActivityRepository extends BaseRepository<Table, ActivityInput, Act
       .limit(1);
 
     return !!succeeded;
+  }
+
+  #isListedIn(feed: ActivityFeed | undefined) {
+    if (!feed) return undefined;
+
+    const isFiledIn = eq(this.table.organizationId, feed.organizationId);
+
+    return feed.organizationType === "personal" ? or(isFiledIn, isNull(this.table.organizationId)) : isFiledIn;
   }
 
   #isOlderThan({ createdAt, id }: ActivityPosition) {
