@@ -1602,6 +1602,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "wallet_balance_alert",
                 "deployment_closed_alert",
                 "deployment_reclaim_alert",
+                "deployment_rename",
               ],
               "type": "string",
             },
@@ -1651,6 +1652,83 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "batchId": {
                                     "description": "The bulk close the action was part of, as its request named it.",
                                     "type": "string",
+                                  },
+                                  "changes": {
+                                    "description": "What an update or a rename changed, on \`deployment_update\` and \`deployment_rename\`. Names variables and never their values. Absent on an update that only replaced secret values.",
+                                    "properties": {
+                                      "name": {
+                                        "description": "The deployment's name before and after.",
+                                        "properties": {
+                                          "from": {
+                                            "nullable": true,
+                                            "type": "string",
+                                          },
+                                          "to": {
+                                            "type": "string",
+                                          },
+                                        },
+                                        "required": [
+                                          "from",
+                                          "to",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      "services": {
+                                        "items": {
+                                          "properties": {
+                                            "addedEnv": {
+                                              "description": "Environment variables the update added, by name.",
+                                              "items": {
+                                                "type": "string",
+                                              },
+                                              "type": "array",
+                                            },
+                                            "changedEnv": {
+                                              "description": "Environment variables the update gave a new value, by name.",
+                                              "items": {
+                                                "type": "string",
+                                              },
+                                              "type": "array",
+                                            },
+                                            "image": {
+                                              "description": "The image the service now runs, when the update changed it.",
+                                              "type": "string",
+                                            },
+                                            "removedEnv": {
+                                              "description": "Environment variables the update removed, by name.",
+                                              "items": {
+                                                "type": "string",
+                                              },
+                                              "type": "array",
+                                            },
+                                            "service": {
+                                              "description": "The service the update changed.",
+                                              "type": "string",
+                                            },
+                                            "settings": {
+                                              "description": "The other fields of the service the update changed, named as a patch names them.",
+                                              "items": {
+                                                "enum": [
+                                                  "command",
+                                                  "args",
+                                                  "credentials",
+                                                  "expose",
+                                                  "storage",
+                                                ],
+                                                "type": "string",
+                                              },
+                                              "type": "array",
+                                            },
+                                          },
+                                          "required": [
+                                            "service",
+                                          ],
+                                          "type": "object",
+                                        },
+                                        "type": "array",
+                                      },
+                                    },
+                                    "type": "object",
                                   },
                                   "dseq": {
                                     "description": "The deployment the action or the alert was about.",
@@ -1735,6 +1813,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "wallet_balance_alert",
                                   "deployment_closed_alert",
                                   "deployment_reclaim_alert",
+                                  "deployment_rename",
                                 ],
                                 "type": "string",
                               },
@@ -1988,6 +2067,83 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "description": "The bulk close the action was part of, as its request named it.",
                               "type": "string",
                             },
+                            "changes": {
+                              "description": "What an update or a rename changed, on \`deployment_update\` and \`deployment_rename\`. Names variables and never their values. Absent on an update that only replaced secret values.",
+                              "properties": {
+                                "name": {
+                                  "description": "The deployment's name before and after.",
+                                  "properties": {
+                                    "from": {
+                                      "nullable": true,
+                                      "type": "string",
+                                    },
+                                    "to": {
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "from",
+                                    "to",
+                                  ],
+                                  "type": "object",
+                                },
+                                "services": {
+                                  "items": {
+                                    "properties": {
+                                      "addedEnv": {
+                                        "description": "Environment variables the update added, by name.",
+                                        "items": {
+                                          "type": "string",
+                                        },
+                                        "type": "array",
+                                      },
+                                      "changedEnv": {
+                                        "description": "Environment variables the update gave a new value, by name.",
+                                        "items": {
+                                          "type": "string",
+                                        },
+                                        "type": "array",
+                                      },
+                                      "image": {
+                                        "description": "The image the service now runs, when the update changed it.",
+                                        "type": "string",
+                                      },
+                                      "removedEnv": {
+                                        "description": "Environment variables the update removed, by name.",
+                                        "items": {
+                                          "type": "string",
+                                        },
+                                        "type": "array",
+                                      },
+                                      "service": {
+                                        "description": "The service the update changed.",
+                                        "type": "string",
+                                      },
+                                      "settings": {
+                                        "description": "The other fields of the service the update changed, named as a patch names them.",
+                                        "items": {
+                                          "enum": [
+                                            "command",
+                                            "args",
+                                            "credentials",
+                                            "expose",
+                                            "storage",
+                                          ],
+                                          "type": "string",
+                                        },
+                                        "type": "array",
+                                      },
+                                    },
+                                    "required": [
+                                      "service",
+                                    ],
+                                    "type": "object",
+                                  },
+                                  "type": "array",
+                                },
+                              },
+                              "type": "object",
+                            },
                             "dseq": {
                               "description": "The deployment the action or the alert was about.",
                               "type": "string",
@@ -2071,6 +2227,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "wallet_balance_alert",
                             "deployment_closed_alert",
                             "deployment_reclaim_alert",
+                            "deployment_rename",
                           ],
                           "type": "string",
                         },
@@ -15801,6 +15958,8 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "member_revoked",
                               "member_updated",
                               "organization_renamed",
+                              "deployment_updated",
+                              "deployment_renamed",
                             ],
                             "type": "string",
                           },

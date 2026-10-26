@@ -2,10 +2,18 @@ import createError from "http-errors";
 import { describe, expect, it } from "vitest";
 
 import { TxNotIncludedError, TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
-import { failedUpdateActivityOf, notAppliedUpdateActivityOf, pendingUpdateActivityOf, undeliveredUpdateActivityOf, updatedActivityOf } from "./update-activity";
+import {
+  failedUpdateActivityOf,
+  notAppliedUpdateActivityOf,
+  pendingUpdateActivityOf,
+  renamedActivityOf,
+  undeliveredUpdateActivityOf,
+  updatedActivityOf
+} from "./update-activity";
 
 describe("update activity", () => {
   const KEY = { userId: "c0ffee00-0000-4000-8000-000000000001", dseq: "1234", manifestVersion: "U0FWRUQ=" };
+  const CHANGES = { services: [{ service: "web", changedEnv: ["API_URL"] }] };
 
   describe(pendingUpdateActivityOf.name, () => {
     it("opens the update as pending under the version it saved", () => {
@@ -31,6 +39,10 @@ describe("update activity", () => {
         meta: { dseq: "1234", manifestVersion: "U0FWRUQ=" }
       });
     });
+
+    it("carries what the update changed", () => {
+      expect(updatedActivityOf({ ...KEY, changes: CHANGES }).meta).toEqual({ dseq: "1234", manifestVersion: "U0FWRUQ=", changes: CHANGES });
+    });
   });
 
   describe(failedUpdateActivityOf.name, () => {
@@ -53,6 +65,15 @@ describe("update activity", () => {
         initiator: "user",
         dedupeKey: null,
         meta: { dseq: "1234", manifestVersion: "U0FWRUQ=", error: { code: "tx_not_included", message: "The request expired and can no longer complete" } }
+      });
+    });
+
+    it("carries what the update changed beside the reason it failed", () => {
+      expect(failedUpdateActivityOf({ ...KEY, changes: CHANGES }, createError(400, "Deployment closed")).meta).toEqual({
+        dseq: "1234",
+        manifestVersion: "U0FWRUQ=",
+        changes: CHANGES,
+        error: { code: "update_failed", message: "Deployment closed" }
       });
     });
 
@@ -81,6 +102,19 @@ describe("update activity", () => {
           manifestVersion: "U0FWRUQ=",
           error: { code: "update_incomplete", message: "The update did not go through. Try updating it again." }
         }
+      });
+    });
+  });
+
+  describe(renamedActivityOf.name, () => {
+    it("records the rename as succeeded with the names before and after", () => {
+      expect(renamedActivityOf({ userId: KEY.userId, dseq: "1234", from: "web", to: "web-update" })).toEqual({
+        userId: KEY.userId,
+        type: "deployment_rename",
+        status: "succeeded",
+        initiator: "user",
+        dedupeKey: null,
+        meta: { dseq: "1234", changes: { name: { from: "web", to: "web-update" } } }
       });
     });
   });

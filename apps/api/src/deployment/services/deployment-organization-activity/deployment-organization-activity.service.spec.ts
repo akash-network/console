@@ -91,7 +91,84 @@ describe(DeploymentOrganizationActivityService.name, () => {
       await expect(service.recordClosed(key, { actorUserId: faker.string.uuid(), reason: null })).resolves.toBeUndefined();
 
       expect(organizationActivityService.recordForDeployment).not.toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_ORGANIZATION_ACTIVITY_RECORD_FAILED", type: "deployment_closed", error }));
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DEPLOYMENT_ORGANIZATION_ACTIVITY_RECORD_FAILED", type: "deployment_closed", error })
+      );
+    });
+  });
+
+  describe("recordUpdated", () => {
+    it("files the update into the deployment's organization and project, with the member who made it and what it changed", async () => {
+      const { service, organizationActivityService, deployment, key } = setup();
+      const actorUserId = faker.string.uuid();
+      const changes = { services: [{ service: "web", changedEnv: ["API_URL"] }] };
+
+      await service.recordUpdated(key, actorUserId, changes);
+
+      expect(organizationActivityService.recordForDeployment).toHaveBeenCalledWith({
+        organizationId: deployment.organizationId,
+        projectId: deployment.projectId,
+        type: "deployment_updated",
+        actorUserId,
+        payload: { dseq: key.dseq, name: deployment.name, changes }
+      });
+    });
+
+    it("files an update that changed nothing it can name without changes", async () => {
+      const { service, organizationActivityService, key } = setup();
+
+      await service.recordUpdated(key, faker.string.uuid(), undefined);
+
+      expect(organizationActivityService.recordForDeployment.mock.calls[0][0].payload).not.toHaveProperty("changes");
+    });
+
+    it("logs a failure to file the update rather than raising it", async () => {
+      const { service, organizationActivityService, logger, key } = setup();
+      const error = new Error("database unavailable");
+      organizationActivityService.recordForDeployment.mockRejectedValue(error);
+
+      await expect(service.recordUpdated(key, faker.string.uuid(), undefined)).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DEPLOYMENT_ORGANIZATION_ACTIVITY_RECORD_FAILED", type: "deployment_updated", error })
+      );
+    });
+  });
+
+  describe("recordRenamed", () => {
+    it("files the rename into the deployment's organization and project, with the names before and after", async () => {
+      const { service, organizationActivityService, deployment, key } = setup();
+      const actorUserId = faker.string.uuid();
+
+      await service.recordRenamed(key, actorUserId, { from: "web", to: "web-update" });
+
+      expect(organizationActivityService.recordForDeployment).toHaveBeenCalledWith({
+        organizationId: deployment.organizationId,
+        projectId: deployment.projectId,
+        type: "deployment_renamed",
+        actorUserId,
+        payload: { dseq: key.dseq, fromName: "web", toName: "web-update" }
+      });
+    });
+
+    it("files nothing for a deployment not yet filed into an organization", async () => {
+      const { service, organizationActivityService, key } = setup({ filedIn: null });
+
+      await service.recordRenamed(key, faker.string.uuid(), { from: "web", to: "web-update" });
+
+      expect(organizationActivityService.recordForDeployment).not.toHaveBeenCalled();
+    });
+
+    it("logs a failure to file the rename rather than raising it", async () => {
+      const { service, organizationActivityService, logger, key } = setup();
+      const error = new Error("database unavailable");
+      organizationActivityService.recordForDeployment.mockRejectedValue(error);
+
+      await expect(service.recordRenamed(key, faker.string.uuid(), { from: "web", to: "web-update" })).resolves.toBeUndefined();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DEPLOYMENT_ORGANIZATION_ACTIVITY_RECORD_FAILED", type: "deployment_renamed", error })
+      );
     });
   });
 

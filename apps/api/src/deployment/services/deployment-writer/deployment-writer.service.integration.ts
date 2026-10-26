@@ -479,6 +479,38 @@ describe(DeploymentWriterService.name, () => {
       expect(apply.data).toMatchObject({ organizationId });
     });
 
+    it("records what it changed on its pending activity, on its apply and in the feed of the organization the deployment is filed in", async () => {
+      const { user, dseq, patchInBackground, findActivities, findTeamActivities } = await setup({ filedInOrganization: true, name: "web-update" });
+      const changes = { services: [{ service: "web", image: "nginx:1.27" }] };
+
+      const accepted = await patchInBackground();
+
+      const [activity] = await findActivities();
+      const [apply] = await findJobRows(ApplyDeploymentUpdate[JOB_NAME], { data: { activityId: accepted.activityId } });
+      expect(activity.meta).toMatchObject({ changes });
+      expect(apply.data).toMatchObject({ changes });
+      expect(await findTeamActivities()).toEqual([
+        expect.objectContaining({ type: "deployment_updated", actorUserId: user.id, payload: { dseq, name: "web-update", changes } })
+      ]);
+    });
+
+    it("records a rename of a named deployment in the member's feed and in the organization's", async () => {
+      const { user, dseq, rename, findActivities, findTeamActivities } = await setup({ filedInOrganization: true, name: "web-update" });
+
+      await rename("web-renamed");
+
+      expect(await findActivities()).toEqual([
+        expect.objectContaining({
+          type: "deployment_rename",
+          status: "succeeded",
+          meta: { dseq, changes: { name: { from: "web-update", to: "web-renamed" } } }
+        })
+      ]);
+      expect(await findTeamActivities()).toEqual([
+        expect.objectContaining({ type: "deployment_renamed", actorUserId: user.id, payload: { dseq, fromName: "web-update", toName: "web-renamed" } })
+      ]);
+    });
+
     it("commits neither the definition, the activity nor the apply when the check on it cannot be queued", async () => {
       const { wallet, dseq, patchInBackground, findActivities, findSetting, storedVersion } = await setup();
       const jobQueueService = container.resolve(JobQueueService);
@@ -496,10 +528,11 @@ describe(DeploymentWriterService.name, () => {
       expect(await findJobRows(ApplyDeploymentUpdate[JOB_NAME], { singletonKey: applyDeploymentUpdateKeyFor({ walletId: wallet.id, dseq }) })).toEqual([]);
     });
 
-    async function setup(input: { filedInOrganization?: boolean } = {}) {
+    async function setup(input: { filedInOrganization?: boolean; name?: string } = {}) {
       await jobWorkers();
       const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
       const activitiesTable = resolveTable("Activities");
+      const organizationActivitiesTable = resolveTable("OrganizationActivities");
       const deploymentSettingsTable = resolveTable("DeploymentSettings");
       const writer = container.resolve(DeploymentWriterService);
 
@@ -512,6 +545,7 @@ describe(DeploymentWriterService.name, () => {
         organizationId,
         dseq,
         sdl: SDL,
+        name: input.name,
         manifestVersion: storedVersion,
         sealedSecrets: null,
         autoTopUpEnabled: false
@@ -521,6 +555,9 @@ describe(DeploymentWriterService.name, () => {
         deployment: chainHoldingAnOlderVersion(address, dseq),
         groupSpecs: null
       });
+      vi.spyOn(container.resolve(DeploymentReaderService), "findByWalletAndDseqWithoutProviderStatus").mockResolvedValue(
+        chainHoldingAnOlderVersion(address, dseq)
+      );
       vi.spyOn(writer, "applySavedPatch").mockRejectedValue(new Error("applied by no worker in this test"));
 
       async function patchInBackground() {
@@ -531,8 +568,16 @@ describe(DeploymentWriterService.name, () => {
         return accepted as { activityId: string; manifestVersion: string };
       }
 
+      async function rename(name: string) {
+        await runAsUser(user, () => writer.patchInBackgroundByUserIdAndDseq(user.id, dseq, { name }, container.resolve(AuthService).ability));
+      }
+
       async function findActivities() {
         return await db.select().from(activitiesTable).where(eq(activitiesTable.userId, user.id));
+      }
+
+      async function findTeamActivities() {
+        return await db.select().from(organizationActivitiesTable).where(eq(organizationActivitiesTable.actorUserId, user.id));
       }
 
       async function findSetting() {
@@ -549,7 +594,19 @@ describe(DeploymentWriterService.name, () => {
         return row.transaction_id;
       }
 
-      return { user, wallet, dseq, organizationId, storedVersion, patchInBackground, findActivities, findSetting, findTransactionIdOf };
+      return {
+        user,
+        wallet,
+        dseq,
+        organizationId,
+        storedVersion,
+        patchInBackground,
+        rename,
+        findActivities,
+        findTeamActivities,
+        findSetting,
+        findTransactionIdOf
+      };
     }
   });
 

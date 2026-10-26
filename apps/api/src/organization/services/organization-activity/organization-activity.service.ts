@@ -37,7 +37,9 @@ export class OrganizationActivityService {
   }
 
   /** Filed into the deployment's own organization, which a job runs outside of and a request may not be active in. */
-  async recordForDeployment<T extends "deployment_created" | "deployment_closed">(activity: OrganizationActivityRecord<T>): Promise<void> {
+  async recordForDeployment<T extends "deployment_created" | "deployment_closed" | "deployment_updated" | "deployment_renamed">(
+    activity: OrganizationActivityRecord<T>
+  ): Promise<void> {
     await this.organizationActivityRepository.unscoped("deployment-activity").create(activity);
   }
 

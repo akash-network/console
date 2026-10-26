@@ -1,3 +1,4 @@
+import type { DeploymentChanges } from "@src/activity/model-schemas";
 import { type EnqueueOptions, type Job, JOB_NAME } from "@src/core";
 
 /** Applies a deployment update a request already saved, and settles the activity the request opened for it. */
@@ -18,6 +19,8 @@ export class ApplyDeploymentUpdate implements Job {
       /** Absent for a deployment filed before organizations, whose row only its user reaches. */
       organizationId?: string;
       activityId: string;
+      /** Absent for a job queued before changes were recorded, whose activity then settles without them. */
+      changes?: DeploymentChanges;
     }
   ) {}
 }

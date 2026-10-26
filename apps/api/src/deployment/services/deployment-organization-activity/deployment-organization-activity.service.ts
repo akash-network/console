@@ -1,5 +1,6 @@
 import { inject, singleton } from "tsyringe";
 
+import type { DeploymentChanges } from "@src/activity/model-schemas";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import {
   DeploymentSettingRepository,
@@ -57,7 +58,31 @@ export class DeploymentOrganizationActivityService {
     });
   }
 
-  /** The deployment already changed on chain by the time this runs, so a failure to record it is logged rather than raised. */
+  async recordUpdated(key: WalletDeploymentKey, actorUserId: string, changes: DeploymentChanges | undefined): Promise<void> {
+    await this.#recordFor(key, "deployment_updated", async deployment => {
+      await this.organizationActivityService.recordForDeployment({
+        organizationId: deployment.organizationId,
+        projectId: deployment.projectId,
+        type: "deployment_updated",
+        actorUserId,
+        payload: { dseq: key.dseq, name: deployment.name, ...(changes ? { changes } : {}) }
+      });
+    });
+  }
+
+  async recordRenamed(key: WalletDeploymentKey, actorUserId: string, { from, to }: { from: string; to: string }): Promise<void> {
+    await this.#recordFor(key, "deployment_renamed", async deployment => {
+      await this.organizationActivityService.recordForDeployment({
+        organizationId: deployment.organizationId,
+        projectId: deployment.projectId,
+        type: "deployment_renamed",
+        actorUserId,
+        payload: { dseq: key.dseq, fromName: from, toName: to }
+      });
+    });
+  }
+
+  /** The deployment already changed by the time this runs, so a failure to record it is logged rather than raised. */
   async #recordFor({ wallet, dseq }: WalletDeploymentKey, type: string, record: (deployment: FiledDeployment) => Promise<void>): Promise<void> {
     try {
       const deployment = await this.deploymentSettingRepository.unscoped("deployment-activity").findOneOwnedByWallet(wallet, dseq);

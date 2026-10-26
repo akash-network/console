@@ -1,8 +1,11 @@
 import { activityErrorOf } from "@src/activity/lib/activity-error/activity-error";
-import type { ActivityMeta, ActivityStatus, NewActivity } from "@src/activity/model-schemas";
+import type { ActivityMeta, ActivityStatus, DeploymentChanges, NewActivity } from "@src/activity/model-schemas";
 import { isUnknownTxOutcome } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 
-type UpdateKey = { userId: string; dseq: string; manifestVersion: string };
+/** `changes` is absent for an update saved before they were recorded, or one that only replaced secret values. */
+type UpdateKey = { userId: string; dseq: string; manifestVersion: string; changes?: DeploymentChanges };
+
+type RenameKey = { userId: string; dseq: string; from: string; to: string };
 
 const UNEXPLAINED_UPDATE_ERROR = { code: "update_failed", message: "Something went wrong while applying the update. Try updating it again in a moment." };
 
@@ -15,11 +18,22 @@ const NOT_DELIVERED_ERROR = {
 
 /** Every update is its own entry, so none holds a dedupe key. */
 function updateActivityOf(
-  { userId, dseq, manifestVersion }: UpdateKey,
+  { userId, dseq, manifestVersion, changes }: UpdateKey,
   status: ActivityStatus,
-  meta: Omit<ActivityMeta, "dseq" | "manifestVersion"> = {}
+  meta: Omit<ActivityMeta, "dseq" | "manifestVersion" | "changes"> = {}
 ): NewActivity {
-  return { userId, type: "deployment_update", status, initiator: "user", meta: { dseq, manifestVersion, ...meta }, dedupeKey: null };
+  return {
+    userId,
+    type: "deployment_update",
+    status,
+    initiator: "user",
+    meta: { dseq, manifestVersion, ...(changes ? { changes } : {}), ...meta },
+    dedupeKey: null
+  };
+}
+
+export function renamedActivityOf({ userId, dseq, from, to }: RenameKey): NewActivity {
+  return { userId, type: "deployment_rename", status: "succeeded", initiator: "user", meta: { dseq, changes: { name: { from, to } } }, dedupeKey: null };
 }
 
 export function pendingUpdateActivityOf(key: UpdateKey): NewActivity {

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { foreignKey, index, jsonb, pgEnum, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
 
+import type { DeploymentChanges } from "@src/activity/model-schemas/activity/activity.schema";
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
 import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { Projects } from "@src/organization/model-schemas/project/project.schema";
@@ -18,7 +19,9 @@ export const organizationActivityTypeEnum = pgEnum("organization_activity_type",
   "member_granted",
   "member_revoked",
   "member_updated",
-  "organization_renamed"
+  "organization_renamed",
+  "deployment_updated",
+  "deployment_renamed"
 ]);
 
 export type OrganizationActivityType = (typeof organizationActivityTypeEnum.enumValues)[number];
@@ -36,6 +39,8 @@ export type OrganizationActivityPayloads = {
   member_revoked: { userId: string; username: string | null };
   member_updated: { userId: string; username: string | null; role: OrganizationRole; projectAccess: ProjectAccess | null };
   organization_renamed: { fromName: string; toName: string };
+  deployment_updated: { dseq: string; name: string | null; changes?: DeploymentChanges };
+  deployment_renamed: { dseq: string; fromName: string; toName: string };
 };
 
 export const OrganizationActivities = pgTable(
