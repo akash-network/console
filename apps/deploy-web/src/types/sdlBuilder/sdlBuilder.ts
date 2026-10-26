@@ -81,6 +81,8 @@ export const RESERVED_ENV_KEYS = [SSH_PUBKEY_ENV_KEY] as const;
 
 export const SSH_KEY_REQUIRED_MESSAGE = "SSH Public key is required.";
 
+export const NO_PUBLIC_PORT_MESSAGE = "Set at least one port to Public. Providers refuse a deployment whose ports are all internal.";
+
 export const RESERVED_ENV_VALUE_MESSAGE = 'Plain values may not start with "ac-", which the console reserves for secret references.';
 
 export const SECRET_NAME_MESSAGE = "A secret name may only contain letters, digits and underscores, cannot start with a digit and is at most 64 characters.";
@@ -634,6 +636,14 @@ export const SdlBuilderFormValuesSchema = z
         code: z.ZodIssueCode.custom,
         message: "Endpoint name must be unique.",
         path: ["endpoints", index, "name"]
+      });
+    }
+
+    if (data.services.length > 0 && !data.services.some(service => service.expose.some(expose => expose.global))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: NO_PUBLIC_PORT_MESSAGE,
+        path: ["services", 0, "expose"]
       });
     }
 

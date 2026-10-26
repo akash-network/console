@@ -5,6 +5,7 @@ import {
   EndpointSchema,
   ENV_KEY_MESSAGE,
   EnvironmentVariableSchema,
+  NO_PUBLIC_PORT_MESSAGE,
   ProfileSchema,
   RESERVED_ENV_VALUE_MESSAGE,
   SdlBuilderFormValuesSchema,
@@ -524,6 +525,44 @@ describe("SdlBuilderFormValuesSchema", () => {
     if (result.success) return;
     expect(result.error.issues).toContainEqual(expect.objectContaining({ path: ["endpoints", 1, "name"], message: "Endpoint name must be unique." }));
   });
+
+  it("asks for a public port on the first service when every port of every service is internal", () => {
+    const result = SdlBuilderFormValuesSchema.safeParse({
+      placements: [{ id: "p-1", name: "dcloud" }],
+      services: [serviceExposing("web", [false]), serviceExposing("db", [false, false])]
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues).toContainEqual(expect.objectContaining({ path: ["services", 0, "expose"], message: NO_PUBLIC_PORT_MESSAGE }));
+  });
+
+  it("leaves a form without services to the message that asks for one, rather than also asking for a public port", () => {
+    const result = SdlBuilderFormValuesSchema.safeParse({ placements: [{ id: "p-1", name: "dcloud" }], services: [] });
+
+    expect(result.error?.issues.map(issue => issue.message)).toEqual(["At least one service is required."]);
+  });
+
+  it("accepts a deployment whose only public port is exposed by a later service beside an internal one", () => {
+    const result = SdlBuilderFormValuesSchema.safeParse({
+      placements: [{ id: "p-1", name: "dcloud" }],
+      services: [serviceExposing("db", [false]), serviceExposing("web", [false, true])]
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  function serviceExposing(title: string, globals: boolean[]) {
+    return {
+      id: `svc-${title}`,
+      title,
+      image: "nginx:latest",
+      profile: { cpu: 0.1, ram: 256, ramUnit: "Mi", storage: [{ size: 512, unit: "Mi" }] },
+      expose: globals.map((global, index) => ({ port: 80 + index, as: 80 + index, global })),
+      placementId: "p-1",
+      pricing: { amount: 1000, denom: "uakt" },
+      count: 1
+    };
+  }
 
   function vmService() {
     return {
