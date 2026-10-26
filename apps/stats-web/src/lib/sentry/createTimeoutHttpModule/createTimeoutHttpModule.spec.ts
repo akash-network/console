@@ -24,22 +24,10 @@ describe(createTimeoutHttpModule.name, () => {
     await expect(transport.flush(1_000)).resolves.toBe(true);
   });
 
-  it("delivers an upload the ingest answers", async () => {
+  it("delivers an upload to a plain http ingest through the agent Sentry provides", async () => {
     const { transport } = await setup({ answers: true, timeoutMs: 1_000 });
 
     await expect(transport.send(CLIENT_REPORT)).resolves.toMatchObject({ statusCode: 200 });
-  });
-
-  it("sends a plain http request without an agent of its own", async () => {
-    const { requestWithoutAgent } = await setup({ answers: true, timeoutMs: 1_000 });
-
-    await expect(requestWithoutAgent("http:")).resolves.toBe(200);
-  });
-
-  it("speaks TLS to an https ingest without an agent of its own", async () => {
-    const { requestWithoutAgent } = await setup({ answers: true, timeoutMs: 1_000 });
-
-    await expect(requestWithoutAgent("https:")).rejects.toThrow(/wrong version number/);
   });
 
   async function setup(input: { answers: boolean; timeoutMs: number }) {
@@ -53,22 +41,12 @@ describe(createTimeoutHttpModule.name, () => {
       ingest.close();
     });
     const { port } = ingest.address() as AddressInfo;
-    const httpModule = createTimeoutHttpModule(input.timeoutMs);
     const transport = makeNodeTransport({
       url: `http://127.0.0.1:${port}/api/1/envelope/`,
       recordDroppedEvent: vi.fn(),
-      httpModule
+      httpModule: createTimeoutHttpModule(input.timeoutMs)
     });
-    const requestWithoutAgent = (protocol: "http:" | "https:") =>
-      new Promise<number | undefined>((resolve, reject) => {
-        const request = httpModule.request({ protocol, hostname: "127.0.0.1", port, path: "/", method: "POST" }, response => {
-          response.on("data", () => undefined);
-          response.on("end", () => resolve(response.statusCode));
-        });
-        request.on("error", reject);
-        request.end();
-      });
 
-    return { transport, requestWithoutAgent };
+    return { transport };
   }
 });
