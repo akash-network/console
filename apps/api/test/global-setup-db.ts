@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 
+import { markLastUsed, sweepStaleTestDatabases } from "./services/stale-test-databases";
 import {
   API_MIGRATIONS_FOLDER,
   buildTemplateName,
@@ -25,6 +26,10 @@ export async function setup() {
     try {
       await ensureTemplate(admin, postgresUri, userTemplate, API_MIGRATIONS_FOLDER);
       await ensureTemplate(admin, postgresUri, indexerTemplate, INDEXER_MIGRATIONS_FOLDER);
+      // Marking and sweeping under the same lock keeps a sweep from dropping a template another run just picked up.
+      await markLastUsed(admin, userTemplate);
+      await markLastUsed(admin, indexerTemplate);
+      await sweepStaleTestDatabases(admin, [userTemplate, indexerTemplate]);
     } finally {
       await admin`SELECT pg_advisory_unlock(${TEMPLATE_ADVISORY_LOCK_KEY})`;
     }

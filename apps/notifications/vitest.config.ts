@@ -57,7 +57,8 @@ export default defineConfig({
         extends: true,
         test: {
           name: "functional",
-          include: ["test/functional/**/*.spec.ts"],
+          include: ["test/functional/**/*.spec.ts", "test/services/**/*.spec.ts"],
+          globalSetup: ["./test/global-setup-db.ts"],
           setupFiles: ["./test/setup-env.ts", "./test/setup-functional-tests.ts"],
           testTimeout: 60_000,
           hookTimeout: 30_000
