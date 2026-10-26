@@ -127,7 +127,7 @@ describe("PATCH /v1/deployments/{dseq}?async=true", () => {
     expect(await activityOf(apiKey, data.activityId)).toMatchObject({
       type: "deployment_update",
       status: "pending",
-      meta: { dseq: DSEQ, manifestVersion: data.manifestVersion }
+      meta: { dseq: DSEQ, manifestVersion: data.manifestVersion, changes: { services: [{ service: "web", image: "nginx:1.27" }] } }
     });
     expect(broadcast).not.toHaveBeenCalled();
     expect(providerService.sendManifest).not.toHaveBeenCalled();
@@ -192,7 +192,11 @@ describe("PATCH /v1/deployments/{dseq}?async=true", () => {
     expect(data.deployment.id.dseq).toBe(DSEQ);
     expect(broadcast).toHaveBeenCalledTimes(1);
     expect(await activitiesOf(apiKey)).toEqual([
-      expect.objectContaining({ type: "deployment_update", status: "succeeded", meta: { dseq: DSEQ, manifestVersion: data.manifestVersion } })
+      expect.objectContaining({
+        type: "deployment_update",
+        status: "succeeded",
+        meta: { dseq: DSEQ, manifestVersion: data.manifestVersion, changes: { services: [{ service: "web", image: "nginx:1.27" }] } }
+      })
     ]);
   });
 
