@@ -8,7 +8,7 @@ export async function register() {
   // Note: if you want to override the automatic release value, do not set a
   // `release` value here - use the environment variable `SENTRY_RELEASE`, so
   // that it will also get attached to your source maps
-  initServerSentry(process.env.NEXT_RUNTIME);
+  initServerSentry({ runtime: process.env.NEXT_RUNTIME, httpModule: await loadSentryHttpModule() });
 
   if (process.env.NEXT_RUNTIME === "nodejs") {
     try {
@@ -20,4 +20,13 @@ export async function register() {
       process.exit(1);
     }
   }
+}
+
+async function loadSentryHttpModule() {
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { createTimeoutHttpModule } = await import("./lib/sentry/createTimeoutHttpModule/createTimeoutHttpModule");
+    return createTimeoutHttpModule();
+  }
+
+  return undefined;
 }

@@ -2,6 +2,7 @@ import type * as Sentry from "@sentry/nextjs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { SentryHttpModule } from "../createTimeoutHttpModule/createTimeoutHttpModule";
 import { isSentryEnvelopeUpload } from "../isSentryEnvelopeUpload/isSentryEnvelopeUpload";
 import { initServerSentry } from "./initServerSentry";
 
@@ -14,10 +15,16 @@ describe(initServerSentry.name, () => {
   });
 
   it("traces the node server without tracing Sentry's own envelope uploads", () => {
-    const { sentry, fetchIntegration } = setup({ runtime: "nodejs" });
+    const { sentry, fetchIntegration, httpModule } = setup({ runtime: "nodejs" });
 
     expect(sentry.nativeNodeFetchIntegration).toHaveBeenCalledWith({ ignoreOutgoingRequests: isSentryEnvelopeUpload });
-    expect(sentry.init).toHaveBeenCalledWith({ dsn: SERVER_DSN, enabled: true, tracesSampleRate: 0.1, integrations: [fetchIntegration] });
+    expect(sentry.init).toHaveBeenCalledWith({
+      dsn: SERVER_DSN,
+      enabled: true,
+      tracesSampleRate: 0.1,
+      transportOptions: { httpModule },
+      integrations: [fetchIntegration]
+    });
   });
 
   it("reports only errors from the edge runtime", () => {
@@ -40,9 +47,10 @@ describe(initServerSentry.name, () => {
     const fetchIntegration = mock<ReturnType<typeof Sentry.nativeNodeFetchIntegration>>();
     const sentry = mock<typeof Sentry>();
     sentry.nativeNodeFetchIntegration.mockReturnValue(fetchIntegration);
+    const httpModule = mock<SentryHttpModule>();
 
-    initServerSentry(input.runtime, sentry);
+    initServerSentry({ runtime: input.runtime, httpModule }, sentry);
 
-    return { sentry, fetchIntegration };
+    return { sentry, fetchIntegration, httpModule };
   }
 });

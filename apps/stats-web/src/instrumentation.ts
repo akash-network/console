@@ -18,9 +18,11 @@ export async function register() {
   };
 
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { createTimeoutHttpModule } = await import("./lib/sentry/createTimeoutHttpModule/createTimeoutHttpModule");
     initSentry({
       ...sentryOptions,
       tracesSampleRate: SERVER_TRACES_SAMPLE_RATE,
+      transportOptions: { httpModule: createTimeoutHttpModule() },
       integrations: defaults => [...withoutConsoleIntegration(defaults), nativeNodeFetchIntegration({ ignoreOutgoingRequests: isSentryEnvelopeUpload })]
     });
 
