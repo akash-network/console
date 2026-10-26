@@ -247,21 +247,16 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
             {project ? (
               <ProjectScopeProvider value={project.id}>
                 <WithSideColumn aside={project.aside}>
-                  <section aria-label="Deployments" className="min-w-0">
-                    <SectionLabel
-                      rightSlot={
-                        model.activeTotal !== null && <span className="whitespace-nowrap text-xs text-muted-foreground">{model.activeTotal} active</span>
-                      }
-                    >
-                      Deployments
-                    </SectionLabel>
+                  <LabelledDeployments label="Deployments" activeTotal={model.activeTotal}>
                     {content}
-                  </section>
+                  </LabelledDeployments>
                 </WithSideColumn>
               </ProjectScopeProvider>
             ) : isShowingRecentActivity ? (
               <WithSideColumn aside={<d.RecentActivity />}>
-                <div className="min-w-0">{content}</div>
+                <LabelledDeployments label="My deployments" activeTotal={model.activeTotal}>
+                  {content}
+                </LabelledDeployments>
               </WithSideColumn>
             ) : (
               content
@@ -272,6 +267,17 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
     </d.Layout>
   );
 };
+
+function LabelledDeployments({ label, activeTotal, children }: { label: string; activeTotal: number | null; children: ReactNode }) {
+  return (
+    <section aria-label={label} className="min-w-0">
+      <SectionLabel rightSlot={activeTotal !== null && <span className="whitespace-nowrap text-xs text-muted-foreground">{activeTotal} active</span>}>
+        {label}
+      </SectionLabel>
+      {children}
+    </section>
+  );
+}
 
 function WithSideColumn({ aside, children }: { aside: ReactNode; children: ReactNode }) {
   return (

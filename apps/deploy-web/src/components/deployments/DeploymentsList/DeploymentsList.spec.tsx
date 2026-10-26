@@ -111,11 +111,22 @@ describe("DeploymentsList", () => {
       expect(sideColumn.parentElement).toHaveClass("grid", "lg:grid-cols-[minmax(0,1fr)_320px]");
     });
 
-    it("leaves the deployments column unlabelled beside the recent activity, since the page title already names the list", () => {
+    it("labels the deployments column as the caller's own with how many are active, level with the recent activity label", () => {
       setup({ hasPageResults: true, activeTotal: 3 }, { isActivityCenterOn: true });
 
-      expect(screen.queryByRole("region", { name: "Deployments" })).not.toBeInTheDocument();
-      expect(screen.queryByText("3 active")).not.toBeInTheDocument();
+      const column = screen.getByRole("region", { name: "My deployments" });
+      expect(within(column).getByText("My deployments")).toBeInTheDocument();
+      expect(within(column).getByText("3 active")).toBeInTheDocument();
+      expect(within(column).getByText("collection")).toBeInTheDocument();
+      expect(screen.getByRole("complementary").previousElementSibling).toBe(column);
+    });
+
+    it("labels the deployments column without a count while the count is unknown", () => {
+      setup({ activeTotal: null }, { isActivityCenterOn: true });
+
+      const column = screen.getByRole("region", { name: "My deployments" });
+      expect(within(column).getByText("My deployments")).toBeInTheDocument();
+      expect(within(column).queryByText(/active$/)).not.toBeInTheDocument();
     });
 
     it("lists the deployments without a side column while the activity center is off", () => {
@@ -199,10 +210,11 @@ describe("DeploymentsList", () => {
     expect(newDeploymentUrl).toHaveBeenCalledWith({ projectId: undefined });
   });
 
-  it("leaves the column label to the project page, since the page title already names the list", () => {
-    setup({ hasPageResults: true, activeTotal: 3 });
+  it("leaves the column unlabelled without a side column to line it up with", () => {
+    setup({ hasPageResults: true, activeTotal: 3 }, { isActivityCenterOn: false });
 
     expect(screen.queryByRole("region", { name: "Deployments" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "My deployments" })).not.toBeInTheDocument();
     expect(screen.queryByText("3 active")).not.toBeInTheDocument();
   });
 
