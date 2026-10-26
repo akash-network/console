@@ -94,6 +94,8 @@ export function ProjectAccessDialog({ project, organizationName, viewerUserId, o
   const grants = grantsQuery.data ?? [];
   const organizationMembers = organizationMembersQuery.data ?? [];
   const isLoadingAccess = grantsQuery.isLoading || organizationMembersQuery.isLoading;
+  const isAccessError = grantsQuery.isError || organizationMembersQuery.isError;
+  const isAccessKnown = !isLoadingAccess && !isAccessError;
   const organizationViewerIds = new Set(organizationMembers.filter(member => member.role === "viewer").map(member => member.userId));
   const grantedUserIds = new Set(grants.map(grant => grant.userId));
   const membersOnEveryProject = getMembersOnEveryProject(organizationMembers, grantedUserIds);
@@ -174,16 +176,16 @@ export function ProjectAccessDialog({ project, organizationName, viewerUserId, o
       <DialogV2Content className="max-w-[560px]">
         <DialogV2Header>
           <DialogV2Title>Access to {project.name}</DialogV2Title>
-          <DialogV2Description>Owners and admins of {organizationName} open every project without being added here.</DialogV2Description>
+          <DialogV2Description>Owners and admins of {organizationName} open every project without being given access.</DialogV2Description>
         </DialogV2Header>
 
         <DialogV2Body className="flex flex-col gap-5">
           <form id={formId} className="flex flex-col gap-1.5" onSubmit={grantAccess}>
             <Label id={`${formId}-grantee`}>Give access to</Label>
-            {isLoadingAccess || grantableMembers.length > 0 ? (
+            {!isAccessKnown || grantableMembers.length > 0 ? (
               <>
                 <div className="flex flex-col gap-2 sm:flex-row">
-                  <Select value={granteeUserId} onValueChange={chooseGrantee} disabled={isLoadingAccess}>
+                  <Select value={granteeUserId} onValueChange={chooseGrantee} disabled={!isAccessKnown}>
                     <SelectTrigger aria-labelledby={`${formId}-grantee`} className="h-9 min-w-0 flex-1">
                       <SelectValue placeholder="Choose a member" />
                     </SelectTrigger>
@@ -219,7 +221,7 @@ export function ProjectAccessDialog({ project, organizationName, viewerUserId, o
           <div>
             <SectionLabel
               rightSlot={
-                !isLoadingAccess && (
+                isAccessKnown && (
                   <span className="whitespace-nowrap text-xs text-muted-foreground">
                     {peopleCount} {peopleCount === 1 ? "person" : "people"}
                   </span>
@@ -238,6 +240,10 @@ export function ProjectAccessDialog({ project, organizationName, viewerUserId, o
                   </div>
                 ))}
               </div>
+            ) : isAccessError ? (
+              <p className="rounded-[10px] border border-dashed border-border px-4 py-5 text-center text-[12.5px] text-muted-foreground">
+                Couldn't load the people with access.
+              </p>
             ) : peopleCount === 0 ? (
               <p className="rounded-[10px] border border-dashed border-border px-4 py-5 text-center text-[12.5px] text-muted-foreground">
                 No one has been given access to this project yet.

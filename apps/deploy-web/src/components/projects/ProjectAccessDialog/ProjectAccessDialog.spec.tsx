@@ -11,11 +11,11 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ProjectAccessDialog.name, () => {
-  it("says owners and admins open every project without being added", () => {
+  it("says owners and admins open every project without being given access", () => {
     setup({});
 
     expect(screen.getByRole("heading", { name: "Access to storefront" })).toBeInTheDocument();
-    expect(screen.getByText("Owners and admins of Acme Corp open every project without being added here.")).toBeInTheDocument();
+    expect(screen.getByText("Owners and admins of Acme Corp open every project without being given access.")).toBeInTheDocument();
   });
 
   it("lists who was given access with their project role", () => {
@@ -277,6 +277,20 @@ describe(ProjectAccessDialog.name, () => {
     expect(screen.queryByRole("list", { name: "People with access" })).not.toBeInTheDocument();
   });
 
+  it.each([
+    ["the grants", { isGrantsError: true }],
+    ["the organization's members", { isOrganizationMembersError: true }]
+  ])("says the people with access could not be loaded when %s fail to load", (_, failure) => {
+    setup(failure);
+
+    expect(screen.getByText("Couldn't load the people with access.")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "People with access" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/people$/)).not.toBeInTheDocument();
+    expect(screen.queryByText("No one has been given access to this project yet.")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Give access to" })).toBeDisabled();
+    expect(screen.queryByText(/already has access to this project/)).not.toBeInTheDocument();
+  });
+
   it("gives an organization viewer only view access and says why", async () => {
     const { user, createGrant } = setup({});
 
@@ -348,6 +362,8 @@ describe(ProjectAccessDialog.name, () => {
     isGranting?: boolean;
     isLoadingGrants?: boolean;
     isLoadingOrganizationMembers?: boolean;
+    isGrantsError?: boolean;
+    isOrganizationMembersError?: boolean;
   }) {
     const createGrant = vi.fn<ReturnType<typeof DEPENDENCIES.useCreateProjectMemberMutation>["mutate"]>();
     const updateGrant = vi.fn<ReturnType<typeof DEPENDENCIES.useUpdateProjectMemberMutation>["mutate"]>();
@@ -366,15 +382,24 @@ describe(ProjectAccessDialog.name, () => {
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       useProjectMembersQuery: () =>
         input.isLoadingGrants
-          ? mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: undefined, isLoading: true })
-          : mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: input.grants ?? [BOB_GRANT, CAROL_GRANT], isLoading: false }),
+          ? mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: undefined, isLoading: true, isError: false })
+          : input.isGrantsError
+            ? mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: undefined, isLoading: false, isError: true })
+            : mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({
+                data: input.grants ?? [BOB_GRANT, CAROL_GRANT],
+                isLoading: false,
+                isError: false
+              }),
       useOrganizationMembersQuery: () =>
         input.isLoadingOrganizationMembers
-          ? mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({ data: undefined, isLoading: true })
-          : mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({
-              data: input.organizationMembers ?? [OWNER, ADMIN, BILLING, BOB, DAVE, ERIN, CAROL],
-              isLoading: false
-            }),
+          ? mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({ data: undefined, isLoading: true, isError: false })
+          : input.isOrganizationMembersError
+            ? mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({ data: undefined, isLoading: false, isError: true })
+            : mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({
+                data: input.organizationMembers ?? [OWNER, ADMIN, BILLING, BOB, DAVE, ERIN, CAROL],
+                isLoading: false,
+                isError: false
+              }),
       useCreateProjectMemberMutation: () =>
         mock<ReturnType<typeof DEPENDENCIES.useCreateProjectMemberMutation>>({ mutate: createGrant, isPending: input.isGranting ?? false }),
       useUpdateProjectMemberMutation: () => mock<ReturnType<typeof DEPENDENCIES.useUpdateProjectMemberMutation>>({ mutate: updateGrant }),
