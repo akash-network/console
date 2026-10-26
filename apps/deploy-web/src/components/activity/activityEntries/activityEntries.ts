@@ -1,16 +1,22 @@
 import { activityDestinationOf, SUMMARY_DESTINATION } from "@src/components/activity/activityDestinations/activityDestinations";
 import { listOf, systemCloseOf } from "@src/components/activity/activityLabels/activityLabels";
+import { describeDeploymentChanges, renameTitleOf } from "@src/components/activity/deploymentChanges/deploymentChanges";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
 /** `partial` is a bulk close that closed some of its deployments and not others. */
 export type ActivityEntryStatus = Activity["status"] | "partial";
 
+/** The glyph standing in for an avatar on an entry no member caused: a close Console made, or an alert that fired. */
+export type ActivityEntrySystemIcon = "clock" | "wallet" | "bell" | "activity";
+
 export interface ActivityEntry {
   id: string;
   status: ActivityEntryStatus;
   title: string;
   detail?: string;
+  changeSummary?: string;
+  systemIcon?: ActivityEntrySystemIcon;
   href: string;
   createdAt: string;
   isUnseen: boolean;
@@ -18,7 +24,7 @@ export interface ActivityEntry {
 
 type LabelDeployment = (dseq: string | undefined) => string;
 
-type ActionType = Exclude<Activity["type"], `${string}_alert`>;
+type ActionType = Exclude<Activity["type"], `${string}_alert` | "deployment_rename">;
 
 type AlertType = Extract<Activity["type"], `${string}_alert`>;
 
@@ -28,6 +34,11 @@ const ENTRY_WORDING = {
   deployment_update: { pending: "Updating", succeeded: "Updated", failed: "Couldn't update", retry: "Try updating it again." },
   lease_create: { pending: "Deploying", succeeded: "Deployed", failed: "Couldn't deploy", retry: "Choose a provider again." }
 } satisfies Record<ActionType, { pending: string; succeeded: string; failed: string; retry: string }>;
+
+const SYSTEM_CLOSE_ICONS = new Map<string | undefined, ActivityEntrySystemIcon>([
+  ["runtime_limit_reached", "clock"],
+  ["trial_ended", "wallet"]
+]);
 
 const DEPLOYMENT_ALERT_WORDING: Partial<Record<AlertType, (deployment: string) => Pick<ActivityEntry, "title" | "detail">>> = {
   deployment_closed_alert: deployment => ({ title: `${deployment} was closed` }),
@@ -61,14 +72,16 @@ export function activityEntryOf(activity: Activity, labelDeployment: LabelDeploy
   const { id, type, status, initiator, meta, createdAt } = activity;
   const common = { id, status, href: activityDestinationOf(activity).href, createdAt, isUnseen: isUnseen(activity) };
 
-  if (!isActionType(type)) return { ...common, ...alertWordingOf(type, meta, labelDeployment) };
+  if (type === "deployment_rename") return { ...common, title: renameEntryTitleOf(meta, labelDeployment) };
+  if (!isActionType(type))
+    return { ...common, ...alertWordingOf(type, meta, labelDeployment), systemIcon: type === "wallet_balance_alert" ? "wallet" : "bell" };
 
   const wording = ENTRY_WORDING[type];
   const deployment = labelDeployment(meta.dseq);
 
-  if (initiator === "system") return { ...common, ...systemCloseOf(deployment, meta.reason) };
+  if (initiator === "system") return { ...common, ...systemCloseOf(deployment, meta.reason), systemIcon: SYSTEM_CLOSE_ICONS.get(meta.reason) ?? "activity" };
   if (status === "pending") return { ...common, title: `${wording.pending} ${deployment}` };
-  if (status === "succeeded") return { ...common, title: `${wording.succeeded} ${deployment}` };
+  if (status === "succeeded") return { ...common, title: `${wording.succeeded} ${deployment}`, ...changeSummaryOf(describeDeploymentChanges(meta.changes)) };
 
   return { ...common, title: `${wording.failed} ${deployment}`, detail: meta.error?.message ?? wording.retry };
 }
@@ -96,6 +109,14 @@ function batchEntryOf(batchId: string, batch: Activity[], labelDeployment: Label
     title: `Closed ${batch.length - notClosed.length} of ${batch.length} deployments`,
     detail: `Couldn't close ${listOf(notClosed)}.`
   };
+}
+
+function renameEntryTitleOf({ dseq, changes }: Activity["meta"], labelDeployment: LabelDeployment): string {
+  return changes?.name ? renameTitleOf(changes.name) : `Renamed ${labelDeployment(dseq)}`;
+}
+
+function changeSummaryOf(changeSummary: string | undefined): Pick<ActivityEntry, "changeSummary"> {
+  return changeSummary ? { changeSummary } : {};
 }
 
 function isUnseen(activity: Activity): boolean {

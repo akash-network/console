@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
-import { activityEntriesOf } from "./activityEntries";
+import { activityEntriesOf, type ActivityEntrySystemIcon } from "./activityEntries";
 
 import { buildActivity } from "@tests/seeders/activity";
 
@@ -81,6 +81,52 @@ describe(activityEntriesOf.name, () => {
     expect(entry).toMatchObject({ status, title, href });
   });
 
+  it("names what a finished update changed beneath it", () => {
+    const [entry] = entriesOf([
+      buildActivity({
+        type: "deployment_update",
+        status: "succeeded",
+        meta: { dseq: "1234", changes: { services: [{ service: "web", changedEnv: ["API_URL"] }] } }
+      })
+    ]);
+
+    expect(entry).toMatchObject({ title: "Updated “web-1234”", changeSummary: "Changed API_URL in web." });
+    expect(entry).not.toHaveProperty("detail");
+  });
+
+  it("names nothing beneath an update still being applied", () => {
+    const [entry] = entriesOf([
+      buildActivity({
+        type: "deployment_update",
+        status: "pending",
+        meta: { dseq: "1234", changes: { services: [{ service: "web", changedEnv: ["API_URL"] }] } }
+      })
+    ]);
+
+    expect(entry).not.toHaveProperty("changeSummary");
+  });
+
+  it("names nothing beneath a finished update that recorded no changes", () => {
+    const [entry] = entriesOf([buildActivity({ type: "deployment_update", status: "succeeded", meta: { dseq: "1234" } })]);
+
+    expect(entry).not.toHaveProperty("changeSummary");
+  });
+
+  it("describes a rename by the names before and after, linking to the deployment", () => {
+    const [entry] = entriesOf([
+      buildActivity({ type: "deployment_rename", status: "succeeded", meta: { dseq: "1234", changes: { name: { from: "web", to: "web-update" } } } })
+    ]);
+
+    expect(entry).toMatchObject({ status: "succeeded", title: "Renamed “web” to “web-update”", href: "/deployments/1234" });
+    expect(entry).not.toHaveProperty("changeSummary");
+  });
+
+  it("describes a rename that recorded no names by its deployment", () => {
+    const [entry] = entriesOf([buildActivity({ type: "deployment_rename", status: "succeeded", meta: { dseq: "1234" } })]);
+
+    expect(entry.title).toBe("Renamed “web-1234”");
+  });
+
   it("describes a failed update with its reason, linking to the tab where the deployment can be updated again", () => {
     const [entry] = entriesOf([
       buildActivity({ type: "deployment_update", status: "failed", meta: { dseq: "1234", error: { code: "update_failed", message: "Deployment closed" } } })
@@ -104,7 +150,15 @@ describe(activityEntriesOf.name, () => {
     });
 
     expect(entriesOf([activity])).toEqual([
-      { id: activity.id, status: "info", title: "“web-1234” was closed", href: "/deployments/1234", createdAt: activity.createdAt, isUnseen: true }
+      {
+        id: activity.id,
+        status: "info",
+        title: "“web-1234” was closed",
+        systemIcon: "bell",
+        href: "/deployments/1234",
+        createdAt: activity.createdAt,
+        isUnseen: true
+      }
     ]);
   });
 
@@ -144,6 +198,7 @@ describe(activityEntriesOf.name, () => {
         status: "info",
         title: "“web-1234” is being reclaimed by the provider",
         detail: "Take action before the lease is closed.",
+        systemIcon: "bell",
         href: "/deployments/1234",
         createdAt: activity.createdAt,
         isUnseen: true
@@ -168,6 +223,7 @@ describe(activityEntriesOf.name, () => {
         id: activity.id,
         status: "info",
         title: "Wallet balance is below 10 AKT",
+        systemIcon: "wallet",
         href: "/billing?org=9d3b8f0e-2c4a-4b1e-8f6d-7a5c3e1b9d2f",
         createdAt: activity.createdAt,
         isUnseen: true
@@ -190,6 +246,7 @@ describe(activityEntriesOf.name, () => {
         status: "succeeded",
         title: "Console closed “web-1234”",
         detail: "Its provider stopped responding.",
+        systemIcon: "activity",
         href: "/deployments/1234",
         createdAt: activity.createdAt,
         isUnseen: true
@@ -200,7 +257,16 @@ describe(activityEntriesOf.name, () => {
   it("describes a close Console made for a reason it has no words for as a plain close by Console", () => {
     const [entry] = entriesOf([buildActivity({ status: "succeeded", initiator: "system", meta: { dseq: "1234" } })]);
 
-    expect(entry).toMatchObject({ title: "Console closed “web-1234”", detail: "It no longer runs or costs anything." });
+    expect(entry).toMatchObject({ title: "Console closed “web-1234”", detail: "It no longer runs or costs anything.", systemIcon: "activity" });
+  });
+
+  it.each<[Activity["meta"]["reason"], ActivityEntrySystemIcon]>([
+    ["runtime_limit_reached", "clock"],
+    ["trial_ended", "wallet"]
+  ])("marks a close Console made because of %s with a %s in place of an avatar", (reason, systemIcon) => {
+    const [entry] = entriesOf([buildActivity({ status: "succeeded", initiator: "system", meta: { dseq: "1234", reason } })]);
+
+    expect(entry.systemIcon).toBe(systemIcon);
   });
 
   it("links an activity about no particular deployment to the deployments list", () => {

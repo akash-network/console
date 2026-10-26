@@ -23,10 +23,11 @@ import { ActivityEntryContent } from "@src/components/activity/ActivityEntryCont
 import { deploymentLabelOf } from "@src/components/activity/activityLabels/activityLabels";
 import Layout from "@src/components/layout/Layout";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
+import { useUser } from "@src/hooks/useUser";
 import { useActivityHistoryQuery } from "@src/queries/useActivityHistoryQuery";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 
-export const DEPENDENCIES = { Layout, useActivityHistoryQuery, useDeploymentNames };
+export const DEPENDENCIES = { Layout, useUser, useActivityHistoryQuery, useDeploymentNames };
 
 const ANY = "any";
 
@@ -36,6 +37,7 @@ const ACTION_LABELS = {
   deployment_close: "Deployment closes",
   deployment_create: "New deployments",
   deployment_update: "Deployment updates",
+  deployment_rename: "Deployment renames",
   lease_create: "Deploys",
   wallet_balance_alert: "Wallet balance alerts",
   deployment_closed_alert: "Deployment closed alerts",
@@ -46,6 +48,7 @@ const FILTER_TRIGGER_CLASS_NAME = "h-9 min-w-0 flex-1 gap-2 text-[13px] font-med
 
 /** Everything in the user's activity feed, newest first, filtered by status and action and paged back by the api's cursor. */
 export function ActivityHistoryPage({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES }) {
+  const { user } = d.useUser();
   const [status, setStatus] = useState<Activity["status"]>();
   const [type, setType] = useState<Activity["type"]>();
   const [olderPageCursors, setOlderPageCursors] = useState<string[]>([]);
@@ -120,6 +123,7 @@ export function ActivityHistoryPage({ dependencies: d = DEPENDENCIES }: { depend
           <div className="container p-4 pb-8 sm:p-6">
             <ActivityHistoryList
               entries={entries}
+              actorName={user?.username}
               isLoaded={!!data}
               isError={isError}
               isFiltered={status !== undefined || type !== undefined}
@@ -147,12 +151,14 @@ export function ActivityHistoryPage({ dependencies: d = DEPENDENCIES }: { depend
 
 function ActivityHistoryList({
   entries,
+  actorName,
   isLoaded,
   isError,
   isFiltered,
   onRetry
 }: {
   entries: ActivityEntry[];
+  actorName: string | undefined;
   isLoaded: boolean;
   isError: boolean;
   isFiltered: boolean;
@@ -194,7 +200,7 @@ function ActivityHistoryList({
       {entries.map(entry => (
         <li key={entry.id}>
           <Link href={entry.href} className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/50">
-            <ActivityEntryContent entry={entry} />
+            <ActivityEntryContent entry={entry} actorName={actorName} />
           </Link>
         </li>
       ))}

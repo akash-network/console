@@ -48,6 +48,7 @@ const DESTINATIONS: Record<Activity["type"], (activity: Activity) => ActivityDes
 
     return { href: UrlService.deploymentDetails(dseq), label: "View deployment" };
   },
+  deployment_rename: ({ meta: { dseq } }) => (dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST),
   lease_create: ({ status, meta: { dseq, error } }) => {
     if (!dseq) return DEPLOYMENT_LIST;
     if (status === "failed" && deploymentRecoveryOf(error?.code) === "choose-provider")

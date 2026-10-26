@@ -25,7 +25,10 @@ describe(describeActivity.name, () => {
     ["member_updated", { userId: "u2", username: "lena", role: "member", projectAccess: "something_new" }, "changed *lena* to Member"],
     ["organization_renamed", { fromName: "Acme Corp", toName: "Acme Labs" }, "renamed the organization from *Acme Corp* to *Acme Labs*"],
     ["organization_renamed", { fromName: "Acme Corp" }, "renamed the organization"],
-    ["organization_renamed", { toName: "Acme Labs" }, "renamed the organization"]
+    ["organization_renamed", { toName: "Acme Labs" }, "renamed the organization"],
+    ["deployment_updated", { dseq: "1", name: "web" }, "updated [web]"],
+    ["deployment_renamed", { dseq: "1", fromName: "web", toName: "web-update" }, "renamed *web* to [web-update]"],
+    ["deployment_renamed", { dseq: "1", toName: "web-update" }, "renamed [#1]"]
   ])("reads a %s event by a member as %s", (type, payload, expected) => {
     expect(sentence(read({ type, payload }))).toBe(expected);
   });
@@ -53,6 +56,24 @@ describe(describeActivity.name, () => {
 
   it("marks a rename with the activity icon", () => {
     expect(read({ type: "organization_renamed", payload: { fromName: "Acme Corp", toName: "Acme Labs" } }).systemIcon).toBe("activity");
+  });
+
+  it.each(["deployment_updated", "deployment_renamed"] as const)("marks a %s event with the activity icon", type => {
+    expect(read({ type, payload: { dseq: "1", name: "web", fromName: "web", toName: "web-update" } }).systemIcon).toBe("activity");
+  });
+
+  it("names what an update changed beneath it", () => {
+    const described = read({
+      type: "deployment_updated",
+      payload: { dseq: "1", name: "web", changes: { services: [{ service: "web", changedEnv: ["API_URL"] }] } }
+    });
+
+    expect(described.changeSummary).toBe("Changed API_URL in web.");
+  });
+
+  it("names nothing beneath an update whose changes it cannot read", () => {
+    expect(read({ type: "deployment_updated", payload: { dseq: "1", name: "web", changes: "env" } })).not.toHaveProperty("changeSummary");
+    expect(read({ type: "deployment_updated", payload: { dseq: "1", name: "web" } })).not.toHaveProperty("changeSummary");
   });
 
   it("falls back to the dseq for an unnamed deployment", () => {

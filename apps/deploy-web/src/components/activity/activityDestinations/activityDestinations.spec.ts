@@ -126,6 +126,18 @@ describe("activityDestinations", () => {
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments", label: "View deployments" });
     });
 
+    it("leads a rename to its deployment", () => {
+      const activity = buildActivity({ type: "deployment_rename", status: "succeeded", meta: { dseq: "1234" } });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
+    });
+
+    it("leads a rename about no particular deployment to the deployments list", () => {
+      const activity = buildActivity({ type: "deployment_rename", status: "succeeded", meta: {} });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/deployments", label: "View deployments" });
+    });
+
     it("leads a deploy about no particular deployment to the deployments list", () => {
       const activity = buildActivity({ type: "lease_create", status: "failed", meta: {} });
 

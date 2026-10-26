@@ -1,3 +1,4 @@
+import { describeDeploymentChanges, readDeploymentChanges } from "@src/components/activity/deploymentChanges/deploymentChanges";
 import type { OrganizationActivity, OrganizationActivityPayload } from "@src/types/organization-activity";
 import { readActivityPayload } from "@src/types/organization-activity";
 
@@ -9,6 +10,7 @@ export interface ActivityText {
   segments: ActivitySegment[];
   /** The glyph standing in for an avatar on an event no member caused. */
   systemIcon: ActivitySystemIcon;
+  changeSummary?: string;
 }
 
 const text = (value: string): ActivitySegment => ({ kind: "text", text: value });
@@ -44,6 +46,10 @@ export function describeActivity(activity: OrganizationActivity): ActivityText {
       return { segments: [text("changed"), strong(payload.username ?? "a member"), text(`to ${describeMemberAccess(payload)}`)], systemIcon: "activity" };
     case "organization_renamed":
       return { segments: describeRename(payload), systemIcon: "activity" };
+    case "deployment_updated":
+      return describeUpdatedDeployment(activity);
+    case "deployment_renamed":
+      return { segments: describeDeploymentRename(payload), systemIcon: "activity" };
     default:
       return { segments: [text("made a change")], systemIcon: "activity" };
   }
@@ -62,6 +68,21 @@ function describeClosedDeployment(activity: OrganizationActivity): ActivityText 
 
   const systemClose = (payload.reason && SYSTEM_CLOSE_TEXTS[payload.reason]) || { text: "was closed", systemIcon: "activity" };
   return { segments: [deploymentSegment(payload), text(systemClose.text)], systemIcon: systemClose.systemIcon };
+}
+
+function describeUpdatedDeployment(activity: OrganizationActivity): ActivityText {
+  const changeSummary = describeDeploymentChanges(readDeploymentChanges(activity.payload.changes));
+
+  return {
+    segments: [text("updated"), deploymentSegment(readActivityPayload(activity.payload))],
+    systemIcon: "activity",
+    ...(changeSummary ? { changeSummary } : {})
+  };
+}
+
+function describeDeploymentRename(payload: OrganizationActivityPayload): ActivitySegment[] {
+  if (!payload.fromName || !payload.toName) return [text("renamed"), deploymentSegment(payload)];
+  return [text("renamed"), strong(payload.fromName), text("to"), deploymentSegment({ ...payload, name: payload.toName })];
 }
 
 function deploymentSegment(payload: OrganizationActivityPayload): ActivitySegment {
