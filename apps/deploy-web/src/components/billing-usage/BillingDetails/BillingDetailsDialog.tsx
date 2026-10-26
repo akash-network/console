@@ -40,7 +40,7 @@ const NO_TAX_ID = "none";
 const BAD_REQUEST_STATUS = 400;
 
 /** Mirrors the limits of the billing details API, which refuses longer values. */
-const MAX_LENGTH = { legalName: 256, addressLine: 200, postalCode: 20, taxIdValue: 64 } as const;
+const MAX_LENGTH = { legalName: 140, companyName: 150, addressLine: 200, postalCode: 20, taxIdValue: 64 } as const;
 
 type Refusal = { taxId?: string; form?: string };
 
@@ -54,6 +54,7 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
   const { mutateAsync: updateBillingDetails, isPending } = d.useUpdateBillingDetailsMutation();
   const { enqueueSnackbar } = d.useSnackbar();
   const [legalName, setLegalName] = useState(billingDetails?.legalName ?? "");
+  const [companyName, setCompanyName] = useState(billingDetails?.companyName ?? "");
   const [line1, setLine1] = useState(billingDetails?.address?.line1 ?? "");
   const [line2, setLine2] = useState(billingDetails?.address?.line2 ?? "");
   const [city, setCity] = useState(billingDetails?.address?.city ?? "");
@@ -67,6 +68,7 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
   const formId = useId();
   const taxIdErrorId = `${formId}-tax-id-error`;
   const taxIdHintId = `${formId}-tax-id-hint`;
+  const companyNameHintId = `${formId}-company-name-hint`;
 
   const unselectableSavedTaxIdType = savedTaxId && !isSelectableTaxIdType(savedTaxId.type) ? savedTaxId.type : null;
   const isTaxIdLocked = taxIdType === unselectableSavedTaxIdType;
@@ -91,6 +93,7 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
 
   const toInput = (): BillingDetailsInput => ({
     legalName: legalName.trim(),
+    companyName: companyName.trim() || null,
     address: {
       line1: line1.trim(),
       line2: line2.trim() || null,
@@ -134,7 +137,7 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
       <DialogV2Content className="max-w-[560px]" hideCloseButton={isPending}>
         <DialogV2Header>
           <DialogV2Title>Billing details</DialogV2Title>
-          <DialogV2Description>These details are printed on your invoices.</DialogV2Description>
+          <DialogV2Description>Your next invoices will use these details. Invoices already issued don't change.</DialogV2Description>
         </DialogV2Header>
 
         <DialogV2Body>
@@ -142,13 +145,29 @@ export const BillingDetailsDialog: FC<Props> = ({ billingDetails, onClose, depen
             <Input
               id={`${formId}-legal-name`}
               label="Legal name"
-              placeholder="Acme Corp"
-              autoComplete="organization"
+              placeholder="Jane Doe"
+              autoComplete="name"
               autoFocus
               maxLength={MAX_LENGTH.legalName}
               value={legalName}
               onChange={event => setLegalName(event.target.value)}
             />
+
+            <div className="flex flex-col gap-1.5">
+              <Input
+                id={`${formId}-company-name`}
+                label="Company name (optional)"
+                placeholder="Acme Corp"
+                autoComplete="organization"
+                maxLength={MAX_LENGTH.companyName}
+                value={companyName}
+                aria-describedby={companyNameHintId}
+                onChange={event => setCompanyName(event.target.value)}
+              />
+              <p id={companyNameHintId} className="text-xs text-muted-foreground">
+                Invoices are billed to the company, with your legal name as the billing contact.
+              </p>
+            </div>
 
             <div className="flex flex-col gap-2">
               <Label>Country</Label>

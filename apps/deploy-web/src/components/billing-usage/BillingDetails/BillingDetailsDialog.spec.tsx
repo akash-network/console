@@ -14,7 +14,8 @@ describe("BillingDetailsDialog", () => {
   it("prefills the form with the saved billing details", () => {
     setup({ billingDetails: SAVED });
 
-    expect(screen.getByLabelText("Legal name")).toHaveValue("Acme GmbH");
+    expect(screen.getByLabelText("Legal name")).toHaveValue("Jane Doe");
+    expect(screen.getByLabelText("Company name (optional)")).toHaveValue("Acme GmbH");
     expect(screen.getByRole("combobox", { name: "Country" })).toHaveTextContent("Germany");
     expect(screen.getByLabelText("Address")).toHaveValue("Hauptstr. 1");
     expect(screen.getByLabelText("Address line 2 (optional)")).toHaveValue("Hinterhaus");
@@ -25,10 +26,11 @@ describe("BillingDetailsDialog", () => {
     expect(screen.getByLabelText("Tax ID")).toHaveValue("DE123456789");
   });
 
-  it("prefills only the legal name when the customer has no address or tax ID yet", () => {
-    setup({ billingDetails: { legalName: "alice", address: null, taxId: null } });
+  it("prefills only the legal name when the customer has no company, address or tax ID yet", () => {
+    setup({ billingDetails: { legalName: "Jane Doe", companyName: null, address: null, taxId: null } });
 
-    expect(screen.getByLabelText("Legal name")).toHaveValue("alice");
+    expect(screen.getByLabelText("Legal name")).toHaveValue("Jane Doe");
+    expect(screen.getByLabelText("Company name (optional)")).toHaveValue("");
     expect(screen.getByLabelText("Address")).toHaveValue("");
     expect(screen.getByLabelText("City")).toHaveValue("");
     expect(screen.getByRole("combobox", { name: "Country" })).toHaveTextContent("Select a country");
@@ -39,6 +41,7 @@ describe("BillingDetailsDialog", () => {
     setup({ billingDetails: undefined });
 
     expect(screen.getByLabelText("Legal name")).toHaveValue("");
+    expect(screen.getByLabelText("Company name (optional)")).toHaveValue("");
     expect(screen.getByRole("combobox", { name: "Country" })).toHaveTextContent("Select a country");
     expect(screen.getByRole("combobox", { name: "Tax ID type" })).toHaveTextContent("No tax ID");
     expect(screen.queryByLabelText("Tax ID")).not.toBeInTheDocument();
@@ -48,7 +51,8 @@ describe("BillingDetailsDialog", () => {
   it("saves trimmed details, sends blank optional fields as null and closes", async () => {
     const { user, updateBillingDetails, enqueueSnackbar, onClose } = setup({ billingDetails: undefined });
 
-    await fillIn(user, "Legal name", "  Acme GmbH  ");
+    await fillIn(user, "Legal name", "  Jane Doe  ");
+    await fillIn(user, "Company name (optional)", "  Acme GmbH  ");
     await pickCountry(user, "Germany");
     await fillIn(user, "Address", " Hauptstr. 1 ");
     await user.type(screen.getByLabelText("Address line 2 (optional)"), "   ");
@@ -61,7 +65,8 @@ describe("BillingDetailsDialog", () => {
 
     expect(updateBillingDetails).toHaveBeenCalledWith({
       data: {
-        legalName: "Acme GmbH",
+        legalName: "Jane Doe",
+        companyName: "Acme GmbH",
         address: { line1: "Hauptstr. 1", line2: null, city: null, state: null, postalCode: "10115", country: "DE" },
         taxId: { type: "eu_vat", value: "DE123456789" }
       }
@@ -78,10 +83,29 @@ describe("BillingDetailsDialog", () => {
 
     expect(updateBillingDetails).toHaveBeenCalledWith({
       data: {
-        legalName: "Acme GmbH",
+        legalName: "Jane Doe",
+        companyName: "Acme GmbH",
         address: { line1: "Hauptstr. 1", line2: "Hinterhaus", city: "Berlin", state: "BE", postalCode: "10115", country: "DE" }
       }
     });
+  });
+
+  it("sends a company name of only spaces as null", async () => {
+    const { user, updateBillingDetails } = setup({ billingDetails: SAVED });
+
+    await user.clear(screen.getByLabelText("Company name (optional)"));
+    await user.type(screen.getByLabelText("Company name (optional)"), "   ");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(updateBillingDetails).toHaveBeenCalledWith({ data: expect.objectContaining({ companyName: null }) });
+  });
+
+  it("explains that a company is billed with the legal name as its contact", () => {
+    setup({ billingDetails: SAVED });
+
+    expect(screen.getByLabelText("Company name (optional)")).toHaveAccessibleDescription(
+      "Invoices are billed to the company, with your legal name as the billing contact."
+    );
   });
 
   it("leaves out the tax ID when there was none and none was added", async () => {
@@ -180,7 +204,8 @@ describe("BillingDetailsDialog", () => {
   });
 
   it.each([
-    { field: "Legal name", maxLength: "256" },
+    { field: "Legal name", maxLength: "140" },
+    { field: "Company name (optional)", maxLength: "150" },
     { field: "Address", maxLength: "200" },
     { field: "Address line 2 (optional)", maxLength: "200" },
     { field: "City", maxLength: "200" },
@@ -318,7 +343,8 @@ describe("BillingDetailsDialog", () => {
 });
 
 const SAVED: BillingDetails = {
-  legalName: "Acme GmbH",
+  legalName: "Jane Doe",
+  companyName: "Acme GmbH",
   address: { line1: "Hauptstr. 1", line2: "Hinterhaus", city: "Berlin", state: "BE", postalCode: "10115", country: "DE" },
   taxId: { type: "eu_vat", value: "DE123456789", verificationStatus: "verified" }
 };
