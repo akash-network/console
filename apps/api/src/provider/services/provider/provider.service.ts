@@ -3,7 +3,7 @@ import type { ProviderAttributesSchema } from "@akashnetwork/http-sdk";
 import { AxiosError } from "axios";
 import { add } from "date-fns";
 import assert from "http-assert";
-import createError from "http-errors";
+import createError, { type HttpError, isHttpError } from "http-errors";
 import { Op } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
@@ -47,6 +47,24 @@ function isStaleVersionRefusal(err: unknown): boolean {
   const body: unknown = err.response.data;
 
   return typeof body === "string" && body.includes(PROVIDER_MANIFEST_VERSION_STALE_MARK);
+}
+
+/** The provider prefixes its refusal of what a manifest itself says with this, so the same manifest is refused again however often it is sent. */
+const PROVIDER_MANIFEST_INVALID_MARK = "invalid manifest";
+export const PROVIDER_MANIFEST_INVALID_ERROR_CODE = "provider_manifest_invalid";
+
+function invalidManifestReasonOf(err: unknown): string | undefined {
+  if (!(err instanceof AxiosError) || err.response?.status !== 422) return undefined;
+
+  const body: unknown = err.response.data;
+
+  return typeof body === "string" && body.startsWith(PROVIDER_MANIFEST_INVALID_MARK) ? body.trim() : undefined;
+}
+
+export type InvalidManifestError = HttpError & { data: { reason: string } };
+
+export function isManifestInvalid(error: unknown): error is InvalidManifestError {
+  return isHttpError(error) && error.errorCode === PROVIDER_MANIFEST_INVALID_ERROR_CODE;
 }
 
 @singleton()
@@ -134,6 +152,17 @@ export class ProviderService {
         if (isStaleVersion) {
           this.logger.warn({ event: "PROVIDER_MANIFEST_VERSION_STALE", ...push, attempts: attempt });
           throw createError(409, PROVIDER_MANIFEST_VERSION_STALE_MESSAGE, { errorCode: PROVIDER_MANIFEST_VERSION_STALE_ERROR_CODE, originalError: err });
+        }
+
+        const invalidManifestReason = invalidManifestReasonOf(err);
+
+        if (invalidManifestReason) {
+          this.logger.warn({ event: "PROVIDER_MANIFEST_INVALID", ...push, reason: invalidManifestReason });
+          throw createError(
+            422,
+            `Provider ${push.provider} refused the manifest (${invalidManifestReason}). Sending it again cannot help: correct the SDL and update the deployment.`,
+            { errorCode: PROVIDER_MANIFEST_INVALID_ERROR_CODE, data: { reason: invalidManifestReason }, originalError: err }
+          );
         }
 
         if (err instanceof AxiosError && err.response) {

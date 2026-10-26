@@ -7,6 +7,7 @@ import { type CreateLogger, type JobHandler, type JobMeta, type JobPayload, type
 import { LeaseService, type QueuedLeaseSigner } from "@src/deployment/services/lease/lease.service";
 import { isAccessRevoked, MemberDeploymentAccessService } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import { createdLeaseActivityOf, failedLeaseActivityOf } from "@src/deployment/utils/lease-activity/lease-activity";
+import { isManifestInvalid } from "@src/provider/services/provider/provider.service";
 import { CreateLease } from "./create-lease.job";
 
 @singleton()
@@ -72,9 +73,9 @@ function isLastAttempt(job?: JobMeta): boolean {
   return !job || job.retryCount >= job.retryLimit;
 }
 
-/** Access the member lost is final on any attempt, since no retry gives it back; any other refusal is final only on the first attempt, since a later one may be refused over a lease an earlier attempt landed out of sight, and a manifest the provider refused is retried because its lease already exists. */
+/** Access the member lost and a manifest the provider found invalid are final on any attempt, since no retry changes either; any other refusal is final only on the first attempt, since a later one may be refused over a lease an earlier attempt landed out of sight, and a manifest the provider did not receive is retried because its lease already exists. */
 function isFinal(error: unknown, job?: JobMeta): boolean {
-  if (isAccessRevoked(error)) return true;
+  if (isAccessRevoked(error) || isManifestInvalid(error)) return true;
   if (!isHttpError(error) || error.status >= 500 || job?.retryCount) return false;
 
   return (error as { errorCode?: string }).errorCode !== "manifest_not_delivered";

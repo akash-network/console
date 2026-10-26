@@ -101,6 +101,24 @@ describe(CreateLeaseHandler.name, () => {
     expect(logger.warn).toHaveBeenCalledWith({ event: "BACKGROUND_LEASE_REFUSED", activityId: "activity-1", dseq: "100", error: revoked });
   });
 
+  it.each([
+    { attempt: "the first attempt", retryCount: 0 },
+    { attempt: "a retry", retryCount: 3 },
+    { attempt: "the last attempt", retryCount: 6 }
+  ])("records a manifest the provider refused as invalid as failed on $attempt and ends the job without a retry", async ({ retryCount }) => {
+    const { handler, leaseService, activityService, logger } = setup();
+    const refused = createError(422, "The lease for deployment 100 exists, but provider akash1provider refused its manifest", {
+      errorCode: "provider_manifest_invalid"
+    });
+    leaseService.createQueuedLeases.mockRejectedValue(refused);
+
+    await handler.handle(PAYLOAD, { id: "job-1", retryCount, retryLimit: 6 });
+
+    expect(activityService.settle).toHaveBeenCalledTimes(1);
+    expect(activityService.settle).toHaveBeenCalledWith("activity-1", failedLeaseActivityOf(KEY, refused));
+    expect(logger.warn).toHaveBeenCalledWith({ event: "BACKGROUND_LEASE_REFUSED", activityId: "activity-1", dseq: "100", error: refused });
+  });
+
   it("records a wallet it can no longer read as failed on the first attempt and ends the job", async () => {
     const { handler, walletReaderService, leaseService, activityService } = setup();
     const missing = createError(404, "UserWallet Not Found");

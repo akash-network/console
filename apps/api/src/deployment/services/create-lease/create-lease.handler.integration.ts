@@ -126,6 +126,27 @@ describe(CreateLeaseHandler.name, () => {
     expect(await findActivity()).toMatchObject({ status: "failed", meta: { error: { code: "manifest_not_delivered" } } });
   });
 
+  it("records a manifest the provider refused as invalid as failed with its reason and ends the job without a retry", async () => {
+    const { createInBackground, findActivity, awaitCompleted, providerService, leases } = await setup();
+    providerService.sendManifest.mockRejectedValue(
+      createError(422, "refused", { errorCode: "provider_manifest_invalid", data: { reason: "invalid manifest: zero global services" } })
+    );
+
+    await createInBackground({ retryLimit: 3, retryDelay: 3600 });
+
+    const job = await awaitCompleted();
+    expect(job.retry_count).toBe(0);
+    expect(await findActivity()).toMatchObject({
+      status: "failed",
+      meta: {
+        error: {
+          code: "provider_manifest_invalid",
+          message: `The lease for deployment ${leases[0].dseq} exists, but provider ${leases[0].provider} refused its manifest (invalid manifest: zero global services). Sending it again cannot help: close the deployment to stop paying for it, and deploy again with a corrected SDL.`
+        }
+      }
+    });
+  });
+
   it("records that a lease closed before its provider received the manifest, rather than blaming its closed bid", async () => {
     const { createInBackground, findActivity, awaitCompleted, bidHttpService, wallet, leases } = await setup({ leaseOnChain: "closed" });
     const closedBid = createBid({ owner: wallet.address!, ...leases[0] });

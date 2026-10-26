@@ -288,6 +288,23 @@ describe(LeaseService.name, () => {
       });
     });
 
+    it("tells the caller the lease exists and that sending again cannot help when the provider refuses the manifest as invalid", async () => {
+      const { service, providerService, wallet } = setup();
+      const provider = createAkashAddress();
+      const refusal = createError(422, "refused", { errorCode: "provider_manifest_invalid", data: { reason: "invalid manifest: zero global services" } });
+      providerService.sendManifest.mockRejectedValue(refusal);
+
+      await expect(
+        service.createLeasesAndSendManifest({ leases: [{ dseq: "100", gseq: 1, oseq: 1, provider }], manifest: MANIFEST, userId: wallet.userId })
+      ).rejects.toMatchObject({
+        status: 422,
+        errorCode: "provider_manifest_invalid",
+        message: `The lease for deployment 100 exists, but provider ${provider} refused its manifest (invalid manifest: zero global services). Sending it again cannot help: close the deployment to stop paying for it, and deploy again with a corrected SDL.`,
+        data: { dseq: "100", provider, reason: "invalid manifest: zero global services" },
+        originalError: refusal
+      });
+    });
+
     it("lets a failure that is not an http error through unchanged", async () => {
       const { service, providerService, wallet } = setup();
       const failure = new Error("jwt signing failed");

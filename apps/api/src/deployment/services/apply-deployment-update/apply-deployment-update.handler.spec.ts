@@ -87,6 +87,20 @@ describe(ApplyDeploymentUpdateHandler.name, () => {
     });
   });
 
+  it("settles an update whose manifest the provider refused as invalid as failed without a retry", async () => {
+    const { handler, deploymentWriterService, activityService } = setup();
+    const message = "Provider akash1provider refused the manifest (invalid manifest: zero global services). Sending it again cannot help.";
+    deploymentWriterService.applySavedPatch.mockRejectedValue(createError(422, message, { errorCode: "provider_manifest_invalid" }));
+
+    await expect(handler.handle(PAYLOAD, FIRST_ATTEMPT)).resolves.toBeUndefined();
+
+    expect(activityService.settle).toHaveBeenCalledTimes(1);
+    expect(activityService.settle).toHaveBeenCalledWith(
+      "activity-1",
+      expect.objectContaining({ status: "failed", meta: { dseq: "100", manifestVersion: "U0FWRUQ=", error: { code: "provider_manifest_invalid", message } } })
+    );
+  });
+
   it("retries a refusal other than lost access while attempts remain", async () => {
     const { handler, deploymentWriterService, activityService } = setup();
     const refusal = createError(403, "Forbidden");

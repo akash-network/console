@@ -190,6 +190,20 @@ describe(ApplyDeploymentUpdateHandler.name, () => {
     });
   });
 
+  it("records an update whose manifest the provider refused as invalid as failed with its reason and ends the job without a retry", async () => {
+    const { saved, applyInBackground, pushManifest, findActivity } = await setup();
+    const message = `Provider ${LEASE_PROVIDER} refused the manifest (invalid manifest: zero global services). Sending it again cannot help: correct the SDL and update the deployment.`;
+    pushManifest.mockRejectedValue(
+      createError(422, message, { errorCode: "provider_manifest_invalid", data: { reason: "invalid manifest: zero global services" } })
+    );
+
+    await applyInBackground(saved, { retryLimit: 3, retryDelay: 3600 });
+
+    const job = await expectJobCompleted(ApplyDeploymentUpdate[JOB_NAME], { data: { activityId: saved.activityId } });
+    expect(job.retry_count).toBe(0);
+    expect(await findActivity(saved.activityId)).toMatchObject({ status: "failed", meta: { error: { code: "provider_manifest_invalid", message } } });
+  });
+
   it("keeps the activity pending while the update still has retries to come", async () => {
     const { saved, applyInBackground, pushManifest, findActivity, waitForJobIn } = await setup();
     pushManifest.mockRejectedValue(new Error("provider unreachable"));
