@@ -10,10 +10,11 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe("BillingDetailsView", () => {
-  it("shows the legal name, the address on separate lines and the verified tax ID", () => {
+  it("shows the legal name, the company, the address on separate lines and the verified tax ID", () => {
     setup({ billingDetails: SAVED });
 
-    expect(screen.getByText("Acme GmbH")).toBeInTheDocument();
+    expect(screen.getByText("Legal name").nextElementSibling?.textContent).toBe("Jane Doe");
+    expect(screen.getByText("Company").nextElementSibling?.textContent).toBe("Acme GmbH");
     expect(screen.getByText("Address").nextElementSibling?.textContent).toBe("Hauptstr. 1\nHinterhaus\n10115 Berlin\nBE\nGermany");
     expect(screen.getByText("EU VAT number DE123456789")).toBeInTheDocument();
     expect(screen.getByText("Verified")).toBeInTheDocument();
@@ -37,11 +38,19 @@ describe("BillingDetailsView", () => {
   });
 
   it("marks the parts that are not set yet", () => {
-    setup({ billingDetails: { legalName: "alice", address: null, taxId: null } });
+    setup({ billingDetails: { legalName: "Jane Doe", companyName: null, address: null, taxId: null } });
 
-    expect(screen.getByText("alice")).toBeInTheDocument();
-    expect(screen.getByText("Not set")).toBeInTheDocument();
-    expect(screen.getByText("None")).toBeInTheDocument();
+    expect(screen.getByText("Jane Doe")).toBeInTheDocument();
+    expect(screen.getByText("Company").nextElementSibling?.textContent).toBe("None");
+    expect(screen.getByText("Address").nextElementSibling?.textContent).toBe("Not set");
+    expect(screen.getByText("Tax ID").nextElementSibling?.textContent).toBe("None");
+  });
+
+  it("shows the details when only a company is on file", () => {
+    setup({ billingDetails: { legalName: null, companyName: "Acme GmbH", address: null, taxId: null } });
+
+    expect(screen.getByText("Company").nextElementSibling?.textContent).toBe("Acme GmbH");
+    expect(screen.getByText("Legal name").nextElementSibling?.textContent).toBe("Not set");
   });
 
   it("skips the address parts that are missing", () => {
@@ -51,7 +60,7 @@ describe("BillingDetailsView", () => {
   });
 
   it("invites the user to add details when there are none", () => {
-    setup({ billingDetails: { legalName: null, address: null, taxId: null } });
+    setup({ billingDetails: { legalName: null, companyName: null, address: null, taxId: null } });
 
     expect(screen.getByText("No billing details yet")).toBeInTheDocument();
     expect(screen.queryByText("Legal name")).not.toBeInTheDocument();
@@ -162,7 +171,8 @@ describe("BillingDetailsView", () => {
 });
 
 const SAVED: BillingDetails = {
-  legalName: "Acme GmbH",
+  legalName: "Jane Doe",
+  companyName: "Acme GmbH",
   address: { line1: "Hauptstr. 1", line2: "Hinterhaus", city: "Berlin", state: "BE", postalCode: "10115", country: "DE" },
   taxId: { type: "eu_vat", value: "DE123456789", verificationStatus: "verified" }
 };

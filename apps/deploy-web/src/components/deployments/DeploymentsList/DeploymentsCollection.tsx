@@ -72,7 +72,7 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
 
   if (viewMode === "grid") {
     return (
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {isLoading
           ? LOADING_PLACEHOLDERS.map(key => <CardPlaceholder key={key} />)
           : deployments.map(deployment => <d.DeploymentCard key={deployment.dseq} {...itemProps(deployment)} />)}

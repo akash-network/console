@@ -25,7 +25,7 @@ describe("useBillingDetailsQueries", () => {
   describe(useUpdateBillingDetailsMutation.name, () => {
     it("saves the details and shows the saved version without refetching", async () => {
       const { result, updateBillingDetails, queryClient } = setup({ useHook: () => useUpdateBillingDetailsMutation() });
-      queryClient.setQueryData(BILLING_DETAILS_KEY, { data: { legalName: null, address: null, taxId: null } });
+      queryClient.setQueryData(BILLING_DETAILS_KEY, { data: { legalName: null, companyName: null, address: null, taxId: null } });
 
       await act(() => result.current.mutateAsync({ data: INPUT }));
 
@@ -47,13 +47,15 @@ describe("useBillingDetailsQueries", () => {
 });
 
 const INPUT: BillingDetailsInput = {
-  legalName: "Acme GmbH",
+  legalName: "Jane Doe",
+  companyName: "Acme GmbH",
   address: { line1: "Hauptstr. 1", line2: null, city: "Berlin", state: null, postalCode: "10115", country: "DE" },
   taxId: { type: "eu_vat", value: "DE123456789" }
 };
 
 const SAVED: BillingDetails = {
-  legalName: "Acme GmbH",
+  legalName: "Jane Doe",
+  companyName: "Acme GmbH",
   address: { line1: "Hauptstr. 1", line2: null, city: "Berlin", state: null, postalCode: "10115", country: "DE" },
   taxId: { type: "eu_vat", value: "DE123456789", verificationStatus: "pending" }
 };

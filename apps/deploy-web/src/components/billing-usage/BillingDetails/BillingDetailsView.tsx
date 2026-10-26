@@ -41,7 +41,7 @@ const BillingDetailsCard: FC<Required<Props>> = ({ dependencies: d }) => {
   const organization = isOrganizationsEnabled ? activeOrganization : undefined;
   const canEdit = !organization || canManageBilling(organization.role);
   const [isEditing, setIsEditing] = useState(false);
-  const hasDetails = !!(billingDetails?.legalName || billingDetails?.address || billingDetails?.taxId);
+  const hasDetails = !!(billingDetails?.legalName || billingDetails?.companyName || billingDetails?.address || billingDetails?.taxId);
 
   return (
     <SettingsSection title="Billing details">
@@ -59,6 +59,8 @@ const BillingDetailsCard: FC<Required<Props>> = ({ dependencies: d }) => {
             <dl className="grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-[140px_1fr]">
               <dt className="text-muted-foreground">Legal name</dt>
               <dd>{billingDetails.legalName || "Not set"}</dd>
+              <dt className="text-muted-foreground">Company</dt>
+              <dd>{billingDetails.companyName || "None"}</dd>
               <dt className="text-muted-foreground">Address</dt>
               <dd className="whitespace-pre-line">{formatAddress(billingDetails.address) || "Not set"}</dd>
               <dt className="text-muted-foreground">Tax ID</dt>
@@ -83,7 +85,7 @@ const BillingDetailsCard: FC<Required<Props>> = ({ dependencies: d }) => {
             <div className="flex flex-col items-center gap-2 py-4 text-center">
               <FileText className="h-[22px] w-[22px] text-muted-foreground" aria-hidden />
               <p className="text-sm font-semibold">No billing details yet</p>
-              <p className="text-xs text-muted-foreground">Add a legal name, address and tax ID to have them printed on your invoices.</p>
+              <p className="text-xs text-muted-foreground">Add your legal name, company, address and tax ID to have them printed on your invoices.</p>
             </div>
           )}
         </div>

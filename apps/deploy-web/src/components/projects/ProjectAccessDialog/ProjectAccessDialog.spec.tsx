@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { OrganizationMemberOutput } from "@src/types/organizationMembership";
-import type { ProjectMember, ProjectMemberWithAllProjects } from "@src/types/project";
+import type { ProjectMember } from "@src/types/project";
 import type { DEPENDENCIES } from "./ProjectAccessDialog";
 import { ProjectAccessDialog } from "./ProjectAccessDialog";
 
@@ -11,15 +11,15 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ProjectAccessDialog.name, () => {
-  it("says owners and admins open every project without being added", () => {
+  it("says owners and admins open every project without being given access", () => {
     setup({});
 
     expect(screen.getByRole("heading", { name: "Access to storefront" })).toBeInTheDocument();
-    expect(screen.getByText("Owners and admins of Acme Corp open every project without being added here.")).toBeInTheDocument();
+    expect(screen.getByText("Owners and admins of Acme Corp open every project without being given access.")).toBeInTheDocument();
   });
 
   it("lists who was given access with their project role", () => {
-    setup({});
+    setup({ organizationMembers: [BOB, CAROL] });
 
     const rows = within(screen.getByRole("list", { name: "People with access" })).getAllByRole("listitem");
     expect(rows).toHaveLength(2);
@@ -28,43 +28,81 @@ describe(ProjectAccessDialog.name, () => {
     expect(within(rows[0]).getByRole("combobox", { name: "Role for bob" })).toHaveTextContent("Member");
     expect(within(rows[1]).getByRole("combobox", { name: "Role for carol@acme.io" })).toHaveTextContent("Viewer");
     expect(screen.getByText("2 people")).toBeInTheDocument();
-    expect(screen.queryByText("Change access for people on all projects on the Members page.")).not.toBeInTheDocument();
   });
 
-  it("lists the people on every project after the grants, read-only, and counts them", () => {
-    const { useProjectMembersWithAllProjectsQuery } = setup({ membersWithAllProjects: [FRANK_ON_ALL_PROJECTS, GRACE_ON_ALL_PROJECTS] });
+  it("lists everyone on every project after the grants, owners first, without a role, and counts them", () => {
+    setup({ organizationMembers: [FRANK_ON_ALL_PROJECTS, ADMIN, BOB, GRACE_ON_ALL_PROJECTS, OWNER, BILLING, DAVE, CAROL] });
 
     const rows = within(screen.getByRole("list", { name: "People with access" })).getAllByRole("listitem");
-    expect(rows).toHaveLength(4);
-    expect(within(rows[2]).getByText("frank")).toBeInTheDocument();
-    expect(within(rows[2]).getByText("frank@acme.io")).toBeInTheDocument();
-    expect(within(rows[2]).getByText("All projects")).toBeInTheDocument();
-    expect(within(rows[2]).getByText("Member")).toBeInTheDocument();
-    expect(within(rows[3]).getByText("grace@acme.io")).toBeInTheDocument();
-    expect(within(rows[3]).getByText("Viewer")).toBeInTheDocument();
+    expect(rows.slice(2).map(row => row.textContent)).toEqual([
+      "OownerYouAll projectsowner@acme.io",
+      "AadminAll projectsadmin@acme.io",
+      "FfrankAll projectsfrank@acme.io",
+      "GgraceAll projectsgrace@acme.io"
+    ]);
     expect(rows.slice(2).flatMap(row => within(row).queryAllByRole("combobox"))).toEqual([]);
-    expect(rows.slice(2).flatMap(row => within(row).queryAllByRole("button"))).toEqual([]);
-    expect(screen.getByText("4 people")).toBeInTheDocument();
-    expect(screen.getByText("Change access for people on all projects on the Members page.")).toBeInTheDocument();
-    expect(useProjectMembersWithAllProjectsQuery).toHaveBeenCalledWith("project-1");
+    expect(screen.getByText("6 people")).toBeInTheDocument();
   });
 
   it("lists the people on every project of a project no one was given", () => {
-    setup({ grants: [], membersWithAllProjects: [FRANK_ON_ALL_PROJECTS] });
+    setup({ grants: [], organizationMembers: [FRANK_ON_ALL_PROJECTS, DAVE] });
 
     expect(within(screen.getByRole("list", { name: "People with access" })).getByText("frank")).toBeInTheDocument();
     expect(screen.getByText("1 person")).toBeInTheDocument();
     expect(screen.queryByText("No one has been given access to this project yet.")).not.toBeInTheDocument();
   });
 
+  it("lists an admin who still holds a grant with the grant only", () => {
+    setup({ grants: [{ ...BOB_GRANT, userId: "user-admin", username: "admin" }], organizationMembers: [ADMIN] });
+
+    const rows = within(screen.getByRole("list", { name: "People with access" })).getAllByRole("listitem");
+    expect(rows).toHaveLength(1);
+    expect(within(rows[0]).getByRole("combobox", { name: "Role for admin" })).toBeInTheDocument();
+  });
+
+  it("lets an owner or admin edit the members on every project, and comes back to the access list after", async () => {
+    const { user, EditMemberDialog } = setup({
+      viewerUserId: "user-admin",
+      grants: [BOB_GRANT],
+      organizationMembers: [OWNER, ADMIN, FRANK_ON_ALL_PROJECTS, BOB]
+    });
+
+    const rows = within(screen.getByRole("list", { name: "People with access" })).getAllByRole("listitem");
+    expect(within(rows[1]).queryByRole("button", { name: "Edit owner" })).not.toBeInTheDocument();
+    expect(within(rows[2]).queryByRole("button", { name: "Edit admin" })).not.toBeInTheDocument();
+
+    await user.click(within(rows[3]).getByRole("button", { name: "Edit frank" }));
+
+    expect(EditMemberDialog.mock.lastCall?.[0]).toMatchObject({ member: FRANK_ON_ALL_PROJECTS, organizationName: "Acme Corp" });
+    expect(screen.queryByRole("heading", { name: "Access to storefront" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "close member editor" }));
+
+    expect(screen.getByRole("heading", { name: "Access to storefront" })).toBeInTheDocument();
+  });
+
+  it("lets an owner edit an admin", async () => {
+    const { user, EditMemberDialog } = setup({ organizationMembers: [OWNER, ADMIN] });
+
+    await user.click(screen.getByRole("button", { name: "Edit admin" }));
+
+    expect(EditMemberDialog.mock.lastCall?.[0]).toMatchObject({ member: ADMIN });
+  });
+
+  it("offers no member editing to a project admin who does not manage the organization's members", () => {
+    setup({ viewerUserId: "user-bob", organizationMembers: [OWNER, ADMIN, FRANK_ON_ALL_PROJECTS, BOB] });
+
+    expect(screen.queryByRole("button", { name: /^Edit / })).not.toBeInTheDocument();
+  });
+
   it("counts a single person in the singular", () => {
-    setup({ grants: [BOB_GRANT] });
+    setup({ grants: [BOB_GRANT], organizationMembers: [BOB] });
 
     expect(screen.getByText("1 person")).toBeInTheDocument();
   });
 
   it("says when no one was given access yet", () => {
-    setup({ grants: [] });
+    setup({ grants: [], organizationMembers: [BOB, DAVE] });
 
     expect(screen.getByText("No one has been given access to this project yet.")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "People with access" })).not.toBeInTheDocument();
@@ -231,6 +269,28 @@ describe(ProjectAccessDialog.name, () => {
     expect(screen.queryByText(/already has access to this project/)).not.toBeInTheDocument();
   });
 
+  it("waits for the organization's members before listing or counting anybody", () => {
+    setup({ isLoadingOrganizationMembers: true });
+
+    expect(screen.getByLabelText("Loading people with access")).toBeInTheDocument();
+    expect(screen.queryByText(/people$/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "People with access" })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["the grants", { isGrantsError: true }],
+    ["the organization's members", { isOrganizationMembersError: true }]
+  ])("says the people with access could not be loaded when %s fail to load", (_, failure) => {
+    setup(failure);
+
+    expect(screen.getByText("Couldn't load the people with access.")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "People with access" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/people$/)).not.toBeInTheDocument();
+    expect(screen.queryByText("No one has been given access to this project yet.")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Give access to" })).toBeDisabled();
+    expect(screen.queryByText(/already has access to this project/)).not.toBeInTheDocument();
+  });
+
   it("gives an organization viewer only view access and says why", async () => {
     const { user, createGrant } = setup({});
 
@@ -296,12 +356,14 @@ describe(ProjectAccessDialog.name, () => {
 
   function setup(input: {
     grants?: ProjectMember[];
-    membersWithAllProjects?: ProjectMemberWithAllProjects[];
     organizationMembers?: OrganizationMemberOutput[];
     viewerUserId?: string;
     isConfirmed?: boolean;
     isGranting?: boolean;
     isLoadingGrants?: boolean;
+    isLoadingOrganizationMembers?: boolean;
+    isGrantsError?: boolean;
+    isOrganizationMembersError?: boolean;
   }) {
     const createGrant = vi.fn<ReturnType<typeof DEPENDENCIES.useCreateProjectMemberMutation>["mutate"]>();
     const updateGrant = vi.fn<ReturnType<typeof DEPENDENCIES.useUpdateProjectMemberMutation>["mutate"]>();
@@ -309,27 +371,40 @@ describe(ProjectAccessDialog.name, () => {
     const confirm = vi.fn(async () => input.isConfirmed ?? true);
     const enqueueSnackbar = vi.fn();
     const onClose = vi.fn();
-    const useProjectMembersWithAllProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectMembersWithAllProjectsQuery>(() =>
-      mock<ReturnType<typeof DEPENDENCIES.useProjectMembersWithAllProjectsQuery>>({ data: input.membersWithAllProjects ?? [] })
-    );
+    const EditMemberDialog = vi.fn<typeof DEPENDENCIES.EditMemberDialog>(({ onClose: closeMemberEditor }) => (
+      <button type="button" onClick={closeMemberEditor}>
+        close member editor
+      </button>
+    ));
 
     const dependencies: typeof DEPENDENCIES = {
       usePopup: () => mock<ReturnType<typeof DEPENDENCIES.usePopup>>({ confirm }),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
       useProjectMembersQuery: () =>
         input.isLoadingGrants
-          ? mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: undefined, isLoading: true })
-          : mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: input.grants ?? [BOB_GRANT, CAROL_GRANT], isLoading: false }),
-      useProjectMembersWithAllProjectsQuery,
+          ? mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: undefined, isLoading: true, isError: false })
+          : input.isGrantsError
+            ? mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({ data: undefined, isLoading: false, isError: true })
+            : mock<ReturnType<typeof DEPENDENCIES.useProjectMembersQuery>>({
+                data: input.grants ?? [BOB_GRANT, CAROL_GRANT],
+                isLoading: false,
+                isError: false
+              }),
       useOrganizationMembersQuery: () =>
-        mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({
-          data: input.organizationMembers ?? [OWNER, ADMIN, BILLING, BOB, DAVE, ERIN, CAROL],
-          isLoading: false
-        }),
+        input.isLoadingOrganizationMembers
+          ? mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({ data: undefined, isLoading: true, isError: false })
+          : input.isOrganizationMembersError
+            ? mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({ data: undefined, isLoading: false, isError: true })
+            : mock<ReturnType<typeof DEPENDENCIES.useOrganizationMembersQuery>>({
+                data: input.organizationMembers ?? [OWNER, ADMIN, BILLING, BOB, DAVE, ERIN, CAROL],
+                isLoading: false,
+                isError: false
+              }),
       useCreateProjectMemberMutation: () =>
         mock<ReturnType<typeof DEPENDENCIES.useCreateProjectMemberMutation>>({ mutate: createGrant, isPending: input.isGranting ?? false }),
       useUpdateProjectMemberMutation: () => mock<ReturnType<typeof DEPENDENCIES.useUpdateProjectMemberMutation>>({ mutate: updateGrant }),
-      useDeleteProjectMemberMutation: () => mock<ReturnType<typeof DEPENDENCIES.useDeleteProjectMemberMutation>>({ mutate: deleteGrant })
+      useDeleteProjectMemberMutation: () => mock<ReturnType<typeof DEPENDENCIES.useDeleteProjectMemberMutation>>({ mutate: deleteGrant }),
+      EditMemberDialog
     };
 
     render(
@@ -342,7 +417,7 @@ describe(ProjectAccessDialog.name, () => {
       />
     );
 
-    return { user: userEvent.setup(), createGrant, updateGrant, deleteGrant, confirm, enqueueSnackbar, onClose, useProjectMembersWithAllProjectsQuery };
+    return { user: userEvent.setup(), createGrant, updateGrant, deleteGrant, confirm, enqueueSnackbar, onClose, EditMemberDialog };
   }
 });
 
@@ -366,22 +441,6 @@ const CAROL_GRANT: ProjectMember = {
   createdAt: "2026-01-02T00:00:00Z"
 };
 
-const FRANK_ON_ALL_PROJECTS: ProjectMemberWithAllProjects = {
-  userId: "user-frank",
-  username: "frank",
-  email: "frank@acme.io",
-  role: "member",
-  createdAt: "2026-01-03T00:00:00Z"
-};
-
-const GRACE_ON_ALL_PROJECTS: ProjectMemberWithAllProjects = {
-  userId: "user-grace",
-  username: null,
-  email: "grace@acme.io",
-  role: "viewer",
-  createdAt: "2026-01-04T00:00:00Z"
-};
-
 function organizationMember(name: string, role: OrganizationMemberOutput["role"]): OrganizationMemberOutput {
   return {
     id: `member-${name}`,
@@ -402,3 +461,5 @@ const BOB = organizationMember("bob", "member");
 const DAVE = organizationMember("dave", "member");
 const ERIN = organizationMember("erin", "viewer");
 const CAROL: OrganizationMemberOutput = { ...organizationMember("carol", "member"), userId: "user-carol", username: null };
+const FRANK_ON_ALL_PROJECTS: OrganizationMemberOutput = { ...organizationMember("frank", "member"), projectAccess: "all", projectCount: null };
+const GRACE_ON_ALL_PROJECTS: OrganizationMemberOutput = { ...organizationMember("grace", "viewer"), projectAccess: "all", projectCount: null };
