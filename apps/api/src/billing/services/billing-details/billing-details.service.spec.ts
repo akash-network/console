@@ -159,6 +159,95 @@ describe(BillingDetailsService.name, () => {
       );
     });
 
+    it("keeps the invoice fields added in the Stripe Dashboard after the billing contact", async () => {
+      const { service, stripe, payer, customerId } = setup({ customFields: [{ name: "PO number", value: "PO-42" }] });
+      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
+
+      await service.updateBillingDetails(payer, createInput({ legalName: "Jane Doe", companyName: "Acme GmbH" }));
+
+      expect(update).toHaveBeenCalledWith(
+        customerId,
+        expect.objectContaining({
+          invoice_settings: {
+            custom_fields: [
+              { name: BILLING_CONTACT_FIELD_NAME, value: "Jane Doe" },
+              { name: "PO number", value: "PO-42" }
+            ]
+          }
+        })
+      );
+    });
+
+    it("replaces the billing contact on file instead of adding a second one", async () => {
+      const { service, stripe, payer, customerId } = setup({
+        customFields: [
+          { name: BILLING_CONTACT_FIELD_NAME, value: "John Roe" },
+          { name: "PO number", value: "PO-42" }
+        ]
+      });
+      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
+
+      await service.updateBillingDetails(payer, createInput({ legalName: "Jane Doe", companyName: "Acme GmbH" }));
+
+      expect(update).toHaveBeenCalledWith(
+        customerId,
+        expect.objectContaining({
+          invoice_settings: {
+            custom_fields: [
+              { name: BILLING_CONTACT_FIELD_NAME, value: "Jane Doe" },
+              { name: "PO number", value: "PO-42" }
+            ]
+          }
+        })
+      );
+    });
+
+    it("removes only the billing contact when the company is cleared", async () => {
+      const { service, stripe, payer, customerId } = setup({
+        customFields: [
+          { name: BILLING_CONTACT_FIELD_NAME, value: "Jane Doe" },
+          { name: "PO number", value: "PO-42" }
+        ]
+      });
+      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
+
+      await service.updateBillingDetails(payer, createInput({ legalName: "Jane Doe", companyName: null }));
+
+      expect(update).toHaveBeenCalledWith(
+        customerId,
+        expect.objectContaining({ invoice_settings: { custom_fields: [{ name: "PO number", value: "PO-42" }] } })
+      );
+    });
+
+    it("drops the last Dashboard field to fit the billing contact within Stripe's four invoice fields", async () => {
+      const dashboardFields = ["PO number", "Cost center", "Project", "Department"].map(name => ({ name, value: faker.string.alphanumeric(8) }));
+      const { service, stripe, payer, customerId } = setup({ customFields: dashboardFields });
+      const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
+
+      await service.updateBillingDetails(payer, createInput({ legalName: "Jane Doe", companyName: "Acme GmbH" }));
+
+      expect(update).toHaveBeenCalledWith(
+        customerId,
+        expect.objectContaining({
+          invoice_settings: { custom_fields: [{ name: BILLING_CONTACT_FIELD_NAME, value: "Jane Doe" }, ...dashboardFields.slice(0, 3)] }
+        })
+      );
+    });
+
+    it("lets Stripe's error through for a customer deleted in Stripe", async () => {
+      const { service, stripe, payer, customerId } = setup();
+      vi.spyOn(stripe.customers, "retrieve").mockResolvedValue({
+        id: customerId,
+        object: "customer",
+        deleted: true,
+        lastResponse: { headers: {}, requestId: "req_1", statusCode: 200 }
+      });
+      const error = new Stripe.errors.StripeInvalidRequestError({ type: "invalid_request_error", code: "resource_missing", message: "No such customer" });
+      vi.spyOn(stripe.customers, "update").mockRejectedValue(error);
+
+      await expect(service.updateBillingDetails(payer, createInput())).rejects.toBe(error);
+    });
+
     it("sends every address field it was given", async () => {
       const { service, stripe, payer, customerId } = setup();
       const update = vi.spyOn(stripe.customers, "update").mockResolvedValue(createStripeCustomer({ id: customerId }));
@@ -365,10 +454,16 @@ describe(BillingDetailsService.name, () => {
     };
   }
 
-  function setup() {
+  function setup(input: { customFields?: Stripe.Customer.InvoiceSettings.CustomField[] } = {}) {
     const payer = createUserPayer();
     const customerId = payer.stripeCustomerId;
     const stripe = new Stripe(`sk_test_${faker.string.alphanumeric(32)}`, { apiVersion: "2025-10-29.clover", httpClient: Stripe.createFetchHttpClient() });
+    vi.spyOn(stripe.customers, "retrieve").mockResolvedValue(
+      createStripeCustomer({
+        id: customerId,
+        invoice_settings: { custom_fields: input.customFields ?? null, default_payment_method: null, footer: null, rendering_options: null }
+      })
+    );
     const customerService = mock<CustomerService>();
     customerService.getStripeCustomerId.mockResolvedValue(customerId);
     const service = new BillingDetailsService(stripe, customerService);

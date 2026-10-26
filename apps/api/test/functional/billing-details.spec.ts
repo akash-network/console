@@ -94,6 +94,9 @@ describe("Billing details", () => {
       const oldTaxIdDeleted = nock(STRIPE_API)
         .delete(`/v1/customers/${customerId}/tax_ids/txi_old`)
         .reply(200, { id: "txi_old", object: "tax_id", deleted: true });
+      nock(STRIPE_API)
+        .get(`/v1/customers/${customerId}`)
+        .reply(200, { id: customerId, object: "customer", invoice_settings: { custom_fields: [{ name: "PO number", value: "PO-42" }] } });
       const customerUpdated = nock(STRIPE_API)
         .post(
           `/v1/customers/${customerId}`,
@@ -103,6 +106,8 @@ describe("Billing details", () => {
             body.business_name === "Acme GmbH" &&
             body["invoice_settings[custom_fields][0][name]"] === "Billing contact" &&
             body["invoice_settings[custom_fields][0][value]"] === "Jane Doe" &&
+            body["invoice_settings[custom_fields][1][name]"] === "PO number" &&
+            body["invoice_settings[custom_fields][1][value]"] === "PO-42" &&
             body["address[line1]"] === "Hauptstr. 1" &&
             body["address[line2]"] === "" &&
             body["address[city]"] === "Berlin" &&

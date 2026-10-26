@@ -13,6 +13,8 @@ const NO_BILLING_DETAILS: BillingDetailsOutput = { legalName: null, companyName:
 
 const MAX_STRIPE_PAGE_SIZE = 100;
 
+const MAX_INVOICE_CUSTOM_FIELDS = 4;
+
 export const BILLING_CONTACT_FIELD_NAME = "Billing contact";
 
 export const INVALID_TAX_ID_MESSAGE = "This tax ID is not valid for the selected type";
@@ -49,11 +51,25 @@ export class BillingDetailsService {
 
     const customer = await this.stripe.customers.update(customerId, {
       ...toStripeNames(input),
+      invoice_settings: { custom_fields: await this.#getCustomFieldsWithBillingContact(customerId, input) },
       address: toStripeAddress(input.address),
       expand: ["tax_ids"]
     });
 
     return toBillingDetails(customer, customer.tax_ids?.data[0]);
+  }
+
+  /** Stripe replaces the whole custom field list on update, so the fields added in the Dashboard are read back and kept. */
+  async #getCustomFieldsWithBillingContact(
+    customerId: string,
+    { legalName, companyName }: BillingDetailsInput
+  ): Promise<Stripe.Emptyable<Stripe.CustomerUpdateParams.InvoiceSettings.CustomField[]>> {
+    const customer = await this.stripe.customers.retrieve(customerId);
+    const customFields = customer.deleted ? null : customer.invoice_settings.custom_fields;
+    const otherFields = (customFields ?? []).filter(field => field.name !== BILLING_CONTACT_FIELD_NAME);
+    const fields = companyName ? [{ name: BILLING_CONTACT_FIELD_NAME, value: legalName }, ...otherFields].slice(0, MAX_INVOICE_CUSTOM_FIELDS) : otherFields;
+
+    return fields.length ? fields : "";
   }
 
   /** Creates the new tax ID before deleting the old ones, so a value Stripe rejects leaves the previous tax ID on file. */
@@ -103,8 +119,7 @@ function toStripeNames({ legalName, companyName }: BillingDetailsInput): Stripe.
   return {
     name: companyName ?? legalName,
     individual_name: legalName,
-    business_name: companyName ?? "",
-    invoice_settings: { custom_fields: companyName ? [{ name: BILLING_CONTACT_FIELD_NAME, value: legalName }] : "" }
+    business_name: companyName ?? ""
   };
 }
 
