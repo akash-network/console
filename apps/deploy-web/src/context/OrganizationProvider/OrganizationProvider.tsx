@@ -1,6 +1,6 @@
 "use client";
 import type { ReactNode } from "react";
-import React, { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStore } from "jotai";
@@ -57,6 +57,8 @@ const WITHOUT_ORGANIZATIONS: ActiveOrganization = {
 };
 
 const AWAITING_FEATURE_FLAGS: ActiveOrganization = { ...WITHOUT_ORGANIZATIONS, isLoading: true };
+
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const OrganizationContext = React.createContext<ActiveOrganization>(WITHOUT_ORGANIZATIONS);
 
@@ -196,8 +198,8 @@ export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES 
     };
   }, [isEnabled, areFeatureFlagsReady, organizations, activeOrganization, isLoading, isError, switchOrganization]);
 
-  useEffect(
-    function actInTheShownOrganization() {
+  useIsomorphicLayoutEffect(
+    function actInTheShownOrganizationBeforeEffectsCallTheApi() {
       tabOrganization.show(value.activeOrganization?.id);
     },
     [tabOrganization, value.activeOrganization?.id]
