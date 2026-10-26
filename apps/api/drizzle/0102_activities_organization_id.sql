@@ -7,6 +7,7 @@ SET "organization_id" = "organizations"."id"
 FROM "organizations"
 WHERE "activities"."organization_id" IS NULL
   AND "organizations"."type" = 'team'
+  AND "organizations"."deleted_at" IS NULL
   AND "organizations"."id"::text = "activities"."meta"->>'organizationId';--> statement-breakpoint
 UPDATE "activities"
 SET "organization_id" = "team_deployment"."organization_id"
@@ -14,7 +15,7 @@ FROM (
   SELECT "activities"."id", (array_agg("deployment_settings"."organization_id"))[1] AS "organization_id"
   FROM "activities"
   JOIN "deployment_settings" ON "deployment_settings"."dseq" = "activities"."meta"->>'dseq'
-  LEFT JOIN "organizations" ON "organizations"."id" = "deployment_settings"."organization_id"
+  LEFT JOIN "organizations" ON "organizations"."id" = "deployment_settings"."organization_id" AND "organizations"."deleted_at" IS NULL
   WHERE "activities"."organization_id" IS NULL
     AND (
       "deployment_settings"."user_id" = "activities"."user_id"
