@@ -314,6 +314,118 @@ describe(ActivityHost.name, () => {
     expect(push).toHaveBeenCalledWith("/deployments/1234?tab=UPDATE");
   });
 
+  describe("while an update runs in the background", () => {
+    const PROGRESS_SUBTITLE = "This finishes in the background. We'll let you know when it's done.";
+
+    function pendingUpdate() {
+      return buildActivity({ type: "deployment_update", status: "pending", meta: { dseq: "1234" } });
+    }
+
+    it("shows a progress toast naming the deployment once the update starts", () => {
+      const { enqueueSnackbar, receive } = setup({ activities: [], names: { "1234": "storefront" } });
+
+      receive([pendingUpdate()]);
+
+      expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ title: "Updating “storefront”", subTitle: PROGRESS_SUBTITLE, showLoading: true }) }),
+        { variant: "info", persist: true }
+      );
+    });
+
+    it("shows a progress toast for an update that starts once the feed has loaded", () => {
+      const { enqueueSnackbar, receive } = setup();
+
+      receive([]);
+      receive([pendingUpdate()]);
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ title: "Updating deployment 1234" }) }),
+        expect.anything()
+      );
+    });
+
+    it("shows the progress toast once however often the feed reports the update still running", () => {
+      const update = pendingUpdate();
+      const { enqueueSnackbar, closeSnackbar, receive } = setup({ activities: [] });
+
+      receive([update]);
+      receive([update]);
+
+      expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+      expect(closeSnackbar).not.toHaveBeenCalled();
+    });
+
+    it("shows no progress toast for an update already running when it first read the feed", () => {
+      const update = pendingUpdate();
+      const { enqueueSnackbar, receive } = setup({ activities: [update] });
+
+      receive([update]);
+
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+    });
+
+    it("shows no progress toast for an update that had already finished when it showed up", () => {
+      const { enqueueSnackbar, receive } = setup({ activities: [] });
+
+      receive([{ ...pendingUpdate(), status: "succeeded" }]);
+
+      expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
+      expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ iconVariant: "success" }) }), {
+        variant: "success"
+      });
+    });
+
+    it("waits for the name of the deployment before showing the progress toast", () => {
+      const update = pendingUpdate();
+      const { enqueueSnackbar, receive } = setup({ activities: [], names: { "1234": "storefront" } });
+
+      receive([update], { isLoadingNames: true });
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+
+      receive([update]);
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ title: "Updating “storefront”" }) }),
+        expect.anything()
+      );
+    });
+
+    it("dismisses the progress toast once the update finishes, then announces how it ended", () => {
+      const update = pendingUpdate();
+      const { enqueueSnackbar, closeSnackbar, receive } = setup({ activities: [], names: { "1234": "storefront" } });
+
+      receive([update]);
+      receive([{ ...update, status: "succeeded" }]);
+
+      expect(closeSnackbar).toHaveBeenCalledWith(TOAST_KEY);
+      expect(enqueueSnackbar).toHaveBeenLastCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "“storefront” updated" }) }), {
+        variant: "success"
+      });
+    });
+
+    it("names the deployment whose name loads only once its update shows up", () => {
+      const { enqueueSnackbar, receive } = setup({ activities: [] });
+
+      receive([pendingUpdate()], { names: { "1234": "storefront" } });
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ title: "Updating “storefront”" }) }),
+        expect.anything()
+      );
+    });
+
+    it("dismisses the progress toast only once after the update leaves the feed", () => {
+      const { closeSnackbar, receive } = setup({ activities: [] });
+
+      receive([pendingUpdate()]);
+      receive([]);
+      receive([]);
+
+      expect(closeSnackbar).toHaveBeenCalledTimes(1);
+      expect(closeSnackbar).toHaveBeenCalledWith(TOAST_KEY);
+    });
+  });
+
   it("names the deployment a close finished for", () => {
     const pending = buildActivity({ status: "pending", meta: { dseq: "1234" } });
     const { enqueueSnackbar, receive } = setup({ activities: [pending], names: { "1234": "storefront" } });
@@ -918,12 +1030,15 @@ describe(ActivityHost.name, () => {
     const isFollowedOnItsPage = (activity: Activity) => (input.followed ?? []).includes(activity.id);
     let activities = input.activities;
     let isLoadingNames = false;
+    let names = input.names;
     let closeBatchesBeingSent: ReadonlySet<string> = new Set();
-    const useDeploymentNames = vi.fn((() =>
-      mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>({
-        getDeploymentName: dseq => input.names?.[String(dseq)] ?? null,
+    const useDeploymentNames = vi.fn((() => {
+      const loadedNames = names;
+      return mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>({
+        getDeploymentName: dseq => loadedNames?.[String(dseq)] ?? null,
         isLoading: isLoadingNames
-      })) as typeof DEPENDENCIES.useDeploymentNames);
+      });
+    }) as typeof DEPENDENCIES.useDeploymentNames);
     const useLatestActivitiesQuery = vi.fn((() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), { data: activities })) as typeof DEPENDENCIES.useLatestActivitiesQuery);
     const useFlag = vi.fn((() => input.isEnabled ?? true) as typeof DEPENDENCIES.useFlag);
@@ -959,9 +1074,10 @@ describe(ActivityHost.name, () => {
     );
     const { rerender } = render(host());
 
-    const receive = (next: Activity[], options: { isLoadingNames?: boolean; closeBatchesBeingSent?: string[] } = {}) => {
+    const receive = (next: Activity[], options: { isLoadingNames?: boolean; names?: Record<string, string>; closeBatchesBeingSent?: string[] } = {}) => {
       activities = next;
       isLoadingNames = options.isLoadingNames ?? false;
+      names = options.names ?? names;
       closeBatchesBeingSent = new Set(options.closeBatchesBeingSent);
       rerender(host());
     };
