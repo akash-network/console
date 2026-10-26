@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import type { DeployTarget } from "@src/hooks/useDeployTarget/useDeployTarget";
+import { resolveDeployProject } from "@src/hooks/useDeployTarget/useDeployTarget";
 import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import { useDeploymentLocationQuery } from "@src/queries/useDeploymentProjectQueries";
@@ -64,7 +65,7 @@ export function DeployTargetGate({ filedDseq, fallback, children, dependencies: 
   const filedLocationQuery = d.useDeploymentLocationQuery(filedDseq ?? "", { enabled: isRequired && isFiled });
   const [handedOverProjectId, setHandedOverProjectId] = useAtom(deployTargetProjectIdAtom);
   const [projectId, setProjectId] = useState(handedOverProjectId);
-  const [isFiledProjectForgotten, setIsFiledProjectForgotten] = useState(false);
+  const [isProjectForgotten, setIsProjectForgotten] = useState(false);
   const [notice, setNotice] = useState<string>();
   const [isPickerDismissed, setIsPickerDismissed] = useState(false);
   const [hasLetTheFlowThrough, setHasLetTheFlowThrough] = useState(false);
@@ -77,8 +78,9 @@ export function DeployTargetGate({ filedDseq, fallback, children, dependencies: 
   );
 
   const projects = useMemo(() => (projectsQuery.data ?? []).filter(project => access.canManageDeployments(project.id)), [projectsQuery.data, access]);
-  const filedProjectId = isFiledProjectForgotten ? undefined : filedLocationQuery.data?.projectId;
-  const project = isRequired ? projects.find(candidate => candidate.id === (filedProjectId ?? projectId)) : undefined;
+  const filedProjectId = isProjectForgotten ? undefined : filedLocationQuery.data?.projectId;
+  const chosenProjectId = filedProjectId ?? projectId;
+  const project = isRequired ? resolveDeployProject(projects, chosenProjectId, !isFiled && !isProjectForgotten) : undefined;
   const isLoading = isRequired && (projectsQuery.isLoading || access.isLoading || (isFiled && filedLocationQuery.isLoading));
   const isMissing = isRequired && !isLoading && !project;
   const isUnreadable = isRequired && !isLoading && ((!projectsQuery.data && projectsQuery.isError) || access.isError);
@@ -92,10 +94,17 @@ export function DeployTargetGate({ filedDseq, fallback, children, dependencies: 
   }, []);
   const forgetProject = useCallback((reason?: string) => {
     setProjectId(null);
-    setIsFiledProjectForgotten(true);
+    setIsProjectForgotten(true);
     setNotice(reason);
     setIsPickerDismissed(false);
   }, []);
+
+  useEffect(
+    function keepTheOnlyProjectTakenAsTheChoice() {
+      if (project && !chosenProjectId) setProjectId(project.id);
+    },
+    [project, chosenProjectId]
+  );
 
   const target = useMemo<DeployTarget>(
     () => ({

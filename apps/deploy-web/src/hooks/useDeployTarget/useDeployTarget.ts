@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAtom } from "jotai";
 
 import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
@@ -32,7 +32,13 @@ export interface DeployTarget {
   retry?: () => void;
 }
 
-/** The project the new deployment page hands to Configure: the one it was opened for, else none, so the picker asks. */
+/** The project chosen, else, when none was and the choice may fall to it, the only one the caller can deploy into. */
+export function resolveDeployProject(projects: Project[], chosenProjectId: string | null | undefined, mayTakeTheOnlyProject: boolean): Project | undefined {
+  if (chosenProjectId) return projects.find(candidate => candidate.id === chosenProjectId);
+  return mayTakeTheOnlyProject && projects.length === 1 ? projects[0] : undefined;
+}
+
+/** The project the new deployment page hands to Configure: the one it was opened for, else the caller's only one, else none, so the picker asks. */
 export function useDeployTarget(
   { requestedProjectId }: { requestedProjectId?: string | null } = {},
   dependencies: typeof DEPENDENCIES = DEPENDENCIES
@@ -42,13 +48,17 @@ export function useDeployTarget(
   const projectsQuery = d.useProjectsQuery({ enabled: isRequired });
   const access = d.useProjectAccess();
   const [chosenProjectId, setChosenProjectId] = useAtom(deployTargetProjectIdAtom);
+  const [isProjectForgotten, setIsProjectForgotten] = useState(false);
 
   const projects = useMemo(() => (projectsQuery.data ?? []).filter(project => access.canManageDeployments(project.id)), [projectsQuery.data, access]);
   const targetProjectId = requestedProjectId || chosenProjectId;
-  const project = isRequired ? projects.find(candidate => candidate.id === targetProjectId) : undefined;
+  const project = isRequired ? resolveDeployProject(projects, targetProjectId, !isProjectForgotten) : undefined;
   const isLoading = isRequired && (projectsQuery.isLoading || access.isLoading);
   const isUnreadable = isRequired && !isLoading && ((!projectsQuery.data && projectsQuery.isError) || access.isError);
-  const forgetProject = useCallback(() => setChosenProjectId(null), [setChosenProjectId]);
+  const forgetProject = useCallback(() => {
+    setChosenProjectId(null);
+    setIsProjectForgotten(true);
+  }, [setChosenProjectId]);
   const retry = () => (access.isError ? access.retry() : void projectsQuery.refetch());
 
   useEffect(
@@ -56,6 +66,13 @@ export function useDeployTarget(
       setChosenProjectId((isRequired && requestedProjectId) || null);
     },
     [isRequired, requestedProjectId, setChosenProjectId]
+  );
+
+  useEffect(
+    function keepTheOnlyProjectTakenAsTheChoice() {
+      if (project && !targetProjectId) setChosenProjectId(project.id);
+    },
+    [project, targetProjectId, setChosenProjectId]
   );
 
   return {

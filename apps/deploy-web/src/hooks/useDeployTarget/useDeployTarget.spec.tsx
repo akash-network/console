@@ -60,6 +60,33 @@ describe(useDeployTarget.name, () => {
     expect(result.current.projects.map(project => project.id)).toEqual(["storefront"]);
   });
 
+  it("targets the only project the caller may deploy into when the page names none", () => {
+    const { result } = setup({ viewedProjectId: "marketing" });
+
+    expect(result.current.project?.id).toBe("storefront");
+    expect(result.current.isMissing).toBe(false);
+  });
+
+  it("keeps the only project it took once the projects load, when another one becomes deployable later", () => {
+    const { result, store, readProjects } = setup({ isLoading: true });
+
+    readProjects(["storefront"]);
+    readProjects(["storefront", "marketing"]);
+
+    expect(result.current.project?.id).toBe("storefront");
+    expect(store.get(deployTargetProjectIdAtom)).toBe("storefront");
+  });
+
+  it("forgets the only project it took so the picker asks again", () => {
+    const { result, store } = setup({ viewedProjectId: "marketing" });
+
+    act(() => result.current.forgetProject());
+
+    expect(result.current.project).toBeUndefined();
+    expect(result.current.isMissing).toBe(true);
+    expect(store.get(deployTargetProjectIdAtom)).toBeNull();
+  });
+
   it("asks for another project when the page names one the caller only views", () => {
     const { result } = setup({ requestedProjectId: "marketing", viewedProjectId: "marketing" });
 
@@ -155,19 +182,19 @@ describe(useDeployTarget.name, () => {
   }) {
     const refetchProjects = vi.fn();
     const retryAccess = vi.fn();
-    const projects = [mock<Project>({ id: "storefront", name: "storefront" }), mock<Project>({ id: "marketing", name: "marketing" })];
+    const projectsRead = { isLoading: input.isLoading ?? false, projects: projectsNamed(["storefront", "marketing"]) };
     const isEnabled = input.isEnabled ?? true;
     const useProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectsQuery>(() =>
-      input.isLoading
+      projectsRead.isLoading
         ? mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: undefined, isLoading: true, isError: false, refetch: refetchProjects })
         : input.isProjectsError
           ? mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({
-              data: input.hasReadProjects ? projects : undefined,
+              data: input.hasReadProjects ? projectsRead.projects : undefined,
               isLoading: false,
               isError: true,
               refetch: refetchProjects
             })
-          : mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: projects, isLoading: false, isError: false, refetch: refetchProjects })
+          : mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: projectsRead.projects, isLoading: false, isError: false, refetch: refetchProjects })
     );
     const dependencies: typeof DEPENDENCIES = {
       useProjectsUi: () => ({ isEnabled, canManageProjects: true, canChangeDeployments: true, organizationName: "Acme Corp" }),
@@ -187,6 +214,16 @@ describe(useDeployTarget.name, () => {
       wrapper: ({ children }: PropsWithChildren) => <Provider store={store}>{children}</Provider>
     });
 
-    return { ...hook, store, useProjectsQuery, refetchProjects, retryAccess };
+    const readProjects = (names: string[]) => {
+      projectsRead.isLoading = false;
+      projectsRead.projects = projectsNamed(names);
+      hook.rerender();
+    };
+
+    return { ...hook, store, useProjectsQuery, refetchProjects, retryAccess, readProjects };
+  }
+
+  function projectsNamed(names: string[]): Project[] {
+    return names.map(name => mock<Project>({ id: name, name }));
   }
 });

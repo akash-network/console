@@ -160,6 +160,50 @@ describe(DeployTargetGate.name, () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
+  it("takes the only project the caller may deploy into without asking", () => {
+    const { flowTarget, ChooseProjectModal } = setup({ viewedProjectId: "marketing" });
+
+    expect(screen.getByText("flow")).toBeInTheDocument();
+    expect(flowTarget()).toMatchObject({ isMissing: false, project: { id: "storefront" } });
+    expect(ChooseProjectModal).not.toHaveBeenCalled();
+  });
+
+  it("keeps the only project it took once the projects load, when another one becomes deployable later", () => {
+    const { flowTarget, readProjects } = setup({ isLoading: true });
+
+    readProjects(["storefront"]);
+    readProjects(["storefront", "marketing"]);
+
+    expect(flowTarget().project?.id).toBe("storefront");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("asks rather than switching to another project when the only one it took is gone", () => {
+    const { flowTarget, readProjects } = setup({ projectNames: ["storefront"] });
+
+    readProjects(["marketing"]);
+
+    expect(flowTarget().project).toBeUndefined();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("asks for a project when the one handed over is not the organization's, even with only one to offer", () => {
+    setup({ projectNames: ["storefront"], handedOverProjectId: "elsewhere" });
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByText("flow")).not.toBeInTheDocument();
+  });
+
+  it("asks again, saying why, when the only project is refused", () => {
+    const { flowTarget, ChooseProjectModal } = setup({ projectNames: ["storefront"] });
+
+    act(() => flowTarget().forgetProject("Choose another one."));
+
+    expect(screen.getByText("flow")).toBeInTheDocument();
+    expect(flowTarget().project).toBeUndefined();
+    expect(ChooseProjectModal.mock.lastCall?.[0]).toMatchObject({ notice: "Choose another one." });
+  });
+
   it("lets the flow through once a project is picked", async () => {
     const { flowTarget } = setup({});
 
@@ -211,9 +255,9 @@ describe(DeployTargetGate.name, () => {
   });
 
   it("offers the picker only the projects the caller may deploy into", () => {
-    const { ChooseProjectModal } = setup({ viewedProjectId: "marketing" });
+    const { ChooseProjectModal } = setup({ projectNames: ["storefront", "marketing", "billing"], viewedProjectId: "marketing" });
 
-    expect(ChooseProjectModal.mock.lastCall?.[0].projects.map(candidate => candidate.id)).toEqual(["storefront"]);
+    expect(ChooseProjectModal.mock.lastCall?.[0].projects.map(candidate => candidate.id)).toEqual(["storefront", "billing"]);
   });
 
   it("asks again for a project handed over that the caller only views", () => {
@@ -231,6 +275,7 @@ describe(DeployTargetGate.name, () => {
   });
 
   function setup(input: {
+    projectNames?: string[];
     handedOverProjectId?: string;
     filedDseq?: string;
     filedProjectId?: string;
@@ -249,12 +294,12 @@ describe(DeployTargetGate.name, () => {
     const retryAccess = vi.fn();
     const organization = { isLoading: input.isOrganizationLoading ?? false };
     const push = vi.fn();
-    const projects = [project("storefront"), project("marketing")];
+    const projectsRead = { isLoading: input.isLoading ?? false, projects: (input.projectNames ?? ["storefront", "marketing"]).map(name => project(name)) };
     const store = createStore();
     if (input.handedOverProjectId) store.set(deployTargetProjectIdAtom, input.handedOverProjectId);
     const ChooseProjectModal = vi.fn<typeof DEPENDENCIES.ChooseProjectModal>(({ onChosen, onCancel }) => (
       <div role="dialog">
-        <button type="button" onClick={() => onChosen(projects[1])}>
+        <button type="button" onClick={() => onChosen(projectsRead.projects[1])}>
           choose marketing
         </button>
         <button type="button" onClick={onCancel}>
@@ -281,16 +326,21 @@ describe(DeployTargetGate.name, () => {
         organizationName: "Acme Corp"
       }),
       useProjectsQuery: () =>
-        input.isLoading
+        projectsRead.isLoading
           ? mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: undefined, isLoading: true, isError: false, refetch: refetchProjects })
           : input.isProjectsError
             ? mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({
-                data: input.hasReadProjects ? projects : undefined,
+                data: input.hasReadProjects ? projectsRead.projects : undefined,
                 isLoading: false,
                 isError: true,
                 refetch: refetchProjects
               })
-            : mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({ data: projects, isLoading: false, isError: false, refetch: refetchProjects }),
+            : mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>({
+                data: projectsRead.projects,
+                isLoading: false,
+                isError: false,
+                refetch: refetchProjects
+              }),
       useDeploymentLocationQuery,
       useProjectAccess: () =>
         mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({
@@ -329,6 +379,11 @@ describe(DeployTargetGate.name, () => {
       flowTarget: () => target as ReturnType<typeof useConfigureDeployTarget>,
       settleOrganization: () => {
         organization.isLoading = false;
+        rerender(gate());
+      },
+      readProjects: (names: string[]) => {
+        projectsRead.isLoading = false;
+        projectsRead.projects = names.map(name => project(name));
         rerender(gate());
       }
     };
