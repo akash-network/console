@@ -97,6 +97,16 @@ describe(ReconcileDeploymentUpdateHandler.name, () => {
     expect(activityService.settle).toHaveBeenCalledWith("activity-1", notAppliedUpdateActivityOf(DATA));
   });
 
+  it("settles the update with what the request that saved it changed", async () => {
+    const { handler, activityService } = setup({ chainVersion: "T0xERVI=" });
+    const changes = { services: [{ service: "web", removedEnv: ["DEBUG"] }] };
+
+    await handler.handle({ ...PAYLOAD, changes });
+
+    expect(activityService.settle).toHaveBeenCalledWith("activity-1", notAppliedUpdateActivityOf({ ...DATA, changes }));
+    expect(activityService.settle.mock.calls[0][1].meta.changes).toEqual(changes);
+  });
+
   it("reads the deployment once pg-boss no longer keeps the update job", async () => {
     const { handler, activityService } = setup({ isUpdateJobGone: true, chainVersion: SAVED_VERSION });
 

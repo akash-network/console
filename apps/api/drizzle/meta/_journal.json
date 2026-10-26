@@ -708,6 +708,13 @@
       "when": 1792553663304,
       "tag": "0100_first_purchase_bonus_win_backs",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1793046232737,
+      "tag": "0101_deployment_change_activities",
+      "breakpoints": true
     }
   ]
 }

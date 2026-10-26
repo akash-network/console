@@ -24420,7 +24420,8 @@
                 "lease_create",
                 "wallet_balance_alert",
                 "deployment_closed_alert",
-                "deployment_reclaim_alert"
+                "deployment_reclaim_alert",
+                "deployment_rename"
               ],
               "description": "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
             },
@@ -24464,7 +24465,8 @@
                                   "lease_create",
                                   "wallet_balance_alert",
                                   "deployment_closed_alert",
-                                  "deployment_reclaim_alert"
+                                  "deployment_reclaim_alert",
+                                  "deployment_rename"
                                 ],
                                 "description": "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
                               },
@@ -24551,6 +24553,83 @@
                                     "type": "string",
                                     "format": "uuid",
                                     "description": "The organization the alert is filed in, on an alert set in one."
+                                  },
+                                  "changes": {
+                                    "type": "object",
+                                    "properties": {
+                                      "name": {
+                                        "type": "object",
+                                        "properties": {
+                                          "from": {
+                                            "type": "string",
+                                            "nullable": true
+                                          },
+                                          "to": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "from",
+                                          "to"
+                                        ],
+                                        "description": "The deployment's name before and after."
+                                      },
+                                      "services": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "service": {
+                                              "type": "string",
+                                              "description": "The service the update changed."
+                                            },
+                                            "image": {
+                                              "type": "string",
+                                              "description": "The image the service now runs, when the update changed it."
+                                            },
+                                            "addedEnv": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "description": "Environment variables the update added, by name."
+                                            },
+                                            "changedEnv": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "description": "Environment variables the update gave a new value, by name."
+                                            },
+                                            "removedEnv": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "description": "Environment variables the update removed, by name."
+                                            },
+                                            "settings": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string",
+                                                "enum": [
+                                                  "command",
+                                                  "args",
+                                                  "credentials",
+                                                  "expose",
+                                                  "storage"
+                                                ]
+                                              },
+                                              "description": "The other fields of the service the update changed, named as a patch names them."
+                                            }
+                                          },
+                                          "required": [
+                                            "service"
+                                          ]
+                                        }
+                                      }
+                                    },
+                                    "description": "What an update or a rename changed, on `deployment_update` and `deployment_rename`. Names variables and never their values. Absent on an update that only replaced secret values."
                                   }
                                 }
                               },
@@ -24689,7 +24768,8 @@
                             "lease_create",
                             "wallet_balance_alert",
                             "deployment_closed_alert",
-                            "deployment_reclaim_alert"
+                            "deployment_reclaim_alert",
+                            "deployment_rename"
                           ],
                           "description": "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
                         },
@@ -24776,6 +24856,83 @@
                               "type": "string",
                               "format": "uuid",
                               "description": "The organization the alert is filed in, on an alert set in one."
+                            },
+                            "changes": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "object",
+                                  "properties": {
+                                    "from": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "to": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "from",
+                                    "to"
+                                  ],
+                                  "description": "The deployment's name before and after."
+                                },
+                                "services": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "service": {
+                                        "type": "string",
+                                        "description": "The service the update changed."
+                                      },
+                                      "image": {
+                                        "type": "string",
+                                        "description": "The image the service now runs, when the update changed it."
+                                      },
+                                      "addedEnv": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "description": "Environment variables the update added, by name."
+                                      },
+                                      "changedEnv": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "description": "Environment variables the update gave a new value, by name."
+                                      },
+                                      "removedEnv": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "description": "Environment variables the update removed, by name."
+                                      },
+                                      "settings": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string",
+                                          "enum": [
+                                            "command",
+                                            "args",
+                                            "credentials",
+                                            "expose",
+                                            "storage"
+                                          ]
+                                        },
+                                        "description": "The other fields of the service the update changed, named as a patch names them."
+                                      }
+                                    },
+                                    "required": [
+                                      "service"
+                                    ]
+                                  }
+                                }
+                              },
+                              "description": "What an update or a rename changed, on `deployment_update` and `deployment_rename`. Names variables and never their values. Absent on an update that only replaced secret values."
                             }
                           }
                         },
@@ -26740,7 +26897,9 @@
                               "member_granted",
                               "member_revoked",
                               "member_updated",
-                              "organization_renamed"
+                              "organization_renamed",
+                              "deployment_updated",
+                              "deployment_renamed"
                             ]
                           },
                           "payload": {

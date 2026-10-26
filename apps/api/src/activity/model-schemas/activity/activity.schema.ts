@@ -10,7 +10,8 @@ export const activityTypeEnum = pgEnum("activity_type", [
   "deployment_create",
   "deployment_update",
   "lease_create",
-  ...ALERT_ACTIVITY_TYPES
+  ...ALERT_ACTIVITY_TYPES,
+  "deployment_rename"
 ]);
 export const activityStatusEnum = pgEnum("activity_status", ["pending", "succeeded", "failed", "info"]);
 export const activityInitiatorEnum = pgEnum("activity_initiator", ["user", "system"]);
@@ -24,6 +25,25 @@ export const SYSTEM_CLOSE_REASONS = ["runtime_limit_reached", "trial_ended", "pr
 
 export type SystemCloseReason = (typeof SYSTEM_CLOSE_REASONS)[number];
 
+export const DEPLOYMENT_SERVICE_SETTINGS = ["command", "args", "credentials", "expose", "storage"] as const;
+
+export type DeploymentServiceSetting = (typeof DEPLOYMENT_SERVICE_SETTINGS)[number];
+
+/** Names the variables a change touched and never their values, because any of them can be a secret. */
+export type DeploymentServiceChanges = {
+  service: string;
+  image?: string;
+  addedEnv?: string[];
+  changedEnv?: string[];
+  removedEnv?: string[];
+  settings?: DeploymentServiceSetting[];
+};
+
+export type DeploymentChanges = {
+  name?: { from: string | null; to: string };
+  services?: DeploymentServiceChanges[];
+};
+
 export type ActivityMeta = {
   dseq?: string;
   providers?: string[];
@@ -35,6 +55,7 @@ export type ActivityMeta = {
   alertId?: string;
   summary?: string;
   organizationId?: string;
+  changes?: DeploymentChanges;
 };
 
 export type NewActivity = {

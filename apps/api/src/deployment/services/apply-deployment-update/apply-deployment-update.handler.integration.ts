@@ -104,6 +104,16 @@ describe(ApplyDeploymentUpdateHandler.name, () => {
     });
   });
 
+  it("records on the settled update what the request that saved it changed", async () => {
+    const { saved, applyInBackground, findActivity } = await setup();
+    const changes = { services: [{ service: "web", changedEnv: ["API_TOKEN"] }] };
+
+    await applyInBackground({ ...saved, changes });
+
+    await expectJobCompleted(ApplyDeploymentUpdate[JOB_NAME], { data: { activityId: saved.activityId } });
+    expect(await findActivity(saved.activityId)).toMatchObject({ status: "succeeded", meta: { dseq: saved.dseq, changes } });
+  });
+
   describe("an update of a deployment held by an organization's wallet", () => {
     it("applies it with the organization's wallet for the member who saved it, opening the token of the member who filed it", async () => {
       const { member, wallet, saved, secretValue, applyInBackground, broadcast, pushManifest, findActivity } = await setup({ owner: "organization" });

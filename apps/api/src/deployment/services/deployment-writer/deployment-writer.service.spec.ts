@@ -56,7 +56,7 @@ import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resou
 import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { createdActivityOf, creatingActivityOf, failedCreateActivityOf } from "@src/deployment/utils/create-activity/create-activity";
 import { decodeCreateDeploymentMessage, encodeCreateDeploymentMessage } from "@src/deployment/utils/create-deployment-message/create-deployment-message";
-import { failedUpdateActivityOf, pendingUpdateActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
+import { failedUpdateActivityOf, pendingUpdateActivityOf, renamedActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -3835,13 +3835,54 @@ describe(DeploymentWriterService.name, () => {
         expect(deploymentSettingRepository.upsertName).toHaveBeenCalledWith({ userId: "user-1", dseq: "1234", name: "renamed" });
       });
 
-      it("reads no stored definition, so a deployment the console holds no sdl for is renameable", async () => {
+      it("renames a deployment the console holds no definition for, writing none", async () => {
         const { service, ability, deploymentSettingRepository } = setup({ setting: undefined });
 
         await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
 
-        expect(deploymentSettingRepository.findOneBy).not.toHaveBeenCalled();
+        expect(deploymentSettingRepository.upsertName).toHaveBeenCalledWith({ userId: "user-1", dseq: "1234", name: "renamed" });
         expect(deploymentSettingRepository.replaceDefinitionIfVersionMatches).not.toHaveBeenCalled();
+      });
+
+      it("records a rename of a named deployment in the member's feed and in the organization's", async () => {
+        const { service, ability, activityService, deploymentOrganizationActivityService } = setup({ storedName: "web-update" });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(activityService.record).toHaveBeenCalledWith(renamedActivityOf({ userId: "user-1", dseq: "1234", from: "web-update", to: "renamed" }));
+        expect(deploymentOrganizationActivityService.recordRenamed).toHaveBeenCalledWith(
+          { wallet: expect.objectContaining({ id: 7 }), dseq: "1234" },
+          "user-1",
+          { from: "web-update", to: "renamed" }
+        );
+      });
+
+      it("reads the name it replaces, as far as the caller may read, from the row of the member who filed the deployment", async () => {
+        const { service, ability, unscopedDeploymentSettingRepository, deploymentSettingRepository, signerService } = setup({ storedName: "web-update" });
+        signerService.filedUserIdOf.mockResolvedValue("filer-1");
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(unscopedDeploymentSettingRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
+        expect(deploymentSettingRepository.findOneBy).toHaveBeenCalledWith({ userId: "filer-1", dseq: "1234" });
+      });
+
+      it("records nothing for a deployment the console held no name for, which a browser backfills", async () => {
+        const { service, ability, activityService, deploymentOrganizationActivityService } = setup({ storedName: null });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(activityService.record).not.toHaveBeenCalled();
+        expect(deploymentOrganizationActivityService.recordRenamed).not.toHaveBeenCalled();
+      });
+
+      it("records nothing for a rename to the name it already had", async () => {
+        const { service, ability, activityService, deploymentOrganizationActivityService } = setup({ storedName: "renamed" });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
+
+        expect(activityService.record).not.toHaveBeenCalled();
+        expect(deploymentOrganizationActivityService.recordRenamed).not.toHaveBeenCalled();
       });
 
       it("broadcasts nothing and pushes no manifest", async () => {
@@ -3972,7 +4013,12 @@ describe(DeploymentWriterService.name, () => {
     });
 
     describe("the activity a patch records", () => {
-      const SAVED = { userId: "user-1", dseq: "1234", manifestVersion: Buffer.from(new Uint8Array([1, 2, 3])).toString("base64") };
+      const SAVED = {
+        userId: "user-1",
+        dseq: "1234",
+        manifestVersion: Buffer.from(new Uint8Array([1, 2, 3])).toString("base64"),
+        changes: { services: [{ service: "web", image: "x" }] }
+      };
 
       it("records the update as succeeded once the manifest is pushed", async () => {
         const { service, ability, activityService, providerService } = setup();
@@ -4013,12 +4059,73 @@ describe(DeploymentWriterService.name, () => {
         expect(activityService.record).not.toHaveBeenCalled();
       });
 
-      it("records nothing for a rename alone, which applies nothing", async () => {
-        const { service, ability, activityService } = setup();
+      it("records no update for a rename alone, which applies nothing", async () => {
+        const { service, ability, activityService, deploymentOrganizationActivityService } = setup({ storedName: "web-update" });
 
         await service.patchByUserIdAndDseq("user-1", "1234", { name: "renamed" }, ability);
 
-        expect(activityService.record).not.toHaveBeenCalled();
+        expect(activityService.record).not.toHaveBeenCalledWith(expect.objectContaining({ type: "deployment_update" }));
+        expect(deploymentOrganizationActivityService.recordUpdated).not.toHaveBeenCalled();
+      });
+
+      it("records the variables the patch added, changed and removed by name, never their values", async () => {
+        const { service, ability, activityService } = setup();
+
+        await service.patchByUserIdAndDseq(
+          "user-1",
+          "1234",
+          { services: { web: { env: { API_TOKEN: "rotated-token-value", LOG_LEVEL: "debug-level-value", DATABASE_URL: null } } } },
+          ability
+        );
+
+        const [[recorded]] = activityService.record.mock.calls;
+        expect(recorded.meta.changes).toEqual({
+          services: [{ service: "web", addedEnv: ["LOG_LEVEL"], changedEnv: ["API_TOKEN"], removedEnv: ["DATABASE_URL"] }]
+        });
+        expect(JSON.stringify(recorded)).not.toMatch(/rotated-token-value|debug-level-value/);
+      });
+
+      it("records a rename made beside the services it changed", async () => {
+        const { service, ability, activityService } = setup({ storedName: "web-update" });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, name: "renamed" }, ability);
+
+        expect(activityService.record).toHaveBeenCalledWith(
+          updatedActivityOf({ ...SAVED, changes: { name: { from: "web-update", to: "renamed" }, services: [{ service: "web", image: "x" }] } })
+        );
+      });
+
+      it("records an update that changed nothing it can name without changes, as a rotation of secret values does", async () => {
+        const { service, ability, activityService } = setup({ supplied: { s0_e0: "rotated" } });
+
+        await service.patchByUserIdAndDseq("user-1", "1234", { services: { web: {} }, sealedSecrets: CLIENT_SEAL }, ability);
+
+        const [[recorded]] = activityService.record.mock.calls;
+        expect(recorded.meta).not.toHaveProperty("changes");
+      });
+
+      it("records the update in the organization's feed once saved, even when applying it fails", async () => {
+        const { service, ability, signerService, deploymentOrganizationActivityService } = setup({ chainHash: "SOMETHING_ELSE" });
+        const failure = createError(400, "Deployment closed");
+        signerService.executeDecodedTxByUserWallet.mockRejectedValue(failure);
+
+        await expect(service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability)).rejects.toBe(failure);
+
+        expect(deploymentOrganizationActivityService.recordUpdated).toHaveBeenCalledWith(
+          { wallet: expect.objectContaining({ id: 7 }), dseq: "1234" },
+          "user-1",
+          SAVED.changes
+        );
+      });
+
+      it("records nothing in the organization's feed when the definition changed concurrently", async () => {
+        const { service, ability, deploymentOrganizationActivityService } = setup({ written: undefined });
+
+        await expect(
+          service.patchByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } }, ifManifestVersion: "STALE" }, ability)
+        ).rejects.toMatchObject({ status: 409 });
+
+        expect(deploymentOrganizationActivityService.recordUpdated).not.toHaveBeenCalled();
       });
 
       it("records an apply that failed with its reason and still answers with the failure", async () => {
@@ -4065,6 +4172,7 @@ describe(DeploymentWriterService.name, () => {
 
     describe("patchInBackgroundByUserIdAndDseq", () => {
       const SAVED_VERSION = Buffer.from(new Uint8Array([1, 2, 3])).toString("base64");
+      const CHANGES = { services: [{ service: "web", image: "x" }] };
 
       it("saves the patch together with its pending activity, its apply and a check on it", async () => {
         const { service, ability, transactionLog } = setup();
@@ -4085,7 +4193,7 @@ describe(DeploymentWriterService.name, () => {
           type: "deployment_update",
           status: "pending",
           initiator: "user",
-          meta: { dseq: "1234", manifestVersion: SAVED_VERSION },
+          meta: { dseq: "1234", manifestVersion: SAVED_VERSION, changes: CHANGES },
           dedupeKey: null
         });
       });
@@ -4102,7 +4210,8 @@ describe(DeploymentWriterService.name, () => {
             manifestVersion: SAVED_VERSION,
             walletId: 7,
             organizationId: "personal-organization-1",
-            activityId: (accepted as { activityId: string }).activityId
+            activityId: (accepted as { activityId: string }).activityId,
+            changes: CHANGES
           }),
           { singletonKey: "applyDeploymentUpdate.7.1234", ...APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS }
         );
@@ -4135,7 +4244,7 @@ describe(DeploymentWriterService.name, () => {
           );
           expect(activityService.open).toHaveBeenCalledWith({
             id: (accepted as { activityId: string }).activityId,
-            ...pendingUpdateActivityOf({ userId: "user-1", dseq: "1234", manifestVersion: SAVED_VERSION })
+            ...pendingUpdateActivityOf({ userId: "user-1", dseq: "1234", manifestVersion: SAVED_VERSION, changes: CHANGES })
           });
         });
 
@@ -4153,7 +4262,8 @@ describe(DeploymentWriterService.name, () => {
               manifestVersion: SAVED_VERSION,
               walletId: 42,
               organizationId: "organization-1",
-              activityId: (accepted as { activityId: string }).activityId
+              activityId: (accepted as { activityId: string }).activityId,
+              changes: CHANGES
             }),
             { singletonKey: "applyDeploymentUpdate.42.1234", ...APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS }
           );
@@ -4202,10 +4312,27 @@ describe(DeploymentWriterService.name, () => {
             dseq: "1234",
             manifestVersion: SAVED_VERSION,
             activityId,
-            updateJobId: "apply-job-1"
+            updateJobId: "apply-job-1",
+            changes: CHANGES
           }),
           reconcileDeploymentUpdateOptionsFor(activityId, new Date("2026-01-01T00:00:00.000Z"))
         );
+      });
+
+      it("records the update in the organization's feed once the save commits", async () => {
+        const { service, ability, deploymentOrganizationActivityService, transactionLog } = setup();
+        deploymentOrganizationActivityService.recordUpdated.mockImplementation(async () => {
+          transactionLog.push("team activity");
+        });
+
+        await service.patchInBackgroundByUserIdAndDseq("user-1", "1234", { services: { web: { image: "x" } } }, ability);
+
+        expect(deploymentOrganizationActivityService.recordUpdated).toHaveBeenCalledWith(
+          { wallet: expect.objectContaining({ id: 7 }), dseq: "1234" },
+          "user-1",
+          CHANGES
+        );
+        expect(transactionLog.slice(-2)).toEqual(["commit", "team activity"]);
       });
 
       it("answers with the activity to follow and the version to guard the next patch on", async () => {
@@ -4297,8 +4424,10 @@ describe(DeploymentWriterService.name, () => {
       onChainGroupSpecs?: OnChainGroupSpec[];
       replacedBy?: string;
       organizationId?: string | null;
+      storedName?: string | null;
     }) {
       const manifestVersion = new Uint8Array([1, 2, 3]);
+      const storedName = input?.storedName ?? null;
       const storedToken = input?.storedToken === undefined ? STORED_TOKEN : input.storedToken;
       const hasSetting = !("setting" in (input ?? {})) || input?.setting !== undefined;
 
@@ -4313,7 +4442,13 @@ describe(DeploymentWriterService.name, () => {
       const organizationId = input?.organizationId === undefined ? "personal-organization-1" : input.organizationId;
       scoped.findOneBy.mockResolvedValue(
         hasSetting
-          ? mock<DeploymentSettingsOutput>({ sdl: input?.sdl ?? STORED_SDL, sealedSecrets: storedToken, manifestVersion: storedVersion, organizationId })
+          ? mock<DeploymentSettingsOutput>({
+              sdl: input?.sdl ?? STORED_SDL,
+              name: storedName,
+              sealedSecrets: storedToken,
+              manifestVersion: storedVersion,
+              organizationId
+            })
           : undefined
       );
       const transactionLog: string[] = [];
@@ -4323,7 +4458,13 @@ describe(DeploymentWriterService.name, () => {
         if (id === undefined) return undefined;
 
         scoped.findOneBy.mockResolvedValue(
-          mock<DeploymentSettingsOutput>({ sdl, sealedSecrets, manifestVersion: input?.replacedBy ?? manifestVersion, organizationId })
+          mock<DeploymentSettingsOutput>({
+            sdl,
+            name: name ?? storedName,
+            sealedSecrets,
+            manifestVersion: input?.replacedBy ?? manifestVersion,
+            organizationId
+          })
         );
         return { id, name: name ?? input?.recordedName ?? null };
       });
@@ -4392,6 +4533,7 @@ describe(DeploymentWriterService.name, () => {
       activityService.open.mockImplementation(async () => {
         transactionLog.push("activity");
       });
+      const deploymentOrganizationActivityService = mock<DeploymentOrganizationActivityService>();
       const service = new DeploymentWriterService(
         signerService,
         mock<RpcMessageService>(),
@@ -4415,7 +4557,7 @@ describe(DeploymentWriterService.name, () => {
         leaseGpuDetectionJobService,
         activityService,
         mock<DeploymentProjectService>(),
-        mock<DeploymentOrganizationActivityService>(),
+        deploymentOrganizationActivityService,
         mock<DeploymentDepositLedgerService>(),
         mock<DeploymentHttpService>(),
         mock<ChainErrorService>(),
@@ -4445,6 +4587,7 @@ describe(DeploymentWriterService.name, () => {
         txService,
         jobQueueService,
         activityService,
+        deploymentOrganizationActivityService,
         transactionLog,
         sealedFor
       };

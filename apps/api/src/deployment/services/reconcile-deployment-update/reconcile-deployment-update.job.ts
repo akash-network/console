@@ -1,5 +1,6 @@
 import { addMinutes } from "date-fns";
 
+import type { DeploymentChanges } from "@src/activity/model-schemas";
 import { type EnqueueOptions, type Job, JOB_NAME } from "@src/core";
 
 /** Records what became of an update left pending: a request's update whose outcome was undecided, or a background update whose job was lost to a worker restart or ran out of retries on an undecided outcome. */
@@ -17,6 +18,7 @@ export class ReconcileDeploymentUpdate implements Job {
       activityId: string;
       /** Absent for an update the request applied itself, which has no job to wait for. */
       updateJobId?: string;
+      changes?: DeploymentChanges;
     }
   ) {}
 }

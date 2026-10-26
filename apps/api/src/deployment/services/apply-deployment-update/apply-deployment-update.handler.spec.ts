@@ -57,6 +57,27 @@ describe(ApplyDeploymentUpdateHandler.name, () => {
     expect(deploymentWriterService.applySavedPatch.mock.invocationCallOrder[0]).toBeLessThan(activityService.settle.mock.invocationCallOrder[0]);
   });
 
+  it("settles the update with what the request that saved it changed, applying the saved version alone", async () => {
+    const { handler, deploymentWriterService, activityService, ability } = setup();
+    const changes = { services: [{ service: "web", changedEnv: ["API_URL"] }] };
+
+    await handler.handle({ ...PAYLOAD, changes }, FIRST_ATTEMPT);
+
+    expect(deploymentWriterService.applySavedPatch).toHaveBeenCalledWith(SAVED, ability, { assertMayStillSign: expect.any(Function) });
+    expect(activityService.settle).toHaveBeenCalledWith("activity-1", updatedActivityOf({ ...UPDATE, changes }));
+  });
+
+  it("settles a failed update with what the request that saved it changed", async () => {
+    const { handler, deploymentWriterService, activityService } = setup();
+    const changes = { services: [{ service: "web", image: "nginx:1.27" }] };
+    const failure = createError(400, "Deployment closed");
+    deploymentWriterService.applySavedPatch.mockRejectedValue(failure);
+
+    await expect(handler.handle({ ...PAYLOAD, changes }, LAST_ATTEMPT)).rejects.toBe(failure);
+
+    expect(activityService.settle).toHaveBeenCalledWith("activity-1", failedUpdateActivityOf({ ...UPDATE, changes }, failure));
+  });
+
   it("has the writer check, before it signs, that the member who saved the update may still sign with its wallet", async () => {
     const { handler, deploymentWriterService, memberDeploymentAccessService } = setup();
 

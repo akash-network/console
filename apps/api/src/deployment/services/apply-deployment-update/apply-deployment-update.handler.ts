@@ -9,7 +9,7 @@ import { failedUpdateActivityOf, updatedActivityOf } from "@src/deployment/utils
 import { isManifestInvalid } from "@src/provider/services/provider/provider.service";
 import { ApplyDeploymentUpdate } from "./apply-deployment-update.job";
 
-type UpdateKey = { userId: string; dseq: string; manifestVersion: string };
+type UpdateKey = Parameters<typeof updatedActivityOf>[0];
 
 @singleton()
 export class ApplyDeploymentUpdateHandler implements JobHandler<ApplyDeploymentUpdate> {
@@ -33,13 +33,13 @@ export class ApplyDeploymentUpdateHandler implements JobHandler<ApplyDeploymentU
     ];
   }
 
-  async handle({ userId, dseq, manifestVersion, walletId, activityId }: JobPayload<ApplyDeploymentUpdate>, job?: JobMeta): Promise<void> {
+  async handle({ userId, dseq, manifestVersion, walletId, activityId, changes }: JobPayload<ApplyDeploymentUpdate>, job?: JobMeta): Promise<void> {
     if (!(await this.activityService.isPending(activityId))) return;
 
-    const update = { userId, dseq, manifestVersion };
+    const update = { userId, dseq, manifestVersion, changes };
 
     try {
-      await this.deploymentWriterService.applySavedPatch({ ...update, walletId }, this.authService.ability, {
+      await this.deploymentWriterService.applySavedPatch({ userId, dseq, manifestVersion, walletId }, this.authService.ability, {
         assertMayStillSign: () => this.memberDeploymentAccessService.assertMayStillSign({ userId, walletId, dseq })
       });
     } catch (error) {

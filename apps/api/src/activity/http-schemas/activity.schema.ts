@@ -1,6 +1,13 @@
 import { z } from "@hono/zod-openapi";
 
-import { activityInitiatorEnum, activityStatusEnum, activityTypeEnum, ALERT_ACTIVITY_TYPES, SYSTEM_CLOSE_REASONS } from "@src/activity/model-schemas";
+import {
+  activityInitiatorEnum,
+  activityStatusEnum,
+  activityTypeEnum,
+  ALERT_ACTIVITY_TYPES,
+  DEPLOYMENT_SERVICE_SETTINGS,
+  SYSTEM_CLOSE_REASONS
+} from "@src/activity/model-schemas";
 
 export const MAX_ACTIVITY_PAGE_LIMIT = 100;
 export const DEFAULT_ACTIVITY_PAGE_LIMIT = 20;
@@ -13,6 +20,30 @@ const ActivityStatusSchema = z.enum(activityStatusEnum.enumValues).openapi({
 const ActivityTypeSchema = z.enum(activityTypeEnum.enumValues).openapi({
   description: "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
 });
+
+const EnvNamesSchema = z.array(z.string());
+
+const DeploymentServiceChangesSchema = z.object({
+  service: z.string().openapi({ description: "The service the update changed." }),
+  image: z.string().optional().openapi({ description: "The image the service now runs, when the update changed it." }),
+  addedEnv: EnvNamesSchema.optional().openapi({ description: "Environment variables the update added, by name." }),
+  changedEnv: EnvNamesSchema.optional().openapi({ description: "Environment variables the update gave a new value, by name." }),
+  removedEnv: EnvNamesSchema.optional().openapi({ description: "Environment variables the update removed, by name." }),
+  settings: z
+    .array(z.enum(DEPLOYMENT_SERVICE_SETTINGS))
+    .optional()
+    .openapi({ description: "The other fields of the service the update changed, named as a patch names them." })
+});
+
+const DeploymentChangesSchema = z
+  .object({
+    name: z.object({ from: z.string().nullable(), to: z.string() }).optional().openapi({ description: "The deployment's name before and after." }),
+    services: z.array(DeploymentServiceChangesSchema).optional()
+  })
+  .openapi({
+    description:
+      "What an update or a rename changed, on `deployment_update` and `deployment_rename`. Names variables and never their values. Absent on an update that only replaced secret values."
+  });
 
 export const ActivitySchema = z.object({
   id: z.string().uuid(),
@@ -34,7 +65,8 @@ export const ActivitySchema = z.object({
     }),
     alertId: z.string().uuid().optional().openapi({ description: "The alert that fired, on an alert." }),
     summary: z.string().optional().openapi({ description: "The alert's summary as the user wrote it, filled in for this firing, on an alert." }),
-    organizationId: z.string().uuid().optional().openapi({ description: "The organization the alert is filed in, on an alert set in one." })
+    organizationId: z.string().uuid().optional().openapi({ description: "The organization the alert is filed in, on an alert set in one." }),
+    changes: DeploymentChangesSchema.optional()
   }),
   seenAt: z.string().datetime().nullable().openapi({ description: "When the user first marked the activity seen." }),
   createdAt: z.string().datetime(),
