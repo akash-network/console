@@ -1,10 +1,13 @@
-import type { GenerateManifestResult, SDLInput } from "@akashnetwork/chain-sdk";
+import type { GenerateManifestResult, Manifest, SDLInput } from "@akashnetwork/chain-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { generateManifestReportingBuildFailures } from "./sdl-manifest";
+import { findMissingGlobalExposure, generateManifestReportingBuildFailures } from "./sdl-manifest";
 
 type BuiltManifest = Extract<GenerateManifestResult, { ok: true }>["value"];
+type ManifestGroup = Manifest[number];
+type ManifestService = ManifestGroup["services"][number];
+type ManifestExpose = ManifestService["expose"][number];
 
 describe(generateManifestReportingBuildFailures.name, () => {
   it("returns the generator's own validation errors untouched", () => {
@@ -96,4 +99,30 @@ describe(generateManifestReportingBuildFailures.name, () => {
 
     expect(() => generateManifestReportingBuildFailures(mock<SDLInput>(), generate)).toThrow(expect.objectContaining({ reason: "not an error" }));
   });
+});
+
+describe(findMissingGlobalExposure.name, () => {
+  it("finds nothing missing when any port of any service in any group is exposed globally", () => {
+    const manifest = [groupExposing([false]), groupExposing([false], [false, true])];
+
+    expect(findMissingGlobalExposure(manifest)).toBeUndefined();
+  });
+
+  it("reports a manifest whose every port is exposed only inside the deployment", () => {
+    const manifest = [groupExposing([false]), groupExposing([false, false], [])];
+
+    expect(findMissingGlobalExposure(manifest)).toEqual({
+      schemaPath: "",
+      instancePath: "/services",
+      keyword: "expose",
+      params: {},
+      message: "at least one service must expose a port with `global: true`, because providers refuse a deployment that exposes none"
+    });
+  });
+
+  function groupExposing(...services: boolean[][]): ManifestGroup {
+    return mock<ManifestGroup>({
+      services: services.map(globals => mock<ManifestService>({ expose: globals.map(global => mock<ManifestExpose>({ global })) }))
+    });
+  }
 });

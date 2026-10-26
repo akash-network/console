@@ -55,7 +55,7 @@ function sdlWith(services: Record<string, string[]>, credentials: Record<string,
   const bodies = Object.entries(services)
     .map(
       ([name, env]) =>
-        `  ${name}:\n    image: nginx\n${credentialsYaml(credentials[name])}    env:\n${env.map(entry => `      - ${JSON.stringify(entry)}\n`).join("")}`
+        `  ${name}:\n    image: nginx\n${credentialsYaml(credentials[name])}    expose:\n      - port: 80\n        as: 80\n        to:\n          - global: true\n    env:\n${env.map(entry => `      - ${JSON.stringify(entry)}\n`).join("")}`
     )
     .join("");
   const computes = Object.keys(services)

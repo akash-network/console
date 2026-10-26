@@ -1,8 +1,23 @@
-import type { GenerateManifestResult, SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
+import type { GenerateManifestResult, Manifest, SDLInput, ValidationError } from "@akashnetwork/chain-sdk";
 import { generateManifest } from "@akashnetwork/chain-sdk";
 
 /** chain-sdk checks sizes only while building the manifest and throws this instead of returning a validation error. */
 const INVALID_SIZE_MESSAGE_PREFIX = "Invalid size string: ";
+
+/** Providers refuse a manifest that exposes no service globally, but only after the lease it was sent for is paid for, while the chain accepts the deployment. */
+export function findMissingGlobalExposure(manifest: Manifest): ValidationError | undefined {
+  const exposesGlobally = manifest.some(group => group.services.some(service => service.expose.some(expose => expose.global)));
+
+  if (exposesGlobally) return undefined;
+
+  return {
+    schemaPath: "",
+    instancePath: "/services",
+    keyword: "expose",
+    params: {},
+    message: "at least one service must expose a port with `global: true`, because providers refuse a deployment that exposes none"
+  };
+}
 
 /** The generator reads nothing but the document, so whatever it throws is something about the document that only the caller can change. */
 export function generateManifestReportingBuildFailures(sdl: SDLInput, generate: typeof generateManifest = generateManifest): GenerateManifestResult {
