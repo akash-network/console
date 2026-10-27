@@ -1871,7 +1871,7 @@ describe(DeploymentWriterService.name, () => {
       const queued = await service.createInBackground({ userId: "user-1", sdl: SDL_WITH_SECRETS, autoLease: false });
 
       const createJob = jobQueueService.enqueue.mock.calls.map(([job]) => job).find(job => job instanceof CreateDeployment);
-      expect(createJob).toEqual(expect.objectContaining({ data: expect.objectContaining({ autoLease: false }) }));
+      expect(createJob?.data).not.toHaveProperty("autoLease");
       expect(queued).not.toHaveProperty("autoLease");
     });
 

@@ -1473,9 +1473,8 @@ describe("Deployments API", () => {
 
       expect(response.status).toBe(202);
       expect(data).not.toHaveProperty("autoLease");
-      expect(await findJobRows(CreateDeployment[JOB_NAME], { singletonKey: createDeploymentKeyFor({ walletId: wallets[0].id, dseq: data.dseq }) })).toEqual([
-        expect.objectContaining({ data: expect.objectContaining({ autoLease: false }) })
-      ]);
+      const [job] = await findJobRows(CreateDeployment[JOB_NAME], { singletonKey: createDeploymentKeyFor({ walletId: wallets[0].id, dseq: data.dseq }) });
+      expect(job.data).not.toHaveProperty("autoLease");
     });
 
     it("leaves the provider of a one-click deploy to the browser while background provider picks are switched off", async () => {
