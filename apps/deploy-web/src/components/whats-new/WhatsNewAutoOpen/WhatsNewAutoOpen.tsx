@@ -15,6 +15,8 @@ const ANNOUNCE_AFTER_MS = 1100;
 /** Announcing over these would pull the user out of a task they are in the middle of. */
 const MID_TASK_PATH_PREFIXES = ["/new-deployment", "/invitations", "/onboarding"];
 
+const OPEN_DIALOG = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]';
+
 /** Announces the release once, shortly after a page with the full navigation settles. */
 export function WhatsNewAutoOpen({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES }) {
   const pathname: string | null = d.usePathname();
@@ -29,7 +31,12 @@ export function WhatsNewAutoOpen({ dependencies: d = DEPENDENCIES }: { dependenc
   useEffect(
     function announceOnceThePageSettles() {
       if (!shouldAnnounce) return;
-      const timeout = setTimeout(() => openWhatsNew("first_visit"), ANNOUNCE_AFTER_MS);
+      let timeout: ReturnType<typeof setTimeout>;
+      const announceUnlessADialogIsOpen = () => {
+        if (document.querySelector(OPEN_DIALOG)) timeout = setTimeout(announceUnlessADialogIsOpen, ANNOUNCE_AFTER_MS);
+        else openWhatsNew("first_visit");
+      };
+      timeout = setTimeout(announceUnlessADialogIsOpen, ANNOUNCE_AFTER_MS);
       return function cancelAnnouncement() {
         clearTimeout(timeout);
       };

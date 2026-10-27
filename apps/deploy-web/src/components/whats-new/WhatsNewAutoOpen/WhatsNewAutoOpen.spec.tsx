@@ -10,6 +10,8 @@ import { WhatsNewAutoOpen } from "./WhatsNewAutoOpen";
 
 import { act, render } from "@testing-library/react";
 
+type OtherDialog = { role: string; state: string } | null;
+
 describe(WhatsNewAutoOpen.name, () => {
   it("announces the release a moment after the page settles", () => {
     const { openWhatsNew } = setup();
@@ -101,6 +103,37 @@ describe(WhatsNewAutoOpen.name, () => {
     expect(openWhatsNew).not.toHaveBeenCalled();
   });
 
+  describe("when another dialog is open", () => {
+    it.each(["dialog", "alertdialog"])("holds the announcement while an open %s is showing, then makes it once it closes", role => {
+      const { openWhatsNew, rerenderWith } = setup({ otherDialog: { role, state: "open" } });
+
+      act(() => vi.advanceTimersByTime(5000));
+      expect(openWhatsNew).not.toHaveBeenCalled();
+
+      rerenderWith({ otherDialog: null });
+      act(() => vi.advanceTimersByTime(1100));
+      expect(openWhatsNew).toHaveBeenCalledExactlyOnceWith("first_visit");
+    });
+
+    it("does not wait for a dialog that is closing", () => {
+      const { openWhatsNew } = setup({ otherDialog: { role: "dialog", state: "closed" } });
+
+      act(() => vi.advanceTimersByTime(1100));
+
+      expect(openWhatsNew).toHaveBeenCalledOnce();
+    });
+
+    it("cancels a held announcement when the user leaves the page", () => {
+      const { openWhatsNew, unmount } = setup({ otherDialog: { role: "dialog", state: "open" } });
+
+      act(() => vi.advanceTimersByTime(1500));
+      unmount();
+      act(() => vi.advanceTimersByTime(5000));
+
+      expect(openWhatsNew).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(
     input: {
       seenReleases?: string[];
@@ -108,6 +141,7 @@ describe(WhatsNewAutoOpen.name, () => {
       pathname?: string | null;
       isOrganizationLoading?: boolean;
       hasOrganizationFailedToLoad?: boolean;
+      otherDialog?: OtherDialog;
     } = {}
   ) {
     vi.useFakeTimers();
@@ -117,25 +151,27 @@ describe(WhatsNewAutoOpen.name, () => {
     store.set(whatsNewViewAtom, input.view ?? null);
     const openWhatsNew = vi.fn<ReturnType<typeof DEPENDENCIES.useOpenWhatsNew>>();
 
-    type OrganizationState = { isOrganizationLoading: boolean; hasOrganizationFailedToLoad: boolean };
-    const dependenciesFor = (state: OrganizationState): typeof DEPENDENCIES => ({
+    type PageState = { isOrganizationLoading: boolean; hasOrganizationFailedToLoad: boolean; otherDialog: OtherDialog };
+    const dependenciesFor = (state: PageState): typeof DEPENDENCIES => ({
       usePathname: () => (input.pathname === undefined ? "/deployments" : input.pathname) as string,
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ isLoading: state.isOrganizationLoading, isError: state.hasOrganizationFailedToLoad }),
       useOpenWhatsNew: () => openWhatsNew
     });
-    const renderWith = (state: OrganizationState) => (
+    const renderWith = (state: PageState) => (
       <JotaiProvider store={store}>
+        {state.otherDialog && <div role={state.otherDialog.role} data-state={state.otherDialog.state} aria-label="Other dialog" />}
         <WhatsNewAutoOpen dependencies={dependenciesFor(state)} />
       </JotaiProvider>
     );
     const initialState = {
       isOrganizationLoading: input.isOrganizationLoading ?? false,
-      hasOrganizationFailedToLoad: input.hasOrganizationFailedToLoad ?? false
+      hasOrganizationFailedToLoad: input.hasOrganizationFailedToLoad ?? false,
+      otherDialog: input.otherDialog ?? null
     };
 
     const { rerender, unmount } = render(renderWith(initialState));
 
-    return { openWhatsNew, unmount, rerenderWith: (state: Partial<OrganizationState>) => rerender(renderWith({ ...initialState, ...state })) };
+    return { openWhatsNew, unmount, rerenderWith: (state: Partial<PageState>) => rerender(renderWith({ ...initialState, ...state })) };
   }
 });
