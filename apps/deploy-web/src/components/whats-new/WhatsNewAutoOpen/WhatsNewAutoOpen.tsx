@@ -15,7 +15,7 @@ const ANNOUNCE_AFTER_MS = 1100;
 /** Announcing over these would pull the user out of a task they are in the middle of. */
 const MID_TASK_PATH_PREFIXES = ["/new-deployment", "/invitations", "/onboarding"];
 
-const OPEN_DIALOG = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]';
+const OPEN_DIALOG_OR_MENU = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"]';
 
 /** Announces the release once, shortly after a page with the full navigation settles. */
 export function WhatsNewAutoOpen({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES }) {
@@ -32,11 +32,11 @@ export function WhatsNewAutoOpen({ dependencies: d = DEPENDENCIES }: { dependenc
     function announceOnceThePageSettles() {
       if (!shouldAnnounce) return;
       let timeout: ReturnType<typeof setTimeout>;
-      const announceUnlessADialogIsOpen = () => {
-        if (document.querySelector(OPEN_DIALOG)) timeout = setTimeout(announceUnlessADialogIsOpen, ANNOUNCE_AFTER_MS);
+      const announceUnlessADialogOrMenuIsOpen = () => {
+        if (document.querySelector(OPEN_DIALOG_OR_MENU)) timeout = setTimeout(announceUnlessADialogOrMenuIsOpen, ANNOUNCE_AFTER_MS);
         else openWhatsNew("first_visit");
       };
-      timeout = setTimeout(announceUnlessADialogIsOpen, ANNOUNCE_AFTER_MS);
+      timeout = setTimeout(announceUnlessADialogOrMenuIsOpen, ANNOUNCE_AFTER_MS);
       return function cancelAnnouncement() {
         clearTimeout(timeout);
       };

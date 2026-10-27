@@ -103,8 +103,8 @@ describe(WhatsNewAutoOpen.name, () => {
     expect(openWhatsNew).not.toHaveBeenCalled();
   });
 
-  describe("when another dialog is open", () => {
-    it.each(["dialog", "alertdialog"])("holds the announcement while an open %s is showing, then makes it once it closes", role => {
+  describe("when another dialog or menu is open", () => {
+    it.each(["dialog", "alertdialog", "menu"])("holds the announcement while an open %s is showing, then makes it once it closes", role => {
       const { openWhatsNew, rerenderWith } = setup({ otherDialog: { role, state: "open" } });
 
       act(() => vi.advanceTimersByTime(5000));
