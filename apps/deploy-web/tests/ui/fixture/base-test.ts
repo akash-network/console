@@ -8,6 +8,7 @@ import { Auth0ManagementService } from "../services/auth0-management.service";
 import { createEmailVerificationStrategy, type EmailVerificationStrategy } from "../services/email-verification";
 import { testEnvConfig } from "./test-env.config";
 import { getUserAgent } from "./user-agent";
+import { WHATS_NEW_RELEASE_IDS } from "./whats-new-releases";
 
 export * from "@playwright/test";
 export { getUserAgent } from "./user-agent";
@@ -95,9 +96,6 @@ export async function injectUIConfig(page: Page) {
     (window as any).__AK_INJECTED_CONFIG__ = Object.freeze({ NEXT_PUBLIC_TURNSTILE_SITE_KEY: siteKey });
   }, ALWAYS_PASS_INVISIBLE_SITE_KEY);
 }
-
-/** A fresh browser gets each release announced in a modal over its first page, covering whatever the test clicks next. */
-const WHATS_NEW_RELEASE_IDS = ["orgs-projects-2026-10"];
 
 async function skipWhatsNewAnnouncements(context: BrowserContext) {
   await context.addInitScript(
