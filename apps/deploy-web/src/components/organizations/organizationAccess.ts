@@ -19,8 +19,7 @@ export const isLimitedToProjects = (organization: OrganizationOutput): boolean =
 
 export const hasMembersPage = (type: OrganizationType): boolean => type === "team";
 
-/** A personal organization files everything into its default project, so only a team works in projects. */
-export const isProjectsUiEnabled = (organization: OrganizationOutput): boolean => organization.type === "team";
+export const landsOnProjects = (type: OrganizationType): boolean => type === "team";
 
 export const canManageMembers = (role: OrganizationRole): boolean => role === "owner" || role === "admin";
 

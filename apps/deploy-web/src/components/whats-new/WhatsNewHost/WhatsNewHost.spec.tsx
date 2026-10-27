@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { whatsNewViewAtom } from "@src/store/whatsNewStore";
-import type { OrganizationOutput, OrganizationRole } from "@src/types/organization";
+import type { OrganizationOutput, OrganizationRole, OrganizationType } from "@src/types/organization";
 import { ORGANIZATIONS_RELEASE_ID } from "../organizationsRelease";
 import type { DEPENDENCIES } from "./WhatsNewHost";
 import { WhatsNewHost } from "./WhatsNewHost";
@@ -35,30 +35,26 @@ describe(WhatsNewHost.name, () => {
     expect(modalProps()).toMatchObject({ isOpen: true, isHandingOffToTour: false });
   });
 
-  it("tells a team organization its deployments now live in projects, and tours an owner through them", () => {
-    const { modalProps, tourProps } = setup({ projectsEnabled: true, role: "owner" });
+  it.each(["team", "personal"] satisfies OrganizationType[])(
+    "tells a %s organization its deployments now live in projects, and tours its owner through them",
+    type => {
+      const { modalProps, tourProps } = setup({ organizationType: type, role: "owner" });
 
-    expect(modalProps().release.slides[0].title).toBe("Your deployments now live in projects");
-    expect(tourProps().steps.map(step => step.id)).toEqual(["projects", "new-project", "switcher", "create-organization"]);
-  });
+      expect(modalProps().release.slides[0].title).toBe("Your deployments now live in projects");
+      expect(tourProps().steps.map(step => step.id)).toEqual(["projects", "new-project", "switcher", "create-organization"]);
+    }
+  );
 
   it("leaves New project out of a member's tour", () => {
-    const { tourProps } = setup({ projectsEnabled: true, role: "member" });
+    const { tourProps } = setup({ role: "member" });
 
     expect(tourProps().steps.map(step => step.id)).toEqual(["projects", "switcher", "create-organization"]);
   });
 
   it("leaves New project out while the organization is not known yet", () => {
-    const { tourProps } = setup({ projectsEnabled: true, role: undefined });
+    const { tourProps } = setup({ role: undefined });
 
     expect(tourProps().steps.map(step => step.id)).toEqual(["projects", "switcher", "create-organization"]);
-  });
-
-  it("tours a personal account through the switcher only", () => {
-    const { modalProps, tourProps } = setup({ projectsEnabled: false, role: "owner" });
-
-    expect(modalProps().release.slides[0].title).toBe("Projects group your team’s deployments");
-    expect(tourProps().steps.map(step => step.id)).toEqual(["switcher", "create-organization"]);
   });
 
   it("clears the request when the announcement closes", () => {
@@ -82,24 +78,16 @@ describe(WhatsNewHost.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("whats_new_tour_started", { category: "user", release: ORGANIZATIONS_RELEASE_ID, steps: 4 });
   });
 
-  it("starts a team tour on the Projects page", () => {
-    const { modalProps, push } = setup({ view: "announcement", pathname: "/deployments" });
+  it.each(["team", "personal"] satisfies OrganizationType[])("starts a %s organization's tour on the Projects page", type => {
+    const { modalProps, push } = setup({ view: "announcement", organizationType: type, pathname: "/deployments" });
 
     act(() => modalProps().onTryIt(null));
 
     expect(push).toHaveBeenCalledExactlyOnceWith("/projects");
   });
 
-  it("stays put when the team tour starts on the Projects page", () => {
+  it("stays put when the tour starts on the Projects page", () => {
     const { modalProps, push } = setup({ view: "announcement", pathname: "/projects" });
-
-    act(() => modalProps().onTryIt(null));
-
-    expect(push).not.toHaveBeenCalled();
-  });
-
-  it("starts a personal account's tour where the user is", () => {
-    const { modalProps, push } = setup({ view: "announcement", projectsEnabled: false, pathname: "/deployments" });
 
     act(() => modalProps().onTryIt(null));
 
@@ -123,7 +111,7 @@ describe(WhatsNewHost.name, () => {
   function setup(
     input: {
       isOrganizationsEnabled?: boolean;
-      projectsEnabled?: boolean;
+      organizationType?: OrganizationType;
       role?: OrganizationRole;
       pathname?: string;
       view?: "announcement" | "tour";
@@ -140,8 +128,7 @@ describe(WhatsNewHost.name, () => {
       useFlag: flag => flag === "organizations" && (input.isOrganizationsEnabled ?? true),
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
-          activeOrganization: role ? mock<OrganizationOutput>({ role }) : undefined,
-          projectsEnabled: input.projectsEnabled ?? true
+          activeOrganization: role ? mock<OrganizationOutput>({ role, type: input.organizationType ?? "team" }) : undefined
         }),
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push }),
       usePathname: () => input.pathname ?? "/deployments",

@@ -11,7 +11,7 @@ import {
   canTransferOwnership,
   hasGeneralSettingsPage,
   isLimitedToProjects,
-  isProjectsUiEnabled
+  landsOnProjects
 } from "./organizationAccess";
 
 describe("organizationAccess", () => {
@@ -55,20 +55,9 @@ describe("organizationAccess", () => {
     expect(canDeleteOrganization(role)).toBe(expected);
   });
 
-  it("turns the projects experience on for a team organization only", () => {
-    const team: OrganizationOutput = {
-      id: "org-2",
-      name: "Acme Corp",
-      slug: "acme-corp",
-      type: "team",
-      role: "admin",
-      isActive: true,
-      hasPaymentMethod: true,
-      createdAt: ""
-    };
-
-    expect(isProjectsUiEnabled(team)).toBe(true);
-    expect(isProjectsUiEnabled({ ...team, type: "personal" })).toBe(false);
+  it("lands a team organization on its projects and a personal account on its deployments", () => {
+    expect(landsOnProjects("team")).toBe(true);
+    expect(landsOnProjects("personal")).toBe(false);
   });
 
   it.each([

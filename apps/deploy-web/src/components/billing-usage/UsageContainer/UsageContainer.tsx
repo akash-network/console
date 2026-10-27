@@ -73,13 +73,13 @@ export type ChildrenProps = {
   onDatePresetChange: (preset: UsageDatePreset) => void;
   canExport: boolean;
   onExport: () => void;
-  /** Null unless the caller may see a team's spend by project and the page covers every project. */
+  /** Null unless the caller may see the spend by project and the page covers every project. */
   projectSpend: ProjectSpendSection | null;
-  /** Null outside a team, whose usage alone can be narrowed to one project. */
+  /** Null unless the caller may see the spend by project. */
   projectScope: ProjectScopeControl | null;
-  /** Null outside a team, whose daily spend alone is split by project. */
+  /** Null while the figures come from the wallet, which a personal account keeps across every project. */
   dailySpendBreakdown: DailySpendBreakdown | null;
-  /** Null outside a team, whose spend alone is broken down by deployment. */
+  /** Null while the figures come from the wallet, which a personal account keeps across every project. */
   deploymentSpend: DeploymentSpendSection | null;
 };
 
@@ -111,22 +111,23 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
   const previousPeriodStats = d.useUsageStats({ address, ...previousSpendRange });
   const { perBlockUsdByDseq, perHourUsd, isLoading: isSpendRateLoading, isError: isSpendRateError } = d.useCurrentSpendRate();
   const { activeOrganization, projectsEnabled } = d.useActiveOrganization();
-  const isTeamUsage = projectsEnabled && !!activeOrganization && canViewBillingAndUsage(activeOrganization.role);
+  const seesProjectSpend = projectsEnabled && !!activeOrganization && canViewBillingAndUsage(activeOrganization.role);
   const [projectScope, setProjectScope] = useState<ProjectScope>(null);
-  const teamSpend = d.useDeploymentSpendQuery(spendRange, { enabled: isTeamUsage });
-  const previousTeamSpend = d.useDeploymentSpendQuery(previousSpendRange, { enabled: isTeamUsage });
-  const projectSpend = d.useProjectSpendQuery(spendRange, { enabled: isTeamUsage });
-  const projects = d.useProjectsQuery({ enabled: isTeamUsage });
-  const scopedUsage = teamSpend.data && scopeUsage(teamSpend.data, projectScope);
+  const isScopedToProject = seesProjectSpend && projectScope !== null;
+  const readsSpendReport = isScopedToProject || (seesProjectSpend && activeOrganization?.type === "team");
+  const spendReport = d.useDeploymentSpendQuery(spendRange, { enabled: seesProjectSpend });
+  const previousSpendReport = d.useDeploymentSpendQuery(previousSpendRange, { enabled: readsSpendReport });
+  const projectSpend = d.useProjectSpendQuery(spendRange, { enabled: seesProjectSpend });
+  const projects = d.useProjectsQuery({ enabled: seesProjectSpend });
+  const scopedUsage = spendReport.data && scopeUsage(spendReport.data, projectScope);
   const scopeProjects = (projects.data ?? []).map(({ id, name }) => ({ id, name }));
-  const isScopedToProject = isTeamUsage && projectScope !== null;
   const scopedProject = projects.data?.find(({ id }) => id === projectScope);
   const scopedProjectName = projectScope === null ? null : scopedProject?.name ?? "this project";
 
   const usageHistoryData = usageHistory.data ?? [];
   const usageHistoryStatsData = usageStats.data ?? EMPTY_USAGE_STATS;
-  const figures: UsageFigures = isTeamUsage
-    ? teamFiguresOf({ current: teamSpend, currentUsage: scopedUsage, previous: previousTeamSpend, scope: projectScope })
+  const figures: UsageFigures = readsSpendReport
+    ? spendReportFiguresOf({ current: spendReport, currentUsage: scopedUsage, previous: previousSpendReport, scope: projectScope })
     : {
         usageHistoryData,
         usageHistoryStatsData,
@@ -150,7 +151,7 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
   };
 
   const usageExport = isScopedToProject
-    ? projectUsageExportOf({ usage: scopedUsage, project: scopedProject, isError: teamSpend.isError })
+    ? projectUsageExportOf({ usage: scopedUsage, project: scopedProject, isError: spendReport.isError })
     : walletUsageExportOf({ history: usageHistory, stats: usageStats });
 
   const exportCsv = () => {
@@ -175,8 +176,8 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
         isUsageHistoryStatsError: figures.isUsageHistoryStatsError,
         spendRate: {
           perHourUsd: isScopedToProject ? hourlyRateOf(perBlockUsdByDseq, scopedUsage?.dseqs ?? []) : perHourUsd,
-          isLoading: isSpendRateLoading || (isScopedToProject && teamSpend.isLoading),
-          isError: isSpendRateError || (isScopedToProject && teamSpend.isError)
+          isLoading: isSpendRateLoading || (isScopedToProject && spendReport.isLoading),
+          isError: isSpendRateError || (isScopedToProject && spendReport.isError)
         },
         dateRange,
         onDateRangeChange: changeDateRange,
@@ -185,24 +186,24 @@ export const UsageContainer: FC<UsageContainerProps> = ({ children, dependencies
         canExport: usageExport !== null,
         onExport: exportCsv,
         projectSpend:
-          isTeamUsage && !isScopedToProject
+          seesProjectSpend && !isScopedToProject
             ? {
-                rows: projectSpend.data ? projectSpendRowsOf(projectSpend.data, teamSpend.data) : [],
+                rows: projectSpend.data ? projectSpendRowsOf(projectSpend.data, spendReport.data) : [],
                 isEstimated: !!projectSpend.data?.isEstimated,
                 isPartial: !!projectSpend.data && !projectSpend.data.total,
-                isLoading: projectSpend.isLoading || teamSpend.isLoading,
-                isError: projectSpend.isError || teamSpend.isError
+                isLoading: projectSpend.isLoading || spendReport.isLoading,
+                isError: projectSpend.isError || spendReport.isError
               }
             : null,
-        projectScope: isTeamUsage ? { projects: scopeProjects, selected: projectScope, onChange: setProjectScope } : null,
-        dailySpendBreakdown: isTeamUsage ? dailySpendBreakdownOf({ report: teamSpend.data, scopedProjectName }) : null,
-        deploymentSpend: isTeamUsage
+        projectScope: seesProjectSpend ? { projects: scopeProjects, selected: projectScope, onChange: setProjectScope } : null,
+        dailySpendBreakdown: readsSpendReport ? dailySpendBreakdownOf({ report: spendReport.data, scopedProjectName }) : null,
+        deploymentSpend: readsSpendReport
           ? {
               title: scopedProjectName === null ? "Spend by deployment" : `Spend by deployment · ${scopedProjectName}`,
-              rows: teamSpend.data ? deploymentRowsOf(teamSpend.data, projectScope) : [],
+              rows: spendReport.data ? deploymentRowsOf(spendReport.data, projectScope) : [],
               showsProject: projectScope === null,
-              isLoading: teamSpend.isLoading,
-              isError: teamSpend.isError
+              isLoading: spendReport.isLoading,
+              isError: spendReport.isError
             }
           : null
       })}
@@ -215,7 +216,7 @@ function resolveDateRange(preset: UsageDatePreset, customRange: UsageDateRange) 
   return preset === "custom" ? customRange : getUsagePresetRange(preset);
 }
 
-function teamFiguresOf({
+function spendReportFiguresOf({
   current,
   currentUsage,
   previous,

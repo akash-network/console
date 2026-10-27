@@ -222,7 +222,7 @@ describe(WhatsNewModal.name, () => {
       useElementWidth: () => ({ measureRef: vi.fn(), width: input.stageWidth ?? 640 }),
       WhatsNewScene
     };
-    const release = organizationsRelease({ isInTeam: true, canManageProjects: true, showProjects: vi.fn() });
+    const release = organizationsRelease({ canManageProjects: true, showProjects: vi.fn() });
 
     render(
       <WhatsNewModal

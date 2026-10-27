@@ -7,7 +7,6 @@ import { useStore } from "jotai";
 import { useRouter } from "next/router";
 import { useSnackbar } from "notistack";
 
-import { isProjectsUiEnabled } from "@src/components/organizations/organizationAccess";
 import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { useFeatureFlagsReady } from "@src/context/FlagProvider/FlagProvider";
 import { useServices } from "@src/context/ServicesProvider";
@@ -194,7 +193,7 @@ export function OrganizationProvider({ children, dependencies: d = DEPENDENCIES 
       isLoading: isLoading && organizations.length === 0,
       isError: isError && organizations.length === 0,
       switchOrganization,
-      projectsEnabled: !!activeOrganization && isProjectsUiEnabled(activeOrganization)
+      projectsEnabled: !!activeOrganization
     };
   }, [isEnabled, areFeatureFlagsReady, organizations, activeOrganization, isLoading, isError, switchOrganization]);
 

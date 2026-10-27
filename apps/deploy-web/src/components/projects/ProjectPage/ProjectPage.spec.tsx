@@ -66,13 +66,21 @@ describe(ProjectPage.name, () => {
     expect(ProjectMembersPreview).not.toHaveBeenCalled();
   });
 
+  it("leaves members out of a personal account, which has none, but shows the spend and activity", () => {
+    const { ProjectBudgetPanel, ProjectMembersPreview, RecentActivityFeed } = setup({ organizationType: "personal", role: "owner" });
+
+    expect(ProjectBudgetPanel).toHaveBeenCalled();
+    expect(RecentActivityFeed).toHaveBeenCalled();
+    expect(ProjectMembersPreview).not.toHaveBeenCalled();
+  });
+
   it("names each activity's project nowhere, since all of them are this project's", () => {
     const { RecentActivityFeed, retryActivity } = setup({});
 
     expect(RecentActivityFeed.mock.lastCall?.[0]).toMatchObject({ showsProjects: false, isError: false, onRetry: retryActivity });
   });
 
-  it("is not found for an organization that does not use projects", () => {
+  it("is not found while the projects experience is off", () => {
     const { DeploymentsList } = setup({ projectsEnabled: false });
 
     expect(screen.getByText("not found")).toBeInTheDocument();

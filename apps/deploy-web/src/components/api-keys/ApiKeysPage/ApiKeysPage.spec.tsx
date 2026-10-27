@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
-import type { OrganizationOutput, OrganizationRole } from "@src/types/organization";
+import type { OrganizationOutput, OrganizationRole, OrganizationType } from "@src/types/organization";
 import type { ProjectOutput } from "@src/types/project";
 import { API_REFERENCE_URL, ApiKeysPage, DEPENDENCIES } from "./ApiKeysPage";
 
@@ -218,6 +218,23 @@ describe(ApiKeysPage.name, () => {
       expect(CreateApiKeyDialog.mock.lastCall?.[0].teamName).toBe("Acme");
     });
 
+    it("offers a personal account's projects when creating a key without naming a team", async () => {
+      const projects = [buildProject({ name: "staging" })];
+      const { user, ApiKeyList, CreateApiKeyDialog } = setup({
+        isOrganizationsEnabled: true,
+        isProjectsUiEnabled: true,
+        projects,
+        role: "owner",
+        organizationType: "personal",
+        organizationName: "alice"
+      });
+
+      await user.click(screen.getByRole("button", { name: "Create new key" }));
+
+      expect(CreateApiKeyDialog.mock.lastCall?.[0]).toMatchObject({ projects, teamName: undefined });
+      expect(ApiKeyList.mock.lastCall?.[0]).toMatchObject({ projects, teamName: undefined });
+    });
+
     it("names no team while the active organization is still unknown", async () => {
       const { user, ApiKeyList, CreateApiKeyDialog } = setup({ isOrganizationsEnabled: true, isProjectsUiEnabled: true });
 
@@ -289,6 +306,7 @@ describe(ApiKeysPage.name, () => {
       projects?: ProjectOutput[];
       isLoadingProjects?: boolean;
       role?: OrganizationRole;
+      organizationType?: OrganizationType;
       organizationName?: string;
     } = {}
   ) {
@@ -327,7 +345,9 @@ describe(ApiKeysPage.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({ isEnabled: input.isProjectsUiEnabled ?? false });
     const useActiveOrganization: typeof DEPENDENCIES.useActiveOrganization = () =>
       mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
-        activeOrganization: input.role ? mock<OrganizationOutput>({ role: input.role, name: input.organizationName }) : undefined
+        activeOrganization: input.role
+          ? mock<OrganizationOutput>({ role: input.role, type: input.organizationType ?? "team", name: input.organizationName })
+          : undefined
       });
     const useProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectsQuery>(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>(), {

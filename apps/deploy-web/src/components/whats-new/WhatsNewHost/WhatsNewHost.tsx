@@ -29,7 +29,7 @@ export function WhatsNewHost({ dependencies: d = DEPENDENCIES }: Props) {
 function WhatsNewHostContent({ dependencies: d }: Required<Props>) {
   const [view, setView] = useAtom(whatsNewViewAtom);
   const [tourOrigin, setTourOrigin] = useState<Box | null>(null);
-  const { activeOrganization, projectsEnabled } = d.useActiveOrganization();
+  const { activeOrganization } = d.useActiveOrganization();
   const router = d.useRouter();
   const pathname = d.usePathname();
   const { analyticsService } = useServices();
@@ -38,13 +38,12 @@ function WhatsNewHostContent({ dependencies: d }: Required<Props>) {
   const release = useMemo(
     () =>
       organizationsRelease({
-        isInTeam: projectsEnabled,
         canManageProjects: !!role && canManageProjects(role),
         showProjects: () => {
           if (pathname !== UrlService.projects()) router.push(UrlService.projects());
         }
       }),
-    [projectsEnabled, role, pathname, router]
+    [role, pathname, router]
   );
 
   const closeAnnouncement = useCallback(() => setView(null), [setView]);

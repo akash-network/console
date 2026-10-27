@@ -85,75 +85,51 @@ const CREATE_ORGANIZATION_STEP = {
 
 describe(organizationsRelease.name, () => {
   it("names the release", () => {
-    const { release } = setup({ isInTeam: true, canManageProjects: true });
+    const { release } = setup({ canManageProjects: true });
 
     expect(release).toMatchObject({ id: ORGANIZATIONS_RELEASE_ID, name: "Organizations & Projects" });
     expect(ORGANIZATIONS_RELEASE_ID).toBe("orgs-projects-2026-10");
   });
 
-  describe("in a team organization", () => {
-    it("tells the team its deployments now live in projects", () => {
-      const { release } = setup({ isInTeam: true, canManageProjects: true });
+  it("tells the account its deployments now live in projects", () => {
+    const { release } = setup({ canManageProjects: true });
 
-      expect(release.slides).toEqual([
-        {
-          sceneId: "projects",
-          title: "Your deployments now live in projects",
-          body: "A project groups the deployments behind one app or service. Hover a folder on the Projects page to see what’s running inside."
-        },
-        NEW_PROJECT_SLIDE,
-        ...SHARED_SLIDES
-      ]);
-    });
-
-    it("tells a member who cannot create projects who starts them instead of pointing at New project", () => {
-      const { release } = setup({ isInTeam: true, canManageProjects: false });
-
-      expect(release.slides[1]).toEqual(PROJECT_PER_APP_SLIDE);
-    });
-
-    it("tours an owner or admin through the projects, New project, the switcher and Create organization", () => {
-      const { release } = setup({ isInTeam: true, canManageProjects: true });
-
-      expect(release.tour).toEqual([PROJECTS_STEP, NEW_PROJECT_STEP, SWITCHER_STEP, CREATE_ORGANIZATION_STEP]);
-    });
-
-    it("skips New project for a member who cannot create one", () => {
-      const { release } = setup({ isInTeam: true, canManageProjects: false });
-
-      expect(release.tour.map(step => step.id)).toEqual(["projects", "switcher", "create-organization"]);
-    });
-
-    it("brings the projects on screen for the steps that point at them", () => {
-      const { release, showProjects } = setup({ isInTeam: true, canManageProjects: true });
-
-      release.tour[0].prepare?.();
-      release.tour[1].prepare?.();
-
-      expect(showProjects).toHaveBeenCalledTimes(2);
-    });
+    expect(release.slides).toEqual([
+      {
+        sceneId: "projects",
+        title: "Your deployments now live in projects",
+        body: "A project groups the deployments behind one app or service. Hover a folder on the Projects page to see what’s running inside."
+      },
+      NEW_PROJECT_SLIDE,
+      ...SHARED_SLIDES
+    ]);
   });
 
-  describe("in a personal account", () => {
-    it("explains that projects group a team's deployments in an organization", () => {
-      const { release } = setup({ isInTeam: false, canManageProjects: true });
+  it("tells a member who cannot create projects who starts them instead of pointing at New project", () => {
+    const { release } = setup({ canManageProjects: false });
 
-      expect(release.slides).toEqual([
-        {
-          sceneId: "projects",
-          title: "Projects group your team’s deployments",
-          body: "In an organization, a project groups the deployments behind one app or service."
-        },
-        PROJECT_PER_APP_SLIDE,
-        ...SHARED_SLIDES
-      ]);
-    });
+    expect(release.slides[1]).toEqual(PROJECT_PER_APP_SLIDE);
+  });
 
-    it("tours only the switcher and Create organization", () => {
-      const { release } = setup({ isInTeam: false, canManageProjects: true });
+  it("tours an owner or admin through the projects, New project, the switcher and Create organization", () => {
+    const { release } = setup({ canManageProjects: true });
 
-      expect(release.tour).toEqual([SWITCHER_STEP, CREATE_ORGANIZATION_STEP]);
-    });
+    expect(release.tour).toEqual([PROJECTS_STEP, NEW_PROJECT_STEP, SWITCHER_STEP, CREATE_ORGANIZATION_STEP]);
+  });
+
+  it("skips New project for a member who cannot create one", () => {
+    const { release } = setup({ canManageProjects: false });
+
+    expect(release.tour.map(step => step.id)).toEqual(["projects", "switcher", "create-organization"]);
+  });
+
+  it("brings the projects on screen for the steps that point at them", () => {
+    const { release, showProjects } = setup({ canManageProjects: true });
+
+    release.tour[0].prepare?.();
+    release.tour[1].prepare?.();
+
+    expect(showProjects).toHaveBeenCalledTimes(2);
   });
 
   describe("tour targets", () => {
@@ -164,7 +140,7 @@ describe(organizationsRelease.name, () => {
       { stepId: "switcher", target: TOUR_TARGET.organizationSwitcher },
       { stepId: "create-organization", target: TOUR_TARGET.createOrganization }
     ])("points the $stepId step at the $target control", ({ stepId, target }) => {
-      const { release } = setup({ isInTeam: true, canManageProjects: true });
+      const { release } = setup({ canManageProjects: true });
       const control = addToPage(target);
 
       expect(release.tour.find(step => step.id === stepId)?.findTarget()).toBe(control);
@@ -172,12 +148,12 @@ describe(organizationsRelease.name, () => {
     });
 
     it("opens the organization menu so Create organization comes on screen", () => {
-      const { release } = setup({ isInTeam: false, canManageProjects: false });
+      const { release } = setup({ canManageProjects: false });
       const switcher = addToPage(TOUR_TARGET.organizationSwitcher);
       const onKeyDown = vi.fn();
       switcher.addEventListener("keydown", onKeyDown);
 
-      release.tour[1].prepare?.();
+      release.tour.find(step => step.id === "create-organization")?.prepare?.();
 
       expect(onKeyDown).toHaveBeenCalledWith(expect.objectContaining({ key: "ArrowDown" }));
       switcher.remove();
@@ -191,7 +167,7 @@ describe(organizationsRelease.name, () => {
     return control;
   }
 
-  function setup(input: { isInTeam: boolean; canManageProjects: boolean }) {
+  function setup(input: { canManageProjects: boolean }) {
     const showProjects = vi.fn();
     const release = organizationsRelease({ ...input, showProjects });
     return { release, showProjects };
