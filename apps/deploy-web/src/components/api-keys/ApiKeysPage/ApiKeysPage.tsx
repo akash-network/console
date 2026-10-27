@@ -58,7 +58,7 @@ export function ApiKeysPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
   const isLoading = isLoadingApiKeys || isLoadingProjects;
   const listedProjects = showsProjects ? projects : undefined;
   const projectChoices = isProjectsUiEnabled && activeOrganization?.role !== "billing" ? projects : undefined;
-  const teamName = isProjectsUiEnabled ? activeOrganization?.name : undefined;
+  const teamName = isProjectsUiEnabled && activeOrganization?.type === "team" ? activeOrganization.name : undefined;
   const { mutate: deleteApiKey, isPending: isRevoking } = d.useDeleteApiKey(apiKeyToRevoke?.id ?? "", () => {
     enqueueSnackbar(<Snackbar title={`“${apiKeyToRevoke?.name}” revoked`} iconVariant="success" />, { variant: "success" });
     setApiKeyToRevoke(null);

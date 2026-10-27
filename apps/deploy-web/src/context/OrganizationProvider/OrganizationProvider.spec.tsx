@@ -71,12 +71,19 @@ describe(OrganizationProvider.name, () => {
     expect(result.current.activeOrganization).toBeUndefined();
   });
 
-  it("turns the projects experience on for a team organization only", () => {
+  it("turns the projects experience on for a personal account and a team organization alike", () => {
     const { result: personal } = setup({});
     const { result: team } = setup({ activeId: "org-2" });
 
-    expect(personal.current.projectsEnabled).toBe(false);
+    expect(personal.current.activeOrganization?.type).toBe("personal");
+    expect(personal.current.projectsEnabled).toBe(true);
     expect(team.current.projectsEnabled).toBe(true);
+  });
+
+  it("keeps the projects experience off until the active organization is known", () => {
+    const { result } = setup({ organizations: undefined, isQueryLoading: true });
+
+    expect(result.current.projectsEnabled).toBe(false);
   });
 
   it("is loading while the feature flags have not answered, since the organizations flag may still turn on", () => {

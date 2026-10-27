@@ -45,7 +45,7 @@ interface Props {
   dependencies?: typeof DEPENDENCIES;
 }
 
-/** A team organization's landing page: its projects as folders, most recently active first, next to what happened lately. */
+/** An organization's projects as folders, most recently active first, next to what happened lately. */
 export function ProjectsPage({ dependencies: d = DEPENDENCIES }: Props) {
   const isOrganizationsEnabled = d.useFlag("organizations");
   const { isLoading, projectsEnabled } = d.useActiveOrganization();

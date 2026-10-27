@@ -9,32 +9,23 @@ export type WhatsNewRelease = { id: string; name: string; slides: WhatsNewSlide[
 export const ORGANIZATIONS_RELEASE_ID = "orgs-projects-2026-10";
 
 type Audience = {
-  /** Projects only exist in team organizations, so a personal account is told about them and toured through the switcher instead. */
-  isInTeam: boolean;
   canManageProjects: boolean;
   showProjects: () => void;
 };
 
-export function organizationsRelease({ isInTeam, canManageProjects, showProjects }: Audience): WhatsNewRelease {
-  const canCreateProjects = isInTeam && canManageProjects;
-  const projectSteps = isInTeam ? [projectsStep(showProjects), ...(canCreateProjects ? [newProjectStep(showProjects)] : [])] : [];
+export function organizationsRelease({ canManageProjects, showProjects }: Audience): WhatsNewRelease {
+  const projectSteps = [projectsStep(showProjects), ...(canManageProjects ? [newProjectStep(showProjects)] : [])];
 
   return {
     id: ORGANIZATIONS_RELEASE_ID,
     name: "Organizations & Projects",
     slides: [
-      isInTeam
-        ? {
-            sceneId: "projects",
-            title: "Your deployments now live in projects",
-            body: "A project groups the deployments behind one app or service. Hover a folder on the Projects page to see what’s running inside."
-          }
-        : {
-            sceneId: "projects",
-            title: "Projects group your team’s deployments",
-            body: "In an organization, a project groups the deployments behind one app or service."
-          },
-      canCreateProjects
+      {
+        sceneId: "projects",
+        title: "Your deployments now live in projects",
+        body: "A project groups the deployments behind one app or service. Hover a folder on the Projects page to see what’s running inside."
+      },
+      canManageProjects
         ? {
             sceneId: "newProject",
             title: "Start a project for each app",

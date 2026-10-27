@@ -23,7 +23,7 @@ describe(ProjectsPage.name, () => {
     expect(screen.queryByRole("heading", { name: "Projects" })).not.toBeInTheDocument();
   });
 
-  it("is not found for an organization that does not use projects", () => {
+  it("is not found while the projects experience is off", () => {
     setup({ projectsEnabled: false, projects: [project({ name: "storefront" })] });
 
     expect(screen.getByText("not found")).toBeInTheDocument();

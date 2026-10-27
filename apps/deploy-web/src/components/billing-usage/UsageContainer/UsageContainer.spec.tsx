@@ -160,10 +160,54 @@ describe(UsageContainer.name, () => {
     expect(useProjectSpendQuery).toHaveBeenCalledWith(expect.anything(), { enabled: false });
   });
 
-  it("shows no spend by project in a personal account", async () => {
-    const { child } = await setup({ organization: { type: "personal", role: "owner" }, projectsEnabled: false });
+  it("shows a personal account the spend by project and its projects to narrow the page to", async () => {
+    const { child, useProjectSpendQuery } = await setup({
+      ...PERSONAL_OWNER,
+      projects: [mock<Project>({ id: "storefront", name: "Storefront" })]
+    });
 
-    expect(child.projectSpend).toBeNull();
+    expect(child.projectSpend).not.toBeNull();
+    expect(useProjectSpendQuery).toHaveBeenLastCalledWith(toSpendRange(getUsagePresetRange("last30Days")), { enabled: true });
+    expect(child.projectScope?.projects).toEqual([{ id: "storefront", name: "Storefront" }]);
+    expect(child.projectScope?.selected).toBeNull();
+  });
+
+  it("keeps a personal account's figures on its wallet across every project, split neither by project nor by deployment", async () => {
+    const { child, usageHistory, usageStats, useDeploymentSpendQuery } = await setup({
+      ...PERSONAL_OWNER,
+      deploymentSpend: buildDeploymentSpend(0),
+      previousDeploymentSpend: buildDeploymentSpend(1, 0.5)
+    });
+    const last30Days = toSpendRange(getUsagePresetRange("last30Days"));
+
+    expect(child.usageHistoryData).toBe(usageHistory);
+    expect(child.usageHistoryStatsData).toBe(usageStats);
+    expect(child.dailySpendBreakdown).toBeNull();
+    expect(child.deploymentSpend).toBeNull();
+    expect(useDeploymentSpendQuery).toHaveBeenCalledWith(last30Days, { enabled: true });
+    expect(useDeploymentSpendQuery).toHaveBeenCalledWith(getPreviousSpendRange(last30Days), { enabled: false });
+  });
+
+  it("narrows a personal account's figures to the picked project and breaks its spend down by deployment", async () => {
+    const report = buildDeploymentSpend(0);
+    const { child, childCapturer, useDeploymentSpendQuery } = await setup({
+      ...PERSONAL_OWNER,
+      deploymentSpend: report,
+      previousDeploymentSpend: buildDeploymentSpend(1, 0.5),
+      projects: [mock<Project>({ id: "storefront", name: "Storefront" })]
+    });
+
+    act(() => child.projectScope!.onChange("storefront"));
+    const narrowed = await childCapturer.awaitChild(next => next.projectScope?.selected === "storefront");
+
+    expect(narrowed.usageHistoryData).toEqual(scopeUsage(report, "storefront").dailySpend);
+    expect(narrowed.spendChangePercent).not.toBeNull();
+    expect(narrowed.projectSpend).toBeNull();
+    expect(narrowed.dailySpendBreakdown).toEqual({ caption: "Each bar is one day's total for Storefront", series: [] });
+    expect(narrowed.deploymentSpend).toEqual(
+      expect.objectContaining({ title: "Spend by deployment · Storefront", rows: deploymentRowsOf(report, "storefront") })
+    );
+    expect(useDeploymentSpendQuery).toHaveBeenLastCalledWith(getPreviousSpendRange(toSpendRange(getUsagePresetRange("last30Days"))), { enabled: true });
   });
 
   it("shows no spend by project while organizations are off", async () => {
@@ -389,8 +433,8 @@ describe(UsageContainer.name, () => {
     expect(child.deploymentSpend).toEqual(expect.objectContaining({ rows: [], isLoading: true, isError: true }));
   });
 
-  it("reads no deployment spend nor projects and offers no project filter outside a team", async () => {
-    const { child, useDeploymentSpendQuery, useProjectsQuery } = await setup({ organization: { type: "personal", role: "owner" }, projectsEnabled: false });
+  it("reads no deployment spend nor projects and offers no project filter while organizations are off", async () => {
+    const { child, useDeploymentSpendQuery, useProjectsQuery } = await setup({ organization: undefined, projectsEnabled: false });
 
     expect(child.projectScope).toBeNull();
     expect(child.dailySpendBreakdown).toBeNull();
@@ -584,6 +628,8 @@ describe(UsageContainer.name, () => {
 });
 
 const TEAM_OWNER = { organization: { type: "team", role: "owner" }, projectsEnabled: true } as const;
+
+const PERSONAL_OWNER = { organization: { type: "personal", role: "owner" }, projectsEnabled: true } as const;
 
 function buildDeploymentSpend(periodsAgo: number, scale = 1): DeploymentSpendReport {
   const range = toSpendRange(getUsagePresetRange("last30Days"));

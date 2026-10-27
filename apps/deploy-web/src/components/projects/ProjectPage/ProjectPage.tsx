@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { DeploymentsList } from "@src/components/deployments/DeploymentsList/DeploymentsList";
 import Layout from "@src/components/layout/Layout";
-import { canManageProjects } from "@src/components/organizations/organizationAccess";
+import { canManageProjects, hasMembersPage } from "@src/components/organizations/organizationAccess";
 import { NotFoundPage } from "@src/components/shared/NotFoundPage/NotFoundPage";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useFlag } from "@src/hooks/useFlag";
@@ -65,7 +65,7 @@ function ProjectPageContent({ projectId, dependencies: d }: Required<Props>) {
 
   const role = activeOrganization?.role;
   const canManage = !!role && canManageProjects(role);
-  const seesMembers = !!role && role !== "billing";
+  const seesMembers = !!activeOrganization && hasMembersPage(activeOrganization.type) && role !== "billing";
 
   if (projectsQuery.isLoading) return <d.Layout background="dots" isLoading disableContainer />;
   if (projectsQuery.isError) {

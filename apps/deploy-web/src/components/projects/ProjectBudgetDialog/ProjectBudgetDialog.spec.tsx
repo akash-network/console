@@ -2,6 +2,7 @@ import { ApiError } from "@akashnetwork/openapi-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { OrganizationOutput, OrganizationType } from "@src/types/organization";
 import type { ProjectBudget } from "@src/types/project-budget";
 import type { DEPENDENCIES } from "./ProjectBudgetDialog";
 import { ProjectBudgetDialog } from "./ProjectBudgetDialog";
@@ -115,6 +116,12 @@ describe(ProjectBudgetDialog.name, () => {
     expect(screen.getByText("Owners and admins get an email once this month's deposits reach this share of the budget.")).toBeInTheDocument();
   });
 
+  it("tells a personal account that the budget alert email goes to them", () => {
+    setup({ budget: null, organizationType: "personal" });
+
+    expect(screen.getByText("You get an email once this month's deposits reach this share of the budget.")).toBeInTheDocument();
+  });
+
   it("closes and points at the existing budget when someone set one first", async () => {
     const { createBudget, onClose, enqueueSnackbar } = setup({ budget: null });
     createBudget.mockRejectedValueOnce(new ApiError(409, { code: "project_budget_exists", message: "exists" }, "conflict"));
@@ -207,7 +214,7 @@ describe(ProjectBudgetDialog.name, () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  function setup(input: { budget: ProjectBudget | null; isPending?: boolean }) {
+  function setup(input: { budget: ProjectBudget | null; isPending?: boolean; organizationType?: OrganizationType }) {
     const onClose = vi.fn();
     const enqueueSnackbar = vi.fn();
     const createBudget = vi.fn(async (_params: { data: { projectId: string; monthlyAmountUsd: number } }) => ({ data: budget() }));
@@ -227,7 +234,11 @@ describe(ProjectBudgetDialog.name, () => {
           useUpdateProjectBudgetMutation: () => mock<ReturnType<typeof DEPENDENCIES.useUpdateProjectBudgetMutation>>({ mutateAsync: updateBudget, isPending }),
           useDeleteProjectBudgetMutation: () =>
             mock<ReturnType<typeof DEPENDENCIES.useDeleteProjectBudgetMutation>>({ mutateAsync: deleteBudget, isPending: false }),
-          useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })
+          useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
+          useActiveOrganization: () =>
+            mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
+              activeOrganization: mock<OrganizationOutput>({ type: input.organizationType ?? "team" })
+            })
         }}
       />
     );

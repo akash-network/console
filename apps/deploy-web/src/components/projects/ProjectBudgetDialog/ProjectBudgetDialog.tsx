@@ -19,12 +19,19 @@ import {
 } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
+import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useCreateProjectBudgetMutation, useDeleteProjectBudgetMutation, useUpdateProjectBudgetMutation } from "@src/queries/useProjectBudgetQueries";
 import type { ProjectBudget, ProjectBudgetSettings } from "@src/types/project-budget";
 import { DEFAULT_ALERT_THRESHOLD_PERCENT, MAX_MONTHLY_BUDGET_USD, MIN_MONTHLY_BUDGET_USD } from "@src/types/project-budget";
 import { formatSpendUsd } from "../projectSpend";
 
-export const DEPENDENCIES = { useCreateProjectBudgetMutation, useUpdateProjectBudgetMutation, useDeleteProjectBudgetMutation, useSnackbar };
+export const DEPENDENCIES = {
+  useCreateProjectBudgetMutation,
+  useUpdateProjectBudgetMutation,
+  useDeleteProjectBudgetMutation,
+  useSnackbar,
+  useActiveOrganization
+};
 
 const AMOUNT_PATTERN = /^\d+(\.\d{1,2})?$/;
 const PERCENT_PATTERN = /^\d+$/;
@@ -49,6 +56,8 @@ export function ProjectBudgetDialog({ projectId, projectName, budget, onClose, d
   const createBudget = d.useCreateProjectBudgetMutation();
   const updateBudget = d.useUpdateProjectBudgetMutation();
   const deleteBudget = d.useDeleteProjectBudgetMutation();
+  const { activeOrganization } = d.useActiveOrganization();
+  const alertRecipients = activeOrganization?.type === "personal" ? "You get" : "Owners and admins get";
   const [amount, setAmount] = useState(budget ? String(budget.monthlyAmountUsd) : "");
   const [threshold, setThreshold] = useState(String(budget?.alertThresholdPercent ?? DEFAULT_ALERT_THRESHOLD_PERCENT));
   const [stopTopUps, setStopTopUps] = useState(budget?.stopTopUps ?? false);
@@ -158,7 +167,7 @@ export function ProjectBudgetDialog({ projectId, projectName, budget, onClose, d
               <p id={`${thresholdId}-hint`} className={showThresholdError ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
                 {showThresholdError
                   ? "Enter a whole percentage from 1 to 100."
-                  : "Owners and admins get an email once this month's deposits reach this share of the budget."}
+                  : `${alertRecipients} an email once this month's deposits reach this share of the budget.`}
               </p>
             </div>
 

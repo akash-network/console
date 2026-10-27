@@ -1,4 +1,4 @@
-import { canViewBillingAndUsage, hasGeneralSettingsPage, hasMembersPage, isProjectsUiEnabled } from "@src/components/organizations/organizationAccess";
+import { canViewBillingAndUsage, hasGeneralSettingsPage, hasMembersPage, landsOnProjects } from "@src/components/organizations/organizationAccess";
 import type { OrganizationOutput } from "@src/types/organization";
 import { isRouteActive } from "@src/utils/isRouteActive";
 import { UrlService } from "@src/utils/urlUtils";
@@ -10,7 +10,7 @@ export function resolveOrganizationSwitchDestination(currentUrl: string, target:
   if (!target) return UrlService.deploymentList();
 
   const pathname = currentUrl.split(/[?#]/)[0];
-  const landingPage = isProjectsUiEnabled(target) ? UrlService.projects() : UrlService.deploymentList();
+  const landingPage = landsOnProjects(target.type) ? UrlService.projects() : UrlService.deploymentList();
   if (pathname === landingPage || isRouteActive(pathname, ...stayPutPrefixesFor(target))) return currentUrl;
 
   return landingPage;
