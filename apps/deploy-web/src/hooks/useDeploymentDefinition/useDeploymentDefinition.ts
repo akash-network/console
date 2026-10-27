@@ -9,14 +9,7 @@ import { useNewestDeploymentUpdate } from "@src/hooks/useFollowedActivities/useF
 import { useResolvedDeploymentName } from "@src/hooks/useResolvedDeploymentName/useResolvedDeploymentName";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { deploymentData } from "@src/utils/deploymentData";
-import { isBrowserRestoreOffered } from "@src/utils/sdl/browserRestoreDeadline";
-import {
-  hasEnvProtectedByDefault,
-  isStoredSdlRedeployable,
-  isStoredSdlSelfContained,
-  mayHaveEnvValuesBlankedAway,
-  withEnvValuesFrom
-} from "@src/utils/sdl/storedDefinition";
+import { isStoredSdlRedeployable, isStoredSdlSelfContained, mayHaveEnvValuesBlankedAway } from "@src/utils/sdl/storedDefinition";
 
 /** `absent` still carries the API's copy when it held one it could not stand behind, so the shape is visible even though the values are not. */
 export type DeploymentDefinitionSource = "resolving" | "api" | "local" | "absent";
@@ -29,8 +22,6 @@ export interface DeploymentDefinition {
   manifestVersion?: string;
   /** Whether the console holds a definition of its own, usable here or not; unknown until the api has answered. */
   isRecordedByConsole?: boolean;
-  /** The api's copy with the env values it sealed on its own filled from this browser, present only while this browser's copy is the one the chain runs and the restore is still offered. */
-  restoredSdl?: string;
 }
 
 const USABLE_SOURCES: readonly DeploymentDefinitionSource[] = ["api", "local"];
@@ -38,13 +29,6 @@ const USABLE_SOURCES: readonly DeploymentDefinitionSource[] = ["api", "local"];
 /** An absent definition can still carry the API's rejected SDL for inspection, so views must gate on the source, not on SDL presence. */
 export function isUsableDeploymentDefinition(definition: DeploymentDefinition): definition is DeploymentDefinition & { sdl: string } {
   return !!definition.sdl && USABLE_SOURCES.includes(definition.source);
-}
-
-/** A redeploy seeds Configure with the values this browser gave back, so the new deployment stores them as plain variables. */
-export function sdlToRedeploy(definition: DeploymentDefinition & { sdl: string }): string;
-export function sdlToRedeploy(definition: DeploymentDefinition): string | undefined;
-export function sdlToRedeploy(definition: DeploymentDefinition): string | undefined {
-  return definition.restoredSdl ?? definition.sdl;
 }
 
 function useManifestVersionOf(sdl: string | undefined): { version: string | null | undefined; isReading: boolean } {
@@ -72,9 +56,7 @@ export const DEPENDENCIES = {
   useWallet,
   useResolvedDeploymentName,
   useManifestVersionOf,
-  useNewestDeploymentUpdate,
-  // eslint-disable-next-line akash/dependencies-component-or-hook
-  now: () => new Date()
+  useNewestDeploymentUpdate
 };
 
 export interface DeploymentDefinitionOptions {
@@ -117,7 +99,6 @@ export function useDeploymentDefinition(
    * and serving it would present a superseded document as authoritative and re-ship it on the next update.
    */
   const chainManifestVersion = query.data?.deployment?.hash;
-  const isApiCopyOnChain = !!recordedManifestVersion && recordedManifestVersion === chainManifestVersion;
   const newestUpdate = dependencies.useNewestDeploymentUpdate(dseq);
   /** The api saves an update before applying it, so the console's own update still pending, or failed, leaves its copy ahead of the chain rather than superseded. */
   const isSavedAheadOfChain = newestUpdate?.status !== "succeeded" && newestUpdate?.meta.manifestVersion === recordedManifestVersion;
@@ -127,14 +108,6 @@ export function useDeploymentDefinition(
   const isRecordedByConsole = query.data ? !!consoleSettings : undefined;
   const name = dependencies.useResolvedDeploymentName(dseq);
   const acceptReferences = !!options.acceptReferences;
-  const isRestoreOffered = isBrowserRestoreOffered(dependencies.now());
-  const mayRestoreFromBrowser = useMemo(
-    () => acceptReferences && isRestoreOffered && isApiCopyOnChain && !!apiSdl && !!localSdl && hasEnvProtectedByDefault(apiSdl),
-    [acceptReferences, isRestoreOffered, isApiCopyOnChain, apiSdl, localSdl]
-  );
-  const browserCopyVersion = dependencies.useManifestVersionOf(mayRestoreFromBrowser ? localSdl : undefined);
-  const isReadingBrowserCopy = mayRestoreFromBrowser && browserCopyVersion.isReading;
-  const isBrowserCopyOnChain = mayRestoreFromBrowser && browserCopyVersion.version === chainManifestVersion;
   const mustHashApiCopy = useMemo(() => isApiCopyCurrent && !!apiSdl && mayHaveEnvValuesBlankedAway(apiSdl), [isApiCopyCurrent, apiSdl]);
   const apiCopyVersion = dependencies.useManifestVersionOf(mustHashApiCopy ? apiSdl : undefined);
   const isReadingApiCopy = mustHashApiCopy && apiCopyVersion.isReading;
@@ -142,17 +115,14 @@ export function useDeploymentDefinition(
 
   return useMemo(() => {
     const isApiCopyUsable = acceptReferences ? isStoredSdlRedeployable : isStoredSdlSelfContained;
-    if (isResolving || isReadingBrowserCopy || isReadingApiCopy) return { sdl: undefined, name, source: "resolving" };
+    if (isResolving || isReadingApiCopy) return { sdl: undefined, name, source: "resolving" };
     if (apiSdl && isApiCopyCurrent && (isApiCopyHashedAsCurrent || isApiCopyUsable(apiSdl))) {
-      const restoredSdl = isBrowserCopyOnChain && localSdl ? withEnvValuesFrom(localSdl, apiSdl) : undefined;
-      return { sdl: apiSdl, name, source: "api", manifestVersion: recordedManifestVersion, isRecordedByConsole, ...(restoredSdl ? { restoredSdl } : {}) };
+      return { sdl: apiSdl, name, source: "api", manifestVersion: recordedManifestVersion, isRecordedByConsole };
     }
     if (localSdl) return { sdl: localSdl, name, source: "local", isRecordedByConsole };
     return { sdl: apiSdl, name, source: "absent", isRecordedByConsole };
   }, [
     isResolving,
-    isReadingBrowserCopy,
-    isBrowserCopyOnChain,
     isReadingApiCopy,
     isApiCopyHashedAsCurrent,
     apiSdl,

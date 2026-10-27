@@ -1,6 +1,8 @@
-import { hasEnvProtectedByDefault, isStoredSdlRedeployable } from "@src/utils/sdl/storedDefinition";
+import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/config/deploy.config";
+import { isStoredSdlRedeployable } from "@src/utils/sdl/storedDefinition";
 
-export type DeploymentCopyFate = "forget" | "only-in-browser" | "restores-variables" | "holds-name" | "keep";
+/** `keep` is for the definition a running deployment would lose with the copy; `record` hands it to the console first. */
+export type DefinitionFate = "forget" | "record" | "keep";
 
 export interface DeploymentCopy {
   manifest?: string;
@@ -15,27 +17,14 @@ export interface DeploymentRecord {
 
 type ManifestVersionOf = (sdl: string) => Promise<string | null>;
 
-export interface CopyJudging {
-  manifestVersionOf: ManifestVersionOf;
-  isBrowserRestoreOffered: boolean;
-}
-
-/** Mirrors how the deployment page picks a definition, so a copy goes only once nothing there would still read it. */
-export async function deploymentCopyFateOf(
-  copy: DeploymentCopy,
-  record: DeploymentRecord | null,
-  { manifestVersionOf, isBrowserRestoreOffered }: CopyJudging
-): Promise<DeploymentCopyFate> {
-  if (!record) return "keep";
-  if (!copy.manifest) return holdsUnsentName(copy, record) ? "holds-name" : "forget";
-
+/** Mirrors how the deployment page picks a definition, so a copy goes unless it is the only one a running deployment can still be shown from. */
+export async function definitionFateOf(copy: DeploymentCopy, record: DeploymentRecord, manifestVersionOf: ManifestVersionOf): Promise<DefinitionFate> {
   const { consoleSettings, deployment } = record;
-  if (!consoleSettings) return "only-in-browser";
-  if (!(await isOnChain(consoleSettings, deployment.hash, manifestVersionOf))) return "keep";
-  if (isBrowserRestoreOffered && (await restoresVariables(copy.manifest, consoleSettings.sdl, deployment.hash, manifestVersionOf))) return "restores-variables";
-  if (holdsUnsentName(copy, record)) return "holds-name";
+  if (!copy.manifest || deployment.state !== "active") return "forget";
+  if (!consoleSettings) return "record";
+  if (await isOnChain(consoleSettings, deployment.hash, manifestVersionOf)) return "forget";
 
-  return "forget";
+  return (await manifestVersionOf(copy.manifest)) === deployment.hash ? "keep" : "forget";
 }
 
 /** A copy whose values were blanked away is usable only if hashing it still gives what the chain committed. */
@@ -45,12 +34,9 @@ async function isOnChain(consoleSettings: { sdl: string; manifestVersion: string
   return isStoredSdlRedeployable(consoleSettings.sdl) || (await manifestVersionOf(consoleSettings.sdl)) === chainHash;
 }
 
-/** The update tab gives back the values the console sealed on its own only from a copy that is exactly what the chain runs. */
-async function restoresVariables(browserSdl: string, apiSdl: string, chainHash: string, manifestVersionOf: ManifestVersionOf): Promise<boolean> {
-  return hasEnvProtectedByDefault(apiSdl) && (await manifestVersionOf(browserSdl)) === chainHash;
-}
+/** The name this copy holds when the console has none, cut to what the console accepts. */
+export function unsentNameOf(copy: DeploymentCopy, record: DeploymentRecord): string | undefined {
+  if (record.name) return undefined;
 
-/** The console learns an older deployment's name from this copy, and nothing confirms that it has. */
-function holdsUnsentName(copy: DeploymentCopy, record: DeploymentRecord): boolean {
-  return !record.name && !!copy.name?.trim();
+  return copy.name?.trim().slice(0, MAX_DEPLOYMENT_NAME_LENGTH) || undefined;
 }

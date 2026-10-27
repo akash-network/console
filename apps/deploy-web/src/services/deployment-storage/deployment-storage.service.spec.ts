@@ -293,6 +293,46 @@ describe(DeploymentStorageService.name, () => {
     });
   });
 
+  describe("deleteOtherNetworks", () => {
+    it("removes every wallet's copies kept under another network", () => {
+      const { service, storage } = setup({
+        keys: [`mainnet/${walletAddress}/deployments/100.data`, "sandbox-01/akash1other/deployments/200.data", `testnet/${walletAddress}/deployments/300.data`]
+      });
+
+      service.deleteOtherNetworks();
+
+      expect(storage.removeItem.mock.calls).toEqual([[`mainnet/${walletAddress}/deployments/100.data`], ["sandbox-01/akash1other/deployments/200.data"]]);
+    });
+
+    it("leaves keys that hold no deployment copy alone", () => {
+      const { service, storage } = setup({
+        keys: [
+          "mainnet/provider.data",
+          "theme",
+          `mainnet/${walletAddress}/deployments/100.json`,
+          `mainnet/${walletAddress}/deployments/.data`,
+          `mainnet/${walletAddress}/deployments/100.data.bak`,
+          `mainnet/${walletAddress}/deployments/100/200.data`,
+          `mainnet/${walletAddress}/templates/100.data`,
+          `mainnet/${walletAddress}/nested/deployments/100.data`,
+          `prefix/mainnet/${walletAddress}/deployments/100.data`
+        ]
+      });
+
+      service.deleteOtherNetworks();
+
+      expect(storage.removeItem).not.toHaveBeenCalled();
+    });
+
+    it("tells this network apart from one whose name only starts like it", () => {
+      const { service, storage } = setup({ keys: [`testnet-02/${walletAddress}/deployments/100.data`] });
+
+      service.deleteOtherNetworks();
+
+      expect(storage.removeItem).toHaveBeenCalledWith(`testnet-02/${walletAddress}/deployments/100.data`);
+    });
+  });
+
   function setup(input: { keys?: string[] } = {}) {
     const keys = input.keys ?? [];
     const storage = mock<Storage>({ length: keys.length, key: vi.fn((index: number) => keys[index] ?? null) });

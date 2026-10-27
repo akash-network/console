@@ -117,15 +117,15 @@ services:
     expect(screen.getByRole("button", { name: /Redeploy/ })).toHaveAccessibleDescription("Deployed May 12, 2026");
   });
 
-  it("redeploys the values this browser gave back, carrying the stored secrets over from the deployment", async () => {
+  it("redeploys the stored sdl, carrying the stored secrets over from the deployment", async () => {
     const { redeploy, analyticsService } = setup({
-      definition: { name: "acme-storefront", sdl: WEB_SDL, restoredSdl: "restored-sdl" },
+      definition: { name: "acme-storefront", sdl: WEB_SDL },
       deployment: { dseq: "100" }
     });
 
     await userEvent.click(screen.getByRole("button", { name: "Redeploy acme-storefront" }));
 
-    expect(redeploy).toHaveBeenCalledWith({ sdl: "restored-sdl", name: "acme-storefront", sourceDseq: "100", projectId: undefined });
+    expect(redeploy).toHaveBeenCalledWith({ sdl: WEB_SDL, name: "acme-storefront", sourceDseq: "100", projectId: undefined });
     expect(analyticsService.track).toHaveBeenCalledWith("redeploy_last_configuration_btn_clk", "Amplitude");
   });
 

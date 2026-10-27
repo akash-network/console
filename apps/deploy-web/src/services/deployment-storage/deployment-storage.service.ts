@@ -60,6 +60,15 @@ export class DeploymentStorageService {
       .map(key => key.slice(prefix.length, -KEY_SUFFIX.length))
       .filter(dseq => dseq.length > 0);
   }
+
+  /** The network is fixed for this app, so a copy kept under any other one can never be read or checked here again. */
+  deleteOtherNetworks(): void {
+    const ownNetworkPrefix = `${this.networkStore.selectedNetworkId}/`;
+    const keys = Array.from({ length: this.storage.length }, (_, index) => this.storage.key(index));
+    keys
+      .filter((key): key is string => key !== null && COPY_KEY_PATTERN.test(key) && !key.startsWith(ownNetworkPrefix))
+      .forEach(key => this.storage.removeItem(key));
+  }
 }
 
 export interface LocalDeploymentData {
@@ -70,6 +79,7 @@ export interface LocalDeploymentData {
 }
 
 const KEY_SUFFIX = ".data";
+const COPY_KEY_PATTERN = /^[^/]+\/[^/]+\/deployments\/[^/]+\.data$/;
 
 function genKey(networkId: string, walletAddress: string, dseq: string | number): string {
   return `${keyPrefixOf(networkId, walletAddress)}${dseq}${KEY_SUFFIX}`;

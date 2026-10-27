@@ -242,13 +242,13 @@ describe("DeploymentDetail", () => {
     expect(router.replace).toHaveBeenCalledWith(expect.stringContaining("draftId"));
   });
 
-  it("seeds the configure draft with the values this browser gave back when redirecting a lease-less deployment", () => {
+  it("seeds the configure draft with the served definition when redirecting a lease-less deployment", () => {
     const { router, createConfigureDraft } = setup({
       leases: [],
-      definition: { sdl: "version: '2.0' # withheld", restoredSdl: "version: '2.0' # restored", name: "web", source: "api" }
+      definition: { sdl: "version: '2.0' # withheld", name: "web", source: "api" }
     });
 
-    expect(createConfigureDraft).toHaveBeenCalledWith("version: '2.0' # restored", { name: "web" });
+    expect(createConfigureDraft).toHaveBeenCalledWith("version: '2.0' # withheld", { name: "web" });
     expect(router.replace).toHaveBeenCalledWith(expect.stringContaining("draftId=handed-over"));
   });
 
@@ -546,28 +546,6 @@ describe("DeploymentDetail", () => {
       DeploymentUpdate.mock.calls[0][0].onRedeploy?.();
 
       expect(redeploy).toHaveBeenCalledWith(expect.objectContaining({ sdl: "version: '2.0'" }));
-    });
-
-    it("offers the editor a redeploy of the values this browser gave back", () => {
-      const { DeploymentUpdate, redeploy } = setup({
-        tab: "UPDATE",
-        definition: { sdl: "version: '2.0' # withheld", restoredSdl: "version: '2.0' # restored", source: "api" }
-      });
-
-      DeploymentUpdate.mock.calls[0][0].onRedeploy?.();
-
-      expect(redeploy).toHaveBeenCalledWith(expect.objectContaining({ sdl: "version: '2.0' # restored" }));
-    });
-
-    it("offers the editor a redeploy with new secrets that keeps the values this browser gave back", () => {
-      const { DeploymentUpdate, redeploy } = setup({
-        tab: "UPDATE",
-        definition: { sdl: "version: '2.0' # withheld", restoredSdl: "version: '2.0' # restored", source: "api" }
-      });
-
-      DeploymentUpdate.mock.calls[0][0].onRedeployWithNewSecrets?.();
-
-      expect(redeploy).toHaveBeenCalledWith(expect.objectContaining({ sdl: "version: '2.0' # restored" }));
     });
 
     it("offers the editor a redeploy that leaves the stored secrets behind, for when they can no longer be read", () => {
