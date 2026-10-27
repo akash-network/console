@@ -23,7 +23,7 @@ export const UNMATCHED_LEASE_ERRORS = {
     message: "No provider that bid on this deployment answered in time, so it was closed. Deploy it again to try once more."
   },
   deploymentClosed: { code: "deployment_closed", message: "The deployment was closed before a provider was picked for it." },
-  failed: { code: "auto_lease_failed", message: "Something went wrong while picking a provider for this deployment. Deploy it again to try once more." }
+  failed: { code: "auto_lease_failed", message: "Console couldn't pick a provider for this deployment. Choose one from its bids, or deploy it again." }
 } as const;
 
 export type UnmatchedLeaseReason = keyof typeof UNMATCHED_LEASE_ERRORS;

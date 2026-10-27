@@ -44,7 +44,7 @@ describe("lease activity", () => {
       "No provider that bid on this deployment answered in time, so it was closed. Deploy it again to try once more."
     ],
     ["deploymentClosed", "deployment_closed", "The deployment was closed before a provider was picked for it."],
-    ["failed", "auto_lease_failed", "Something went wrong while picking a provider for this deployment. Deploy it again to try once more."]
+    ["failed", "auto_lease_failed", "Console couldn't pick a provider for this deployment. Choose one from its bids, or deploy it again."]
   ] as const)("fails a match Console gave up on for %s with the code a client acts on", (reason, code, message) => {
     expect(unmatchedLeaseActivityOf({ userId: "user-1", dseq: "100" }, reason)).toEqual({
       userId: "user-1",
