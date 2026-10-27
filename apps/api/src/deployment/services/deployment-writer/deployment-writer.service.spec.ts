@@ -1855,6 +1855,26 @@ describe(DeploymentWriterService.name, () => {
       expect(userGpuBidCheckService.scheduleFor).not.toHaveBeenCalled();
     });
 
+    it("hands a one-click deploy's auto lease to the queued create and says so in its answer", async () => {
+      const { service, jobQueueService } = setup();
+
+      const queued = await service.createInBackground({ userId: "user-1", sdl: SDL_WITH_SECRETS, autoLease: true });
+
+      const createJob = jobQueueService.enqueue.mock.calls.map(([job]) => job).find(job => job instanceof CreateDeployment);
+      expect(createJob).toEqual(expect.objectContaining({ data: expect.objectContaining({ autoLease: true }) }));
+      expect(queued).toEqual(expect.objectContaining({ autoLease: true }));
+    });
+
+    it("answers without an auto lease for a create that did not ask Console to pick its provider", async () => {
+      const { service, jobQueueService } = setup();
+
+      const queued = await service.createInBackground({ userId: "user-1", sdl: SDL_WITH_SECRETS, autoLease: false });
+
+      const createJob = jobQueueService.enqueue.mock.calls.map(([job]) => job).find(job => job instanceof CreateDeployment);
+      expect(createJob).toEqual(expect.objectContaining({ data: expect.objectContaining({ autoLease: false }) }));
+      expect(queued).not.toHaveProperty("autoLease");
+    });
+
     it("answers with the new deployment, the manifest a create made during the request answers with and the activity to follow, sending nothing to the chain", async () => {
       const { service, signerService, activityService } = setup();
       vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));

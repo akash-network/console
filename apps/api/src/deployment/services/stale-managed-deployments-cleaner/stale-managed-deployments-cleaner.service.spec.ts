@@ -17,6 +17,7 @@ import type { JobQueueService } from "@src/core";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import { ErrorService } from "@src/core/services/error/error.service";
 import type { DeploymentRepository, StaleDeployment } from "@src/deployment/repositories/deployment/deployment.repository";
+import { autoLeaseKeyFor } from "@src/deployment/services/auto-lease/auto-lease.job";
 import { createLeaseKeyFor } from "@src/deployment/services/create-lease/create-lease.job";
 import type { DeploymentOrganizationActivityService } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
 import type { SystemCloseActivityService } from "@src/deployment/services/system-close-activity/system-close-activity.service";
@@ -126,6 +127,27 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       expect(jobQueueService.findPendingSingletonKeys).toHaveBeenCalledWith("CreateLease");
       expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledTimes(1);
       expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(OWNER, "2");
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves alone a one-click deployment Console is still picking a provider for, and closes the rest", async () => {
+      const { service, rpcMessageService, jobQueueService, wallet } = setup({
+        staleDeployments: ["1", "2"],
+        matchesUnderway: [{ owner: OWNER, dseq: "1" }]
+      });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(jobQueueService.findPendingSingletonKeys).toHaveBeenCalledWith("AutoLease");
+      expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledTimes(1);
+      expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(OWNER, "2");
+    });
+
+    it("closes a deployment whose dseq Console is picking a provider for under another owner", async () => {
+      const { service, managedSignerService, wallet } = setup({ staleDeployments: ["1"], matchesUnderway: [{ owner: "akash1other", dseq: "1" }] });
+
+      await service.cleanUpForWallet(wallet, 0);
+
       expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
     });
 
@@ -621,6 +643,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     walletIdsByAddress?: Record<string, number>;
     executeDerivedTx?: ManagedSignerService["executeDerivedTx"];
     leasesUnderway?: StaleDeployment[];
+    matchesUnderway?: StaleDeployment[];
   }) {
     const wallet = createUserWallet({ id: 123, address: OWNER });
     const orphans = input?.orphans ?? (input?.staleDeployments ?? ["456"]).map(dseq => ({ owner: OWNER, dseq }));
@@ -667,7 +690,11 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     const deploymentOrganizationActivityService = mock<DeploymentOrganizationActivityService>();
     const systemCloseActivityService = mock<SystemCloseActivityService>();
     const jobQueueService = mock<JobQueueService>();
-    jobQueueService.findPendingSingletonKeys.mockResolvedValue(new Set((input?.leasesUnderway ?? []).map(createLeaseKeyFor)));
+    const pendingKeysByJobName: Record<string, Set<string>> = {
+      CreateLease: new Set((input?.leasesUnderway ?? []).map(createLeaseKeyFor)),
+      AutoLease: new Set((input?.matchesUnderway ?? []).map(autoLeaseKeyFor))
+    };
+    jobQueueService.findPendingSingletonKeys.mockImplementation(async name => pendingKeysByJobName[name] ?? new Set());
 
     const currentHeight = input?.currentHeight ?? 1_000_000;
     blockRepository.getLatestProcessedHeight.mockResolvedValue(currentHeight);

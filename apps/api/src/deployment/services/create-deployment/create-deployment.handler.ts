@@ -3,7 +3,8 @@ import { inject, singleton } from "tsyringe";
 
 import { errorCodeOf } from "@src/activity/lib/activity-error/activity-error";
 import { ActivityService } from "@src/activity/services/activity/activity.service";
-import { type CreateLogger, type JobHandler, type JobMeta, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
+import { type CreateLogger, type JobHandler, type JobMeta, type JobPayload, type JobPermissions, LOGGER_FACTORY, TxService } from "@src/core";
+import { AutoLeaseService } from "@src/deployment/services/auto-lease/auto-lease.service";
 import { type AcceptedDeploymentCreate, DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { isAccessRevoked, MemberDeploymentAccessService } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import { UserGpuBidCheckService } from "@src/deployment/services/user-gpu-bid-check/user-gpu-bid-check.service";
@@ -24,6 +25,8 @@ export class CreateDeploymentHandler implements JobHandler<CreateDeployment> {
     private readonly activityService: ActivityService,
     private readonly memberDeploymentAccessService: MemberDeploymentAccessService,
     private readonly userGpuBidCheckService: UserGpuBidCheckService,
+    private readonly autoLeaseService: AutoLeaseService,
+    private readonly txService: TxService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: CreateDeploymentHandler.name });
@@ -34,7 +37,7 @@ export class CreateDeploymentHandler implements JobHandler<CreateDeployment> {
   }
 
   /** A refusal that settles the activity ends the job, since a retry would find nothing pending to create. */
-  async handle({ userId, walletId, dseq, message, activityId, recordGpuBids }: JobPayload<CreateDeployment>, job?: JobMeta): Promise<void> {
+  async handle({ userId, walletId, dseq, message, activityId, recordGpuBids, autoLease }: JobPayload<CreateDeployment>, job?: JobMeta): Promise<void> {
     if (!(await this.activityService.isPending(activityId))) return;
 
     const accepted = { userId, walletId, dseq, message };
@@ -50,7 +53,10 @@ export class CreateDeploymentHandler implements JobHandler<CreateDeployment> {
       throw error;
     }
 
-    await this.activityService.settle(activityId, createdActivityOf(accepted));
+    await this.txService.transaction(async () => {
+      await this.activityService.settle(activityId, createdActivityOf(accepted));
+      if (autoLease) await this.autoLeaseService.start(accepted);
+    });
     if (recordGpuBids) await this.userGpuBidCheckService.scheduleFor(accepted);
   }
 

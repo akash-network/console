@@ -185,6 +185,45 @@ describe(BidService.name, () => {
     });
   });
 
+  describe("listForWallet", () => {
+    it("lists the given wallet's bids for the deployment, keeping only audited providers", async () => {
+      const auditor = "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63";
+      const { service, bidHttpService, providerRepository } = setup({ allowedAuditors: [auditor] });
+      const auditedProvider = createProviderWithAttributeSignatures(auditor);
+      const unauditedProvider = createProviderWithAttributeSignatures("akash1someoneelse");
+      const auditedBid = createBid({ provider: auditedProvider.owner });
+      const unauditedBid = createBid({ provider: unauditedProvider.owner });
+      bidHttpService.list.mockResolvedValue([auditedBid, unauditedBid]);
+      providerRepository.getProvidersByAddressesWithAttributes.mockResolvedValue([auditedProvider, unauditedProvider]);
+
+      const result = await service.listForWallet({ address: "akash1owner" }, "123456");
+
+      expect(bidHttpService.list).toHaveBeenCalledWith("akash1owner", "123456");
+      expect(result).toEqual([auditedBid]);
+    });
+
+    it("drops bids offering a blocked gpu model for a trialing wallet", async () => {
+      const { service, bidHttpService } = setup({ blockedGpuModels: ["nvidia/h100"] });
+      const blockedBid = createBidWithGpu("nvidia", "h100");
+      const allowedBid = createBidWithGpu("nvidia", "rtx-4090");
+      bidHttpService.list.mockResolvedValue([blockedBid, allowedBid]);
+
+      const result = await service.listForWallet({ address: "akash1owner", isTrialing: true }, "123456");
+
+      expect(result).toEqual([allowedBid]);
+    });
+
+    it("keeps bids offering a blocked gpu model for a paying wallet", async () => {
+      const { service, bidHttpService } = setup({ blockedGpuModels: ["nvidia/h100"] });
+      const blockedBid = createBidWithGpu("nvidia", "h100");
+      bidHttpService.list.mockResolvedValue([blockedBid]);
+
+      const result = await service.listForWallet({ address: "akash1owner", isTrialing: false }, "123456");
+
+      expect(result).toEqual([blockedBid]);
+    });
+  });
+
   function setup(config: { allowedAuditors?: string[]; blockedGpuModels?: string[] }) {
     const bidHttpService = mock<BidHttpService>();
     const authService = mock<AuthService>();

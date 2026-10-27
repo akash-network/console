@@ -19,7 +19,9 @@ type AnalyticsEvent =
   | "account_deletion_started"
   | "account_deletion_blocked"
   | "account_deletion_confirmed"
-  | "account_deletion_failed";
+  | "account_deletion_failed"
+  | "bids_received"
+  | "onboarding_match_failed";
 
 @singleton()
 export class AnalyticsService {

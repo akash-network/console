@@ -70,17 +70,18 @@ export class DeploymentController {
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
-  /** Only the Console web signs in with a session, so a bearer create is one made from its configure page. */
+  /** Only the Console web signs in with a session, so a bearer create is one made from its configure page, and the only one a one-click deploy's auto lease is for. */
   async create(
     input: CreateDeploymentRequest["data"],
-    query: CreateDeploymentQuery = { async: false },
+    query: CreateDeploymentQuery = { async: false, autoLease: false },
     origin: { authMethod?: AuthMethod } = {}
   ): Promise<CreateDeploymentResponse | CreateDeploymentAcceptedResponse> {
     const userId = this.authService.currentUser.id;
     const recordGpuBids = origin.authMethod === "bearer";
 
     if (query.async && this.featureFlagsService.isEnabled(FeatureFlags.BACKGROUND_DEPLOYMENT_CREATE, { userId })) {
-      return { data: await this.deploymentWriterService.createInBackground({ ...input, userId, recordGpuBids }) };
+      const autoLease = !!query.autoLease && recordGpuBids && this.featureFlagsService.isEnabled(FeatureFlags.BACKGROUND_AUTO_LEASE, { userId });
+      return { data: await this.deploymentWriterService.createInBackground({ ...input, userId, recordGpuBids, autoLease }) };
     }
 
     return { data: await this.deploymentWriterService.create({ ...input, userId, recordGpuBids }) };
