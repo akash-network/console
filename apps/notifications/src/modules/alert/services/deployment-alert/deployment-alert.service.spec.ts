@@ -90,8 +90,8 @@ describe(DeploymentAlertService.name, () => {
           ],
           operator: "and"
         },
-        summary: expect.any(String),
-        description: expect.any(String)
+        summary: "Deployment {{{deployment.label}}} is now closed",
+        description: "Please visit {{{deployment.link}}} to manage your deployment and re-deploy if needed."
       });
     });
 

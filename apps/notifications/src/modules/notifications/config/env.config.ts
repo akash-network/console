@@ -1,7 +1,6 @@
 import { z } from "zod";
 
-/** Left unset in some environments, where what it configures stays off instead of failing the boot. */
-const unsetWhenEmpty = <T extends z.ZodTypeAny>(schema: T) => z.preprocess(value => (value === "" ? undefined : value), schema.optional());
+import { unsetWhenEmpty } from "@src/lib/unset-when-empty/unset-when-empty";
 
 export const schema = z.object({
   NOVU_SECRET_KEY: z.string(),

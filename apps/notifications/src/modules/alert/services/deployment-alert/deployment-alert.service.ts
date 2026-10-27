@@ -221,8 +221,8 @@ export class DeploymentAlertService {
         ],
         operator: "and"
       },
-      summary: `Deployment {{alert.next.params.dseq}} is now closed`,
-      description: `Please visit ${this.getConsoleLink(dseq)} to manage your deployment and re-deploy if needed.`
+      summary: "Deployment {{{deployment.label}}} is now closed",
+      description: "Please visit {{{deployment.link}}} to manage your deployment and re-deploy if needed."
     };
   }
 

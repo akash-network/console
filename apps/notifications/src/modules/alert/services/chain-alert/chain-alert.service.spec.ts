@@ -7,6 +7,7 @@ import type { MockProxy } from "vitest-mock-extended";
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { EventClosedDeploymentDto } from "@src/modules/alert/dto/event-closed-deployment.dto";
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
+import { type DeploymentReference, DeploymentReferenceService } from "@src/modules/alert/services/deployment-reference/deployment-reference.service";
 import { TemplateService } from "@src/modules/alert/services/template/template.service";
 import type { AlertOutput } from "../../repositories/alert/alert.repository";
 import { AlertRepository } from "../../repositories/alert/alert.repository";
@@ -21,7 +22,7 @@ import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
 describe(ChainAlertService.name, () => {
   describe("alertFor", () => {
     it("should send notification when event conditions match", async () => {
-      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
+      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage, deployment } = await setup();
 
       const event = generateMock(EventClosedDeploymentDto.schema);
 
@@ -62,7 +63,8 @@ describe(ChainAlertService.name, () => {
             prev: expect.objectContaining({ id: alert.id }),
             next: expect.objectContaining({ id: alert.id })
           },
-          data: { type: "CHAIN_EVENT", payload: event }
+          data: { type: "CHAIN_EVENT", payload: event },
+          deployment
         }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
@@ -102,6 +104,39 @@ describe(ChainAlertService.name, () => {
           }
         }
       });
+    });
+
+    it("refers the templates of a close event to the deployment by its label and a link in the alert's organization", async () => {
+      const { service, alertRepository, conditionsMatcher, alertMessageService, deploymentReferenceService, onMessage, deployment } = await setup();
+      const owner = mockAkashAddress();
+      const alert = generateGeneralAlert({ type: "CHAIN_EVENT", organizationId: faker.string.uuid(), params: { dseq: "3003", type: "DEPLOYMENT_CLOSED" } });
+      alertRepository.paginateAll.mockImplementation(async options => {
+        options.callback([alert] as any);
+      });
+      alertRepository.updateById.mockImplementation(async (_, update) => ({ ...alert, ...update }) as AlertOutput);
+      conditionsMatcher.isMatching.mockReturnValue(true);
+      alertMessageService.getMessage.mockReturnValue({ summary: "Deployment “my-app” is now closed", description: "Please visit Console." });
+
+      await service.alertFor({ type: "CHAIN_EVENT", payload: { ...generateMock(EventClosedDeploymentDto.schema), owner, dseq: "3003" } }, onMessage);
+
+      expect(deploymentReferenceService.referTo).toHaveBeenCalledWith({ owner, dseq: "3003", organizationId: alert.organizationId, tab: "SETTINGS" });
+      expect(alertMessageService.getMessage).toHaveBeenCalledWith(expect.objectContaining({ vars: expect.objectContaining({ deployment }) }));
+    });
+
+    it("refers the templates of a chain message to no deployment", async () => {
+      const { service, alertRepository, conditionsMatcher, alertMessageService, deploymentReferenceService, onMessage } = await setup();
+      const alert = generateGeneralAlert({ type: "CHAIN_MESSAGE" });
+      alertRepository.paginateAll.mockImplementation(async options => {
+        options.callback([alert] as any);
+      });
+      alertRepository.updateById.mockImplementation(async (_, update) => ({ ...alert, ...update }) as AlertOutput);
+      conditionsMatcher.isMatching.mockReturnValue(true);
+      alertMessageService.getMessage.mockReturnValue({ summary: "A deployment was closed", description: "Something happened." });
+
+      await service.alertFor({ type: "CHAIN_MESSAGE", payload: { type: "akash.deployment.v1beta3.MsgCloseDeployment" } }, onMessage);
+
+      expect(deploymentReferenceService.referTo).not.toHaveBeenCalled();
+      expect(alertMessageService.getMessage.mock.calls[0][0].vars).toEqual(expect.objectContaining({ deployment: undefined }));
     });
 
     it("files the feed entry of a team deployment's deployment-closed alert under the user who set it, in the alert's organization and project", async () => {
@@ -249,7 +284,7 @@ describe(ChainAlertService.name, () => {
     });
 
     it("should process multiple alerts in parallel", async () => {
-      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
+      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage, deployment } = await setup();
 
       const event = generateMock(EventClosedDeploymentDto.schema);
 
@@ -306,7 +341,8 @@ describe(ChainAlertService.name, () => {
             prev: expect.objectContaining({ id: alert1.id }),
             next: expect.objectContaining({ id: alert1.id })
           },
-          data: { type: "CHAIN_EVENT", payload: event }
+          data: { type: "CHAIN_EVENT", payload: event },
+          deployment
         }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage1);
@@ -318,14 +354,15 @@ describe(ChainAlertService.name, () => {
             prev: expect.objectContaining({ id: alert2.id }),
             next: expect.objectContaining({ id: alert2.id })
           },
-          data: { type: "CHAIN_EVENT", payload: event }
+          data: { type: "CHAIN_EVENT", payload: event },
+          deployment
         }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage2);
     });
 
     it("should correctly handle complex condition matching", async () => {
-      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
+      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage, deployment } = await setup();
 
       const event = generateMock(EventClosedDeploymentDto.schema);
       const owner = event.owner;
@@ -377,7 +414,8 @@ describe(ChainAlertService.name, () => {
             prev: expect.objectContaining({ id: alert.id }),
             next: expect.objectContaining({ id: alert.id })
           },
-          data: { type: "CHAIN_EVENT", payload: event }
+          data: { type: "CHAIN_EVENT", payload: event },
+          deployment
         }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
@@ -390,6 +428,8 @@ describe(ChainAlertService.name, () => {
     alertRepository: MockProxy<AlertRepository>;
     conditionsMatcher: MockProxy<ConditionsMatcherService>;
     alertMessageService: MockProxy<AlertMessageService>;
+    deploymentReferenceService: MockProxy<DeploymentReferenceService>;
+    deployment: DeploymentReference;
     onMessage: Mock;
   }> {
     const module: TestingModule = await Test.createTestingModule({
@@ -399,10 +439,14 @@ describe(ChainAlertService.name, () => {
         MockProvider(AlertRepository),
         MockProvider(ConditionsMatcherService),
         MockProvider(LoggerService),
-        MockProvider(AlertMessageService)
+        MockProvider(AlertMessageService),
+        MockProvider(DeploymentReferenceService)
       ]
     }).compile();
     const onMessage = vi.fn();
+    const deployment: DeploymentReference = { label: "“my-app”", link: '<a href="https://console.akash.network/deployments/3003">console.akash.network</a>' };
+    const deploymentReferenceService = module.get<MockProxy<DeploymentReferenceService>>(DeploymentReferenceService);
+    deploymentReferenceService.referTo.mockResolvedValue(deployment);
 
     return {
       service: module.get<ChainAlertService>(ChainAlertService),
@@ -410,6 +454,8 @@ describe(ChainAlertService.name, () => {
       alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
       conditionsMatcher: module.get<MockProxy<ConditionsMatcherService>>(ConditionsMatcherService),
       alertMessageService: module.get<MockProxy<AlertMessageService>>(AlertMessageService),
+      deploymentReferenceService,
+      deployment,
       onMessage
     };
   }
