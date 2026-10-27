@@ -12,7 +12,8 @@ import {
   useCreateOrganizationMutation,
   useLeaveOrganizationMutation,
   useOrganizationsQuery,
-  useRenameOrganizationMutation
+  useRenameOrganizationMutation,
+  useRequestAdminAccessMutation
 } from "./useOrganizationQueries";
 
 import { act, waitFor } from "@testing-library/react";
@@ -112,6 +113,17 @@ describe("useOrganizationQueries", () => {
     });
   });
 
+  describe(useRequestAdminAccessMutation.name, () => {
+    it("asks the owners of the organization to make the caller an admin", async () => {
+      const { team } = buildOrganizations();
+      const { result, createOrganizationAdminAccessRequest } = setup({ useHook: () => useRequestAdminAccessMutation() });
+
+      await act(() => result.current.mutateAsync({ id: team.id }));
+
+      expect(createOrganizationAdminAccessRequest).toHaveBeenCalledWith({ id: team.id });
+    });
+  });
+
   describe(replaceCachedOrganization.name, () => {
     it("leaves the memberships uncached when none were loaded", () => {
       const queryClient = new QueryClient();
@@ -189,6 +201,7 @@ describe("useOrganizationQueries", () => {
     const createOrganization = vi.fn().mockResolvedValue({ data: input.created });
     const updateOrganization = vi.fn().mockResolvedValue({ data: input.renamed });
     const deleteOrganizationMembership = vi.fn().mockResolvedValue(undefined);
+    const createOrganizationAdminAccessRequest = vi.fn().mockResolvedValue(undefined);
     const createOrganizationInvitations = vi.fn().mockResolvedValue({ data: [] });
     const listOrganizationInvitations = vi.fn().mockResolvedValue({ data: [] });
     const api = createProxy({
@@ -197,6 +210,7 @@ describe("useOrganizationQueries", () => {
         createOrganization,
         updateOrganization,
         deleteOrganizationMembership,
+        createOrganizationAdminAccessRequest,
         createOrganizationInvitations,
         listOrganizationInvitations
       }
@@ -204,6 +218,15 @@ describe("useOrganizationQueries", () => {
 
     const { result } = setupQuery(input.useHook, { services: { api: () => api, queryClient: () => queryClient } });
 
-    return { result, queryClient, listOrganizations, createOrganization, updateOrganization, deleteOrganizationMembership, createOrganizationInvitations };
+    return {
+      result,
+      queryClient,
+      listOrganizations,
+      createOrganization,
+      updateOrganization,
+      deleteOrganizationMembership,
+      createOrganizationAdminAccessRequest,
+      createOrganizationInvitations
+    };
   }
 });

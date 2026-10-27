@@ -1,15 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Button } from "@akashnetwork/ui/components";
-import { Lock, UserPlus } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { useRouter } from "next/router";
 import { NextSeo } from "next-seo";
 
 import Layout from "@src/components/layout/Layout";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
+import { AdminAccessRequestNotice } from "@src/components/organizations/AdminAccessRequestNotice/AdminAccessRequestNotice";
 import { InviteMembersDialog } from "@src/components/organizations/InviteMembersDialog/InviteMembersDialog";
 import { MemberRoster } from "@src/components/organizations/MemberRoster/MemberRoster";
-import { canManageMembers, hasMembersPage, ORGANIZATION_ROLE_LABELS } from "@src/components/organizations/organizationAccess";
+import { canManageMembers, hasMembersPage } from "@src/components/organizations/organizationAccess";
 import { PendingInvitationList } from "@src/components/organizations/PendingInvitationList/PendingInvitationList";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useFlag } from "@src/hooks/useFlag";
@@ -25,6 +26,7 @@ export const DEPENDENCIES = {
   MemberRoster,
   PendingInvitationList,
   InviteMembersDialog,
+  AdminAccessRequestNotice,
   useFlag,
   useActiveOrganization,
   useUser,
@@ -73,15 +75,7 @@ export function MembersPage({ dependencies: d = DEPENDENCIES }: Props = {}) {
           )
         }
       >
-        {!canManage && (
-          <p className="flex items-start gap-2 rounded-[10px] border border-border bg-card px-3.5 py-3 text-[13px] text-muted-foreground">
-            <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span>
-              You&apos;re a <strong className="text-foreground">{ORGANIZATION_ROLE_LABELS[organization.role]}</strong> of {organization.name}. Only admins can
-              invite people or change roles.
-            </span>
-          </p>
-        )}
+        {!canManage && <d.AdminAccessRequestNotice organization={organization} adminOnlyAction="invite people or change roles" />}
 
         <d.MemberRoster
           members={members.data}

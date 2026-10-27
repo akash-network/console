@@ -1,6 +1,5 @@
 "use client";
 import { useEffect } from "react";
-import { Lock } from "lucide-react";
 import { useRouter } from "next/router";
 import { NextSeo } from "next-seo";
 
@@ -8,14 +7,10 @@ import Layout from "@src/components/layout/Layout";
 import { SettingsCard, SettingsRow } from "@src/components/layout/SettingsCard/SettingsCard";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
+import { AdminAccessRequestNotice } from "@src/components/organizations/AdminAccessRequestNotice/AdminAccessRequestNotice";
 import { DeleteTeamSetting } from "@src/components/organizations/DeleteTeam/DeleteTeamSetting";
 import { LeaveOrganizationSetting } from "@src/components/organizations/LeaveOrganization/LeaveOrganizationSetting";
-import {
-  canRenameOrganization,
-  canTransferOwnership,
-  hasGeneralSettingsPage,
-  ORGANIZATION_ROLE_LABELS
-} from "@src/components/organizations/organizationAccess";
+import { canRenameOrganization, canTransferOwnership, hasGeneralSettingsPage } from "@src/components/organizations/organizationAccess";
 import { ORGANIZATION_NAME_DESCRIPTION, OrganizationNameSetting } from "@src/components/organizations/OrganizationNameSetting/OrganizationNameSetting";
 import { OwnershipTransferSetting } from "@src/components/organizations/OwnershipTransferSetting/OwnershipTransferSetting";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
@@ -28,6 +23,7 @@ export const DEPENDENCIES = {
   NextSeo,
   OrganizationNameSetting,
   OwnershipTransferSetting,
+  AdminAccessRequestNotice,
   LeaveOrganizationSetting,
   DeleteTeamSetting,
   useFlag,
@@ -63,15 +59,7 @@ export function OrganizationSettingsPage({ dependencies: d = DEPENDENCIES }: Pro
 
       <d.SettingsLayout title="General">
         <div className="mx-auto flex w-full max-w-[768px] flex-col gap-6">
-          {!canRename && (
-            <p className="flex items-start gap-2 rounded-[10px] border border-border bg-card px-3.5 py-3 text-[13px] text-muted-foreground">
-              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-              <span>
-                You&apos;re a <strong className="text-foreground">{ORGANIZATION_ROLE_LABELS[organization.role]}</strong> of {organization.name}. Only admins can
-                rename it.
-              </span>
-            </p>
-          )}
+          {!canRename && <d.AdminAccessRequestNotice organization={organization} adminOnlyAction="rename it" />}
 
           <SettingsSection title="Organization">
             <SettingsCard>
