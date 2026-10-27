@@ -832,6 +832,7 @@ describe(useAutoDeploymentFlow.name, () => {
         pendingClose: null,
         isCreatingInBackground: false,
         isLeaseInFlight: false,
+        autoLeasedDseq: null,
         actions: { ...actions, requestQuotes, selectProvider, clearSelection, deploy, retry, cancelAndEdit, closeAndFail }
       };
     }

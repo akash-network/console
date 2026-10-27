@@ -34,6 +34,13 @@ describe(DeploymentRecoveryAction.name, () => {
     expect(screen.queryByRole("button", { name: "Send again" })).not.toBeInTheDocument();
   });
 
+  it("offers to deploy a closed deployment again from its update tab", () => {
+    setup({ recovery: "deploy-again" });
+
+    expect(screen.getByRole("link", { name: "Deploy again" })).toHaveAttribute("href", "/deployments/1234?tab=UPDATE");
+    expect(screen.queryByRole("link", { name: "Choose a provider" })).not.toBeInTheDocument();
+  });
+
   it("holds the send while one is already on its way", () => {
     setup({ recovery: "send-again", isSending: true });
 

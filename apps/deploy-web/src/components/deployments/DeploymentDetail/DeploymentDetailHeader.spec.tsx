@@ -110,10 +110,13 @@ describe(DeploymentDetailHeader.name, () => {
     expect(screen.getByText("Running")).toBeInTheDocument();
   });
 
-  it("shows the deployment as spinning up while its lease is still being created, as its card does", () => {
-    setup({ leases: [], activities: [buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1786440078202" } })] });
+  it("shows the deployment as starting while its lease is still being created, as its card does", () => {
+    setup({
+      leases: [],
+      activities: [buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1786440078202", providers: ["akash1provider"] } })]
+    });
 
-    expect(screen.getByText("Spinning up")).toBeInTheDocument();
+    expect(screen.getByText("Starting")).toBeInTheDocument();
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
   });
 

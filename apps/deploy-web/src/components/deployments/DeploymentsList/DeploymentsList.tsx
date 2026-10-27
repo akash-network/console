@@ -119,9 +119,10 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
           <d.ViewOnlyNotice reason={access.hasNoProjects ? "no_projects" : "view_only"} />
         ))}
 
-      {(model.hasPageResults || model.isInitialLoad) && (
+      {(model.hasPageResults || model.isInitialLoad || model.creatingDeployments.length > 0) && (
         <d.DeploymentsCollection
           deployments={model.pageDeployments}
+          creatingDeployments={model.creatingDeployments}
           providers={model.providers}
           viewMode={model.viewMode}
           isLoading={model.isInitialLoad}

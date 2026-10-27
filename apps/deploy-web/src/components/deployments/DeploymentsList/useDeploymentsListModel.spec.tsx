@@ -10,6 +10,7 @@ import type { TemplateCreation } from "@src/types";
 import type { LeaseDto, ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import type { DeploymentsListSource, DeploymentsListSourceInput } from "./useApiDeploymentsListSource";
+import type { CreatingDeployment } from "./useCreatingDeployments";
 import { DEFAULT_PAGE_SIZE, DEPENDENCIES, useDeploymentsListModel } from "./useDeploymentsListModel";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -485,6 +486,49 @@ describe(useDeploymentsListModel.name, () => {
     });
   });
 
+  describe("deployments still being created", () => {
+    const CREATING = { dseq: "300", name: "web" };
+
+    it("puts them on top of the first page of the whole list", () => {
+      const { result } = setup({ active: [deployment("100")], creating: [CREATING] });
+
+      expect(result.current.creatingDeployments).toEqual([CREATING]);
+    });
+
+    it("drops one the list already shows", () => {
+      const { result } = setup({ active: [deployment("300")], creating: [CREATING] });
+
+      expect(result.current.creatingDeployments).toEqual([]);
+    });
+
+    it("keeps the onboarding empty state away while one is being created", () => {
+      const { result } = setup({ active: [], archived: [], creating: [CREATING] });
+
+      expect(result.current.hasSettledWithoutActiveDeployments).toBe(false);
+      expect(result.current.showNewDeploymentLink).toBe(true);
+    });
+
+    it("leaves them off a project's list, which the feed cannot tell them apart for", () => {
+      const { result } = setup({ projectId: "project-1", active: [deployment("100")], creating: [CREATING] });
+
+      expect(result.current.creatingDeployments).toEqual([]);
+    });
+
+    it("leaves them off the list while it is searched", () => {
+      const { result } = setup({ active: [deployment("100")], appliedSearch: "acme", creating: [CREATING] });
+
+      expect(result.current.creatingDeployments).toEqual([]);
+    });
+
+    it("leaves them off the pages after the first", async () => {
+      const { result } = setup({ active: [deployment("100")], hasNextPage: true, creating: [CREATING] });
+
+      await act(async () => result.current.goToNextPage());
+
+      expect(result.current.creatingDeployments).toEqual([]);
+    });
+  });
+
   describe("page-level states", () => {
     it("offers the onboarding empty state to an account with nothing at all", () => {
       const { result } = setup({ active: [], archived: [] });
@@ -500,6 +544,16 @@ describe(useDeploymentsListModel.name, () => {
       rerenderWith({ active: [], isFetching: true });
 
       expect(result.current.hasAnyDeployment).toBe(true);
+    });
+
+    it("withholds the empty state from a later page that reloads empty", async () => {
+      const { result, rerenderWith } = setup({ active: [deployment("100")], archived: [], hasNextPage: true });
+
+      await act(async () => result.current.goToNextPage());
+      rerenderWith({ active: [], archived: [], isFetching: true });
+
+      expect(result.current.pageIndex).toBe(1);
+      expect(result.current.hasSettledWithoutActiveDeployments).toBe(false);
     });
 
     it("counts an account with only closed deployments as having deployments when the count is unknown", () => {
@@ -879,6 +933,7 @@ describe(useDeploymentsListModel.name, () => {
     providers?: ApiProviderList[];
     closingDseqs?: string[];
     readOnlyProjectId?: string;
+    creating?: CreatingDeployment[];
   };
 
   function setup(input: Input) {
@@ -935,7 +990,8 @@ describe(useDeploymentsListModel.name, () => {
         mock<ReturnType<typeof DEPENDENCIES.useProjectAccess>>({ canManageDeployments: projectId => projectId !== current.readOnlyProjectId }),
       useDeploymentsListSource,
       useClosingDeployments: () => new Set(current.closingDseqs ?? []),
-      useCloseDeployments: () => closeDeployments
+      useCloseDeployments: () => closeDeployments,
+      useCreatingDeployments: () => current.creating ?? []
     };
 
     const store = createStore();

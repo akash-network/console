@@ -468,6 +468,98 @@ describe(ActivityHost.name, () => {
     expect(invalidatedKeysOf(queryClient)).toEqual(expect.arrayContaining([api.v1.listDeployments.getKey(), QueryKeys.getLeasesKey(OWNER, "1234")]));
   });
 
+  describe("for a one-click deploy Console finishes on its own", () => {
+    const DEPLOY_AGAIN_HREF = "/new-deployment/configure?templateId=hello-world&sdl-strategy=default&bid-strategy=auto";
+
+    it("announces no provider to choose once the create succeeds, as Console picks one itself, but refreshes its data", () => {
+      const pending = buildActivity({ type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+      const { enqueueSnackbar, queryClient, receive, api } = setup({ activities: [pending] });
+
+      receive([buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "1234", providers: [] } }), { ...pending, status: "succeeded" }]);
+
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+      expect(invalidatedKeysOf(queryClient)).toEqual(expect.arrayContaining([api.v1.listDeployments.getKey()]));
+    });
+
+    it("still asks to choose a provider for a create whose lease creation is about another deployment", () => {
+      const pending = buildActivity({ type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+      const { enqueueSnackbar, receive } = setup({ activities: [pending] });
+
+      receive([buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "5678", providers: [] } }), { ...pending, status: "succeeded" }]);
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({ props: expect.objectContaining({ subTitle: "Choose a provider to start it." }) }),
+        {
+          variant: "success"
+        }
+      );
+    });
+
+    it("still announces a create that failed, whatever the feed holds about its deployment", () => {
+      const pending = buildActivity({ type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+      const { enqueueSnackbar, receive } = setup({ activities: [pending] });
+
+      receive([buildActivity({ type: "lease_create", status: "failed", meta: { dseq: "1234", providers: [] } }), { ...pending, status: "failed" }]);
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't create deployment 1234" }) }), {
+        variant: "error"
+      });
+    });
+
+    it("tells why Console gave up picking a provider, offering to deploy again from the deployment it closed", async () => {
+      const { enqueueSnackbar, receive, followToastAction, push } = setup({ activities: [matching()], names: { "1234": "web" } });
+
+      receive([unmatched("no_provider_bids", "No provider bid on this deployment in time, so it was closed.")]);
+      await followToastAction("Deploy again");
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          props: expect.objectContaining({
+            title: "Couldn't deploy “web”",
+            subTitle: "No provider bid on this deployment in time, so it was closed.",
+            iconVariant: "error"
+          })
+        }),
+        { variant: "error" }
+      );
+      expect(push).toHaveBeenCalledWith("/deployments/1234?tab=UPDATE");
+    });
+
+    it("runs a one-click deploy this tab sent again from the toast", async () => {
+      const { receive, followToastAction, push } = setup({ activities: [matching()], oneClickDeploys: { "1234": DEPLOY_AGAIN_HREF } });
+
+      receive([unmatched("no_reachable_provider", "No provider that bid on this deployment answered in time, so it was closed.")]);
+      await followToastAction("Deploy again");
+
+      expect(push).toHaveBeenCalledWith(DEPLOY_AGAIN_HREF);
+    });
+
+    it("keeps the link of any other failed deploy, even for a one-click deploy this tab sent", async () => {
+      const { receive, followToastAction, push } = setup({ activities: [matching()], oneClickDeploys: { "1234": DEPLOY_AGAIN_HREF } });
+
+      receive([unmatched("lease_not_created", "The bid was closed.")]);
+      await followToastAction("Choose a provider");
+
+      expect(push).toHaveBeenCalledWith("/new-deployment/configure/1234");
+    });
+
+    it("announces nothing once the user closed the deployment while Console was picking its provider", () => {
+      const { enqueueSnackbar, receive } = setup({ activities: [matching()] });
+
+      receive([unmatched("deployment_closed", "The deployment was closed before a provider was picked for it.")]);
+
+      expect(enqueueSnackbar).not.toHaveBeenCalled();
+    });
+
+    function matching() {
+      return buildActivity({ id: "lease-1", type: "lease_create", status: "pending", meta: { dseq: "1234", providers: [] } });
+    }
+
+    function unmatched(code: string, message: string) {
+      return buildActivity({ id: "lease-1", type: "lease_create", status: "failed", meta: { dseq: "1234", providers: [], error: { code, message } } });
+    }
+  });
+
   it("announces nothing for a rename, which the dialog that made it already confirmed, but refreshes its data", () => {
     const { enqueueSnackbar, queryClient, receive, api } = setup({ activities: [] });
 
@@ -1005,6 +1097,7 @@ describe(ActivityHost.name, () => {
         useCloseBatchesBeingSent: () => new Set(),
         useHandledActivityOutcomes: () => ({ isOutcomeHandled: () => false, isFollowedOnItsPage: () => false, forgetHandledOutcome: vi.fn() }),
         useTakeHeldActivityEvents: () => () => ({}),
+        useOneClickDeploys: () => new Map(),
         useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
         useQueryClient: () => queryClient,
         useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>()
@@ -1040,6 +1133,7 @@ describe(ActivityHost.name, () => {
       heldEvents?: Record<string, HeldActivityEvents>;
       handled?: Activity[];
       followed?: string[];
+      oneClickDeploys?: Record<string, string>;
     } = {}
   ) {
     const user = buildUser();
@@ -1081,6 +1175,7 @@ describe(ActivityHost.name, () => {
       useCloseBatchesBeingSent: () => closeBatchesBeingSent,
       useHandledActivityOutcomes: () => ({ isOutcomeHandled, isFollowedOnItsPage, forgetHandledOutcome }),
       useTakeHeldActivityEvents: () => takeHeldActivityEvents,
+      useOneClickDeploys: () => new Map(Object.entries(input.oneClickDeploys ?? {})),
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar }),
       useQueryClient: () => queryClient,
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push })

@@ -74,14 +74,14 @@ describe("DeploymentRow", () => {
       expect(screen.getByText("Running")).toBeInTheDocument();
     });
 
-    it("shows a deployment whose lease is still being created as spinning up, as its card does", () => {
+    it("shows a deployment whose lease is still being created as starting, as its card does", () => {
       setup({
         deployment: { dseq: "100" },
-        activities: [buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "100" } })],
+        activities: [buildActivity({ type: "lease_create", status: "pending", meta: { dseq: "100", providers: ["akash1provider"] } })],
         isRenderingStatus: true
       });
 
-      expect(screen.getByText("Spinning up")).toBeInTheDocument();
+      expect(screen.getByText("Starting")).toBeInTheDocument();
     });
 
     it("shows a deployment whose update is applied in the background as updating, as its card does", () => {

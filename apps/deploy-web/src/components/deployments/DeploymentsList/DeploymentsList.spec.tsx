@@ -433,6 +433,13 @@ describe("DeploymentsList", () => {
     expect(DeploymentsCollection).not.toHaveBeenCalled();
   });
 
+  it("renders the deployments still being created even while the page has no rows yet", () => {
+    const creatingDeployments = [{ dseq: "300", name: null }];
+    const { DeploymentsCollection } = setup({ hasPageResults: false, creatingDeployments });
+
+    expect(DeploymentsCollection).toHaveBeenCalledWith(expect.objectContaining({ creatingDeployments }), expect.anything());
+  });
+
   it("says so when a search matched nothing anywhere", () => {
     setup({ showNoSearchResults: true });
 
@@ -577,6 +584,7 @@ describe("DeploymentsList", () => {
       isSearching: false,
       changeSearch,
       pageDeployments: [],
+      creatingDeployments: [],
       activeTotal: null,
       archiveTotal: 0,
       hasAnyArchived: false,

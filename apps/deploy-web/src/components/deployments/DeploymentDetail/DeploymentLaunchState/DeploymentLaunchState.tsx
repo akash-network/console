@@ -4,7 +4,8 @@ import { Spinner } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { ChevronRight, MapPin, Server } from "lucide-react";
 
-import type { DeploymentLaunch } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
+import type { DeploymentLaunch, DeploymentLaunchStep } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
+import { LAUNCH_STATUSES } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
 import type { LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
@@ -21,6 +22,14 @@ const UNDELIVERED_DEPLOYMENT_MESSAGE = "Its lease exists, but the deployment was
 const UNDELIVERED_DEPLOYMENT_NEXT_STEP = "Send it again, or close the deployment in Settings to stop paying for it.";
 
 const LEASE_NOT_CREATED_MESSAGE = "Its lease wasn't created.";
+
+const SERVICES_STARTING_MESSAGE = "Its services are starting. This page updates on its own once they're running.";
+
+const LAUNCH_MESSAGES: Record<DeploymentLaunchStep, string> = {
+  "finding-provider": "Console is picking a provider for it. This page updates on its own.",
+  starting: SERVICES_STARTING_MESSAGE,
+  "awaiting-lease": SERVICES_STARTING_MESSAGE
+};
 
 export interface DeploymentLaunchStateProps {
   dseq: string;
@@ -47,12 +56,12 @@ export const DeploymentLaunchState: FC<DeploymentLaunchStateProps> = ({ dseq, la
   }
 
   return (
-    <section aria-label="Deployment spinning up" className={cn(PANEL_CLASS_NAME, className)}>
+    <section aria-label={`Deployment ${LAUNCH_STATUSES[launch.phase].label.toLowerCase()}`} className={cn(PANEL_CLASS_NAME, className)}>
       <div className="flex items-center gap-3">
         <Spinner size="small" />
-        <h3 className="text-lg font-medium">Spinning up</h3>
+        <h3 className="text-lg font-medium">{LAUNCH_STATUSES[launch.phase].label}</h3>
       </div>
-      <p className="text-sm text-muted-foreground">Its services are starting. This page updates on its own once they&apos;re running.</p>
+      <p className="text-sm text-muted-foreground">{LAUNCH_MESSAGES[launch.phase]}</p>
       <ul className="space-y-1.5">
         {launch.providers.map(address => (
           <ProviderLine key={address} address={address} provider={providers.find(provider => provider.owner === address)} />

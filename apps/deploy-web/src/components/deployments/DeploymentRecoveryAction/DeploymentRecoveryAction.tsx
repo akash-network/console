@@ -22,7 +22,7 @@ export interface DeploymentRecoveryActionProps {
   dependencies?: typeof DEPENDENCIES;
 }
 
-/** The configure page sends a deployment that already holds a lease back to its own page, so one whose provider never got it is sent again instead, and one whose provider closed it is closed from its settings. */
+/** The configure page sends a deployment that already holds a lease back to its own page, so one whose provider never got it is sent again instead, one whose provider closed it is closed from its settings, and a closed one is redeployed from its update tab. */
 export const DeploymentRecoveryAction: FC<DeploymentRecoveryActionProps> = ({ dseq, recovery, leases, isCompact, dependencies: d = DEPENDENCIES }) => {
   const { sendAgain, isSending } = d.useSendDeploymentAgain();
   const style = isCompact ? COMPACT_STYLE : REGULAR_STYLE;
@@ -32,6 +32,14 @@ export const DeploymentRecoveryAction: FC<DeploymentRecoveryActionProps> = ({ ds
       <Button type="button" {...style} disabled={isSending} onClick={() => sendAgain({ dseq, leases })}>
         Send again
       </Button>
+    );
+  }
+
+  if (recovery === "deploy-again") {
+    return (
+      <Link href={UrlService.deploymentDetails(dseq, "UPDATE")} className={buttonVariants(style)}>
+        Deploy again
+      </Link>
     );
   }
 

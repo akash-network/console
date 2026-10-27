@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import { DEPENDENCIES, DeploymentsCollection } from "./DeploymentsCollection";
+import type { CreatingDeployment } from "./useCreatingDeployments";
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { MockComponents } from "@tests/unit/mocks";
@@ -103,9 +104,31 @@ describe("DeploymentsCollection", () => {
     expect(DeploymentCard).toHaveBeenCalledWith(expect.objectContaining({ onDeploymentClosed }), expect.anything());
   });
 
+  it.each(["grid", "list"] as const)("puts the deployments still being created on top in the %s view, named and not opened", viewMode => {
+    setup({ viewMode, dseqs: ["100"], isLoading: true, creating: [{ dseq: "300", name: "web" }] });
+
+    expect(screen.getByText("web")).toBeInTheDocument();
+    expect(screen.getByText("Creating")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it.each(["grid", "list"] as const)("puts nothing on top in the %s view while nothing is being created", viewMode => {
+    setup({ viewMode, dseqs: ["100"] });
+
+    expect(screen.queryByText("Creating")).not.toBeInTheDocument();
+    expect(screen.queryByText("New deployment")).not.toBeInTheDocument();
+  });
+
+  it.each(["grid", "list"] as const)("calls a deployment still being created that has no name yet a new deployment in the %s view", viewMode => {
+    setup({ viewMode, dseqs: [], creating: [{ dseq: "300", name: null }] });
+
+    expect(screen.getByText("New deployment")).toBeInTheDocument();
+  });
+
   function setup(input: {
     viewMode: DeploymentsViewMode;
     dseqs: string[];
+    creating?: CreatingDeployment[];
     isLoading?: boolean;
     selectedIds?: string[];
     isSelectable?: boolean;
@@ -121,6 +144,7 @@ describe("DeploymentsCollection", () => {
     render(
       <DeploymentsCollection
         deployments={input.dseqs.map(dseq => ({ dseq, state: "active", projectId: `project-of-${dseq}` }) as ListedDeploymentDto)}
+        creatingDeployments={input.creating}
         providers={[]}
         viewMode={input.viewMode}
         isLoading={input.isLoading}
