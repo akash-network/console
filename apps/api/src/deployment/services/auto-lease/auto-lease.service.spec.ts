@@ -45,13 +45,24 @@ describe(AutoLeaseService.name, () => {
     );
   });
 
-  function setup(input: { wallet: WalletInitialized }) {
+  it("opens no second activity when a match is already queued for the deployment", async () => {
+    const wallet = createInitializedUserWallet({ organizationId: null });
+    const { service, activityService, jobQueueService } = setup({ wallet, queued: false });
+
+    await service.start({ userId: wallet.userId, walletId: wallet.id, dseq: "1000" });
+
+    expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+    expect(activityService.open).not.toHaveBeenCalled();
+  });
+
+  function setup(input: { wallet: WalletInitialized; queued?: boolean }) {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
 
     const walletReaderService = mock<WalletReaderService>();
     walletReaderService.getWalletById.mockResolvedValue(input.wallet);
     const activityService = mock<ActivityService>();
     const jobQueueService = mock<JobQueueService>();
+    jobQueueService.enqueue.mockResolvedValue(input.queued === false ? null : "job-1");
 
     const service = new AutoLeaseService(walletReaderService, activityService, jobQueueService);
 

@@ -17,15 +17,17 @@ export class AutoLeaseService {
     private readonly jobQueueService: JobQueueService
   ) {}
 
-  /** Meant for the transaction that settles the create, so a created one-click deployment never lacks the match that leases it. */
+  /** Meant for the transaction that settles the create, so a created one-click deployment never lacks the match that leases it; a match already queued for the deployment carries on in its place. */
   async start({ userId, walletId, dseq }: Pick<AcceptedDeploymentCreate, "userId" | "walletId" | "dseq">): Promise<void> {
     const wallet = await this.walletReaderService.getWalletById(walletId);
     const activityId = randomUUID();
 
-    await this.activityService.open({ id: activityId, ...matchingLeaseActivityOf({ userId, dseq }), organizationId: wallet.organizationId });
-    await this.jobQueueService.enqueue(
+    const jobId = await this.jobQueueService.enqueue(
       new AutoLease({ userId, ...leaseWalletRefOf(wallet), owner: wallet.address, dseq, activityId, startedAt: new Date().toISOString() }),
       { singletonKey: autoLeaseKeyFor({ owner: wallet.address, dseq }), ...AUTO_LEASE_RETRY_OPTIONS }
     );
+    if (!jobId) return;
+
+    await this.activityService.open({ id: activityId, ...matchingLeaseActivityOf({ userId, dseq }), organizationId: wallet.organizationId });
   }
 }
