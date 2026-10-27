@@ -195,6 +195,23 @@ describe(ActivityInstrumentationService.name, () => {
     });
   });
 
+  describe("dispose", () => {
+    it("unregisters the backlog gauges, so the export that follows shutdown never reads the closed database", () => {
+      const { service, meter, pending, oldestPendingAge } = setup();
+      const [observeBacklog] = meter.addBatchObservableCallback.mock.calls[0];
+
+      service.dispose();
+
+      expect(meter.removeBatchObservableCallback).toHaveBeenCalledWith(observeBacklog, [pending, oldestPendingAge]);
+    });
+
+    it("keeps the backlog gauges registered until then", () => {
+      const { meter } = setup();
+
+      expect(meter.removeBatchObservableCallback).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(input: { pendingSummaries?: PendingActivitySummary[] | Error; failingCounters?: boolean; inTransaction?: boolean } = {}) {
     const meter = mock<Meter>();
     const metricsService = mock<MetricsService>();
