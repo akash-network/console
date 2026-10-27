@@ -7855,6 +7855,19 @@
             "in": "query"
           },
           {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "Console web only. With `true` beside `async=true`, Console also picks the first provider that bids and answers for every placement, and leases the deployment, in the background. The 202 then carries `autoLease: true`, and a `lease_create` activity reports the match and the lease. Ignored when unavailable."
+            },
+            "required": false,
+            "name": "autoLease",
+            "in": "query"
+          },
+          {
             "$ref": "#/components/parameters/OrganizationIdHeader"
           },
           {
@@ -7992,6 +8005,10 @@
                           "type": "string",
                           "format": "uuid",
                           "description": "The activity that reports how the create ends."
+                        },
+                        "autoLease": {
+                          "type": "boolean",
+                          "description": "True when Console also picks the provider and leases the deployment in the background."
                         }
                       },
                       "required": [
