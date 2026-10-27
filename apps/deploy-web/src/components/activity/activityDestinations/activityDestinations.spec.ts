@@ -104,6 +104,15 @@ describe("activityDestinations", () => {
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
     });
 
+    it.each(["no_provider_bids", "no_reachable_provider", "deployment_closed"])(
+      "leads a one-click deploy closed before Console picked its provider (%s) to where its deployment can be deployed again",
+      code => {
+        const activity = buildActivity({ type: "lease_create", status: "failed", meta: { dseq: "1234", providers: [], error: { code, message: "Closed." } } });
+
+        expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234?tab=UPDATE", label: "Deploy again" });
+      }
+    );
+
     it("leads a create about no particular deployment to the deployments list", () => {
       const activity = buildActivity({ type: "deployment_create", status: "failed", meta: {} });
 

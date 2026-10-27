@@ -76,8 +76,19 @@ const RECLAIMING_STATUS: DeploymentStatusView = { label: "Reclaiming", summaryLa
 
 const CLOSED_BY_CONSOLE_LABEL = "Closed by Console";
 
-/** One name from the moment a lease is requested until every service has a ready replica, whichever part of that the deployment is in. */
+/** From the lease landing until every service has a ready replica, whichever part of that the deployment is in. */
 export const SPINNING_UP_STATUS: DeploymentStatusView = { label: "Spinning up", summaryLabel: "Spinning up", tone: "loading", isSpinningUp: true };
+
+export const FINDING_PROVIDER_STATUS: DeploymentStatusView = {
+  label: "Finding a provider",
+  summaryLabel: "Finding a provider",
+  tone: "loading",
+  isSpinningUp: true
+};
+
+export const STARTING_STATUS: DeploymentStatusView = { label: "Starting", summaryLabel: "Starting", tone: "loading", isSpinningUp: true };
+
+export const CREATING_STATUS: DeploymentStatusView = { label: "Creating", summaryLabel: "Creating", tone: "loading" };
 
 const WORKLOAD_STATUSES: Partial<Record<WorkloadStatus, DeploymentStatusView>> = {
   starting: SPINNING_UP_STATUS,

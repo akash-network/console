@@ -10,6 +10,8 @@ export interface ActivityDestination {
 
 const DEPLOYMENT_LIST: ActivityDestination = { href: UrlService.deploymentList(), label: "View deployments" };
 
+export const DEPLOY_AGAIN_LABEL = "Deploy again";
+
 /** A create that failed left no deployment behind, so trying again means configuring a new one. */
 const NEW_DEPLOYMENT: ActivityDestination = { href: UrlService.configureDeployment(), label: "New deployment" };
 
@@ -51,8 +53,9 @@ const DESTINATIONS: Record<Activity["type"], (activity: Activity) => ActivityDes
   deployment_rename: ({ meta: { dseq } }) => (dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST),
   lease_create: ({ status, meta: { dseq, error } }) => {
     if (!dseq) return DEPLOYMENT_LIST;
-    if (status === "failed" && deploymentRecoveryOf(error?.code) === "choose-provider")
-      return { href: UrlService.configureDeployment({ dseq }), label: "Choose a provider" };
+    const recovery = status === "failed" ? deploymentRecoveryOf(error?.code) : undefined;
+    if (recovery === "choose-provider") return { href: UrlService.configureDeployment({ dseq }), label: "Choose a provider" };
+    if (recovery === "deploy-again") return { href: UrlService.deploymentDetails(dseq, "UPDATE"), label: DEPLOY_AGAIN_LABEL };
 
     return { href: UrlService.deploymentDetails(dseq), label: "View deployment" };
   },

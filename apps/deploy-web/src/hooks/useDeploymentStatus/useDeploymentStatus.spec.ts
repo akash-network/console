@@ -17,16 +17,51 @@ const DSEQ = "1234";
 const PROVIDER = "akash1provider";
 
 describe(useDeploymentStatus.name, () => {
-  it("shows a deployment whose lease is still being created as spinning up, waiting on the providers it chose", () => {
+  it("shows a deployment whose lease is still being created as starting, waiting on the providers it chose", () => {
     const { result } = setup({ activities: [leaseCreation({ status: "pending", providers: [PROVIDER] })], leases: [] });
 
     expect(result.current).toEqual({
-      label: "Spinning up",
-      summaryLabel: "Spinning up",
+      label: "Starting",
+      summaryLabel: "Starting",
       tone: "loading",
       isSpinningUp: true,
-      launch: { phase: "awaiting-lease", providers: [PROVIDER] }
+      launch: { phase: "starting", providers: [PROVIDER] }
     });
+  });
+
+  it("shows a one-click deploy as finding a provider while Console has picked none yet", () => {
+    const { result } = setup({ activities: [leaseCreation({ status: "pending", providers: [] })], leases: [] });
+
+    expect(result.current).toEqual({
+      label: "Finding a provider",
+      summaryLabel: "Finding a provider",
+      tone: "loading",
+      isSpinningUp: true,
+      launch: { phase: "finding-provider", providers: [] }
+    });
+  });
+
+  it("follows a one-click deploy from finding a provider to starting once Console picked one", () => {
+    const { result, receive } = setup({ activities: [leaseCreation({ status: "pending", providers: [] })], leases: [] });
+    const whileMatching = result.current.label;
+
+    receive({ activities: [leaseCreation({ status: "pending", providers: [PROVIDER] })] });
+
+    expect([whileMatching, result.current.label]).toEqual(["Finding a provider", "Starting"]);
+  });
+
+  it("ends a one-click deploy Console gave up matching, offering to deploy it again", () => {
+    const error = { code: "no_provider_bids", message: "No provider bid on this deployment in time, so it was closed." };
+    const { result } = setup({ activities: [leaseCreation({ status: "failed", providers: [], error })], leases: [] });
+
+    expect(result.current.launch).toEqual({ phase: "failed", providers: [], recovery: "deploy-again", reason: error.message });
+  });
+
+  it("leaves a one-click deploy Console gave up matching as closed once its deployment reads closed", () => {
+    const error = { code: "no_reachable_provider", message: "No provider answered." };
+    const { result } = setup({ activities: [leaseCreation({ status: "failed", providers: [], error })], state: "closed", leases: [] });
+
+    expect(result.current).toEqual({ label: "Closed", summaryLabel: "Closed", tone: "closed" });
   });
 
   it("keeps spinning up once the lease exists, while a service still has no ready replica", () => {
@@ -41,33 +76,42 @@ describe(useDeploymentStatus.name, () => {
     expect(result.current).toMatchObject({ label: "Spinning up", launch: { phase: "awaiting-lease", providers: [PROVIDER] } });
   });
 
-  it("keeps spinning up while the lease is being created again for a deployment that already holds one", () => {
+  it("reads starting while the lease is being created again for a deployment that already holds one", () => {
     const { result } = setup({ activities: [leaseCreation({ status: "pending" })], leases: [liveLease()], workload: "running" });
 
-    expect(result.current).toEqual({ label: "Spinning up", summaryLabel: "Spinning up", tone: "loading", isSpinningUp: true });
+    expect(result.current).toEqual({ label: "Starting", summaryLabel: "Starting", tone: "loading", isSpinningUp: true });
   });
 
-  it("keeps spinning up while the lease is being created again for a deployment whose earlier lease closed", () => {
-    const { result } = setup({ activities: [leaseCreation({ status: "pending" })], leases: [mock<LeaseDto>({ state: "closed", reason: undefined })] });
+  it("reads starting while the lease is being created again for a deployment whose earlier lease closed", () => {
+    const { result } = setup({
+      activities: [leaseCreation({ status: "pending", providers: [PROVIDER] })],
+      leases: [mock<LeaseDto>({ state: "closed", reason: undefined })]
+    });
+
+    expect(result.current.launch).toEqual({ phase: "starting", providers: [PROVIDER] });
+  });
+
+  it("waits on the lease of a pending creation before the lease list has loaded", () => {
+    const { result } = setup({ activities: [leaseCreation({ status: "pending", providers: [PROVIDER] })], leases: undefined });
+
+    expect(result.current.launch).toEqual({ phase: "starting", providers: [PROVIDER] });
+  });
+
+  it("waits on the lease of a succeeded creation before the lease list has loaded", () => {
+    const { result } = setup({ activities: [leaseCreation({ status: "succeeded" })], leases: undefined });
 
     expect(result.current.launch).toEqual({ phase: "awaiting-lease", providers: [] });
   });
 
-  it.each(["pending", "succeeded"] as const)("waits on the lease of a %s creation before the lease list has loaded", status => {
-    const { result } = setup({ activities: [leaseCreation({ status })], leases: undefined });
-
-    expect(result.current.launch).toEqual({ phase: "awaiting-lease", providers: [] });
-  });
-
-  it("follows the feed and the providers from spinning up to running", () => {
-    const { result, receive } = setup({ activities: [leaseCreation({ status: "pending" })], leases: [] });
+  it("follows the feed and the providers from starting to running", () => {
+    const { result, receive } = setup({ activities: [leaseCreation({ status: "pending", providers: [PROVIDER] })], leases: [] });
     const whileUnderway = result.current.label;
 
     receive({ activities: [leaseCreation({ status: "succeeded" })], leases: [liveLease()], workload: "starting" });
     const whileStarting = result.current.label;
     receive({ workload: "running" });
 
-    expect([whileUnderway, whileStarting, result.current.label]).toEqual(["Spinning up", "Spinning up", "Running"]);
+    expect([whileUnderway, whileStarting, result.current.label]).toEqual(["Starting", "Spinning up", "Running"]);
   });
 
   it("follows a close that starts after the deployment is shown", () => {
@@ -132,11 +176,14 @@ describe(useDeploymentStatus.name, () => {
 
   it("follows the newest lease creation, so a retry replaces the attempt that failed", () => {
     const { result } = setup({
-      activities: [leaseCreation({ status: "pending" }), leaseCreation({ status: "failed", error: { code: "lease_not_created", message: "Gone." } })],
+      activities: [
+        leaseCreation({ status: "pending", providers: [PROVIDER] }),
+        leaseCreation({ status: "failed", error: { code: "lease_not_created", message: "Gone." } })
+      ],
       leases: []
     });
 
-    expect(result.current.label).toBe("Spinning up");
+    expect(result.current.label).toBe("Starting");
   });
 
   it("reads only the activities about this deployment", () => {
@@ -177,10 +224,10 @@ describe(useDeploymentStatus.name, () => {
       expect(result.current.label).toBe("Updating");
     });
 
-    it("keeps a deployment still waiting for its lease spinning up, as no provider runs anything to update yet", () => {
+    it("keeps a deployment still waiting for its lease starting, as no provider runs anything to update yet", () => {
       const { result } = setup({ activities: [deploymentUpdate("pending"), leaseCreation({ status: "pending", providers: [PROVIDER] })], leases: [] });
 
-      expect(result.current).toMatchObject({ label: "Spinning up", launch: { phase: "awaiting-lease", providers: [PROVIDER] } });
+      expect(result.current).toMatchObject({ label: "Starting", launch: { phase: "starting", providers: [PROVIDER] } });
     });
 
     it("holds back a failed deploy while the update sends the deployment to its provider again", () => {
@@ -229,11 +276,14 @@ describe(useDeploymentStatus.name, () => {
 
     it("keeps following a lease creation still underway, whatever its last attempt reported", () => {
       const { result } = setup({
-        activities: [deploymentUpdate("succeeded"), leaseCreation({ status: "pending", error: { code: "manifest_not_delivered", message: "Not sent." } })],
+        activities: [
+          deploymentUpdate("succeeded"),
+          leaseCreation({ status: "pending", providers: [PROVIDER], error: { code: "manifest_not_delivered", message: "Not sent." } })
+        ],
         leases: []
       });
 
-      expect(result.current).toMatchObject({ label: "Spinning up", launch: { phase: "awaiting-lease" } });
+      expect(result.current).toMatchObject({ label: "Starting", launch: { phase: "starting" } });
     });
 
     it("keeps a refusal that came after the update", () => {

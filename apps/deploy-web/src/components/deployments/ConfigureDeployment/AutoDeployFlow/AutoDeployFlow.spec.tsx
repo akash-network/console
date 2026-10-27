@@ -8,7 +8,7 @@ import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./AutoDeployFlow";
 import { AutoDeployFlow } from "./AutoDeployFlow";
 
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { ComponentMock } from "@tests/unit/mocks";
 
 type SceneProps = Parameters<typeof DEPENDENCIES.PhasedDeployProgressScene>[0];
@@ -19,7 +19,7 @@ const CONTACT_SUPPORT_URL = "https://akash.network/discord";
 describe(AutoDeployFlow.name, () => {
   it("drives the autopilot with the shared flow and the resolved SDL", () => {
     const useAutoDeploymentFlow = vi.fn(() => buildAutopilot());
-    const flow = mock<DeploymentFlow>();
+    const flow = buildFlow();
     setup({ sdl: "sdl-content", flow, useAutoDeploymentFlow });
 
     expect(useAutoDeploymentFlow).toHaveBeenCalledWith({ sdl: "sdl-content", resumeLeases: [], flow });
@@ -143,7 +143,7 @@ describe(AutoDeployFlow.name, () => {
   it("stops the autopilot and switches to manual bid selection when the user chooses a provider", () => {
     const stopAutopilot = vi.fn();
     const setBidStrategy = vi.fn();
-    const flow = mock<DeploymentFlow>({ actions: mock<DeploymentFlow["actions"]>({ setBidStrategy }) });
+    const flow = buildFlow({ actions: mock<DeploymentFlow["actions"]>({ setBidStrategy }) });
     const { sceneProps } = setup({ flow, autopilot: { stopAutopilot } });
 
     sceneProps().onChooseProvider?.();
@@ -155,7 +155,7 @@ describe(AutoDeployFlow.name, () => {
   it("stops the autopilot and switches to manual bid selection when the user tries another provider after a failed lease", () => {
     const stopAutopilot = vi.fn();
     const setBidStrategy = vi.fn();
-    const flow = mock<DeploymentFlow>({ actions: mock<DeploymentFlow["actions"]>({ setBidStrategy }) });
+    const flow = buildFlow({ actions: mock<DeploymentFlow["actions"]>({ setBidStrategy }) });
     const { sceneProps, analyticsService } = setup({ flow, autopilot: { stopAutopilot, state: { kind: "error", reason: "lease-failed" } } });
 
     sceneProps().onTryAnotherProvider?.();
@@ -166,7 +166,7 @@ describe(AutoDeployFlow.name, () => {
   });
 
   it("tracks the choose-provider click with the template name when the user switches to manual selection", () => {
-    const flow = mock<DeploymentFlow>({ actions: mock<DeploymentFlow["actions"]>({ setBidStrategy: vi.fn() }) });
+    const flow = buildFlow({ actions: mock<DeploymentFlow["actions"]>({ setBidStrategy: vi.fn() }) });
     const { sceneProps, analyticsService } = setup({ flow, templateName: "my-app" });
 
     sceneProps().onChooseProvider?.();
@@ -182,6 +182,63 @@ describe(AutoDeployFlow.name, () => {
 
     expect(open).toHaveBeenCalledWith("https://support.example", "_blank", "noopener,noreferrer");
   });
+
+  describe("while the activity center lets the api take a one-click deploy on", () => {
+    it("shows only that the deployment is starting while the create awaits the api's answer", () => {
+      const PhasedDeployProgressScene = vi.fn(ComponentMock);
+      setup({ isRunningInBackground: true, dependencies: { PhasedDeployProgressScene } });
+
+      expect(screen.getByRole("heading", { name: "Starting your deployment" })).toBeInTheDocument();
+      expect(PhasedDeployProgressScene).not.toHaveBeenCalled();
+    });
+
+    it("keeps showing that the deployment is starting while it lands the user on the deployments list", () => {
+      const useLandOnDeploymentList = vi.fn();
+      setup({
+        isRunningInBackground: true,
+        flow: buildFlow({ autoLeasedDseq: "1000", isCreatingInBackground: true }),
+        dependencies: { useLandOnDeploymentList }
+      });
+
+      expect(screen.getByRole("heading", { name: "Starting your deployment" })).toBeInTheDocument();
+      expect(useLandOnDeploymentList).toHaveBeenLastCalledWith("1000");
+    });
+
+    it("lands nowhere before the api took the deploy on", () => {
+      const useLandOnDeploymentList = vi.fn();
+      setup({ isRunningInBackground: true, dependencies: { useLandOnDeploymentList } });
+
+      expect(useLandOnDeploymentList).toHaveBeenLastCalledWith(null);
+    });
+
+    it("drives the globe for a create the api took on without the provider pick", () => {
+      const PhasedDeployProgressScene = vi.fn(ComponentMock);
+      setup({ isRunningInBackground: true, flow: buildFlow({ isCreatingInBackground: true }), dependencies: { PhasedDeployProgressScene } });
+
+      expect(PhasedDeployProgressScene).toHaveBeenCalled();
+      expect(screen.queryByRole("heading", { name: "Starting your deployment" })).not.toBeInTheDocument();
+    });
+
+    it("shows a refused create on the progress scene, where funds can be added", () => {
+      const PhasedDeployProgressScene = vi.fn(ComponentMock);
+      setup({ isRunningInBackground: true, autopilot: { state: { kind: "error", reason: "needs-funds" } }, dependencies: { PhasedDeployProgressScene } });
+
+      expect(PhasedDeployProgressScene).toHaveBeenCalledWith(expect.objectContaining({ state: { kind: "error", reason: "needs-funds" } }), expect.anything());
+    });
+  });
+
+  it("drives the globe from the start while the activity center is off", () => {
+    const PhasedDeployProgressScene = vi.fn(ComponentMock);
+    const useFlag = vi.fn(() => false);
+    setup({ dependencies: { PhasedDeployProgressScene, useFlag } });
+
+    expect(PhasedDeployProgressScene).toHaveBeenCalled();
+    expect(useFlag).toHaveBeenCalledWith("notifications_activity_center");
+  });
+
+  function buildFlow(overrides: Partial<DeploymentFlow> = {}): DeploymentFlow {
+    return mock<DeploymentFlow>({ autoLeasedDseq: null, isCreatingInBackground: false, ...overrides });
+  }
 
   function buildAutopilot(overrides: Partial<FlowResult> = {}): FlowResult {
     return {
@@ -210,6 +267,7 @@ describe(AutoDeployFlow.name, () => {
       useAutoDeploymentFlow?: typeof DEPENDENCIES.useAutoDeploymentFlow;
       organizationRole?: OrganizationRole;
       projectsEnabled?: boolean;
+      isRunningInBackground?: boolean;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -244,7 +302,7 @@ describe(AutoDeployFlow.name, () => {
         templateName={input.templateName ?? "Hello World"}
         sdl={input.sdl ?? "sdl-content"}
         resume={input.resume ?? { activeLeases: [] }}
-        flow={input.flow ?? mock<DeploymentFlow>()}
+        flow={input.flow ?? buildFlow()}
         dependencies={{
           Layout: ComponentMock,
           PhasedDeployProgressScene,
@@ -253,6 +311,8 @@ describe(AutoDeployFlow.name, () => {
           useAddCredits,
           useActiveOrganization,
           useRouter,
+          useFlag: () => input.isRunningInBackground ?? false,
+          useLandOnDeploymentList: vi.fn(),
           ...input.dependencies
         }}
       />

@@ -3,7 +3,12 @@ import type { ConsoleCloseReason } from "@akashnetwork/http-sdk";
 
 import type { WorkloadStatus } from "@src/components/deployments/DeploymentDetail/DeploymentPlacements/placementModel";
 import type { DeploymentStatusView } from "@src/components/deployments/DeploymentDetail/DeploymentStatusBadge";
-import { getDeploymentStatus, SPINNING_UP_STATUS } from "@src/components/deployments/DeploymentDetail/DeploymentStatusBadge";
+import {
+  FINDING_PROVIDER_STATUS,
+  getDeploymentStatus,
+  SPINNING_UP_STATUS,
+  STARTING_STATUS
+} from "@src/components/deployments/DeploymentDetail/DeploymentStatusBadge";
 import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { type Activity, useActivityFeedQuery } from "@src/queries/useLatestActivitiesQuery";
@@ -16,14 +21,29 @@ export const MANIFEST_NOT_DELIVERED = "manifest_not_delivered";
 
 export const LEASE_CLOSED_BEFORE_MANIFEST = "lease_closed_before_manifest";
 
+/** The user closed a one-click deploy while Console was still picking its provider. */
+export const CLOSED_WHILE_MATCHING = "deployment_closed";
+
+/** A one-click deploy closed before Console picked its provider, by Console giving up or by the user, which only a new deployment runs again. */
+const CLOSED_BEFORE_MATCH_ERROR_CODES: ReadonlySet<string> = new Set(["no_provider_bids", "no_reachable_provider", CLOSED_WHILE_MATCHING]);
+
 const DEPLOY_FAILED_STATUS: DeploymentStatusView = { label: "Deploy failed", summaryLabel: "Deploy failed", tone: "warning" };
 
 /** A lease that exists only lacks its manifest, while one its provider closed leaves its group paused, so no provider can bid on the deployment again. */
-export type DeploymentRecovery = "send-again" | "choose-provider" | "close";
+export type DeploymentRecovery = "send-again" | "choose-provider" | "close" | "deploy-again";
+
+/** Console picks the provider of a one-click deploy itself, and its lease creation names none until it has. */
+export type DeploymentLaunchStep = "finding-provider" | "starting" | "awaiting-lease";
 
 export type DeploymentLaunch =
-  | { phase: "awaiting-lease"; providers: string[] }
+  | { phase: DeploymentLaunchStep; providers: string[] }
   | { phase: "failed"; providers: string[]; recovery: DeploymentRecovery; reason?: string };
+
+export const LAUNCH_STATUSES: Record<DeploymentLaunchStep, DeploymentStatusView> = {
+  "finding-provider": FINDING_PROVIDER_STATUS,
+  starting: STARTING_STATUS,
+  "awaiting-lease": SPINNING_UP_STATUS
+};
 
 export type ResolvedDeploymentStatus = DeploymentStatusView & { launch?: DeploymentLaunch };
 
@@ -109,8 +129,8 @@ export function deploymentStatusOf(input: {
 
   const launch = deploymentLaunchOf(input);
   if (launch?.phase === "failed") return { ...DEPLOY_FAILED_STATUS, launch };
-  if (launch) return { ...SPINNING_UP_STATUS, launch };
-  if (!input.isUpdating && input.state === "active" && input.leaseCreation?.status === "pending") return SPINNING_UP_STATUS;
+  if (launch) return { ...LAUNCH_STATUSES[launch.phase], launch };
+  if (!input.isUpdating && input.state === "active" && input.leaseCreation?.status === "pending") return STARTING_STATUS;
 
   return status;
 }
@@ -136,13 +156,15 @@ export function deploymentLaunchOf({
     return isUpdating ? undefined : { phase: "failed", providers, recovery: deploymentRecoveryOf(error?.code), reason: error?.message };
   }
   if (leases?.some(isLeaseLive)) return undefined;
-  if (leaseCreation.status === "pending" || !leases?.length) return { phase: "awaiting-lease", providers };
+  if (leaseCreation.status === "pending") return { phase: providers.length > 0 ? "starting" : "finding-provider", providers };
+  if (!leases?.length) return { phase: "awaiting-lease", providers };
 
   return undefined;
 }
 
 export function deploymentRecoveryOf(errorCode: string | undefined): DeploymentRecovery {
   if (errorCode === MANIFEST_NOT_DELIVERED) return "send-again";
+  if (CLOSED_BEFORE_MATCH_ERROR_CODES.has(errorCode ?? "")) return "deploy-again";
   if (errorCode === LEASE_CLOSED_BEFORE_MANIFEST) return "close";
 
   return "choose-provider";

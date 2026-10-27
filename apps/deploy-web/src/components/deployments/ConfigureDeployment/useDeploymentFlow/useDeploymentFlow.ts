@@ -9,6 +9,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useMarkActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { type HeldActivityEvent, useHoldActivityEvents } from "@src/hooks/useHeldActivityEvents/useHeldActivityEvents";
+import { useRecordOneClickDeploy } from "@src/hooks/useOneClickDeploys/useOneClickDeploys";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { PENDING_ACTIVITY_POLL_MS, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
@@ -79,6 +80,8 @@ export interface DeploymentFlowState {
   isCreatingInBackground: boolean;
   /** True from sending the lease request until it answers; the api finishes a lease it has been sent even once the page is gone. */
   isLeaseInFlight: boolean;
+  /** The one-click deploy the api took on to create, match and lease by itself, which this page holds no dseq of and so can never close. */
+  autoLeasedDseq: string | null;
 }
 
 export interface RequestQuotesOptions {
@@ -193,6 +196,7 @@ export const DEPENDENCIES = {
   useConfigureDeployTarget,
   useMarkActivityOutcomes,
   useHoldActivityEvents,
+  useRecordOneClickDeploy,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   manifestFromSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -220,6 +224,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   /** Only the per-call callbacks mark an outcome handled, since they run only while this page is still there to show it. */
   const { forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing } = dependencies.useMarkActivityOutcomes();
   const holdActivityEvents = dependencies.useHoldActivityEvents();
+  const recordOneClickDeploy = dependencies.useRecordOneClickDeploy();
   const deployTarget = dependencies.useConfigureDeployTarget();
   const deployTargetProjectId = deployTarget.project?.id;
   const forgetProject = deployTarget.forgetProject;
@@ -260,6 +265,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const [isLeaseInFlight, setIsLeaseInFlight] = useState(false);
   const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
   const [noBidsReceived, setNoBidsReceived] = useState(false);
+  const [autoLeasedDseq, setAutoLeasedDseq] = useState<string | null>(null);
 
   /** A close the api took on in the background, followed through the activity feed until it settles; `token` is the close that started it. */
   const [backgroundClose, setBackgroundClose] = useState<{ dseq: string; token: number; activityId: string } | null>(null);
@@ -407,7 +413,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         placementCount: screeningRef.current?.placementCount,
         screenedProviderCount: screeningRef.current?.providerCount,
         notBiddingProviderCount: screeningRef.current?.notBiddingProviderCount,
-        isAutoDeploy: intentRef.current.sdlStrategy === "default" && bidStrategyRef.current === "auto"
+        isAutoDeploy: isOneClickDeploy(intentRef.current, bidStrategyRef.current)
       });
     },
     [bidsQuery.data, dseq, analyticsService]
@@ -676,8 +682,22 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         holdActivityEvents(activityId, { succeeded: [{ event: "create_deployment", properties: createdEventOf(result.dseq) }] });
       }
 
+      /** Neither adopted nor followed, so no close path here can reach it, even once superseded, and the activity host tells how it ends. */
+      function handOverToApi(newDseq: string, activityId: string) {
+        createInFlightRef.current = false;
+        recordOneClickDeploy(newDseq, oneClickDeployUrlOf(intentRef.current));
+        holdActivityEvents(activityId, { succeeded: [{ event: "create_deployment", properties: createdEventOf(newDseq) }] });
+        queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
+        if (isCurrentAttempt()) setAutoLeasedDseq(newDseq);
+        else runQueuedCreate();
+      }
+
       function onCreated(result: { data: { dseq: string; manifest: string } }) {
         const activityId = acceptedActivityIdOf(result.data);
+        if (activityId && isAutoLeased(result.data)) {
+          handOverToApi(result.data.dseq, activityId);
+          return;
+        }
         if (activityId) {
           followInBackground(result.data, activityId);
           return;
@@ -711,7 +731,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         createDeployment.mutate(
           {
             data: { sdl, ...namePayload(options.name), ...projectPayload(deployTargetProjectId), ...sealed, ...inheritance, deposit: DEFAULT_DEPOSIT },
-            ...backgroundQueryFor(isRunningInBackground)
+            ...createQueryFor(isRunningInBackground, isOneClickDeploy(intentRef.current, bidStrategyRef.current))
           },
           {
             onSuccess: onCreated,
@@ -786,6 +806,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       runQueuedCreate,
       isRunningInBackground,
       holdActivityEvents,
+      recordOneClickDeploy,
       followUntilSettled,
       queryClient,
       api,
@@ -1130,8 +1151,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     deployError,
     error,
     pendingClose,
-    isCreatingInBackground: backgroundCreate?.dseq === dseq,
+    isCreatingInBackground: backgroundCreate?.dseq === dseq || autoLeasedDseq !== null,
     isLeaseInFlight,
+    autoLeasedDseq,
     actions: {
       requestQuotes,
       requestQuotesAgain,
@@ -1155,6 +1177,24 @@ function backgroundQueryFor(inBackground: boolean): { async?: "true" } {
 
 function closeRequestFor(dseq: string, inBackground: boolean): { dseq: string; async?: "true" } {
   return { dseq, ...backgroundQueryFor(inBackground) };
+}
+
+function createQueryFor(inBackground: boolean, isOneClick: boolean): { async?: "true"; autoLease?: "true" } {
+  return inBackground && isOneClick ? { async: "true", autoLease: "true" } : backgroundQueryFor(inBackground);
+}
+
+function isOneClickDeploy(intent: DeploymentIntent, bidStrategy: BidStrategy): boolean {
+  return intent.sdlStrategy === "default" && bidStrategy === "auto";
+}
+
+/** A fresh draft rather than the one this deploy ran from, since a draft opens the form instead of deploying on its own. */
+function oneClickDeployUrlOf(intent: DeploymentIntent): string {
+  return UrlService.configureDeployment({ templateId: intent.templateId, sdlStrategy: "default", bidStrategy: "auto" });
+}
+
+/** The api answers `autoLease: true` only once it has taken the provider pick and the lease on as well, and ignores the ask while that is unavailable. */
+function isAutoLeased(data: object): boolean {
+  return "autoLease" in data && data.autoLease === true;
 }
 
 function shownOutcomeOf(error: unknown): "succeeded" | "failed" {

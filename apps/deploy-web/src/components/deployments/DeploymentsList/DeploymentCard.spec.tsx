@@ -43,10 +43,10 @@ describe("DeploymentCard", () => {
     expect(DeploymentStatusBadge).toHaveBeenCalledWith({ status, leases, isSummarized: true }, expect.anything());
   });
 
-  it("shows a deployment whose lease is still being created as spinning up, as its page header does", () => {
+  it("shows a deployment whose lease is still being created as starting, as its page header does", () => {
     setup({ deployment: { dseq: "100" }, activities: [leaseCreation("pending")], isRenderingStatus: true });
 
-    expect(screen.getByText("Spinning up")).toBeInTheDocument();
+    expect(screen.getByText("Starting")).toBeInTheDocument();
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
   });
 

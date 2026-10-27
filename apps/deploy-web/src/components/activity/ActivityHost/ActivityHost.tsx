@@ -7,16 +7,23 @@ import { useRouter } from "next/navigation";
 import type { SnackbarKey } from "notistack";
 import { useSnackbar } from "notistack";
 
-import { type ActivityDestination, activityDestinationOf, SUMMARY_DESTINATION } from "@src/components/activity/activityDestinations/activityDestinations";
+import {
+  type ActivityDestination,
+  activityDestinationOf,
+  DEPLOY_AGAIN_LABEL,
+  SUMMARY_DESTINATION
+} from "@src/components/activity/activityDestinations/activityDestinations";
 import { deploymentLabelOf, listOf, systemCloseOf } from "@src/components/activity/activityLabels/activityLabels";
 import { ActivityToast } from "@src/components/activity/ActivityToast/ActivityToast";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCloseBatchesBeingSent } from "@src/hooks/useCloseBatches/useCloseBatches";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
+import { CLOSED_WHILE_MATCHING } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import { useFlag } from "@src/hooks/useFlag";
 import { useHandledActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { useTakeHeldActivityEvents } from "@src/hooks/useHeldActivityEvents/useHeldActivityEvents";
+import { type OneClickDeploys, useOneClickDeploys } from "@src/hooks/useOneClickDeploys/useOneClickDeploys";
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { type Activity, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
@@ -30,6 +37,7 @@ export const DEPENDENCIES = {
   useCloseBatchesBeingSent,
   useHandledActivityOutcomes,
   useTakeHeldActivityEvents,
+  useOneClickDeploys,
   useSnackbar,
   useQueryClient,
   useRouter
@@ -51,7 +59,10 @@ const PROGRESS_NOTICES: Partial<Record<Activity["type"], (activity: Activity, la
 };
 
 /** Undefined for an outcome told elsewhere: a deploy that went through is announced once its services are ready. */
-const ANNOUNCEMENTS: Record<FinishedActivity["type"], (activity: FinishedActivity, labelDeployment: LabelDeployment) => Announcement | undefined> = {
+const ANNOUNCEMENTS: Record<
+  FinishedActivity["type"],
+  (activity: FinishedActivity, labelDeployment: LabelDeployment, activities: Activity[]) => Announcement | undefined
+> = {
   deployment_close: ({ status, initiator, meta }, labelDeployment) => {
     const deployment = labelDeployment(meta.dseq);
 
@@ -64,7 +75,9 @@ const ANNOUNCEMENTS: Record<FinishedActivity["type"], (activity: FinishedActivit
       ? { title: `${upperFirst(deployment)} closed`, subTitle: "It no longer runs or costs anything.", variant: "success" }
       : { title: `Couldn't close ${deployment}`, subTitle: meta.error?.message ?? "Try closing it again.", variant: "error" };
   },
-  deployment_create: ({ status, meta }, labelDeployment) => {
+  deployment_create: ({ status, meta }, labelDeployment, activities) => {
+    if (status === "succeeded" && isLeasedByConsole(meta.dseq, activities)) return undefined;
+
     const deployment = labelDeployment(meta.dseq);
 
     return status === "succeeded"
@@ -80,7 +93,7 @@ const ANNOUNCEMENTS: Record<FinishedActivity["type"], (activity: FinishedActivit
   },
   deployment_rename: () => undefined,
   lease_create: ({ status, meta }, labelDeployment) => {
-    if (status === "succeeded") return undefined;
+    if (status === "succeeded" || meta.error?.code === CLOSED_WHILE_MATCHING) return undefined;
 
     return { title: `Couldn't deploy ${labelDeployment(meta.dseq)}`, subTitle: meta.error?.message ?? "Choose a provider again.", variant: "error" };
   }
@@ -120,6 +133,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   const closeBatchesBeingSent = d.useCloseBatchesBeingSent();
   const { isOutcomeHandled, isFollowedOnItsPage, forgetHandledOutcome } = d.useHandledActivityOutcomes();
   const takeHeldActivityEvents = d.useTakeHeldActivityEvents();
+  const oneClickDeploys = d.useOneClickDeploys();
   const lastSeenStatuses = useRef<Map<string, Activity["status"]>>();
   const batchesToSumUp = useRef(new Set<string>());
   /** Only actions started after this read get a progress toast, so one stuck pending for hours doesn't greet the user with a spinner on every page load. */
@@ -209,8 +223,8 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
       }
 
       function announceActivity(activity: FinishedActivity) {
-        const announcement = ANNOUNCEMENTS[activity.type](activity, labelDeployment);
-        if (announcement) announce(announcement, activityDestinationOf(activity));
+        const announcement = ANNOUNCEMENTS[activity.type](activity, labelDeployment, activities ?? []);
+        if (announcement) announce(announcement, toastDestinationOf(activity, oneClickDeploys));
       }
 
       function announce({ title, subTitle, variant }: Announcement, destination: ActivityDestination) {
@@ -254,6 +268,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
       isFollowedOnItsPage,
       forgetHandledOutcome,
       takeHeldActivityEvents,
+      oneClickDeploys,
       address,
       api,
       analyticsService,
@@ -266,6 +281,19 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   );
 
   return null;
+}
+
+/** Console opens the lease creation of a one-click deploy as it settles the create, so there is no provider for the user to choose. */
+function isLeasedByConsole(dseq: string | undefined, activities: Activity[]): boolean {
+  return !!dseq && activities.some(activity => activity.type === "lease_create" && activity.meta.dseq === dseq);
+}
+
+/** A toast's action is a click the user chose, so it may run a one-click deploy this tab sent again on its own, which a link in the feed never does. */
+function toastDestinationOf(activity: Activity, oneClickDeploys: OneClickDeploys): ActivityDestination {
+  const destination = activityDestinationOf(activity);
+  const deployAgainHref = activity.meta.dseq ? oneClickDeploys.get(activity.meta.dseq) : undefined;
+
+  return destination.label === DEPLOY_AGAIN_LABEL && deployAgainHref ? { ...destination, href: deployAgainHref } : destination;
 }
 
 /** The code alone, since the message of a failure can echo what the user typed. */

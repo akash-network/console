@@ -1,5 +1,6 @@
 "use client";
 import type { FC } from "react";
+import { Spinner } from "@akashnetwork/ui/components";
 import { useRouter } from "next/navigation";
 
 import Layout from "@src/components/layout/Layout";
@@ -9,10 +10,12 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useAddCredits } from "@src/hooks/useAddCredits";
 import type { DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { useAutoDeploymentFlow } from "@src/hooks/useAutoDeploymentFlow/useAutoDeploymentFlow";
+import { useFlag } from "@src/hooks/useFlag";
 import { UrlService } from "@src/utils/urlUtils";
 import { PhasedDeployProgressScene } from "../DeployProgressOverlay/PhasedDeployProgressScene";
 import type { ResumeResolution } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
+import { useLandOnDeploymentList } from "../useLandOnDeploymentList/useLandOnDeploymentList";
 import { useResumeAfterCredits } from "../useResumeAfterCredits/useResumeAfterCredits";
 
 export const DEPENDENCIES = {
@@ -22,7 +25,9 @@ export const DEPENDENCIES = {
   useServices,
   useAddCredits,
   useActiveOrganization,
-  useRouter
+  useRouter,
+  useFlag,
+  useLandOnDeploymentList
 };
 
 const NEEDS_FUNDS_CONTEXT = "auto_deploy_needs_funds";
@@ -57,6 +62,7 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
   const openAddCredits = d.useAddCredits();
   const { activeOrganization, projectsEnabled } = d.useActiveOrganization();
   const router = d.useRouter();
+  const isRunningInBackground = d.useFlag("notifications_activity_center");
   const { state, progressPercent, phases, matchedProviderAddress, tryAgain, stopAutopilot } = d.useAutoDeploymentFlow({
     sdl,
     resumeLeases: resume.activeLeases,
@@ -71,11 +77,23 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
       tryAgain();
     }
   });
+  d.useLandOnDeploymentList(flow.autoLeasedDseq);
 
   /** Halts the autopilot first, since the bid-strategy change only unmounts this flow once the URL propagates. */
   function handOffToManualPick() {
     stopAutopilot();
     flow.actions.setBidStrategy("select");
+  }
+
+  if (isStartingInBackground(flow, state, isRunningInBackground)) {
+    return (
+      <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+          <Spinner size="large" />
+          <h1 className="text-lg font-semibold">Starting your deployment</h1>
+        </div>
+      </d.Layout>
+    );
   }
 
   return (
@@ -109,6 +127,11 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
     </d.Layout>
   );
 };
+
+/** The api usually takes a one-click deploy on whole, so the globe waits for a create it answered without doing so, or for a refusal to show. */
+function isStartingInBackground(flow: DeploymentFlow, state: DeployProgressState, isRunningInBackground: boolean): boolean {
+  return !!flow.autoLeasedDseq || (isRunningInBackground && state.kind === "creating" && !flow.isCreatingInBackground);
+}
 
 function budgetRefusingProjectIdOf(state: DeployProgressState): string | undefined {
   return state.kind === "error" && state.reason === "budget-exceeded" ? state.projectId : undefined;

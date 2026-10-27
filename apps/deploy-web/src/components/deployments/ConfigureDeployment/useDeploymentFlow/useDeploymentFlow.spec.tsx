@@ -489,7 +489,8 @@ describe(useDeploymentFlow.name, () => {
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
         useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
-        useHoldActivityEvents: () => vi.fn()
+        useHoldActivityEvents: () => vi.fn(),
+        useRecordOneClickDeploy: () => vi.fn()
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       act(() => vi.advanceTimersByTime(60_000));
@@ -734,7 +735,8 @@ describe(useDeploymentFlow.name, () => {
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
         useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
-        useHoldActivityEvents: () => vi.fn()
+        useHoldActivityEvents: () => vi.fn(),
+        useRecordOneClickDeploy: () => vi.fn()
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       expect(result.current.phase).toBe("quoting");
@@ -4093,6 +4095,91 @@ describe(useDeploymentFlow.name, () => {
     });
   });
 
+  describe("handing a one-click deploy to the api", () => {
+    it("asks the api to pick the provider and lease the deployment as well", async () => {
+      const { createMutate } = await setupOneClickCreate({});
+
+      expect(createMutate).toHaveBeenCalledWith(expect.objectContaining({ async: "true", autoLease: "true" }), expect.any(Object));
+    });
+
+    it("leaves the provider pick to the page for a deploy that is not one-click", async () => {
+      const { createMutate } = await setupBackgroundCreate({});
+
+      expect(createMutate.mock.calls[0][0]).not.toHaveProperty("autoLease");
+    });
+
+    it("leaves the provider pick to the page once the user chose to pick it", async () => {
+      const { createMutate } = await setupOneClickCreate({ bidStrategy: "select" });
+
+      expect(createMutate.mock.calls[0][0]).not.toHaveProperty("autoLease");
+    });
+
+    it("asks for no background work while the activity center is off", async () => {
+      const { createMutate } = await setupOneClickCreate({ isRunningInBackground: false });
+
+      expect(createMutate.mock.calls[0][0]).not.toHaveProperty("autoLease");
+      expect(createMutate.mock.calls[0][0]).not.toHaveProperty("async");
+    });
+
+    it("hands the deploy over without adopting its deployment once the api answers that it leases it too", async () => {
+      const replace = vi.fn();
+      const { result, recordOneClickDeploy, holdActivityEvents, followUntilSettled, queryClient, services, acceptWithLease } = await setupOneClickCreate({
+        replace
+      });
+
+      act(() => acceptWithLease());
+
+      expect(result.current).toMatchObject({ phase: "creating", dseq: null, autoLeasedDseq: "1000", isCreatingInBackground: true });
+      expect(recordOneClickDeploy).toHaveBeenCalledWith(
+        "1000",
+        UrlService.configureDeployment({ templateId: "hello-world", sdlStrategy: "default", bidStrategy: "auto" })
+      );
+      expect(holdActivityEvents).toHaveBeenCalledWith("activity-1", {
+        succeeded: [{ event: "create_deployment", properties: { category: "deployments", label: "Create deployment in wizard", dseq: "1000", secretCount: 0 } }]
+      });
+      expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listActivities"] });
+      expect(followUntilSettled).not.toHaveBeenCalled();
+      expect(replace).not.toHaveBeenCalled();
+      expect(services.api.v1.getActivity.useQuery).toHaveBeenLastCalledWith({ id: "" }, { enabled: false, refetchInterval: 5_000 });
+    });
+
+    it("follows the create itself when the api leaves the provider pick to the page", async () => {
+      const { result, recordOneClickDeploy, followUntilSettled, accept } = await setupOneClickCreate({});
+
+      act(() => accept());
+
+      expect(result.current).toMatchObject({ dseq: "1000", autoLeasedDseq: null, isCreatingInBackground: true });
+      expect(followUntilSettled).toHaveBeenCalledWith("activity-1");
+      expect(recordOneClickDeploy).not.toHaveBeenCalled();
+    });
+
+    it("closes nothing however the page is left once the deploy is handed over", async () => {
+      const { result, closeMutate, api, rerender, acceptWithLease } = await setupOneClickCreate({});
+      act(() => acceptWithLease());
+
+      act(() => result.current.actions.discard());
+      act(() => result.current.actions.cancelAndEdit());
+      api.activities = [createActivity("succeeded")];
+      rerender();
+
+      expect(closeMutate).not.toHaveBeenCalled();
+    });
+
+    it("sends a create queued behind one handed over, leaving the handed over one to the api", async () => {
+      const { result, closeMutate, createMutate, recordOneClickDeploy, acceptWithLease } = await setupOneClickCreate({});
+      act(() => result.current.actions.requestQuotes("sdl-2"));
+      await settleSeal();
+
+      act(() => acceptWithLease());
+      await settleSeal();
+
+      expect(createMutate).toHaveBeenCalledTimes(2);
+      expect(closeMutate).not.toHaveBeenCalled();
+      expect(recordOneClickDeploy).toHaveBeenCalledWith("1000", expect.any(String));
+      expect(result.current.autoLeasedDseq).toBeNull();
+    });
+  });
+
   function setup(input: {
     intent?: { sdlStrategy: "default" | "edit"; bidStrategy: "auto" | "select"; dseq?: string; templateId?: string; draftId?: string; vm?: boolean };
     replace?: ReturnType<typeof vi.fn>;
@@ -4124,6 +4211,7 @@ describe(useDeploymentFlow.name, () => {
     const followUntilSettled = vi.fn();
     const stopFollowing = vi.fn();
     const holdActivityEvents = vi.fn();
+    const recordOneClickDeploy = vi.fn();
     const services = mockServices({ createDeployment, closeDeployment, getDeployment, getSdlSecretsContext });
     services.api.v1.getActivity.useQuery.mockImplementation(({ id }) => {
       const activity = api.activities.find(candidate => candidate.id === id);
@@ -4147,7 +4235,8 @@ describe(useDeploymentFlow.name, () => {
           project: input.deployTargetProjectId ? mock<Project>({ id: input.deployTargetProjectId }) : undefined,
           forgetProject
         }),
-      useHoldActivityEvents: () => holdActivityEvents
+      useHoldActivityEvents: () => holdActivityEvents,
+      useRecordOneClickDeploy: () => recordOneClickDeploy
     };
     return {
       services,
@@ -4168,7 +4257,8 @@ describe(useDeploymentFlow.name, () => {
       forgetEarlierOutcomes,
       followUntilSettled,
       stopFollowing,
-      holdActivityEvents
+      holdActivityEvents,
+      recordOneClickDeploy
     };
   }
 
@@ -4207,6 +4297,7 @@ describe(useDeploymentFlow.name, () => {
     const followUntilSettled = vi.fn();
     const stopFollowing = vi.fn();
     const holdActivityEvents = vi.fn<ReturnType<typeof DEPENDENCIES.useHoldActivityEvents>>();
+    const recordOneClickDeploy = vi.fn();
     const useFlag = vi.fn((_flag: string) => input?.isActivityCenterOn ?? false);
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
@@ -4222,7 +4313,8 @@ describe(useDeploymentFlow.name, () => {
       useMarkActivityOutcomes: () =>
         mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>({ forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing }),
       useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
-      useHoldActivityEvents: () => holdActivityEvents
+      useHoldActivityEvents: () => holdActivityEvents,
+      useRecordOneClickDeploy: () => recordOneClickDeploy
     };
     const utils = renderDeploymentFlow(intent, dependencies, input?.settingsId);
     return {
@@ -4230,6 +4322,7 @@ describe(useDeploymentFlow.name, () => {
       router,
       queryClient,
       holdActivityEvents,
+      recordOneClickDeploy,
       useFlag,
       followUntilSettled,
       services,
@@ -4257,7 +4350,8 @@ describe(useDeploymentFlow.name, () => {
       useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
       useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
       useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
-      useHoldActivityEvents: () => vi.fn()
+      useHoldActivityEvents: () => vi.fn(),
+      useRecordOneClickDeploy: () => vi.fn()
     };
     return {
       ...renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies),
@@ -4273,6 +4367,22 @@ describe(useDeploymentFlow.name, () => {
     await settleSeal();
     const accept = () => createCalls[0].options.onSuccess?.({ data: { dseq: "1000", manifest: "m", activityId: "activity-1" } });
     return { ...view, createMutate, createCalls, closeMutate, accept };
+  }
+
+  async function setupOneClickCreate(input: { replace?: ReturnType<typeof vi.fn>; bidStrategy?: "auto" | "select"; isRunningInBackground?: boolean }) {
+    const { mutate: createMutate, calls: createCalls } = deferredMutate();
+    const closeMutate = vi.fn();
+    const view = setup({
+      intent: { sdlStrategy: "default", bidStrategy: input.bidStrategy ?? "auto", templateId: "hello-world" },
+      replace: input.replace,
+      createMutate,
+      closeMutate,
+      isRunningInBackground: input.isRunningInBackground ?? true
+    });
+    act(() => view.result.current.actions.requestQuotes("sdl"));
+    await settleSeal();
+    const answer = (data: object) => createCalls[0].options.onSuccess?.({ data: { dseq: "1000", manifest: "m", activityId: "activity-1", ...data } });
+    return { ...view, createMutate, createCalls, closeMutate, accept: () => answer({}), acceptWithLease: () => answer({ autoLease: true }) };
   }
 
   function createActivity(status: Activity["status"]) {

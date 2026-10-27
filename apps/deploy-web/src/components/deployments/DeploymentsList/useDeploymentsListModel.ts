@@ -16,6 +16,7 @@ import { deploymentsViewModeAtom } from "@src/store/deploymentsViewStore";
 import sdlStore from "@src/store/sdlStore";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 import { useApiDeploymentsListSource } from "./useApiDeploymentsListSource";
+import { useCreatingDeployments } from "./useCreatingDeployments";
 
 export const DEPENDENCIES = {
   useWallet,
@@ -25,7 +26,8 @@ export const DEPENDENCIES = {
   useProjectAccess,
   useDeploymentsListSource: useApiDeploymentsListSource,
   useClosingDeployments,
-  useCloseDeployments
+  useCloseDeployments,
+  useCreatingDeployments
 };
 
 /** Must stay one of the sizes PaginationSizeSelector offers, or the selector renders blank. */
@@ -77,6 +79,13 @@ export function useDeploymentsListModel({ projectId }: { projectId?: string } = 
   const isSearchTooBroad = active.isSearchTooBroad || archive.isSearchTooBroad;
 
   const hasPageResults = pageDeployments.length > 0;
+  const beingCreated = d.useCreatingDeployments();
+  /** The feed names no project for them and no search matches them yet, so only the first page of the whole list has them on top. */
+  const creatingDeployments = useMemo(
+    () =>
+      pageIndex === 0 && !isSearching && !projectId ? beingCreated.filter(({ dseq }) => !pageDeployments.some(deployment => deployment.dseq === dseq)) : [],
+    [beingCreated, pageIndex, isSearching, projectId, pageDeployments]
+  );
   /** The count is unknown when the api could not answer it, so the rows it did return stand in for it. */
   const hasAnyArchived = archivePageDeployments.length > 0 || (archiveTotal ?? 0) > 0;
   /** A search is only reachable from a list that already had rows, so it stands in for the unfiltered counts the source no longer holds. */
@@ -88,7 +97,8 @@ export function useDeploymentsListModel({ projectId }: { projectId?: string } = 
   /** Both queries feed the choice between rows and the empty state, so neither can be decided until both have data. */
   const hasResolvedActiveAndArchive = active.isResolved && archive.isResolved;
   const isInitialLoad = !!address && !hasPageResults && !isError && !isArchiveError && !hasResolvedActiveAndArchive;
-  const hasSettledWithoutActiveDeployments = !hasPageResults && pageIndex === 0 && !isError && !isArchiveError && !isSearching && hasResolvedActiveAndArchive;
+  const hasSettledWithoutActiveDeployments =
+    !hasPageResults && creatingDeployments.length === 0 && pageIndex === 0 && !isError && !isArchiveError && !isSearching && hasResolvedActiveAndArchive;
 
   useEffect(
     function goBackFromEmptyPage() {
@@ -171,6 +181,7 @@ export function useDeploymentsListModel({ projectId }: { projectId?: string } = 
     isSearching,
     changeSearch,
     pageDeployments,
+    creatingDeployments,
     /** Waits for the list to show rows or settle empty, so a count never contradicts a loading or failed list. */
     activeTotal: hasPageResults || hasSettledWithoutActiveDeployments ? active.total : null,
     archiveTotal,

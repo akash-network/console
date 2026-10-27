@@ -259,12 +259,23 @@ describe("DeploymentDetail", () => {
   });
 
   describe("while its lease is being created", () => {
-    it("shows that it is spinning up on the providers it chose, instead of sending the user to configure it", () => {
+    it("shows that it is starting on the providers it chose, instead of sending the user to configure it", () => {
       const { router, DeploymentLaunchState } = setup({ leases: [], leaseCreation: leaseCreation({ status: "pending", providers: ["akash1provider"] }) });
 
       expect(router.replace).not.toHaveBeenCalled();
       expect(DeploymentLaunchState).toHaveBeenCalledWith(
-        expect.objectContaining({ dseq: "1786440078202", launch: { phase: "awaiting-lease", providers: ["akash1provider"] }, className: "mb-6" }),
+        expect.objectContaining({ dseq: "1786440078202", launch: { phase: "starting", providers: ["akash1provider"] }, className: "mb-6" }),
+        expect.anything()
+      );
+      expect(screen.queryByText("placements")).not.toBeInTheDocument();
+    });
+
+    it("shows a one-click deploy Console is still finding a provider for, instead of sending the user to configure it", () => {
+      const { router, DeploymentLaunchState } = setup({ leases: [], leaseCreation: leaseCreation({ status: "pending", providers: [] }) });
+
+      expect(router.replace).not.toHaveBeenCalled();
+      expect(DeploymentLaunchState).toHaveBeenCalledWith(
+        expect.objectContaining({ dseq: "1786440078202", launch: { phase: "finding-provider", providers: [] } }),
         expect.anything()
       );
       expect(screen.queryByText("placements")).not.toBeInTheDocument();

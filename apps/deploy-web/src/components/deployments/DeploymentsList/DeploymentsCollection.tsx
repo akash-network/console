@@ -7,12 +7,16 @@ import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import type { DeploymentsViewMode } from "@src/store/deploymentsViewStore";
 import type { ListedDeploymentDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
+import { CREATING_STATUS, StatusBadge } from "../DeploymentDetail/DeploymentStatusBadge";
 import { DeploymentCard } from "./DeploymentCard";
 import { DeploymentRow } from "./DeploymentRow";
+import type { CreatingDeployment } from "./useCreatingDeployments";
 
 export const DEPENDENCIES = { useProjectAccess, DeploymentCard, DeploymentRow };
 
 const LOADING_PLACEHOLDERS = ["first", "second", "third"];
+
+const UNNAMED_CREATING_DEPLOYMENT = "New deployment";
 
 /**
  * The archive renders a second table below this one, and only a fixed layout keeps the two reading as one grid:
@@ -31,6 +35,8 @@ const CONTROLS_COLUMN = "w-[6.25rem]";
 
 export interface DeploymentsCollectionProps {
   deployments: ListedDeploymentDto[];
+  /** Shown on top and not opened, since their deployments are not on chain for their pages to read yet. */
+  creatingDeployments?: CreatingDeployment[];
   providers: ApiProviderList[] | undefined;
   viewMode: DeploymentsViewMode;
   isLoading?: boolean;
@@ -44,6 +50,7 @@ export interface DeploymentsCollectionProps {
 
 export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
   deployments,
+  creatingDeployments = [],
   providers,
   viewMode,
   isLoading,
@@ -73,6 +80,9 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
   if (viewMode === "grid") {
     return (
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {creatingDeployments.map(deployment => (
+          <CreatingCard key={deployment.dseq} deployment={deployment} />
+        ))}
         {isLoading
           ? LOADING_PLACEHOLDERS.map(key => <CardPlaceholder key={key} />)
           : deployments.map(deployment => <d.DeploymentCard key={deployment.dseq} {...itemProps(deployment)} />)}
@@ -93,6 +103,9 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
+          {creatingDeployments.map(deployment => (
+            <CreatingRow key={deployment.dseq} deployment={deployment} />
+          ))}
           {isLoading
             ? LOADING_PLACEHOLDERS.map(key => <RowPlaceholder key={key} />)
             : deployments.map(deployment => <d.DeploymentRow key={deployment.dseq} {...itemProps(deployment)} />)}
@@ -101,6 +114,27 @@ export const DeploymentsCollection: FC<DeploymentsCollectionProps> = ({
     </div>
   );
 };
+
+const CreatingCard: FC<{ deployment: CreatingDeployment }> = ({ deployment }) => (
+  <Card className="flex flex-col overflow-hidden">
+    <div className="flex items-start justify-between gap-3 p-5">
+      <p className="min-w-0 truncate font-semibold">{deployment.name || UNNAMED_CREATING_DEPLOYMENT}</p>
+      <StatusBadge label={CREATING_STATUS.label} tone={CREATING_STATUS.tone} className="shrink-0" />
+    </div>
+  </Card>
+);
+
+const CreatingRow: FC<{ deployment: CreatingDeployment }> = ({ deployment }) => (
+  <TableRow>
+    <TableCell>
+      <StatusBadge label={CREATING_STATUS.label} tone={CREATING_STATUS.tone} />
+    </TableCell>
+    <TableCell>
+      <p className="truncate font-semibold">{deployment.name || UNNAMED_CREATING_DEPLOYMENT}</p>
+    </TableCell>
+    <TableCell colSpan={3} />
+  </TableRow>
+);
 
 const CardPlaceholder: FC = () => (
   <Card className="flex flex-col overflow-hidden" data-testid="deployment-placeholder">
