@@ -83,12 +83,12 @@ describe(WhatsNewAutoOpen.name, () => {
     expect(openWhatsNew).toHaveBeenCalledOnce();
   });
 
-  it("announces when the pathname is not known yet", () => {
+  it("waits until the router knows the page, which may turn out to be mid-task", () => {
     const { openWhatsNew } = setup({ pathname: null });
 
-    act(() => vi.advanceTimersByTime(1100));
+    act(() => vi.advanceTimersByTime(5000));
 
-    expect(openWhatsNew).toHaveBeenCalledOnce();
+    expect(openWhatsNew).not.toHaveBeenCalled();
   });
 
   it("cancels a pending announcement when the user leaves the page first", () => {
