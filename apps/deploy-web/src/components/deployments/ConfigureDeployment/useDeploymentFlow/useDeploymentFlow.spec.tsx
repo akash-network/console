@@ -4108,6 +4108,12 @@ describe(useDeploymentFlow.name, () => {
       expect(createMutate.mock.calls[0][0]).not.toHaveProperty("autoLease");
     });
 
+    it("leaves the provider pick to the page for a template the user edits", async () => {
+      const { createMutate } = await setupOneClickCreate({ sdlStrategy: "edit" });
+
+      expect(createMutate.mock.calls[0][0]).not.toHaveProperty("autoLease");
+    });
+
     it("leaves the provider pick to the page once the user chose to pick it", async () => {
       const { createMutate } = await setupOneClickCreate({ bidStrategy: "select" });
 
@@ -4163,6 +4169,16 @@ describe(useDeploymentFlow.name, () => {
       rerender();
 
       expect(closeMutate).not.toHaveBeenCalled();
+    });
+
+    it("creates again at once after handing a deploy over", async () => {
+      const { result, createMutate, acceptWithLease } = await setupOneClickCreate({});
+      act(() => acceptWithLease());
+
+      act(() => result.current.actions.requestQuotes("sdl-2"));
+      await settleSeal();
+
+      expect(createMutate).toHaveBeenCalledTimes(2);
     });
 
     it("sends a create queued behind one handed over, leaving the handed over one to the api", async () => {
@@ -4369,11 +4385,16 @@ describe(useDeploymentFlow.name, () => {
     return { ...view, createMutate, createCalls, closeMutate, accept };
   }
 
-  async function setupOneClickCreate(input: { replace?: ReturnType<typeof vi.fn>; bidStrategy?: "auto" | "select"; isRunningInBackground?: boolean }) {
+  async function setupOneClickCreate(input: {
+    replace?: ReturnType<typeof vi.fn>;
+    sdlStrategy?: "default" | "edit";
+    bidStrategy?: "auto" | "select";
+    isRunningInBackground?: boolean;
+  }) {
     const { mutate: createMutate, calls: createCalls } = deferredMutate();
     const closeMutate = vi.fn();
     const view = setup({
-      intent: { sdlStrategy: "default", bidStrategy: input.bidStrategy ?? "auto", templateId: "hello-world" },
+      intent: { sdlStrategy: input.sdlStrategy ?? "default", bidStrategy: input.bidStrategy ?? "auto", templateId: "hello-world" },
       replace: input.replace,
       createMutate,
       closeMutate,

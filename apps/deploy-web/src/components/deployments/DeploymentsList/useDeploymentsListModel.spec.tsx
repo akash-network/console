@@ -546,6 +546,16 @@ describe(useDeploymentsListModel.name, () => {
       expect(result.current.hasAnyDeployment).toBe(true);
     });
 
+    it("withholds the empty state from a later page that reloads empty", async () => {
+      const { result, rerenderWith } = setup({ active: [deployment("100")], archived: [], hasNextPage: true });
+
+      await act(async () => result.current.goToNextPage());
+      rerenderWith({ active: [], archived: [], isFetching: true });
+
+      expect(result.current.pageIndex).toBe(1);
+      expect(result.current.hasSettledWithoutActiveDeployments).toBe(false);
+    });
+
     it("counts an account with only closed deployments as having deployments when the count is unknown", () => {
       const { result } = setup({ active: [], archived: [deployment("200", "closed")], unknownArchiveTotal: true });
 

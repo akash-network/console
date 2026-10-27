@@ -112,6 +112,13 @@ describe("DeploymentsCollection", () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
+  it.each(["grid", "list"] as const)("puts nothing on top in the %s view while nothing is being created", viewMode => {
+    setup({ viewMode, dseqs: ["100"] });
+
+    expect(screen.queryByText("Creating")).not.toBeInTheDocument();
+    expect(screen.queryByText("New deployment")).not.toBeInTheDocument();
+  });
+
   it.each(["grid", "list"] as const)("calls a deployment still being created that has no name yet a new deployment in the %s view", viewMode => {
     setup({ viewMode, dseqs: [], creating: [{ dseq: "300", name: null }] });
 

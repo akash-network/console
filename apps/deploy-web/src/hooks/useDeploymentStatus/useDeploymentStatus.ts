@@ -25,7 +25,7 @@ export const LEASE_CLOSED_BEFORE_MANIFEST = "lease_closed_before_manifest";
 export const CLOSED_WHILE_MATCHING = "deployment_closed";
 
 /** A one-click deploy closed before Console picked its provider, by Console giving up or by the user, which only a new deployment runs again. */
-const CLOSED_BEFORE_MATCH_ERROR_CODES: ReadonlySet<string> = new Set(["no_provider_bids", "no_reachable_provider", CLOSED_WHILE_MATCHING]);
+const CLOSED_BEFORE_MATCH_ERROR_CODES: ReadonlySet<string | undefined> = new Set(["no_provider_bids", "no_reachable_provider", CLOSED_WHILE_MATCHING]);
 
 const DEPLOY_FAILED_STATUS: DeploymentStatusView = { label: "Deploy failed", summaryLabel: "Deploy failed", tone: "warning" };
 
@@ -164,7 +164,7 @@ export function deploymentLaunchOf({
 
 export function deploymentRecoveryOf(errorCode: string | undefined): DeploymentRecovery {
   if (errorCode === MANIFEST_NOT_DELIVERED) return "send-again";
-  if (CLOSED_BEFORE_MATCH_ERROR_CODES.has(errorCode ?? "")) return "deploy-again";
+  if (CLOSED_BEFORE_MATCH_ERROR_CODES.has(errorCode)) return "deploy-again";
   if (errorCode === LEASE_CLOSED_BEFORE_MANIFEST) return "close";
 
   return "choose-provider";

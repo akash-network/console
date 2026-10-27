@@ -46,6 +46,14 @@ describe(useCreatingDeployments.name, () => {
     expect(result.current).toEqual([]);
   });
 
+  it("drops a created deployment once the feed shows Console leased it", () => {
+    const { result, showFeed } = setup({ activities: [leaseCreation("pending"), create("succeeded")] });
+
+    showFeed([leaseCreation("succeeded"), create("succeeded")]);
+
+    expect(result.current).toEqual([]);
+  });
+
   it("drops a created deployment whose lease creation has not shown up", () => {
     const { result } = setup({ activities: [create("succeeded")], oneClickDseqs: ["1000"] });
 
@@ -56,6 +64,19 @@ describe(useCreatingDeployments.name, () => {
     const { result } = setup({ activities: [create("failed")], oneClickDseqs: ["1000"] });
 
     expect(result.current).toEqual([]);
+  });
+
+  it("drops a create that failed even with a lease creation for its deployment still underway", () => {
+    const { result } = setup({ activities: [leaseCreation("pending"), create("failed")], oneClickDseqs: ["1000"] });
+
+    expect(result.current).toEqual([]);
+  });
+
+  it("lists nothing and looks up no names before the feed has loaded", () => {
+    const { result, useDeploymentNames } = setup({ oneClickDseqs: ["1000"] });
+
+    expect(result.current).toEqual([]);
+    expect(useDeploymentNames).toHaveBeenLastCalledWith([]);
   });
 
   it("follows the newest lease creation of the deployment", () => {
@@ -96,9 +117,10 @@ describe(useCreatingDeployments.name, () => {
   });
 
   function setup(input: { activities?: Activity[]; oneClickDseqs?: string[]; names?: Record<string, string>; isEnabled?: boolean; isSignedIn?: boolean }) {
+    let activities = input.activities;
     const useActivityFeedQuery = vi.fn((() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), {
-        data: input.activities && { activities: input.activities, unseenCount: 0, newestCreatedAt: input.activities[0]?.createdAt }
+        data: activities && { activities, unseenCount: 0, newestCreatedAt: activities[0]?.createdAt }
       })) as typeof DEPENDENCIES.useActivityFeedQuery);
     const useDeploymentNames = vi.fn((() =>
       mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>({
@@ -115,7 +137,12 @@ describe(useCreatingDeployments.name, () => {
       })
     );
 
-    return { ...view, useActivityFeedQuery, useDeploymentNames };
+    function showFeed(nextActivities: Activity[]) {
+      activities = nextActivities;
+      view.rerender();
+    }
+
+    return { ...view, showFeed, useActivityFeedQuery, useDeploymentNames };
   }
 
   function create(status: Activity["status"]): Activity {

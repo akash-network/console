@@ -495,6 +495,17 @@ describe(ActivityHost.name, () => {
       );
     });
 
+    it("still announces a create that failed, whatever the feed holds about its deployment", () => {
+      const pending = buildActivity({ type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
+      const { enqueueSnackbar, receive } = setup({ activities: [pending] });
+
+      receive([buildActivity({ type: "lease_create", status: "failed", meta: { dseq: "1234", providers: [] } }), { ...pending, status: "failed" }]);
+
+      expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't create deployment 1234" }) }), {
+        variant: "error"
+      });
+    });
+
     it("tells why Console gave up picking a provider, offering to deploy again from the deployment it closed", async () => {
       const { enqueueSnackbar, receive, followToastAction, push } = setup({ activities: [matching()], names: { "1234": "web" } });
 

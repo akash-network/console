@@ -692,9 +692,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         else runQueuedCreate();
       }
 
-      function onCreated(result: { data: { dseq: string; manifest: string } }) {
+      /** The api answers `autoLease: true` only once it has taken the provider pick and the lease on as well, and ignores the ask while that is unavailable. */
+      function onCreated(result: { data: { dseq: string; manifest: string; autoLease?: boolean } }) {
         const activityId = acceptedActivityIdOf(result.data);
-        if (activityId && isAutoLeased(result.data)) {
+        if (activityId && result.data.autoLease) {
           handOverToApi(result.data.dseq, activityId);
           return;
         }
@@ -1190,11 +1191,6 @@ function isOneClickDeploy(intent: DeploymentIntent, bidStrategy: BidStrategy): b
 /** A fresh draft rather than the one this deploy ran from, since a draft opens the form instead of deploying on its own. */
 function oneClickDeployUrlOf(intent: DeploymentIntent): string {
   return UrlService.configureDeployment({ templateId: intent.templateId, sdlStrategy: "default", bidStrategy: "auto" });
-}
-
-/** The api answers `autoLease: true` only once it has taken the provider pick and the lease on as well, and ignores the ask while that is unavailable. */
-function isAutoLeased(data: object): boolean {
-  return "autoLease" in data && data.autoLease === true;
 }
 
 function shownOutcomeOf(error: unknown): "succeeded" | "failed" {

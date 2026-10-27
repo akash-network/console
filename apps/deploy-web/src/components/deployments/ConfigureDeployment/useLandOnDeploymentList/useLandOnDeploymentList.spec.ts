@@ -14,6 +14,14 @@ describe(useLandOnDeploymentList.name, () => {
     expect(checkSession).not.toHaveBeenCalled();
   });
 
+  it("lands the user on the deployments list once the api takes the deploy on", async () => {
+    const { replace, rerender } = setup({ acceptedDseq: null });
+
+    rerender({ acceptedDseq: "1000", isOnboarded: true });
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/deployments"));
+  });
+
   it("lands an onboarded user on the deployments list without reading their profile again", async () => {
     const { replace, checkSession } = setup({ acceptedDseq: "1000", isOnboarded: true });
 
