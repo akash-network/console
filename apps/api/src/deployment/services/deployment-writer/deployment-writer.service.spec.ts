@@ -613,6 +613,14 @@ describe(DeploymentWriterService.name, () => {
       expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ name: "db+web" }));
     });
 
+    it("records the template the request says the sdl came from", async () => {
+      const { service, deploymentSettingRepository } = setup();
+
+      await service.create({ userId: "user-1", sdl: SDL_WITH_SECRETS, deposit: 5, templateId: "akash-network-awesome-akash-sdxl" });
+
+      expect(deploymentSettingRepository.upsertDefinition).toHaveBeenCalledWith(expect.objectContaining({ templateId: "akash-network-awesome-akash-sdxl" }));
+    });
+
     it("keeps the name the request supplied rather than deriving one", async () => {
       const { service, deploymentSettingRepository } = setup({ serviceNames: ["db", "web"] });
 

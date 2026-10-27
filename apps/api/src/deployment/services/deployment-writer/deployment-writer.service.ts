@@ -397,7 +397,8 @@ export class DeploymentWriterService {
       sealedSecrets,
       runtimeLimitHours: input.runtimeLimitHours,
       name: input.name ?? deriveDeploymentName(manifest.groups),
-      projectId
+      projectId,
+      templateId: input.templateId
     });
     await this.#markOnboarded(input.userId);
 
@@ -551,6 +552,7 @@ export class DeploymentWriterService {
     runtimeLimitHours?: number;
     name?: string;
     projectId?: string;
+    templateId?: string;
   }): Promise<void> {
     const { owner, ...definition } = input;
 
@@ -608,6 +610,7 @@ export class DeploymentWriterService {
     runtimeLimitHours?: number;
     name?: string;
     projectId?: string;
+    templateId?: string;
   }): Promise<string> {
     const { manifestVersion, ...rest } = input;
     const { sdl, sealedSecrets, ...loggable } = rest;

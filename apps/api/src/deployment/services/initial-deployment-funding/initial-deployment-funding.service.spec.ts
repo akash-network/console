@@ -695,6 +695,7 @@ describe(InitialDeploymentFundingService.name, () => {
       name: null,
       sealedSecrets: null,
       manifestVersion: null,
+      templateId: null,
       runtimeEndsAt: null,
       runtimeEndingNotifiedFor: null,
       providerUnreachableNotifiedFor: null,

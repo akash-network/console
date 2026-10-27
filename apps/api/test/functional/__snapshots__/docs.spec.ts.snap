@@ -9413,6 +9413,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "minLength": 1,
                         "type": "string",
                       },
+                      "templateId": {
+                        "description": "ID of the gallery template the SDL came from, as listed by GET /v1/templates. Console links the deployment to that template's guide. Not checked against the gallery.",
+                        "maxLength": 255,
+                        "pattern": "^[^/\\\\]+$",
+                        "type": "string",
+                      },
                     },
                     "required": [
                       "sdl",
@@ -9871,10 +9877,16 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "description": "The SDL the console stored for this deployment. Re-serialized YAML, so not byte-identical to the submitted document.",
                               "type": "string",
                             },
+                            "templateId": {
+                              "description": "ID of the gallery template the deployment was created from, or null when it was not created from one.",
+                              "nullable": true,
+                              "type": "string",
+                            },
                           },
                           "required": [
                             "sdl",
                             "manifestVersion",
+                            "templateId",
                           ],
                           "type": "object",
                         },

@@ -5793,11 +5793,17 @@
                             "manifestVersion": {
                               "type": "string",
                               "description": "Base64 of the manifest version the console recorded for this deployment. Deliberately not a hash of the `sdl` above."
+                            },
+                            "templateId": {
+                              "type": "string",
+                              "nullable": true,
+                              "description": "ID of the gallery template the deployment was created from, or null when it was not created from one."
                             }
                           },
                           "required": [
                             "sdl",
-                            "manifestVersion"
+                            "manifestVersion",
+                            "templateId"
                           ],
                           "description": "What the console recorded for this deployment, or null when it recorded nothing."
                         }
@@ -7918,6 +7924,12 @@
                         "type": "string",
                         "format": "uuid",
                         "description": "Project to file the deployment in."
+                      },
+                      "templateId": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "pattern": "^[^/\\\\]+$",
+                        "description": "ID of the gallery template the SDL came from, as listed by GET /v1/templates. Console links the deployment to that template's guide. Not checked against the gallery."
                       }
                     },
                     "required": [

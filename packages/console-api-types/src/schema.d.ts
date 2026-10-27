@@ -10073,6 +10073,8 @@ export interface operations {
                 sdl: string;
                 /** @description Base64 of the manifest version the console recorded for this deployment. Deliberately not a hash of the `sdl` above. */
                 manifestVersion: string;
+                /** @description ID of the gallery template the deployment was created from, or null when it was not created from one. */
+                templateId: string | null;
               } | null;
             };
           };
@@ -11097,6 +11099,8 @@ export interface operations {
              * @description Project to file the deployment in.
              */
             projectId?: string;
+            /** @description ID of the gallery template the SDL came from, as listed by GET /v1/templates. Console links the deployment to that template's guide. Not checked against the gallery. */
+            templateId?: string;
           };
         };
       };

@@ -495,7 +495,25 @@ describe("Deployments API", () => {
 
       expect(response.status).toBe(200);
       const result = (await response.json()) as { data: { consoleSettings: unknown } };
-      expect(result.data.consoleSettings).toEqual({ sdl, manifestVersion: "BAUG" });
+      expect(result.data.consoleSettings).toEqual({ sdl, manifestVersion: "BAUG", templateId: null });
+    });
+
+    it("returns the gallery template the console recorded for the deployment", async () => {
+      const dseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
+      const { userApiKeySecret, user, wallets } = await mockPersistedUser();
+      await setupDeploymentInfoMock(wallets, dseq);
+      await container
+        .resolve(DeploymentSettingRepository)
+        .upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.0'", manifestVersion: "BAUG", templateId: "akash-network-awesome-akash-sdxl" });
+
+      const response = await app.request(`/v1/deployments/${dseq}`, {
+        method: "GET",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(200);
+      const result = (await response.json()) as { data: { consoleSettings: unknown } };
+      expect(result.data.consoleSettings).toMatchObject({ templateId: "akash-network-awesome-akash-sdxl" });
     });
 
     it("reads a deployment for which the console recorded nothing", async () => {
@@ -568,8 +586,8 @@ describe("Deployments API", () => {
         return (await response.json()) as { data: { consoleSettings: { sdl: string } | null } };
       };
 
-      expect((await readAs(first.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: firstSdl, manifestVersion: "BAUG" });
-      expect((await readAs(second.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: secondSdl, manifestVersion: "BAUH" });
+      expect((await readAs(first.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: firstSdl, manifestVersion: "BAUG", templateId: null });
+      expect((await readAs(second.userApiKeySecret)).data.consoleSettings).toEqual({ sdl: secondSdl, manifestVersion: "BAUH", templateId: null });
     });
 
     it("returns the name the console recorded for the deployment", async () => {
@@ -1934,7 +1952,27 @@ describe("Deployments API", () => {
       expect(response.status).toBe(400);
     });
 
-    function postDeployment(userApiKeySecret: string, data: { name?: string }) {
+    it("records the gallery template the sdl came from", async () => {
+      const { userApiKeySecret, user } = await mockPersistedUser();
+
+      const response = await postDeployment(userApiKeySecret, { templateId: "akash-network-awesome-akash-sdxl" });
+
+      expect(response.status).toBe(201);
+      const { data } = (await response.json()) as { data: { dseq: string } };
+      expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq: data.dseq })).toMatchObject({
+        templateId: "akash-network-awesome-akash-sdxl"
+      });
+    });
+
+    it("returns 400 for a template id carrying a path separator", async () => {
+      const { userApiKeySecret } = await mockUser();
+
+      const response = await postDeployment(userApiKeySecret, { templateId: "akash-network/awesome-akash" });
+
+      expect(response.status).toBe(400);
+    });
+
+    function postDeployment(userApiKeySecret: string, data: { name?: string; templateId?: string }) {
       const yml = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
       return app.request("/v1/deployments", {

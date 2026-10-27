@@ -87,6 +87,8 @@ export const DeploymentSettings = pgTable(
     /** A JWE compact serialization, so `text` rather than a sized column: the plaintext it carries is bounded, its ciphertext is not sized by anything this schema knows. */
     sealedSecrets: text("sealed_secrets"),
     manifestVersion: varchar("manifest_version", { length: 64 }),
+    /** Null for a deployment not created from a gallery template, including every one created before the console recorded it. */
+    templateId: text("template_id"),
     runtimeEndsAt: timestamp("runtime_ends_at", { withTimezone: true }),
     runtimeEndingNotifiedFor: timestamp("runtime_ending_notified_for", { withTimezone: true }),
     providerUnreachableNotifiedFor: timestamp("provider_unreachable_notified_for", { withTimezone: true }),
