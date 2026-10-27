@@ -23,6 +23,7 @@ export type PaymentMethodsRowProps = {
   onSetPaymentMethodAsDefault: (id: string) => void;
   onRemovePaymentMethod: (id: string) => void;
   isDisabled?: boolean;
+  isReadOnly?: boolean;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -31,6 +32,7 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
   onSetPaymentMethodAsDefault,
   onRemovePaymentMethod,
   isDisabled = false,
+  isReadOnly = false,
   dependencies: d = DEPENDENCIES
 }) => {
   const [open, setOpen] = useState(false);
@@ -108,42 +110,44 @@ export const PaymentMethodsRow: React.FC<PaymentMethodsRowProps> = ({
         </div>
         {validUntilContent && <span className="whitespace-nowrap text-xs text-muted-foreground sm:ml-auto sm:text-sm">Valid until {validUntilContent}</span>}
       </div>
-      <div className="flex shrink-0 items-center">
-        <d.DropdownMenu modal={false} open={open}>
-          <d.DropdownMenuTrigger asChild>
-            <d.Button
-              onClick={openMenu}
-              disabled={isDisabled}
-              size="icon"
-              variant="ghost"
-              className="h-[30px] w-[30px] rounded-md text-muted-foreground"
-              aria-label="Payment method actions"
+      {!isReadOnly && (
+        <div className="flex shrink-0 items-center">
+          <d.DropdownMenu modal={false} open={open}>
+            <d.DropdownMenuTrigger asChild>
+              <d.Button
+                onClick={openMenu}
+                disabled={isDisabled}
+                size="icon"
+                variant="ghost"
+                className="h-[30px] w-[30px] rounded-md text-muted-foreground"
+                aria-label="Payment method actions"
+              >
+                <Ellipsis className="h-[17px] w-[17px]" />
+              </d.Button>
+            </d.DropdownMenuTrigger>
+            <d.DropdownMenuContent
+              align="end"
+              onMouseLeave={() => setOpen(false)}
+              onClick={e => {
+                e.stopPropagation();
+              }}
             >
-              <Ellipsis className="h-[17px] w-[17px]" />
-            </d.Button>
-          </d.DropdownMenuTrigger>
-          <d.DropdownMenuContent
-            align="end"
-            onMouseLeave={() => setOpen(false)}
-            onClick={e => {
-              e.stopPropagation();
-            }}
-          >
-            <d.ClickAwayListener onClickAway={() => setOpen(false)}>
-              <div>
-                {canSetAsDefault && (
-                  <d.CustomDropdownLinkItem onClick={setPaymentAsDefault} icon={<CircleCheck className="h-4 w-4" />}>
-                    Set as default
+              <d.ClickAwayListener onClickAway={() => setOpen(false)}>
+                <div>
+                  {canSetAsDefault && (
+                    <d.CustomDropdownLinkItem onClick={setPaymentAsDefault} icon={<CircleCheck className="h-4 w-4" />}>
+                      Set as default
+                    </d.CustomDropdownLinkItem>
+                  )}
+                  <d.CustomDropdownLinkItem onClick={removePaymentMethod} icon={<Trash2 className="h-4 w-4" />}>
+                    Remove
                   </d.CustomDropdownLinkItem>
-                )}
-                <d.CustomDropdownLinkItem onClick={removePaymentMethod} icon={<Trash2 className="h-4 w-4" />}>
-                  Remove
-                </d.CustomDropdownLinkItem>
-              </div>
-            </d.ClickAwayListener>
-          </d.DropdownMenuContent>
-        </d.DropdownMenu>
-      </div>
+                </div>
+              </d.ClickAwayListener>
+            </d.DropdownMenuContent>
+          </d.DropdownMenu>
+        </div>
+      )}
     </div>
   );
 };

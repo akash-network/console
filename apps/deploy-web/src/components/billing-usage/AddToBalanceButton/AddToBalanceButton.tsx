@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCreditsSheet";
 import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
+import { useCanManageBilling } from "@src/hooks/useCanManageBilling";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useDefaultPaymentMethodQuery } from "@src/queries";
 
@@ -15,6 +16,7 @@ export const DEPENDENCIES = {
   useSearchParams,
   useRouter,
   useServices,
+  useCanManageBilling,
   AddCreditsSheet,
   Button
 };
@@ -26,6 +28,7 @@ export const AddToBalanceButton: React.FunctionComponent<{ dependencies?: typeof
   const searchParams = d.useSearchParams();
   const router = d.useRouter();
   const { urlService } = d.useServices();
+  const canManageBilling = d.useCanManageBilling();
 
   useEffect(() => {
     if (!isLoadingDefaultPaymentMethod && searchParams.get("openPayment") === "true") {
@@ -33,6 +36,8 @@ export const AddToBalanceButton: React.FunctionComponent<{ dependencies?: typeof
       router.replace(urlService.billing(), { scroll: false });
     }
   }, [isLoadingDefaultPaymentMethod, searchParams, router, urlService]);
+
+  if (!canManageBilling) return null;
 
   return (
     <>

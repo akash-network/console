@@ -17,6 +17,7 @@ import { useBillingActions } from "@src/components/billing-usage/BillingActionsP
 import { UsdValue } from "@src/components/billing-usage/UsdValue/UsdValue";
 import { useAutoReloadMode } from "@src/components/billing-usage/useAutoReloadMode";
 import { useServices } from "@src/context/ServicesProvider";
+import { useCanManageBilling } from "@src/hooks/useCanManageBilling";
 import { useDefaultPaymentMethodQuery, useWalletSettingsMutations, useWalletSettingsQuery, useWeeklyDeploymentCostQuery } from "@src/queries";
 import { capitalizeFirstLetter } from "@src/utils/stringUtils";
 
@@ -36,6 +37,7 @@ export const DEPENDENCIES = {
   useAccountBalanceOverview,
   usePopup,
   useBillingActions,
+  useCanManageBilling,
   useAutoReloadMode,
   useSearchParams,
   useRouter,
@@ -58,6 +60,7 @@ export const AutoRechargeRow: React.FunctionComponent<{ dependencies?: typeof DE
   const { data: weeklyCost } = d.useWeeklyDeploymentCostQuery({ enabled: !showsThresholdRule });
   const { upsertWalletSettings } = d.useWalletSettingsMutations();
   const { openAddPaymentMethod } = d.useBillingActions();
+  const canManageBilling = d.useCanManageBilling();
   const overview = d.useAccountBalanceOverview();
   const { confirm } = d.usePopup();
   const searchParams = d.useSearchParams();
@@ -95,7 +98,7 @@ export const AutoRechargeRow: React.FunctionComponent<{ dependencies?: typeof DE
   const autoReloadEnabled = walletSettings?.autoReloadEnabled ?? false;
   const isPausedByDeclines = autoReloadEnabled && !!walletSettings?.autoReloadPausedAt;
   const isFirstLoad = (isWalletSettingsLoading && !walletSettings) || (isDefaultPaymentMethodLoading && !defaultPaymentMethod);
-  const isChangeDisabled = isFirstLoad || !hasPaymentMethod || upsertWalletSettings.isPending;
+  const isChangeDisabled = !canManageBilling || isFirstLoad || !hasPaymentMethod || upsertWalletSettings.isPending;
 
   const defaultCardLabel = useMemo(() => {
     const card = (defaultPaymentMethod as PaymentMethod | null | undefined)?.card;
@@ -114,7 +117,7 @@ export const AutoRechargeRow: React.FunctionComponent<{ dependencies?: typeof DE
 
   useEffect(
     function startSetupRequestedByDeepLink() {
-      if (!isSetupRequested || isFirstLoad || hasStartedRequestedSetup.current) return;
+      if (!isSetupRequested || !canManageBilling || isFirstLoad || hasStartedRequestedSetup.current) return;
       hasStartedRequestedSetup.current = true;
 
       const openSettingsToEnable = () => setSettingsPopup({ open: true, enableOnSave: true });
@@ -127,7 +130,7 @@ export const AutoRechargeRow: React.FunctionComponent<{ dependencies?: typeof DE
 
       router.replace(urlService.billing(), { scroll: false });
     },
-    [isSetupRequested, isFirstLoad, hasPaymentMethod, router, urlService, openAddPaymentMethod]
+    [isSetupRequested, canManageBilling, isFirstLoad, hasPaymentMethod, router, urlService, openAddPaymentMethod]
   );
 
   const strong = (value: number) => (
@@ -140,6 +143,8 @@ export const AutoRechargeRow: React.FunctionComponent<{ dependencies?: typeof DE
     if (isFirstLoad) return <d.Skeleton className="h-4 w-56" />;
 
     if (!hasPaymentMethod) {
+      if (!canManageBilling) return "Off · no card on file";
+
       return (
         <>
           <button type="button" onClick={() => openAddPaymentMethod()} className="font-medium text-foreground underline underline-offset-[3px]">
@@ -153,10 +158,15 @@ export const AutoRechargeRow: React.FunctionComponent<{ dependencies?: typeof DE
     if (isPausedByDeclines) {
       return (
         <>
-          <span className="font-medium text-destructive">Paused</span> · {defaultCardLabel ?? "Your default card"} was declined several times.{" "}
-          <button type="button" onClick={() => openAddPaymentMethod()} className="font-medium text-foreground underline underline-offset-[3px]">
-            Update card
-          </button>
+          <span className="font-medium text-destructive">Paused</span> · {defaultCardLabel ?? "Your default card"} was declined several times.
+          {canManageBilling && (
+            <>
+              {" "}
+              <button type="button" onClick={() => openAddPaymentMethod()} className="font-medium text-foreground underline underline-offset-[3px]">
+                Update card
+              </button>
+            </>
+          )}
         </>
       );
     }
@@ -191,7 +201,7 @@ export const AutoRechargeRow: React.FunctionComponent<{ dependencies?: typeof DE
             </d.CustomNoDivTooltip>
           </span>
           <d.Switch checked={autoReloadEnabled} onCheckedChange={toggleAutoRecharge} disabled={isChangeDisabled} aria-label="Auto recharge" />
-          {autoReloadEnabled && !isPausedByDeclines && hasPaymentMethod && (
+          {canManageBilling && autoReloadEnabled && !isPausedByDeclines && hasPaymentMethod && (
             <button
               type="button"
               className="text-[13px] font-medium underline underline-offset-[3px] disabled:opacity-50"

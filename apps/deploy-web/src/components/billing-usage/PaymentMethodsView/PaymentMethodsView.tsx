@@ -5,11 +5,13 @@ import { CreditCard, Plus, X } from "lucide-react";
 
 import { useBillingActions } from "@src/components/billing-usage/BillingActionsProvider/BillingActionsProvider";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
+import { useCanManageBilling } from "@src/hooks/useCanManageBilling";
 import type { StripeErrorInfo } from "@src/utils/stripeErrorHandler";
 import { PaymentMethodsRow } from "./PaymentMethodsRow";
 
 export const DEPENDENCIES = {
   useBillingActions,
+  useCanManageBilling,
   PaymentMethodsRow,
   Alert,
   AlertTitle,
@@ -43,6 +45,10 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const { openAddPaymentMethod } = d.useBillingActions();
+  const canManageBilling = d.useCanManageBilling();
+  const footerNote = canManageBilling
+    ? data.length > 0 && "All transactions will be made using your default payment method."
+    : "Only owners and billing members can change payment methods.";
 
   return (
     <SettingsSection title="Payment Method">
@@ -85,6 +91,7 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
                   key={paymentMethod.id}
                   paymentMethod={paymentMethod}
                   isDisabled={isInProgress}
+                  isReadOnly={!canManageBilling}
                   onSetPaymentMethodAsDefault={onSetPaymentMethodAsDefault}
                   onRemovePaymentMethod={onRemovePaymentMethod}
                 />
@@ -93,11 +100,13 @@ export const PaymentMethodsView: React.FC<PaymentMethodsViewProps> = ({
           )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted px-5 py-3 text-[13px] text-muted-foreground sm:pl-6 sm:pr-4">
-          {data.length > 0 && <span>All transactions will be made using your default payment method.</span>}
-          <d.Button onClick={() => openAddPaymentMethod()} size="sm" variant="outline" disabled={isInProgress} className="ml-auto gap-1.5 bg-background">
-            <Plus className="h-3.5 w-3.5" />
-            <span>Add Payment Method</span>
-          </d.Button>
+          {footerNote && <span>{footerNote}</span>}
+          {canManageBilling && (
+            <d.Button onClick={() => openAddPaymentMethod()} size="sm" variant="outline" disabled={isInProgress} className="ml-auto gap-1.5 bg-background">
+              <Plus className="h-3.5 w-3.5" />
+              <span>Add Payment Method</span>
+            </d.Button>
+          )}
         </div>
       </d.Card>
     </SettingsSection>

@@ -44,6 +44,13 @@ describe(AddToBalanceButton.name, () => {
     expect(screen.getByTestId("add-credits-sheet")).toBeInTheDocument();
   });
 
+  it("renders nothing for a member who cannot manage billing, even when openPayment is true", () => {
+    setup({ searchParamsGet: key => (key === "openPayment" ? "true" : null), canManageBilling: false });
+
+    expect(screen.queryByRole("button", { name: /add to balance/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("add-credits-sheet")).not.toBeInTheDocument();
+  });
+
   it("closes the sheet once its own confirmation of a purchase is dismissed", () => {
     const { MockAddCreditsSheet } = setup({ searchParamsGet: () => null });
     fireEvent.click(screen.getByRole("button", { name: /add to balance/i }));
@@ -65,6 +72,7 @@ describe(AddToBalanceButton.name, () => {
     defaultPaymentMethod?: { id: string };
     isLoadingDefaultPaymentMethod?: boolean;
     isWalletBalanceLoading?: boolean;
+    canManageBilling?: boolean;
   }) {
     const mockReplace = input.routerReplace ?? vi.fn();
     const mockSearchParams = { get: vi.fn(input.searchParamsGet ?? (() => null)) };
@@ -82,6 +90,7 @@ describe(AddToBalanceButton.name, () => {
       useSearchParams: vi.fn(() => mockSearchParams),
       useRouter: vi.fn(() => mockRouter),
       useServices: vi.fn(() => ({ urlService: { billing: () => "/billing" } })),
+      useCanManageBilling: () => input.canManageBilling ?? true,
       Button: MockButton,
       AddCreditsSheet: MockAddCreditsSheet
     } as unknown as typeof DEPENDENCIES;

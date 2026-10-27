@@ -9,15 +9,19 @@ import { type PaymentMethodOperationError, PaymentMethodsView } from "./PaymentM
 import { fireEvent, render, screen } from "@testing-library/react";
 import { createMockPaymentMethod } from "@tests/seeders/payment";
 
-const MockPaymentMethodsRow = ({ paymentMethod, onSetPaymentMethodAsDefault, onRemovePaymentMethod, isDisabled }: PaymentMethodsRowProps) => (
+const MockPaymentMethodsRow = ({ paymentMethod, onSetPaymentMethodAsDefault, onRemovePaymentMethod, isDisabled, isReadOnly }: PaymentMethodsRowProps) => (
   <div data-testid={`payment-method-row-${paymentMethod.id}`}>
     <span>{paymentMethod.card?.last4}</span>
-    <button disabled={isDisabled} onClick={() => onSetPaymentMethodAsDefault(paymentMethod.id)}>
-      Set as Default
-    </button>
-    <button disabled={isDisabled} onClick={() => onRemovePaymentMethod(paymentMethod.id)}>
-      Remove
-    </button>
+    {!isReadOnly && (
+      <>
+        <button disabled={isDisabled} onClick={() => onSetPaymentMethodAsDefault(paymentMethod.id)}>
+          Set as Default
+        </button>
+        <button disabled={isDisabled} onClick={() => onRemovePaymentMethod(paymentMethod.id)}>
+          Remove
+        </button>
+      </>
+    )}
   </div>
 );
 
@@ -52,6 +56,25 @@ describe(PaymentMethodsView.name, () => {
     expect(screen.getByRole("button", { name: "Add Payment Method" })).toBeEnabled();
     expect(screen.queryByTestId(/payment-method-row-/)).not.toBeInTheDocument();
     expect(screen.queryByText(/default payment method/)).not.toBeInTheDocument();
+  });
+
+  it("leaves a member who cannot manage billing the payment methods to read, without the add button or row actions", () => {
+    setup({ data: createMockPaymentMethods(), canManageBilling: false });
+
+    expect(screen.getByTestId("payment-method-row-pm_123")).toHaveTextContent("4242");
+    expect(screen.getByText("Only owners and billing members can change payment methods.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add Payment Method" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Set as Default")).not.toBeInTheDocument();
+    expect(screen.queryByText("Remove")).not.toBeInTheDocument();
+    expect(screen.queryByText(/default payment method/)).not.toBeInTheDocument();
+  });
+
+  it("tells a member who cannot manage billing who can add the first payment method", () => {
+    setup({ data: [], canManageBilling: false });
+
+    expect(screen.getByText("No payment methods yet")).toBeInTheDocument();
+    expect(screen.getByText("Only owners and billing members can change payment methods.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add Payment Method" })).not.toBeInTheDocument();
   });
 
   it("opens the add-payment-method flow when the add button is clicked", () => {
@@ -152,6 +175,7 @@ describe(PaymentMethodsView.name, () => {
       onSetPaymentMethodAsDefault?: Mock;
       onRemovePaymentMethod?: Mock;
       openAddPaymentMethod?: Mock;
+      canManageBilling?: boolean;
     } = {}
   ) {
     const openAddPaymentMethod = input.openAddPaymentMethod ?? vi.fn();
@@ -161,6 +185,7 @@ describe(PaymentMethodsView.name, () => {
 
     const dependencies: any = {
       useBillingActions: () => ({ openAddPaymentMethod }),
+      useCanManageBilling: () => input.canManageBilling ?? true,
       PaymentMethodsRow: MockPaymentMethodsRow,
       Alert,
       AlertTitle,

@@ -166,6 +166,16 @@ describe(PaymentMethodsRow.name, () => {
 
       expect(screen.getByRole("button")).toBeDisabled();
     });
+
+    it("renders no actions trigger for a read-only payment method", () => {
+      setup({
+        paymentMethod: createMockPaymentMethod({ isDefault: false, card: { brand: "visa", last4: "4242", exp_month: 12, exp_year: 2030, funding: "credit" } }),
+        isReadOnly: true
+      });
+
+      expect(screen.getByText(/\*\*\*\* 4242/)).toBeInTheDocument();
+      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    });
   });
 
   describe("Dropdown Menu Interactions", () => {
@@ -477,6 +487,7 @@ function setup(
     onSetPaymentMethodAsDefault?: Mock;
     onRemovePaymentMethod?: Mock;
     isDisabled?: boolean;
+    isReadOnly?: boolean;
     dependencies?: typeof mockDependencies;
   } = {}
 ) {

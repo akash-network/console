@@ -50,9 +50,9 @@ export function defineApiHandler<TResponse, TSchema extends z.ZodSchema<any> | u
           requestServices.logger.warn({ error: validatedContext.error, event: "INVALID_API_REQUEST" });
           res.status(400);
           res.json({
-            errors: validatedContext.error.errors.map(error => ({
-              message: error.message,
-              path: error.path
+            errors: validatedContext.error.issues.map(issue => ({
+              message: issue.message,
+              path: issue.path
             }))
           } as TResponse);
           return;
