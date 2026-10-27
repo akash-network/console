@@ -169,6 +169,7 @@ describe(ActivityInstrumentationService.name, () => {
 
       expect(result.observe).toHaveBeenCalledWith(pending, 3, { type: "deployment_close" });
       expect(result.observe).toHaveBeenCalledWith(oldestPendingAge, expect.closeTo(5400, 0), { type: "deployment_close" });
+      expect(result.observe).toHaveBeenCalledWith(pending, 0, { type: "deployment_create" });
     });
 
     it("reports every type with nothing in progress as zero, so its series never goes missing", async () => {
