@@ -6,9 +6,11 @@ import { summarizeTemplateDeployment } from "./templateDeploymentSummary";
 
 export interface TemplateDeploysAsProps {
   sdl: string | undefined;
+  title?: string;
+  note?: ReactNode;
 }
 
-export const TemplateDeploysAs: FC<TemplateDeploysAsProps> = ({ sdl }) => {
+export const TemplateDeploysAs: FC<TemplateDeploysAsProps> = ({ sdl, title = "Deploys as", note }) => {
   const headingId = useId();
   const summary = useMemo(() => summarizeTemplateDeployment(sdl), [sdl]);
 
@@ -17,7 +19,7 @@ export const TemplateDeploysAs: FC<TemplateDeploysAsProps> = ({ sdl }) => {
   return (
     <section aria-labelledby={headingId} className="rounded-[14px] border border-border bg-card px-4 pb-1.5 pt-3.5 shadow-sm">
       <h2 id={headingId} className="pb-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        Deploys as
+        {title}
       </h2>
       <dl>
         {summary.gpu && <SpecRow label="GPU">{summary.gpu}</SpecRow>}
@@ -33,6 +35,7 @@ export const TemplateDeploysAs: FC<TemplateDeploysAsProps> = ({ sdl }) => {
           <SpecRow label="Services">{summary.serviceCount}</SpecRow>
         )}
       </dl>
+      {note && <p className="border-t border-border pb-2 pt-2.5 text-xs leading-relaxed text-muted-foreground">{note}</p>}
     </section>
   );
 };

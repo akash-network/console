@@ -1,38 +1,27 @@
 "use client";
 
-import type { FC, MouseEvent, ReactNode } from "react";
+import type { FC, MouseEvent } from "react";
 import { useId } from "react";
-import type { PluggableList } from "react-markdown/lib/react-markdown";
-import { Avatar, AvatarFallback, AvatarImage, buttonVariants, GithubLogo, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
+import { Avatar, AvatarFallback, AvatarImage, buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import type { LucideIcon } from "lucide-react";
-import { ArrowLeft, ArrowRight, BookOpen, FileCode, FileText, LayoutTemplate } from "lucide-react";
+import { ArrowLeft, ArrowRight, LayoutTemplate } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import Markdown from "@src/components/shared/Markdown";
 import { useHasInAppHistory } from "@src/hooks/useHasInAppHistory";
 import type { ApiTemplate } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
-import { SDLEditor } from "../sdl/SDLEditor/SDLEditor";
-import { rehypeRemoveDeployBadge } from "./rehypeRemoveDeployBadge/rehypeRemoveDeployBadge";
 import { TemplateDeploysAs } from "./TemplateDeploysAs/TemplateDeploysAs";
-import { describeRepository } from "./templateRepository";
+import { TemplateDocuments } from "./TemplateDocuments/TemplateDocuments";
 
 const OVERLINE_CLASSES = "font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground";
-
-const MARKDOWN_CLASSES =
-  "prose-sm [overflow-wrap:anywhere] prose-headings:tracking-tight prose-h1:border-b prose-h1:border-border prose-h1:pb-3 prose-h1:text-[22px] prose-h2:text-base prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-pre:rounded-[10px] dark:prose-a:text-blue-400 [&_img]:max-w-full";
-
-const TEMPLATE_DOCUMENT_PLUGINS: PluggableList = [rehypeRemoveDeployBadge];
 
 export const DEPENDENCIES = {
   useRouter,
   useHasInAppHistory,
   Layout,
-  Markdown,
-  SDLEditor,
+  TemplateDocuments,
   TemplateDeploysAs
 };
 
@@ -45,7 +34,6 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
   const router = d.useRouter();
   const hasInAppHistory = d.useHasInAppHistory();
   const beforeYouDeployId = useId();
-  const repository = describeRepository(template.githubUrl);
 
   const returnToPreviousPage = (event: MouseEvent<HTMLAnchorElement>) => {
     if (!hasInAppHistory || isOpeningElsewhere(event)) return;
@@ -88,56 +76,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
         </header>
 
         <div className="mt-[22px] grid items-start gap-5 min-[1080px]:grid-cols-[minmax(0,1fr)_300px]">
-          <Tabs defaultValue="readme" className="-mx-4 min-w-0 overflow-hidden border-y border-border bg-card shadow-sm sm:mx-0 sm:rounded-[14px] sm:border-x">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border bg-foreground/[0.03] px-3 py-1.5 sm:px-[18px]">
-              <TabsList aria-label="Template files" className="h-auto flex-wrap gap-0.5 bg-transparent p-0">
-                <FileTab value="readme" icon={FileText}>
-                  README.md
-                </FileTab>
-                <FileTab value="sdl" icon={FileCode}>
-                  deploy.yaml
-                </FileTab>
-                {template.guide && (
-                  <FileTab value="guide" icon={BookOpen}>
-                    GUIDE.md
-                  </FileTab>
-                )}
-              </TabsList>
-
-              {repository && (
-                <a
-                  href={template.githubUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-auto inline-flex min-w-0 items-center gap-1.5 font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <GithubLogo className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <span className="sr-only">View the source on GitHub: </span>
-                  <span className="truncate">{repository}</span>
-                </a>
-              )}
-            </div>
-
-            <TabsContent value="readme" className="mt-0 px-4 pb-[26px] pt-[22px] sm:px-[26px]">
-              <d.Markdown
-                hasHtml={template.id?.startsWith("akash-network-awesome-akash")}
-                className={MARKDOWN_CLASSES}
-                rehypePlugins={TEMPLATE_DOCUMENT_PLUGINS}
-              >
-                {template.readme}
-              </d.Markdown>
-            </TabsContent>
-            <TabsContent value="sdl" className="mt-0 h-[70vh] min-h-[420px] sm:p-3">
-              <d.SDLEditor height="100%" value={template.deploy || ""} readonly />
-            </TabsContent>
-            {template.guide && (
-              <TabsContent value="guide" className="mt-0 px-4 pb-[26px] pt-[22px] sm:px-[26px]">
-                <d.Markdown className={MARKDOWN_CLASSES} rehypePlugins={TEMPLATE_DOCUMENT_PLUGINS}>
-                  {template.guide}
-                </d.Markdown>
-              </TabsContent>
-            )}
-          </Tabs>
+          <d.TemplateDocuments template={template} showsSdl className="-mx-4 sm:mx-0" />
 
           <aside className="flex min-w-0 flex-col gap-3.5">
             <d.TemplateDeploysAs sdl={template.deploy} />
@@ -162,13 +101,3 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
 function isOpeningElsewhere(event: MouseEvent<HTMLAnchorElement>): boolean {
   return event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
 }
-
-const FileTab: FC<{ value: string; icon: LucideIcon; children: ReactNode }> = ({ value, icon: Icon, children }) => (
-  <TabsTrigger
-    value={value}
-    className="gap-1.5 rounded-md px-2.5 py-1.5 font-mono text-[11px] font-normal text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground hover:text-foreground"
-  >
-    <Icon className="h-[13px] w-[13px] opacity-60" aria-hidden="true" />
-    {children}
-  </TabsTrigger>
-);

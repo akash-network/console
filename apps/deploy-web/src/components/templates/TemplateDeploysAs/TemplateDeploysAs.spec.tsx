@@ -142,6 +142,14 @@ describe(TemplateDeploysAs.name, () => {
     expect(getSpec("vCPU")).toHaveTextContent("1.5");
   });
 
+  it("titles the card as its caller asks, with a note under the specs", () => {
+    render(<TemplateDeploysAs sdl={GPU_SDL} title="Template defaults" note="This deployment's own configuration is on the Details tab." />);
+
+    const card = screen.getByRole("region", { name: "Template defaults" });
+    expect(within(card).getByText("vCPU")).toBeInTheDocument();
+    expect(within(card).getByText("This deployment's own configuration is on the Details tab.")).toBeInTheDocument();
+  });
+
   it("renders nothing for an SDL it cannot read", () => {
     const { container } = setup({ sdl: "services: [unclosed" });
 
