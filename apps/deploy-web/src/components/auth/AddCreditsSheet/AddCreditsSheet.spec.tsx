@@ -38,6 +38,13 @@ describe(AddCreditsSheet.name, () => {
     expect(screen.getByRole("status")).toHaveTextContent("Ask one of them to top up your team's balance or add a payment method.");
   });
 
+  it("describes the sheet neutrally to a member who cannot manage billing, instead of inviting a purchase", () => {
+    setup({ open: true, canManageBilling: false, description: "Buy credits or redeem a coupon to top up your balance." });
+
+    expect(screen.getByText(/credits pay for your team's deployments/i)).toBeInTheDocument();
+    expect(screen.queryByText(/buy credits or redeem a coupon/i)).not.toBeInTheDocument();
+  });
+
   it("does not render the credits tabs while closed", () => {
     const { dependencies } = setup({ open: false });
 

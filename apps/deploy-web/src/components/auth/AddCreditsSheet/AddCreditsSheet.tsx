@@ -151,7 +151,7 @@ export function AddCreditsSheet({
         <d.SheetHeader className="space-y-2 text-left">
           <d.SheetTitle className="text-3xl font-medium leading-9">{purchase ? "Payment successful" : "Add credits"}</d.SheetTitle>
           <d.SheetDescription className="text-sm leading-5 text-muted-foreground">
-            {purchase ? "Your credits are ready to use." : description}
+            {purchase ? "Your credits are ready to use." : canManageBilling ? description : "Credits pay for your team's deployments."}
           </d.SheetDescription>
         </d.SheetHeader>
 
