@@ -9,35 +9,46 @@ import { mock } from "vitest-mock-extended";
 import { DeploymentNameClient } from "./deployment-name-client.service";
 
 describe(DeploymentNameClient.name, () => {
+  const READER = { userId: "5f0c7c1e-8a0b-4c55-9d4e-2b0f1d6e7a10", organizationId: "9b3e2d4a-1c6f-4e8b-a7d5-3f2c1b0e9d8a" };
+  const READER_QUERY = `userId=${READER.userId}&organizationId=${READER.organizationId}`;
+
   it("asks console-api for the deployment's name with the internal token", async () => {
     const { client, received, token } = await setup({ respond: answerWith({ name: "my-app" }) });
 
-    const name = await client.findName({ owner: "akash1owner", dseq: "4242" });
+    const name = await client.findName({ owner: "akash1owner", dseq: "4242", reader: READER });
 
     expect(name).toBe("my-app");
-    expect(received).toEqual([{ method: "GET", url: "/internal/deployment-names/akash1owner/4242", token }]);
+    expect(received).toEqual([{ method: "GET", url: `/internal/deployment-names/akash1owner/4242?${READER_QUERY}`, token }]);
+  });
+
+  it("names only the user of an alert filed in no organization", async () => {
+    const { client, received } = await setup({ respond: answerWith({ name: null }) });
+
+    await client.findName({ owner: "akash1owner", dseq: "4242", reader: { userId: READER.userId, organizationId: null } });
+
+    expect(received.map(request => request.url)).toEqual([`/internal/deployment-names/akash1owner/4242?userId=${READER.userId}`]);
   });
 
   it("returns null for a deployment console-api holds no name for", async () => {
     const { client } = await setup({ respond: answerWith({ name: null }) });
 
-    expect(await client.findName({ owner: "akash1owner", dseq: "4242" })).toBeNull();
+    expect(await client.findName({ owner: "akash1owner", dseq: "4242", reader: READER })).toBeNull();
   });
 
   it("asks the same path when the console-api base url ends with slashes", async () => {
     const { client, received } = await setup({ baseUrlSuffix: "//", respond: answerWith({ name: null }) });
 
-    await client.findName({ owner: "akash1owner", dseq: "4242" });
+    await client.findName({ owner: "akash1owner", dseq: "4242", reader: READER });
 
-    expect(received.map(request => request.url)).toEqual(["/internal/deployment-names/akash1owner/4242"]);
+    expect(received.map(request => request.url)).toEqual([`/internal/deployment-names/akash1owner/4242?${READER_QUERY}`]);
   });
 
   it("keeps the owner and dseq inside their own path segments", async () => {
     const { client, received } = await setup({ respond: answerWith({ name: null }) });
 
-    await client.findName({ owner: "akash1owner/../x", dseq: "4242?y" });
+    await client.findName({ owner: "akash1owner/../x", dseq: "4242?y", reader: READER });
 
-    expect(received.map(request => request.url)).toEqual(["/internal/deployment-names/akash1owner%2F..%2Fx/4242%3Fy"]);
+    expect(received.map(request => request.url)).toEqual([`/internal/deployment-names/akash1owner%2F..%2Fx/4242%3Fy?${READER_QUERY}`]);
   });
 
   it("fails with what console-api answered when it refuses the lookup", async () => {
@@ -48,7 +59,9 @@ describe(DeploymentNameClient.name, () => {
       }
     });
 
-    await expect(client.findName({ owner: "akash1owner", dseq: "4242" })).rejects.toThrow('console-api answered 400: {"message":"Invalid address"}');
+    await expect(client.findName({ owner: "akash1owner", dseq: "4242", reader: READER })).rejects.toThrow(
+      'console-api answered 400: {"message":"Invalid address"}'
+    );
   });
 
   it("fails on a redirect instead of following it", async () => {
@@ -59,20 +72,20 @@ describe(DeploymentNameClient.name, () => {
       }
     });
 
-    await expect(client.findName({ owner: "akash1owner", dseq: "4242" })).rejects.toThrow("console-api answered 307");
+    await expect(client.findName({ owner: "akash1owner", dseq: "4242", reader: READER })).rejects.toThrow("console-api answered 307");
     expect(received).toHaveLength(1);
   });
 
   it("fails on an answer that does not carry a name", async () => {
     const { client } = await setup({ respond: answerWith({ deployment: "my-app" }) });
 
-    await expect(client.findName({ owner: "akash1owner", dseq: "4242" })).rejects.toThrow();
+    await expect(client.findName({ owner: "akash1owner", dseq: "4242", reader: READER })).rejects.toThrow();
   });
 
   it("gives up once console-api takes longer than the timeout to answer", async () => {
     const { client } = await setup({ timeoutMs: 50, respond: () => {} });
 
-    await expect(client.findName({ owner: "akash1owner", dseq: "4242" })).rejects.toMatchObject({ name: "TimeoutError" });
+    await expect(client.findName({ owner: "akash1owner", dseq: "4242", reader: READER })).rejects.toMatchObject({ name: "TimeoutError" });
   });
 
   it.each([
@@ -81,7 +94,7 @@ describe(DeploymentNameClient.name, () => {
   ])("returns null without calling console-api when %s is not set", async (_, missing) => {
     const { client, received } = await setup(missing);
 
-    expect(await client.findName({ owner: "akash1owner", dseq: "4242" })).toBeNull();
+    expect(await client.findName({ owner: "akash1owner", dseq: "4242", reader: READER })).toBeNull();
     expect(received).toEqual([]);
   });
 

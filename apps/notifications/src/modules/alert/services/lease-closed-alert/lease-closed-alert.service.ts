@@ -48,7 +48,12 @@ export class LeaseClosedAlertService {
       return;
     }
 
-    const deployment = await this.deploymentReferenceService.referTo({ owner: event.owner, dseq: event.dseq, organizationId: alert.organizationId });
+    const deployment = await this.deploymentReferenceService.referTo({
+      owner: event.owner,
+      dseq: event.dseq,
+      userId: alert.userId,
+      organizationId: alert.organizationId
+    });
     const claimedAlert = await this.alertRepository.claimNotification(alert.id, "leaseClosedNotifiedAt");
 
     if (!claimedAlert) {

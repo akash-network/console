@@ -14,6 +14,7 @@ export type DeploymentReference = {
 export type DeploymentReferenceInput = {
   owner: string;
   dseq: string;
+  userId: string;
   organizationId: string | null;
   tab?: "SETTINGS";
 };
@@ -28,8 +29,8 @@ export class DeploymentReferenceService {
     this.loggerService.setContext(DeploymentReferenceService.name);
   }
 
-  async referTo({ owner, dseq, organizationId, tab }: DeploymentReferenceInput): Promise<DeploymentReference> {
-    const name = await this.#findName(owner, dseq);
+  async referTo({ owner, dseq, userId, organizationId, tab }: DeploymentReferenceInput): Promise<DeploymentReference> {
+    const name = await this.#findName({ owner, dseq, reader: { userId, organizationId } });
 
     return {
       label: name ? `“${name}”` : dseq,
@@ -38,11 +39,11 @@ export class DeploymentReferenceService {
   }
 
   /** A failed lookup names the deployment by its dseq rather than holding its alert back. */
-  async #findName(owner: string, dseq: string): Promise<string | null> {
+  async #findName(lookup: Parameters<DeploymentNameClient["findName"]>[0]): Promise<string | null> {
     try {
-      return await this.deploymentNameClient.findName({ owner, dseq });
+      return await this.deploymentNameClient.findName(lookup);
     } catch (error) {
-      this.loggerService.warn({ event: "DEPLOYMENT_NAME_LOOKUP_FAILED", owner, dseq, error });
+      this.loggerService.warn({ event: "DEPLOYMENT_NAME_LOOKUP_FAILED", owner: lookup.owner, dseq: lookup.dseq, error });
       return null;
     }
   }

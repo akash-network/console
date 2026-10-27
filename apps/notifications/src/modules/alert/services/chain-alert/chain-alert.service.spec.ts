@@ -22,7 +22,7 @@ import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
 describe(ChainAlertService.name, () => {
   describe("alertFor", () => {
     it("should send notification when event conditions match", async () => {
-      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage, deployment } = await setup();
+      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
 
       const event = generateMock(EventClosedDeploymentDto.schema);
 
@@ -63,8 +63,7 @@ describe(ChainAlertService.name, () => {
             prev: expect.objectContaining({ id: alert.id }),
             next: expect.objectContaining({ id: alert.id })
           },
-          data: { type: "CHAIN_EVENT", payload: event },
-          deployment
+          data: { type: "CHAIN_EVENT", payload: event }
         }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage);
@@ -119,13 +118,38 @@ describe(ChainAlertService.name, () => {
 
       await service.alertFor({ type: "CHAIN_EVENT", payload: { ...generateMock(EventClosedDeploymentDto.schema), owner, dseq: "3003" } }, onMessage);
 
-      expect(deploymentReferenceService.referTo).toHaveBeenCalledWith({ owner, dseq: "3003", organizationId: alert.organizationId, tab: "SETTINGS" });
+      expect(deploymentReferenceService.referTo).toHaveBeenCalledWith({
+        owner,
+        dseq: "3003",
+        userId: alert.userId,
+        organizationId: alert.organizationId,
+        tab: "SETTINGS"
+      });
       expect(alertMessageService.getMessage).toHaveBeenCalledWith(expect.objectContaining({ vars: expect.objectContaining({ deployment }) }));
     });
 
-    it("refers the templates of a chain message to no deployment", async () => {
+    it("refers the templates of a chain event alert a user wrote to no deployment, so its template cannot read another tenant's names", async () => {
       const { service, alertRepository, conditionsMatcher, alertMessageService, deploymentReferenceService, onMessage } = await setup();
-      const alert = generateGeneralAlert({ type: "CHAIN_MESSAGE" });
+      const alert = generateGeneralAlert({ type: "CHAIN_EVENT", conditions: { field: "action", value: "deployment-closed", operator: "eq" } });
+      alertRepository.paginateAll.mockImplementation(async options => {
+        options.callback([alert] as any);
+      });
+      alertRepository.updateById.mockImplementation(async (_, update) => ({ ...alert, ...update }) as AlertOutput);
+      conditionsMatcher.isMatching.mockReturnValue(true);
+      alertMessageService.getMessage.mockReturnValue({ summary: "A deployment was closed", description: "Something happened." });
+
+      await service.alertFor(
+        { type: "CHAIN_EVENT", payload: { ...generateMock(EventClosedDeploymentDto.schema), owner: mockAkashAddress(), dseq: "4004" } },
+        onMessage
+      );
+
+      expect(deploymentReferenceService.referTo).not.toHaveBeenCalled();
+      expect(alertMessageService.getMessage.mock.calls[0][0].vars).toEqual(expect.objectContaining({ deployment: undefined }));
+    });
+
+    it("refers the templates of a deployment-closed alert a chain message matched to no deployment", async () => {
+      const { service, alertRepository, conditionsMatcher, alertMessageService, deploymentReferenceService, onMessage } = await setup();
+      const alert = generateGeneralAlert({ type: "CHAIN_MESSAGE", params: { dseq: "1001", type: "DEPLOYMENT_CLOSED" } });
       alertRepository.paginateAll.mockImplementation(async options => {
         options.callback([alert] as any);
       });
@@ -284,7 +308,7 @@ describe(ChainAlertService.name, () => {
     });
 
     it("should process multiple alerts in parallel", async () => {
-      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage, deployment } = await setup();
+      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
 
       const event = generateMock(EventClosedDeploymentDto.schema);
 
@@ -341,8 +365,7 @@ describe(ChainAlertService.name, () => {
             prev: expect.objectContaining({ id: alert1.id }),
             next: expect.objectContaining({ id: alert1.id })
           },
-          data: { type: "CHAIN_EVENT", payload: event },
-          deployment
+          data: { type: "CHAIN_EVENT", payload: event }
         }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage1);
@@ -354,15 +377,14 @@ describe(ChainAlertService.name, () => {
             prev: expect.objectContaining({ id: alert2.id }),
             next: expect.objectContaining({ id: alert2.id })
           },
-          data: { type: "CHAIN_EVENT", payload: event },
-          deployment
+          data: { type: "CHAIN_EVENT", payload: event }
         }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage2);
     });
 
     it("should correctly handle complex condition matching", async () => {
-      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage, deployment } = await setup();
+      const { service, alertRepository, conditionsMatcher, alertMessageService, onMessage } = await setup();
 
       const event = generateMock(EventClosedDeploymentDto.schema);
       const owner = event.owner;
@@ -414,8 +436,7 @@ describe(ChainAlertService.name, () => {
             prev: expect.objectContaining({ id: alert.id }),
             next: expect.objectContaining({ id: alert.id })
           },
-          data: { type: "CHAIN_EVENT", payload: event },
-          deployment
+          data: { type: "CHAIN_EVENT", payload: event }
         }
       });
       expect(onMessage).toHaveBeenCalledWith(alertMessage);

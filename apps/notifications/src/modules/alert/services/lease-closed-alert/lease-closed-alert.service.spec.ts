@@ -140,7 +140,11 @@ describe(LeaseClosedAlertService.name, () => {
       await service.alertFor(event, onMessage);
 
       const { summary, description } = onMessage.mock.calls[0][0].payload;
-      expect(deploymentNameClient.findName).toHaveBeenCalledWith({ owner: event.owner, dseq: "12345" });
+      expect(deploymentNameClient.findName).toHaveBeenCalledWith({
+        owner: event.owner,
+        dseq: "12345",
+        reader: { userId: alert.userId, organizationId: alert.organizationId }
+      });
       expect(summary).toBe("The lease for deployment “<b>Tom & Jerry</b>” was closed");
       expect(description).toContain("The lease for deployment “&lt;b&gt;Tom &amp; Jerry&lt;/b&gt;” with provider");
       expect(description).toContain(`Please visit <a href="https://${consoleWebUrl}/deployments/12345?org=${alert.organizationId}">${consoleWebUrl}</a>`);

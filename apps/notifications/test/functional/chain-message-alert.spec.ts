@@ -181,7 +181,12 @@ describe("chain message alerts", () => {
 
       await controller.processDeploymentClosed({ ...generateMock(EventClosedDeploymentDto.schema), owner, dseq });
 
-      expect(consoleApi.requests).toEqual([{ url: `/internal/deployment-names/${owner}/${dseq}`, token: consoleApi.token }]);
+      expect(consoleApi.requests).toEqual([
+        {
+          url: `/internal/deployment-names/${owner}/${dseq}?userId=${closedAlert.userId}&organizationId=${closedAlert.organizationId}`,
+          token: consoleApi.token
+        }
+      ]);
       expect(brokerService.publish).toHaveBeenCalledWith(
         eventKeyRegistry.createNotification,
         expect.objectContaining({

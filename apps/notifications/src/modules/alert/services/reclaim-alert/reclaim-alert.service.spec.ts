@@ -155,7 +155,11 @@ describe(ReclaimAlertService.name, () => {
       await service.alertFor(event, onMessage);
 
       const { summary, description, feedEntry } = onMessage.mock.calls[0][0].payload;
-      expect(deploymentNameClient.findName).toHaveBeenCalledWith({ owner: event.owner, dseq: "12345" });
+      expect(deploymentNameClient.findName).toHaveBeenCalledWith({
+        owner: event.owner,
+        dseq: "12345",
+        reader: { userId: alert.userId, organizationId: alert.organizationId }
+      });
       expect(summary).toBe("Deployment “<b>Tom & Jerry</b>” is being reclaimed by the provider");
       expect(description).toContain(`has started reclaiming deployment “&lt;b&gt;Tom &amp; Jerry&lt;/b&gt;” because`);
       expect(description).toContain(`Please visit <a href="https://${consoleWebUrl}/deployments/12345?org=${alert.organizationId}">${consoleWebUrl}</a>`);

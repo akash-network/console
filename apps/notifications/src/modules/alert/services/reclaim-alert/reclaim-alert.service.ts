@@ -43,7 +43,12 @@ export class ReclaimAlertService {
     }
 
     const recipientTimezone = await this.alertRepository.findNotificationChannelTimezone(alert.notificationChannelId);
-    const deployment = await this.deploymentReferenceService.referTo({ owner: event.owner, dseq: event.dseq, organizationId: alert.organizationId });
+    const deployment = await this.deploymentReferenceService.referTo({
+      owner: event.owner,
+      dseq: event.dseq,
+      userId: alert.userId,
+      organizationId: alert.organizationId
+    });
     const claimedAlert = await this.alertRepository.claimNotification(alert.id, "reclaimNotifiedAt");
 
     if (!claimedAlert) {

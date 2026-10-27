@@ -90,11 +90,11 @@ export class ChainAlertService {
     }, event.type);
   }
 
-  private async deploymentReferenceOf({ organizationId }: GeneralAlertOutput, event: TriggerPayload): Promise<DeploymentReference | undefined> {
-    if (event.type !== "CHAIN_EVENT") return undefined;
+  private async deploymentReferenceOf({ userId, organizationId, params }: GeneralAlertOutput, event: TriggerPayload): Promise<DeploymentReference | undefined> {
+    if (event.type !== "CHAIN_EVENT" || params?.type !== "DEPLOYMENT_CLOSED") return undefined;
 
     const { owner, dseq } = event.payload;
-    return await this.deploymentReferenceService.referTo({ owner, dseq, organizationId, tab: "SETTINGS" });
+    return await this.deploymentReferenceService.referTo({ owner, dseq, userId, organizationId, tab: "SETTINGS" });
   }
 
   private async forEachAlert(onAlert: AlertCallback, type: "CHAIN_MESSAGE" | "CHAIN_EVENT") {
