@@ -14,6 +14,7 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useCanManageDeployment } from "@src/hooks/useCanManageDeployment/useCanManageDeployment";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { deploymentLaunchOf, useDeploymentActivity } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
+import { useDeploymentTemplate } from "@src/hooks/useDeploymentTemplate/useDeploymentTemplate";
 import { useLeaseGpus, withLeaseGpus } from "@src/hooks/useLeaseGpus/useLeaseGpus";
 import { useOpenDeploymentInItsOrganization } from "@src/hooks/useOpenDeploymentInItsOrganization/useOpenDeploymentInItsOrganization";
 import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
@@ -34,6 +35,7 @@ import { DeploymentGettingStarted } from "./DeploymentGettingStarted/DeploymentG
 import { DeploymentLaunchState } from "./DeploymentLaunchState/DeploymentLaunchState";
 import { DeploymentPlacements } from "./DeploymentPlacements/DeploymentPlacements";
 import { DeploymentSettings } from "./DeploymentSettings/DeploymentSettings";
+import { DeploymentTemplateGuide } from "./DeploymentTemplateGuide/DeploymentTemplateGuide";
 import { DeploymentUpdate } from "./DeploymentUpdate/DeploymentUpdate";
 import { DeploymentDetailHeader } from "./DeploymentDetailHeader";
 import { PAGE_BAND } from "./pageBand";
@@ -45,6 +47,7 @@ export const DEPENDENCIES = {
   useSearchParams,
   useRedeploy,
   useDeploymentDefinition,
+  useDeploymentTemplate,
   useDeploymentActivity,
   useDeploymentDetail,
   useDeploymentLeaseList,
@@ -65,6 +68,7 @@ export const DEPENDENCIES = {
   DeploymentLeaseShell,
   ManifestUpdate,
   DeploymentSettings,
+  DeploymentTemplateGuide,
   DeploymentUpdate,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   createConfigureDraft
@@ -75,7 +79,7 @@ const TAB_STRIP_FRAME = "border-t shadow-[inset_0_-1px_0_hsl(var(--border))]";
 
 const TAB_STRIP = cn(PAGE_BAND, "flex h-auto justify-start gap-6 overflow-x-auto rounded-none border-0 bg-transparent py-0 scrollbar-none sm:gap-8");
 
-const TABS = ["DETAILS", "UPDATE", "LOGS", "EVENTS", "SHELL", "SETTINGS"] as const;
+const TABS = ["DETAILS", "TEMPLATE", "UPDATE", "LOGS", "EVENTS", "SHELL", "SETTINGS"] as const;
 type Tab = (typeof TABS)[number];
 
 /** Updating a deployment and opening a shell in it change it, so a caller who only reads this deployment does not get those tabs. */
@@ -83,6 +87,7 @@ const READ_ONLY_TABS: readonly Tab[] = TABS.filter(tab => tab !== "UPDATE" && ta
 
 const TAB_LABELS: Record<Tab, string> = {
   DETAILS: "Details",
+  TEMPLATE: "Template",
   LOGS: "Logs",
   EVENTS: "Events",
   SHELL: "Shell",
@@ -104,7 +109,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
   const [selectedTab, setSelectedTab] = useState<Tab>("DETAILS");
   const { canManage, isLoading: isLoadingManagement, isError: isManagementUnreadable, retry: retryManagement } = d.useCanManageDeployment(dseq);
-  const tabs = canManage ? TABS : READ_ONLY_TABS;
+  const { templateId, template } = d.useDeploymentTemplate(dseq);
+  const tabs = (canManage ? TABS : READ_ONLY_TABS).filter(tab => tab !== "TEMPLATE" || !!template);
   const activeTab = tabs.includes(selectedTab) ? selectedTab : "DETAILS";
   const [editedManifest, setEditedManifest] = useState<string | null>(null);
   const tabStripRef = useRef<HTMLDivElement>(null);
@@ -193,12 +199,12 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   }
 
   function redeployFromResolvedDefinition() {
-    redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: dseq, projectId: location?.projectId });
+    redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: dseq, projectId: location?.projectId, templateId });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
   }
 
   function redeployWithNewSecrets() {
-    redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, projectId: location?.projectId });
+    redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, projectId: location?.projectId, templateId });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
   }
 
@@ -281,7 +287,9 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
             <div className="flex-1 bg-muted py-6">
               <div className={PAGE_BAND}>
-                {activeTab === "DETAILS" && launch && <d.DeploymentLaunchState dseq={dseq} launch={launch} leases={leases ?? []} canManage={canManage} className="mb-6" />}
+                {activeTab === "DETAILS" && launch && (
+                  <d.DeploymentLaunchState dseq={dseq} launch={launch} leases={leases ?? []} canManage={canManage} className="mb-6" />
+                )}
 
                 {activeTab === "DETAILS" &&
                   (!launch || isActive) &&
@@ -291,7 +299,12 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                     <TabInactiveState label="This deployment is waiting for bids. Only someone who can deploy into its project can accept one." />
                   ) : (
                     <>
-                      <d.DeploymentGettingStarted leases={leases || []} providers={providers} deploymentManifest={deploymentManifest} />
+                      <d.DeploymentGettingStarted
+                        leases={leases || []}
+                        providers={providers}
+                        deploymentManifest={deploymentManifest}
+                        templateGuide={template && { templateName: template.name, open: () => changeTab("TEMPLATE") }}
+                      />
                       <d.DeploymentPlacements
                         leases={leases || []}
                         providers={providers}
@@ -302,6 +315,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
                       />
                     </>
                   ))}
+
+                {activeTab === "TEMPLATE" && template && <d.DeploymentTemplateGuide template={template} />}
 
                 {activeTab === "LOGS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="logs" /> : <TabInactiveState />)}
                 {activeTab === "EVENTS" && (isActive ? <d.DeploymentLogs leases={leases} selectedLogsMode="events" /> : <TabInactiveState />)}

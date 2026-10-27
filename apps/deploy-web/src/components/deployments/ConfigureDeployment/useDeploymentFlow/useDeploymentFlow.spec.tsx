@@ -68,6 +68,30 @@ describe(useDeploymentFlow.name, () => {
     expect(createMutate).toHaveBeenCalledWith({ data: expect.objectContaining({ sdl: "sdl-content", projectId: "project-1" }) }, expect.any(Object));
   });
 
+  it("records the gallery template the deployment starts from", async () => {
+    const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+    const { result } = setup({ createMutate, intent: { sdlStrategy: "edit", bidStrategy: "select", templateId: "akash-network-awesome-akash-comfyui" } });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await settleSeal();
+
+    await waitFor(() => expect(createMutate).toHaveBeenCalled());
+    expect(createMutate).toHaveBeenCalledWith({ data: expect.objectContaining({ templateId: "akash-network-awesome-akash-comfyui" }) }, expect.any(Object));
+  });
+
+  it("records no template for a hardcoded starter, which the gallery does not have", async () => {
+    const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));
+    const { result } = setup({ createMutate, intent: { sdlStrategy: "edit", bidStrategy: "select", templateId: "hello-world" } });
+
+    act(() => result.current.actions.requestQuotes("sdl-content"));
+
+    await settleSeal();
+
+    await waitFor(() => expect(createMutate).toHaveBeenCalled());
+    expect(createMutate.mock.calls[0][0].data).not.toHaveProperty("templateId");
+  });
+
   it("asks for a project again when the api requires one", async () => {
     const createMutate = vi.fn((_args, { onError }) => onError(new ApiError(400, { message: "Choose a project", code: "project_required" }, "bad request")));
     const { result, forgetProject } = setup({ createMutate, deployTargetProjectId: "project-1" });

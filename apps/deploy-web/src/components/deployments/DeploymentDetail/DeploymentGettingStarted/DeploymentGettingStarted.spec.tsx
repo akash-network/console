@@ -8,6 +8,7 @@ import { SSH_VM_IMAGES } from "@src/utils/sdl/vmImages";
 import { DEPENDENCIES, DeploymentGettingStarted } from "./DeploymentGettingStarted";
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 const VM_SDL = buildSdl({ vm: SSH_VM_IMAGES["Ubuntu 24.04"] });
 
@@ -91,6 +92,25 @@ describe(DeploymentGettingStarted.name, () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("links to the guide of the template the deployment was created from, under the SSH steps", async () => {
+    const { open } = setup({ forwardedPorts: { vm: [forwardedPort()] }, templateName: "Ubuntu VM" });
+
+    expect(screen.getByLabelText("SSH command for vm")).toBeInTheDocument();
+    expect(screen.getByText("Ubuntu VM")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Read the template guide" }));
+
+    expect(open).toHaveBeenCalledOnce();
+  });
+
+  it("shows the template guide on its own when no service runs SSH", () => {
+    setup({ sdl: buildSdl({ web: "nginx:latest" }), templateName: "Stable Diffusion XL" });
+
+    expect(screen.getByRole("heading", { name: "Getting started" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Read the template guide" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Connect over SSH" })).not.toBeInTheDocument();
+  });
+
   it("stays off the page while the provider has not reported the lease status", () => {
     const { container } = setup({});
 
@@ -103,7 +123,10 @@ describe(DeploymentGettingStarted.name, () => {
     providers?: ApiProviderList[];
     forwardedPorts?: Record<string, ForwardedPort[]>;
     isLoading?: boolean;
+    templateName?: string;
   }) {
+    const open = vi.fn();
+    const templateGuide = input.templateName ? { templateName: input.templateName, open } : undefined;
     const leaseStatus = input.forwardedPorts ? mock<LeaseStatusDto>({ forwarded_ports: input.forwardedPorts }) : undefined;
     const useLeaseStatuses = vi.fn<typeof DEPENDENCIES.useLeaseStatuses>(items =>
       items.map(() =>
@@ -116,11 +139,17 @@ describe(DeploymentGettingStarted.name, () => {
     const leases = input.leases ?? [buildLease({ id: "1", provider: "akash1provider" })];
     const providers = input.providers ?? [mock<ApiProviderList>({ owner: "akash1provider" })];
     const renderSection = (sdl: string) => (
-      <DeploymentGettingStarted leases={leases} providers={providers} deploymentManifest={sdl} dependencies={{ ...DEPENDENCIES, useLeaseStatuses }} />
+      <DeploymentGettingStarted
+        leases={leases}
+        providers={providers}
+        deploymentManifest={sdl}
+        templateGuide={templateGuide}
+        dependencies={{ ...DEPENDENCIES, useLeaseStatuses }}
+      />
     );
     const { container, rerender } = render(renderSection(input.sdl ?? VM_SDL));
 
-    return { container, useLeaseStatuses, rerenderWithSdl: (sdl: string) => rerender(renderSection(sdl)) };
+    return { container, useLeaseStatuses, open, rerenderWithSdl: (sdl: string) => rerender(renderSection(sdl)) };
   }
 
   function buildLease(overrides: { id: string; provider: string; state?: LeaseDto["state"] }): LeaseDto {

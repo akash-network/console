@@ -38,6 +38,14 @@ describe(useRedeploy.name, () => {
     expect(createConfigureDraft).toHaveBeenCalledWith("version: '2.0'", { name: "my-app" });
   });
 
+  it("carries the template the source deployment was created from beside its draft", () => {
+    const { redeploy, push } = setup({ draftId: "draft-1" });
+
+    redeploy({ sdl: "version: '2.0'", templateId: "akash-network-awesome-akash-comfyui" });
+
+    expect(push).toHaveBeenCalledWith("/new-deployment/configure?templateId=akash-network-awesome-akash-comfyui&draftId=draft-1");
+  });
+
   it("opens a blank configure screen and mints no draft when no sdl is available", () => {
     const { redeploy, push, createConfigureDraft } = setup();
 

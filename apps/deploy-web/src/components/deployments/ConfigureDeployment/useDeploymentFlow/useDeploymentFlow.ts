@@ -26,6 +26,7 @@ import type { ServicesPatch } from "@src/utils/sdl/sdlServicesPatch";
 import { isEmptyServicesPatch, servicesPatchBetween } from "@src/utils/sdl/sdlServicesPatch";
 import { sealSdlSecrets } from "@src/utils/sdl/sealSdlSecrets";
 import { hasSdlReference } from "@src/utils/sdl/storedDefinition";
+import { hardcodedTemplates } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import { isWalletProvisioning, WALLET_PROVISIONING_ERROR_CODE, walletProvisioningRetry } from "@src/utils/walletProvisioning";
 import { aggregateDeploymentResources } from "../DeploymentResourceSummary/deploymentResources";
@@ -734,7 +735,15 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         createInFlightRef.current = true;
         createDeployment.mutate(
           {
-            data: { sdl, ...namePayload(options.name), ...projectPayload(deployTargetProjectId), ...sealed, ...inheritance, deposit: DEFAULT_DEPOSIT },
+            data: {
+              sdl,
+              ...namePayload(options.name),
+              ...projectPayload(deployTargetProjectId),
+              ...templatePayload(intentRef.current.templateId),
+              ...sealed,
+              ...inheritance,
+              deposit: DEFAULT_DEPOSIT
+            },
             ...createQueryFor(isRunningInBackground, isOneClickDeploy(intentRef.current, bidStrategyRef.current))
           },
           {
@@ -1209,6 +1218,11 @@ function acceptedActivityIdOf(data: object): string | undefined {
 function namePayload(name: string | undefined): { name?: string } {
   const trimmed = name?.trim();
   return trimmed ? { name: trimmed } : {};
+}
+
+/** Hardcoded starters such as hello-world are not in the gallery, so they have no guide to link the deployment to. */
+function templatePayload(templateId: string | undefined): { templateId?: string } {
+  return templateId && !hardcodedTemplates.some(template => template.code === templateId) ? { templateId } : {};
 }
 
 /** Why the api refused the project the deployment was sent to, which dropping the choice turns into a fresh pick. */

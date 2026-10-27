@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import type { TemplateOutput } from "@akashnetwork/http-sdk";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -12,7 +13,7 @@ import type { DeploymentPlacementsProps } from "./DeploymentPlacements/Deploymen
 import type { DeploymentUpdateProps } from "./DeploymentUpdate/DeploymentUpdate";
 import { DEPENDENCIES, DeploymentDetail } from "./DeploymentDetail";
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildActivity } from "@tests/seeders/activity";
 import { MockComponents } from "@tests/unit/mocks";
@@ -159,6 +160,27 @@ describe("DeploymentDetail", () => {
     expect(DeploymentPlacements.mock.lastCall?.[0].leases).toEqual([]);
   });
 
+  it("links getting started to the guide of the template the deployment was created from", () => {
+    const { DeploymentGettingStarted } = setup({ template: buildTemplate() });
+
+    expect(DeploymentGettingStarted.mock.lastCall?.[0].templateGuide).toMatchObject({ templateName: "ComfyUI" });
+  });
+
+  it("opens the Template tab from the getting started link", () => {
+    const { DeploymentGettingStarted, DeploymentTemplateGuide } = setup({ template: buildTemplate() });
+
+    act(() => DeploymentGettingStarted.mock.lastCall?.[0].templateGuide?.open());
+
+    expect(screen.getByRole("tab", { name: "Template" })).toHaveAttribute("aria-selected", "true");
+    expect(DeploymentTemplateGuide).toHaveBeenLastCalledWith({ template: expect.objectContaining({ name: "ComfyUI" }) }, {});
+  });
+
+  it("hands getting started no template guide for a deployment not created from a gallery template", () => {
+    const { DeploymentGettingStarted } = setup();
+
+    expect(DeploymentGettingStarted.mock.lastCall?.[0].templateGuide).toBeUndefined();
+  });
+
   it("keeps the getting started section off the other tabs", () => {
     setup({ tab: "LOGS" });
 
@@ -200,6 +222,20 @@ describe("DeploymentDetail", () => {
 
     expect(redeploy).toHaveBeenCalledWith({ sdl: "version: '2.0'", name: "My Storefront", sourceDseq: expect.any(String) });
     expect(analyticsService.track).toHaveBeenCalledWith("redeploy_btn_clk", "Amplitude");
+  });
+
+  it("redeploys as created from the template the deployment was created from", () => {
+    const { redeploy, DeploymentUpdate } = setup({
+      tab: "UPDATE",
+      definition: { sdl: "version: '2.0'", source: "api" },
+      templateId: "akash-network-awesome-akash-comfyui"
+    });
+
+    DeploymentUpdate.mock.calls[0][0].onRedeploy?.();
+    DeploymentUpdate.mock.calls[0][0].onRedeployWithNewSecrets?.();
+
+    expect(redeploy).toHaveBeenNthCalledWith(1, expect.objectContaining({ templateId: "akash-network-awesome-akash-comfyui" }));
+    expect(redeploy).toHaveBeenNthCalledWith(2, expect.objectContaining({ templateId: "akash-network-awesome-akash-comfyui" }));
   });
 
   it("redeploys into the project the deployment is filed in", () => {
@@ -422,12 +458,46 @@ describe("DeploymentDetail", () => {
     expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Update", "Logs", "Events", "Shell", "Settings"]);
   });
 
+  it("offers a Template tab right after Details once the template the deployment was created from loads", () => {
+    const { useDeploymentTemplate } = setup({ template: buildTemplate() });
+
+    expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Template", "Update", "Logs", "Events", "Shell", "Settings"]);
+    expect(useDeploymentTemplate).toHaveBeenCalledWith("1786440078202");
+  });
+
+  it("shows the template's guide on the Template tab from the ?tab= query param", () => {
+    const { DeploymentTemplateGuide } = setup({ tab: "TEMPLATE", template: buildTemplate() });
+
+    expect(DeploymentTemplateGuide).toHaveBeenCalledWith({ template: expect.objectContaining({ id: "akash-network-awesome-akash-comfyui" }) }, {});
+    expect(screen.queryByText("placements")).not.toBeInTheDocument();
+  });
+
+  it("keeps the template guide off the other tabs", () => {
+    const { DeploymentTemplateGuide } = setup({ template: buildTemplate() });
+
+    expect(screen.getByText("placements")).toBeInTheDocument();
+    expect(DeploymentTemplateGuide).not.toHaveBeenCalled();
+  });
+
+  it("falls back to Details when the Template tab is asked for but the template is not there", () => {
+    const { DeploymentTemplateGuide } = setup({ tab: "TEMPLATE", templateId: "akash-network-awesome-akash-removed" });
+
+    expect(screen.getByRole("tab", { name: "Details" })).toHaveAttribute("aria-selected", "true");
+    expect(DeploymentTemplateGuide).not.toHaveBeenCalled();
+  });
+
   describe("when the caller only views the deployment's project", () => {
     it("leaves out the tabs that update the deployment or open a shell in it", () => {
       const { useCanManageDeployment } = setup({ canManage: false });
 
       expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Logs", "Events", "Settings"]);
       expect(useCanManageDeployment).toHaveBeenCalledWith("1786440078202");
+    });
+
+    it("still offers the guide of the template the deployment was created from", () => {
+      setup({ canManage: false, template: buildTemplate() });
+
+      expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Details", "Template", "Logs", "Events", "Settings"]);
     });
 
     it("offers to check the caller's access again when it could not be read", async () => {
@@ -681,6 +751,8 @@ describe("DeploymentDetail", () => {
     leaseCreation?: Activity;
     isResolvingActivity?: boolean;
     isUpdating?: boolean;
+    template?: TemplateOutput;
+    templateId?: string;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];
@@ -761,6 +833,11 @@ describe("DeploymentDetail", () => {
       isResolving: isResolvingActivity
     }));
     const DeploymentLaunchState = vi.fn(() => <div>launch-state</div>);
+    const useDeploymentTemplate = vi.fn<typeof DEPENDENCIES.useDeploymentTemplate>(() => ({
+      templateId: input?.templateId ?? input?.template?.id,
+      template: input?.template
+    }));
+    const DeploymentTemplateGuide = vi.fn(() => <div>template-guide</div>);
 
     const dependencies = MockComponents(DEPENDENCIES, {
       useServices,
@@ -769,6 +846,7 @@ describe("DeploymentDetail", () => {
       useSearchParams,
       useRedeploy,
       useDeploymentDefinition,
+      useDeploymentTemplate,
       useDeploymentActivity,
       useDeploymentDetail,
       useDeploymentLeaseList,
@@ -784,6 +862,7 @@ describe("DeploymentDetail", () => {
       DeploymentLeaseShell,
       ManifestUpdate,
       DeploymentSettings,
+      DeploymentTemplateGuide,
       DeploymentUpdate,
       createConfigureDraft,
       useProjectsUi: () => mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({ isEnabled: input?.isProjectsUiEnabled ?? true }),
@@ -806,6 +885,8 @@ describe("DeploymentDetail", () => {
       DeploymentPlacements,
       DeploymentGettingStarted,
       DeploymentLaunchState,
+      DeploymentTemplateGuide,
+      useDeploymentTemplate,
       useDeploymentActivity,
       useProvidersByAddresses,
       useCanManageDeployment,
@@ -832,6 +913,10 @@ describe("DeploymentDetail", () => {
     };
   }
 });
+
+function buildTemplate(): TemplateOutput {
+  return mock<TemplateOutput>({ id: "akash-network-awesome-akash-comfyui", name: "ComfyUI" });
+}
 
 function leaseCreation(input: { status: Activity["status"]; providers?: string[]; error?: { code: string; message: string } }): Activity {
   return buildActivity({ type: "lease_create", status: input.status, meta: { dseq: "1786440078202", providers: input.providers, error: input.error } });

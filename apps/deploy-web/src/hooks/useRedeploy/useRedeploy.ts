@@ -18,6 +18,8 @@ export interface RedeployInput {
   sourceDseq?: string;
   /** The project the previous deployment is filed in, which the new one goes to; without one the project picker asks. */
   projectId?: string | null;
+  /** The gallery template the previous deployment was created from, which the new one is recorded as created from too. */
+  templateId?: string;
 }
 
 /** Opens the configure flow on a draft minted from the previous SDL, or blank without one; redeploy always starts a fresh deployment, so the original dseq is dropped. */
@@ -26,12 +28,12 @@ export function useRedeploy(dependencies = DEPENDENCIES) {
   const router = d.useRouter();
   const handOverProject = useSetAtom(deployTargetProjectIdAtom);
 
-  return function redeploy({ sdl, name, sourceDseq, projectId }: RedeployInput) {
+  return function redeploy({ sdl, name, sourceDseq, projectId, templateId }: RedeployInput) {
     handOverProject(projectId ?? null);
     if (sdl) {
       const inheritsSecrets = !!sourceDseq && secretReferenceNamesIn(sdl).size > 0;
       const draftId = d.createConfigureDraft(sdl, { name, ...(inheritsSecrets ? { inheritSecretsFrom: sourceDseq } : {}) });
-      router.push(d.UrlService.configureDeployment({ draftId }));
+      router.push(d.UrlService.configureDeployment({ draftId, templateId }));
       return;
     }
     router.push(d.UrlService.configureDeployment({}));
