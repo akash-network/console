@@ -14,6 +14,7 @@ import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-
 import { type CreateLogger, JobQueueService, LOGGER_FACTORY, TxService } from "@src/core";
 import { type DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { type CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
+import { AutoLease, autoLeaseKeyFor } from "@src/deployment/services/auto-lease/auto-lease.job";
 import { CREATE_LEASE_RETRY_OPTIONS, CreateLease, createLeaseKeyFor, leaseWalletRefOf } from "@src/deployment/services/create-lease/create-lease.job";
 import { LeaseManifestService } from "@src/deployment/services/lease-manifest/lease-manifest.service";
 import { isAccessRevoked } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
@@ -147,16 +148,35 @@ export class LeaseService {
     }
   }
 
-  async #queueLeases({ wallet, userId }: LeaseSigner, leases: Leases): Promise<{ activityId: string }> {
-    const activityId = randomUUID();
+  /** A provider picked by hand while Console is still matching a one-click deploy takes that match's activity over, so the deploy keeps one entry. */
+  async #queueLeases(signer: LeaseSigner, leases: Leases): Promise<{ activityId: string }> {
+    const { wallet, userId } = signer;
+    const match = await this.jobQueueService.findPendingJobData(AutoLease, autoLeaseKeyFor({ owner: wallet.address, dseq: leases[0].dseq }));
+    const queued = await this.#queueUnder(signer, leases, match?.activityId);
+
+    return queued ?? { activityId: await this.#leaseInFlight({ owner: wallet.address, userId }, leases) };
+  }
+
+  /** False when a lease is already being created for the deployment, which then carries on in place of this one. */
+  @Trace()
+  public async queueAutoLeases(signer: LeaseSigner, leases: LeasePlacement[], matchActivityId: string): Promise<boolean> {
+    return await this.txService.transaction(async () => !!(await this.#queueUnder(signer, leases, matchActivityId)));
+  }
+
+  /** A match's activity moves on to the providers it picked rather than opening a second entry for the same deploy. */
+  async #queueUnder({ wallet, userId }: LeaseSigner, leases: Leases, matchActivityId?: string): Promise<{ activityId: string } | undefined> {
+    const activityId = matchActivityId ?? randomUUID();
     const walletRef = leaseWalletRefOf(wallet);
     const jobId = await this.jobQueueService.enqueue(new CreateLease({ userId, ...walletRef, leases, activityId }), {
       singletonKey: createLeaseKeyFor({ owner: wallet.address, dseq: leases[0].dseq }),
       ...CREATE_LEASE_RETRY_OPTIONS
     });
-    if (!jobId) return { activityId: await this.#leaseInFlight({ owner: wallet.address, userId }, leases) };
+    if (!jobId) return undefined;
 
-    await this.activityService.open({ id: activityId, ...pendingLeaseActivityOf({ userId, leases }), organizationId: wallet.organizationId });
+    const pending = pendingLeaseActivityOf({ userId, leases });
+    if (matchActivityId) await this.activityService.settle(activityId, pending);
+    else await this.activityService.open({ id: activityId, ...pending, organizationId: wallet.organizationId });
+
     await this.jobQueueService.enqueue(
       new ReconcileLeaseCreate({ userId, ...walletRef, owner: wallet.address, leases, activityId, createLeaseJobId: jobId }),
       reconcileLeaseCreateOptionsFor(activityId, new Date())

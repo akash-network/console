@@ -4,7 +4,8 @@ import { mock } from "vitest-mock-extended";
 
 import type { ActivityService } from "@src/activity/services/activity/activity.service";
 import { TxNotIncludedError, TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
-import type { CreateLogger } from "@src/core";
+import type { CreateLogger, TxService } from "@src/core";
+import type { AutoLeaseService } from "@src/deployment/services/auto-lease/auto-lease.service";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import type { MemberDeploymentAccessService } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import type { UserGpuBidCheckService } from "@src/deployment/services/user-gpu-bid-check/user-gpu-bid-check.service";
@@ -53,6 +54,43 @@ describe(CreateDeploymentHandler.name, () => {
 
     expect(userGpuBidCheckService.scheduleFor).toHaveBeenCalledWith(ACCEPTED);
     expect(userGpuBidCheckService.scheduleFor.mock.invocationCallOrder[0]).toBeGreaterThan(deploymentWriterService.createOnChain.mock.invocationCallOrder[0]);
+  });
+
+  it("starts matching a one-click deploy's provider in the transaction that records the create as succeeded", async () => {
+    const { handler, activityService, autoLeaseService, txService } = setup();
+    let isInTransaction = false;
+    txService.transaction.mockImplementation(async cb => {
+      isInTransaction = true;
+      const result = await cb();
+      isInTransaction = false;
+      return result;
+    });
+    autoLeaseService.start.mockImplementation(async () => {
+      expect(isInTransaction).toBe(true);
+    });
+
+    await handler.handle({ ...PAYLOAD, autoLease: true }, FIRST_ATTEMPT);
+
+    expect(autoLeaseService.start).toHaveBeenCalledWith(ACCEPTED);
+    expect(autoLeaseService.start.mock.invocationCallOrder[0]).toBeGreaterThan(activityService.settle.mock.invocationCallOrder[0]);
+    expect(txService.transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts no match for a create that is not a one-click deploy", async () => {
+    const { handler, autoLeaseService } = setup();
+
+    await handler.handle(PAYLOAD, FIRST_ATTEMPT);
+
+    expect(autoLeaseService.start).not.toHaveBeenCalled();
+  });
+
+  it("starts no match for a create that did not land", async () => {
+    const { handler, deploymentWriterService, autoLeaseService } = setup();
+    deploymentWriterService.createOnChain.mockRejectedValue(new Error("tx-signer unavailable"));
+
+    await expect(handler.handle({ ...PAYLOAD, autoLease: true }, RETRY)).rejects.toThrow("tx-signer unavailable");
+
+    expect(autoLeaseService.start).not.toHaveBeenCalled();
   });
 
   it("schedules no gpu bid check for a create made elsewhere than the configure page", async () => {
@@ -273,8 +311,30 @@ describe(CreateDeploymentHandler.name, () => {
     const memberDeploymentAccessService = mock<MemberDeploymentAccessService>();
     const userGpuBidCheckService = mock<UserGpuBidCheckService>();
 
-    const handler = new CreateDeploymentHandler(deploymentWriterService, activityService, memberDeploymentAccessService, userGpuBidCheckService, createLogger);
+    const autoLeaseService = mock<AutoLeaseService>();
+    const txService = mock<TxService>();
+    txService.transaction.mockImplementation(async cb => await cb());
 
-    return { handler, deploymentWriterService, activityService, memberDeploymentAccessService, userGpuBidCheckService, logger, createLogger };
+    const handler = new CreateDeploymentHandler(
+      deploymentWriterService,
+      activityService,
+      memberDeploymentAccessService,
+      userGpuBidCheckService,
+      autoLeaseService,
+      txService,
+      createLogger
+    );
+
+    return {
+      handler,
+      deploymentWriterService,
+      activityService,
+      memberDeploymentAccessService,
+      userGpuBidCheckService,
+      autoLeaseService,
+      txService,
+      logger,
+      createLogger
+    };
   }
 });

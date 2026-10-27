@@ -140,6 +140,8 @@ type CreateDeploymentRequester = {
   userId: string;
   /** Set for creates from the configure page, whose gpu deployments also count as checks of which providers bid. */
   recordGpuBids?: boolean;
+  /** Set for a one-click deploy, whose provider Console picks and leases once the deployment is created. */
+  autoLease?: boolean;
 };
 
 type CreateDeploymentTx = Awaited<ReturnType<ManagedSignerService["executeDecodedTxByUserWallet"]>>;
@@ -292,10 +294,13 @@ export class DeploymentWriterService {
 
     const activityId = await this.txService.transaction(async () => {
       const activityId = randomUUID();
-      const jobId = await this.jobQueueService.enqueue(new CreateDeployment({ ...accepted, activityId, recordGpuBids: input.recordGpuBids }), {
-        singletonKey: createDeploymentKeyFor(accepted),
-        ...CREATE_DEPLOYMENT_RETRY_OPTIONS
-      });
+      const jobId = await this.jobQueueService.enqueue(
+        new CreateDeployment({ ...accepted, activityId, recordGpuBids: input.recordGpuBids, ...(input.autoLease && { autoLease: true }) }),
+        {
+          singletonKey: createDeploymentKeyFor(accepted),
+          ...CREATE_DEPLOYMENT_RETRY_OPTIONS
+        }
+      );
       if (!jobId) throw createError(409, "This deployment is already being created");
 
       await this.activityService.open({ id: activityId, ...creatingActivityOf(accepted), organizationId });
@@ -306,7 +311,7 @@ export class DeploymentWriterService {
       return activityId;
     });
 
-    return { dseq: accepted.dseq, manifest, activityId };
+    return { dseq: accepted.dseq, manifest, activityId, ...(input.autoLease && { autoLease: true }) };
   }
 
   /** The outcome of a create that passed every refusal is recorded either way, so the feed holds the creates made from any client. */

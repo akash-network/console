@@ -27,6 +27,7 @@ import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-htt
 import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { CORE_CONFIG, JOB_NAME, type JobPayload } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { type CreateDeploymentAcceptedResponse, deploymentListMaxLimit } from "@src/deployment/http-schemas/deployment.schema";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
@@ -249,6 +250,14 @@ describe("Deployments API", () => {
       method: "POST",
       body: JSON.stringify({ data: { sdl: HELLO_WORLD_SDL } }),
       headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+    });
+  }
+
+  async function createOneClickInBackground(credentials: Record<string, string>) {
+    return await app.request("/v1/deployments?async=true&autoLease=true", {
+      method: "POST",
+      body: JSON.stringify({ data: { sdl: HELLO_WORLD_SDL } }),
+      headers: new Headers({ "Content-Type": "application/json", ...credentials })
     });
   }
 
@@ -1437,6 +1446,50 @@ describe("Deployments API", () => {
       ]);
       expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id, dseq: data.dseq })).toBeDefined();
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
+    });
+
+    it("has Console pick the provider of a one-click deploy made from a Console session once it is created", async () => {
+      const { user, wallets } = await mockPersistedUser();
+      const token = faker.string.alphanumeric(40);
+      vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async header =>
+        header.replace(/^Bearer +/i, "") === token ? user.userId! : null
+      );
+
+      const response = await createOneClickInBackground({ authorization: `Bearer ${token}` });
+      const { data } = (await response.json()) as CreateDeploymentAcceptedResponse;
+
+      expect(response.status).toBe(202);
+      expect(data).toEqual({ dseq: expect.any(String), manifest: expect.any(String), activityId: expect.any(String), autoLease: true });
+      expect(await findJobRows(CreateDeployment[JOB_NAME], { singletonKey: createDeploymentKeyFor({ walletId: wallets[0].id, dseq: data.dseq }) })).toEqual([
+        expect.objectContaining({ data: expect.objectContaining({ autoLease: true }) })
+      ]);
+    });
+
+    it("leaves the provider of a background create made with an api key to its caller, even when asked to pick it", async () => {
+      const { userApiKeySecret, wallets } = await mockPersistedUser();
+
+      const response = await createOneClickInBackground({ "x-api-key": userApiKeySecret });
+      const { data } = (await response.json()) as CreateDeploymentAcceptedResponse;
+
+      expect(response.status).toBe(202);
+      expect(data).not.toHaveProperty("autoLease");
+      const [job] = await findJobRows(CreateDeployment[JOB_NAME], { singletonKey: createDeploymentKeyFor({ walletId: wallets[0].id, dseq: data.dseq }) });
+      expect(job.data).not.toHaveProperty("autoLease");
+    });
+
+    it("leaves the provider of a one-click deploy to the browser while background provider picks are switched off", async () => {
+      const { user } = await mockPersistedUser();
+      const token = faker.string.alphanumeric(40);
+      vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async header =>
+        header.replace(/^Bearer +/i, "") === token ? user.userId! : null
+      );
+      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.BACKGROUND_AUTO_LEASE);
+
+      const response = await createOneClickInBackground({ authorization: `Bearer ${token}` });
+      const { data } = (await response.json()) as CreateDeploymentAcceptedResponse;
+
+      expect(response.status).toBe(202);
+      expect(data).not.toHaveProperty("autoLease");
     });
 
     it("records the background create as succeeded once its job has run", async () => {

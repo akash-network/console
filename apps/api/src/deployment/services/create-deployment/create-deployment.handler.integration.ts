@@ -17,6 +17,8 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { AutoLeaseHandler } from "@src/deployment/services/auto-lease/auto-lease.handler";
+import { AutoLease, autoLeaseKeyFor } from "@src/deployment/services/auto-lease/auto-lease.job";
 import {
   DeleteUnbackedDeploymentSetting,
   DeleteUnbackedDeploymentSettingHandler
@@ -88,7 +90,8 @@ const jobWorkers = useJobWorkers(() => [
   container.resolve(ReconcileDeploymentCreateHandler),
   container.resolve(DeleteUnbackedDeploymentSettingHandler),
   container.resolve(RecordDeploymentSettingHandler),
-  container.resolve(ScreenUserGpuDeploymentHandler)
+  container.resolve(ScreenUserGpuDeploymentHandler),
+  container.resolve(AutoLeaseHandler)
 ]);
 
 describe(CreateDeploymentHandler.name, () => {
@@ -260,6 +263,24 @@ describe(CreateDeploymentHandler.name, () => {
       await waitForJobIn(accepted, "failed");
       expect(await findActivity(activityId)).toMatchObject({ status: "pending", meta: { dseq: accepted.dseq } });
     });
+
+    it.each([
+      { autoLease: true, matches: 1 },
+      { autoLease: undefined, matches: 0 }
+    ])("starts picking the provider of a one-click deploy once it is on chain: %o", async ({ autoLease, matches }) => {
+      const { user, wallet, queueCreate, findActivity } = await setup({ autoLease });
+
+      const { accepted } = await queueCreate();
+
+      await expectJobCompleted(CreateDeployment[JOB_NAME], { singletonKey: createDeploymentKeyFor(accepted) });
+      const ticks = await findJobRows<{ activityId: string }>(AutoLease[JOB_NAME], {
+        singletonKey: autoLeaseKeyFor({ owner: wallet.address!, dseq: accepted.dseq })
+      });
+      expect(ticks).toHaveLength(matches);
+      expect(await Promise.all(ticks.map(tick => findActivity(tick.data.activityId)))).toEqual(
+        ticks.map(() => expect.objectContaining({ userId: user.id, type: "lease_create", status: "pending", meta: { dseq: accepted.dseq, providers: [] } }))
+      );
+    });
   });
 
   function sendsFor(broadcast: MockInstance<ManagedSignerService["executeDecodedTxByUserWallet"]>, walletId: number) {
@@ -268,8 +289,9 @@ describe(CreateDeploymentHandler.name, () => {
 
   let revokeAccess: (revocation: Revocation) => Promise<unknown>;
 
-  async function setup(input: { inTeam?: boolean; sdl?: string; recordGpuBids?: boolean } = {}) {
+  async function setup(input: { inTeam?: boolean; sdl?: string; recordGpuBids?: boolean; autoLease?: boolean } = {}) {
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
+    vi.spyOn(container.resolve(AutoLeaseHandler), "handle").mockResolvedValue(undefined);
     const { enqueue, startWorkers } = await jobWorkers();
     const activityRepository = container.resolve(ActivityRepository);
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
@@ -303,7 +325,7 @@ describe(CreateDeploymentHandler.name, () => {
       const { accepted } = await runAsCaller(() => writer.acceptCreate({ userId: user.id, sdl: input.sdl ?? SDL, projectId }));
       const activity = await activityRepository.create(creatingActivityOf(accepted));
       await beforeWorkersStart(accepted.dseq);
-      await enqueue(new CreateDeployment({ ...accepted, activityId: activity.id, recordGpuBids: input.recordGpuBids }), {
+      await enqueue(new CreateDeployment({ ...accepted, activityId: activity.id, recordGpuBids: input.recordGpuBids, autoLease: input.autoLease }), {
         singletonKey: createDeploymentKeyFor(accepted),
         ...CREATE_DEPLOYMENT_RETRY_OPTIONS,
         ...retryOverrides

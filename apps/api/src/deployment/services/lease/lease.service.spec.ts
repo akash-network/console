@@ -12,8 +12,9 @@ import type { ManagedSignerService, RpcMessageService } from "@src/billing/servi
 import type { ChainErrorService } from "@src/billing/services/chain-error/chain-error.service";
 import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import type { JobQueueService, TxService } from "@src/core";
+import type { JobPayload, JobQueueService, TxService } from "@src/core";
 import type { GetDeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
+import { AutoLease, autoLeaseKeyFor } from "@src/deployment/services/auto-lease/auto-lease.job";
 import { CREATE_LEASE_RETRY_OPTIONS, CreateLease, createLeaseKeyFor } from "@src/deployment/services/create-lease/create-lease.job";
 import type { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import type { LeaseManifestService } from "@src/deployment/services/lease-manifest/lease-manifest.service";
@@ -811,7 +812,77 @@ describe(LeaseService.name, () => {
     });
   });
 
+  describe("queueAutoLeases", () => {
+    it("queues the matched leases and their later check under the match's activity in one transaction", async () => {
+      vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00.000Z"), toFake: ["Date"] });
+      const { service, activityService, jobQueueService, txService, wallet } = setup();
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      jobQueueService.enqueue.mockImplementation(async job => {
+        expect(txService.transaction).toHaveBeenCalledTimes(1);
+        return job instanceof CreateLease ? "create-lease-job-1" : "reconcile-job-1";
+      });
+      activityService.settle.mockImplementation(async () => {
+        expect(txService.transaction).toHaveBeenCalledTimes(1);
+      });
+
+      const isQueued = await service.queueAutoLeases({ wallet, userId: wallet.userId }, [lease], "match-1");
+
+      expect(isQueued).toBe(true);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new CreateLease({ userId: wallet.userId, walletId: wallet.id, leases: [lease], activityId: "match-1" }),
+        {
+          singletonKey: createLeaseKeyFor({ owner: wallet.address, dseq: "100" }),
+          ...CREATE_LEASE_RETRY_OPTIONS
+        }
+      );
+      expect(activityService.settle).toHaveBeenCalledWith("match-1", pendingLeaseActivityOf({ userId: wallet.userId, leases: [lease] }));
+      expect(activityService.open).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new ReconcileLeaseCreate({
+          userId: wallet.userId,
+          walletId: wallet.id,
+          owner: wallet.address,
+          leases: [lease],
+          activityId: "match-1",
+          createLeaseJobId: "create-lease-job-1"
+        }),
+        reconcileLeaseCreateOptionsFor("match-1", new Date("2026-01-01T00:00:00.000Z"))
+      );
+    });
+
+    it("leaves the match's activity alone when a lease is already being created for the deployment", async () => {
+      const { service, activityService, jobQueueService, wallet } = setup({ queuedJobId: null });
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+
+      const isQueued = await service.queueAutoLeases({ wallet, userId: wallet.userId }, [lease], "match-1");
+
+      expect(isQueued).toBe(false);
+      expect(activityService.settle).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("createLeasesInBackground", () => {
+    it("takes over the activity of a one-click deploy Console is still matching instead of opening a second one", async () => {
+      const { service, activityService, jobQueueService, wallet } = setup();
+      const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };
+      jobQueueService.findPendingJobData.mockImplementation(async (jobType, singletonKey) =>
+        jobType === AutoLease && singletonKey === autoLeaseKeyFor({ owner: wallet.address, dseq: "100" })
+          ? mock<JobPayload<AutoLease>>({ activityId: "match-1" })
+          : undefined
+      );
+
+      const queued = await service.createLeasesInBackground({ leases: [lease], userId: wallet.userId });
+
+      expect(queued).toEqual({ activityId: "match-1" });
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new CreateLease({ userId: wallet.userId, walletId: wallet.id, leases: [lease], activityId: "match-1" }),
+        expect.anything()
+      );
+      expect(activityService.settle).toHaveBeenCalledWith("match-1", pendingLeaseActivityOf({ userId: wallet.userId, leases: [lease] }));
+      expect(activityService.open).not.toHaveBeenCalled();
+    });
+
     it("checks every refusal, then queues the leases with the wallet it resolved and opens their pending activity in one transaction", async () => {
       const { service, signerService, providerService, activityService, jobQueueService, txService, wallet } = setup();
       const lease = { dseq: "100", gseq: 1, oseq: 1, provider: createAkashAddress() };

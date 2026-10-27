@@ -9351,6 +9351,19 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
           },
           {
+            "in": "query",
+            "name": "autoLease",
+            "required": false,
+            "schema": {
+              "description": "Console web only. With \`true\` beside \`async=true\`, Console also picks the first provider that bids and answers for every placement, and leases the deployment, in the background. The 202 then carries \`autoLease: true\`, and a \`lease_create\` activity reports the match and the lease. Ignored when unavailable.",
+              "enum": [
+                "true",
+                "false",
+              ],
+              "type": "string",
+            },
+          },
+          {
             "$ref": "#/components/parameters/OrganizationIdHeader",
           },
           {
@@ -9478,6 +9491,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "description": "The activity that reports how the create ends.",
                           "format": "uuid",
                           "type": "string",
+                        },
+                        "autoLease": {
+                          "description": "True when Console also picks the provider and leases the deployment in the background.",
+                          "type": "boolean",
                         },
                         "dseq": {
                           "pattern": "^0*[1-9]\\d*$",

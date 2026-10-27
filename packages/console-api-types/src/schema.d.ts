@@ -11063,6 +11063,7 @@ export interface operations {
     parameters: {
       query?: {
         async?: "true" | "false";
+        autoLease?: "true" | "false";
       };
       header?: {
         /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
@@ -11135,6 +11136,8 @@ export interface operations {
                * @description The activity that reports how the create ends.
                */
               activityId: string;
+              /** @description True when Console also picks the provider and leases the deployment in the background. */
+              autoLease?: boolean;
             };
           };
         };

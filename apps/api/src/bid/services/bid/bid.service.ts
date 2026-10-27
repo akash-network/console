@@ -25,11 +25,15 @@ export class BidService {
     const userWallet = await this.userWalletRepository.accessibleBy(ability, "sign").findFirst();
     assert(userWallet?.address, 404, "UserWallet Not Found");
 
-    const bids = await this.bidHttpService.list(userWallet.address, dseq);
-    const auditedBids = await this.filterBidsByAuditedProviders(bids);
-    const filteredBids = userWallet.isTrialing ? this.filterBidsByBlockedGpuModels(auditedBids) : auditedBids;
+    return await this.listForWallet({ address: userWallet.address, isTrialing: userWallet.isTrialing }, dseq);
+  }
 
-    return filteredBids;
+  /** What `list` answers for the request's wallet, for a job that has no request to read the wallet from. */
+  async listForWallet(wallet: { address: string; isTrialing?: boolean | null }, dseq: string): Promise<Bid[]> {
+    const bids = await this.bidHttpService.list(wallet.address, dseq);
+    const auditedBids = await this.filterBidsByAuditedProviders(bids);
+
+    return wallet.isTrialing ? this.filterBidsByBlockedGpuModels(auditedBids) : auditedBids;
   }
 
   private filterBidsByBlockedGpuModels(bids: Bid[]): Bid[] {

@@ -1,5 +1,6 @@
-import type { HttpClient } from "@akashnetwork/http-sdk";
+import { createHttpClient, type HttpClient } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
+import nock from "nock";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -24,7 +25,7 @@ describe(ProviderProxyService.name, () => {
           url: options.providerIdentity.hostUri + url,
           providerAddress: options.providerIdentity.owner
         },
-        {}
+        { maxRedirects: 0 }
       );
     });
 
@@ -55,7 +56,7 @@ describe(ProviderProxyService.name, () => {
 
       await service.request(url, options);
 
-      expect(httpClient.post).toHaveBeenCalledWith("/", expect.objectContaining({ timeout }), { timeout: 5 * timeout });
+      expect(httpClient.post).toHaveBeenCalledWith("/", expect.objectContaining({ timeout }), { maxRedirects: 0, timeout: 5 * timeout });
     });
 
     it("does not include timeout when not provided", async () => {
@@ -66,7 +67,23 @@ describe(ProviderProxyService.name, () => {
 
       const [, payload, config] = httpClient.post.mock.calls[0];
       expect(payload).toHaveProperty("timeout", undefined);
-      expect(config).toEqual({});
+      expect(config).toEqual({ maxRedirects: 0 });
+    });
+
+    it("refuses a redirect the provider answered with instead of following it", async () => {
+      const proxyUrl = "http://provider-proxy.test";
+      const internalUrl = "http://internal.test";
+      const service = new ProviderProxyService(createHttpClient({ baseURL: proxyUrl }));
+      nock(proxyUrl)
+        .post("/")
+        .reply(302, "", { Location: `${internalUrl}/secret` });
+      const internal = nock(internalUrl).get("/secret").reply(200, { leaked: true });
+
+      await expect(service.request("/status", { providerIdentity: { owner: "akash1provider", hostUri: "https://provider.test:8443" } })).rejects.toMatchObject({
+        response: { status: 302 }
+      });
+      expect(internal.isDone()).toBe(false);
+      nock.cleanAll();
     });
   });
 

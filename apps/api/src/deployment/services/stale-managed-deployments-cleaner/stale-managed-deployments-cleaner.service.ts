@@ -14,6 +14,7 @@ import { BlockHttpService } from "@src/chain/services/block-http/block-http.serv
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { ErrorService } from "@src/core/services/error/error.service";
 import { DeploymentRepository, type StaleDeployment, type StaleDeploymentsOutput } from "@src/deployment/repositories/deployment/deployment.repository";
+import { AutoLease, autoLeaseKeyFor } from "@src/deployment/services/auto-lease/auto-lease.job";
 import { CreateLease, createLeaseKeyFor } from "@src/deployment/services/create-lease/create-lease.job";
 import { DeploymentOrganizationActivityService } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
 import { SystemCloseActivityService } from "@src/deployment/services/system-close-activity/system-close-activity.service";
@@ -161,14 +162,17 @@ export class StaleManagedDeploymentsCleanerService {
     return { owners: orphansByOwner.size, failedOwners, screenErrors };
   }
 
-  /** A deployment whose lease is still queued, retrying or being created is on its way rather than abandoned, however long ago it was created. */
+  /** A deployment whose lease is still being matched, queued, retried or created is on its way rather than abandoned, however long ago it was created. */
   async #findAbandoned(query: { owners: string[]; staleBeforeHeight: number }): Promise<StaleDeployment[]> {
     const deployments = await this.deploymentRepository.findStaleDeployments(query);
     if (!deployments.length) return deployments;
 
-    const leasesUnderway = await this.jobQueueService.findPendingSingletonKeys(CreateLease[JOB_NAME]);
+    const [leasesUnderway, matchesUnderway] = await Promise.all([
+      this.jobQueueService.findPendingSingletonKeys(CreateLease[JOB_NAME]),
+      this.jobQueueService.findPendingSingletonKeys(AutoLease[JOB_NAME])
+    ]);
 
-    return deployments.filter(deployment => !leasesUnderway.has(createLeaseKeyFor(deployment)));
+    return deployments.filter(deployment => !leasesUnderway.has(createLeaseKeyFor(deployment)) && !matchesUnderway.has(autoLeaseKeyFor(deployment)));
   }
 
   /** Undefined when the indexer cannot see enough of the chain for this sweep's cutoff to mean anything. */
