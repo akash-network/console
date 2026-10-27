@@ -7,21 +7,11 @@ import { createBid } from "@test/seeders/bid.seeder";
 describe("auto lease match", () => {
   describe(requiredGseqsOf.name, () => {
     it("needs one placement per group the chain created, numbered from 1", () => {
-      expect(requiredGseqsOf(3, [])).toEqual([1, 2, 3]);
+      expect(requiredGseqsOf(3)).toEqual([1, 2, 3]);
     });
 
     it("still needs the first placement when the chain lists no group", () => {
-      expect(requiredGseqsOf(0, [])).toEqual([1]);
-    });
-
-    it("needs the placements the bids name when the group count is unknown", () => {
-      const bids = [bidOn({ gseq: 2, provider: "akash1a" }), bidOn({ gseq: 1, provider: "akash1b" }), bidOn({ gseq: 2, provider: "akash1c" })];
-
-      expect(requiredGseqsOf(null, bids)).toEqual([1, 2]);
-    });
-
-    it("needs the first placement when neither the chain nor the bids name any", () => {
-      expect(requiredGseqsOf(null, [])).toEqual([1]);
+      expect(requiredGseqsOf(0)).toEqual([1]);
     });
   });
 

@@ -177,8 +177,8 @@ describe(AutoLeaseHandler.name, () => {
     expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(AutoLease), expect.anything());
   });
 
-  it("leases the placements the bids name when the chain cannot list the groups", async () => {
-    const { handler, payload, leaseService } = setup({
+  it("waits for the chain to count the groups when only the database answered the deployment read", async () => {
+    const { handler, payload, leaseService, providerProxyService, jobQueueService } = setup({
       groupCount: null,
       bids: [bidFrom({ provider: "akash1first", gseq: 2 })],
       reachable: ["akash1first"]
@@ -186,11 +186,9 @@ describe(AutoLeaseHandler.name, () => {
 
     await handler.handle(payload, FIRST_ATTEMPT);
 
-    expect(leaseService.queueAutoLeases).toHaveBeenCalledWith(
-      expect.anything(),
-      [{ dseq: payload.dseq, gseq: 2, oseq: 1, provider: "akash1first" }],
-      payload.activityId
-    );
+    expect(leaseService.queueAutoLeases).not.toHaveBeenCalled();
+    expect(providerProxyService.request).not.toHaveBeenCalled();
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(AutoLease), expect.anything());
   });
 
   it("closes the deployment and reports it unmatched when no bidder answered 90 s after the first bid", async () => {
@@ -305,6 +303,26 @@ describe(AutoLeaseHandler.name, () => {
     expect(deploymentReaderService.findWithGroupSpecsByWalletAndDseq).not.toHaveBeenCalled();
     expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     expect(activityService.settle).not.toHaveBeenCalled();
+  });
+
+  it("leaves the deployment open past its deadline when a provider was picked while the tick ran", async () => {
+    const { handler, payload, deploymentWriterService, jobQueueService, activityService, analyticsService, wallet } = setup({
+      now: new Date(STARTED_AT.getTime() + FIRST_BID_CEILING_MS)
+    });
+    jobQueueService.findPendingJobData
+      .mockResolvedValueOnce(undefined)
+      .mockImplementation(async (jobType, singletonKey) =>
+        jobType === CreateLease && singletonKey === createLeaseKeyFor({ owner: wallet.address, dseq: payload.dseq })
+          ? mock<JobPayload<CreateLease>>({ activityId: payload.activityId })
+          : undefined
+      );
+
+    await handler.handle(payload, FIRST_ATTEMPT);
+
+    expect(deploymentWriterService.close).not.toHaveBeenCalled();
+    expect(activityService.settle).not.toHaveBeenCalled();
+    expect(analyticsService.track).not.toHaveBeenCalled();
+    expect(jobQueueService.enqueue).not.toHaveBeenCalled();
   });
 
   it("retries a failed tick without settling the match", async () => {

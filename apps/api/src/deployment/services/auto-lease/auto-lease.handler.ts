@@ -15,12 +15,13 @@ import { DeploymentWriterService } from "@src/deployment/services/deployment-wri
 import { LeaseService } from "@src/deployment/services/lease/lease.service";
 import { isAccessRevoked, MemberDeploymentAccessService } from "@src/deployment/services/member-deployment-access/member-deployment-access.service";
 import { createdLeaseActivityOf, unmatchedLeaseActivityOf, type UnmatchedLeaseReason } from "@src/deployment/utils/lease-activity/lease-activity";
+import type { LeasePlacement } from "@src/deployment/utils/lease-placement/lease-placement";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { ProviderProxyService } from "@src/provider/services/provider/provider-proxy.service";
 import { AUTO_LEASE_RETRY_OPTIONS, AutoLease, autoLeaseKeyFor } from "./auto-lease.job";
 import { pickFirstReachableBidders, requiredGseqsOf, unmatchedReasonOf } from "./auto-lease-match";
 
-/** Every tick reads the chain and probes each bidder that has not answered yet, so a slower beat than the browser's only delays a lease by seconds. */
+/** Every tick reads the chain and probes each open bidder, so a slower beat than the browser's only delays a lease by seconds. */
 const POLL_INTERVAL_SECONDS = 5;
 
 /** Keeps one unresponsive provider from holding up the rest of a tick. */
@@ -87,9 +88,7 @@ export class AutoLeaseHandler implements JobHandler<AutoLease> {
     const firstBidAt = data.firstBidAt ?? (openBids.length ? now.toISOString() : undefined);
     if (!data.firstBidAt && firstBidAt) this.#trackFirstBids(data, openBids.length);
 
-    const reachable = await this.#reachableProvidersOf(openBids);
-    const leases = pickFirstReachableBidders(requiredGseqsOf(groupSpecs?.length ?? null, openBids), openBids, provider => reachable.has(provider));
-
+    const leases = await this.#matchEveryGroup(groupSpecs?.length ?? null, openBids);
     if (leases) {
       const isQueued = await this.leaseService.queueAutoLeases({ wallet, userId: data.userId }, leases, data.activityId);
       this.#logger.info({ event: "AUTO_LEASE_MATCHED", dseq: data.dseq, providers: leases.map(lease => lease.provider), isQueued });
@@ -111,6 +110,14 @@ export class AutoLeaseHandler implements JobHandler<AutoLease> {
     return !!(await this.jobQueueService.findPendingJobData(CreateLease, createLeaseKeyFor({ owner, dseq })));
   }
 
+  /** A group count the database fallback could not give waits for the chain, since the bids alone would lease only the groups that have bid so far. */
+  async #matchEveryGroup(groupCount: number | null, openBids: Bid[]): Promise<LeasePlacement[] | undefined> {
+    if (groupCount === null) return undefined;
+
+    const reachable = await this.#reachableProvidersOf(openBids);
+    return pickFirstReachableBidders(requiredGseqsOf(groupCount), openBids, provider => reachable.has(provider));
+  }
+
   async #reachableProvidersOf(openBids: Bid[]): Promise<Set<string>> {
     const owners = [...new Set(openBids.map(({ bid }) => bid.id.provider))];
     if (!owners.length) return new Set();
@@ -129,6 +136,7 @@ export class AutoLeaseHandler implements JobHandler<AutoLease> {
   /** Access the member lost leaves the close to the stale-deployment cleanup, since no retry gives it back. */
   async #giveUp(data: AutoLeaseData, wallet: WalletInitialized, reason: UnmatchedLeaseReason, counts: MatchCounts): Promise<void> {
     const { userId, walletId, dseq } = data;
+    if (await this.#isLeaseUnderway(wallet.address, dseq)) return;
 
     try {
       await this.deploymentWriterService.close(wallet, dseq, {
