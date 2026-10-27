@@ -5,6 +5,7 @@ import { AlertRepository, GeneralAlertOutput, UpdateInput } from "@src/modules/a
 import { AlertMessageService } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { alertNotifiedLog } from "@src/modules/alert/services/alert-notified-log";
 import { ConditionsMatcherService } from "@src/modules/alert/services/conditions-matcher/conditions-matcher.service";
+import { type DeploymentReference, DeploymentReferenceService } from "@src/modules/alert/services/deployment-reference/deployment-reference.service";
 import type { MessageCallback } from "@src/modules/alert/types/message-callback.type";
 import type { AlertFeedEntry } from "@src/modules/notifications/dto/NotificationCommand.dto";
 
@@ -33,6 +34,7 @@ export class ChainAlertService {
     private readonly alertRepository: AlertRepository,
     private readonly conditionsMatcher: ConditionsMatcherService,
     private readonly alertMessageService: AlertMessageService,
+    private readonly deploymentReferenceService: DeploymentReferenceService,
     private readonly loggerService: LoggerService
   ) {
     this.loggerService.setContext(ChainAlertService.name);
@@ -65,7 +67,8 @@ export class ChainAlertService {
               prev: alert,
               next: updatedAlert
             },
-            data: event
+            data: event,
+            deployment: await this.deploymentReferenceOf(alert, event)
           }
         });
         const feedEntry = feedEntryOf(alert, event);
@@ -85,6 +88,13 @@ export class ChainAlertService {
         });
       }
     }, event.type);
+  }
+
+  private async deploymentReferenceOf({ userId, organizationId, params }: GeneralAlertOutput, event: TriggerPayload): Promise<DeploymentReference | undefined> {
+    if (event.type !== "CHAIN_EVENT" || params?.type !== "DEPLOYMENT_CLOSED") return undefined;
+
+    const { owner, dseq } = event.payload;
+    return await this.deploymentReferenceService.referTo({ owner, dseq, userId, organizationId, tab: "SETTINGS" });
   }
 
   private async forEachAlert(onAlert: AlertCallback, type: "CHAIN_MESSAGE" | "CHAIN_EVENT") {

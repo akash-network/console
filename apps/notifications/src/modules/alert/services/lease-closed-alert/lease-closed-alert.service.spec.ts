@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
 import { describe, expect, it, vi } from "vitest";
@@ -8,6 +9,8 @@ import type { AlertConfig } from "@src/modules/alert/config";
 import moduleConfig from "@src/modules/alert/config";
 import type { GeneralAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import { DeploymentNameClient } from "@src/modules/alert/services/deployment-name-client/deployment-name-client.service";
+import { DeploymentReferenceService } from "@src/modules/alert/services/deployment-reference/deployment-reference.service";
 import type { LeaseClosedAlertEvent } from "@src/modules/alert/services/lease-closed-alert/lease-closed-alert.service";
 import { LeaseClosedAlertService } from "@src/modules/alert/services/lease-closed-alert/lease-closed-alert.service";
 
@@ -120,6 +123,42 @@ describe(LeaseClosedAlertService.name, () => {
           `Please visit <a href="https://${consoleWebUrl}/deployments/12345">${consoleWebUrl}</a> to manage your deployment.`
       });
     });
+
+    it("names the deployment by its name, escaped in the description, and links to it in the alert's organization", async () => {
+      const { service, alertRepository, deploymentNameClient, onMessage, consoleWebUrl } = await setup();
+      const alert = generateGeneralAlert({
+        type: "CHAIN_EVENT",
+        enabled: true,
+        organizationId: faker.string.uuid(),
+        params: { dseq: "12345", type: "DEPLOYMENT_CLOSED" }
+      });
+      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.claimNotification.mockResolvedValue(alert);
+      deploymentNameClient.findName.mockResolvedValue("<b>Tom & Jerry</b>");
+      const event = generateLeaseClosedEvent({ dseq: "12345", reason: "lease_closed_reason_manifest_timeout" });
+
+      await service.alertFor(event, onMessage);
+
+      const { summary, description } = onMessage.mock.calls[0][0].payload;
+      expect(deploymentNameClient.findName).toHaveBeenCalledWith({
+        owner: event.owner,
+        dseq: "12345",
+        reader: { userId: alert.userId, organizationId: alert.organizationId }
+      });
+      expect(summary).toBe("The lease for deployment “<b>Tom & Jerry</b>” was closed");
+      expect(description).toContain("The lease for deployment “&lt;b&gt;Tom &amp; Jerry&lt;/b&gt;” with provider");
+      expect(description).toContain(`Please visit <a href="https://${consoleWebUrl}/deployments/12345?org=${alert.organizationId}">${consoleWebUrl}</a>`);
+    });
+
+    it("skips an opted-out alert without looking the deployment up", async () => {
+      const { service, alertRepository, deploymentNameClient, onMessage } = await setup();
+      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(generateDeploymentClosedAlert({ enabled: false }));
+
+      await service.alertFor(generateLeaseClosedEvent(), onMessage);
+
+      expect(deploymentNameClient.findName).not.toHaveBeenCalled();
+      expect(onMessage).not.toHaveBeenCalled();
+    });
   });
 
   function generateLeaseClosedEvent(overrides: Partial<LeaseClosedAlertEvent> = {}): LeaseClosedAlertEvent {
@@ -147,13 +186,22 @@ describe(LeaseClosedAlertService.name, () => {
   async function setup() {
     const module = await Test.createTestingModule({
       imports: [ConfigModule.forFeature(moduleConfig)],
-      providers: [LeaseClosedAlertService, MockProvider(AlertRepository), MockProvider(LoggerService)]
+      providers: [
+        LeaseClosedAlertService,
+        DeploymentReferenceService,
+        MockProvider(DeploymentNameClient),
+        MockProvider(AlertRepository),
+        MockProvider(LoggerService)
+      ]
     }).compile();
+    const deploymentNameClient = module.get<MockProxy<DeploymentNameClient>>(DeploymentNameClient);
+    deploymentNameClient.findName.mockResolvedValue(null);
 
     return {
       service: module.get<LeaseClosedAlertService>(LeaseClosedAlertService),
       alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
       loggerService: module.get<MockProxy<LoggerService>>(LoggerService),
+      deploymentNameClient,
       consoleWebUrl: module.get<ConfigService<AlertConfig>>(ConfigService).getOrThrow("alert.CONSOLE_WEB_URL"),
       onMessage: vi.fn()
     };

@@ -64,6 +64,13 @@
       "when": 1792470452882,
       "tag": "0008_notification_channel_timezone",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793060353061,
+      "tag": "0009_name_deployments_in_closed_alerts",
+      "breakpoints": true
     }
   ]
 }

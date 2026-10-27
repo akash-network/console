@@ -1,13 +1,15 @@
 import { LeaseClosedReason } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { faker } from "@faker-js/faker";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
 import { describe, expect, it, vi } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
-import moduleConfig from "@src/modules/alert/config";
+import moduleConfig, { type AlertConfig } from "@src/modules/alert/config";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import { DeploymentNameClient } from "@src/modules/alert/services/deployment-name-client/deployment-name-client.service";
+import { DeploymentReferenceService } from "@src/modules/alert/services/deployment-reference/deployment-reference.service";
 import type { ReclaimAlertEvent } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 import { ReclaimAlertService } from "@src/modules/alert/services/reclaim-alert/reclaim-alert.service";
 
@@ -142,6 +144,38 @@ describe(ReclaimAlertService.name, () => {
       expect(description).toContain("/deployments/12345");
     });
 
+    it("names the deployment by its name, escaped in the description, and links to it in the alert's organization", async () => {
+      const { service, alertRepository, deploymentNameClient, onMessage, consoleWebUrl } = await setup();
+      const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true, organizationId: faker.string.uuid() });
+      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.claimNotification.mockResolvedValue(alert);
+      deploymentNameClient.findName.mockResolvedValue("<b>Tom & Jerry</b>");
+      const event = generateReclaimEvent({ dseq: "12345" });
+
+      await service.alertFor(event, onMessage);
+
+      const { summary, description, feedEntry } = onMessage.mock.calls[0][0].payload;
+      expect(deploymentNameClient.findName).toHaveBeenCalledWith({
+        owner: event.owner,
+        dseq: "12345",
+        reader: { userId: alert.userId, organizationId: alert.organizationId }
+      });
+      expect(summary).toBe("Deployment “<b>Tom & Jerry</b>” is being reclaimed by the provider");
+      expect(description).toContain(`has started reclaiming deployment “&lt;b&gt;Tom &amp; Jerry&lt;/b&gt;” because`);
+      expect(description).toContain(`Please visit <a href="https://${consoleWebUrl}/deployments/12345?org=${alert.organizationId}">${consoleWebUrl}</a>`);
+      expect(feedEntry).toMatchObject({ dseq: "12345" });
+    });
+
+    it("skips an opted-out alert without looking the deployment up", async () => {
+      const { service, alertRepository, deploymentNameClient, onMessage } = await setup();
+      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(generateGeneralAlert({ type: "CHAIN_EVENT", enabled: false }));
+
+      await service.alertFor(generateReclaimEvent(), onMessage);
+
+      expect(deploymentNameClient.findName).not.toHaveBeenCalled();
+      expect(onMessage).not.toHaveBeenCalled();
+    });
+
     it("shows the deadline in the timezone of the channel the alert emails, naming the zone", async () => {
       const { service, alertRepository, onMessage } = await setup();
       const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
@@ -194,12 +228,22 @@ describe(ReclaimAlertService.name, () => {
   async function setup() {
     const module = await Test.createTestingModule({
       imports: [ConfigModule.forFeature(moduleConfig)],
-      providers: [ReclaimAlertService, MockProvider(AlertRepository), MockProvider(LoggerService)]
+      providers: [
+        ReclaimAlertService,
+        DeploymentReferenceService,
+        MockProvider(DeploymentNameClient),
+        MockProvider(AlertRepository),
+        MockProvider(LoggerService)
+      ]
     }).compile();
+    const deploymentNameClient = module.get<MockProxy<DeploymentNameClient>>(DeploymentNameClient);
+    deploymentNameClient.findName.mockResolvedValue(null);
 
     return {
       service: module.get<ReclaimAlertService>(ReclaimAlertService),
       alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
+      deploymentNameClient,
+      consoleWebUrl: module.get<ConfigService<AlertConfig>>(ConfigService).getOrThrow("alert.CONSOLE_WEB_URL"),
       onMessage: vi.fn()
     };
   }
