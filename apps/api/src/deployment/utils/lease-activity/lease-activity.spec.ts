@@ -5,9 +5,11 @@ import { TxNotIncludedError, TxOutcomeUnknownError } from "@src/billing/services
 import {
   createdLeaseActivityOf,
   failedLeaseActivityOf,
+  matchingLeaseActivityOf,
   notCreatedLeaseActivityOf,
   pendingLeaseActivityOf,
-  undeliveredManifestActivityOf
+  undeliveredManifestActivityOf,
+  unmatchedLeaseActivityOf
 } from "./lease-activity";
 
 describe("lease activity", () => {
@@ -23,12 +25,49 @@ describe("lease activity", () => {
   };
   const META = { dseq: "100", providers: [PROVIDER_A, PROVIDER_B] };
 
+  it("opens a pending lease creation naming no provider while Console is still picking one", () => {
+    expect(matchingLeaseActivityOf({ userId: "user-1", dseq: "100" })).toEqual({
+      userId: "user-1",
+      type: "lease_create",
+      status: "pending",
+      initiator: "user",
+      meta: { dseq: "100", providers: [] },
+      dedupeKey: null
+    });
+  });
+
+  it.each([
+    ["noBids", "no_provider_bids", "No provider bid on this deployment in time, so it was closed. Deploy it again to try once more."],
+    [
+      "noReachableProvider",
+      "no_reachable_provider",
+      "No provider that bid on this deployment answered in time, so it was closed. Deploy it again to try once more."
+    ],
+    ["deploymentClosed", "deployment_closed", "The deployment was closed before a provider was picked for it."]
+  ] as const)("fails a match Console gave up on for %s with the code a client acts on", (reason, code, message) => {
+    expect(unmatchedLeaseActivityOf({ userId: "user-1", dseq: "100" }, reason)).toEqual({
+      userId: "user-1",
+      type: "lease_create",
+      status: "failed",
+      initiator: "user",
+      meta: { dseq: "100", providers: [], error: { code, message } },
+      dedupeKey: null
+    });
+  });
+
   it("opens a pending lease creation naming the deployment and each provider once", () => {
     expect(pendingLeaseActivityOf(KEY)).toEqual({ userId: "user-1", type: "lease_create", status: "pending", initiator: "user", meta: META, dedupeKey: null });
   });
 
   it("records leases created with their manifest sent as succeeded", () => {
-    expect(createdLeaseActivityOf(KEY)).toEqual({ userId: "user-1", type: "lease_create", status: "succeeded", initiator: "user", meta: META, dedupeKey: null });
+    expect(createdLeaseActivityOf(KEY)).toEqual({
+      userId: "user-1",
+      type: "lease_create",
+      status: "succeeded",
+      initiator: "user",
+      meta: META,
+      dedupeKey: null
+    });
   });
 
   it("records leases the chain never got as failed, telling the user to choose a provider again", () => {

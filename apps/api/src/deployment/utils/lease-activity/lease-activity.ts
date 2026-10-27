@@ -15,6 +15,29 @@ function leaseActivityOf(userId: string, status: ActivityStatus, meta: ActivityM
   return { userId, type: "lease_create", status, initiator: "user", meta, dedupeKey: null };
 }
 
+/** Why Console gave up picking a provider for a one-click deploy; the deployment is closed by then in every case. */
+export const UNMATCHED_LEASE_ERRORS = {
+  noBids: { code: "no_provider_bids", message: "No provider bid on this deployment in time, so it was closed. Deploy it again to try once more." },
+  noReachableProvider: {
+    code: "no_reachable_provider",
+    message: "No provider that bid on this deployment answered in time, so it was closed. Deploy it again to try once more."
+  },
+  deploymentClosed: { code: "deployment_closed", message: "The deployment was closed before a provider was picked for it." }
+} as const;
+
+export type UnmatchedLeaseReason = keyof typeof UNMATCHED_LEASE_ERRORS;
+
+type MatchKey = { userId: string; dseq: string };
+
+/** Opened before Console has picked anyone, so an empty providers list is what tells a client the match is still running. */
+export function matchingLeaseActivityOf({ userId, dseq }: MatchKey): NewActivity {
+  return leaseActivityOf(userId, "pending", { dseq, providers: [] });
+}
+
+export function unmatchedLeaseActivityOf({ userId, dseq }: MatchKey, reason: UnmatchedLeaseReason): NewActivity {
+  return leaseActivityOf(userId, "failed", { dseq, providers: [], error: UNMATCHED_LEASE_ERRORS[reason] });
+}
+
 export function pendingLeaseActivityOf({ userId, leases }: LeaseKey): NewActivity {
   return leaseActivityOf(userId, "pending", metaOf(leases));
 }

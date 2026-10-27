@@ -249,6 +249,14 @@ export const CreateDeploymentQuerySchema = z.object({
     .openapi({
       description:
         "With `true`, the deployment is created in the background: once every check that could refuse it has passed, the request answers 202 with the new deployment's `dseq` and an `activityId` to follow at `GET /v1/activities/{id}`. It answers 201 as without it when background creates are unavailable."
+    }),
+  autoLease: z
+    .enum(["true", "false"])
+    .optional()
+    .transform(value => value === "true")
+    .openapi({
+      description:
+        "Console web only. With `true` beside `async=true`, Console also picks the first provider that bids and answers for every placement, and leases the deployment, in the background. The 202 then carries `autoLease: true`, and a `lease_create` activity reports the match and the lease. Ignored when unavailable."
     })
 });
 
@@ -256,7 +264,8 @@ export const CreateDeploymentAcceptedResponseSchema = z.object({
   data: z.object({
     dseq: DseqSchema,
     manifest: z.string(),
-    activityId: z.string().uuid().openapi({ description: "The activity that reports how the create ends." })
+    activityId: z.string().uuid().openapi({ description: "The activity that reports how the create ends." }),
+    autoLease: z.boolean().optional().openapi({ description: "True when Console also picks the provider and leases the deployment in the background." })
   })
 });
 
