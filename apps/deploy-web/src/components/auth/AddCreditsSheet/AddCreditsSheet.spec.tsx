@@ -30,6 +30,14 @@ describe(AddCreditsSheet.name, () => {
     expect(screen.queryByText(/this template needs a top-tier gpu/i)).not.toBeInTheDocument();
   });
 
+  it("tells a member who cannot manage billing who can add credits, instead of opening the payment form", () => {
+    const { dependencies } = setup({ open: true, canManageBilling: false });
+
+    expect(dependencies.AddCreditsTabs).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent("Only owners and billing members can add credits");
+    expect(screen.getByRole("status")).toHaveTextContent("Ask one of them to top up your team's balance or add a payment method.");
+  });
+
   it("does not render the credits tabs while closed", () => {
     const { dependencies } = setup({ open: false });
 
@@ -403,6 +411,7 @@ describe(AddCreditsSheet.name, () => {
     wallet?: { address: string; hasWallet: boolean };
     leaseExistence?: { data?: boolean; isSuccess?: boolean; isError?: boolean };
     apiKeys?: { data?: ApiKeyResponse[]; isSuccess?: boolean; isError?: boolean };
+    canManageBilling?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const analyticsService = mock<AnalyticsService>();
@@ -426,6 +435,7 @@ describe(AddCreditsSheet.name, () => {
       useWallet,
       useLeaseExistenceQuery,
       useUserApiKeys,
+      useCanManageBilling: () => input.canManageBilling ?? true,
       ...input.dependencies
     });
 

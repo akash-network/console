@@ -179,6 +179,41 @@ describe(AutoRechargeRow.name, () => {
     expect(screen.getByRole("button", { name: "Edit auto recharge settings" })).toBeDisabled();
   });
 
+  describe("for a member who cannot manage billing", () => {
+    it("shows the stored rule with the switch locked and no Edit", () => {
+      setup({
+        defaultPaymentMethod: card(),
+        walletSettings: { autoReloadEnabled: true, autoReloadThreshold: 20, autoReloadAmount: 100 },
+        canManageBilling: false
+      });
+
+      expect(summary()).toHaveTextContent("Adds 100 when available drops to 20");
+      expect(screen.getByRole("switch", { name: "Auto recharge" })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: "Edit auto recharge settings" })).not.toBeInTheDocument();
+    });
+
+    it("says no card is on file instead of asking for one", () => {
+      setup({ defaultPaymentMethod: undefined, canManageBilling: false });
+
+      expect(summary()).toHaveTextContent("Off · no card on file");
+      expect(screen.queryByRole("button", { name: "Add a card" })).not.toBeInTheDocument();
+    });
+
+    it("names the declined card without offering to update it", () => {
+      setup({ defaultPaymentMethod: card({ brand: "visa", last4: "4242" }), walletSettings: pausedSettings(), canManageBilling: false });
+
+      expect(summary()).toHaveTextContent("Paused · Visa **** 4242 was declined several times.");
+      expect(screen.queryByRole("button", { name: "Update card" })).not.toBeInTheDocument();
+    });
+
+    it("ignores the deploy flow's setup link", () => {
+      const { openAddPaymentMethod, AutoRechargeSettingsPopup } = setup({ defaultPaymentMethod: undefined, hasSetupParam: true, canManageBilling: false });
+
+      expect(openAddPaymentMethod).not.toHaveBeenCalled();
+      expect(AutoRechargeSettingsPopup).toHaveBeenLastCalledWith(expect.objectContaining({ open: false }), expect.anything());
+    });
+  });
+
   describe("without a card on file", () => {
     it("locks the switch and asks for a card", () => {
       setup({ defaultPaymentMethod: undefined });
@@ -305,6 +340,7 @@ describe(AutoRechargeRow.name, () => {
     isBalanceLoading?: boolean;
     isBalanceError?: boolean;
     hasSetupParam?: boolean;
+    canManageBilling?: boolean;
   }) {
     const upsertMutate = input.upsertMutate ?? vi.fn();
     const enqueueSnackbar = vi.fn();
@@ -355,6 +391,7 @@ describe(AutoRechargeRow.name, () => {
           isError: input.isBalanceError ?? false
         }),
       useBillingActions: () => ({ openAddPaymentMethod }),
+      useCanManageBilling: () => input.canManageBilling ?? true,
       useSearchParams: () => searchParams,
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ replace }),
       useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ urlService: UrlService }),

@@ -2,12 +2,13 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@akashnetwork/ui/components";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Lock } from "lucide-react";
 import Link from "next/link";
 
 import { type AddCreditsTab, AddCreditsTabs } from "@src/components/billing-usage/AddCreditsTabs/AddCreditsTabs";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useCanManageBilling } from "@src/hooks/useCanManageBilling";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useUserApiKeys } from "@src/queries/useApiKeysQuery";
 import { useLeaseExistenceQuery } from "@src/queries/useLeaseQuery";
@@ -25,7 +26,8 @@ export const DEPENDENCIES = {
   useWalletBalance,
   useWallet,
   useLeaseExistenceQuery,
-  useUserApiKeys
+  useUserApiKeys,
+  useCanManageBilling
 };
 
 type NextStepChoice = "deploy_now" | "api_key" | "done";
@@ -69,6 +71,7 @@ export function AddCreditsSheet({
   dependencies: d = DEPENDENCIES
 }: AddCreditsSheetProps) {
   const { analyticsService } = d.useServices();
+  const canManageBilling = d.useCanManageBilling();
   const [isProcessing, setIsProcessing] = useState(false);
   const [purchase, setPurchase] = useState<{ amount: number; bonusAmount?: number } | null>(null);
   const purchaseDismissedRef = useRef(false);
@@ -129,7 +132,7 @@ export function AddCreditsSheet({
         onNextStep={continueWithNextStep}
         dependencies={d}
       />
-    ) : (
+    ) : canManageBilling ? (
       <d.AddCreditsTabs
         initialTab={initialTab}
         context={context}
@@ -138,6 +141,8 @@ export function AddCreditsSheet({
         onRedeemed={completeRedemption}
         onProcessingChange={setIsProcessing}
       />
+    ) : (
+      <BillingManagersOnlyNotice />
     );
 
   return (
@@ -179,6 +184,16 @@ function FirstDeploymentOfferLookup({
     offersDeployNow: hasNoLease && isApiKeysSettled,
     offersApiKey: hasNoLease && apiKeysQuery.isSuccess && !!apiKeysQuery.data?.length
   });
+}
+
+function BillingManagersOnlyNotice() {
+  return (
+    <div role="status" className="space-y-3 rounded-lg border p-6 text-center">
+      <Lock className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
+      <p className="font-medium">Only owners and billing members can add credits</p>
+      <p className="text-sm text-muted-foreground">Ask one of them to top up your team&apos;s balance or add a payment method.</p>
+    </div>
+  );
 }
 
 function PurchaseSuccess({
