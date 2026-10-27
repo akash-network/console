@@ -34,6 +34,14 @@ describe(useUnlockAppOnFirstCreate.name, () => {
     expect(checkSession).toHaveBeenCalledTimes(2);
   });
 
+  it("reads the profile once for a create even when the session reader changes between renders", () => {
+    const { checkSession, rerender } = setup({ dseq: "1000", isOnboarded: false, isNewSessionReaderEachRender: true });
+
+    rerender({ dseq: "1000" });
+
+    expect(checkSession).toHaveBeenCalledTimes(1);
+  });
+
   it("lets a profile read that fails pass without an unhandled rejection", async () => {
     const { checkSession } = setup({ dseq: "1000", isOnboarded: false, checkSessionError: new Error("offline") });
 
@@ -42,10 +50,10 @@ describe(useUnlockAppOnFirstCreate.name, () => {
     expect(checkSession).toHaveBeenCalledTimes(1);
   });
 
-  function setup(input: { dseq: string | null; isOnboarded: boolean; checkSessionError?: Error }) {
+  function setup(input: { dseq: string | null; isOnboarded: boolean; checkSessionError?: Error; isNewSessionReaderEachRender?: boolean }) {
     const checkSession = vi.fn(() => (input.checkSessionError ? Promise.reject(input.checkSessionError) : Promise.resolve()));
     const dependencies: typeof DEPENDENCIES = {
-      useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ checkSession }),
+      useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ checkSession: input.isNewSessionReaderEachRender ? () => checkSession() : checkSession }),
       useIsOnboarded: () => input.isOnboarded
     };
     const { rerender } = renderHook(({ dseq }) => useUnlockAppOnFirstCreate(dseq, dependencies), { initialProps: { dseq: input.dseq } });
