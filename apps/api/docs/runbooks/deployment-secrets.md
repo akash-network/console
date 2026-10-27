@@ -72,15 +72,15 @@ Three rules follow:
    node --require ./dist/instrumentation.js ./dist/console.js rewrap-data-keys --target-version <new version> --dry-run
    ```
 
-   Read the report: `census` counts data keys per version, and `dataKeysRewrapped` is how many a real run would move. `dataKeysFailed` counts rows that would not parse or that name a version this console cannot resolve. The dry run never calls the key service, so it cannot see a row the key service would refuse to decrypt; only the real run finds those, counts them in the same field, logs each as `DATA_KEY_REWRAP_ROW_FAILED` with its id, and leaves them on the old version. A non-zero `dataKeysFailed` in either run needs investigating, since those rows stay behind.
+   Read the report: `census` counts data keys per version, and `dataKeysRewrapped` is how many a real run would move. `dataKeysFailed` counts rows that would not parse or that name a version this console cannot resolve. The dry run decrypts nothing, so it cannot see a row the key service would refuse to decrypt; only the real run finds those, counts them in the same field, logs each as `DATA_KEY_REWRAP_ROW_FAILED` with its id, and leaves them on the old version. A non-zero `dataKeysFailed` in either run needs investigating, since those rows stay behind.
 
-4. Run it for real, in batches of 100 rows per transaction by default. It makes one key-service call per row; on staging, 3,217 rows took 83 seconds:
+4. Run it for real, in batches of 100 rows per transaction by default. It spends one key-service decrypt per row; on staging, 3,217 rows took 83 seconds:
 
    ```sh
    node --require ./dist/instrumentation.js ./dist/console.js rewrap-data-keys --target-version <new version>
    ```
 
-   Check the report. `secretsDrift.corruptedIds` must be empty (section 4 says what to do if it is not). `dataKeysMovedByAnotherWriter` counts rows another process moved between the read and the write; they are left to that writer. The `census` is taken when a run starts, so the run that does the work still lists the old version. Re-run until `census` shows only the target version. A re-run is a no-op that spends no key-service call.
+   Check the report. `secretsDrift.corruptedIds` must be empty (section 4 says what to do if it is not). `dataKeysMovedByAnotherWriter` counts rows another process moved between the read and the write; they are left to that writer. The `census` is taken when a run starts, so the run that does the work still lists the old version. Re-run until `census` shows only the target version. A re-run is a no-op that decrypts nothing, although every run still looks up the target version and its public key.
 
 5. Do not disable or destroy an old key version until the census of data keys under it returns zero in every database whose consoles wrap under that key, and no configuration names it any more (the table at the top of this section). The command that answers it is the `census` in the report of a dry run, which counts every row, active and retired alike. The same answer in SQL:
 
@@ -111,7 +111,7 @@ Steps 1 to 5 were rehearsed on staging on 2026-10-27 (CON-967), moving `console-
 | Configuration change | Both staging consoles and their bg-jobs published `sdl-secrets.v2` within a minute of the Doppler change. New data keys and a browser's sealed secrets landed on version 2 from then on.            |
 | Dry run              | Census of 3,217 under version 1, none failed.                                                                                                                                                       |
 | Real run             | 3,217 moved and none failed, in 83 seconds. The fingerprint of the 1,215 stored tokens was identical before and after, and the audit trail shows exactly 3,217 successful decrypts under version 1. |
-| Re-run               | Census of 3,228 under version 2 and none under version 1. Nothing moved and no key-service call.                                                                                                    |
+| Re-run               | Census of 3,228 under version 2 and none under version 1. Nothing moved and nothing was decrypted.                                                                                                  |
 | Secrets afterwards   | Deployments sealed under a user's key and under two teams' keys all opened under version 2.                                                                                                         |
 
 Steps 6 and 7 have not been rehearsed, because beta still wraps under version 1 of the same key.
