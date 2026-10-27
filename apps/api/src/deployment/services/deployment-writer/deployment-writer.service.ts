@@ -94,6 +94,7 @@ import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for
 import { findMissingGlobalExposure } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 import { failedUpdateActivityOf, pendingUpdateActivityOf, renamedActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
+import { UserRepository } from "@src/user/repositories";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 import { denomToUdenom } from "@src/utils/math";
 import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
@@ -271,7 +272,8 @@ export class DeploymentWriterService {
     private readonly deploymentHttpService: DeploymentHttpService,
     private readonly chainErrorService: ChainErrorService,
     private readonly deploymentPresenceService: DeploymentPresenceService,
-    private readonly userGpuBidCheckService: UserGpuBidCheckService
+    private readonly userGpuBidCheckService: UserGpuBidCheckService,
+    private readonly userRepository: UserRepository
   ) {
     this.logger = createLogger({ context: DeploymentWriterService.name });
   }
@@ -392,12 +394,22 @@ export class DeploymentWriterService {
       name: input.name ?? deriveDeploymentName(manifest.groups),
       projectId
     });
+    await this.#markOnboarded(input.userId);
 
     return {
       accepted: { userId: input.userId, walletId: wallet.id, dseq, message: encodeCreateDeploymentMessage(message.value) },
       manifest: unresolvedManifest,
       organizationId: wallet.organizationId
     };
+  }
+
+  /** A user whose first create was accepted is past onboarding, and a failure to say so never costs them the create. */
+  async #markOnboarded(userId: string): Promise<void> {
+    try {
+      await this.userRepository.markOnboarded(userId);
+    } catch (error) {
+      this.logger.error({ event: "MARK_ONBOARDED_FAILED", userId, error });
+    }
   }
 
   /** A retry reads the chain before sending anything, because an attempt that never heard back may already have created the deployment. */

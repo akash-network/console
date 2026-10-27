@@ -461,13 +461,13 @@ describe(UserService.name, () => {
   });
 
   describe("skipOnboarding", () => {
-    it("persists the skip time with a set-if-null guard so it is written once and never overwritten", async () => {
+    it("marks the user onboarded", async () => {
       const userId = faker.string.uuid();
       const { service, userRepository } = setup();
 
       await service.skipOnboarding(userId);
 
-      expect(userRepository.updateBy).toHaveBeenCalledWith({ id: userId, onboardingSkippedAt: null }, { onboardingSkippedAt: expect.any(Date) });
+      expect(userRepository.markOnboarded).toHaveBeenCalledWith(userId);
     });
   });
 

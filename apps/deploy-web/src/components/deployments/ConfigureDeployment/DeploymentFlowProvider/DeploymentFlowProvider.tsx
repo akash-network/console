@@ -4,12 +4,13 @@ import { createContext, useContext, useEffect, useMemo } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
+import { useUnlockAppOnFirstCreate } from "@src/hooks/useUnlockAppOnFirstCreate/useUnlockAppOnFirstCreate";
 import { useWarnBeforeUnload } from "@src/hooks/useWarnBeforeUnload/useWarnBeforeUnload";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import { useDeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
-export const DEPENDENCIES = { useDeploymentFlow, useWarnBeforeUnload, useSnackbar, Snackbar };
+export const DEPENDENCIES = { useDeploymentFlow, useWarnBeforeUnload, useUnlockAppOnFirstCreate, useSnackbar, Snackbar };
 
 /** The shared flow state machine both configure branches need. */
 export type DeploymentFlowContext = {
@@ -61,6 +62,7 @@ export const DeploymentFlowProvider: FC<Props> = ({ intent, children, dependenci
   const holdsUnleasedDeployment = isAwaitingLease(flow) && !flow.isCreatingInBackground && !isLeaseInFlight;
   const { discard } = flow.actions;
   d.useWarnBeforeUnload(isCreating);
+  d.useUnlockAppOnFirstCreate(flow.dseq);
   const leaveGuard = useMemo(
     () => ({ isCreating, holdsUnleasedDeployment, isLeaseInFlight, discard }),
     [isCreating, holdsUnleasedDeployment, isLeaseInFlight, discard]

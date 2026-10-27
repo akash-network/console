@@ -123,6 +123,31 @@ describe(UserRepository.name, () => {
     });
   });
 
+  describe("markOnboarded", () => {
+    it("marks a user onboarded once, keeping the first time", async () => {
+      const { userRepository, createTestUser } = setup();
+      const user = await createTestUser();
+
+      await userRepository.markOnboarded(user.id);
+      const firstOnboardedAt = (await userRepository.findById(user.id))?.onboardingSkippedAt;
+      await userRepository.markOnboarded(user.id);
+      const secondOnboardedAt = (await userRepository.findById(user.id))?.onboardingSkippedAt;
+
+      expect(firstOnboardedAt).toBeInstanceOf(Date);
+      expect(secondOnboardedAt).toEqual(firstOnboardedAt);
+    });
+
+    it("leaves every other user as they were", async () => {
+      const { userRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const otherUser = await createTestUser();
+
+      await userRepository.markOnboarded(user.id);
+
+      expect((await userRepository.findById(otherUser.id))?.onboardingSkippedAt).toBeNull();
+    });
+  });
+
   describe("findTrialUsersByFingerprint", () => {
     it("matches only users whose trial wallet is activated", async () => {
       const { userRepository, createTestUser } = setup();
