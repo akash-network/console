@@ -4,7 +4,8 @@ import { mock } from "vitest-mock-extended";
 import type { ActivityService } from "@src/activity/services/activity/activity.service";
 import type { WalletInitialized } from "@src/billing/repositories";
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
-import type { JobQueueService } from "@src/core";
+import type { JobPayload, JobQueueService } from "@src/core";
+import { CreateLease, createLeaseKeyFor } from "@src/deployment/services/create-lease/create-lease.job";
 import { matchingLeaseActivityOf } from "@src/deployment/utils/lease-activity/lease-activity";
 import { AutoLease, autoLeaseKeyFor } from "./auto-lease.job";
 import { AutoLeaseService } from "./auto-lease.service";
@@ -52,6 +53,21 @@ describe(AutoLeaseService.name, () => {
     await service.start({ userId: wallet.userId, walletId: wallet.id, dseq: "1000" });
 
     expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+    expect(activityService.open).not.toHaveBeenCalled();
+  });
+
+  it("leaves the deployment to a lease already being created for it", async () => {
+    const wallet = createInitializedUserWallet({ organizationId: null });
+    const { service, activityService, jobQueueService } = setup({ wallet });
+    jobQueueService.findPendingJobData.mockImplementation(async (jobType, singletonKey) =>
+      jobType === CreateLease && singletonKey === createLeaseKeyFor({ owner: wallet.address, dseq: "1000" })
+        ? mock<JobPayload<CreateLease>>({ activityId: "manual-lease" })
+        : undefined
+    );
+
+    await service.start({ userId: wallet.userId, walletId: wallet.id, dseq: "1000" });
+
+    expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     expect(activityService.open).not.toHaveBeenCalled();
   });
 
