@@ -37,6 +37,12 @@ describe(DeploymentFlowProvider.name, () => {
     expect(useWarnBeforeUnload).toHaveBeenLastCalledWith(true);
   });
 
+  it("unlocks the app once the flow holds an accepted create", () => {
+    const { useUnlockAppOnFirstCreate } = setup({ flow: mock<DeploymentFlow>({ phase: "quoting", dseq: "1000" }) });
+
+    expect(useUnlockAppOnFirstCreate).toHaveBeenLastCalledWith("1000");
+  });
+
   it("lets the page unload unwarned once the deployment is quoting", () => {
     const { useWarnBeforeUnload } = setup({ flow: mock<DeploymentFlow>({ phase: "quoting", isCreatingInBackground: false }) });
 
@@ -192,6 +198,7 @@ describe(DeploymentFlowProvider.name, () => {
     let flow = input.flow ?? mock<DeploymentFlow>();
     const useDeploymentFlow = input.useDeploymentFlow ?? vi.fn(() => flow);
     const useWarnBeforeUnload = vi.fn();
+    const useUnlockAppOnFirstCreate = vi.fn();
     const enqueueSnackbar = vi.fn();
     const useSnackbar = () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
     const Snackbar = vi.fn(() => null);
@@ -207,7 +214,7 @@ describe(DeploymentFlowProvider.name, () => {
       );
     };
 
-    const dependencies = { useDeploymentFlow: useDeploymentFlow as never, useWarnBeforeUnload, useSnackbar, Snackbar };
+    const dependencies = { useDeploymentFlow: useDeploymentFlow as never, useWarnBeforeUnload, useUnlockAppOnFirstCreate, useSnackbar, Snackbar };
     const provider = () => (
       <DeploymentFlowProvider intent={input.intent ?? intentFor(undefined)} dependencies={dependencies}>
         {renderChild}
@@ -219,7 +226,7 @@ describe(DeploymentFlowProvider.name, () => {
       rerender(provider());
     };
 
-    return { getContext: () => context, useWarnBeforeUnload, enqueueSnackbar, rerenderWith };
+    return { getContext: () => context, useWarnBeforeUnload, useUnlockAppOnFirstCreate, enqueueSnackbar, rerenderWith };
   }
 
   function CreatingProbe() {
