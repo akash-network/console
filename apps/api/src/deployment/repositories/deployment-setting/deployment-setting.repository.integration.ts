@@ -783,6 +783,25 @@ describe(DeploymentSettingRepository.name, () => {
       expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({ sdl: "version: '2.1'", name: "web" });
     });
 
+    it("leaves a template id already on the row alone when none is given", async () => {
+      const { deploymentSettingRepository, user } = await setup();
+      const dseq = newDseq();
+      await deploymentSettingRepository.upsertDefinition({
+        userId: user.id,
+        dseq,
+        sdl: "version: '2.0'",
+        manifestVersion: "BAUG",
+        templateId: "akash-network-awesome-akash-comfyui"
+      });
+
+      await deploymentSettingRepository.upsertDefinition({ userId: user.id, dseq, sdl: "version: '2.1'", manifestVersion: "BQYH" });
+
+      expect(await deploymentSettingRepository.findOneBy({ userId: user.id, dseq })).toMatchObject({
+        sdl: "version: '2.1'",
+        templateId: "akash-network-awesome-akash-comfyui"
+      });
+    });
+
     it("replaces a name an earlier write recorded", async () => {
       const { deploymentSettingRepository, user } = await setup();
       const dseq = newDseq();
