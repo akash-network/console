@@ -686,7 +686,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       function handOverToApi(newDseq: string, activityId: string) {
         createInFlightRef.current = false;
         recordOneClickDeploy(newDseq, oneClickDeployUrlOf(intentRef.current));
-        holdActivityEvents(activityId, { succeeded: [{ event: "create_deployment", properties: createdEventOf(newDseq) }] });
+        holdActivityEvents(activityId, {
+          succeeded: [{ event: "create_deployment", properties: createdEventOf(newDseq) }],
+          failed: [{ event: "create_deployment_failed", properties: { category: "deployments", kind: "create", inBackground: true } }]
+        });
         queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
         if (isCurrentAttempt()) setAutoLeasedDseq(newDseq);
         else runQueuedCreate();

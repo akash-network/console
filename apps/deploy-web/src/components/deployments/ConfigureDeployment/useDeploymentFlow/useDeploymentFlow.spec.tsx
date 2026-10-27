@@ -4141,7 +4141,10 @@ describe(useDeploymentFlow.name, () => {
         UrlService.configureDeployment({ templateId: "hello-world", sdlStrategy: "default", bidStrategy: "auto" })
       );
       expect(holdActivityEvents).toHaveBeenCalledWith("activity-1", {
-        succeeded: [{ event: "create_deployment", properties: { category: "deployments", label: "Create deployment in wizard", dseq: "1000", secretCount: 0 } }]
+        succeeded: [
+          { event: "create_deployment", properties: { category: "deployments", label: "Create deployment in wizard", dseq: "1000", secretCount: 0 } }
+        ],
+        failed: [{ event: "create_deployment_failed", properties: { category: "deployments", kind: "create", inBackground: true } }]
       });
       expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listActivities"] });
       expect(followUntilSettled).not.toHaveBeenCalled();
