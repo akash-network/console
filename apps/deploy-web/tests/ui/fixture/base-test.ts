@@ -1,4 +1,4 @@
-import type { Browser, Page } from "@playwright/test";
+import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { devices, test as baseTest } from "@playwright/test";
 
 import { loginExistingUser, registerNewUser } from "../actions/auth";
@@ -37,6 +37,10 @@ export const test = baseTest.extend<Fixtures>({
   // eslint-disable-next-line no-empty-pattern
   emailVerification: async ({}, use) => {
     await use(emailVerification);
+  },
+  context: async ({ context }, use) => {
+    await skipWhatsNewAnnouncements(context);
+    await use(context);
   },
   page: async ({ page, userType }, use) => {
     await injectUIConfig(page);
@@ -92,9 +96,22 @@ export async function injectUIConfig(page: Page) {
   }, ALWAYS_PASS_INVISIBLE_SITE_KEY);
 }
 
+/** A fresh browser gets each release announced in a modal over its first page, covering whatever the test clicks next. */
+const WHATS_NEW_RELEASE_IDS = ["orgs-projects-2026-10"];
+
+async function skipWhatsNewAnnouncements(context: BrowserContext) {
+  await context.addInitScript(
+    ({ appOrigin, releaseIds }) => {
+      if (location.origin === appOrigin) localStorage.setItem("console.whatsNew.seen", JSON.stringify(releaseIds));
+    },
+    { appOrigin: new URL(testEnvConfig.BASE_URL).origin, releaseIds: WHATS_NEW_RELEASE_IDS }
+  );
+}
+
 /** A second person in the same test, signed out in a browser context of their own and set up like the fixture's page; the caller closes its context. */
 export async function openSignedOutPage(browser: Browser): Promise<Page> {
   const context = await browser.newContext({ ...devices["Desktop Chrome"], userAgent: getUserAgent() });
+  await skipWhatsNewAnnouncements(context);
   const page = await context.newPage();
   await injectUIConfig(page);
   await routeTestingClientToken(page);
