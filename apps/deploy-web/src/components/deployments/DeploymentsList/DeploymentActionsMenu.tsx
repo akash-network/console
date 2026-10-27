@@ -9,7 +9,7 @@ import { MoveDeploymentDialog } from "@src/components/projects/MoveDeploymentDia
 import { useServices } from "@src/context/ServicesProvider";
 import { useCloseDeployment } from "@src/hooks/useCloseDeployment/useCloseDeployment";
 import { useCloseDeploymentConfirm } from "@src/hooks/useCloseDeploymentConfirm";
-import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import type { DeploymentDto, ListedDeploymentDto } from "@src/types/deployment";
@@ -85,7 +85,7 @@ export const DeploymentActionsMenu: FC<DeploymentActionsMenuProps> = ({
           {canRedeploy && canChangeDeployments && (
             <DropdownMenuItem
               disabled={isResolvingDefinition}
-              onSelect={() => redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: deployment.dseq, projectId: deployment.projectId })}
+              onSelect={() => redeploy({ sdl: definition.sdl, name: definition.name, sourceDseq: deployment.dseq, projectId: deployment.projectId })}
             >
               <Upload className="mr-2 h-4 w-4" />
               Redeploy

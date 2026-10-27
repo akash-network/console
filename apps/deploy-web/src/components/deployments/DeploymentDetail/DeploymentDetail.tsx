@@ -12,7 +12,7 @@ import { createConfigureDraft } from "@src/components/deployments/ConfigureDeplo
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCanManageDeployment } from "@src/hooks/useCanManageDeployment/useCanManageDeployment";
-import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { isUsableDeploymentDefinition, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { deploymentLaunchOf, useDeploymentActivity } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import { useLeaseGpus, withLeaseGpus } from "@src/hooks/useLeaseGpus/useLeaseGpus";
 import { useOpenDeploymentInItsOrganization } from "@src/hooks/useOpenDeploymentInItsOrganization/useOpenDeploymentInItsOrganization";
@@ -151,22 +151,10 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
     function redirectWhenInProgressWithoutLease() {
       if (definition.source === "resolving" || !isAwaitingLease || !canManage || isResolvingActivity || leaseCreation) return;
 
-      const draftId = isUsableDeploymentDefinition(definition) ? d.createConfigureDraft(sdlToRedeploy(definition), { name: definition.name }) : undefined;
+      const draftId = isUsableDeploymentDefinition(definition) ? d.createConfigureDraft(definition.sdl, { name: definition.name }) : undefined;
       router.replace(UrlService.configureDeployment({ dseq, draftId }));
     },
-    [
-      isAwaitingLease,
-      canManage,
-      definition.source,
-      definition.sdl,
-      definition.restoredSdl,
-      definition.name,
-      dseq,
-      isResolvingActivity,
-      leaseCreation,
-      router,
-      d
-    ]
+    [isAwaitingLease, canManage, definition.source, definition.sdl, definition.name, dseq, isResolvingActivity, leaseCreation, router, d]
   );
 
   const tabQuery = searchParams?.get("tab");
@@ -193,12 +181,12 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   }
 
   function redeployFromResolvedDefinition() {
-    redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, sourceDseq: dseq, projectId: location?.projectId });
+    redeploy({ sdl: definition.sdl, name: definition.name, sourceDseq: dseq, projectId: location?.projectId });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
   }
 
   function redeployWithNewSecrets() {
-    redeploy({ sdl: sdlToRedeploy(definition), name: definition.name, projectId: location?.projectId });
+    redeploy({ sdl: definition.sdl, name: definition.name, projectId: location?.projectId });
     analyticsService.track("redeploy_btn_clk", "Amplitude");
   }
 
@@ -281,7 +269,9 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
 
             <div className="flex-1 bg-muted py-6">
               <div className={PAGE_BAND}>
-                {activeTab === "DETAILS" && launch && <d.DeploymentLaunchState dseq={dseq} launch={launch} leases={leases ?? []} canManage={canManage} className="mb-6" />}
+                {activeTab === "DETAILS" && launch && (
+                  <d.DeploymentLaunchState dseq={dseq} launch={launch} leases={leases ?? []} canManage={canManage} className="mb-6" />
+                )}
 
                 {activeTab === "DETAILS" &&
                   (!launch || isActive) &&

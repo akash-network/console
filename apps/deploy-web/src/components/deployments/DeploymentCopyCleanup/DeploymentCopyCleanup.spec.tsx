@@ -20,6 +20,7 @@ import { render, waitFor } from "@testing-library/react";
 import { helloWorldManifest } from "@tests/seeders/manifest";
 
 const ADDRESS = "akash1owner";
+const NETWORK = "testnet";
 const PLAIN_SDL = ["version: '2.0'", "services:", "  web:", "    image: nginx", "    env:", '      - "MODE=dev"'].join("\n");
 const UNRESOLVED_REFERENCE_SDL = PLAIN_SDL.replace("MODE=dev", "API_TOKEN=ac-secret://API_TOKEN");
 const PRIVATE_REGISTRY_SDL = [
@@ -35,8 +36,6 @@ const PRIVATE_REGISTRY_SDL = [
   '      - "MODE=dev"'
 ].join("\n");
 const SEALING_CONTEXT: SdlSecretsSealContext = { kid: "sdl-secrets.v1", sub: "user-1", jwk: { kty: "RSA", n: "n", e: "AQAB" } };
-const BEFORE_THE_LAST_RESTORE_DAY_ENDS = new Date("2026-11-09T23:59:59.999Z");
-const AFTER_THE_LAST_RESTORE_DAY = new Date("2026-11-10T00:00:00Z");
 const MISMATCH = new ApiError(
   422,
   { message: "This SDL does not describe what the deployment is running", code: "deployment_definition_mismatch" },
@@ -44,6 +43,7 @@ const MISMATCH = new ApiError(
 );
 const ALREADY_RECORDED = new ApiError(409, { message: "The console already holds a definition", code: "deployment_definition_exists" }, "POST → 409");
 const STALE_SEAL = new ApiError(409, { message: "The sealing key is no longer current", code: "conflict" }, "POST → 409");
+const RECORDING_UNAVAILABLE = new ApiError(503, { message: "The version this deployment runs could not be read, please retry" }, "POST → 503");
 const NAME_REFUSED = new ApiError(400, { message: "The name is not valid" }, "PATCH → 400");
 
 describe(DeploymentCopyCleanup.name, () => {
@@ -51,6 +51,17 @@ describe(DeploymentCopyCleanup.name, () => {
     const { storage, track } = setup({ copies: { "100": { manifest: PLAIN_SDL, name: "web" } }, records: { "100": recordOf() } });
 
     await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, forgotten: 1 })));
+    expect(storage.getItem(copyKey(ADDRESS, "100"))).toBeNull();
+  });
+
+  it("forgets a closed deployment's only copy without recording it", async () => {
+    const { storage, track, createDeploymentDefinition } = setup({
+      copies: { "100": { manifest: PLAIN_SDL } },
+      records: { "100": recordOf({ deployment: { state: "closed", hash: "chain-hash" }, consoleSettings: null }) }
+    });
+
+    await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, forgotten: 1 })));
+    expect(createDeploymentDefinition).not.toHaveBeenCalled();
     expect(storage.getItem(copyKey(ADDRESS, "100"))).toBeNull();
   });
 
@@ -82,41 +93,48 @@ describe(DeploymentCopyCleanup.name, () => {
       );
     });
 
-    it("keeps one referring to a secret it holds no value for, and asks the api nothing about it", async () => {
+    it("keeps one referring to a secret it holds no value for, for the user to save, and asks the api nothing about it", async () => {
       const { storage, track, createDeploymentDefinition, getSDLSecretsContext } = setup({
         copies: { "100": { manifest: UNRESOLVED_REFERENCE_SDL } },
         records: { "100": recordOf({ consoleSettings: null }) }
       });
 
-      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, onlyInBrowser: 1, onlyInBrowserActive: 1 })));
+      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, keptRunning: 1 })));
       expect(getSDLSecretsContext).not.toHaveBeenCalled();
       expect(createDeploymentDefinition).not.toHaveBeenCalled();
       expect(storage.getItem(copyKey(ADDRESS, "100"))).not.toBeNull();
     });
 
-    it("keeps it and counts the failure when the console finds it does not match what runs", async () => {
+    it("forgets it when the console finds it does not match what runs", async () => {
       const { storage, track } = setup({
         copies: { "100": { manifest: PLAIN_SDL } },
         records: { "100": recordOf({ consoleSettings: null }) },
         createOutcomes: [MISMATCH]
       });
 
-      await waitFor(() =>
-        expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, onlyInBrowser: 1, onlyInBrowserActive: 1, recordFailed: 1 }))
-      );
+      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, forgotten: 1, recordRefused: 1 })));
+      expect(storage.getItem(copyKey(ADDRESS, "100"))).toBeNull();
+    });
+
+    it("keeps it for the next visit when the console cannot record it now", async () => {
+      const { storage, track } = setup({
+        copies: { "100": { manifest: PLAIN_SDL } },
+        records: { "100": recordOf({ consoleSettings: null }) },
+        createOutcomes: [RECORDING_UNAVAILABLE]
+      });
+
+      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, recordFailed: 1 })));
       expect(storage.getItem(copyKey(ADDRESS, "100"))).not.toBeNull();
     });
 
-    it("keeps it when it cannot be sealed", async () => {
+    it("keeps it for the next visit when it cannot be sealed", async () => {
       const { storage, track, createDeploymentDefinition } = setup({
         copies: { "100": { manifest: PLAIN_SDL } },
         records: { "100": recordOf({ consoleSettings: null }) },
         sealFailure: new Error("key service unreachable")
       });
 
-      await waitFor(() =>
-        expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, onlyInBrowser: 1, onlyInBrowserActive: 1, recordFailed: 1 }))
-      );
+      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, recordFailed: 1 })));
       expect(createDeploymentDefinition).not.toHaveBeenCalled();
       expect(storage.getItem(copyKey(ADDRESS, "100"))).not.toBeNull();
     });
@@ -143,16 +161,6 @@ describe(DeploymentCopyCleanup.name, () => {
       expect(createDeploymentDefinition).toHaveBeenCalledTimes(2);
     });
 
-    it("reads the record from the api again after recording, rather than from the cache", async () => {
-      const { track } = setup({
-        copies: { "100": { manifest: PLAIN_SDL } },
-        records: { "100": recordOf({ consoleSettings: null }) },
-        cachesReadsForever: true
-      });
-
-      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, forgotten: 1, recorded: 1 })));
-    });
-
     it("sends the name it holds once the definition is recorded, then forgets it", async () => {
       const { storage, track, patchDeployment } = setup({
         copies: { "100": { manifest: PLAIN_SDL, name: "web" } },
@@ -162,6 +170,13 @@ describe(DeploymentCopyCleanup.name, () => {
       await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, forgotten: 1, recorded: 1, namesSent: 1 })));
       expect(patchDeployment).toHaveBeenCalledWith({ dseq: "100", data: { name: "web" } });
       expect(storage.getItem(copyKey(ADDRESS, "100"))).toBeNull();
+    });
+
+    it("has the deployment read again once its definition is recorded", async () => {
+      const { track, invalidateQueries, api } = setup({ copies: { "100": { manifest: PLAIN_SDL } }, records: { "100": recordOf({ consoleSettings: null }) } });
+
+      await waitFor(() => expect(track).toHaveBeenCalled());
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getDeployment.getKey() });
     });
 
     it("asks the mutation cache not to report a refusal it expects, while leaving a server fault reported", async () => {
@@ -179,15 +194,53 @@ describe(DeploymentCopyCleanup.name, () => {
     });
   });
 
-  it("leaves a closed deployment's only copy alone, and does not count it as running", async () => {
-    const { storage, track, createDeploymentDefinition } = setup({
-      copies: { "100": { manifest: PLAIN_SDL } },
-      records: { "100": recordOf({ deployment: { state: "closed", hash: "chain-hash" }, consoleSettings: null }) }
+  describe("when the console's definition is not the one a running deployment runs", () => {
+    it("keeps a copy that is, until the deployment closes", async () => {
+      const { storage, track } = await setupCopyTheChainRuns({ state: "active" });
+
+      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, keptRunning: 1 })));
+      expect(storage.getItem(copyKey(ADDRESS, "100"))).not.toBeNull();
     });
 
-    await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, onlyInBrowser: 1 })));
-    expect(createDeploymentDefinition).not.toHaveBeenCalled();
-    expect(storage.getItem(copyKey(ADDRESS, "100"))).not.toBeNull();
+    it("forgets that copy once the deployment is closed", async () => {
+      const { storage, track } = await setupCopyTheChainRuns({ state: "closed" });
+
+      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, forgotten: 1 })));
+      expect(storage.getItem(copyKey(ADDRESS, "100"))).toBeNull();
+    });
+
+    it("still sends the name a kept copy holds", async () => {
+      const { track, patchDeployment } = await setupCopyTheChainRuns({ state: "active", name: "storefront" });
+
+      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, keptRunning: 1, namesSent: 1 })));
+      expect(patchDeployment).toHaveBeenCalledWith({ dseq: "100", data: { name: "storefront" } });
+    });
+
+    it("forgets a copy the chain does not run either", async () => {
+      const { storage, track } = setup({
+        copies: { "100": { manifest: PLAIN_SDL } },
+        records: { "100": recordOf({ consoleSettings: { sdl: PLAIN_SDL, manifestVersion: "older-hash" } }) }
+      });
+
+      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, forgotten: 1 })));
+      expect(storage.getItem(copyKey(ADDRESS, "100"))).toBeNull();
+    });
+
+    async function setupCopyTheChainRuns(input: { state: string; name?: string }) {
+      const browserSdl = helloWorldWithEnv("TOKEN=from-this-browser");
+      const chainHash = await deploymentData.getManifestVersion(yaml.load(browserSdl));
+
+      return setup({
+        copies: { "100": { manifest: browserSdl, name: input.name } },
+        records: {
+          "100": recordOf({
+            deployment: { state: input.state, hash: chainHash },
+            name: input.name ? null : "web",
+            consoleSettings: { sdl: helloWorldWithEnv("TOKEN=from-an-older-update"), manifestVersion: "older-hash" }
+          })
+        }
+      });
+    }
   });
 
   describe("when a copy holds a name the console lacks", () => {
@@ -202,90 +255,116 @@ describe(DeploymentCopyCleanup.name, () => {
       expect(storage.getItem(copyKey(ADDRESS, "100"))).toBeNull();
     });
 
-    it("keeps the copy when the api refuses the name, without reading its record again", async () => {
-      const { storage, track, getDeployment } = setup({
+    it("has every surface read the names again once one is sent, even when other copies changed nothing", async () => {
+      const { track, invalidateQueries, api } = setup({
+        copies: { "100": { name: "web" }, "200": { manifest: PLAIN_SDL } },
+        records: { "100": recordOf({ name: null }), "200": recordOf() }
+      });
+
+      await waitFor(() => expect(track).toHaveBeenCalled());
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.getDeployment.getKey() });
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.listDeploymentNames.getKey() });
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: api.v1.listDeployments.getKey() });
+    });
+
+    it("keeps the copy for the next visit when the api refuses the name", async () => {
+      const { storage, track } = setup({
         copies: { "100": { manifest: PLAIN_SDL, name: "web" } },
         records: { "100": recordOf({ name: null }) },
         nameRefusal: NAME_REFUSED
       });
 
-      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, holdsName: 1 })));
-      expect(getDeployment).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, nameFailed: 1 })));
       expect(storage.getItem(copyKey(ADDRESS, "100"))).not.toBeNull();
     });
 
-    it("keeps the copy when another surface already sent its name this session", async () => {
+    it("keeps the copy when the rename dialog already took the name over this session", async () => {
       const { storage, track, patchDeployment } = setup({
         copies: { "100": { manifest: PLAIN_SDL, name: "web" } },
         records: { "100": recordOf({ name: null }) },
         isNameAlreadyBackfilled: true
       });
 
-      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, holdsName: 1 })));
+      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, nameFailed: 1 })));
       expect(patchDeployment).not.toHaveBeenCalled();
       expect(storage.getItem(copyKey(ADDRESS, "100"))).not.toBeNull();
     });
   });
 
-  it("counts a copy kept for a name the console refused apart from one kept beside a record it cannot use", async () => {
-    const { track } = setup({
-      copies: { "100": { manifest: PLAIN_SDL, name: "web" }, "200": { manifest: PLAIN_SDL } },
-      records: { "100": recordOf({ name: null }), "200": recordOf({ consoleSettings: { sdl: "services: [not, a, map", manifestVersion: "chain-hash" } }) },
-      nameRefusal: NAME_REFUSED
-    });
+  it("has nothing read again when the check changed nothing the console holds", async () => {
+    const { track, invalidateQueries } = setup({ copies: { "100": { manifest: PLAIN_SDL } }, records: { "100": recordOf() } });
 
-    await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 2, holdsName: 1, kept: 1 })));
+    await waitFor(() => expect(track).toHaveBeenCalled());
+    expect(invalidateQueries).not.toHaveBeenCalled();
   });
 
-  describe("when a copy is kept to restore variables the console protected", () => {
-    it("keeps it while this browser still offers the restore", async () => {
-      const { storage, track } = await setupRestorableCopy({ now: BEFORE_THE_LAST_RESTORE_DAY_ENDS });
+  it("forgets a copy whose deployment the api does not know, without reporting it", async () => {
+    const { storage, track, onQueryError } = setup({ copies: { "100": { manifest: PLAIN_SDL, name: "web" } }, records: {} });
 
-      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, restoresVariables: 1 })));
-      expect(storage.getItem(copyKey(ADDRESS, "100"))).not.toBeNull();
-    });
-
-    it("forgets it once the last day of the restore is over", async () => {
-      const { storage, track } = await setupRestorableCopy({ now: AFTER_THE_LAST_RESTORE_DAY });
-
-      await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, forgotten: 1 })));
-      expect(storage.getItem(copyKey(ADDRESS, "100"))).toBeNull();
-    });
-
-    async function setupRestorableCopy(input: { now: Date }) {
-      const browserSdl = helloWorldWithEnv("TOKEN=from-this-browser");
-      const chainHash = await deploymentData.getManifestVersion(yaml.load(browserSdl));
-
-      return setup({
-        copies: { "100": { manifest: browserSdl } },
-        records: {
-          "100": recordOf({
-            deployment: { state: "active", hash: chainHash },
-            consoleSettings: { sdl: helloWorldWithEnv("TOKEN=ac-secret://s0_e0"), manifestVersion: chainHash }
-          })
-        },
-        now: input.now
-      });
-    }
-  });
-
-  it("keeps a copy whose deployment the api does not know, without reporting it", async () => {
-    const { storage, track, onQueryError } = setup({ copies: { "100": { manifest: PLAIN_SDL } }, records: {} });
-
-    await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, kept: 1 })));
-    expect(storage.getItem(copyKey(ADDRESS, "100"))).not.toBeNull();
+    await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, forgotten: 1 })));
+    expect(storage.getItem(copyKey(ADDRESS, "100"))).toBeNull();
     expect(onQueryError).not.toHaveBeenCalled();
   });
 
-  it("keeps a copy when the api fails to answer for its deployment", async () => {
-    const { storage, track } = setup({
+  it.each([
+    ["fails to answer", new ApiError(500, undefined, "GET /v1/deployments/100 → 500")],
+    ["refuses to answer", new ApiError(401, undefined, "GET /v1/deployments/100 → 401")],
+    ["cannot be reached", new TypeError("Failed to fetch")]
+  ])("keeps a copy for the next visit when the api %s for its deployment", async (_case, failure) => {
+    const { storage, track } = setup({ copies: { "100": { manifest: PLAIN_SDL } }, records: {}, failure });
+
+    await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, unchecked: 1 })));
+    expect(storage.getItem(copyKey(ADDRESS, "100"))).not.toBeNull();
+  });
+
+  it("asks the query cache not to report a refusal it expects, while leaving a server fault reported", async () => {
+    const { queryClient, track, api } = setup({ copies: { "100": { manifest: PLAIN_SDL } }, records: { "100": recordOf() } });
+
+    await waitFor(() => expect(track).toHaveBeenCalled());
+    expect(queryClient.getQueryCache().find({ queryKey: api.v1.getDeployment.getKey({ dseq: "100" }) })?.meta).toBe(SKIP_REPORTING_BELOW_SERVER_ERROR);
+  });
+
+  it("asks the api rather than trusting an answer it cached earlier", async () => {
+    const { track, createDeploymentDefinition } = setup({
       copies: { "100": { manifest: PLAIN_SDL } },
-      records: {},
-      failure: new ApiError(500, undefined, "GET /v1/deployments/100 → 500")
+      records: { "100": recordOf({ consoleSettings: null }) },
+      cached: { "100": recordOf() }
     });
 
-    await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, kept: 1 })));
+    await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, forgotten: 1, recorded: 1 })));
+    expect(createDeploymentDefinition).toHaveBeenCalled();
+  });
+
+  it("forgets a copy it cannot read without asking the api, counts it, and checks the copies after it", async () => {
+    const { storage, track, getDeployment } = setup({
+      copies: { "200": { manifest: PLAIN_SDL, name: "web" } },
+      unreadableCopies: ["100"],
+      records: { "100": recordOf(), "200": recordOf() }
+    });
+
+    await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 2, forgotten: 2, unreadable: 1 })));
+    expect(storage.getItem(copyKey(ADDRESS, "100"))).toBeNull();
+    expect(storage.getItem(copyKey(ADDRESS, "200"))).toBeNull();
+    expect(getDeployment.mock.calls.map(([{ dseq }]) => dseq)).toEqual(["200"]);
+  });
+
+  it("checks a copy another tab removed meanwhile as an empty one", async () => {
+    const { track, getDeployment } = setup({ copies: {}, vanishedCopies: ["100"], records: { "100": recordOf() } });
+
+    await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, forgotten: 1 })));
+    expect(getDeployment).toHaveBeenCalledWith({ dseq: "100" });
+  });
+
+  it("keeps a copy whose check fails unexpectedly, and checks the copies after it", async () => {
+    const { storage, track } = setup({
+      copies: { "100": { manifest: PLAIN_SDL }, "200": { manifest: PLAIN_SDL } },
+      records: { "100": recordOf(), "200": recordOf() },
+      failingRemovals: ["100"]
+    });
+
+    await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 2, forgotten: 1, unchecked: 1 })));
     expect(storage.getItem(copyKey(ADDRESS, "100"))).not.toBeNull();
+    expect(storage.getItem(copyKey(ADDRESS, "200"))).toBeNull();
   });
 
   it("leaves another wallet's copies alone", async () => {
@@ -297,6 +376,13 @@ describe(DeploymentCopyCleanup.name, () => {
 
     await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 1, forgotten: 1 })));
     expect(storage.getItem(copyKey("akash1other", "200"))).not.toBeNull();
+  });
+
+  it("forgets every copy kept under another network, before any wallet is known", async () => {
+    const { storage } = setup({ copies: { "100": { manifest: PLAIN_SDL } }, otherNetworkCopies: { "200": { manifest: PLAIN_SDL } }, records: {}, address: "" });
+
+    await waitFor(() => expect(storage.getItem(copyKey(ADDRESS, "200", "mainnet"))).toBeNull());
+    expect(storage.getItem(copyKey(ADDRESS, "100"))).not.toBeNull();
   });
 
   it("asks the api nothing and reports nothing when this browser holds no copy", async () => {
@@ -319,7 +405,11 @@ describe(DeploymentCopyCleanup.name, () => {
   });
 
   it("checks a wallet's copies once per page load", async () => {
-    const { getDeployment, rerenderWith, track } = setup({ copies: { "100": { manifest: PLAIN_SDL } }, records: {} });
+    const { getDeployment, rerenderWith, track } = setup({
+      copies: { "100": { manifest: PLAIN_SDL } },
+      records: {},
+      failure: new TypeError("Failed to fetch")
+    });
 
     await waitFor(() => expect(track).toHaveBeenCalledTimes(1));
     rerenderWith(ADDRESS);
@@ -347,7 +437,8 @@ describe(DeploymentCopyCleanup.name, () => {
     const { getDeployment, rerenderWith, track } = setup({
       copies: { "100": { manifest: PLAIN_SDL } },
       otherWalletCopies: { "200": { manifest: PLAIN_SDL } },
-      records: { "200": recordOf() }
+      records: { "200": recordOf() },
+      failure: new TypeError("Failed to fetch")
     });
 
     await waitFor(() => expect(track).toHaveBeenCalledTimes(1));
@@ -392,19 +483,6 @@ describe(DeploymentCopyCleanup.name, () => {
     await waitFor(() => expect(createDeploymentDefinition).toHaveBeenCalledTimes(2));
   });
 
-  it("keeps a copy it cannot read without asking the api, counts it, and checks the copies after it", async () => {
-    const { storage, track, getDeployment } = setup({
-      copies: { "200": { manifest: PLAIN_SDL, name: "web" } },
-      unreadableCopies: ["100"],
-      records: { "100": recordOf(), "200": recordOf() }
-    });
-
-    await waitFor(() => expect(track).toHaveBeenCalledWith("deployment_copies_checked", reportOf({ copies: 2, forgotten: 1, unreadable: 1 })));
-    expect(storage.getItem(copyKey(ADDRESS, "100"))).toBe("{not json");
-    expect(storage.getItem(copyKey(ADDRESS, "200"))).toBeNull();
-    expect(getDeployment.mock.calls.map(([{ dseq }]) => dseq)).toEqual(["200"]);
-  });
-
   function recordOf(overrides: Partial<DeploymentRecord> = {}): DeploymentRecord {
     return {
       deployment: { state: "active", hash: "chain-hash" },
@@ -423,17 +501,7 @@ describe(DeploymentCopyCleanup.name, () => {
   function reportOf(
     counts: Partial<
       Record<
-        | "copies"
-        | "forgotten"
-        | "onlyInBrowser"
-        | "onlyInBrowserActive"
-        | "restoresVariables"
-        | "holdsName"
-        | "kept"
-        | "unreadable"
-        | "recorded"
-        | "recordFailed"
-        | "namesSent",
+        "copies" | "forgotten" | "unreadable" | "keptRunning" | "recordFailed" | "nameFailed" | "unchecked" | "recorded" | "recordRefused" | "namesSent",
         number
       >
     >
@@ -442,28 +510,31 @@ describe(DeploymentCopyCleanup.name, () => {
       category: "deployments",
       copies: 0,
       forgotten: 0,
-      onlyInBrowser: 0,
-      onlyInBrowserActive: 0,
-      restoresVariables: 0,
-      holdsName: 0,
-      kept: 0,
       unreadable: 0,
-      recorded: 0,
+      keptRunning: 0,
       recordFailed: 0,
+      nameFailed: 0,
+      unchecked: 0,
+      recorded: 0,
+      recordRefused: 0,
       namesSent: 0,
       ...counts
     };
   }
 
-  function copyKey(address: string, dseq: string) {
-    return `testnet/${address}/deployments/${dseq}.data`;
+  function copyKey(address: string, dseq: string, network = NETWORK) {
+    return `${network}/${address}/deployments/${dseq}.data`;
   }
 
   function setup(input: {
     copies: Record<string, { manifest?: string; name?: string }>;
     otherWalletCopies?: Record<string, { manifest?: string; name?: string }>;
+    otherNetworkCopies?: Record<string, { manifest?: string; name?: string }>;
     unreadableCopies?: string[];
+    vanishedCopies?: string[];
+    failingRemovals?: string[];
     records: Record<string, DeploymentRecord>;
+    cached?: Record<string, DeploymentRecord>;
     failure?: Error;
     address?: string;
     isAnsweredByHand?: boolean;
@@ -472,28 +543,31 @@ describe(DeploymentCopyCleanup.name, () => {
     sealFailure?: Error;
     nameRefusal?: Error;
     isNameAlreadyBackfilled?: boolean;
-    cachesReadsForever?: boolean;
-    now?: Date;
   }) {
     const entries = new Map<string, string>();
     (input.unreadableCopies ?? []).forEach(dseq => entries.set(copyKey(ADDRESS, dseq), "{not json"));
     Object.entries(input.copies).forEach(([dseq, copy]) => entries.set(copyKey(ADDRESS, dseq), JSON.stringify(copy)));
     Object.entries(input.otherWalletCopies ?? {}).forEach(([dseq, copy]) => entries.set(copyKey("akash1other", dseq), JSON.stringify(copy)));
+    Object.entries(input.otherNetworkCopies ?? {}).forEach(([dseq, copy]) => entries.set(copyKey(ADDRESS, dseq, "mainnet"), JSON.stringify(copy)));
+    const vanishedKeys = (input.vanishedCopies ?? []).map(dseq => copyKey(ADDRESS, dseq));
+    const failingRemovalKeys = new Set((input.failingRemovals ?? []).map(dseq => copyKey(ADDRESS, dseq)));
+    const listedKeys = () => [...entries.keys(), ...vanishedKeys];
     const storage: Storage = {
       get length() {
-        return entries.size;
+        return listedKeys().length;
       },
-      key: index => [...entries.keys()][index] ?? null,
+      key: index => listedKeys()[index] ?? null,
       getItem: key => entries.get(key) ?? null,
       setItem: (key, value) => {
         entries.set(key, value);
       },
       removeItem: key => {
+        if (failingRemovalKeys.has(key)) throw new DOMException("The operation is insecure.", "SecurityError");
         entries.delete(key);
       },
       clear: () => entries.clear()
     };
-    const deploymentLocalStorage = new DeploymentStorageService(storage, mock<NetworkStore>({ selectedNetworkId: "testnet" }));
+    const deploymentLocalStorage = new DeploymentStorageService(storage, mock<NetworkStore>({ selectedNetworkId: NETWORK }));
 
     const records = new Map(Object.entries(input.records));
     const recordTheDefinition = (dseq: string, sdl: string) => {
@@ -535,12 +609,12 @@ describe(DeploymentCopyCleanup.name, () => {
       return { data: {} };
     });
 
-    const api = createProxy({ v1: { getDeployment, getSDLSecretsContext, createDeploymentDefinition, patchDeployment } }) as unknown as ReturnType<
-      typeof DEPENDENCIES.useServices
-    >["api"];
+    const api = createProxy({
+      v1: { getDeployment, getSDLSecretsContext, createDeploymentDefinition, patchDeployment, listDeploymentNames: vi.fn(), listDeployments: vi.fn() }
+    }) as unknown as ReturnType<typeof DEPENDENCIES.useServices>["api"];
     const track = vi.fn();
     const deploymentNameBackfill = new DeploymentNameBackfillService();
-    if (input.isNameAlreadyBackfilled) Object.keys(input.copies).forEach(dseq => void deploymentNameBackfill.enqueue(ADDRESS, dseq, async () => undefined));
+    if (input.isNameAlreadyBackfilled) Object.keys(input.copies).forEach(dseq => void deploymentNameBackfill.preempt(ADDRESS, dseq));
 
     /** `satisfies` type-checks the fields against the real container, but `api` is a recursive proxy that `mock<T>()` recurses into until the heap dies. */
     const services = { api, deploymentLocalStorage, deploymentNameBackfill, analyticsService: mock<AnalyticsService>({ track }) } satisfies Partial<
@@ -549,14 +623,17 @@ describe(DeploymentCopyCleanup.name, () => {
     const useServices: typeof DEPENDENCIES.useServices = () => services as unknown as ReturnType<typeof DEPENDENCIES.useServices>;
     const onQueryError = vi.fn();
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: input.cachesReadsForever ? Infinity : 0 } },
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
       queryCache: new QueryCache({ onError: onQueryError })
     });
+    Object.entries(input.cached ?? {}).forEach(([dseq, record]) =>
+      queryClient.setQueryData<{ data: DeploymentRecord }>(api.v1.getDeployment.getKey({ dseq }), { data: record })
+    );
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
     const useQueryClient: typeof DEPENDENCIES.useQueryClient = () => queryClient;
     let address = input.address ?? ADDRESS;
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address });
-    const now = () => input.now ?? new Date("2026-10-08T12:00:00Z");
-    const dependencies = { useServices, useWallet, useQueryClient, sealSdlSecrets, now };
+    const dependencies = { useServices, useWallet, useQueryClient, sealSdlSecrets };
 
     const cleanup = () => (
       <QueryClientProvider client={queryClient}>
@@ -573,12 +650,14 @@ describe(DeploymentCopyCleanup.name, () => {
 
     return {
       storage: { getItem: (key: string) => entries.get(key) ?? null },
+      api,
       getDeployment,
       getSDLSecretsContext,
       createDeploymentDefinition,
       patchDeployment,
       sealSdlSecrets,
       queryClient,
+      invalidateQueries,
       onQueryError,
       track,
       rerenderWith,

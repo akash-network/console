@@ -1,55 +1,56 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { catchDeploymentReadError, manifestVersionOrNull } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
-import { backfilledNameOf } from "@src/hooks/useDeploymentNameBackfill/useDeploymentNameBackfill";
+import { manifestVersionOrNull } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { SKIP_REPORTING_BELOW_SERVER_ERROR } from "@src/services/query-error-policy/query-error-policy";
-import { isBrowserRestoreOffered } from "@src/utils/sdl/browserRestoreDeadline";
 import { importableServicesOf, recordableDefinitionOf, referenceNamesOf } from "@src/utils/sdl/recordableDefinition";
 import { sealSdlSecrets } from "@src/utils/sdl/sealSdlSecrets";
 import type { DefinitionSealing } from "@src/utils/sdl/sendSealedDefinition";
-import { isDefinitionAlreadyRecorded, sendSealedDefinition } from "@src/utils/sdl/sendSealedDefinition";
-import type { DeploymentCopy, DeploymentCopyFate, DeploymentRecord } from "./deploymentCopyFate";
-import { deploymentCopyFateOf } from "./deploymentCopyFate";
+import { isDefinitionAlreadyRecorded, isDefinitionMismatch, sendSealedDefinition } from "@src/utils/sdl/sendSealedDefinition";
+import type { DefinitionFate, DeploymentCopy, DeploymentRecord } from "./deploymentCopyFate";
+import { definitionFateOf, unsentNameOf } from "./deploymentCopyFate";
 
 export const DEPENDENCIES = {
   useServices,
   useWallet,
   useQueryClient,
   // eslint-disable-next-line akash/dependencies-component-or-hook
-  sealSdlSecrets,
-  // eslint-disable-next-line akash/dependencies-component-or-hook
-  now: () => new Date()
+  sealSdlSecrets
 };
 
-type Recording = "recorded" | "failed";
+/** Every outcome but `forgotten` and `unreadable` leaves the copy in place for the next visit to check again. */
+type Outcome = "forgotten" | "unreadable" | "kept-running" | "record-failed" | "name-failed" | "unchecked";
+
+type Recording = "recorded" | "refused";
 
 interface CheckedCopy {
-  fate: DeploymentCopyFate | "unreadable";
-  isActive: boolean;
+  outcome: Outcome;
   recording?: Recording;
   isNameSent: boolean;
 }
 
-/** A copy that can't be read or judged is kept and counted, so one bad entry doesn't stop the copies after it from being checked. */
-const UNREADABLE_COPY: CheckedCopy = { fate: "unreadable", isActive: false, isNameSent: false };
+const MISSING = "missing";
+
+/** A check the api did not answer for, or that failed in any other way, keeps its copy without stopping the copies after it. */
+const UNCHECKED_COPY: CheckedCopy = { outcome: "unchecked", isNameSent: false };
 
 /** Recorded as this browser kept it: variables stay readable, and only the registry credentials are sealed, as in every definition. */
 const NO_CHOSEN_SECRETS = { secretVariables: new Set<string>(), referenceValues: new Map<string, string>() };
 
 interface CopyAccess {
-  recordOf: (dseq: string) => Promise<DeploymentRecord | null>;
-  copyOf: (dseq: string) => DeploymentCopy;
-  fateOf: (copy: DeploymentCopy, record: DeploymentRecord | null) => Promise<DeploymentCopyFate>;
+  copyOf: (dseq: string) => DeploymentCopy | null;
+  lookUp: (dseq: string) => Promise<DeploymentRecord | typeof MISSING>;
+  definitionFateOf: (copy: DeploymentCopy, record: DeploymentRecord) => Promise<DefinitionFate>;
   recordDefinition: (dseq: string, sdl: string) => Promise<void>;
   sendName: (dseq: string, name: string) => Promise<boolean>;
   forget: (dseq: string) => void;
 }
 
-/** Hands the console what this browser's copies of older deployments' configuration still hold, forgets each copy nothing else needs, and reports what is left. */
+/** Removes this browser's copies of older deployments' configuration, handing the console what only a copy still holds first, and reports what is left. */
 export function DeploymentCopyCleanup({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}) {
   const { address } = d.useWallet();
   const { api, deploymentLocalStorage, deploymentNameBackfill, analyticsService } = d.useServices();
@@ -57,27 +58,35 @@ export function DeploymentCopyCleanup({ dependencies: d = DEPENDENCIES }: { depe
   const { mutateAsync: getSealingContext } = api.v1.getSDLSecretsContext.useMutation({ meta: SKIP_REPORTING_BELOW_SERVER_ERROR });
   const { mutateAsync: createDefinition } = api.v1.createDeploymentDefinition.useMutation({ meta: SKIP_REPORTING_BELOW_SERVER_ERROR });
   const { mutateAsync: patchDeployment } = api.v1.patchDeployment.useMutation({ meta: SKIP_REPORTING_BELOW_SERVER_ERROR });
-  const { sealSdlSecrets: seal, now } = d;
+  const { sealSdlSecrets: seal } = d;
   const checkedAddresses = useRef(new Set<string>());
 
   useEffect(
-    function retireCopiesTheConsoleCanReplace() {
+    function forgetCopiesOfOtherNetworks() {
+      deploymentLocalStorage.deleteOtherNetworks();
+    },
+    [deploymentLocalStorage]
+  );
+
+  useEffect(
+    function retireCopiesOfThisWallet() {
       if (!address || checkedAddresses.current.has(address)) return;
       checkedAddresses.current.add(address);
 
       const dseqs = deploymentLocalStorage.dseqsOf(address);
       if (dseqs.length === 0) return;
 
-      const judging = { manifestVersionOf: manifestVersionOrNull, isBrowserRestoreOffered: isBrowserRestoreOffered(now()) };
       const sealing: DefinitionSealing = { contextOf: async () => (await getSealingContext()).data, seal };
       const copies: CopyAccess = {
-        recordOf: dseq =>
-          queryClient.fetchQuery({ ...api.v1.getDeployment.queryOptions({ dseq }, { catchError: catchDeploymentReadError }), staleTime: 0 }).then(
-            response => response?.data ?? null,
-            () => null
-          ),
-        copyOf: dseq => deploymentLocalStorage.get(address, dseq) ?? {},
-        fateOf: (copy, record) => deploymentCopyFateOf(copy, record, judging),
+        copyOf: dseq => readableCopyOf(() => deploymentLocalStorage.get(address, dseq)),
+        lookUp: dseq =>
+          queryClient
+            .fetchQuery({
+              ...api.v1.getDeployment.queryOptions({ dseq }, { catchError: nullWhenNotFound, meta: SKIP_REPORTING_BELOW_SERVER_ERROR }),
+              staleTime: 0
+            })
+            .then(response => response?.data ?? MISSING),
+        definitionFateOf: (copy, record) => definitionFateOf(copy, record, manifestVersionOrNull),
         recordDefinition: async (dseq, sdl) => {
           const definition = recordableDefinitionOf(sdl, NO_CHOSEN_SECRETS);
           await sendSealedDefinition(definition, sealing, sealedSecrets => createDefinition({ dseq, data: { sdl: definition.sdl, sealedSecrets } }));
@@ -86,81 +95,89 @@ export function DeploymentCopyCleanup({ dependencies: d = DEPENDENCIES }: { depe
         forget: dseq => deploymentLocalStorage.delete(address, dseq)
       };
 
-      void checkCopiesOneAtATime(dseqs, copies).then(checked =>
-        analyticsService.track("deployment_copies_checked", { category: "deployments", ...countsOf(checked) })
-      );
+      void checkCopiesOneAtATime(dseqs, copies).then(checked => {
+        if (checked.some(copy => copy.recording === "recorded" || copy.isNameSent)) {
+          [api.v1.getDeployment, api.v1.listDeploymentNames, api.v1.listDeployments].forEach(query =>
+            queryClient.invalidateQueries({ queryKey: query.getKey() })
+          );
+        }
+        analyticsService.track("deployment_copies_checked", { category: "deployments", ...countsOf(checked) });
+      });
     },
-    [
-      address,
-      api,
-      deploymentLocalStorage,
-      deploymentNameBackfill,
-      analyticsService,
-      queryClient,
-      getSealingContext,
-      createDefinition,
-      patchDeployment,
-      seal,
-      now
-    ]
+    [address, api, deploymentLocalStorage, deploymentNameBackfill, analyticsService, queryClient, getSealingContext, createDefinition, patchDeployment, seal]
   );
 
   return null;
+}
+
+/** Only a 404 says the console knows no such deployment for this wallet; any other failure leaves the copy to the next visit. */
+function nullWhenNotFound(error: Error): null {
+  if (error instanceof ApiError && error.status === 404) return null;
+  throw error;
+}
+
+function readableCopyOf(read: () => DeploymentCopy | null): DeploymentCopy | null {
+  try {
+    return read() ?? {};
+  } catch {
+    return null;
+  }
 }
 
 /** One at a time, so a browser holding many copies does not fire a burst of requests at the api on load. */
 async function checkCopiesOneAtATime(dseqs: string[], copies: CopyAccess): Promise<CheckedCopy[]> {
   const checked: CheckedCopy[] = [];
   for (const dseq of dseqs) {
-    checked.push(await checkCopy(dseq, copies).catch(() => UNREADABLE_COPY));
+    checked.push(await checkCopy(dseq, copies).catch(() => UNCHECKED_COPY));
   }
   return checked;
 }
 
 async function checkCopy(dseq: string, copies: CopyAccess): Promise<CheckedCopy> {
   const copy = copies.copyOf(dseq);
-  const record = await copies.recordOf(dseq);
-  const isActive = record?.deployment.state === "active";
-  const fate = await copies.fateOf(copy, record);
-  const recorded = await recordRunningCopyOnlyHere(dseq, copy, { fate, isActive }, copies);
-  const named = await sendHeldName(dseq, copy, recorded.fate, copies);
+  if (!copy) return forgotten(dseq, copies, { outcome: "unreadable", isNameSent: false });
 
-  if (named.fate === "forget") copies.forget(dseq);
-  return { fate: named.fate, isActive, recording: recorded.recording, isNameSent: named.isNameSent };
+  const lookup = await copies.lookUp(dseq);
+  if (lookup === MISSING) return forgotten(dseq, copies, { outcome: "forgotten", isNameSent: false });
+
+  const definition = await settleDefinition(dseq, copy, lookup, copies);
+  const isNameSent = await sendUnsentName(dseq, copy, lookup, copies);
+  const outcome: Outcome = definition.keptAs ?? (isNameSent === false ? "name-failed" : "forgotten");
+  const checked: CheckedCopy = { outcome, recording: definition.recording, isNameSent: !!isNameSent };
+
+  return outcome === "forgotten" ? forgotten(dseq, copies, checked) : checked;
 }
 
-/** A closed deployment's copy is left as it is, and a copy referring to a secret this browser has no value for cannot be recorded. */
-async function recordRunningCopyOnlyHere(
+function forgotten(dseq: string, copies: CopyAccess, checked: CheckedCopy): CheckedCopy {
+  copies.forget(dseq);
+  return checked;
+}
+
+/** A copy referring to a secret this browser holds no value for can't be recorded on its own, so it waits for the user to save it from the update tab. */
+async function settleDefinition(
   dseq: string,
   copy: DeploymentCopy,
-  { fate, isActive }: { fate: DeploymentCopyFate; isActive: boolean },
+  record: DeploymentRecord,
   copies: CopyAccess
-): Promise<{ fate: DeploymentCopyFate; recording?: Recording }> {
-  if (fate !== "only-in-browser" || !isActive || !copy.manifest || refersToMissingSecrets(copy.manifest)) return { fate };
+): Promise<{ keptAs?: "kept-running" | "record-failed"; recording?: Recording }> {
+  const fate = await copies.definitionFateOf(copy, record);
+  if (fate === "forget" || !copy.manifest) return {};
+  if (fate === "keep" || refersToMissingSecrets(copy.manifest)) return { keptAs: "kept-running" };
 
-  const isRecorded = await copies.recordDefinition(dseq, copy.manifest).then(() => true, isDefinitionAlreadyRecorded);
-  if (!isRecorded) return { fate, recording: "failed" };
-
-  return { fate: await rejudged(dseq, copy, copies), recording: "recorded" };
+  const recording = await copies.recordDefinition(dseq, copy.manifest).then(() => "recorded" as const, recordingOutcomeOf);
+  return recording === "failed" ? { keptAs: "record-failed" } : { recording };
 }
 
-async function sendHeldName(
-  dseq: string,
-  copy: DeploymentCopy,
-  fate: DeploymentCopyFate,
-  copies: CopyAccess
-): Promise<{ fate: DeploymentCopyFate; isNameSent: boolean }> {
-  const name = backfilledNameOf(copy.name);
-  if (fate !== "holds-name" || !name) return { fate, isNameSent: false };
-
-  const isNameSent = await copies.sendName(dseq, name);
-  if (!isNameSent) return { fate, isNameSent };
-
-  return { fate: await rejudged(dseq, copy, copies), isNameSent };
+/** A copy the console finds does not match what runs is not the deployment's definition, so it goes; any other refusal is tried again on the next visit. */
+function recordingOutcomeOf(error: unknown): Recording | "failed" {
+  if (isDefinitionAlreadyRecorded(error)) return "recorded";
+  return isDefinitionMismatch(error) ? "refused" : "failed";
 }
 
-async function rejudged(dseq: string, copy: DeploymentCopy, copies: CopyAccess): Promise<DeploymentCopyFate> {
-  return copies.fateOf(copy, await copies.recordOf(dseq));
+/** Undefined when the copy holds no name the console lacks. */
+async function sendUnsentName(dseq: string, copy: DeploymentCopy, record: DeploymentRecord, copies: CopyAccess): Promise<boolean | undefined> {
+  const name = unsentNameOf(copy, record);
+  return name ? copies.sendName(dseq, name) : undefined;
 }
 
 function refersToMissingSecrets(sdl: string): boolean {
@@ -168,20 +185,19 @@ function refersToMissingSecrets(sdl: string): boolean {
 }
 
 function countsOf(checked: CheckedCopy[]) {
-  const countOf = (fate: CheckedCopy["fate"]) => checked.filter(copy => copy.fate === fate).length;
+  const countOf = (outcome: Outcome) => checked.filter(copy => copy.outcome === outcome).length;
   const countRecording = (recording: Recording) => checked.filter(copy => copy.recording === recording).length;
 
   return {
     copies: checked.length,
-    forgotten: countOf("forget"),
-    onlyInBrowser: countOf("only-in-browser"),
-    onlyInBrowserActive: checked.filter(copy => copy.fate === "only-in-browser" && copy.isActive).length,
-    restoresVariables: countOf("restores-variables"),
-    holdsName: countOf("holds-name"),
-    kept: countOf("keep"),
+    forgotten: countOf("forgotten") + countOf("unreadable"),
     unreadable: countOf("unreadable"),
+    keptRunning: countOf("kept-running"),
+    recordFailed: countOf("record-failed"),
+    nameFailed: countOf("name-failed"),
+    unchecked: countOf("unchecked"),
     recorded: countRecording("recorded"),
-    recordFailed: countRecording("failed"),
+    recordRefused: countRecording("refused"),
     namesSent: checked.filter(copy => copy.isNameSent).length
   };
 }

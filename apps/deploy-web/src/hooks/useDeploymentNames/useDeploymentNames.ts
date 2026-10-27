@@ -1,13 +1,10 @@
 import { useCallback, useMemo } from "react";
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { useQueries } from "@tanstack/react-query";
-import { useAtomValue } from "jotai";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useDeploymentNameBackfill } from "@src/hooks/useDeploymentNameBackfill/useDeploymentNameBackfill";
-import { settingsIdAtom } from "@src/store/settingsStore";
 
-export const DEPENDENCIES = { useServices, useDeploymentNameBackfill };
+export const DEPENDENCIES = { useServices };
 
 /** The api refuses a lookup naming more deployments than this, so a longer list is split into several. */
 export const MAX_DSEQS_PER_NAMES_LOOKUP = 100;
@@ -18,7 +15,7 @@ export const MAX_NAMED_DEPLOYMENTS = 5000;
 type Dseq = string | number | null | undefined;
 
 export interface DeploymentNames {
-  /** The api's name first, then this browser's record, then null so each surface keeps its own placeholder. */
+  /** The api's name, or null so each surface keeps its own placeholder. */
   getDeploymentName: (dseq: Dseq) => string | null;
   isLoading: boolean;
 }
@@ -76,11 +73,9 @@ function collectNames(lookups: Array<{ data?: NamesLookup }>): Map<string, strin
   return names;
 }
 
-/** The names of many deployments at once as the console api holds them, falling back to this browser's own record only where the api holds none. */
+/** The names of many deployments at once as the console api holds them. */
 export function useDeploymentNames(dseqs: ReadonlyArray<Dseq>, dependencies = DEPENDENCIES): DeploymentNames {
-  const { api, deploymentLocalStorage } = dependencies.useServices();
-  /** Read from the store rather than `useWallet`, so surfaces mounted outside the wallet provider resolve their records too. */
-  const address = useAtomValue(settingsIdAtom);
+  const { api } = dependencies.useServices();
   const lookupKey = normalizeDseqs(dseqs).join(",");
   const { lookups, combine } = useMemo(() => lookupsOf(lookupKey), [lookupKey]);
   const { names: apiNames, isLoading } = useQueries({
@@ -88,15 +83,13 @@ export function useDeploymentNames(dseqs: ReadonlyArray<Dseq>, dependencies = DE
     combine
   });
 
-  dependencies.useDeploymentNameBackfill([...apiNames].map(([dseq, name]) => ({ dseq, name })));
-
   const getDeploymentName = useCallback(
     (dseq: Dseq) => {
       if (dseq === null || dseq === undefined || dseq === "") return null;
 
-      return apiNames.get(String(dseq)) ?? deploymentLocalStorage.get(address, dseq)?.name ?? null;
+      return apiNames.get(String(dseq)) ?? null;
     },
-    [apiNames, deploymentLocalStorage, address]
+    [apiNames]
   );
 
   return { getDeploymentName, isLoading };

@@ -8,7 +8,6 @@ import { RotateCcw } from "lucide-react";
 import { resolveDeploymentGpus } from "@src/components/deployments/DeploymentDetail/DeploymentPlacements/placementModel";
 import { DeploymentSpecSummary } from "@src/components/deployments/DeploymentsList/DeploymentSpecSummary";
 import { useServices } from "@src/context/ServicesProvider";
-import { sdlToRedeploy } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import { useRedeploy } from "@src/hooks/useRedeploy/useRedeploy";
 import { useBlock } from "@src/queries/useBlocksQuery";
 import { useProvidersByAddresses } from "@src/queries/useProvidersQuery";
@@ -43,7 +42,7 @@ export const LastConfigurationCard: FC<Props> = ({ deployment, definition, targe
   const redeployLastConfiguration = () => {
     analyticsService.track("redeploy_last_configuration_btn_clk", "Amplitude");
     redeploy({
-      sdl: sdlToRedeploy(definition),
+      sdl: definition.sdl,
       name: definition.name ?? deployment.name ?? undefined,
       sourceDseq: deployment.dseq,
       projectId: targetProjectId ?? deployment.projectId

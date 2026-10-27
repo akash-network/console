@@ -187,7 +187,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
 
         <LockedFieldsNotice />
 
-        {!isClosed && <ProtectedVariablesNotice restoredSdl={definition.restoredSdl} locked={isBusy || isReloading} />}
+        {!isClosed && <ProtectedVariablesNotice />}
 
         {baseline.values.placements.map((placement, position) => {
           const lease = leases?.find((candidate, index) => getPlacementName(candidate.group, index) === placement.name);

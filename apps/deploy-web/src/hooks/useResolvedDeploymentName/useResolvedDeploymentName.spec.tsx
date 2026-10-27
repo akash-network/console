@@ -1,12 +1,8 @@
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
-import { createStore, Provider as JotaiStoreProvider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
-import { mock } from "vitest-mock-extended";
 
-import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
-import { settingsIdAtom } from "@src/store/settingsStore";
 import type { DEPENDENCIES } from "./useResolvedDeploymentName";
 import { useResolvedDeploymentName } from "./useResolvedDeploymentName";
 
@@ -15,8 +11,8 @@ import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client"
 type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
 
 describe(useResolvedDeploymentName.name, () => {
-  it("prefers the name the api holds over the one this browser recorded", async () => {
-    const { result } = setup({ apiName: "api-name", localName: "local-name" });
+  it("resolves to the name the api holds", async () => {
+    const { result } = setup({ apiName: "api-name" });
 
     await vi.waitFor(() => expect(result.current).toBe("api-name"));
   });
@@ -27,98 +23,48 @@ describe(useResolvedDeploymentName.name, () => {
     await vi.waitFor(() => expect(getDeployment).toHaveBeenCalledWith({ dseq: "123" }));
   });
 
-  it("falls back to this browser's record when the api holds no name", async () => {
-    const { result, getDeployment } = setup({ apiName: null, localName: "local-name" });
+  it("resolves to nothing while the api's answer is still resolving", () => {
+    const { result } = setup({ apiName: "api-name" });
 
-    await vi.waitFor(() => expect(getDeployment).toHaveBeenCalled());
-    expect(result.current).toBe("local-name");
+    expect(result.current).toBeUndefined();
   });
 
-  it("reads this browser's record under the wallet the app recorded, with no wallet provider above the hook", async () => {
-    const { result, deploymentLocalStorage } = setup({ apiName: null, localName: "local-name" });
-
-    await vi.waitFor(() => expect(result.current).toBe("local-name"));
-    expect(deploymentLocalStorage.get).toHaveBeenCalledWith("akash1test", "123");
-  });
-
-  it("serves this browser's record while the api's answer is still resolving", () => {
-    const { result } = setup({ apiName: "api-name", localName: "local-name" });
-
-    expect(result.current).toBe("local-name");
-  });
-
-  it("resolves to nothing when neither holds a name, leaving the caller its own placeholder", async () => {
+  it("resolves to nothing when the api holds no name, leaving the caller its own placeholder", async () => {
     const { result, getDeployment } = setup({ apiName: null });
 
     await vi.waitFor(() => expect(getDeployment).toHaveBeenCalled());
     expect(result.current).toBeUndefined();
   });
 
-  it.each([401, 403, 404])("recovers a %s into this browser's record instead of failing the query", async status => {
-    const { result, onQueryError, queryStatus } = setup({
-      apiError: new ApiError(status, {}, `GET /v1/deployments/{dseq} → ${status}`),
-      localName: "local-name"
-    });
+  it.each([401, 403, 404])("recovers a %s into no name instead of failing the query", async status => {
+    const { result, onQueryError, queryStatus } = setup({ apiError: new ApiError(status, {}, `GET /v1/deployments/{dseq} → ${status}`) });
 
     await vi.waitFor(() => expect(queryStatus()).toBe("success"));
-    expect(result.current).toBe("local-name");
+    expect(result.current).toBeUndefined();
     expect(onQueryError).not.toHaveBeenCalled();
   });
 
-  it("reports a server error rather than silencing it, and still falls back", async () => {
-    const { result, onQueryError, queryStatus } = setup({ apiError: new ApiError(500, {}, "GET /v1/deployments/{dseq} → 500"), localName: "local-name" });
+  it("reports a server error rather than silencing it", async () => {
+    const { result, onQueryError, queryStatus } = setup({ apiError: new ApiError(500, {}, "GET /v1/deployments/{dseq} → 500") });
 
     await vi.waitFor(() => expect(onQueryError).toHaveBeenCalled());
     expect(queryStatus()).toBe("error");
-    expect(result.current).toBe("local-name");
-  });
-
-  it.each([null, "api-name"])("hands the api's answer of %p to the backfill once it arrives", async apiName => {
-    const { useDeploymentNameBackfill } = setup({ apiName });
-
-    await vi.waitFor(() => expect(useDeploymentNameBackfill).toHaveBeenLastCalledWith([{ dseq: "123", name: apiName }]));
-  });
-
-  it("hands the backfill nothing while the api is still answering", () => {
-    const { useDeploymentNameBackfill } = setup({ apiName: null, localName: "local-name" });
-
-    expect(useDeploymentNameBackfill).toHaveBeenLastCalledWith([]);
-  });
-
-  it("hands the backfill nothing when the api refused the read, whose answer is then unknown", async () => {
-    const { useDeploymentNameBackfill, getDeployment } = setup({
-      apiError: new ApiError(401, {}, "GET /v1/deployments/{dseq} \u2192 401"),
-      localName: "local-name"
-    });
-
-    await vi.waitFor(() => expect(getDeployment).toHaveBeenCalled());
-    expect(useDeploymentNameBackfill).toHaveBeenLastCalledWith([]);
-  });
-
-  it("hands the backfill nothing when there is no dseq", () => {
-    const { useDeploymentNameBackfill } = setup({ dseq: null, localName: "local-name" });
-
-    expect(useDeploymentNameBackfill).toHaveBeenLastCalledWith([]);
+    expect(result.current).toBeUndefined();
   });
 
   it("asks the api for nothing when there is no dseq", () => {
-    const { result, getDeployment } = setup({ dseq: null, apiName: "api-name", localName: "local-name" });
+    const { result, getDeployment } = setup({ dseq: null, apiName: "api-name" });
 
     expect(getDeployment).not.toHaveBeenCalled();
     expect(result.current).toBeUndefined();
   });
 
-  function setup(input: { dseq?: string | null; apiName?: string | null; apiError?: Error; localName?: string }) {
-    const useDeploymentNameBackfill = vi.fn<typeof DEPENDENCIES.useDeploymentNameBackfill>();
+  function setup(input: { dseq?: string | null; apiName?: string | null; apiError?: Error }) {
     const getDeployment = vi.fn(() => {
       if (input.apiError) return Promise.reject(input.apiError);
       return Promise.resolve({ data: { name: input.apiName ?? null } });
     });
     const api = createProxy({ v1: { getDeployment } }) as unknown as ApiService;
-
-    const deploymentLocalStorage = mock<DeploymentStorageService>({
-      get: vi.fn((address, dseq) => (address && dseq && input.localName ? { name: input.localName } : null))
-    });
 
     const onQueryError = vi.fn();
     const queryClient = new QueryClient({
@@ -126,23 +72,17 @@ describe(useResolvedDeploymentName.name, () => {
       queryCache: new QueryCache({ onError: onQueryError })
     });
 
-    /** `satisfies` type-checks both fields against the real container, but `api` is a recursive proxy that `mock<T>()` recurses into until the heap dies. */
-    const services = { api, deploymentLocalStorage } satisfies Partial<ReturnType<typeof DEPENDENCIES.useServices>>;
+    /** `satisfies` type-checks the field against the real container, but `api` is a recursive proxy that `mock<T>()` recurses into until the heap dies. */
+    const services = { api } satisfies Partial<ReturnType<typeof DEPENDENCIES.useServices>>;
     const useServices: typeof DEPENDENCIES.useServices = () => services as unknown as ReturnType<typeof DEPENDENCIES.useServices>;
 
-    const store = createStore();
-    store.set(settingsIdAtom, "akash1test");
-
-    const { result } = setupQuery(() => useResolvedDeploymentName(input.dseq === undefined ? "123" : input.dseq, { useServices, useDeploymentNameBackfill }), {
-      services: { api: () => api, deploymentLocalStorage: () => deploymentLocalStorage, queryClient: () => queryClient },
-      wrapper: ({ children }) => <JotaiStoreProvider store={store}>{children}</JotaiStoreProvider>
+    const { result } = setupQuery(() => useResolvedDeploymentName(input.dseq === undefined ? "123" : input.dseq, { useServices }), {
+      services: { api: () => api, queryClient: () => queryClient }
     });
 
     return {
       result,
       getDeployment,
-      useDeploymentNameBackfill,
-      deploymentLocalStorage,
       onQueryError,
       queryStatus: () => queryClient.getQueryState(api.v1.getDeployment.getKey({ dseq: "123" }))?.status
     };
