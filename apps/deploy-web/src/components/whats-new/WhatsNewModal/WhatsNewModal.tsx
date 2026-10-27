@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Dialog, DialogClose, DialogDescription, DialogOverlay, DialogPortal, DialogPrimitiveContent, DialogTitle } from "@akashnetwork/ui/components";
 import { useMediaQuery } from "@akashnetwork/ui/hooks";
 import { cn } from "@akashnetwork/ui/utils";
-import { ArrowRight, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Pause, Play, X } from "lucide-react";
 
 import type { WhatsNewRelease } from "../organizationsRelease";
 import type { Box } from "../SpotlightTour/placeCoachCard";
@@ -61,7 +61,8 @@ type SlidesProps = Pick<Props, "release" | "onClose" | "onTryIt"> & {
 
 function Slides({ release, cardRef, slidesRef, onClose, onTryIt, dependencies: d }: SlidesProps) {
   const [slideIndex, setSlideIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPointerOnStage, setIsPointerOnStage] = useState(false);
+  const [isPausedByReader, setIsPausedByReader] = useState(false);
   const prefersReducedMotion = d.useMediaQuery("(prefers-reduced-motion: reduce)");
   const { measureRef, width } = d.useElementWidth();
   const slideCount = release.slides.length;
@@ -69,9 +70,10 @@ function Slides({ release, cardRef, slidesRef, onClose, onTryIt, dependencies: d
   const isFirstSlide = slideIndex === 0;
   const isLastSlide = slideIndex === slideCount - 1;
   const { durationSeconds, posterAt } = SCENES[slide.sceneId];
-  const elapsedSeconds = d.useSceneClock(!isPaused && !prefersReducedMotion, String(slideIndex));
+  const elapsedSeconds = d.useSceneClock(!isPointerOnStage && !isPausedByReader && !prefersReducedMotion, String(slideIndex));
   const hasSceneEnded = elapsedSeconds >= durationSeconds;
-  const sceneTime = prefersReducedMotion ? posterAt : isLastSlide ? elapsedSeconds % durationSeconds : Math.min(elapsedSeconds, durationSeconds);
+  const isShowingPoster = prefersReducedMotion || (isPausedByReader && elapsedSeconds === 0);
+  const sceneTime = isShowingPoster ? posterAt : isLastSlide ? elapsedSeconds % durationSeconds : Math.min(elapsedSeconds, durationSeconds);
 
   useEffect(
     function advanceOnceTheSceneEnds() {
@@ -103,8 +105,8 @@ function Slides({ release, cardRef, slidesRef, onClose, onTryIt, dependencies: d
       <div
         ref={measureRef}
         className="relative aspect-video shrink-0 overflow-hidden bg-background"
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
+        onMouseEnter={() => setIsPointerOnStage(true)}
+        onMouseLeave={() => setIsPointerOnStage(false)}
       >
         {width > 0 && <d.WhatsNewScene sceneId={slide.sceneId} time={sceneTime} width={width} height={(width * 9) / 16} />}
         <div className="absolute inset-x-0 bottom-0 flex h-[3px] gap-[3px]" aria-hidden="true">
@@ -150,6 +152,17 @@ function Slides({ release, cardRef, slidesRef, onClose, onTryIt, dependencies: d
           <Button variant="outline" size="icon" className="h-9 w-9 rounded-[9px]" aria-label="Next slide" disabled={isLastSlide} onClick={showNextSlide}>
             <ChevronRight className="h-4 w-4" />
           </Button>
+          {!prefersReducedMotion && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 rounded-[9px]"
+              aria-label={isPausedByReader ? "Play slideshow" : "Pause slideshow"}
+              onClick={() => setIsPausedByReader(isPaused => !isPaused)}
+            >
+              {isPausedByReader ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+            </Button>
+          )}
         </div>
         <div className="flex w-full gap-2 sm:ml-auto sm:w-auto">
           <Button variant="ghost" className="h-9 rounded-[9px] px-4 text-muted-foreground max-sm:flex-1" onClick={onClose}>

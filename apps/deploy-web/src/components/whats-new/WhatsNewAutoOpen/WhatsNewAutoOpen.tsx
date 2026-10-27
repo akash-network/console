@@ -18,12 +18,13 @@ const MID_TASK_PATH_PREFIXES = ["/new-deployment", "/invitations", "/onboarding"
 /** Announces the release once, shortly after a page with the full navigation settles. */
 export function WhatsNewAutoOpen({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES }) {
   const pathname = d.usePathname() ?? "";
-  const { isLoading: isOrganizationLoading } = d.useActiveOrganization();
+  const { isLoading: isOrganizationLoading, isError: hasOrganizationFailedToLoad } = d.useActiveOrganization();
   const seenReleases = useAtomValue(seenWhatsNewReleasesAtom);
   const view = useAtomValue(whatsNewViewAtom);
   const openWhatsNew = d.useOpenWhatsNew();
   const isMidTask = MID_TASK_PATH_PREFIXES.some(prefix => pathname.startsWith(prefix));
-  const shouldAnnounce = !isOrganizationLoading && !view && !isMidTask && !seenReleases.includes(ORGANIZATIONS_RELEASE_ID);
+  const isOrganizationKnown = !isOrganizationLoading && !hasOrganizationFailedToLoad;
+  const shouldAnnounce = isOrganizationKnown && !view && !isMidTask && !seenReleases.includes(ORGANIZATIONS_RELEASE_ID);
 
   useEffect(
     function announceOnceThePageSettles() {

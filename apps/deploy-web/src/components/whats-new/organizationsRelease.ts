@@ -16,7 +16,8 @@ type Audience = {
 };
 
 export function organizationsRelease({ isInTeam, canManageProjects, showProjects }: Audience): WhatsNewRelease {
-  const projectSteps = isInTeam ? [projectsStep(showProjects), ...(canManageProjects ? [newProjectStep(showProjects)] : [])] : [];
+  const canCreateProjects = isInTeam && canManageProjects;
+  const projectSteps = isInTeam ? [projectsStep(showProjects), ...(canCreateProjects ? [newProjectStep(showProjects)] : [])] : [];
 
   return {
     id: ORGANIZATIONS_RELEASE_ID,
@@ -33,11 +34,17 @@ export function organizationsRelease({ isInTeam, canManageProjects, showProjects
             title: "Projects group your team’s deployments",
             body: "In an organization, a project groups the deployments behind one app or service."
           },
-      {
-        sceneId: "newProject",
-        title: "Start a project for each app",
-        body: "Click New project, give it a name like checkout-api, and add a short description so everyone knows what lives there."
-      },
+      canCreateProjects
+        ? {
+            sceneId: "newProject",
+            title: "Start a project for each app",
+            body: "Click New project, give it a name like checkout-api, and add a short description so everyone knows what lives there."
+          }
+        : {
+            sceneId: "newProject",
+            title: "One project for each app",
+            body: "Owners and admins start a project for each app or service, named something like checkout-api, with a short description so everyone knows what lives there."
+          },
       {
         sceneId: "switcher",
         title: "Switch between accounts",

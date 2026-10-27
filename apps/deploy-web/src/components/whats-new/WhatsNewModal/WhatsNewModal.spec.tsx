@@ -131,12 +131,46 @@ describe(WhatsNewModal.name, () => {
     expect(useSceneClock).toHaveBeenLastCalledWith(true, "0");
   });
 
+  it("pauses and resumes the slideshow from its button", async () => {
+    const { useSceneClock } = setup();
+
+    await userEvent.click(screen.getByRole("button", { name: "Pause slideshow" }));
+    expect(useSceneClock).toHaveBeenLastCalledWith(false, "0");
+
+    await userEvent.click(screen.getByRole("button", { name: "Play slideshow" }));
+    expect(useSceneClock).toHaveBeenLastCalledWith(true, "0");
+  });
+
+  it("holds a paused scene on the frame it reached", async () => {
+    const { WhatsNewScene } = setup({ elapsedBySlide: [2] });
+
+    await userEvent.click(screen.getByRole("button", { name: "Pause slideshow" }));
+
+    expect(WhatsNewScene.mock.lastCall?.[0]).toMatchObject({ sceneId: "projects", time: 2 });
+  });
+
+  it("shows the poster frame of a slide reached while paused", async () => {
+    const { WhatsNewScene, useSceneClock } = setup();
+
+    await userEvent.click(screen.getByRole("button", { name: "Pause slideshow" }));
+    await clickNextSlide(1);
+
+    expect(useSceneClock).toHaveBeenLastCalledWith(false, "1");
+    expect(WhatsNewScene.mock.lastCall?.[0]).toMatchObject({ sceneId: "newProject", time: 4.7 });
+  });
+
   describe("when motion is reduced", () => {
     it("shows each scene's poster frame with the clock stopped", () => {
       const { WhatsNewScene, useSceneClock } = setup({ prefersReducedMotion: true });
 
       expect(useSceneClock).toHaveBeenLastCalledWith(false, "0");
       expect(WhatsNewScene.mock.lastCall?.[0]).toMatchObject({ sceneId: "projects", time: 2.9 });
+    });
+
+    it("offers no pause button, since nothing plays", () => {
+      setup({ prefersReducedMotion: true });
+
+      expect(screen.queryByRole("button", { name: "Pause slideshow" })).not.toBeInTheDocument();
     });
 
     it("leaves moving on to the reader", () => {

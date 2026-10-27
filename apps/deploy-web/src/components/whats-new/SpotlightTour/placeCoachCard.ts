@@ -39,7 +39,7 @@ export function placeCoachCard(target: Box, preferred: CoachSide, card: Size, vi
     return { side, x, y: centeredY, arrowX: null, arrowY: arrowOffset(target.y + target.height / 2 - centeredY, card.height) };
   }
 
-  return { side, x: centeredX, y: viewport.height - card.height - VIEWPORT_MARGIN, arrowX: null, arrowY: null };
+  return { side, x: centeredX, y: Math.max(VIEWPORT_MARGIN, viewport.height - card.height - VIEWPORT_MARGIN), arrowX: null, arrowY: null };
 }
 
 function arrowOffset(offsetToTargetCenter: number, cardEdgeLength: number) {

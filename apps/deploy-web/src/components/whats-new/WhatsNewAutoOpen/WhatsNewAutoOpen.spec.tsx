@@ -48,6 +48,17 @@ describe(WhatsNewAutoOpen.name, () => {
     expect(openWhatsNew).toHaveBeenCalledOnce();
   });
 
+  it("waits while the organization fails to load, so a team member is not shown the personal account's version", () => {
+    const { openWhatsNew, rerenderWith } = setup({ hasOrganizationFailedToLoad: true });
+
+    act(() => vi.advanceTimersByTime(5000));
+    expect(openWhatsNew).not.toHaveBeenCalled();
+
+    rerenderWith({ hasOrganizationFailedToLoad: false });
+    act(() => vi.advanceTimersByTime(1100));
+    expect(openWhatsNew).toHaveBeenCalledOnce();
+  });
+
   it("stays quiet while the announcement or its tour is already showing", () => {
     const { openWhatsNew } = setup({ view: "tour" });
 
@@ -90,7 +101,15 @@ describe(WhatsNewAutoOpen.name, () => {
     expect(openWhatsNew).not.toHaveBeenCalled();
   });
 
-  function setup(input: { seenReleases?: string[]; view?: WhatsNewView; pathname?: string | null; isOrganizationLoading?: boolean } = {}) {
+  function setup(
+    input: {
+      seenReleases?: string[];
+      view?: WhatsNewView;
+      pathname?: string | null;
+      isOrganizationLoading?: boolean;
+      hasOrganizationFailedToLoad?: boolean;
+    } = {}
+  ) {
     vi.useFakeTimers();
     localStorage.removeItem("console.whatsNew.seen");
     const store = createStore();
@@ -98,19 +117,25 @@ describe(WhatsNewAutoOpen.name, () => {
     store.set(whatsNewViewAtom, input.view ?? null);
     const openWhatsNew = vi.fn<ReturnType<typeof DEPENDENCIES.useOpenWhatsNew>>();
 
-    const dependenciesFor = (state: { isOrganizationLoading: boolean }): typeof DEPENDENCIES => ({
+    type OrganizationState = { isOrganizationLoading: boolean; hasOrganizationFailedToLoad: boolean };
+    const dependenciesFor = (state: OrganizationState): typeof DEPENDENCIES => ({
       usePathname: () => (input.pathname === undefined ? "/deployments" : input.pathname) as string,
-      useActiveOrganization: () => mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ isLoading: state.isOrganizationLoading }),
+      useActiveOrganization: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ isLoading: state.isOrganizationLoading, isError: state.hasOrganizationFailedToLoad }),
       useOpenWhatsNew: () => openWhatsNew
     });
-    const renderWith = (state: { isOrganizationLoading: boolean }) => (
+    const renderWith = (state: OrganizationState) => (
       <JotaiProvider store={store}>
         <WhatsNewAutoOpen dependencies={dependenciesFor(state)} />
       </JotaiProvider>
     );
+    const initialState = {
+      isOrganizationLoading: input.isOrganizationLoading ?? false,
+      hasOrganizationFailedToLoad: input.hasOrganizationFailedToLoad ?? false
+    };
 
-    const { rerender, unmount } = render(renderWith({ isOrganizationLoading: input.isOrganizationLoading ?? false }));
+    const { rerender, unmount } = render(renderWith(initialState));
 
-    return { openWhatsNew, unmount, rerenderWith: (state: { isOrganizationLoading: boolean }) => rerender(renderWith(state)) };
+    return { openWhatsNew, unmount, rerenderWith: (state: Partial<OrganizationState>) => rerender(renderWith({ ...initialState, ...state })) };
   }
 });

@@ -60,6 +60,12 @@ describe(placeCoachCard.name, () => {
     expect(placement).toEqual({ side: "none", x: 440, y: 602, arrowX: null, arrowY: null });
   });
 
+  it("keeps the top of a card taller than the viewport on screen", () => {
+    const placement = placeCoachCard({ x: 0, y: 20, width: 1200, height: 150 }, "bottom", CARD, { width: 1200, height: 180 });
+
+    expect(placement).toMatchObject({ side: "none", y: 8 });
+  });
+
   it("keeps the card inside the viewport and points its arrow at a target near the edge", () => {
     const placement = placeCoachCard({ x: 1150, y: 10, width: 40, height: 30 }, "bottom", CARD, VIEWPORT);
 

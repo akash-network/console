@@ -3,12 +3,19 @@ import { describe, expect, it, vi } from "vitest";
 import { ORGANIZATIONS_RELEASE_ID, organizationsRelease } from "./organizationsRelease";
 import { TOUR_TARGET } from "./tourTargets";
 
+const NEW_PROJECT_SLIDE = {
+  sceneId: "newProject",
+  title: "Start a project for each app",
+  body: "Click New project, give it a name like checkout-api, and add a short description so everyone knows what lives there."
+};
+
+const PROJECT_PER_APP_SLIDE = {
+  sceneId: "newProject",
+  title: "One project for each app",
+  body: "Owners and admins start a project for each app or service, named something like checkout-api, with a short description so everyone knows what lives there."
+};
+
 const SHARED_SLIDES = [
-  {
-    sceneId: "newProject",
-    title: "Start a project for each app",
-    body: "Click New project, give it a name like checkout-api, and add a short description so everyone knows what lives there."
-  },
   {
     sceneId: "switcher",
     title: "Switch between accounts",
@@ -94,8 +101,15 @@ describe(organizationsRelease.name, () => {
           title: "Your deployments now live in projects",
           body: "A project groups the deployments behind one app or service. Hover a folder on the Projects page to see what’s running inside."
         },
+        NEW_PROJECT_SLIDE,
         ...SHARED_SLIDES
       ]);
+    });
+
+    it("tells a member who cannot create projects who starts them instead of pointing at New project", () => {
+      const { release } = setup({ isInTeam: true, canManageProjects: false });
+
+      expect(release.slides[1]).toEqual(PROJECT_PER_APP_SLIDE);
     });
 
     it("tours an owner or admin through the projects, New project, the switcher and Create organization", () => {
@@ -130,6 +144,7 @@ describe(organizationsRelease.name, () => {
           title: "Projects group your team’s deployments",
           body: "In an organization, a project groups the deployments behind one app or service."
         },
+        PROJECT_PER_APP_SLIDE,
         ...SHARED_SLIDES
       ]);
     });
