@@ -4,15 +4,23 @@ An operator document for the keys that protect deployment secrets in the Console
 
 Every `./dist/console.js` command below runs from a console-api pod in the environment. The CLI starts the app's initializers first, and they reach the feature-flag service and the job queues inside the cluster, so the same command from a laptop dies on an unresolvable host before it does anything. The rehearsal script in section 3 starts no initializer and does run from a laptop.
 
+Reach a pod with `kubectl exec`, naming the namespace (`staging` or `prod`) and the chain (`mainnet` or `sandbox`), and keep what it prints:
+
+```sh
+kubectl -n staging exec deploy/console-api-sandbox -- node --require ./dist/instrumentation.js ./dist/console.js <command> 2>&1 | tee <command>.log
+```
+
+The output of an exec'd command goes to your terminal and never reaches Loki, so that file is the only record of the run's report. A `PENDING_ACTIVITIES_SUMMARY_FAILED` warning printed after `COMMAND_END` comes from a metrics flush that runs after the command closed its database connection (CON-1442), and it says nothing about the command.
+
 ## 1. What is protected, and by what
 
 Deployment secrets are sealed in three layers. Each layer is what the next one is wrapped under, and each operation in this document touches exactly one of them.
 
-| Layer                | Where it lives                                                                                                          | What it is                                                                                                                                                     | Changed by                                        |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| KMS key version      | Cloud KMS, key `GCP_KMS_KEY` in key ring `GCP_KMS_KEY_RING`, location `GCP_KMS_LOCATION`, version `GCP_KMS_KEY_VERSION` | An asymmetric RSA key. The console holds its public half in memory and calls the key service only to unwrap.                                                   | Scheduled rotation (section 2)                    |
-| Data encryption key  | `data_keys`, one active row per user, wrapped under a KMS version named in `wrapped_by_kid` as `<key>.v<version>`       | A random 256-bit key per user.                                                                                                                                 | Per-user re-key (section 3)                       |
-| Stored secrets token | `deployment_settings.sealed_secrets`, one compact JWE per deployment                                                    | The deployment's secret values, encrypted under the user's data key. Its header names the owner (`sub`), the deployment (`dseq`) and the data key row (`kid`). | The user's own deploys, and a re-key of that user |
+| Layer                | Where it lives                                                                                                                | What it is                                                                                                                                                                                   | Changed by                                         |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| KMS key version      | Cloud KMS, key `GCP_KMS_KEY` in key ring `GCP_KMS_KEY_RING`, location `GCP_KMS_LOCATION`, version `GCP_KMS_KEY_VERSION`       | An asymmetric RSA key. The console holds its public half in memory and calls the key service only to unwrap.                                                                                 | Scheduled rotation (section 2)                     |
+| Data encryption key  | `data_keys`, one active row per user or per team, wrapped under a KMS version named in `wrapped_by_kid` as `<key>.v<version>` | A random 256-bit key per user, or per team for the secrets the team shares.                                                                                                                  | Per-user re-key (section 3)                        |
+| Stored secrets token | `deployment_settings.sealed_secrets`, one compact JWE per deployment                                                          | The deployment's secret values, encrypted under the owner's data key. Its header names the owner (`sub` for a user, `org` for a team), the deployment (`dseq`) and the data key row (`kid`). | The owner's own deploys, and a re-key of that user |
 
 Two consequences drive everything below.
 
@@ -24,6 +32,23 @@ Rotating the KMS version does not change any data key. Someone who captured a us
 
 Run this on the schedule the team agrees on, and whenever a KMS version is suspected compromised. Every step is safe to repeat.
 
+Before starting, check which consoles wrap under the key and which share the database, because the two do not line up:
+
+| Console         | Configuration     | Key it wraps under, by GCP project | Users database                |
+| --------------- | ----------------- | ---------------------------------- | ----------------------------- |
+| Staging mainnet | `staging-mainnet` | `console-staging-506109`           | `console-users-staging`       |
+| Staging sandbox | `staging-sandbox` | `console-staging-506109`           | `console-users-staging`       |
+| Beta            | `prod-sandbox`    | `console-staging-506109`           | the production users database |
+| Production      | `prod-mainnet`    | `console-441017`                   | the production users database |
+
+The key column was read from the key service's audit trail on 2026-10-27, by matching each pod's start-up `SDL_SECRETS_KEY_PUBLISHED` line to the `GetPublicKey` entry logged in the same 100 ms. The database column comes from migrations: the mainnet and sandbox consoles of an environment apply them to one database, so whichever deploys second finds nothing to apply. A `wrapped_by_kid` names the key and its version but not the project, so a row reads `sdl-secrets.v1` whichever project wrapped it.
+
+Three rules follow:
+
+- Raise the version in every configuration that writes to the database being rotated, which is both chains of the environment. A console left on the old version keeps creating data keys under it behind the re-wrap.
+- Disable a version only when every database whose consoles wrap under that key reads zero under it, and no configuration names it any more. On the staging key, beta still wraps under version 1, so version 1 stays enabled although `console-users-staging` reads zero.
+- Do not run this section against production until CON-1441 is settled. The production database holds data keys from both projects under the same `wrapped_by_kid`, so a re-wrap from a production pod fails on every row beta wrapped, and its census cannot tell the two apart.
+
 1. Create the new key version in Cloud KMS and confirm it is enabled:
 
    ```sh
@@ -31,7 +56,15 @@ Run this on the schedule the team agrees on, and whenever a KMS version is suspe
    gcloud kms keys versions list --location "$GCP_KMS_LOCATION" --keyring "$GCP_KMS_KEY_RING" --key "$GCP_KMS_KEY"
    ```
 
-2. Raise `GCP_KMS_KEY_VERSION` to the new version number in the environment's configuration and deploy the API. From then on new data keys are wrapped under the new version, and everything wrapped under an older enabled version still opens. Confirm with `GET /v1/sdl-secrets-context`: its `kid` must read `<key>.v<new version>`.
+2. Raise `GCP_KMS_KEY_VERSION` to the new version number in every configuration the table above puts on the database being rotated. No deploy is needed: the Doppler operator restarts the API, bg-jobs and stats pods within about a minute of the change, and cron jobs read the new value on their next run. From then on new data keys are wrapped under the new version, and everything wrapped under an older enabled version still opens.
+
+   Check every workload, since each restarts on its own. A pod logs `SDL_SECRETS_KEY_PUBLISHED` with its `kid` when it starts, and every pod started after the change must read `<key>.v<new version>`:
+
+   ```logql
+   {namespace="staging", service_name=~"console-api-(mainnet|sandbox)(-bg-jobs)?"} |= "SDL_SECRETS_KEY_PUBLISHED"
+   ```
+
+   `GET /v1/sdl-secrets-context` answers the same question for whichever pod serves it, and only for a signed-in caller.
 
 3. Rehearse the re-wrap without writing anything. The command refuses a target that is not the version the console is configured to wrap under, so a typo cannot move the fleet onto a version new keys do not land on:
 
@@ -39,17 +72,17 @@ Run this on the schedule the team agrees on, and whenever a KMS version is suspe
    node --require ./dist/instrumentation.js ./dist/console.js rewrap-data-keys --target-version <new version> --dry-run
    ```
 
-   Read the report: `census` counts data keys per version, `dataKeysRewrapped` is how many a real run would move, and `dataKeysFailed` names rows a real run could not open. A non-zero `dataKeysFailed` needs investigating before the real run, since those rows would stay behind on the old version.
+   Read the report: `census` counts data keys per version, and `dataKeysRewrapped` is how many a real run would move. `dataKeysFailed` counts rows that would not parse or that name a version this console cannot resolve. The dry run never calls the key service, so it cannot see a row the key service would refuse to decrypt; only the real run finds those, counts them in the same field, logs each as `DATA_KEY_REWRAP_ROW_FAILED` with its id, and leaves them on the old version. A non-zero `dataKeysFailed` in either run needs investigating, since those rows stay behind.
 
-4. Run it for real, in batches of 100 rows per transaction by default:
+4. Run it for real, in batches of 100 rows per transaction by default. It makes one key-service call per row; on staging, 3,217 rows took 83 seconds:
 
    ```sh
    node --require ./dist/instrumentation.js ./dist/console.js rewrap-data-keys --target-version <new version>
    ```
 
-   Check the report. `secretsDrift.corruptedIds` must be empty (section 4 says what to do if it is not). `dataKeysMovedByAnotherWriter` counts rows another process moved between the read and the write; they are left to that writer. Re-run until `census` shows only the target version. A re-run is a no-op that spends no key-service call.
+   Check the report. `secretsDrift.corruptedIds` must be empty (section 4 says what to do if it is not). `dataKeysMovedByAnotherWriter` counts rows another process moved between the read and the write; they are left to that writer. The `census` is taken when a run starts, so the run that does the work still lists the old version. Re-run until `census` shows only the target version. A re-run is a no-op that spends no key-service call.
 
-5. Do not disable or destroy an old key version until the census of data keys under it returns zero. The command that answers it is the `census` in the report of a dry run, which counts every row, active and retired alike. The same answer in SQL:
+5. Do not disable or destroy an old key version until the census of data keys under it returns zero in every database whose consoles wrap under that key, and no configuration names it any more (the table at the top of this section). The command that answers it is the `census` in the report of a dry run, which counts every row, active and retired alike. The same answer in SQL:
 
    ```sql
    SELECT wrapped_by_kid, count(*) FROM data_keys GROUP BY 1 ORDER BY 1;
@@ -70,6 +103,18 @@ Run this on the schedule the team agrees on, and whenever a KMS version is suspe
    ```
 
    A version scheduled for destruction can no longer decrypt, so this is the step where a missed row becomes a 503. Cloud KMS holds the version for its scheduled-destruction period; `gcloud kms keys versions restore` cancels the destruction and returns the version to disabled, so re-enable it as well if something surfaced. After destruction completes, every data key still wrapped under that version is unrecoverable.
+
+Steps 1 to 5 were rehearsed on staging on 2026-10-27 (CON-967), moving `console-users-staging` from version 1 to version 2 of the staging key:
+
+| Step                 | What happened                                                                                                                                                                                       |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Configuration change | Both staging consoles and their bg-jobs published `sdl-secrets.v2` within a minute of the Doppler change. New data keys and a browser's sealed secrets landed on version 2 from then on.            |
+| Dry run              | Census of 3,217 under version 1, none failed.                                                                                                                                                       |
+| Real run             | 3,217 moved and none failed, in 83 seconds. The fingerprint of the 1,215 stored tokens was identical before and after, and the audit trail shows exactly 3,217 successful decrypts under version 1. |
+| Re-run               | Census of 3,228 under version 2 and none under version 1. Nothing moved and no key-service call.                                                                                                    |
+| Secrets afterwards   | Deployments sealed under a user's key and under two teams' keys all opened under version 2.                                                                                                         |
+
+Steps 6 and 7 have not been rehearsed, because beta still wraps under version 1 of the same key.
 
 ## 3. Emergency rotation and the per-user re-key
 
