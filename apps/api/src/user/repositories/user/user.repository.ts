@@ -42,6 +42,12 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return this.findUserWithWallet(eq(this.table.userId, userId!));
   }
 
+  /** Skipping and a first accepted create share this timestamp, because it is the one field the onboarding gate lets a user through on. */
+  @Trace()
+  async markOnboarded(id: UserOutput["id"]): Promise<void> {
+    await this.updateBy({ id, onboardingSkippedAt: null }, { onboardingSkippedAt: new Date() });
+  }
+
   @Trace()
   async markAsActive(
     id: UserOutput["id"],

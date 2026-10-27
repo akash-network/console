@@ -286,7 +286,7 @@ export class UserService {
   }
 
   async skipOnboarding(userId: string) {
-    await this.userRepository.updateBy({ id: userId, onboardingSkippedAt: null }, { onboardingSkippedAt: new Date() });
+    await this.userRepository.markOnboarded(userId);
   }
 
   async acceptFairUsePolicy(userId: string) {

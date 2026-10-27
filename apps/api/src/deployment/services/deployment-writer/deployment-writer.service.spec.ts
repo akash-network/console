@@ -59,6 +59,7 @@ import { decodeCreateDeploymentMessage, encodeCreateDeploymentMessage } from "@s
 import { failedUpdateActivityOf, pendingUpdateActivityOf, renamedActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
+import type { UserRepository } from "@src/user/repositories";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import type { DeploymentConfigService } from "../deployment-config/deployment-config.service";
 import type { DeploymentOrganizationActivityService } from "../deployment-organization-activity/deployment-organization-activity.service";
@@ -1469,6 +1470,35 @@ describe(DeploymentWriterService.name, () => {
 
       expect(accepted).toEqual({ userId: "user-1", walletId: wallet.id, dseq: ACCEPTED_DSEQ, message: expect.any(String) });
       expect(decodeCreateDeploymentMessage(JSON.parse(JSON.stringify(accepted)).message)).toEqual(checked);
+    });
+
+    it("marks the member who asked as onboarded once the create is accepted", async () => {
+      const { service, userRepository } = setup();
+
+      await service.acceptCreate({ userId: "member-1", sdl: SDL_WITH_SECRETS });
+
+      expect(userRepository.markOnboarded).toHaveBeenCalledWith("member-1");
+    });
+
+    it("leaves a refused create's member where onboarding found them", async () => {
+      const { service, signerService, userRepository } = setup();
+      signerService.assertCanBroadcast.mockRejectedValue(createError(402, "Insufficient balance"));
+
+      await expect(service.acceptCreate({ userId: "user-1", sdl: SDL_WITH_SECRETS })).rejects.toMatchObject({ status: 402 });
+
+      expect(userRepository.markOnboarded).not.toHaveBeenCalled();
+    });
+
+    it("still accepts the create when marking the member onboarded fails, and logs the failure", async () => {
+      const { service, userRepository, logger } = setup();
+      const failure = new Error("database unavailable");
+      userRepository.markOnboarded.mockRejectedValue(failure);
+      vi.spyOn(Date, "now").mockReturnValue(Number(ACCEPTED_DSEQ));
+
+      const { accepted } = await service.acceptCreate({ userId: "user-1", sdl: SDL_WITH_SECRETS });
+
+      expect(accepted.dseq).toBe(ACCEPTED_DSEQ);
+      expect(logger.error).toHaveBeenCalledWith({ event: "MARK_ONBOARDED_FAILED", userId: "user-1", error: failure });
     });
 
     it("hands over the team wallet the request resolved for the member who asked, leaving the project to the record it filed", async () => {
@@ -4594,7 +4624,8 @@ describe(DeploymentWriterService.name, () => {
         mock<DeploymentHttpService>(),
         mock<ChainErrorService>(),
         mock<DeploymentPresenceService>(),
-        mock<UserGpuBidCheckService>()
+        mock<UserGpuBidCheckService>(),
+        mock<UserRepository>()
       );
 
       function sealedFor() {
@@ -5254,6 +5285,7 @@ describe(DeploymentWriterService.name, () => {
     const chainErrorService = new ChainErrorService(mock<BalanceHttpService>(), billingConfig, mock<TxManagerService>());
     const deploymentPresenceService = mock<DeploymentPresenceService>();
     const userGpuBidCheckService = mock<UserGpuBidCheckService>();
+    const userRepository = mock<UserRepository>();
     deploymentPresenceService.isOnChain.mockResolvedValue(!!input?.onChainVersion);
     const accepted: AcceptedDeploymentCreate = {
       userId: "user-1",
@@ -5352,7 +5384,8 @@ describe(DeploymentWriterService.name, () => {
       deploymentHttpService,
       chainErrorService,
       deploymentPresenceService,
-      userGpuBidCheckService
+      userGpuBidCheckService,
+      userRepository
     );
 
     function storedSecrets() {
@@ -5387,6 +5420,7 @@ describe(DeploymentWriterService.name, () => {
       deploymentHttpService,
       deploymentPresenceService,
       userGpuBidCheckService,
+      userRepository,
       accepted,
       ability: mock<AnyAbility>(),
       storedSecrets
