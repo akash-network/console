@@ -4,7 +4,9 @@ import { useActiveOrganization } from "@src/context/OrganizationProvider/Organiz
 export const DEPENDENCIES = { useActiveOrganization };
 
 export function useCanManageBilling(dependencies: typeof DEPENDENCIES = DEPENDENCIES): boolean {
-  const { activeOrganization } = dependencies.useActiveOrganization();
+  const { activeOrganization, isLoading, isError } = dependencies.useActiveOrganization();
 
-  return !activeOrganization || canManageBilling(activeOrganization.role);
+  if (activeOrganization) return canManageBilling(activeOrganization.role);
+
+  return !isLoading && !isError;
 }
