@@ -30,6 +30,7 @@ export class ProviderProxyService {
     this.#httpClient = httpClient;
   }
 
+  /** Never follows a redirect, since provider-proxy relays the provider's own status and `Location`, which would otherwise point this pod at any address a provider names. */
   async request<T>(url: string, options: ProviderProxyPayload): Promise<T> {
     const { providerIdentity, timeout, ...params } = options;
     const response = await this.#httpClient.post(
@@ -42,6 +43,7 @@ export class ProviderProxyService {
         timeout // this is per attempt timeout on provider-proxy side
       },
       {
+        maxRedirects: 0,
         ...(timeout && {
           // this is total timeout for all attempts to communicate with the provider API, and it should be much higher than per attempt timeout
           timeout: timeout * 5
