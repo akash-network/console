@@ -49,16 +49,15 @@ export const GetTemplatesListResponseSchema = z.object({
 
 export type GetTemplatesListResponse = z.infer<typeof GetTemplatesListResponseSchema>;
 
+// Template ids never contain a path separator (they're built by collapsing "/" and "\" to "-"),
+// so rejecting them here blocks path traversal before the id reaches the filesystem.
+export const TemplateIdSchema = z.string().regex(/^[^/\\]+$/, "Invalid template ID");
+
 export const GetTemplateByIdParamsSchema = z.object({
-  // Template ids never contain a path separator (they're built by collapsing "/" and "\" to "-"),
-  // so rejecting them here blocks path traversal before the id reaches the filesystem.
-  id: z
-    .string()
-    .regex(/^[^/\\]+$/, "Invalid template ID")
-    .openapi({
-      description: "Template ID",
-      example: "akash-network-cosmos-omnibus-agoric"
-    })
+  id: TemplateIdSchema.openapi({
+    description: "Template ID",
+    example: "akash-network-cosmos-omnibus-agoric"
+  })
 });
 
 export const GetTemplateByIdResponseSchema = z.object({ data: TemplateSchema });

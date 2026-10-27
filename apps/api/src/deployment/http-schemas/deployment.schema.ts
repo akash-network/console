@@ -5,6 +5,7 @@ import { z } from "@hono/zod-openapi";
 import { SignTxResponseOutputSchema } from "@src/billing/http-schemas/tx.schema";
 import { MAX_MANIFEST_VERSION_LENGTH, MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
 import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/deployment/utils/deployment-name/deployment-name";
+import { TemplateIdSchema } from "@src/template/http-schemas/template.schema";
 import { openApiExampleAddress } from "@src/utils/constants";
 import { AkashAddressSchema, DseqSchema } from "@src/utils/schema";
 import { LeaseStatusResponseSchema } from "./lease.schema";
@@ -172,6 +173,9 @@ const ConsoleSettingsSchema = z.object({
   }),
   manifestVersion: z.string().openapi({
     description: "Base64 of the manifest version the console recorded for this deployment. Deliberately not a hash of the `sdl` above."
+  }),
+  templateId: z.string().nullable().openapi({
+    description: "ID of the gallery template the deployment was created from, or null when it was not created from one."
   })
 });
 
@@ -195,6 +199,8 @@ export const GetDeploymentParamsSchema = z.object({
 
 /** Every reader treats an empty seal as no seal, so accepting one would take a request the caller meant as a secret write and silently do nothing. */
 const SealedSecretsSchema = z.string().min(1);
+
+const MAX_TEMPLATE_ID_LENGTH = 255;
 
 /** Trimmed before it is measured, so a name of nothing but spaces is refused rather than stored as a blank one. */
 const DeploymentNameSchema = z.string().trim().min(1).max(MAX_DEPLOYMENT_NAME_LENGTH);
@@ -229,6 +235,10 @@ export const CreateDeploymentRequestSchema = z.object({
       }),
     projectId: z.string().uuid().optional().openapi({
       description: "Project to file the deployment in."
+    }),
+    templateId: TemplateIdSchema.max(MAX_TEMPLATE_ID_LENGTH).optional().openapi({
+      description:
+        "ID of the gallery template the SDL came from, as listed by GET /v1/templates. Console links the deployment to that template's guide. Not checked against the gallery."
     })
   })
 });
@@ -513,7 +523,7 @@ export const CreateDeploymentDefinitionRequestSchema = z.object({
 });
 
 export const CreateDeploymentDefinitionResponseSchema = z.object({
-  data: ConsoleSettingsSchema
+  data: ConsoleSettingsSchema.omit({ templateId: true })
 });
 
 export const deploymentListMaxLimit = 100;

@@ -50,7 +50,15 @@ describe(DeploymentReaderService.name, () => {
 
       const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
 
-      expect(result.consoleSettings).toEqual({ sdl: "version: '2.0'", manifestVersion: "BAUG" });
+      expect(result.consoleSettings).toEqual({ sdl: "version: '2.0'", manifestVersion: "BAUG", templateId: null });
+    });
+
+    it("returns the template the deployment was created from", async () => {
+      const { service, wallet } = setup({ recorded: { sdl: "version: '2.0'", manifestVersion: "BAUG", templateId: "akash-network-awesome-akash-sdxl" } });
+
+      const result = await service.findByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(result.consoleSettings).toMatchObject({ templateId: "akash-network-awesome-akash-sdxl" });
     });
 
     it("attaches the gpus the console read and the gpus the lease's bid offered to the lease they describe", async () => {
@@ -1171,7 +1179,7 @@ describe(DeploymentReaderService.name, () => {
       fallbackLeases?: ReturnType<typeof createLeaseApiResponse>[];
       leases?: ReturnType<typeof createLeaseApiResponse>[];
       leasePages?: { leases: ReturnType<typeof createLeaseApiResponse>[]; nextKey: string | null }[];
-      recorded?: (Pick<DeploymentSettingsOutput, "sdl" | "manifestVersion"> & { name?: string | null }) | null;
+      recorded?: (Pick<DeploymentSettingsOutput, "sdl" | "manifestVersion"> & { name?: string | null; templateId?: string | null }) | null;
       listedDseqs?: string[];
       names?: Record<string, string | null>;
       settings?: Record<string, Partial<ListedDeploymentSetting>>;
@@ -1243,7 +1251,11 @@ describe(DeploymentReaderService.name, () => {
 
     const recorded = input.recorded === undefined ? { sdl: "version: '2.0'", manifestVersion: "BAUG", name: null } : input.recorded;
     const scopedDeploymentSettingRepository = mock<DeploymentSettingRepository>({
-      findOneOfWallet: vi.fn().mockResolvedValue(recorded ? mock<DeploymentSettingsOutput>({ ...recorded, name: recorded.name ?? null }) : undefined),
+      findOneOfWallet: vi
+        .fn()
+        .mockResolvedValue(
+          recorded ? mock<DeploymentSettingsOutput>({ ...recorded, name: recorded.name ?? null, templateId: recorded.templateId ?? null }) : undefined
+        ),
       findNamesByDseqs: vi.fn().mockResolvedValue(new Map(Object.entries(input.names ?? {}))),
       findListedSettings: vi
         .fn()

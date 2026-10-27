@@ -32,6 +32,7 @@ type DeploymentSettingWithEstimatedTopUpAmount = Omit<
   | "providerUnreachableNotifiedFor"
   | "sealedSecrets"
   | "manifestVersion"
+  | "templateId"
   | "name"
   | "runtimeEndsAt"
   | "detectedGpus"
@@ -368,7 +369,7 @@ export class DeploymentSettingService {
    * deployment by, not something it hands back, and the response schema is types only — whatever this returns is
    * what ships. `sealedSecrets` is ciphertext rather than a value, but it is the one field here no response has any
    * reason to carry, so it is dropped by the same rule rather than by a weaker one. `detectedGpus` and `offeredGpus` are
-   * served on the deployment read, next to the lease they describe. `closeReason` and `closeReasonDetails` are feedback
+   * served on the deployment read, next to the lease they describe, and `templateId` beside the `sdl` it describes. `closeReason` and `closeReasonDetails` are feedback
    * the user gave us, not state any client acts on.
    */
   async withEstimatedTopUpAmount(params: DeploymentSettingsOutput): Promise<DeploymentSettingWithEstimatedTopUpAmount>;
@@ -385,6 +386,7 @@ export class DeploymentSettingService {
       sdl,
       sealedSecrets,
       manifestVersion,
+      templateId,
       name,
       runtimeEndsAt,
       detectedGpus,

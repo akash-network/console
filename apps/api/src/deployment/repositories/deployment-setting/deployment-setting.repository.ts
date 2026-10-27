@@ -1160,7 +1160,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     runtimeLimitHours,
     sealedSecrets,
     name,
-    projectId
+    projectId,
+    templateId
   }: {
     userId: string;
     dseq: string;
@@ -1170,6 +1171,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     sealedSecrets?: string | null;
     name?: string;
     projectId?: string;
+    templateId?: string;
   }): Promise<string> {
     const values = await this.attributeToOrganization({
       userId,
@@ -1180,7 +1182,8 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       runtimeLimitHours,
       sealedSecrets,
       name,
-      projectId
+      projectId,
+      templateId
     });
     const upsert = (cursor: ApiPgDatabase | ApiTransaction) =>
       cursor
@@ -1188,7 +1191,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         .values(values)
         .onConflictDoUpdate({
           target: [this.table.dseq, this.table.userId],
-          set: { sdl, manifestVersion, runtimeLimitHours, sealedSecrets, name, updatedAt: sql`now()` },
+          set: { sdl, manifestVersion, runtimeLimitHours, sealedSecrets, name, templateId, updatedAt: sql`now()` },
           setWhere: this.whereAccessibleBy(undefined)
         });
     const [row] = this.ability ? await this.writeChecked(cursor => upsert(cursor).returning()) : await upsert(this.cursor).returning({ id: this.table.id });

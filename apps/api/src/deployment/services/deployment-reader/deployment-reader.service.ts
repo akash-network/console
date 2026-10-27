@@ -125,7 +125,7 @@ export class DeploymentReaderService {
       return { name, consoleSettings: null };
     }
 
-    return { name, consoleSettings: { sdl: setting.sdl, manifestVersion: setting.manifestVersion } };
+    return { name, consoleSettings: { sdl: setting.sdl, manifestVersion: setting.manifestVersion, templateId: setting.templateId } };
   }
 
   /** Under the same double scoping as the single read, and skipped entirely for an empty page so a list with nothing on it costs no query. */
