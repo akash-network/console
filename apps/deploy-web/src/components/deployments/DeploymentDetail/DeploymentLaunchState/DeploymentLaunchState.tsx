@@ -56,7 +56,7 @@ export const DeploymentLaunchState: FC<DeploymentLaunchStateProps> = ({ dseq, la
   }
 
   return (
-    <section aria-label="Deployment spinning up" className={cn(PANEL_CLASS_NAME, className)}>
+    <section aria-label={`Deployment ${LAUNCH_STATUSES[launch.phase].label.toLowerCase()}`} className={cn(PANEL_CLASS_NAME, className)}>
       <div className="flex items-center gap-3">
         <Spinner size="small" />
         <h3 className="text-lg font-medium">{LAUNCH_STATUSES[launch.phase].label}</h3>

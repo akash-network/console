@@ -24,6 +24,7 @@ describe(DeploymentLaunchState.name, () => {
     it("says the deployment is starting once its providers are picked", () => {
       setup({ launch: { phase: "starting", providers: [PROVIDER] } });
 
+      expect(screen.getByRole("region", { name: "Deployment starting" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Starting" })).toBeInTheDocument();
       expect(screen.getByText(/Its services are starting/)).toBeInTheDocument();
     });
@@ -31,6 +32,7 @@ describe(DeploymentLaunchState.name, () => {
     it("says Console is finding a provider for a one-click deploy, listing none yet", () => {
       setup({ launch: { phase: "finding-provider", providers: [] } });
 
+      expect(screen.getByRole("region", { name: "Deployment finding a provider" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Finding a provider" })).toBeInTheDocument();
       expect(screen.getByText("Console is picking a provider for it. This page updates on its own.")).toBeInTheDocument();
       expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
