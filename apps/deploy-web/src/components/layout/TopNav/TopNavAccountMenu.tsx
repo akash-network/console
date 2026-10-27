@@ -11,7 +11,7 @@ import {
   Spinner
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Book, FileText, LogOut, Plus, Send, ShieldCheck, SunMoon, User } from "lucide-react";
+import { Book, FileText, LogOut, Plus, Send, ShieldCheck, Sparkles, SunMoon, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -31,6 +31,8 @@ interface Props {
   onNavigate?: () => void;
   /** Adds the "Create organization" entry; absent while organizations are not enabled for the user. */
   onCreateOrganization?: () => void;
+  /** Adds the "What's new" entry that replays the latest release announcement. */
+  onOpenWhatsNew?: () => void;
 }
 
 type AccountAction = {
@@ -42,7 +44,14 @@ type AccountAction = {
 
 const DOCS_URL = "https://akash.network/docs";
 
-export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = false, variant = "dropdown", onNavigate, onCreateOrganization }: Props = {}) {
+export function TopNavAccountMenu({
+  dependencies: d = DEPENDENCIES,
+  minimal = false,
+  variant = "dropdown",
+  onNavigate,
+  onCreateOrganization,
+  onOpenWhatsNew
+}: Props = {}) {
   const { user, isLoading } = d.useCustomUser();
   const username = user?.username;
   const router = d.useRouter();
@@ -86,6 +95,13 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
           </span>
           <d.ThemeToggle />
         </div>
+
+        {onOpenWhatsNew && (
+          <button type="button" className={inlineItemClasses()} onClick={handle({ title: "What's new", icon: Sparkles, onClick: onOpenWhatsNew })}>
+            <Sparkles className="h-5 w-5 shrink-0" />
+            What&apos;s new
+          </button>
+        )}
 
         {secondaryLinks.map(link => (
           <button type="button" key={link.title} className={inlineItemClasses()} onClick={handle(link)}>
@@ -146,6 +162,11 @@ export function TopNavAccountMenu({ dependencies: d = DEPENDENCIES, minimal = fa
                   <span>Theme</span>
                   <d.ThemeToggle />
                 </div>
+                {onOpenWhatsNew && (
+                  <CustomDropdownLinkItem onClick={onOpenWhatsNew} icon={<Sparkles className="h-4 w-4" />}>
+                    What&apos;s new
+                  </CustomDropdownLinkItem>
+                )}
                 {secondaryLinks.map(link => (
                   <CustomDropdownLinkItem key={link.title} onClick={link.onClick} icon={<link.icon className={link.iconClassName} />}>
                     {link.title}

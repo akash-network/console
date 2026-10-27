@@ -88,6 +88,24 @@ describe(TopNavAccountMenu.name, () => {
     expect(screen.queryByText("Create organization")).not.toBeInTheDocument();
   });
 
+  it("replays the release announcement when What's new is selected", async () => {
+    const { onOpenWhatsNew } = setup({ username: "alice", onOpenWhatsNew: vi.fn() });
+
+    await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
+    await userEvent.click(await screen.findByText("What's new"));
+
+    expect(onOpenWhatsNew).toHaveBeenCalledOnce();
+  });
+
+  it("leaves What's new out when the entry is not enabled", async () => {
+    setup({ username: "alice" });
+
+    await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
+
+    await screen.findByText("Profile");
+    expect(screen.queryByText("What's new")).not.toBeInTheDocument();
+  });
+
   it("shows sign up and sign in when signed out", async () => {
     setup({});
 
@@ -162,9 +180,31 @@ describe(TopNavAccountMenu.name, () => {
 
       expect(screen.queryByText("Create organization")).not.toBeInTheDocument();
     });
+
+    it("replays the release announcement and closes the sheet", async () => {
+      const { onOpenWhatsNew, onNavigate } = setup({ username: "alice", variant: "inline", onOpenWhatsNew: vi.fn() });
+
+      await userEvent.click(screen.getByText("What's new"));
+
+      expect(onOpenWhatsNew).toHaveBeenCalledOnce();
+      expect(onNavigate).toHaveBeenCalledOnce();
+    });
+
+    it("leaves What's new out when the entry is not enabled", () => {
+      setup({ username: "alice", variant: "inline" });
+
+      expect(screen.queryByText("What's new")).not.toBeInTheDocument();
+    });
   });
 
-  function setup(input: { isLoading?: boolean; username?: string; minimal?: boolean; variant?: "dropdown" | "inline"; onCreateOrganization?: () => void }) {
+  function setup(input: {
+    isLoading?: boolean;
+    username?: string;
+    minimal?: boolean;
+    variant?: "dropdown" | "inline";
+    onCreateOrganization?: () => void;
+    onOpenWhatsNew?: () => void;
+  }) {
     const push = vi.fn();
     const onNavigate = vi.fn();
     const authService = mock<AuthService>();
@@ -187,10 +227,11 @@ describe(TopNavAccountMenu.name, () => {
           variant={input.variant}
           onNavigate={onNavigate}
           onCreateOrganization={input.onCreateOrganization}
+          onOpenWhatsNew={input.onOpenWhatsNew}
         />
       </TestContainerProvider>
     );
 
-    return { authService, push, windowOpen, onNavigate, onCreateOrganization: input.onCreateOrganization, container };
+    return { authService, push, windowOpen, onNavigate, onCreateOrganization: input.onCreateOrganization, onOpenWhatsNew: input.onOpenWhatsNew, container };
   }
 });

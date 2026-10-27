@@ -212,6 +212,46 @@ describe(TopNav.name, () => {
 
       expect(screen.getByRole("dialog", { name: "Create organization dialog" })).toBeInTheDocument();
     });
+
+    it("replays the release announcement from the account menu", () => {
+      const { accountMenu, openWhatsNew } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+
+      act(() => accountMenu.mock.calls[0][0]?.onOpenWhatsNew?.());
+
+      expect(openWhatsNew).toHaveBeenCalledWith("account_menu");
+    });
+
+    it("offers What's new in the mobile menu's account items", async () => {
+      const { accountMenu, openWhatsNew } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+
+      await userEvent.click(screen.getByRole("button", { name: "Open navigation menu" }));
+      const inlineMenuProps = accountMenu.mock.calls.find(call => call[0]?.variant === "inline")?.[0];
+      act(() => inlineMenuProps?.onOpenWhatsNew?.());
+
+      expect(openWhatsNew).toHaveBeenCalledWith("account_menu");
+    });
+
+    it("leaves What's new out of the account menu while organizations are off", () => {
+      const { accountMenu } = setup({ isAuthenticated: true, isOrganizationsEnabled: false });
+
+      expect(accountMenu.mock.calls[0][0]).toEqual(expect.objectContaining({ onOpenWhatsNew: undefined }));
+    });
+
+    it("lets the release announce itself from the full header of a signed-in user", () => {
+      const { whatsNewAutoOpen } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
+
+      expect(whatsNewAutoOpen).toHaveBeenCalled();
+    });
+
+    it.each([
+      { case: "while organizations are off", isAuthenticated: true, isOrganizationsEnabled: false, minimal: false },
+      { case: "to a signed-out visitor", isAuthenticated: false, isOrganizationsEnabled: true, minimal: false },
+      { case: "during onboarding", isAuthenticated: true, isOrganizationsEnabled: true, minimal: true }
+    ])("keeps the release from announcing itself $case", input => {
+      const { whatsNewAutoOpen } = setup(input);
+
+      expect(whatsNewAutoOpen).not.toHaveBeenCalled();
+    });
   });
 
   function setup(input: {
@@ -223,6 +263,8 @@ describe(TopNav.name, () => {
     projectsEnabled?: boolean;
   }) {
     const accountMenu = vi.fn<typeof DEPENDENCIES.TopNavAccountMenu>(() => <></>);
+    const openWhatsNew = vi.fn<ReturnType<typeof DEPENDENCIES.useOpenWhatsNew>>();
+    const whatsNewAutoOpen = vi.fn<typeof DEPENDENCIES.WhatsNewAutoOpen>(() => null);
     const enabledFlags = { ui_command_menu: input.isCommandMenuEnabled ?? false, organizations: input.isOrganizationsEnabled ?? false };
     const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag => enabledFlags[flag as keyof typeof enabledFlags] ?? false);
     const organizationSwitcher = vi.fn<typeof DEPENDENCIES.OrganizationSwitcher>(() => <button type="button">Switch organization</button>);
@@ -252,11 +294,13 @@ describe(TopNav.name, () => {
       TopNavAccountMenu: accountMenu,
       ActivityBell: () => <button type="button">Activity</button>,
       OrganizationSwitcher: organizationSwitcher,
-      CreateOrganizationDialog: createOrganizationDialog
+      CreateOrganizationDialog: createOrganizationDialog,
+      useOpenWhatsNew: () => openWhatsNew,
+      WhatsNewAutoOpen: whatsNewAutoOpen
     });
 
     render(<TopNav dependencies={dependencies} minimal={input.minimal} />);
 
-    return { accountMenu, useFlag, organizationSwitcher };
+    return { accountMenu, useFlag, organizationSwitcher, openWhatsNew, whatsNewAutoOpen };
   }
 });

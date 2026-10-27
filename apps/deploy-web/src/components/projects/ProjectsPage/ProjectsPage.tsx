@@ -10,6 +10,7 @@ import { NextSeo } from "next-seo";
 import Layout from "@src/components/layout/Layout";
 import { canManageProjects } from "@src/components/organizations/organizationAccess";
 import { NotFoundPage } from "@src/components/shared/NotFoundPage/NotFoundPage";
+import { TOUR_TARGET } from "@src/components/whats-new/tourTargets";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
@@ -87,7 +88,7 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
 
             <div className="flex flex-wrap items-center justify-end gap-2">
               {canManage && (
-                <Button variant="outline" size="md" className="gap-1.5 text-[13px]" onClick={openNewProject}>
+                <Button variant="outline" size="md" className="gap-1.5 text-[13px]" data-tour-target={TOUR_TARGET.newProject} onClick={openNewProject}>
                   <FolderPlus className="h-4 w-4" />
                   New project
                 </Button>
@@ -116,9 +117,7 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
               <div className={styles.content}>
                 <section aria-label="All projects">
                   <SectionLabel
-                    rightSlot={
-                      hasProjects && <span className="whitespace-nowrap text-xs text-muted-foreground">{pluralize(projects.length, "project")}</span>
-                    }
+                    rightSlot={hasProjects && <span className="whitespace-nowrap text-xs text-muted-foreground">{pluralize(projects.length, "project")}</span>}
                   >
                     All projects
                   </SectionLabel>
@@ -174,7 +173,10 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
 
 function EmptyProjects({ organizationName, onNewProject }: { organizationName: string; onNewProject?: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center">
+    <div
+      data-tour-target={TOUR_TARGET.projectsEmpty}
+      className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center"
+    >
       <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">0 projects in {organizationName}</span>
       {onNewProject ? (
         <>

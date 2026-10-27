@@ -22,6 +22,8 @@ import { CommandMenu } from "@src/components/command-menu/CommandMenu/CommandMen
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
 import { CreateOrganizationDialog } from "@src/components/organizations/CreateOrganizationDialog/CreateOrganizationDialog";
 import { OrganizationSwitcher } from "@src/components/organizations/OrganizationSwitcher/OrganizationSwitcher";
+import { useOpenWhatsNew } from "@src/components/whats-new/useOpenWhatsNew";
+import { WhatsNewAutoOpen } from "@src/components/whats-new/WhatsNewAutoOpen/WhatsNewAutoOpen";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useSettingsNavLinks } from "@src/hooks/useSettingsNavLinks";
@@ -41,6 +43,7 @@ export const DEPENDENCIES = {
   useCookieTheme,
   useFlag,
   useActiveOrganization,
+  useOpenWhatsNew,
   TopBanner,
   HackathonCouponNavEntry,
   CommandMenu,
@@ -48,7 +51,8 @@ export const DEPENDENCIES = {
   TopNavAccountMenu,
   SkipOnboardingButton,
   OrganizationSwitcher,
-  CreateOrganizationDialog
+  CreateOrganizationDialog,
+  WhatsNewAutoOpen
 };
 
 interface Props {
@@ -75,6 +79,8 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const isOrganizationsEnabled = d.useFlag("organizations");
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
   const openCreateOrganization = isOrganizationsEnabled ? () => setIsCreateOrganizationOpen(true) : undefined;
+  const openWhatsNew = d.useOpenWhatsNew();
+  const replayWhatsNew = isOrganizationsEnabled ? () => openWhatsNew("account_menu") : undefined;
   const { projectsEnabled } = d.useActiveOrganization();
 
   const projectsLink: TopNavLink[] =
@@ -149,7 +155,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
           {showOrganizationSwitcher && <d.OrganizationSwitcher onCreateOrganization={openCreateOrganization} />}
 
           <div className={cn({ "hidden md:block": showNavLinks })}>
-            <d.TopNavAccountMenu minimal={minimal} onCreateOrganization={openCreateOrganization} />
+            <d.TopNavAccountMenu minimal={minimal} onCreateOrganization={openCreateOrganization} onOpenWhatsNew={replayWhatsNew} />
           </div>
 
           {showNavLinks && (
@@ -204,7 +210,12 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
 
                   <Separator className="my-2" />
 
-                  <d.TopNavAccountMenu variant="inline" onNavigate={() => setIsMobileNavOpen(false)} onCreateOrganization={openCreateOrganization} />
+                  <d.TopNavAccountMenu
+                    variant="inline"
+                    onNavigate={() => setIsMobileNavOpen(false)}
+                    onCreateOrganization={openCreateOrganization}
+                    onOpenWhatsNew={replayWhatsNew}
+                  />
                 </nav>
               </SheetContent>
             </Sheet>
@@ -213,6 +224,8 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
       </div>
 
       {isCreateOrganizationOpen && <d.CreateOrganizationDialog onClose={() => setIsCreateOrganizationOpen(false)} />}
+
+      {showOrganizationSwitcher && !minimal && <d.WhatsNewAutoOpen />}
     </header>
   );
 }

@@ -153,7 +153,10 @@ export type AnalyticsEvent =
   | "account_deletion_support_clicked"
   | "account_deletion_forfeit_chosen"
   | "command_menu_opened"
-  | "command_menu_action_ran";
+  | "command_menu_action_ran"
+  | "whats_new_opened"
+  | "whats_new_tour_started"
+  | "whats_new_tour_ended";
 
 export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "profile" | "settings" | "onboarding";
 

@@ -1,0 +1,162 @@
+.tour {
+  --tour-dim: rgba(10, 10, 10, 0.52);
+  --tour-dim-from: 0.87;
+  position: fixed;
+  inset: 0;
+  /* Above the 1500 that styles/index.css forces on Radix poppers, so an open menu sits under the dim. */
+  z-index: 1600;
+  pointer-events: none;
+}
+
+:global(.dark) .tour {
+  --tour-dim: rgba(0, 0, 0, 0.68);
+  --tour-dim-from: 0.66;
+}
+
+.dim {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  fill: var(--tour-dim);
+}
+
+.fromAnnouncement .dim {
+  animation: dim-from-announcement 280ms ease both;
+}
+
+@keyframes dim-from-announcement {
+  from {
+    opacity: var(--tour-dim-from);
+  }
+}
+
+.blocker {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.ring {
+  position: absolute;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px #2563eb;
+  animation: fade-in 220ms ease both;
+}
+
+.ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  animation: ring-pulse 2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes ring-pulse {
+  0% {
+    box-shadow: 0 0 0 2px color-mix(in oklab, #2563eb 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 16px color-mix(in oklab, #2563eb 0%, transparent);
+  }
+}
+
+.coach {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100% - 16px);
+  pointer-events: auto;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.42);
+  outline: none;
+  animation: coach-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes coach-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.arrow {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--popover));
+  transform: rotate(45deg);
+}
+
+.coach[data-side="bottom"] .arrow {
+  top: -7px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.coach[data-side="top"] .arrow {
+  bottom: -7px;
+  border-left: none;
+  border-top: none;
+}
+
+.coach[data-side="left"] .arrow {
+  right: -7px;
+  border-left: none;
+  border-bottom: none;
+}
+
+.coach[data-side="right"] .arrow {
+  left: -7px;
+  border-right: none;
+  border-top: none;
+}
+
+.stepCopy {
+  min-height: 0;
+  overflow-y: auto;
+  animation: step-in 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: color-mix(in oklab, hsl(var(--foreground)) 18%, transparent);
+  transition:
+    width 220ms ease,
+    background 220ms ease;
+}
+
+.dot[data-current="true"] {
+  width: 16px;
+  background: hsl(var(--foreground));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach,
+  .stepCopy,
+  .ring,
+  .ring::after,
+  .fromAnnouncement .dim {
+    animation: none;
+  }
+}
