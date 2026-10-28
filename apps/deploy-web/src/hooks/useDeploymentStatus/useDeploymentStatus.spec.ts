@@ -340,11 +340,8 @@ describe(useDeploymentStatus.name, () => {
     expect(result.current.label).toBe("Running");
   });
 
-  it.each([
-    { case: "the activity center is off", isEnabled: false, isSignedIn: true },
-    { case: "no one is signed in", isEnabled: true, isSignedIn: false }
-  ])("ignores the activities still cached once $case", ({ isEnabled, isSignedIn }) => {
-    const { result } = setup({ activities: [leaseCreation({ status: "pending" })], leases: [], isEnabled, isSignedIn });
+  it("ignores the activities still cached while no one is signed in", () => {
+    const { result } = setup({ activities: [leaseCreation({ status: "pending" })], leases: [], isSignedIn: false });
 
     expect(result.current).toEqual({ label: "Running", summaryLabel: "Running", tone: "running" });
   });
@@ -355,7 +352,6 @@ describe(useDeploymentStatus.name, () => {
     leases?: LeaseDto[];
     workload?: WorkloadStatus;
     consoleCloseReason?: ConsoleCloseReason;
-    isEnabled?: boolean;
     isSignedIn?: boolean;
   }) {
     const current = { ...input };
@@ -430,13 +426,11 @@ describe(useDeploymentActivity.name, () => {
   });
 
   it("does not wait on a feed it does not follow", () => {
-    expect(setup({ isFetchedAfterMount: false, isEnabled: false }).result.current.isResolving).toBe(false);
     expect(setup({ isFetchedAfterMount: false, isSignedIn: false }).result.current.isResolving).toBe(false);
   });
 
-  it("reads the feed the activity host polls without polling it again, only while the activity center is on for a signed-in user", () => {
-    expect(setup({ isEnabled: true }).useActivityFeedQuery).toHaveBeenCalledWith({ enabled: true });
-    expect(setup({ isEnabled: false }).useActivityFeedQuery).toHaveBeenCalledWith({ enabled: false });
+  it("reads the feed the activity host polls without polling it again, only for a signed-in user", () => {
+    expect(setup({}).useActivityFeedQuery).toHaveBeenCalledWith({ enabled: true });
     expect(setup({ isSignedIn: false }).useActivityFeedQuery).toHaveBeenCalledWith({ enabled: false });
   });
 
@@ -446,7 +440,7 @@ describe(useDeploymentActivity.name, () => {
     expect(result.current).toEqual({ isClosing: false, isUpdating: false, leaseCreation: undefined, isResolving: false });
   });
 
-  function setup(input: { activities?: Activity[]; isFetchedAfterMount?: boolean; isEnabled?: boolean; isSignedIn?: boolean }) {
+  function setup(input: { activities?: Activity[]; isFetchedAfterMount?: boolean; isSignedIn?: boolean }) {
     const dependencies = dependenciesFor(input);
     const { result } = renderHook(() => useDeploymentActivity(DSEQ, dependencies));
 
@@ -466,7 +460,7 @@ function liveLease(): LeaseDto {
   return mock<LeaseDto>({ state: "active", reclamation: undefined });
 }
 
-function dependenciesFor(input: { activities?: Activity[]; isFetchedAfterMount?: boolean; isEnabled?: boolean; isSignedIn?: boolean }) {
+function dependenciesFor(input: { activities?: Activity[]; isFetchedAfterMount?: boolean; isSignedIn?: boolean }) {
   const useActivityFeedQuery = vi.fn((() =>
     Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), {
       data: input.activities && { activities: input.activities, unseenCount: 0, newestCreatedAt: input.activities[0]?.createdAt },
@@ -474,7 +468,6 @@ function dependenciesFor(input: { activities?: Activity[]; isFetchedAfterMount?:
     })) as typeof DEPENDENCIES.useActivityFeedQuery);
 
   return {
-    useFlag: vi.fn((flag: string) => flag === "notifications_activity_center" && (input.isEnabled ?? true)) as typeof DEPENDENCIES.useFlag,
     useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : buildUser() }),
     useActivityFeedQuery
   } satisfies typeof DEPENDENCIES;

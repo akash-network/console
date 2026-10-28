@@ -2,12 +2,11 @@
 import { useMemo } from "react";
 
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
-import { useFlag } from "@src/hooks/useFlag";
 import { type OneClickDeploys, useOneClickDeploys } from "@src/hooks/useOneClickDeploys/useOneClickDeploys";
 import { useUser } from "@src/hooks/useUser";
 import { type Activity, useActivityFeedQuery } from "@src/queries/useLatestActivitiesQuery";
 
-export const DEPENDENCIES = { useFlag, useUser, useActivityFeedQuery, useOneClickDeploys, useDeploymentNames };
+export const DEPENDENCIES = { useUser, useActivityFeedQuery, useOneClickDeploys, useDeploymentNames };
 
 export interface CreatingDeployment {
   dseq: string;
@@ -16,9 +15,8 @@ export interface CreatingDeployment {
 
 /** One-click deploys Console is still creating, read off the feed the activity host polls; the list may lack them until the chain has them and the list is read again. */
 export function useCreatingDeployments(dependencies: typeof DEPENDENCIES = DEPENDENCIES): CreatingDeployment[] {
-  const isEnabled = dependencies.useFlag("notifications_activity_center");
   const { user } = dependencies.useUser();
-  const isFollowingFeed = isEnabled && !!user?.userId;
+  const isFollowingFeed = !!user?.userId;
   const { data } = dependencies.useActivityFeedQuery({ enabled: isFollowingFeed });
   const activities = isFollowingFeed ? data?.activities : undefined;
   const oneClickDeploys = dependencies.useOneClickDeploys();

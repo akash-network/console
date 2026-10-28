@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
@@ -40,19 +40,8 @@ describe(useFailedDeploymentUpdate.name, () => {
     expect(result.current).toBeUndefined();
   });
 
-  it("finds nothing while the activity center is off", () => {
-    const { result } = setup({
-      dseq: "1001",
-      activities: [buildActivity({ type: "deployment_update", status: "failed", meta: { dseq: "1001" } })],
-      isEnabled: false
-    });
-
-    expect(result.current).toBeUndefined();
-  });
-
-  function setup(input: { dseq: string; activities?: Activity[]; isEnabled?: boolean }) {
+  function setup(input: { dseq: string; activities?: Activity[] }) {
     const dependencies: typeof DEPENDENCIES = {
-      useFlag: vi.fn((flag: string) => flag === "notifications_activity_center" && (input.isEnabled ?? true)) as typeof DEPENDENCIES.useFlag,
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: buildUser() }),
       useLatestActivitiesQuery: (() =>
         Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), {

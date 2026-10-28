@@ -106,17 +106,14 @@ describe(useCreatingDeployments.name, () => {
     expect(useDeploymentNames).toHaveBeenLastCalledWith(["1000"]);
   });
 
-  it.each([
-    { case: "the activity center is off", isEnabled: false, isSignedIn: true },
-    { case: "no one is signed in", isEnabled: true, isSignedIn: false }
-  ])("lists nothing once $case, even from a feed still cached", ({ isEnabled, isSignedIn }) => {
-    const { result, useActivityFeedQuery } = setup({ activities: [create("pending")], oneClickDseqs: ["1000"], isEnabled, isSignedIn });
+  it("lists nothing while no one is signed in, even from a feed still cached", () => {
+    const { result, useActivityFeedQuery } = setup({ activities: [create("pending")], oneClickDseqs: ["1000"], isSignedIn: false });
 
     expect(result.current).toEqual([]);
     expect(useActivityFeedQuery).toHaveBeenCalledWith({ enabled: false });
   });
 
-  function setup(input: { activities?: Activity[]; oneClickDseqs?: string[]; names?: Record<string, string>; isEnabled?: boolean; isSignedIn?: boolean }) {
+  function setup(input: { activities?: Activity[]; oneClickDseqs?: string[]; names?: Record<string, string>; isSignedIn?: boolean }) {
     let activities = input.activities;
     const useActivityFeedQuery = vi.fn((() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), {
@@ -129,7 +126,6 @@ describe(useCreatingDeployments.name, () => {
 
     const view = renderHook(() =>
       useCreatingDeployments({
-        useFlag: vi.fn((flag: string) => flag === "notifications_activity_center" && (input.isEnabled ?? true)) as typeof DEPENDENCIES.useFlag,
         useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : buildUser() }),
         useActivityFeedQuery,
         useOneClickDeploys: () => new Map((input.oneClickDseqs ?? []).map(dseq => [dseq, "/new-deployment/configure"])),

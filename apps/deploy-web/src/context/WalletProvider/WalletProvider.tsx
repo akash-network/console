@@ -1,26 +1,19 @@
 "use client";
 import React, { useEffect } from "react";
-import type { EncodeObject } from "@cosmjs/proto-signing";
 import { useAtom } from "jotai";
 
-import { TransactionModal } from "@src/components/layout/TransactionModal";
 import { useManagedWallet } from "@src/hooks/useManagedWallet";
 import { useUser } from "@src/hooks/useUser";
 import { useWhen } from "@src/hooks/useWhen";
-import { useBalances } from "@src/queries/useBalancesQuery";
 import { settingsIdAtom } from "@src/store/settingsStore";
 import { BootLoading } from "../BootLoadingProvider/BootLoadingProvider";
 import { useServices } from "../ServicesProvider";
 import { deriveWalletIsLoading } from "./deriveWalletIsLoading";
-import { useSignAndBroadcast } from "./useSignAndBroadcast";
 
 export const DEPENDENCIES = {
   useUser,
   useManagedWallet,
-  useBalances,
-  useSignAndBroadcast,
   useServices,
-  TransactionModal,
   BootLoading
 };
 
@@ -30,7 +23,6 @@ export type ContextType = {
   hasWallet: boolean;
   /** True once the wallet lookup has failed for good, which `hasWallet` alone cannot tell apart from a wallet still being provisioned. */
   isWalletLookupFailed: boolean;
-  signAndBroadcastTx: (msgs: EncodeObject[]) => Promise<boolean>;
   denom: string;
   isTrialing: boolean;
   creditAmount?: number;
@@ -56,12 +48,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?
   const { wallet: managedWallet, isInitializing: isManagedWalletInitializing, isLookupFailed: isManagedWalletLookupFailed } = d.useManagedWallet();
   const walletAddress = managedWallet?.address;
   const hasWallet = !!managedWallet;
-  const { refetch: refetchBalances } = d.useBalances(walletAddress);
   const isInitializing = deriveWalletIsLoading({
     hasAuthenticatedUserId: !!user?.userId,
     isManagedWalletLoading: isManagedWalletInitializing
   });
-  const { signAndBroadcastTx, loadingState } = d.useSignAndBroadcast({ refetchBalances });
 
   useWhen(hasWallet, () => {
     analyticsService.identify({ managedWallet: true });
@@ -78,22 +68,13 @@ export const WalletProvider: React.FC<{ children: React.ReactNode; dependencies?
         address: walletAddress as string,
         hasWallet,
         isWalletLookupFailed: isManagedWalletLookupFailed,
-        signAndBroadcastTx,
         denom: managedWallet?.denom ?? "",
         isTrialing: !!managedWallet?.isTrialing,
         creditAmount: managedWallet?.creditAmount,
         topUpMinAmountUsd: managedWallet?.topUpMinAmountUsd ?? 20
       }}
     >
-      {isInitializing ? (
-        <d.BootLoading />
-      ) : (
-        <>
-          {children}
-
-          <d.TransactionModal state={loadingState} />
-        </>
-      )}
+      {isInitializing ? <d.BootLoading /> : children}
     </WalletProviderContext.Provider>
   );
 };

@@ -15,17 +15,11 @@ import { jsonResponse } from "@tests/unit/jsonResponse";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
 describe(ActivityBell.name, () => {
-  it("renders nothing while the activity center is off", () => {
-    const { useActivityFeedQuery } = setup({ isEnabled: false });
+  it("renders nothing for a signed-out visitor", () => {
+    const { useActivityFeedQuery } = setup({ isSignedIn: false });
 
     expect(screen.queryByRole("button", { name: /activity/i })).not.toBeInTheDocument();
     expect(useActivityFeedQuery).toHaveBeenCalledWith({ enabled: false });
-  });
-
-  it("renders nothing for a signed-out visitor", () => {
-    setup({ isSignedIn: false });
-
-    expect(screen.queryByRole("button", { name: /activity/i })).not.toBeInTheDocument();
   });
 
   it("shows how many entries the user hasn't seen", () => {
@@ -312,7 +306,6 @@ describe(ActivityBell.name, () => {
       const fetch = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => jsonResponse(feed));
 
       const dependencies: typeof DEPENDENCIES = {
-        useFlag: () => true,
         useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: buildUser() }),
         useActivityFeedQuery: DEPENDENCIES.useActivityFeedQuery,
         useDeploymentNames: () => mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>({ getDeploymentName: () => null, isLoading: false }),
@@ -346,7 +339,6 @@ describe(ActivityBell.name, () => {
   }
 
   function setup(input: {
-    isEnabled?: boolean;
     isSignedIn?: boolean;
     activities?: Activity[];
     unseenCount?: number;
@@ -373,7 +365,6 @@ describe(ActivityBell.name, () => {
       })) as typeof DEPENDENCIES.useActivityFeedQuery);
 
     const dependencies: typeof DEPENDENCIES = {
-      useFlag: flag => flag === "notifications_activity_center" && (input.isEnabled ?? true),
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : buildUser() }),
       useActivityFeedQuery,
       useDeploymentNames,

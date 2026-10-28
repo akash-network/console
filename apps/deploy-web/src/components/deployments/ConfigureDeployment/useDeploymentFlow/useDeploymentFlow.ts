@@ -6,7 +6,6 @@ import { useRouter } from "next/router";
 
 import { useConfigureDeployTarget } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
 import { useServices } from "@src/context/ServicesProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useMarkActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { type HeldActivityEvent, useHoldActivityEvents } from "@src/hooks/useHeldActivityEvents/useHeldActivityEvents";
 import { useRecordOneClickDeploy } from "@src/hooks/useOneClickDeploys/useOneClickDeploys";
@@ -144,6 +143,8 @@ interface UseDeploymentFlowInput {
 /** Default escrow deposit in USD (ACT maps 1:1 to USD). Matches `DEFAULT_DEPOSIT_USD` in the phased flow so a trial grant covers it. */
 const DEFAULT_DEPOSIT = 0.5;
 
+const BACKGROUND_QUERY: { async: "true" } = { async: "true" };
+
 const HTTP_PAYMENT_REQUIRED = 402;
 
 const HTTP_NOT_FOUND = 404;
@@ -192,7 +193,6 @@ export const DEPENDENCIES = {
   useListBids,
   useRouter,
   useQueryClient,
-  useFlag,
   useLatestActivitiesQuery,
   useConfigureDeployTarget,
   useMarkActivityOutcomes,
@@ -221,7 +221,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const settingsId = useAtomValue(settingsIdAtom);
   /** Read by hook-level mutation callbacks, which still run once the page is gone and its own callbacks no longer do. */
   const discardedRef = useRef(false);
-  const isRunningInBackground = dependencies.useFlag("notifications_activity_center");
   /** Only the per-call callbacks mark an outcome handled, since they run only while this page is still there to show it. */
   const { forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing } = dependencies.useMarkActivityOutcomes();
   const holdActivityEvents = dependencies.useHoldActivityEvents();
@@ -233,7 +232,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     ...walletProvisioningRetry,
     meta: SKIP_REPORTING_REFUSED_CREATE,
     onSuccess: function closeWhatADiscardedCreateOpened(result) {
-      if (discardedRef.current && !acceptedActivityIdOf(result.data)) closeDeployment.mutate(closeRequestFor(result.data.dseq, isRunningInBackground));
+      if (discardedRef.current && !acceptedActivityIdOf(result.data)) closeDeployment.mutate(closeRequestFor(result.data.dseq, true));
     }
   });
   const closeDeployment = api.v1.closeDeployment.useMutation({
@@ -537,7 +536,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       closingDseqRef.current = dseqToClose;
       setBackgroundClose(null);
       setPendingClose({ dseq: dseqToClose, failed: false });
-      const inBackground = timing === "in-background" && isRunningInBackground;
+      const inBackground = timing === "in-background";
 
       function followInBackground(activityId: string) {
         if (token !== closeTokenRef.current) return;
@@ -561,7 +560,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         }
       });
     },
-    [closeDeployment, settleClose, verifyCloseOutcome, isRunningInBackground, queryClient, api]
+    [closeDeployment, settleClose, verifyCloseOutcome, queryClient, api]
   );
 
   useEffect(
@@ -744,7 +743,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
               ...inheritance,
               deposit: DEFAULT_DEPOSIT
             },
-            ...createQueryFor(isRunningInBackground, isOneClickDeploy(intentRef.current, bidStrategyRef.current))
+            ...createQueryFor(isOneClickDeploy(intentRef.current, bidStrategyRef.current))
           },
           {
             onSuccess: onCreated,
@@ -817,7 +816,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       startClose,
       closeSupersededCreate,
       runQueuedCreate,
-      isRunningInBackground,
       holdActivityEvents,
       recordOneClickDeploy,
       followUntilSettled,
@@ -939,7 +937,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const deploy = useCallback(
     function deploy(sdl: string, options: DeployOptions = {}) {
       if (discardedRef.current) return;
-      const attempt: DeployAttempt = { dseq, isAutoDeploy: !!options.isAutoDeploy, inBackground: isRunningInBackground };
+      const attempt: DeployAttempt = { dseq, isAutoDeploy: !!options.isAutoDeploy };
 
       function trackDeployFailed(stage: DeployFailureStage, cause?: unknown) {
         const { event, properties } = deployFailedEventOf(stage, attempt, cause);
@@ -981,7 +979,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       const isReplaced = () => attemptNumber !== deployAttemptRef.current;
       setDeployError(undefined);
       setDeploySucceeded(false);
-      setShowsDeployProgress(!isRunningInBackground);
+      setShowsDeployProgress(false);
       setPhase("deploying");
       setWatchedDeploy(options.isAutoDeploy ? null : { attempt, hasTimedOut: false });
 
@@ -1035,10 +1033,10 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       function sendManifestAndLease() {
         const lease = keepsStoredReference ? { leases } : { manifest: activeManifest, leases };
         forgetEarlierOutcomes("lease_create", activeDseq);
-        setIsAwaitingLeaseHandoff(isRunningInBackground);
+        setIsAwaitingLeaseHandoff(true);
         setIsLeaseInFlight(true);
         createLease.mutate(
-          { ...lease, ...backgroundQueryFor(isRunningInBackground) },
+          { ...lease, ...BACKGROUND_QUERY },
           {
             onSuccess: function completeOrFollowDeploy(result) {
               setIsLeaseInFlight(false);
@@ -1145,7 +1143,6 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       markOutcomeHandled,
       api,
       settingsId,
-      isRunningInBackground,
       holdActivityEvents
     ]
   );
@@ -1184,16 +1181,12 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   };
 }
 
-function backgroundQueryFor(inBackground: boolean): { async?: "true" } {
-  return inBackground ? { async: "true" } : {};
-}
-
 function closeRequestFor(dseq: string, inBackground: boolean): { dseq: string; async?: "true" } {
-  return { dseq, ...backgroundQueryFor(inBackground) };
+  return inBackground ? { dseq, ...BACKGROUND_QUERY } : { dseq };
 }
 
-function createQueryFor(inBackground: boolean, isOneClick: boolean): { async?: "true"; autoLease?: "true" } {
-  return inBackground && isOneClick ? { async: "true", autoLease: "true" } : backgroundQueryFor(inBackground);
+function createQueryFor(isOneClick: boolean): { async: "true"; autoLease?: "true" } {
+  return isOneClick ? { ...BACKGROUND_QUERY, autoLease: "true" } : BACKGROUND_QUERY;
 }
 
 function isOneClickDeploy(intent: DeploymentIntent, bidStrategy: BidStrategy): boolean {
@@ -1301,7 +1294,7 @@ type DeployFailureStage =
   | "background_lease"
   | "lease_timeout";
 
-type DeployAttempt = { dseq: string | null; isAutoDeploy: boolean; inBackground: boolean };
+type DeployAttempt = { dseq: string | null; isAutoDeploy: boolean };
 
 /** Leaves the api's error message out, since it can echo what the user typed. */
 function deployFailedEventOf(stage: DeployFailureStage, attempt: DeployAttempt, cause?: unknown): HeldActivityEvent {
@@ -1311,6 +1304,7 @@ function deployFailedEventOf(stage: DeployFailureStage, attempt: DeployAttempt, 
       category: "deployments",
       stage,
       ...attempt,
+      inBackground: true,
       errorCode: extractApiErrorCode(cause) ?? undefined,
       errorStatus: isApiError(cause) ? cause.status : undefined,
       errorKind: cause === undefined ? undefined : deployErrorKindOf(cause)

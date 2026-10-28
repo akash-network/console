@@ -9,13 +9,12 @@ import {
   SPINNING_UP_STATUS,
   STARTING_STATUS
 } from "@src/components/deployments/DeploymentDetail/DeploymentStatusBadge";
-import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { type Activity, useActivityFeedQuery } from "@src/queries/useLatestActivitiesQuery";
 import type { LeaseDto } from "@src/types/deployment";
 import { isLeaseLive } from "@src/utils/leaseUtils";
 
-export const DEPENDENCIES = { useFlag, useUser, useActivityFeedQuery };
+export const DEPENDENCIES = { useUser, useActivityFeedQuery };
 
 export const MANIFEST_NOT_DELIVERED = "manifest_not_delivered";
 
@@ -58,9 +57,8 @@ export interface DeploymentActivity {
 
 /** What the feed the activity host keeps polling says is underway for one deployment, read without adding a poll of its own. */
 export function useDeploymentActivity(dseq: string, dependencies: typeof DEPENDENCIES = DEPENDENCIES): DeploymentActivity {
-  const isEnabled = dependencies.useFlag("notifications_activity_center");
   const { user } = dependencies.useUser();
-  const isFollowingFeed = isEnabled && !!user?.userId;
+  const isFollowingFeed = !!user?.userId;
   const { data, isFetchedAfterMount } = dependencies.useActivityFeedQuery({ enabled: isFollowingFeed });
   const activities = isFollowingFeed ? data?.activities : undefined;
 

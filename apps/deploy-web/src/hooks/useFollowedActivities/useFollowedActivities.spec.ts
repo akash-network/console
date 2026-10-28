@@ -10,7 +10,7 @@ import { buildActivity } from "@tests/seeders/activity";
 import { buildUser } from "@tests/seeders/user";
 
 describe(useFollowedActivities.name, () => {
-  it("reads the feed while the activity center is on for a signed-in user", () => {
+  it("reads the feed for a signed-in user", () => {
     const activities = [buildActivity()];
     const { useLatestActivitiesQuery, dependencies } = setup({ activities });
 
@@ -20,11 +20,8 @@ describe(useFollowedActivities.name, () => {
     expect(useLatestActivitiesQuery).toHaveBeenCalledWith({ enabled: true });
   });
 
-  it.each([
-    { case: "the activity center is off", isEnabled: false, isSignedIn: true },
-    { case: "no one is signed in", isEnabled: true, isSignedIn: false }
-  ])("reads nothing, not even activities still cached, once $case", ({ isEnabled, isSignedIn }) => {
-    const { useLatestActivitiesQuery, dependencies } = setup({ activities: [buildActivity()], isEnabled, isSignedIn });
+  it("reads nothing, not even activities still cached, while no one is signed in", () => {
+    const { useLatestActivitiesQuery, dependencies } = setup({ activities: [buildActivity()], isSignedIn: false });
 
     const { result } = renderHook(() => useFollowedActivities(dependencies));
 
@@ -85,13 +82,12 @@ describe(useFollowedActivities.name, () => {
     });
   });
 
-  function setup(input: { activities?: Activity[]; isEnabled?: boolean; isSignedIn?: boolean }) {
+  function setup(input: { activities?: Activity[]; isSignedIn?: boolean }) {
     const useLatestActivitiesQuery = vi.fn((() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), {
         data: input.activities
       })) as typeof DEPENDENCIES.useLatestActivitiesQuery);
     const dependencies: typeof DEPENDENCIES = {
-      useFlag: vi.fn((flag: string) => flag === "notifications_activity_center" && (input.isEnabled ?? true)) as typeof DEPENDENCIES.useFlag,
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : buildUser() }),
       useLatestActivitiesQuery
     };

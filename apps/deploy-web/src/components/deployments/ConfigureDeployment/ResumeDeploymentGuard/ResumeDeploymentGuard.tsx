@@ -8,7 +8,6 @@ import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { useServices } from "@src/context/ServicesProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
 import { PENDING_ACTIVITY_POLL_MS, useActivityFeedQuery } from "@src/queries/useLatestActivitiesQuery";
 import { isStoredSdlRedeployable } from "@src/utils/sdl/storedDefinition";
@@ -52,7 +51,7 @@ function useGetDeployment(dseq: string | undefined, { isAwaitingCreate }: { isAw
   );
 }
 
-export const DEPENDENCIES = { Layout, useRouter, useSnackbar, Snackbar, useGetDeployment, useFlag, useActivityFeedQuery };
+export const DEPENDENCIES = { Layout, useRouter, useSnackbar, Snackbar, useGetDeployment, useActivityFeedQuery };
 
 interface Props {
   /** The resolved configure intent. Its `dseq` (pinned at mount) is the deployment being resumed, if any. */
@@ -100,13 +99,12 @@ export const ResumeDeploymentGuard: FC<Props> = ({ intent, canResume, children, 
   const notifiedRef = useRef(false);
   const [isAwaitingCreate, setIsAwaitingCreate] = useState(false);
   const query = d.useGetDeployment(resumeDseq, { isAwaitingCreate: isAwaitingCreate && !outcome });
-  const isFollowingFeed = d.useFlag("notifications_activity_center");
-  const feed = d.useActivityFeedQuery({ enabled: isFollowingFeed && !outcome && (isAwaitingCreate || isNotFoundError(query.error)) });
-  const creates = isFollowingFeed ? { activities: feed.data?.activities, isUnavailable: feed.isError && !feed.data } : null;
+  const feed = d.useActivityFeedQuery({ enabled: !outcome && (isAwaitingCreate || isNotFoundError(query.error)) });
+  const creates = { activities: feed.data?.activities, isUnavailable: feed.isError && !feed.data };
 
   const decision = useMemo(
     () => resolveDecision(resumeDseq, query, canResume, creates),
-    [resumeDseq, query.data, query.isError, query.error, canResume, isFollowingFeed, feed.data, feed.isError]
+    [resumeDseq, query.data, query.isError, query.error, canResume, feed.data, feed.isError]
   );
 
   useEffect(
@@ -166,8 +164,7 @@ export const ResumeDeploymentGuard: FC<Props> = ({ intent, canResume, children, 
 
 type Decision = { kind: "loading" } | { kind: "creating" } | { kind: "render"; resume: ResumeResolution } | { kind: "redirect" } | { kind: "notFound" };
 
-/** What the activity feed says about the user's creates; null while the feed is not followed. */
-type CreatesInFeed = { activities?: Activity[]; isUnavailable: boolean } | null;
+type CreatesInFeed = { activities?: Activity[]; isUnavailable: boolean };
 
 type DeploymentResponse = NonNullable<ReturnType<typeof useGetDeployment>["data"]>["data"];
 
@@ -195,7 +192,7 @@ function resolveDecision(resumeDseq: string | undefined, query: ReturnType<typeo
 
 /** The chain can lag a create the feed already reports succeeded, so only a create that failed or was never made reads as missing. */
 function resolveMissingDeployment(resumeDseq: string, creates: CreatesInFeed): Decision {
-  if (!creates || creates.isUnavailable) return { kind: "notFound" };
+  if (creates.isUnavailable) return { kind: "notFound" };
   if (!creates.activities) return { kind: "loading" };
 
   const isBeingCreated = creates.activities.some(({ type, status, meta }) => type === "deployment_create" && status !== "failed" && meta.dseq === resumeDseq);

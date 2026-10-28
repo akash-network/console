@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 import { mock, mockDeep } from "vitest-mock-extended";
 
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
-import type { ContextType } from "@src/context/WalletProvider";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { DeploymentStorageService } from "@src/services/deployment-storage/deployment-storage.service";
@@ -481,18 +480,15 @@ describe(ManifestUpdate.name, () => {
     expect(dependencies.ViewPanel.mock.calls[0][0].style).toEqual({ overflow: "hidden" });
   });
 
-  it("submits the edited sdl to the console api instead of signing and sending it from the browser", async () => {
-    const signAndBroadcastTx = vi.fn(() => Promise.resolve(true));
+  it("submits the edited sdl to the console api", async () => {
     const handles = setup({
       editedManifest: "version: '2.0'",
-      deployment: { dseq: "123", state: "active", hash: "different-hash" },
-      wallet: { signAndBroadcastTx }
+      deployment: { dseq: "123", state: "active", hash: "different-hash" }
     });
 
     await clickUpdate(handles);
 
     expect(handles.mutate).toHaveBeenCalledWith({ dseq: "123", data: { sdl: "version: '2.0'" } }, expect.anything());
-    expect(signAndBroadcastTx).not.toHaveBeenCalled();
   });
 
   it("submits to the console api even when the local manifest version already matches the chain", async () => {
@@ -1012,7 +1008,7 @@ describe(ManifestUpdate.name, () => {
     closeManifestEditor?: () => void;
     onManifestChange?: (value: string) => void;
     onRedeploy?: () => void;
-    wallet?: Partial<{ address: string; signAndBroadcastTx: ContextType["signAndBroadcastTx"] }>;
+    wallet?: Partial<{ address: string }>;
     definition?: Partial<DeploymentDefinition>;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
@@ -1041,8 +1037,7 @@ describe(ManifestUpdate.name, () => {
 
     const useWallet: typeof DEPENDENCIES.useWallet = () =>
       buildWallet({
-        address: input?.wallet?.address || "akash1test",
-        signAndBroadcastTx: input?.wallet?.signAndBroadcastTx || vi.fn(() => Promise.resolve(true))
+        address: input?.wallet?.address || "akash1test"
       });
 
     const useBalances: typeof DEPENDENCIES.useBalances = () => balances;

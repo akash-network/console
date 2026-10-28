@@ -16,17 +16,13 @@ describe(DeploymentReadyHost.name, () => {
   const NOW = new Date("2026-10-12T12:00:00.000Z");
 
   it("follows the feed of a signed-in user", () => {
-    const { useActivityFeedQuery, useFlag } = setup({});
+    const { useActivityFeedQuery } = setup({});
 
-    expect(useFlag).toHaveBeenCalledWith("notifications_activity_center");
     expect(useActivityFeedQuery).toHaveBeenCalledWith({ enabled: true });
   });
 
-  it.each([
-    { case: "the activity center is switched off", isEnabled: false, isSignedIn: true },
-    { case: "nobody is signed in", isEnabled: true, isSignedIn: false }
-  ])("checks on no deployment while $case, even with a feed left in the cache", ({ isEnabled, isSignedIn }) => {
-    const { useActivityFeedQuery, watchedDseqs } = setup({ isEnabled, isSignedIn, activities: [deploy("1", "pending")] });
+  it("checks on no deployment while nobody is signed in, even with a feed left in the cache", () => {
+    const { useActivityFeedQuery, watchedDseqs } = setup({ isSignedIn: false, activities: [deploy("1", "pending")] });
 
     expect(useActivityFeedQuery).toHaveBeenCalledWith({ enabled: false });
     expect(watchedDseqs()).toEqual([]);
@@ -217,11 +213,10 @@ describe(DeploymentReadyHost.name, () => {
     return new Date(NOW.getTime() - minutes * 60 * 1000);
   }
 
-  function setup(input: { isEnabled?: boolean; isSignedIn?: boolean; isFeedLoading?: boolean; activities?: Activity[]; names?: Record<string, string> }) {
+  function setup(input: { isSignedIn?: boolean; isFeedLoading?: boolean; activities?: Activity[]; names?: Record<string, string> }) {
     vi.useFakeTimers({ now: NOW, toFake: ["Date", "setTimeout", "clearTimeout"] });
     let readinessByDseq: Record<string, DeploymentReadiness | undefined> = {};
     let activities = input.activities ?? [];
-    const useFlag = vi.fn((() => input.isEnabled ?? true) as typeof DEPENDENCIES.useFlag);
     const useActivityFeedQuery = vi.fn((() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), {
         data: input.isFeedLoading ? undefined : { activities, unseenCount: 0 }
@@ -235,7 +230,6 @@ describe(DeploymentReadyHost.name, () => {
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
 
     const dependencies: typeof DEPENDENCIES = {
-      useFlag,
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : buildUser() }),
       useActivityFeedQuery,
       useDeploymentsReadiness,
@@ -253,6 +247,6 @@ describe(DeploymentReadyHost.name, () => {
     };
     const watchedDseqs = () => useDeploymentsReadiness.mock.calls.at(-1)?.[0];
 
-    return { useFlag, useActivityFeedQuery, useDeploymentsReadiness, enqueueSnackbar, closeSnackbar, queryClient, router, receive, watchedDseqs, unmount };
+    return { useActivityFeedQuery, useDeploymentsReadiness, enqueueSnackbar, closeSnackbar, queryClient, router, receive, watchedDseqs, unmount };
   }
 });

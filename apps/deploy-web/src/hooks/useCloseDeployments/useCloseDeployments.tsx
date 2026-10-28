@@ -5,33 +5,20 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { useWallet } from "@src/context/WalletProvider";
 import { useSendCloseBatch } from "@src/hooks/useCloseBatches/useCloseBatches";
-import { useFlag } from "@src/hooks/useFlag";
-import { TransactionMessageData } from "@src/utils/TransactionMessageData";
 
-export const DEPENDENCIES = { useServices, useWallet, useFlag, useSendCloseBatch, useSnackbar, useQueryClient };
+export const DEPENDENCIES = { useServices, useSendCloseBatch, useSnackbar, useQueryClient };
 
-/** A deployment in neither list was not closed: its transaction failed or its close was refused. */
+/** A deployment in neither list was not closed: its close was refused. */
 export type BulkCloseOutcome = { closed: string[]; closing: string[] };
 
-/** Closes several deployments, each in the background under one bulk close while the activity center is on, and in one wallet transaction otherwise. */
+/** Closes several deployments, each in the background under one bulk close. */
 export function useCloseDeployments(dependencies: typeof DEPENDENCIES = DEPENDENCIES): (dseqs: string[]) => Promise<BulkCloseOutcome> {
   const { api } = dependencies.useServices();
-  const { address, signAndBroadcastTx } = dependencies.useWallet();
-  const isClosingInBackground = dependencies.useFlag("notifications_activity_center");
   const sendCloseBatch = dependencies.useSendCloseBatch();
   const { mutateAsync: requestClose } = api.v1.closeDeployment.useMutation();
   const queryClient = dependencies.useQueryClient();
   const { enqueueSnackbar } = dependencies.useSnackbar();
-
-  const closeWithWallet = useCallback(
-    async (dseqs: string[]): Promise<BulkCloseOutcome> => {
-      const response = await signAndBroadcastTx(dseqs.map(dseq => TransactionMessageData.getCloseDeploymentMsg(address, dseq)));
-      return { closed: response ? dseqs : [], closing: [] };
-    },
-    [signAndBroadcastTx, address]
-  );
 
   const reportRefusals = useCallback(
     (refusals: unknown[]) => {
@@ -44,7 +31,7 @@ export function useCloseDeployments(dependencies: typeof DEPENDENCIES = DEPENDEN
     [enqueueSnackbar]
   );
 
-  const closeInBackground = useCallback(
+  return useCallback(
     async (dseqs: string[]): Promise<BulkCloseOutcome> => {
       const answers = await sendCloseBatch(batchId => Promise.allSettled(dseqs.map(dseq => requestClose({ dseq, async: "true", batchId }))));
       await queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
@@ -62,6 +49,4 @@ export function useCloseDeployments(dependencies: typeof DEPENDENCIES = DEPENDEN
     },
     [sendCloseBatch, requestClose, queryClient, api, reportRefusals]
   );
-
-  return isClosingInBackground ? closeInBackground : closeWithWallet;
 }

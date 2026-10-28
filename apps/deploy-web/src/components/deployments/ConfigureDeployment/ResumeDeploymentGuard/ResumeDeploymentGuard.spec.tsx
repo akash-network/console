@@ -156,11 +156,10 @@ describe(ResumeDeploymentGuard.name, () => {
     expect(screen.queryByTestId("child")).not.toBeInTheDocument();
   });
 
-  describe("when the activity center is on", () => {
+  describe("when the deployment may still be being created", () => {
     it("shows a deployment the feed reports still being created as in progress rather than missing", () => {
       const { replace, enqueueSnackbar } = setup({
         intent: intentFor("555"),
-        isFollowingFeed: true,
         query: notFound(),
         feed: { activities: [createOf("777", "failed"), createOf("555", "pending")] }
       });
@@ -175,7 +174,6 @@ describe(ResumeDeploymentGuard.name, () => {
     it("reads the deployment again until the chain has the one being created", () => {
       const { useGetDeployment } = setup({
         intent: intentFor("555"),
-        isFollowingFeed: true,
         query: notFound(),
         feed: { activities: [createOf("555", "pending")] }
       });
@@ -186,7 +184,6 @@ describe(ResumeDeploymentGuard.name, () => {
     it("resumes choosing a provider once the chain has the created deployment, and stops reading it again", () => {
       const { respond, getResume, useGetDeployment } = setup({
         intent: intentFor("555"),
-        isFollowingFeed: true,
         query: notFound(),
         feed: { activities: [createOf("555", "pending")] }
       });
@@ -199,7 +196,7 @@ describe(ResumeDeploymentGuard.name, () => {
     });
 
     it("keeps waiting on a create the feed reports done while the chain does not show it yet", () => {
-      const { replace } = setup({ intent: intentFor("555"), isFollowingFeed: true, query: notFound(), feed: { activities: [createOf("555", "succeeded")] } });
+      const { replace } = setup({ intent: intentFor("555"), query: notFound(), feed: { activities: [createOf("555", "succeeded")] } });
 
       expect(screen.getByRole("heading", { name: "Creating your deployment" })).toBeInTheDocument();
       expect(replace).not.toHaveBeenCalled();
@@ -213,7 +210,7 @@ describe(ResumeDeploymentGuard.name, () => {
       }
     ])("treats a missing deployment $case as gone", ({ activities }) => {
       const intent = intentFor("555");
-      const { replace, enqueueSnackbar } = setup({ intent, isFollowingFeed: true, query: notFound(), feed: { activities } });
+      const { replace, enqueueSnackbar } = setup({ intent, query: notFound(), feed: { activities } });
 
       expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "warning" }));
       expect(replace).toHaveBeenCalledWith(buildConfigureUrl(intent, undefined, intent.bidStrategy));
@@ -223,7 +220,6 @@ describe(ResumeDeploymentGuard.name, () => {
       const pending = createOf("555", "pending");
       const { replace, enqueueSnackbar, respond } = setup({
         intent: intentFor("555"),
-        isFollowingFeed: true,
         query: notFound(),
         feed: { activities: [pending] }
       });
@@ -238,7 +234,6 @@ describe(ResumeDeploymentGuard.name, () => {
     it("keeps saying the deployment is being created, and keeps following the feed, while the deployment is read again", () => {
       const { useActivityFeedQuery, useGetDeployment, respond } = setup({
         intent: intentFor("555"),
-        isFollowingFeed: true,
         query: notFound(),
         feed: { activities: [createOf("555", "pending")] }
       });
@@ -251,13 +246,13 @@ describe(ResumeDeploymentGuard.name, () => {
     });
 
     it("treats a missing deployment as gone when the feed cannot be read", () => {
-      const { replace } = setup({ intent: intentFor("555"), isFollowingFeed: true, query: notFound(), feed: { isError: true } });
+      const { replace } = setup({ intent: intentFor("555"), query: notFound(), feed: { isError: true } });
 
       expect(replace).toHaveBeenCalled();
     });
 
     it("waits for the feed before deciding a missing deployment is gone", () => {
-      const { replace, useGetDeployment } = setup({ intent: intentFor("555"), isFollowingFeed: true, query: notFound(), feed: {} });
+      const { replace, useGetDeployment } = setup({ intent: intentFor("555"), query: notFound(), feed: {} });
 
       expect(screen.getByRole("status")).toBeInTheDocument();
       expect(screen.queryByRole("heading", { name: "Creating your deployment" })).not.toBeInTheDocument();
@@ -266,28 +261,20 @@ describe(ResumeDeploymentGuard.name, () => {
     });
 
     it("reads the feed only while a missing deployment is unresolved", () => {
-      const { useActivityFeedQuery, useFlag, respond } = setup({ intent: intentFor("555"), isFollowingFeed: true, query: notFound(), feed: {} });
+      const { useActivityFeedQuery, respond } = setup({ intent: intentFor("555"), query: notFound(), feed: {} });
       const enabledWhileMissing = useActivityFeedQuery.mock.lastCall?.[0];
 
       respond({ query: deployment({ state: "active" }) });
 
-      expect(useFlag).toHaveBeenCalledWith("notifications_activity_center");
       expect(enabledWhileMissing).toEqual({ enabled: true });
       expect(useActivityFeedQuery).toHaveBeenLastCalledWith({ enabled: false });
     });
 
     it("does not read the feed for a deployment the chain has", () => {
-      const { useActivityFeedQuery } = setup({ intent: intentFor("555"), isFollowingFeed: true, query: { isLoading: true } });
+      const { useActivityFeedQuery } = setup({ intent: intentFor("555"), query: { isLoading: true } });
 
       expect(useActivityFeedQuery).toHaveBeenLastCalledWith({ enabled: false });
     });
-  });
-
-  it("neither reads the feed nor waits on it for a missing deployment while the activity center is off", () => {
-    const { useActivityFeedQuery, replace } = setup({ intent: intentFor("555"), query: notFound(), feed: { activities: [createOf("555", "pending")] } });
-
-    expect(useActivityFeedQuery).toHaveBeenLastCalledWith({ enabled: false });
-    expect(replace).toHaveBeenCalled();
   });
 
   function notFound() {
@@ -325,13 +312,12 @@ describe(ResumeDeploymentGuard.name, () => {
     intent: DeploymentIntent;
     canResume?: boolean;
     query?: { isLoading?: boolean; isError?: boolean; error?: unknown; data?: unknown };
-    isFollowingFeed?: boolean;
     feed?: { activities?: Activity[]; isError?: boolean };
   }) {
     const replace = vi.fn();
     const enqueueSnackbar = vi.fn();
     let resume: ResumeResolution | undefined;
-    const current = { query: input.query, feed: input.feed };
+    const current = { query: input.query, feed: input.feed ?? { activities: [] } };
 
     // react-query's result is a discriminated union on isError/isSuccess that a plain mock<T> partial can't express,
     // so the hand-built result is cast rather than fighting the union.
@@ -344,7 +330,6 @@ describe(ResumeDeploymentGuard.name, () => {
           error: current.query?.error
         }) as unknown as ReturnType<typeof DEPENDENCIES.useGetDeployment>
     );
-    const useFlag = vi.fn((_flag: string) => input.isFollowingFeed ?? false);
     const useActivityFeedQuery = vi.fn((_options: { enabled: boolean }) => {
       const activities = current.feed?.activities;
       return Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), {
@@ -359,7 +344,6 @@ describe(ResumeDeploymentGuard.name, () => {
       useSnackbar: (() => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })) as never,
       Snackbar: vi.fn(() => null) as never,
       useGetDeployment: useGetDeployment as never,
-      useFlag,
       useActivityFeedQuery
     };
 
@@ -385,7 +369,6 @@ describe(ResumeDeploymentGuard.name, () => {
       replace,
       enqueueSnackbar,
       useGetDeployment,
-      useFlag,
       useActivityFeedQuery,
       getResume: () => resume,
       rerender,

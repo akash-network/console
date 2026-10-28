@@ -7,20 +7,18 @@ import { ActivityFeedNotice, activityFeedStatusOf } from "@src/components/activi
 import { deploymentLabelOf } from "@src/components/activity/activityLabels/activityLabels";
 import { SectionLabel } from "@src/components/projects/SectionLabel/SectionLabel";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
-import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { useActivityFeedQuery } from "@src/queries/useLatestActivitiesQuery";
 import { UrlService } from "@src/utils/urlUtils";
 
-export const DEPENDENCIES = { useFlag, useUser, useActivityFeedQuery, useDeploymentNames };
+export const DEPENDENCIES = { useUser, useActivityFeedQuery, useDeploymentNames };
 
 const MAX_LISTED_ENTRIES = 8;
 
 /** The user's newest actions beside their deployments, settling as the activity host polls the feed. */
 export function RecentActivity({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES }) {
-  const isEnabled = d.useFlag("notifications_activity_center");
   const { user } = d.useUser();
-  const isShown = isEnabled && !!user?.userId;
+  const isShown = !!user?.userId;
   const { data: feed, isError } = d.useActivityFeedQuery({ enabled: isShown });
   const activities = feed?.activities ?? [];
   const { getDeploymentName } = d.useDeploymentNames(activities.map(activity => activity.meta.dseq));

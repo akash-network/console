@@ -18,12 +18,11 @@ import { ActivityFeedNotice, activityFeedStatusOf } from "@src/components/activi
 import { deploymentLabelOf } from "@src/components/activity/activityLabels/activityLabels";
 import { useServices } from "@src/context/ServicesProvider";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
-import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { useActivityFeedQuery } from "@src/queries/useLatestActivitiesQuery";
 import { UrlService } from "@src/utils/urlUtils";
 
-export const DEPENDENCIES = { useFlag, useUser, useActivityFeedQuery, useDeploymentNames, useQueryClient };
+export const DEPENDENCIES = { useUser, useActivityFeedQuery, useDeploymentNames, useQueryClient };
 
 const MAX_LISTED_ENTRIES = 10;
 
@@ -31,9 +30,8 @@ const MAX_COUNTED_UNSEEN = 9;
 
 /** The newest of the user's actions in the top navigation: how many they haven't seen, and how each one went. */
 export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES }) {
-  const isEnabled = d.useFlag("notifications_activity_center");
   const { user } = d.useUser();
-  const isShown = isEnabled && !!user?.userId;
+  const isShown = !!user?.userId;
   const { api } = useServices();
   const queryClient = d.useQueryClient();
   const { data: feed, isError } = d.useActivityFeedQuery({ enabled: isShown });

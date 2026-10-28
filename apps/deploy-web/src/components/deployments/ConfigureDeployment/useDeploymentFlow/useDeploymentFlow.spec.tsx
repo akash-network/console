@@ -52,7 +52,10 @@ describe(useDeploymentFlow.name, () => {
 
     await waitFor(() => expect(result.current.phase).toBe("quoting"));
     expect(result.current.dseq).toBe("999");
-    expect(createMutate).toHaveBeenCalledWith({ data: { sdl: "sdl-content", sealedSecrets: "SEALED", deposit: expect.any(Number) } }, expect.any(Object));
+    expect(createMutate).toHaveBeenCalledWith(
+      { async: "true", data: { sdl: "sdl-content", sealedSecrets: "SEALED", deposit: expect.any(Number) } },
+      expect.any(Object)
+    );
     expect(replace).toHaveBeenCalledWith("/new-deployment/configure/999?bid-strategy=select", undefined, { shallow: true });
   });
 
@@ -65,7 +68,10 @@ describe(useDeploymentFlow.name, () => {
     await settleSeal();
 
     await waitFor(() => expect(createMutate).toHaveBeenCalled());
-    expect(createMutate).toHaveBeenCalledWith({ data: expect.objectContaining({ sdl: "sdl-content", projectId: "project-1" }) }, expect.any(Object));
+    expect(createMutate).toHaveBeenCalledWith(
+      { async: "true", data: expect.objectContaining({ sdl: "sdl-content", projectId: "project-1" }) },
+      expect.any(Object)
+    );
   });
 
   it("records the gallery template the deployment starts from", async () => {
@@ -77,7 +83,10 @@ describe(useDeploymentFlow.name, () => {
     await settleSeal();
 
     await waitFor(() => expect(createMutate).toHaveBeenCalled());
-    expect(createMutate).toHaveBeenCalledWith({ data: expect.objectContaining({ templateId: "akash-network-awesome-akash-comfyui" }) }, expect.any(Object));
+    expect(createMutate).toHaveBeenCalledWith(
+      { async: "true", data: expect.objectContaining({ templateId: "akash-network-awesome-akash-comfyui" }) },
+      expect.any(Object)
+    );
   });
 
   it("records no template for a hardcoded starter, which the gallery does not have", async () => {
@@ -162,7 +171,7 @@ describe(useDeploymentFlow.name, () => {
 
     await waitFor(() => expect(result.current.phase).toBe("quoting"));
     expect(createMutate).toHaveBeenCalledWith(
-      { data: { sdl: "sdl-content", name: "my-app", sealedSecrets: "SEALED", deposit: expect.any(Number) } },
+      { async: "true", data: { sdl: "sdl-content", name: "my-app", sealedSecrets: "SEALED", deposit: expect.any(Number) } },
       expect.any(Object)
     );
   });
@@ -291,7 +300,7 @@ describe(useDeploymentFlow.name, () => {
   });
 
   it("closes a deployment it holds before sending the last create again, so two are never open at once", async () => {
-    const closeMutate = vi.fn((_args, options) => options.onSuccess?.({}));
+    const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { success: true } }));
     const createMutate = vi
       .fn()
       .mockImplementationOnce((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }))
@@ -454,7 +463,7 @@ describe(useDeploymentFlow.name, () => {
     try {
       let nextDseq = 999;
       const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: String(nextDseq++), manifest: "m" } }));
-      const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({}));
+      const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { success: true } }));
       const { result, analyticsService } = setup({ createMutate, closeMutate });
 
       act(() => result.current.actions.requestQuotes("sdl-content", { screening: { placementCount: 1, providerCount: 4 } }));
@@ -481,7 +490,7 @@ describe(useDeploymentFlow.name, () => {
   ])("stops reporting missing bids once %s", (_, finishAttempt) => {
     vi.useFakeTimers();
     try {
-      const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({}));
+      const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { success: true } }));
       const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
       act(() => vi.advanceTimersByTime(60_000));
       expect(result.current.noBidsReceived).toBe(true);
@@ -509,7 +518,6 @@ describe(useDeploymentFlow.name, () => {
         deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }),
         sealSdlSecrets: async () => "SEALED",
         servicesPatchBetween,
-        useFlag: () => false,
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
         useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
@@ -642,7 +650,7 @@ describe(useDeploymentFlow.name, () => {
         let nextDseq = 999;
         const bidList: { bids: Array<ReturnType<typeof openBidOn>> } = { bids: [] };
         const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: String(nextDseq++), manifest: "m" } }));
-        const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({}));
+        const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { success: true } }));
         const { result, rerender, analyticsService } = setup({ createMutate, closeMutate, bidList });
         act(() => result.current.actions.requestQuotes("sdl-content"));
         await settleSeal();
@@ -755,7 +763,6 @@ describe(useDeploymentFlow.name, () => {
         deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }),
         sealSdlSecrets: async () => "SEALED",
         servicesPatchBetween,
-        useFlag: () => false,
         useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
         useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
@@ -777,13 +784,13 @@ describe(useDeploymentFlow.name, () => {
   });
 
   it("cancelAndEdit closes the deployment and returns to configuring", async () => {
-    const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({}));
+    const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { success: true } }));
     const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
 
     act(() => result.current.actions.cancelAndEdit());
 
     await waitFor(() => expect(result.current.phase).toBe("configuring"));
-    expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
+    expect(closeMutate).toHaveBeenCalledWith({ dseq: "777", async: "true" }, expect.any(Object));
     expect(result.current.dseq).toBeNull();
   });
 
@@ -808,7 +815,7 @@ describe(useDeploymentFlow.name, () => {
 
     expect(result.current.phase).toBe("configuring");
     expect(result.current.dseq).toBeNull();
-    expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
+    expect(closeMutate).toHaveBeenCalledWith({ dseq: "777", async: "true" }, expect.any(Object));
   });
 
   it("setBidStrategy mirrors the new strategy to the URL", () => {
@@ -865,7 +872,7 @@ describe(useDeploymentFlow.name, () => {
 
     expect(result.current.phase).toBe("deploying");
     expect(createLease.mutate).toHaveBeenCalledWith(
-      { manifest: "MANIFEST_JSON", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] },
+      { async: "true", manifest: "MANIFEST_JSON", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] },
       expect.anything()
     );
   });
@@ -1111,7 +1118,10 @@ describe(useDeploymentFlow.name, () => {
     act(() => result.current.actions.deploy("sdl"));
 
     expect(updateDeployment.mutate).not.toHaveBeenCalled();
-    expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M1", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] }, expect.anything());
+    expect(createLease.mutate).toHaveBeenCalledWith(
+      { async: "true", manifest: "M1", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] },
+      expect.anything()
+    );
   });
 
   it("clears a placement's selection when its bid is no longer open", async () => {
@@ -1167,7 +1177,7 @@ describe(useDeploymentFlow.name, () => {
 
   describe("abandoning an attempt", () => {
     it("closes the deployment and halts in error", async () => {
-      const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({}));
+      const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { success: true } }));
       const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate });
 
       act(() => result.current.actions.closeAndFail("no match"));
@@ -1175,7 +1185,7 @@ describe(useDeploymentFlow.name, () => {
       await waitFor(() => expect(result.current.dseq).toBeNull());
       expect(result.current.phase).toBe("error");
       expect(result.current.error).toEqual({ message: "no match", kind: "no-match" });
-      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777", async: "true" }, expect.any(Object));
     });
 
     it("ends on the kind of abandonment the caller names", () => {
@@ -1205,7 +1215,7 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.phase).toBe("configuring");
       expect(result.current.dseq).toBeNull();
 
-      act(() => closeMutate.mock.calls[0][1].onSuccess({}));
+      act(() => closeMutate.mock.calls[0][1].onSuccess({ data: { success: true } }));
 
       expect(closeMutate).toHaveBeenCalledTimes(1);
       expect(result.current.pendingClose).toBeNull();
@@ -1261,12 +1271,12 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.closeAndFail("no match"));
       act(() => result.current.actions.requestQuotes("sdl"));
       await settleSeal();
-      act(() => closeMutate.mock.calls[0][1].onSuccess({}));
+      act(() => closeMutate.mock.calls[0][1].onSuccess({ data: { success: true } }));
       await settleSeal();
       expect(result.current.dseq).toBe("888");
 
       act(() => result.current.actions.closeAndFail("no match"));
-      act(() => closeMutate.mock.calls[0][1].onSuccess({}));
+      act(() => closeMutate.mock.calls[0][1].onSuccess({ data: { success: true } }));
       await settleSeal();
 
       expect(closeMutate).toHaveBeenCalledTimes(2);
@@ -1317,7 +1327,7 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("returns to configuring on cancelAndEdit, so a retry starts from scratch", async () => {
-      const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({}));
+      const closeMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { success: true } }));
       const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto", dseq: "777" }, closeMutate });
 
       act(() => result.current.actions.closeAndFail("no match"));
@@ -1399,7 +1409,10 @@ describe(useDeploymentFlow.name, () => {
 
       await waitFor(() => expect(result.current.phase).toBe("quoting"));
       expect(sealSdlSecrets).toHaveBeenCalledWith({ context: SEAL_CONTEXT, sdl: "sdl-content", secrets: { API_KEY: "hunter2" } });
-      expect(createMutate).toHaveBeenCalledWith({ data: { sdl: "sdl-content", sealedSecrets: "SEALED", deposit: expect.any(Number) } }, expect.any(Object));
+      expect(createMutate).toHaveBeenCalledWith(
+        { async: "true", data: { sdl: "sdl-content", sealedSecrets: "SEALED", deposit: expect.any(Number) } },
+        expect.any(Object)
+      );
     });
 
     it("sends an empty seal when nothing is secret, which is what stops the api protecting every variable", async () => {
@@ -1559,7 +1572,10 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.deploy("sdl-b"));
 
       await waitFor(() =>
-        expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M2", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] }, expect.anything())
+        expect(createLease.mutate).toHaveBeenCalledWith(
+          { async: "true", manifest: "M2", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] },
+          expect.anything()
+        )
       );
       expect(servicesPatchBetween).toHaveBeenCalledWith("sdl-a", "sdl-b");
       expect(patchDeployment.mutate).toHaveBeenCalledWith(
@@ -1820,7 +1836,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.deploy(REFERENCED_SDL));
 
       await waitFor(() =>
-        expect(createLease.mutate).toHaveBeenCalledWith({ leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] }, expect.anything())
+        expect(createLease.mutate).toHaveBeenCalledWith({ async: "true", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] }, expect.anything())
       );
       expect(createLease.mutate.mock.calls[0][0]).not.toHaveProperty("manifest");
       expect(updateDeployment.mutate).not.toHaveBeenCalled();
@@ -1849,20 +1865,18 @@ describe(useDeploymentFlow.name, () => {
       );
       expect(servicesPatchBetween).toHaveBeenCalledWith(REFERENCED_SDL, REFERENCED_SDL);
       expect(updateDeployment.mutate).not.toHaveBeenCalled();
-      expect(createLease.mutate).toHaveBeenCalledWith({ leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] }, expect.anything());
+      expect(createLease.mutate).toHaveBeenCalledWith({ async: "true", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] }, expect.anything());
     });
   });
 
   describe("deploying in the background", () => {
     const LEASE = { dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" };
 
-    it("asks the api to finish the lease in the background while the activity center is on", async () => {
+    it("asks the api to finish the lease in the background", async () => {
       const createLease = mockMutation();
-      const { result, useFlag } = await renderQuotingFlow({ createLease, isActivityCenterOn: true });
+      const { result } = await renderQuotingFlow({ createLease });
 
       act(() => result.current.actions.deploy("sdl"));
-
-      expect(useFlag).toHaveBeenCalledWith("notifications_activity_center");
       expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M", leases: [LEASE], async: "true" }, expect.anything());
       expect(result.current.phase).toBe("deploying");
       expect(result.current.isDeployedInBackground).toBe(false);
@@ -1870,7 +1884,7 @@ describe(useDeploymentFlow.name, () => {
 
     it("asks the api to finish an auto deploy's lease in the background too, without its progress screen", async () => {
       const createLease = mockMutation();
-      const { result } = await renderQuotingFlow({ createLease, isActivityCenterOn: true });
+      const { result } = await renderQuotingFlow({ createLease });
 
       act(() => result.current.actions.deploy("sdl", { isAutoDeploy: true }));
 
@@ -1878,24 +1892,11 @@ describe(useDeploymentFlow.name, () => {
       expect(result.current.showsDeployProgress).toBe(false);
     });
 
-    it.each([
-      { case: "a deploy the user confirmed", isAutoDeploy: false },
-      { case: "an auto deploy", isAutoDeploy: true }
-    ])("creates the lease during the request and shows its progress at once for $case while the activity center is off", async ({ isAutoDeploy }) => {
-      const createLease = mockMutation();
-      const { result } = await renderQuotingFlow({ createLease, isActivityCenterOn: false });
-
-      act(() => result.current.actions.deploy("sdl", { isAutoDeploy }));
-
-      expect(createLease.mutate).toHaveBeenCalledWith({ manifest: "M", leases: [LEASE] }, expect.anything());
-      expect(result.current.showsDeployProgress).toBe(true);
-    });
-
     it("shows no progress screen while the api may still take the lease on, and shows it once the request has run longer than a hand-off takes", async () => {
       vi.useFakeTimers();
       try {
         const lease = deferredMutate();
-        const { result } = await renderQuotingFlow({ createLease: mockMutation(lease.mutate), isActivityCenterOn: true });
+        const { result } = await renderQuotingFlow({ createLease: mockMutation(lease.mutate) });
 
         expect(result.current.showsDeployProgress).toBe(false);
 
@@ -1917,7 +1918,7 @@ describe(useDeploymentFlow.name, () => {
       vi.useFakeTimers();
       try {
         const lease = deferredMutate();
-        const { result } = await renderQuotingFlow({ createLease: mockMutation(lease.mutate), isActivityCenterOn: true });
+        const { result } = await renderQuotingFlow({ createLease: mockMutation(lease.mutate) });
 
         act(() => result.current.actions.deploy("sdl"));
         act(() => vi.advanceTimersByTime(3_000));
@@ -1937,7 +1938,7 @@ describe(useDeploymentFlow.name, () => {
       vi.useFakeTimers();
       try {
         const lease = deferredMutate();
-        const { result } = await renderQuotingFlow({ createLease: mockMutation(lease.mutate), isActivityCenterOn: true });
+        const { result } = await renderQuotingFlow({ createLease: mockMutation(lease.mutate) });
 
         act(() => result.current.actions.deploy("sdl"));
         act(() => vi.advanceTimersByTime(500));
@@ -1955,7 +1956,7 @@ describe(useDeploymentFlow.name, () => {
       vi.useFakeTimers();
       try {
         const lease = deferredMutate();
-        const { result } = await renderQuotingFlow({ createLease: mockMutation(lease.mutate), isActivityCenterOn: true });
+        const { result } = await renderQuotingFlow({ createLease: mockMutation(lease.mutate) });
 
         act(() => result.current.actions.deploy("sdl"));
         act(() => vi.advanceTimersByTime(1_000));
@@ -1978,7 +1979,6 @@ describe(useDeploymentFlow.name, () => {
         const { result } = await renderQuotingFlow({
           createLease: mockMutation(lease.mutate),
           patchDeployment: mockMutation(patch.mutate),
-          isActivityCenterOn: true,
           manifestFromSdl: () => "M2",
           servicesPatchBetween: () => ({ web: { env: { FOO: "bar" } } })
         });
@@ -2007,7 +2007,7 @@ describe(useDeploymentFlow.name, () => {
     it("sends the user to the deployments list as soon as the api takes the lease on, without waiting to show the deployment", async () => {
       vi.useFakeTimers();
       try {
-        const { result, router } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+        const { result, router } = await renderQuotingFlow({ createLease: acceptedLease() });
 
         await act(async () => result.current.actions.deploy("sdl"));
         act(() => vi.runAllTimers());
@@ -2023,7 +2023,7 @@ describe(useDeploymentFlow.name, () => {
 
     it("waits for the feed to show the lease underway before sending the user to the list, so the deployment reads as spinning up there", async () => {
       let refreshFeed = () => {};
-      const { result, router, queryClient } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+      const { result, router, queryClient } = await renderQuotingFlow({ createLease: acceptedLease() });
       queryClient.invalidateQueries.mockImplementation(async filters => {
         if (filters?.queryKey?.[1] === "listActivities") await new Promise<void>(resolve => (refreshFeed = resolve));
       });
@@ -2040,7 +2040,7 @@ describe(useDeploymentFlow.name, () => {
 
     it("leaves telling how a lease the api took on ends to the activity host, so it marks and follows nothing", async () => {
       const createLease = acceptedLease();
-      const { result, markOutcomeHandled, forgetEarlierOutcomes, followUntilSettled } = await renderQuotingFlow({ createLease, isActivityCenterOn: true });
+      const { result, markOutcomeHandled, forgetEarlierOutcomes, followUntilSettled } = await renderQuotingFlow({ createLease });
 
       await act(async () => result.current.actions.deploy("sdl"));
 
@@ -2054,7 +2054,6 @@ describe(useDeploymentFlow.name, () => {
       const resources = { gpuAmount: 1, cpuAmount: 4, memoryAmount: 2048, storageAmount: 4096 };
       const { result, holdActivityEvents, analyticsService } = await renderQuotingFlow({
         createLease: acceptedLease(),
-        isActivityCenterOn: true,
         deploymentResourcesFromSdl: () => resources
       });
 
@@ -2076,7 +2075,7 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("holds no gpu deploy event for a deployment without a GPU", async () => {
-      const { result, holdActivityEvents } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+      const { result, holdActivityEvents } = await renderQuotingFlow({ createLease: acceptedLease() });
 
       await act(async () => result.current.actions.deploy("sdl"));
 
@@ -2087,7 +2086,7 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("holds a deploy_failed event for the lease's activity, so a lease that fails in the background is still reported", async () => {
-      const { result, holdActivityEvents, analyticsService } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+      const { result, holdActivityEvents, analyticsService } = await renderQuotingFlow({ createLease: acceptedLease() });
 
       await act(async () => result.current.actions.deploy("sdl"));
 
@@ -2106,7 +2105,7 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("tells the onboarding gate to expect the lease and refreshes the feed and the list the user lands on", async () => {
-      const { result, queryClient } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true });
+      const { result, queryClient } = await renderQuotingFlow({ createLease: acceptedLease() });
 
       await act(async () => result.current.actions.deploy("sdl"));
 
@@ -2117,7 +2116,7 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("leaves the wallet's caches alone while the wallet is not known yet", async () => {
-      const { result, queryClient, router } = await renderQuotingFlow({ createLease: acceptedLease(), isActivityCenterOn: true, settingsId: null });
+      const { result, queryClient, router } = await renderQuotingFlow({ createLease: acceptedLease(), settingsId: null });
 
       await act(async () => result.current.actions.deploy("sdl"));
 
@@ -2126,11 +2125,11 @@ describe(useDeploymentFlow.name, () => {
       expect(router.replace).toHaveBeenLastCalledWith(UrlService.deploymentList());
     });
 
-    it("finishes the deploy as it does without the activity center when the api answers 200 and creates the lease during the request", async () => {
+    it("finishes the deploy at once when the api answers 200 and creates the lease during the request", async () => {
       vi.useFakeTimers();
       try {
         const createLease = mockMutation(vi.fn((_i, o) => o.onSuccess(deployedResult("akash1owner"))));
-        const { result, router, analyticsService, holdActivityEvents, markOutcomeHandled } = await renderQuotingFlow({ createLease, isActivityCenterOn: true });
+        const { result, router, analyticsService, holdActivityEvents, markOutcomeHandled } = await renderQuotingFlow({ createLease });
 
         act(() => result.current.actions.deploy("sdl"));
 
@@ -2150,7 +2149,7 @@ describe(useDeploymentFlow.name, () => {
     it("stays on the provider step with the api's reason when other bids of the deployment are already being leased", async () => {
       const conflict = new ApiError(409, { message: "A lease is already being created for this deployment" }, "POST /v1/leases → 409");
       const createLease = mockMutation(vi.fn((_i, o) => o.onError(conflict)));
-      const { result, router, holdActivityEvents, markOutcomeHandled } = await renderQuotingFlow({ createLease, isActivityCenterOn: true });
+      const { result, router, holdActivityEvents, markOutcomeHandled } = await renderQuotingFlow({ createLease });
 
       act(() => result.current.actions.deploy("sdl"));
 
@@ -2167,7 +2166,6 @@ describe(useDeploymentFlow.name, () => {
       const { result, router } = await renderQuotingFlow({
         createLease,
         patchDeployment: mockMutation(patch.mutate),
-        isActivityCenterOn: true,
         manifestFromSdl: () => "M2",
         servicesPatchBetween: () => ({ web: { env: { FOO: "bar" } } })
       });
@@ -2365,7 +2363,7 @@ describe(useDeploymentFlow.name, () => {
   });
 
   describe("deploy failure analytics", () => {
-    const FAILED_DEPLOY = { category: "deployments", dseq: "555", isAutoDeploy: false, inBackground: false };
+    const FAILED_DEPLOY = { category: "deployments", dseq: "555", isAutoDeploy: false, inBackground: true };
 
     it("tracks deploy_failed at the manifest_build stage when the manifest cannot be built", () => {
       const { result, analyticsService } = renderFlow({ intent: { dseq: "555" }, manifestFromSdl: () => null });
@@ -2476,22 +2474,6 @@ describe(useDeploymentFlow.name, () => {
       });
     });
 
-    it("tells a lease the api was asked to finish in the background apart from one made during the request", async () => {
-      const { result, analyticsService } = await renderLeasingFlow({
-        createLease: mockMutation(vi.fn((_i, o) => o.onError(new Error("network")))),
-        isActivityCenterOn: true
-      });
-
-      act(() => result.current.actions.deploy("sdl"));
-
-      expect(analyticsService.track).toHaveBeenCalledWith("deploy_failed", {
-        ...FAILED_DEPLOY,
-        stage: "lease_create",
-        inBackground: true,
-        errorKind: "unknown"
-      });
-    });
-
     it("classifies a lease that timed out at the gateway, which answers without the api's error code", async () => {
       const gatewayTimeout = new ApiError(504, "<html>Gateway Timeout</html>", "POST /v1/leases → 504");
       const { result, analyticsService } = await renderLeasingFlow({ createLease: mockMutation(vi.fn((_i, o) => o.onError(gatewayTimeout))) });
@@ -2566,8 +2548,8 @@ describe(useDeploymentFlow.name, () => {
   });
 
   describe("when a deploy the user confirmed takes too long", () => {
-    const TIMED_OUT_DEPLOY = { category: "deployments", stage: "lease_timeout", dseq: "555", isAutoDeploy: false, inBackground: false };
-    const LEASE_REQUEST = { manifest: "M", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] };
+    const TIMED_OUT_DEPLOY = { category: "deployments", stage: "lease_timeout", dseq: "555", isAutoDeploy: false, inBackground: true };
+    const LEASE_REQUEST = { async: "true", manifest: "M", leases: [{ dseq: "555", gseq: 1, oseq: 3, provider: "akash1a" }] };
 
     it("reports the timeout and tells the user once 30 s pass with neither a lease nor an activity", async () => {
       vi.useFakeTimers();
@@ -2640,12 +2622,12 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it.each([
-      { case: "the lease is created", isActivityCenterOn: false, answer: deployedResult("akash1owner") },
-      { case: "the api takes the lease on in the background", isActivityCenterOn: true, answer: { data: { activityId: "activity-1" } } }
-    ])("stops timing once $case", async ({ isActivityCenterOn, answer }) => {
+      { case: "the lease is created", answer: deployedResult("akash1owner") },
+      { case: "the api takes the lease on in the background", answer: { data: { activityId: "activity-1" } } }
+    ])("stops timing once $case", async ({ answer }) => {
       vi.useFakeTimers();
       try {
-        const { result, analyticsService, lease } = await renderDeployingFlow({ isActivityCenterOn });
+        const { result, analyticsService, lease } = await renderDeployingFlow();
         act(() => vi.advanceTimersByTime(29_000));
 
         await act(async () => lease.calls[0].options.onSuccess?.(answer));
@@ -2912,7 +2894,7 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => result.current.actions.discard());
 
-      expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "555" }, expect.any(Object));
+      expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "555", async: "true" }, expect.any(Object));
     });
 
     it("lets the autopilot lease another provider once the api says the provider could not be reached", async () => {
@@ -2962,7 +2944,7 @@ describe(useDeploymentFlow.name, () => {
 
       act(() => result.current.actions.discard());
 
-      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777", async: "true" }, expect.any(Object));
       expect(result.current.phase).toBe("quoting");
       expect(replace).not.toHaveBeenCalled();
     });
@@ -2977,7 +2959,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.discard());
 
       expect(closeMutate).toHaveBeenCalledTimes(2);
-      expect(closeMutate).toHaveBeenLastCalledWith({ dseq: "777" }, expect.any(Object));
+      expect(closeMutate).toHaveBeenLastCalledWith({ dseq: "777", async: "true" }, expect.any(Object));
     });
 
     it("never leases a deployment it discarded, since the page may linger before it navigates away", () => {
@@ -3028,7 +3010,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.discard());
       act(() => hookOptionsOf(services.api.v1.createDeployment.useMutation).onSuccess?.({ data: { dseq: "999", manifest: "m" } }));
 
-      expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "999" });
+      expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "999", async: "true" });
     });
 
     it("closes a create in flight only once when the page is still there to see it resolve", async () => {
@@ -3066,7 +3048,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.requestQuotes("sdl"));
 
       act(() => result.current.actions.discard());
-      act(() => closeMutate.mock.calls[0][1].onSuccess({}));
+      act(() => closeMutate.mock.calls[0][1].onSuccess({ data: { success: true } }));
 
       expect(createMutate).not.toHaveBeenCalled();
     });
@@ -3110,7 +3092,7 @@ describe(useDeploymentFlow.name, () => {
 
       expect(result.current.phase).toBe("configuring");
       expect(result.current.dseq).toBeNull();
-      expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "999" }, expect.any(Object));
+      expect(closeDeployment.mutate).toHaveBeenCalledWith({ dseq: "999", async: "true" }, expect.any(Object));
       expect(replace.mock.calls.every(([url]) => !String(url).includes("/configure/999"))).toBe(true);
     });
 
@@ -3142,7 +3124,7 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("closes the still-open deployment before creating when requesting quotes with a live dseq", async () => {
-      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({}));
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { success: true } }));
       const createMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
       const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate });
 
@@ -3151,7 +3133,10 @@ describe(useDeploymentFlow.name, () => {
       await settleSeal();
 
       expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
-      expect(createMutate).toHaveBeenCalledWith({ data: { sdl: "sdl", sealedSecrets: "SEALED", deposit: expect.any(Number) } }, expect.any(Object));
+      expect(createMutate).toHaveBeenCalledWith(
+        { async: "true", data: { sdl: "sdl", sealedSecrets: "SEALED", deposit: expect.any(Number) } },
+        expect.any(Object)
+      );
       expect(result.current.dseq).toBe("1000");
       expect(result.current.phase).toBe("quoting");
     });
@@ -3332,7 +3317,7 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("clears the pending close once it settles", () => {
-      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({}));
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { success: true } }));
       const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
 
       act(() => result.current.actions.cancelAndEdit());
@@ -3355,7 +3340,7 @@ describe(useDeploymentFlow.name, () => {
       expect(createMutate).not.toHaveBeenCalled();
       expect(result.current.phase).toBe("creating");
 
-      act(() => closeCallbacks[0]?.({}));
+      act(() => closeCallbacks[0]?.({ data: { success: true } }));
 
       await settleSeal();
 
@@ -3366,7 +3351,7 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("closes the deployment before creating, so two are never open at once", async () => {
-      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({}));
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { success: true } }));
       const createMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
       const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate });
 
@@ -3410,7 +3395,7 @@ describe(useDeploymentFlow.name, () => {
       await settleSeal();
       expect(createMutate).not.toHaveBeenCalled();
 
-      act(() => closeCalls[1]?.onSuccess?.({}));
+      act(() => closeCalls[1]?.onSuccess?.({ data: { success: true } }));
       await settleSeal();
 
       expect(closeCalls).toHaveLength(2);
@@ -3430,7 +3415,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.retryClose());
 
       expect(closeMutate).toHaveBeenCalledTimes(2);
-      expect(closeMutate).toHaveBeenLastCalledWith({ dseq: "777" }, expect.any(Object));
+      expect(closeMutate).toHaveBeenLastCalledWith({ dseq: "777", async: "true" }, expect.any(Object));
     });
 
     it("ignores retryClose while a close is already in flight", () => {
@@ -3454,7 +3439,7 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("refreshes the balance and deployment lists once the background close lands, so the freed deposit shows up", () => {
-      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({}));
+      const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { success: true } }));
       const { result, queryClient, services } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
 
       act(() => result.current.actions.cancelAndEdit());
@@ -3466,23 +3451,12 @@ describe(useDeploymentFlow.name, () => {
   });
 
   describe("closing in the background", () => {
-    it("closes a cancelled deployment in the background while the activity center is on", () => {
-      const closeMutate = vi.fn();
-      const { result, useFlag } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, isRunningInBackground: true });
-
-      act(() => result.current.actions.cancelAndEdit());
-
-      expect(useFlag).toHaveBeenCalledWith("notifications_activity_center");
-      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777", async: "true" }, expect.any(Object));
-    });
-
-    it("closes a cancelled deployment during the request while the activity center is off", () => {
+    it("closes a cancelled deployment in the background", () => {
       const closeMutate = vi.fn();
       const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
 
       act(() => result.current.actions.cancelAndEdit());
-
-      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777" }, expect.any(Object));
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "777", async: "true" }, expect.any(Object));
     });
 
     it.each([
@@ -3490,7 +3464,7 @@ describe(useDeploymentFlow.name, () => {
       { action: "discard", act: (actions: DeploymentFlowActions) => actions.discard() }
     ])("closes in the background when $action gives the deployment up", ({ act: giveUp }) => {
       const closeMutate = vi.fn();
-      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, isRunningInBackground: true });
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
 
       act(() => giveUp(result.current.actions));
 
@@ -3503,8 +3477,7 @@ describe(useDeploymentFlow.name, () => {
       const { result } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
         closeMutate,
-        getDeploymentMutate,
-        isRunningInBackground: true
+        getDeploymentMutate
       });
       act(() => result.current.actions.cancelAndEdit());
 
@@ -3517,8 +3490,7 @@ describe(useDeploymentFlow.name, () => {
       const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { activityId: "activity-1" } }));
       const { result, queryClient, useLatestActivitiesQuery } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
-        closeMutate,
-        isRunningInBackground: true
+        closeMutate
       });
 
       act(() => result.current.actions.cancelAndEdit());
@@ -3530,7 +3502,7 @@ describe(useDeploymentFlow.name, () => {
     });
 
     it("leaves the feed alone while no close is running in the background", () => {
-      const { useLatestActivitiesQuery } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, isRunningInBackground: true });
+      const { useLatestActivitiesQuery } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" } });
 
       expect(useLatestActivitiesQuery).toHaveBeenLastCalledWith({ enabled: false });
     });
@@ -3539,8 +3511,7 @@ describe(useDeploymentFlow.name, () => {
       const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { activityId: "activity-1" } }));
       const { result, feed, rerender } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
-        closeMutate,
-        isRunningInBackground: true
+        closeMutate
       });
       act(() => result.current.actions.cancelAndEdit());
 
@@ -3554,8 +3525,7 @@ describe(useDeploymentFlow.name, () => {
       const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { activityId: "activity-1" } }));
       const { result, feed, rerender, queryClient, useLatestActivitiesQuery } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
-        closeMutate,
-        isRunningInBackground: true
+        closeMutate
       });
       act(() => result.current.actions.cancelAndEdit());
 
@@ -3571,8 +3541,7 @@ describe(useDeploymentFlow.name, () => {
       const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { activityId: "activity-1" } }));
       const { result, feed, rerender } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
-        closeMutate,
-        isRunningInBackground: true
+        closeMutate
       });
       act(() => result.current.actions.cancelAndEdit());
 
@@ -3593,8 +3562,7 @@ describe(useDeploymentFlow.name, () => {
       const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { activityId: "activity-1" } }));
       const { result, feed, rerender, analyticsService } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
-        closeMutate,
-        isRunningInBackground: true
+        closeMutate
       });
       act(() => result.current.actions.cancelAndEdit());
 
@@ -3608,8 +3576,7 @@ describe(useDeploymentFlow.name, () => {
       const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { activityId: "activity-1" } }));
       const { result, feed, rerender, analyticsService } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
-        closeMutate,
-        isRunningInBackground: true
+        closeMutate
       });
       act(() => result.current.actions.cancelAndEdit());
 
@@ -3625,8 +3592,7 @@ describe(useDeploymentFlow.name, () => {
       const { result } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
         closeMutate,
-        getDeploymentMutate,
-        isRunningInBackground: true
+        getDeploymentMutate
       });
 
       act(() => result.current.actions.cancelAndEdit());
@@ -3637,7 +3603,7 @@ describe(useDeploymentFlow.name, () => {
 
     it("clears the close at once when the api closed the deployment during the request", () => {
       const closeMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { success: true } }));
-      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, isRunningInBackground: true });
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate });
 
       act(() => result.current.actions.cancelAndEdit());
 
@@ -3648,7 +3614,7 @@ describe(useDeploymentFlow.name, () => {
       const closeCalls: Array<{ args: unknown; options: { onSuccess?: (result: unknown) => void } }> = [];
       const closeMutate = vi.fn((args, options) => closeCalls.push({ args, options }));
       const createMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
-      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate, isRunningInBackground: true });
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate });
       act(() => result.current.actions.cancelAndEdit());
       act(() => closeCalls[0].options.onSuccess?.({ data: { activityId: "activity-1" } }));
 
@@ -3667,7 +3633,7 @@ describe(useDeploymentFlow.name, () => {
       const closeCalls: Array<{ args: unknown; options: { onSuccess?: (result: unknown) => void } }> = [];
       const closeMutate = vi.fn((args, options) => closeCalls.push({ args, options }));
       const createMutate = vi.fn((_args, options) => options.onSuccess?.({ data: { dseq: "1000", manifest: "m" } }));
-      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate, isRunningInBackground: true });
+      const { result } = setup({ intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" }, closeMutate, createMutate });
       act(() => result.current.actions.cancelAndEdit());
       act(() => result.current.actions.requestQuotes("sdl"));
 
@@ -3686,8 +3652,7 @@ describe(useDeploymentFlow.name, () => {
       const { result, feed, rerender, useLatestActivitiesQuery } = setup({
         intent: { sdlStrategy: "edit", bidStrategy: "select", dseq: "777" },
         closeMutate,
-        createMutate,
-        isRunningInBackground: true
+        createMutate
       });
       act(() => result.current.actions.cancelAndEdit());
       act(() => closeCalls[0].options.onSuccess?.({ data: { activityId: "activity-1" } }));
@@ -3732,13 +3697,13 @@ describe(useDeploymentFlow.name, () => {
       act(() => result.current.actions.retryClose());
 
       expect(closeMutate).toHaveBeenCalledTimes(2);
-      expect(closeMutate).toHaveBeenLastCalledWith({ dseq: "999" }, expect.any(Object));
+      expect(closeMutate).toHaveBeenLastCalledWith({ dseq: "999", async: "true" }, expect.any(Object));
     });
 
-    it("closes its deployment in the background with the activity center on", async () => {
+    it("closes its deployment in the background", async () => {
       const creates = deferredMutate();
       const closeMutate = vi.fn();
-      const { result } = setup({ createMutate: creates.mutate, closeMutate, isRunningInBackground: true });
+      const { result } = setup({ createMutate: creates.mutate, closeMutate });
       act(() => result.current.actions.requestQuotes("sdl"));
       await settleSeal();
       act(() => result.current.actions.cancelAndEdit());
@@ -3765,7 +3730,7 @@ describe(useDeploymentFlow.name, () => {
     it("closes its deployment during the request before the held create runs, so two are never open at once", async () => {
       const creates = deferredMutate();
       const closes = deferredMutate();
-      const { result } = setup({ createMutate: creates.mutate, closeMutate: closes.mutate, isRunningInBackground: true });
+      const { result } = setup({ createMutate: creates.mutate, closeMutate: closes.mutate });
       act(() => result.current.actions.requestQuotes("sdl"));
       await settleSeal();
       act(() => result.current.actions.cancelAndEdit());
@@ -3810,7 +3775,7 @@ describe(useDeploymentFlow.name, () => {
       await settleSeal();
 
       expect(creates.mutate).toHaveBeenCalledTimes(2);
-      expect(creates.calls[1].args).toEqual({ data: expect.objectContaining({ sdl: "sdl-2" }) });
+      expect(creates.calls[1].args).toEqual({ async: "true", data: expect.objectContaining({ sdl: "sdl-2" }) });
     });
 
     it("drops the held create and shows the close error when its deployment stays open", async () => {
@@ -3845,7 +3810,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => creates.calls[0].options.onSuccess?.({ data: { dseq: "999", manifest: "m" } }));
       await settleSeal();
 
-      expect(closeMutate).toHaveBeenCalledWith({ dseq: "999" }, expect.any(Object));
+      expect(closeMutate).toHaveBeenCalledWith({ dseq: "999", async: "true" }, expect.any(Object));
       expect(creates.mutate).toHaveBeenCalledTimes(1);
       expect(result.current.phase).toBe("configuring");
     });
@@ -3863,8 +3828,8 @@ describe(useDeploymentFlow.name, () => {
       expect(analyticsService.track.mock.calls.filter(([event]) => event === "cancel_during_create")).toHaveLength(1);
     });
 
-    it("closes in the background what it opens once the page is gone, with the activity center on", () => {
-      const { result, services, closeDeployment } = setup({ createMutate: vi.fn(), isRunningInBackground: true });
+    it("closes in the background what it opens once the page is gone", () => {
+      const { result, services, closeDeployment } = setup({ createMutate: vi.fn() });
       act(() => result.current.actions.requestQuotes("sdl"));
 
       act(() => result.current.actions.discard());
@@ -3875,20 +3840,10 @@ describe(useDeploymentFlow.name, () => {
   });
 
   describe("creating in the background", () => {
-    it("asks the api to finish the create in the background while the activity center is on", async () => {
+    it("asks the api to finish the create in the background", async () => {
       const { createMutate } = await setupBackgroundCreate({});
 
       expect(createMutate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ sdl: "sdl" }), async: "true" }), expect.any(Object));
-    });
-
-    it("creates during the request while the activity center is off", async () => {
-      const createMutate = vi.fn();
-      const { result } = setup({ createMutate });
-
-      act(() => result.current.actions.requestQuotes("sdl"));
-      await settleSeal();
-
-      expect(createMutate.mock.calls[0][0]).not.toHaveProperty("async");
     });
 
     it("shows the create as in progress once the api accepts it, with the deployment in the URL and the page free to leave", async () => {
@@ -4144,13 +4099,6 @@ describe(useDeploymentFlow.name, () => {
       expect(createMutate.mock.calls[0][0]).not.toHaveProperty("autoLease");
     });
 
-    it("asks for no background work while the activity center is off", async () => {
-      const { createMutate } = await setupOneClickCreate({ isRunningInBackground: false });
-
-      expect(createMutate.mock.calls[0][0]).not.toHaveProperty("autoLease");
-      expect(createMutate.mock.calls[0][0]).not.toHaveProperty("async");
-    });
-
     it("hands the deploy over without adopting its deployment once the api answers that it leases it too", async () => {
       const replace = vi.fn();
       const { result, recordOneClickDeploy, holdActivityEvents, followUntilSettled, queryClient, services, acceptWithLease } = await setupOneClickCreate({
@@ -4231,7 +4179,6 @@ describe(useDeploymentFlow.name, () => {
     getDeploymentMutate?: ReturnType<typeof vi.fn>;
     sealSdlSecrets?: typeof DEPENDENCIES.sealSdlSecrets;
     sealContextMutateAsync?: ReturnType<typeof vi.fn>;
-    isRunningInBackground?: boolean;
     deployTargetProjectId?: string;
     bidList?: { bids: Array<{ bid: { state: string; id: { provider: string; dseq: string; gseq: number; oseq: number } } }> };
   }) {
@@ -4239,7 +4186,6 @@ describe(useDeploymentFlow.name, () => {
     const intent = { vm: false, ...(input.intent ?? { sdlStrategy: "edit" as const, bidStrategy: "select" as const, dseq: undefined }) };
     const feed: { activities?: Activity[] } = {};
     const api: { activities: Activity[] } = { activities: [] };
-    const useFlag = vi.fn((_flag: string) => input.isRunningInBackground ?? false);
     const useLatestActivitiesQuery = vi.fn((_options: { enabled: boolean }) =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), { data: feed.activities })
     );
@@ -4269,7 +4215,6 @@ describe(useDeploymentFlow.name, () => {
       deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }),
       sealSdlSecrets,
       servicesPatchBetween,
-      useFlag,
       useLatestActivitiesQuery,
       useMarkActivityOutcomes: () =>
         mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>({ forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing }),
@@ -4286,7 +4231,6 @@ describe(useDeploymentFlow.name, () => {
       ...renderDeploymentFlow(intent, dependencies),
       feed,
       api,
-      useFlag,
       useLatestActivitiesQuery,
       analyticsService: services.analyticsService,
       queryClient,
@@ -4319,7 +4263,6 @@ describe(useDeploymentFlow.name, () => {
     sealSdlSecrets?: typeof DEPENDENCIES.sealSdlSecrets;
     servicesPatchBetween?: typeof DEPENDENCIES.servicesPatchBetween;
     settingsId?: string | null;
-    isActivityCenterOn?: boolean;
   }) {
     const getSdlSecretsContext = mockSealContextMutation();
     const intent: DeploymentIntent = { sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, vm: false, ...input?.intent };
@@ -4341,7 +4284,6 @@ describe(useDeploymentFlow.name, () => {
     const stopFollowing = vi.fn();
     const holdActivityEvents = vi.fn<ReturnType<typeof DEPENDENCIES.useHoldActivityEvents>>();
     const recordOneClickDeploy = vi.fn();
-    const useFlag = vi.fn((_flag: string) => input?.isActivityCenterOn ?? false);
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
       useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
@@ -4351,7 +4293,6 @@ describe(useDeploymentFlow.name, () => {
       deploymentResourcesFromSdl: input?.deploymentResourcesFromSdl ?? (() => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 })),
       sealSdlSecrets,
       servicesPatchBetween: input?.servicesPatchBetween ?? servicesPatchBetween,
-      useFlag,
       useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
       useMarkActivityOutcomes: () =>
         mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>({ forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing }),
@@ -4366,7 +4307,6 @@ describe(useDeploymentFlow.name, () => {
       queryClient,
       holdActivityEvents,
       recordOneClickDeploy,
-      useFlag,
       followUntilSettled,
       services,
       sealSdlSecrets,
@@ -4389,7 +4329,6 @@ describe(useDeploymentFlow.name, () => {
       deploymentResourcesFromSdl: () => ({ gpuAmount: 0, cpuAmount: 0, memoryAmount: 0, storageAmount: 0 }),
       sealSdlSecrets: async () => "SEALED",
       servicesPatchBetween,
-      useFlag: () => false,
       useLatestActivitiesQuery: () => mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>({ data: undefined }),
       useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
       useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
@@ -4405,27 +4344,21 @@ describe(useDeploymentFlow.name, () => {
   async function setupBackgroundCreate(input: { replace?: ReturnType<typeof vi.fn> }) {
     const { mutate: createMutate, calls: createCalls } = deferredMutate();
     const closeMutate = vi.fn();
-    const view = setup({ replace: input.replace, createMutate, closeMutate, isRunningInBackground: true });
+    const view = setup({ replace: input.replace, createMutate, closeMutate });
     act(() => view.result.current.actions.requestQuotes("sdl"));
     await settleSeal();
     const accept = () => createCalls[0].options.onSuccess?.({ data: { dseq: "1000", manifest: "m", activityId: "activity-1" } });
     return { ...view, createMutate, createCalls, closeMutate, accept };
   }
 
-  async function setupOneClickCreate(input: {
-    replace?: ReturnType<typeof vi.fn>;
-    sdlStrategy?: "default" | "edit";
-    bidStrategy?: "auto" | "select";
-    isRunningInBackground?: boolean;
-  }) {
+  async function setupOneClickCreate(input: { replace?: ReturnType<typeof vi.fn>; sdlStrategy?: "default" | "edit"; bidStrategy?: "auto" | "select" }) {
     const { mutate: createMutate, calls: createCalls } = deferredMutate();
     const closeMutate = vi.fn();
     const view = setup({
       intent: { sdlStrategy: input.sdlStrategy ?? "default", bidStrategy: input.bidStrategy ?? "auto", templateId: "hello-world" },
       replace: input.replace,
       createMutate,
-      closeMutate,
-      isRunningInBackground: input.isRunningInBackground ?? true
+      closeMutate
     });
     act(() => view.result.current.actions.requestQuotes("sdl"));
     await settleSeal();

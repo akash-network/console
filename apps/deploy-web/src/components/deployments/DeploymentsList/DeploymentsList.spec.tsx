@@ -92,8 +92,8 @@ describe("DeploymentsList", () => {
       expect(screen.getByRole("link", { name: /New deployment/ })).toBeInTheDocument();
     });
 
-    it("keeps the project's own side column rather than the recent activity once the activity center is on", () => {
-      const { RecentActivity } = setup({ hasPageResults: true }, { project, isActivityCenterOn: true });
+    it("keeps the project's own side column rather than the recent activity", () => {
+      const { RecentActivity } = setup({ hasPageResults: true }, { project });
 
       expect(within(screen.getByRole("complementary")).getByText("project activity")).toBeInTheDocument();
       expect(RecentActivity).not.toHaveBeenCalled();
@@ -101,8 +101,8 @@ describe("DeploymentsList", () => {
   });
 
   describe("when no project is in scope", () => {
-    it("shows the recent activity in a side column beside the deployments once the activity center is on", () => {
-      setup({ hasPageResults: true }, { isActivityCenterOn: true });
+    it("shows the recent activity in a side column beside the deployments", () => {
+      setup({ hasPageResults: true });
 
       const sideColumn = screen.getByRole("complementary");
       expect(within(sideColumn).getByRole("region", { name: "Recent activity" })).toBeInTheDocument();
@@ -112,7 +112,7 @@ describe("DeploymentsList", () => {
     });
 
     it("labels the deployments column as the caller's own with how many are active, level with the recent activity label", () => {
-      setup({ hasPageResults: true, activeTotal: 3 }, { isActivityCenterOn: true });
+      setup({ hasPageResults: true, activeTotal: 3 });
 
       const column = screen.getByRole("region", { name: "My deployments" });
       expect(within(column).getByText("My deployments")).toBeInTheDocument();
@@ -122,19 +122,11 @@ describe("DeploymentsList", () => {
     });
 
     it("labels the deployments column without a count while the count is unknown", () => {
-      setup({ activeTotal: null }, { isActivityCenterOn: true });
+      setup({ activeTotal: null });
 
       const column = screen.getByRole("region", { name: "My deployments" });
       expect(within(column).getByText("My deployments")).toBeInTheDocument();
       expect(within(column).queryByText(/active$/)).not.toBeInTheDocument();
-    });
-
-    it("lists the deployments without a side column while the activity center is off", () => {
-      const { RecentActivity } = setup({ hasPageResults: true }, { isActivityCenterOn: false });
-
-      expect(RecentActivity).not.toHaveBeenCalled();
-      expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
-      expect(screen.getByText("collection")).toBeInTheDocument();
     });
 
     it("offers no new deployment to a caller who may deploy into no project", () => {
@@ -208,14 +200,6 @@ describe("DeploymentsList", () => {
     expect(useDeploymentsListModel).toHaveBeenCalledWith({ projectId: undefined });
     expect(NextSeo.mock.lastCall?.[0]).toEqual({ title: "Deployments" });
     expect(newDeploymentUrl).toHaveBeenCalledWith({ projectId: undefined });
-  });
-
-  it("leaves the column unlabelled without a side column to line it up with", () => {
-    setup({ hasPageResults: true, activeTotal: 3 }, { isActivityCenterOn: false });
-
-    expect(screen.queryByRole("region", { name: "Deployments" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "My deployments" })).not.toBeInTheDocument();
-    expect(screen.queryByText("3 active")).not.toBeInTheDocument();
   });
 
   it("hides the whole header until a wallet exists", () => {
@@ -559,7 +543,6 @@ describe("DeploymentsList", () => {
       project?: DeploymentsListProject;
       canChangeDeployments?: boolean;
       access?: Partial<ReturnType<typeof DEPENDENCIES.useProjectAccess>>;
-      isActivityCenterOn?: boolean;
     } = {}
   ) {
     const changeSearch = vi.fn();
@@ -645,7 +628,6 @@ describe("DeploymentsList", () => {
         ...options.access
       });
     const ViewOnlyNotice = vi.fn((_props: { reason: string }) => <div>view only</div>);
-    const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "notifications_activity_center" && !!options.isActivityCenterOn;
 
     const Layout = vi.fn(({ children }: { children?: React.ReactNode; isLoading?: boolean }) => <div>{children}</div>);
     const DeploymentsEmptyState = vi.fn((_props: DeploymentsEmptyStateProps) => <div>empty state</div>);
@@ -661,7 +643,6 @@ describe("DeploymentsList", () => {
           useBlockchainStatus,
           useNewDeploymentUrl,
           useProjectAccess,
-          useFlag,
           Layout,
           DeploymentsEmptyState,
           ViewOnlyNotice,

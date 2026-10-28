@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
@@ -34,16 +34,9 @@ describe(useUpdatingDeployments.name, () => {
     expect(result.current).toEqual(new Set());
   });
 
-  it("lists nothing while the activity center is off", () => {
-    const { result } = setup({ activities: [buildActivity({ type: "deployment_update", status: "pending", meta: { dseq: "1001" } })], isEnabled: false });
-
-    expect(result.current).toEqual(new Set());
-  });
-
-  function setup(input: { activities?: Activity[]; isEnabled?: boolean }) {
+  function setup(input: { activities?: Activity[] }) {
     let activities = input.activities;
     const dependencies: typeof DEPENDENCIES = {
-      useFlag: vi.fn((flag: string) => flag === "notifications_activity_center" && (input.isEnabled ?? true)) as typeof DEPENDENCIES.useFlag,
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: buildUser() }),
       useLatestActivitiesQuery: (() =>
         Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), { data: activities })) as typeof DEPENDENCIES.useLatestActivitiesQuery

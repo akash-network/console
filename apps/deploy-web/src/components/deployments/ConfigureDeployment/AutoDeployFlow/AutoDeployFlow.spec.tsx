@@ -132,7 +132,7 @@ describe(AutoDeployFlow.name, () => {
 
   it("leaves a deploy that is no longer failing alone when credits land", () => {
     const tryAgain = vi.fn();
-    const { sceneProps, creditsAddedCallback } = setup({ autopilot: { tryAgain, state: { kind: "creating" } } });
+    const { sceneProps, creditsAddedCallback } = setup({ autopilot: { tryAgain, state: { kind: "matching" } } });
     sceneProps().onAddFunds?.();
 
     creditsAddedCallback()();
@@ -183,10 +183,10 @@ describe(AutoDeployFlow.name, () => {
     expect(open).toHaveBeenCalledWith("https://support.example", "_blank", "noopener,noreferrer");
   });
 
-  describe("while the activity center lets the api take a one-click deploy on", () => {
+  describe("while the api takes a one-click deploy on", () => {
     it("shows only that the deployment is starting while the create awaits the api's answer", () => {
       const PhasedDeployProgressScene = vi.fn(ComponentMock);
-      setup({ isRunningInBackground: true, dependencies: { PhasedDeployProgressScene } });
+      setup({ autopilot: { state: { kind: "creating" } }, dependencies: { PhasedDeployProgressScene } });
 
       expect(screen.getByRole("heading", { name: "Starting your deployment" })).toBeInTheDocument();
       expect(PhasedDeployProgressScene).not.toHaveBeenCalled();
@@ -195,7 +195,6 @@ describe(AutoDeployFlow.name, () => {
     it("keeps showing that the deployment is starting while it lands the user on the deployments list", () => {
       const useLandOnDeploymentList = vi.fn();
       setup({
-        isRunningInBackground: true,
         flow: buildFlow({ autoLeasedDseq: "1000", isCreatingInBackground: true }),
         dependencies: { useLandOnDeploymentList }
       });
@@ -206,14 +205,14 @@ describe(AutoDeployFlow.name, () => {
 
     it("lands nowhere before the api took the deploy on", () => {
       const useLandOnDeploymentList = vi.fn();
-      setup({ isRunningInBackground: true, dependencies: { useLandOnDeploymentList } });
+      setup({ dependencies: { useLandOnDeploymentList } });
 
       expect(useLandOnDeploymentList).toHaveBeenLastCalledWith(null);
     });
 
     it("drives the globe for a create the api took on without the provider pick", () => {
       const PhasedDeployProgressScene = vi.fn(ComponentMock);
-      setup({ isRunningInBackground: true, flow: buildFlow({ isCreatingInBackground: true }), dependencies: { PhasedDeployProgressScene } });
+      setup({ autopilot: { state: { kind: "creating" } }, flow: buildFlow({ isCreatingInBackground: true }), dependencies: { PhasedDeployProgressScene } });
 
       expect(PhasedDeployProgressScene).toHaveBeenCalled();
       expect(screen.queryByRole("heading", { name: "Starting your deployment" })).not.toBeInTheDocument();
@@ -221,19 +220,10 @@ describe(AutoDeployFlow.name, () => {
 
     it("shows a refused create on the progress scene, where funds can be added", () => {
       const PhasedDeployProgressScene = vi.fn(ComponentMock);
-      setup({ isRunningInBackground: true, autopilot: { state: { kind: "error", reason: "needs-funds" } }, dependencies: { PhasedDeployProgressScene } });
+      setup({ autopilot: { state: { kind: "error", reason: "needs-funds" } }, dependencies: { PhasedDeployProgressScene } });
 
       expect(PhasedDeployProgressScene).toHaveBeenCalledWith(expect.objectContaining({ state: { kind: "error", reason: "needs-funds" } }), expect.anything());
     });
-  });
-
-  it("drives the globe from the start while the activity center is off", () => {
-    const PhasedDeployProgressScene = vi.fn(ComponentMock);
-    const useFlag = vi.fn(() => false);
-    setup({ dependencies: { PhasedDeployProgressScene, useFlag } });
-
-    expect(PhasedDeployProgressScene).toHaveBeenCalled();
-    expect(useFlag).toHaveBeenCalledWith("notifications_activity_center");
   });
 
   function buildFlow(overrides: Partial<DeploymentFlow> = {}): DeploymentFlow {
@@ -242,7 +232,7 @@ describe(AutoDeployFlow.name, () => {
 
   function buildAutopilot(overrides: Partial<FlowResult> = {}): FlowResult {
     return {
-      state: { kind: "creating" },
+      state: { kind: "matching" },
       progressPercent: 0,
       phases: [
         { id: "creating", label: "Creating", status: "active" },
@@ -267,7 +257,6 @@ describe(AutoDeployFlow.name, () => {
       useAutoDeploymentFlow?: typeof DEPENDENCIES.useAutoDeploymentFlow;
       organizationRole?: OrganizationRole;
       projectsEnabled?: boolean;
-      isRunningInBackground?: boolean;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -311,7 +300,6 @@ describe(AutoDeployFlow.name, () => {
           useAddCredits,
           useActiveOrganization,
           useRouter,
-          useFlag: () => input.isRunningInBackground ?? false,
           useLandOnDeploymentList: vi.fn(),
           ...input.dependencies
         }}

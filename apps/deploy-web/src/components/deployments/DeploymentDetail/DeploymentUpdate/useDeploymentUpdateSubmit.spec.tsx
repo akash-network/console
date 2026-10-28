@@ -95,7 +95,7 @@ describe(useDeploymentUpdateSubmit.name, () => {
       act(() => result.current.submit(seed, { ...structuredClone(seed), secretValues: { API_TOKEN: "rotated-token" } }));
 
       await waitFor(() => expect(patchMutate).toHaveBeenCalled());
-      expect(patchMutate).toHaveBeenCalledWith({ dseq: DSEQ, data: { sealedSecrets: SEAL, ifManifestVersion: RECORDED_VERSION } });
+      expect(patchMutate).toHaveBeenCalledWith({ dseq: DSEQ, async: "true", data: { sealedSecrets: SEAL, ifManifestVersion: RECORDED_VERSION } });
       expect(sealSdlSecrets).toHaveBeenCalledWith({ context: expect.anything(), secrets: { API_TOKEN: "rotated-token" } });
     });
 
@@ -164,6 +164,7 @@ describe(useDeploymentUpdateSubmit.name, () => {
     await waitFor(() => expect(patchMutate).toHaveBeenCalled());
     expect(patchMutate).toHaveBeenCalledWith({
       dseq: DSEQ,
+      async: "true",
       data: { services: { web: { image: "nginx:1.27" } }, sealedSecrets: SEAL, ifManifestVersion: RECORDED_VERSION }
     });
     expect(sealSdlSecrets).toHaveBeenCalledWith({ context: expect.anything(), secrets: {} });
@@ -250,9 +251,9 @@ describe(useDeploymentUpdateSubmit.name, () => {
     });
   });
 
-  describe("while the activity center is on", () => {
+  describe("when the update runs in the background", () => {
     it("asks the api to apply the update in the background", async () => {
-      const { result, patchMutate, seed } = setup({ isActivityCenterOn: true });
+      const { result, patchMutate, seed } = setup();
 
       act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
 
@@ -261,10 +262,7 @@ describe(useDeploymentUpdateSubmit.name, () => {
     });
 
     it("takes the saved update as landed once the feed lists it, leaving the outcome to the activity host", async () => {
-      const { result, queryClient, api, onUpdated, enqueueSnackbar, analyticsService, refetchBalances, seed } = setup({
-        isActivityCenterOn: true,
-        patchOutcome: "accepted"
-      });
+      const { result, queryClient, api, onUpdated, enqueueSnackbar, analyticsService, refetchBalances, seed } = setup({ patchOutcome: "accepted" });
 
       act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
 
@@ -279,7 +277,7 @@ describe(useDeploymentUpdateSubmit.name, () => {
     });
 
     it("reports the update as running until the feed lists it", async () => {
-      const { result, onUpdated, listFeed, seed } = setup({ isActivityCenterOn: true, patchOutcome: "accepted", feedRefresh: "deferred" });
+      const { result, onUpdated, listFeed, seed } = setup({ patchOutcome: "accepted", feedRefresh: "deferred" });
 
       act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
       await waitFor(() => expect(listFeed()).toBeDefined());
@@ -292,7 +290,7 @@ describe(useDeploymentUpdateSubmit.name, () => {
     });
 
     it("marks nothing for an update left to the background, so the activity host announces how it settles", async () => {
-      const { result, onUpdated, markOutcomeHandled, forgetEarlierOutcomes, seed } = setup({ isActivityCenterOn: true, patchOutcome: "accepted" });
+      const { result, onUpdated, markOutcomeHandled, forgetEarlierOutcomes, seed } = setup({ patchOutcome: "accepted" });
 
       act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
 
@@ -302,7 +300,7 @@ describe(useDeploymentUpdateSubmit.name, () => {
     });
 
     it("confirms an update the api applied during the request, as before, and marks it as handled", async () => {
-      const { result, enqueueSnackbar, patchMutate, markOutcomeHandled, seed } = setup({ isActivityCenterOn: true });
+      const { result, enqueueSnackbar, patchMutate, markOutcomeHandled, seed } = setup();
 
       act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
 
@@ -312,22 +310,13 @@ describe(useDeploymentUpdateSubmit.name, () => {
     });
   });
 
-  it("keeps the update in the request while the activity center is off", async () => {
-    const { result, patchMutate, seed } = setup({ isActivityCenterOn: false });
-
-    act(() => result.current.submit(seed, withImage(seed, "nginx:1.27")));
-
-    await waitFor(() => expect(patchMutate).toHaveBeenCalled());
-    expect(patchMutate.mock.calls[0][0]).not.toHaveProperty("async", "true");
-  });
-
   it("sends an unchanged form when retrying an update that failed, so the saved configuration is applied again", async () => {
     const { result, patchMutate, enqueueSnackbar, seed } = setup();
 
     act(() => result.current.submit(seed, seed, { isRetry: true }));
 
     await waitFor(() => expect(patchMutate).toHaveBeenCalled());
-    expect(patchMutate).toHaveBeenCalledWith({ dseq: DSEQ, data: { sealedSecrets: SEAL, ifManifestVersion: RECORDED_VERSION } });
+    expect(patchMutate).toHaveBeenCalledWith({ dseq: DSEQ, async: "true", data: { sealedSecrets: SEAL, ifManifestVersion: RECORDED_VERSION } });
     expect(enqueueSnackbar).not.toHaveBeenCalledWith(snackbarTitled("Nothing to update"), expect.anything());
   });
 
@@ -610,7 +599,6 @@ describe(useDeploymentUpdateSubmit.name, () => {
       patchOutcome?: ApiError | "success" | "accepted" | "pending" | "deferred";
       patchOutcomes?: Array<ApiError | "success" | "accepted" | "pending" | "deferred">;
       sealFailure?: Error;
-      isActivityCenterOn?: boolean;
       feedRefresh?: "deferred";
     } = {}
   ) {
@@ -658,7 +646,6 @@ describe(useDeploymentUpdateSubmit.name, () => {
       useBalances: () => mock<ReturnType<typeof DEPENDENCIES.useBalances>>({ refetch: refetchBalances as never }),
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar }),
       useQueryClient: () => queryClient,
-      useFlag: vi.fn((flag: string) => flag === "notifications_activity_center" && !!input.isActivityCenterOn) as typeof DEPENDENCIES.useFlag,
       sealSdlSecrets
     });
 

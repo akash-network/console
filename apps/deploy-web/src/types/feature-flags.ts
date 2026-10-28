@@ -11,7 +11,6 @@ export type FeatureFlag =
   | "fair_use_policy_gate"
   | "ui_configure_two_panel"
   | "account_deletion"
-  | "notifications_activity_center"
   | "ui_command_menu"
   | "organizations"
   | "invoices";

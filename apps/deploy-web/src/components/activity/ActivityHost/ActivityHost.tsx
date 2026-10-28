@@ -20,7 +20,6 @@ import { useWallet } from "@src/context/WalletProvider";
 import { useCloseBatchesBeingSent } from "@src/hooks/useCloseBatches/useCloseBatches";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { CLOSED_WHILE_MATCHING } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
-import { useFlag } from "@src/hooks/useFlag";
 import { useHandledActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { useTakeHeldActivityEvents } from "@src/hooks/useHeldActivityEvents/useHeldActivityEvents";
 import { type OneClickDeploys, useOneClickDeploys } from "@src/hooks/useOneClickDeploys/useOneClickDeploys";
@@ -29,7 +28,6 @@ import { QueryKeys } from "@src/queries/queryKeys";
 import { type Activity, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
 
 export const DEPENDENCIES = {
-  useFlag,
   useUser,
   useWallet,
   useLatestActivitiesQuery,
@@ -121,14 +119,13 @@ const BATCH_ANNOUNCEMENTS: Partial<Record<FinishedActivity["type"], (batch: Fini
 
 /** Tells the user while an update runs in the background and when any background action finishes, wherever they are in the app, and refreshes the data it changed. */
 export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES }) {
-  const isEnabled = d.useFlag("notifications_activity_center");
   const { user } = d.useUser();
   const { address } = d.useWallet();
   const { api, analyticsService } = useServices();
   const queryClient = d.useQueryClient();
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const router = d.useRouter();
-  const { data: activities } = d.useLatestActivitiesQuery({ enabled: isEnabled && !!user?.userId });
+  const { data: activities } = d.useLatestActivitiesQuery({ enabled: !!user?.userId });
   const { getDeploymentName, isLoading: isLoadingDeploymentNames } = d.useDeploymentNames(activities?.map(activity => activity.meta.dseq) ?? []);
   const closeBatchesBeingSent = d.useCloseBatchesBeingSent();
   const { isOutcomeHandled, isFollowedOnItsPage, forgetHandledOutcome } = d.useHandledActivityOutcomes();
