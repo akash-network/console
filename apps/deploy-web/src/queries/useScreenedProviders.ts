@@ -7,6 +7,7 @@ import { keepPreviousData, useQueries, useQueryClient } from "@tanstack/react-qu
 import { useServices } from "@src/context/ServicesProvider";
 import { usePacedValue } from "@src/hooks/usePacedValue/usePacedValue";
 import { getBrowserTimezoneOrUtc } from "@src/lib/browser-timezone/browser-timezone";
+import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import { AUDITOR } from "@src/utils/deploymentData/v1beta3";
 import { isInPickedRegions } from "@src/utils/sdl/placementRegions";
 
@@ -94,7 +95,8 @@ export function useScreenedProviders({ sdl, placementName, regions, enabled = tr
   const isInvalid = !isScreenable && request === null;
   const query = api.v1.screenProviders.useQuery(pacedRequest ?? SKIPPED_SCREENING_REQUEST, {
     enabled: enabled && isScreenable,
-    placeholderData: keepPreviousData
+    placeholderData: keepPreviousData,
+    meta: SKIP_REPORTING_REFUSED_INPUT
   });
   const providers = useMemo(() => inPickedRegions(query.data?.providers ?? [], regions), [query.data, regions]);
 
@@ -112,7 +114,9 @@ export function useScreenedProviderCounts(requests: KeyedScreeningRequest[]): Sc
   const { api } = useServices();
   const lastCountByKey = useRef(new Map<string, Omit<ScreenedProviderCount, "isLoading">>());
   const results = useQueries({
-    queries: requests.map(({ request }) => api.v1.screenProviders.queryOptions(request ?? SKIPPED_SCREENING_REQUEST, { enabled: request !== null }))
+    queries: requests.map(({ request }) =>
+      api.v1.screenProviders.queryOptions(request ?? SKIPPED_SCREENING_REQUEST, { enabled: request !== null, meta: SKIP_REPORTING_REFUSED_INPUT })
+    )
   });
 
   return results.map((result, index) => {

@@ -1,9 +1,19 @@
 import { isHttpError } from "@akashnetwork/http-sdk";
 import type { LoggerService } from "@akashnetwork/logging";
+import { isApiError } from "@akashnetwork/openapi-sdk";
 import type { SeverityLevel as SentrySeverityLevel } from "@sentry/nextjs";
 import { captureException as captureExceptionInSentry, getTraceData } from "@sentry/nextjs";
 
+const EDGE_REFUSAL_STATUSES = [403, 429];
+
+const EDGE_REFUSAL_FINGERPRINT = ["edge-refusal"];
+
+const HTML_DOCUMENT = /<html[\s>]/i;
+
 export class ErrorHandlerService {
+  /** The CDN refuses every request of a page it blocks, so the first refusal says all the others would. */
+  #hasReportedEdgeRefusal = false;
+
   constructor(
     private readonly logger: LoggerService,
     private readonly captureException = captureExceptionInSentry
@@ -25,6 +35,12 @@ export class ErrorHandlerService {
       return;
     }
 
+    const isRefusedAtEdge = isEdgeRefusal(error);
+    if (isRefusedAtEdge) {
+      if (this.#hasReportedEdgeRefusal) return;
+      this.#hasReportedEdgeRefusal = true;
+    }
+
     const finalTags: Record<string, string> = { ...tags };
 
     if (isHttpError(error) && error.response) {
@@ -38,7 +54,8 @@ export class ErrorHandlerService {
     this.captureException(error, {
       level: severity || "error",
       extra,
-      tags: finalTags
+      tags: finalTags,
+      ...(isRefusedAtEdge && { fingerprint: EDGE_REFUSAL_FINGERPRINT })
     });
   }
 
@@ -67,6 +84,18 @@ function isCancellation(error: unknown): boolean {
 
   const { name, code } = error as { name?: unknown; code?: unknown };
   return name === "AbortError" || name === "CanceledError" || name === "Canceled" || code === "ERR_CANCELED";
+}
+
+/** Console's API answers in JSON, so a 403 or 429 that carries an HTML page was refused by the CDN before reaching Console. */
+function isEdgeRefusal(error: unknown): boolean {
+  if (isApiError(error)) return EDGE_REFUSAL_STATUSES.includes(error.status) && typeof error.body === "string" && HTML_DOCUMENT.test(error.body);
+
+  return (
+    isHttpError(error) &&
+    !!error.response &&
+    EDGE_REFUSAL_STATUSES.includes(error.response.status) &&
+    String(error.response.headers["content-type"]).includes("text/html")
+  );
 }
 
 export type SeverityLevel = SentrySeverityLevel;

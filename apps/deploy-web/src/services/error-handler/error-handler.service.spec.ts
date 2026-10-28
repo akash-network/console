@@ -1,4 +1,5 @@
 import type { LoggerService } from "@akashnetwork/logging";
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import type { InternalAxiosRequestConfig } from "axios";
 import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
@@ -92,6 +93,54 @@ describe(ErrorHandlerService.name, () => {
       httpError,
       expect.objectContaining({ tags: { status: "400", method: "POST", url: "https://api.example.com/deployments" } })
     );
+  });
+
+  describe("when the CDN refuses a request with its own page", () => {
+    it.each([
+      ["a 403 page from an axios call", () => buildAxiosError({ status: 403, contentType: "text/html; charset=UTF-8" })],
+      ["a 429 page from an axios call", () => buildAxiosError({ status: 429, contentType: "text/html" })],
+      ["a 403 page from an api call", () => new ApiError(403, '<!DOCTYPE html><html lang="en-US"></html>', "GET /v1/activities → 403")],
+      ["a 429 page from an api call", () => new ApiError(429, "<HTML><BODY></BODY></HTML>", "GET /v1/activities → 429")]
+    ])("reports %s once per page under one fingerprint", (_label, buildError) => {
+      const captureException = vi.fn();
+      const errorHandler = setup({ captureException });
+
+      errorHandler.reportError({ error: buildError() });
+      errorHandler.reportError({ error: buildError() });
+
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ fingerprint: ["edge-refusal"] }));
+    });
+
+    it("keeps reporting other errors after an edge refusal", () => {
+      const captureException = vi.fn();
+      const errorHandler = setup({ captureException });
+      const error = new Error("unrelated");
+
+      errorHandler.reportError({ error: buildAxiosError({ status: 403, contentType: "text/html" }) });
+      errorHandler.reportError({ error });
+
+      expect(captureException).toHaveBeenCalledTimes(2);
+      expect(captureException).toHaveBeenLastCalledWith(error, { level: "error", extra: {}, tags: {} });
+    });
+
+    it.each([
+      ["a 403 the api answered in json through axios", () => buildAxiosError({ status: 403, contentType: "application/json" })],
+      ["a 500 page from an axios call", () => buildAxiosError({ status: 500, contentType: "text/html" })],
+      ["an axios call that never got a response", () => new AxiosError("Network Error", "ERR_NETWORK", requestConfig())],
+      ["a 403 the api answered in json", () => new ApiError(403, { code: "FORBIDDEN" }, "GET /v1/activities → 403")],
+      ["a 403 the api answered in plain text", () => new ApiError(403, "Forbidden", "GET /v1/activities → 403")],
+      ["a 500 page from an api call", () => new ApiError(500, "<html><body></body></html>", "GET /v1/activities → 500")]
+    ])("reports %s every time without the edge fingerprint", (_label, buildError) => {
+      const captureException = vi.fn();
+      const errorHandler = setup({ captureException });
+
+      errorHandler.reportError({ error: buildError() });
+      errorHandler.reportError({ error: buildError() });
+
+      expect(captureException).toHaveBeenCalledTimes(2);
+      expect(captureException.mock.calls[1][1]).not.toHaveProperty("fingerprint");
+    });
   });
 
   describe("wrapCallback", () => {
@@ -238,6 +287,21 @@ describe(ErrorHandlerService.name, () => {
       expect(sentryTraceToW3C(sentryTrace)).toBe("00-15b857440fc54a828dbbc2e934f54b6e-8ab28c3adec47f08-01");
     });
   });
+
+  function requestConfig() {
+    return { method: "get", url: "v1/wallets" } as InternalAxiosRequestConfig;
+  }
+
+  function buildAxiosError(input: { status: number; contentType: string }) {
+    const config = requestConfig();
+    return new AxiosError(
+      "Request failed",
+      undefined,
+      config,
+      {},
+      { status: input.status, statusText: "", headers: { "content-type": input.contentType }, data: "", config }
+    );
+  }
 
   function setup(input?: { captureException?: (error: unknown, context?: any) => string; logger?: LoggerService }) {
     const captureException = input?.captureException || vi.fn().mockReturnValue("mock-event-id");

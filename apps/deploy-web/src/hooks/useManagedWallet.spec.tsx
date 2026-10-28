@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import { useManagedWallet } from "./useManagedWallet";
 
+import { act } from "@testing-library/react";
 import { setupQuery } from "@tests/unit/query-client";
 
 describe(useManagedWallet.name, () => {
@@ -33,6 +34,49 @@ describe(useManagedWallet.name, () => {
     });
   });
 
+  it("is initializing while the first wallet lookup is in flight", async () => {
+    const { result } = setup({ userId: "user-pending", isLookupPending: true });
+
+    await vi.waitFor(() => {
+      expect(result.current.managed.isInitializing).toBe(true);
+    });
+  });
+
+  it("stays settled and failed while a failed wallet lookup is retried", async () => {
+    const { result, managedWalletService } = setup({ userId: "user-retried", lookupError: new Error("wallet service down") });
+    await vi.waitFor(() => {
+      expect(result.current.managed.isLookupFailed).toBe(true);
+    });
+    managedWalletService.getWallet.mockReturnValue(new Promise(() => {}));
+
+    act(() => {
+      void result.current.managed.refetch();
+    });
+
+    await vi.waitFor(() => {
+      expect(result.current.managed.isFetching).toBe(true);
+    });
+    expect(result.current.managed).toMatchObject({ isInitializing: false, isLookupFailed: true });
+  });
+
+  it("clears the lookup failure once a retry finds the wallet", async () => {
+    const userId = "user-recovered";
+    const { result, managedWalletService } = setup({ userId, lookupError: new Error("wallet service down") });
+    await vi.waitFor(() => {
+      expect(result.current.managed.isLookupFailed).toBe(true);
+    });
+    managedWalletService.getWallet.mockResolvedValue(buildApiWallet({ userId, address: "akash1recovered" }));
+
+    act(() => {
+      void result.current.managed.refetch();
+    });
+
+    await vi.waitFor(() => {
+      expect(result.current.managed.wallet?.address).toBe("akash1recovered");
+    });
+    expect(result.current.managed.isLookupFailed).toBe(false);
+  });
+
   function buildApiWallet(overrides: { userId: string; address: string; creditAmount?: number }) {
     return {
       ...mock<ApiManagedWalletOutput>(),
@@ -43,14 +87,17 @@ describe(useManagedWallet.name, () => {
     };
   }
 
-  function setup(input?: { userId?: string; apiWallet?: ApiManagedWalletOutput; lookupError?: Error }) {
+  function setup(input?: { userId?: string; apiWallet?: ApiManagedWalletOutput; lookupError?: Error; isLookupPending?: boolean }) {
     const managedWalletService = mock<ManagedWalletHttpService>({
-      getWallet: input?.lookupError ? vi.fn().mockRejectedValue(input.lookupError) : vi.fn().mockResolvedValue(input?.apiWallet ?? null)
+      getWallet: vi.fn((): Promise<ApiManagedWalletOutput | null> => {
+        if (input?.isLookupPending) return new Promise(() => {});
+        return input?.lookupError ? Promise.reject(input.lookupError) : Promise.resolve(input?.apiWallet ?? null);
+      })
     });
 
     const user = { email: "test@akash.network", id: input?.userId, userId: input?.userId } as UserProfile;
 
-    return setupQuery(
+    const view = setupQuery(
       () => {
         const managed = useManagedWallet();
         return { managed };
@@ -60,5 +107,7 @@ describe(useManagedWallet.name, () => {
         wrapper: ({ children }) => <UserProvider user={user}>{children}</UserProvider>
       }
     );
+
+    return { ...view, managedWalletService };
   }
 });

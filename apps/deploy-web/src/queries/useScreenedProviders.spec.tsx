@@ -1,8 +1,9 @@
 import { createProxy } from "@akashnetwork/react-query-proxy";
-import { keepPreviousData, type QueryObserverBaseResult } from "@tanstack/react-query";
+import { keepPreviousData, QueryClient, type QueryObserverBaseResult } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 import { AUDITOR } from "@src/utils/deploymentData/v1beta3";
 import { setupQuery } from "../../tests/unit/query-client";
 import type { KeyedScreeningRequest, ScreenedProvider, ScreenedProvidersResponse, ScreeningRequest } from "./useScreenedProviders";
@@ -121,6 +122,12 @@ describe("useScreenedProviders", () => {
       }),
       expect.anything()
     );
+  });
+
+  it("leaves a refused screening request out of error reporting", () => {
+    const { useQuery } = setup({ placementName: "dcloud" });
+
+    expect(useQuery.mock.lastCall![1]).toEqual(expect.objectContaining({ meta: SKIP_REPORTING_REFUSED_INPUT }));
   });
 
   it("flags the spec invalid and returns no providers when the SDL can't be screened (no catalog fallback)", () => {
@@ -524,6 +531,19 @@ describe(useScreenedProviderCounts.name, () => {
     expect(screenProviders).toHaveBeenCalledTimes(1);
   });
 
+  it("leaves refused screening requests out of error reporting", () => {
+    const { queryClient } = setup({ requests: [keyed("a", "west"), keyed("b", "east")], providersByRegion: { west: 1, east: 1 } });
+
+    const reportingPolicies = new Set(
+      queryClient
+        .getQueryCache()
+        .getAll()
+        .map(query => query.meta)
+    );
+
+    expect([...reportingPolicies]).toEqual([SKIP_REPORTING_REFUSED_INPUT]);
+  });
+
   function setup(input: {
     requests: KeyedScreeningRequest[];
     providersByRegion: Record<string, number>;
@@ -553,6 +573,8 @@ describe(useScreenedProviderCounts.name, () => {
       NonNullable<NonNullable<NonNullable<Parameters<typeof setupQuery>[1]>["services"]>["api"]>
     >;
 
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false, refetchOnReconnect: false } } });
+
     const current = { requests: input.requests };
     const view = setupQuery(
       () => ({
@@ -563,7 +585,7 @@ describe(useScreenedProviderCounts.name, () => {
           enabled: input.alongsideHeadline !== undefined
         })
       }),
-      { services: { api: () => api } }
+      { services: { api: () => api, queryClient: () => queryClient } }
     );
 
     function rerender(requests: KeyedScreeningRequest[]) {
@@ -571,7 +593,7 @@ describe(useScreenedProviderCounts.name, () => {
       view.rerender();
     }
 
-    return { result: view.result, screenProviders, rerender };
+    return { result: view.result, screenProviders, rerender, queryClient };
   }
 
   function keyed(key: string, region: string): KeyedScreeningRequest {
