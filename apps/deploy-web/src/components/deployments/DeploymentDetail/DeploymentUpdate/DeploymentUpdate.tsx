@@ -268,7 +268,7 @@ const LockedFieldsHint: FC = () => (
   >
     <button type="button" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
       <Info className="h-3.5 w-3.5" aria-hidden="true" />
-      Some fields are locked after deploy
+      <span className="sr-only sm:not-sr-only">Some fields are locked after deploy</span>
     </button>
   </CustomTooltip>
 );
