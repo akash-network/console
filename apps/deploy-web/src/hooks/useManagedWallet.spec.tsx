@@ -42,7 +42,7 @@ describe(useManagedWallet.name, () => {
     });
   });
 
-  it("stays settled while a failed wallet lookup is retried", async () => {
+  it("stays settled and failed while a failed wallet lookup is retried", async () => {
     const { result, managedWalletService } = setup({ userId: "user-retried", lookupError: new Error("wallet service down") });
     await vi.waitFor(() => {
       expect(result.current.managed.isLookupFailed).toBe(true);
@@ -56,7 +56,25 @@ describe(useManagedWallet.name, () => {
     await vi.waitFor(() => {
       expect(result.current.managed.isFetching).toBe(true);
     });
-    expect(result.current.managed.isInitializing).toBe(false);
+    expect(result.current.managed).toMatchObject({ isInitializing: false, isLookupFailed: true });
+  });
+
+  it("clears the lookup failure once a retry finds the wallet", async () => {
+    const userId = "user-recovered";
+    const { result, managedWalletService } = setup({ userId, lookupError: new Error("wallet service down") });
+    await vi.waitFor(() => {
+      expect(result.current.managed.isLookupFailed).toBe(true);
+    });
+    managedWalletService.getWallet.mockResolvedValue(buildApiWallet({ userId, address: "akash1recovered" }));
+
+    act(() => {
+      void result.current.managed.refetch();
+    });
+
+    await vi.waitFor(() => {
+      expect(result.current.managed.wallet?.address).toBe("akash1recovered");
+    });
+    expect(result.current.managed.isLookupFailed).toBe(false);
   });
 
   function buildApiWallet(overrides: { userId: string; address: string; creditAmount?: number }) {
