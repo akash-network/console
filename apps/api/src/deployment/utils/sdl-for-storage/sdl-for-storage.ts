@@ -5,7 +5,9 @@ import { dump } from "js-yaml";
 import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
 
 /** Why a document was not stored, so a caller can report which without reading a parse error, whose message quotes the line it failed on. */
-export type StoredSdlRefusal = "unparseable" | "too-large";
+export type StoredSdlRefusal = "unparseable" | "too-large" | "expands-too-large";
+
+export const EXPANDED_SDL_TOO_LARGE_MESSAGE = `SDL is too large: its anchors expand it past the maximum of ${MAX_SUBMITTED_SDL_LENGTH} characters`;
 
 /** Numbers only, counted from one: a `js-yaml` mark also carries `snippet` and `buffer`, which quote the document and must never leave this function. */
 export type StoredSdlPosition = { line: number; column: number };

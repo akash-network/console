@@ -13,7 +13,7 @@ import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/s
 import { sdlRequestsGpuInterconnect } from "@src/deployment/utils/gpu-interconnect/gpu-interconnect";
 import { findTrialResourceViolation } from "@src/deployment/utils/group-resources/group-resources";
 import { restatePricesInGrantDenom } from "@src/deployment/utils/price-denom/price-denom";
-import { exceedsSubmittableLength } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
+import { exceedsSubmittableLength, EXPANDED_SDL_TOO_LARGE_MESSAGE } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { generateManifestReportingBuildFailures } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 
 export type SdlParseResult = { ok: true; value: SDLInput } | { ok: false; value: ValidationError[] };
@@ -99,7 +99,7 @@ export class SdlService {
               instancePath: "",
               keyword: "maxLength",
               params: { limit: MAX_SUBMITTED_SDL_LENGTH },
-              message: `SDL is too large: its anchors expand it past the maximum of ${MAX_SUBMITTED_SDL_LENGTH} characters`
+              message: EXPANDED_SDL_TOO_LARGE_MESSAGE
             }
           ]
         };

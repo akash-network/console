@@ -2,9 +2,23 @@ import "@hono/zod-openapi";
 
 import { describe, expect, it } from "vitest";
 
-import { ListDeploymentsQuerySchema, ListWithResourcesParamsSchema, PatchDeploymentRequestSchema } from "./deployment.schema";
+import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
+import { ListDeploymentsQuerySchema, ListWithResourcesParamsSchema, PatchDeploymentRequestSchema, UpdateDeploymentRequestSchema } from "./deployment.schema";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+
+describe("UpdateDeploymentRequestSchema", () => {
+  it("accepts an sdl up to the largest submittable length", () => {
+    expect(UpdateDeploymentRequestSchema.safeParse({ data: { sdl: "d".repeat(MAX_SUBMITTED_SDL_LENGTH) } }).success).toBe(true);
+  });
+
+  it("refuses an sdl longer than the largest submittable length", () => {
+    const result = UpdateDeploymentRequestSchema.safeParse({ data: { sdl: "d".repeat(MAX_SUBMITTED_SDL_LENGTH + 1) } });
+
+    expect(result.success).toBe(false);
+    expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(expect.objectContaining({ code: "too_big", path: ["data", "sdl"] }));
+  });
+});
 
 describe("PatchDeploymentRequestSchema", () => {
   describe("a patch that would write nothing", () => {
