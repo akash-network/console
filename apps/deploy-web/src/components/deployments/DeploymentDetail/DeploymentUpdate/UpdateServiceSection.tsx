@@ -29,7 +29,7 @@ export const UpdateServiceSection: FC<UpdateServiceSectionProps> = ({ serviceInd
         <span className="ml-auto truncate font-mono text-sm text-muted-foreground">{imageTagOf(image)}</span>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div role="region" aria-label={title} className="flex flex-col gap-6 border-t px-4 py-5">
+        <div role="region" aria-label={title} className="flex flex-col gap-5 border-t p-4">
           <UpdateImageSection serviceIndex={serviceIndex} locked={locked} />
           <HardwareSection serviceIndex={serviceIndex} />
           <UpdateNetworkingSection serviceIndex={serviceIndex} locked={locked} />

@@ -2,7 +2,7 @@
 import type { FC, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
-import { Alert, Button, Skeleton } from "@akashnetwork/ui/components";
+import { Alert, Button, CustomTooltip, Skeleton } from "@akashnetwork/ui/components";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Info } from "lucide-react";
 
@@ -174,7 +174,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
 
   return (
     <FormProvider {...form}>
-      <form className="flex flex-col gap-4" onSubmit={form.handleSubmit(values => submit(baseline.values, values, { isRetry: isRetryable }))}>
+      <form onSubmit={form.handleSubmit(values => submit(baseline.values, values, { isRetry: isRetryable }))}>
         <DeploymentTabHeader
           title="Placements"
           actions={
@@ -183,84 +183,92 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
               {visibleServices.length === 1 ? "service" : "services"}
             </span>
           }
-        />
+        >
+          <LockedFieldsHint />
+        </DeploymentTabHeader>
 
-        <LockedFieldsNotice />
+        <div className="flex flex-col gap-4">
+          {!isClosed && <ProtectedVariablesNotice restoredSdl={definition.restoredSdl} locked={isBusy || isReloading} />}
 
-        {!isClosed && <ProtectedVariablesNotice restoredSdl={definition.restoredSdl} locked={isBusy || isReloading} />}
+          {baseline.values.placements.map((placement, position) => {
+            const lease = leases?.find((candidate, index) => getPlacementName(candidate.group, index) === placement.name);
+            return (
+              <UpdatePlacementCard
+                key={placement.name}
+                position={position}
+                name={placement.name}
+                lease={lease}
+                provider={providers.find(candidate => candidate.owner === lease?.provider)}
+                services={visibleServices
+                  .filter(({ service }) => service.placementId === placement.id)
+                  .map(({ service, serviceIndex }) => ({ serviceIndex, title: service.title }))}
+                locked={isClosed || isBusy || isReloading}
+                isLoadingLeaseGpus={isLoadingLeaseGpus}
+              />
+            );
+          })}
 
-        {baseline.values.placements.map((placement, position) => {
-          const lease = leases?.find((candidate, index) => getPlacementName(candidate.group, index) === placement.name);
-          return (
-            <UpdatePlacementCard
-              key={placement.name}
-              position={position}
-              name={placement.name}
-              lease={lease}
-              provider={providers.find(candidate => candidate.owner === lease?.provider)}
-              services={visibleServices
-                .filter(({ service }) => service.placementId === placement.id)
-                .map(({ service, serviceIndex }) => ({ serviceIndex, title: service.title }))}
-              locked={isClosed || isBusy || isReloading}
-              isLoadingLeaseGpus={isLoadingLeaseGpus}
-            />
-          );
-        })}
+          {isRetryable && !isClosed && (
+            <Alert variant="destructive">
+              {NOT_APPLIED_NOTICE} {failedUpdate.meta.error?.message ?? NOT_APPLIED_FALLBACK_REASON}
+            </Alert>
+          )}
 
-        {isRetryable && !isClosed && (
-          <Alert variant="destructive">
-            {NOT_APPLIED_NOTICE} {failedUpdate.meta.error?.message ?? NOT_APPLIED_FALLBACK_REASON}
-          </Alert>
-        )}
+          {sdlRefusal && <Alert variant="destructive">{sdlRefusal}</Alert>}
 
-        {sdlRefusal && <Alert variant="destructive">{sdlRefusal}</Alert>}
-
-        {secretsUnreadable && !isClosed && (
-          <Alert variant="destructive" className="flex flex-wrap items-center justify-between gap-3">
-            <span>{SECRETS_UNREADABLE_NOTICE}</span>
-            {onRedeployWithNewSecrets && (
-              <Button type="button" variant="outline" size="sm" onClick={onRedeployWithNewSecrets}>
-                Redeploy and enter secrets
-              </Button>
-            )}
-          </Alert>
-        )}
-
-        <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t bg-muted/95 py-4 backdrop-blur">
-          {isClosed ? (
-            <>
-              <p className="mr-auto text-sm text-muted-foreground">{CLOSED_NOTICE}</p>
-              {onRedeploy && (
-                <Button type="button" onClick={onRedeploy}>
-                  Redeploy
+          {secretsUnreadable && !isClosed && (
+            <Alert variant="destructive" className="flex flex-wrap items-center justify-between gap-3">
+              <span>{SECRETS_UNREADABLE_NOTICE}</span>
+              {onRedeployWithNewSecrets && (
+                <Button type="button" variant="outline" size="sm" onClick={onRedeployWithNewSecrets}>
+                  Redeploy and enter secrets
                 </Button>
               )}
-            </>
-          ) : (
-            <>
-              {isApplyingInBackground && <p className="mr-auto text-sm text-muted-foreground">{APPLYING_NOTICE}</p>}
-              <Button type="button" variant="outline" disabled={!isDirty || isBusy || isReloading} onClick={() => form.reset(baseline.values)}>
-                Discard changes
-              </Button>
-              <Button type="submit" disabled={!(isDirty || isRetryable) || isBusy || isReloading || secretsUnreadable}>
-                {isBusy ? "Updating…" : "Update deployment"}
-              </Button>
-            </>
+            </Alert>
           )}
+
+          <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-2 border-t bg-muted/95 py-2 backdrop-blur">
+            {isClosed ? (
+              <>
+                <p className="mr-auto text-sm text-muted-foreground">{CLOSED_NOTICE}</p>
+                {onRedeploy && (
+                  <Button type="button" size="sm" onClick={onRedeploy}>
+                    Redeploy
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                {isApplyingInBackground && <p className="mr-auto text-sm text-muted-foreground">{APPLYING_NOTICE}</p>}
+                <Button type="button" variant="outline" size="sm" disabled={!isDirty || isBusy || isReloading} onClick={() => form.reset(baseline.values)}>
+                  Discard changes
+                </Button>
+                <Button type="submit" size="sm" disabled={!(isDirty || isRetryable) || isBusy || isReloading || secretsUnreadable}>
+                  {isBusy ? "Updating…" : "Update deployment"}
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </form>
     </FormProvider>
   );
 };
 
-const LockedFieldsNotice: FC = () => (
-  <div className="flex gap-3 rounded-xl border bg-card p-4 text-sm">
-    <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-    <p className="text-muted-foreground">
-      <span className="font-medium text-foreground">Some fields are locked after deploy.</span> You can update{" "}
-      <span className="font-medium text-foreground">image</span>, <span className="font-medium text-foreground">variables & secrets</span>,{" "}
-      <span className="font-medium text-foreground">command & args</span>, <span className="font-medium text-foreground">registry credentials</span>, and
-      per-port internal/external numbers. Service name, hardware, replicas, and adding/removing exposed ports require a new deployment.
-    </p>
-  </div>
+const LockedFieldsHint: FC = () => (
+  <CustomTooltip
+    className="max-w-[min(28rem,calc(100vw-2rem))] p-3"
+    title={
+      <p className="text-muted-foreground">
+        You can update <span className="font-medium text-foreground">image</span>, <span className="font-medium text-foreground">variables & secrets</span>,{" "}
+        <span className="font-medium text-foreground">command & args</span>, <span className="font-medium text-foreground">registry credentials</span>, and
+        per-port internal/external numbers. Service name, hardware, replicas, and adding/removing exposed ports require a new deployment.
+      </p>
+    }
+  >
+    <button type="button" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+      <Info className="h-3.5 w-3.5" aria-hidden="true" />
+      <span className="sr-only sm:not-sr-only">Some fields are locked after deploy</span>
+    </button>
+  </CustomTooltip>
 );
