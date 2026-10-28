@@ -1,3 +1,6 @@
 deploymentEnv: production
 
 hostName: console.akash.network
+
+apiRoutes:
+  sandbox: false
