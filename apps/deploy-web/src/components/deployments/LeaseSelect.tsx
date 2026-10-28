@@ -33,13 +33,14 @@ export const LeaseSelect = ({ defaultValue, leases, onSelectedChange }: Props) =
         value={selected}
         onChange={handleChange}
         variant="outlined"
+        size="small"
         classes={{
           select: "py-2 px-4 text-xs"
         }}
       >
         {leases.map(l => (
           <MenuItem key={l.id} value={l.id} dense>
-            <p className="leading-4">GSEQ: {l.gseq}</p>
+            GSEQ: {l.gseq}
           </MenuItem>
         ))}
       </Select>
