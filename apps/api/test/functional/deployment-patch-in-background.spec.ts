@@ -174,18 +174,10 @@ describe("PATCH /v1/deployments/{dseq}?async=true", () => {
     expect(await activitiesOf(apiKey)).toEqual([]);
   });
 
-  it.each([
-    { mode: "without async", query: "", backgroundUpdates: true },
-    { mode: "with async while background updates are off", query: "?async=true", backgroundUpdates: false }
-  ])("applies during the request $mode, answering as it always has and recording the update as succeeded", async ({ query, backgroundUpdates }) => {
+  it("applies during the request without async, answering as it always has and recording the update as succeeded", async () => {
     const { apiKey, broadcast } = await setup();
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag =>
-      flag === FeatureFlags.BACKGROUND_DEPLOYMENT_UPDATE
-        ? backgroundUpdates
-        : flag !== FeatureFlags.ORGANIZATIONS && flag !== FeatureFlags.ORGANIZATIONS_ENFORCE
-    );
 
-    const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, query);
+    const response = await patch(apiKey, { services: { web: { image: "nginx:1.27" } } }, "");
 
     expect(response.status).toBe(200);
     const { data } = (await response.json()) as { data: { manifestVersion: string; deployment: { id: { dseq: string } } } };

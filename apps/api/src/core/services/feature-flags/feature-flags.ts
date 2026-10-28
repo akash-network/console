@@ -6,13 +6,9 @@ export const FeatureFlags = {
   FAIR_USE_POLICY_GATE: "fair_use_policy_gate",
   BLOCKED_EMAIL_DOMAIN_ENFORCEMENT: "blocked_email_domain_enforcement",
   ACCOUNT_DELETION: "account_deletion",
-  BACKGROUND_DEPLOYMENT_CLOSE: "background_deployment_close",
   ORGANIZATIONS: "organizations",
   ORGANIZATIONS_ENFORCE: "organizations_enforce",
   INVOICES: "invoices",
-  BACKGROUND_DEPLOYMENT_CREATE: "background_deployment_create",
-  BACKGROUND_DEPLOYMENT_UPDATE: "background_deployment_update",
-  BACKGROUND_LEASE_CREATE: "background_lease_create",
   BACKGROUND_AUTO_LEASE: "background_auto_lease",
   TEAM_DATA_KEYS: "team_data_keys"
 } as const;
