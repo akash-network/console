@@ -178,7 +178,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
         <DeploymentTabHeader
           title="Placements"
           actions={
-            <span className="text-sm text-muted-foreground">
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
               {placementCount} {placementCount === 1 ? "placement" : "placements"} · {visibleServices.length}{" "}
               {visibleServices.length === 1 ? "service" : "services"}
             </span>
@@ -266,7 +266,7 @@ const LockedFieldsHint: FC = () => (
       </p>
     }
   >
-    <button type="button" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+    <button type="button" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
       <Info className="h-3.5 w-3.5" aria-hidden="true" />
       <span className="sr-only sm:not-sr-only">Some fields are locked after deploy</span>
     </button>
