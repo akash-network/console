@@ -746,13 +746,18 @@ describe(DeploymentWriterService.name, () => {
     });
 
     it("takes no value out of an sdl whose anchors expand it past the largest submittable sdl", async () => {
-      const { service, walletReaderService, sdlSecretsDerivationService } = setup();
+      const { service, walletReaderService, sdlSecretsDerivationService, logger } = setup();
       const derive = vi.spyOn(sdlSecretsDerivationService, "derive");
 
-      await expect(service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 })).rejects.toMatchObject({ status: 400 });
+      await expect(service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 })).rejects.toMatchObject({
+        status: 400,
+        refusal: "too-large",
+        message: expect.stringContaining("SDL is too large")
+      });
 
       expect(derive).not.toHaveBeenCalled();
       expect(walletReaderService.getWalletByUserId).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SDL_TOO_LARGE", length: SDL_ALIASING_ONE_SCALAR.length }));
     });
 
     it("refuses an sdl too large to store before reading the wallet or opening the seal", async () => {
