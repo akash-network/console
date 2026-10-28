@@ -257,7 +257,7 @@ export const DeploymentUpdate: FC<DeploymentUpdateProps> = ({
 
 const LockedFieldsHint: FC = () => (
   <CustomTooltip
-    className="p-3"
+    className="max-w-[min(28rem,calc(100vw-2rem))] p-3"
     title={
       <p className="text-muted-foreground">
         You can update <span className="font-medium text-foreground">image</span>, <span className="font-medium text-foreground">variables & secrets</span>,{" "}
