@@ -22,13 +22,6 @@ describe(ActivityHost.name, () => {
   const OWNER = "akash1owner";
   const TOAST_KEY = "toast-1";
 
-  it("asks for no activities while the activity center is switched off", () => {
-    const { useLatestActivitiesQuery, useFlag } = setup({ isEnabled: false });
-
-    expect(useFlag).toHaveBeenCalledWith("notifications_activity_center");
-    expect(useLatestActivitiesQuery).toHaveBeenCalledWith({ enabled: false });
-  });
-
   it("asks for no activities while nobody is signed in", () => {
     const { useLatestActivitiesQuery } = setup({ isSignedIn: false });
 
@@ -1089,7 +1082,6 @@ describe(ActivityHost.name, () => {
         })) as typeof DEPENDENCIES.useDeploymentNames);
 
       const dependencies: typeof DEPENDENCIES = {
-        useFlag: () => true,
         useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: buildUser() }),
         useWallet: () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: OWNER }),
         useLatestActivitiesQuery,
@@ -1125,7 +1117,6 @@ describe(ActivityHost.name, () => {
 
   function setup(
     input: {
-      isEnabled?: boolean;
       isSignedIn?: boolean;
       activities?: Activity[];
       address?: string;
@@ -1154,7 +1145,6 @@ describe(ActivityHost.name, () => {
     }) as typeof DEPENDENCIES.useDeploymentNames);
     const useLatestActivitiesQuery = vi.fn((() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), { data: activities })) as typeof DEPENDENCIES.useLatestActivitiesQuery);
-    const useFlag = vi.fn((() => input.isEnabled ?? true) as typeof DEPENDENCIES.useFlag);
     const enqueueSnackbar = vi.fn().mockReturnValue(TOAST_KEY);
     const closeSnackbar = vi.fn();
     const push = vi.fn();
@@ -1167,7 +1157,6 @@ describe(ActivityHost.name, () => {
     api.v1.getDeployment.getKey.mockImplementation(request => ["getDeployment", request?.dseq ?? ""]);
 
     const dependencies: typeof DEPENDENCIES = {
-      useFlag,
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : user }),
       useWallet: () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ address: input.address ?? OWNER }),
       useLatestActivitiesQuery,
@@ -1204,7 +1193,6 @@ describe(ActivityHost.name, () => {
     return {
       useLatestActivitiesQuery,
       useDeploymentNames,
-      useFlag,
       enqueueSnackbar,
       closeSnackbar,
       push,

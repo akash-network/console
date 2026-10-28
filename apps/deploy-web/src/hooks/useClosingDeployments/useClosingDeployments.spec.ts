@@ -29,11 +29,8 @@ describe(useClosingDeployments.name, () => {
     expect(result.current).toEqual(new Set());
   });
 
-  it.each([
-    { case: "the activity center is off", isEnabled: false, isSignedIn: true },
-    { case: "no one is signed in", isEnabled: true, isSignedIn: false }
-  ])("lists nothing from activities still cached once $case", ({ isEnabled, isSignedIn }) => {
-    const { result } = setup({ activities: [buildActivity({ status: "pending", meta: { dseq: "1001" } })], isEnabled, isSignedIn });
+  it("lists nothing from activities still cached while no one is signed in", () => {
+    const { result } = setup({ activities: [buildActivity({ status: "pending", meta: { dseq: "1001" } })], isSignedIn: false });
 
     expect(result.current).toEqual(new Set());
   });
@@ -50,20 +47,18 @@ describe(useClosingDeployments.name, () => {
     expect(result.current).toEqual(new Set());
   });
 
-  it("reads the activities the activity host follows, only while the activity center is on for a signed-in user", () => {
-    expect(setup({ isEnabled: true }).useLatestActivitiesQuery).toHaveBeenCalledWith({ enabled: true });
-    expect(setup({ isEnabled: false }).useLatestActivitiesQuery).toHaveBeenCalledWith({ enabled: false });
+  it("reads the activities the activity host follows, only for a signed-in user", () => {
+    expect(setup({}).useLatestActivitiesQuery).toHaveBeenCalledWith({ enabled: true });
     expect(setup({ isSignedIn: false }).useLatestActivitiesQuery).toHaveBeenCalledWith({ enabled: false });
   });
 
-  function setup(input: { activities?: Activity[]; isEnabled?: boolean; isSignedIn?: boolean }) {
+  function setup(input: { activities?: Activity[]; isSignedIn?: boolean }) {
     let activities = input.activities;
     const useLatestActivitiesQuery = vi.fn((() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useLatestActivitiesQuery>>(), {
         data: activities
       })) as typeof DEPENDENCIES.useLatestActivitiesQuery);
     const dependencies: typeof DEPENDENCIES = {
-      useFlag: vi.fn((flag: string) => flag === "notifications_activity_center" && (input.isEnabled ?? true)) as typeof DEPENDENCIES.useFlag,
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : buildUser() }),
       useLatestActivitiesQuery
     };

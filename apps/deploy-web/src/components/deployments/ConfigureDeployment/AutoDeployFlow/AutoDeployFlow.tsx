@@ -10,7 +10,6 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useAddCredits } from "@src/hooks/useAddCredits";
 import type { DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
 import { useAutoDeploymentFlow } from "@src/hooks/useAutoDeploymentFlow/useAutoDeploymentFlow";
-import { useFlag } from "@src/hooks/useFlag";
 import { UrlService } from "@src/utils/urlUtils";
 import { PhasedDeployProgressScene } from "../DeployProgressOverlay/PhasedDeployProgressScene";
 import type { ResumeResolution } from "../ResumeDeploymentGuard/ResumeDeploymentGuard";
@@ -26,7 +25,6 @@ export const DEPENDENCIES = {
   useAddCredits,
   useActiveOrganization,
   useRouter,
-  useFlag,
   useLandOnDeploymentList
 };
 
@@ -62,7 +60,6 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
   const openAddCredits = d.useAddCredits();
   const { activeOrganization, projectsEnabled } = d.useActiveOrganization();
   const router = d.useRouter();
-  const isRunningInBackground = d.useFlag("notifications_activity_center");
   const { state, progressPercent, phases, matchedProviderAddress, tryAgain, stopAutopilot } = d.useAutoDeploymentFlow({
     sdl,
     resumeLeases: resume.activeLeases,
@@ -85,7 +82,7 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
     flow.actions.setBidStrategy("select");
   }
 
-  if (isStartingInBackground(flow, state, isRunningInBackground)) {
+  if (isStartingInBackground(flow, state)) {
     return (
       <d.Layout background="white" disableContainer containerClassName="flex min-h-page-viewport flex-col lg:h-page-viewport">
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
@@ -129,8 +126,8 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
 };
 
 /** The api usually takes a one-click deploy on whole, so the globe waits for a create it answered without doing so, or for a refusal to show. */
-function isStartingInBackground(flow: DeploymentFlow, state: DeployProgressState, isRunningInBackground: boolean): boolean {
-  return !!flow.autoLeasedDseq || (isRunningInBackground && state.kind === "creating" && !flow.isCreatingInBackground);
+function isStartingInBackground(flow: DeploymentFlow, state: DeployProgressState): boolean {
+  return !!flow.autoLeasedDseq || (state.kind === "creating" && !flow.isCreatingInBackground);
 }
 
 function budgetRefusingProjectIdOf(state: DeployProgressState): string | undefined {

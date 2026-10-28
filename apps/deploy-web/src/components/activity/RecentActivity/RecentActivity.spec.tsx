@@ -10,13 +10,6 @@ import { buildActivity } from "@tests/seeders/activity";
 import { buildUser } from "@tests/seeders/user";
 
 describe(RecentActivity.name, () => {
-  it("renders nothing while the activity center is off", () => {
-    const { useActivityFeedQuery } = setup({ isEnabled: false });
-
-    expect(screen.queryByRole("region", { name: "Recent activity" })).not.toBeInTheDocument();
-    expect(useActivityFeedQuery).toHaveBeenCalledWith({ enabled: false });
-  });
-
   it("renders nothing for a signed-out visitor", () => {
     const { useActivityFeedQuery } = setup({ isSignedIn: false });
 
@@ -24,7 +17,7 @@ describe(RecentActivity.name, () => {
     expect(useActivityFeedQuery).toHaveBeenCalledWith({ enabled: false });
   });
 
-  it("reads the feed the activity host polls once the activity center is on", () => {
+  it("reads the feed the activity host polls for a signed-in user", () => {
     const { useActivityFeedQuery } = setup({});
 
     expect(screen.getByRole("region", { name: "Recent activity" })).toBeInTheDocument();
@@ -225,7 +218,6 @@ describe(RecentActivity.name, () => {
   }
 
   function setup(input: {
-    isEnabled?: boolean;
     isSignedIn?: boolean;
     activities?: Activity[];
     names?: Record<string, string>;
@@ -246,7 +238,6 @@ describe(RecentActivity.name, () => {
       })) as typeof DEPENDENCIES.useActivityFeedQuery);
 
     const dependencies: typeof DEPENDENCIES = {
-      useFlag: flag => flag === "notifications_activity_center" && (input.isEnabled ?? true),
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : buildUser({ username: input.username }) }),
       useActivityFeedQuery,
       useDeploymentNames

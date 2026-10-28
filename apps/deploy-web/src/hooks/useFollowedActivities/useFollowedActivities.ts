@@ -1,16 +1,14 @@
 import { useMemo } from "react";
 
-import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { type Activity, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
 
-export const DEPENDENCIES = { useFlag, useUser, useLatestActivitiesQuery };
+export const DEPENDENCIES = { useUser, useLatestActivitiesQuery };
 
-/** The feed the activity host keeps polling, read only while the activity center is on for a signed-in user, so activities still cached from before count for nothing. */
+/** The feed the activity host keeps polling, read only for a signed-in user, so activities still cached from before count for nothing. */
 export function useFollowedActivities(dependencies: typeof DEPENDENCIES = DEPENDENCIES): Activity[] | undefined {
-  const isEnabled = dependencies.useFlag("notifications_activity_center");
   const { user } = dependencies.useUser();
-  const isFollowingFeed = isEnabled && !!user?.userId;
+  const isFollowingFeed = !!user?.userId;
   const { data: activities } = dependencies.useLatestActivitiesQuery({ enabled: isFollowingFeed });
 
   return isFollowingFeed ? activities : undefined;

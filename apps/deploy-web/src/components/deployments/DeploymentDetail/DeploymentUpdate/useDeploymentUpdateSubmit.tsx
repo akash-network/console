@@ -7,7 +7,6 @@ import { useSnackbar } from "notistack";
 import { AddCreditsSnackbarContent } from "@src/components/billing-usage/AddCreditsSnackbarContent/AddCreditsSnackbarContent";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useMarkActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { useBalances } from "@src/queries/useBalancesQuery";
 import type { SdlBuilderFormValuesType } from "@src/types";
@@ -34,7 +33,6 @@ export const DEPENDENCIES = {
   useSnackbar,
   useQueryClient,
   useMarkActivityOutcomes,
-  useFlag,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   sealSdlSecrets
 };
@@ -86,7 +84,6 @@ export function useDeploymentUpdateSubmit(
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const queryClient = d.useQueryClient();
   const { forgetEarlierOutcomes, markOutcomeHandled } = d.useMarkActivityOutcomes();
-  const isUpdatingInBackground = d.useFlag("notifications_activity_center");
   const getSdlSecretsContext = api.v1.getSDLSecretsContext.useMutation();
   const patchDeployment = api.v1.patchDeployment.useMutation();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -140,7 +137,7 @@ export function useDeploymentUpdateSubmit(
   async function sendPatch(data: Parameters<typeof patchDeployment.mutateAsync>[0]["data"]) {
     forgetEarlierOutcomes("deployment_update", dseq);
     try {
-      const response = await patchDeployment.mutateAsync({ dseq, async: isUpdatingInBackground ? "true" : undefined, data });
+      const response = await patchDeployment.mutateAsync({ dseq, async: "true", data });
       if (!("activityId" in response.data)) markOutcomeHandled("deployment_update", dseq, "succeeded");
       return response;
     } catch (cause) {

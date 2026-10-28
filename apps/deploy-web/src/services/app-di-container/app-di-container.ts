@@ -9,7 +9,6 @@ import {
   ManagedWalletHttpService,
   StripeService as HttpStripeService,
   TemplateHttpService,
-  TxHttpService,
   UsageHttpService
 } from "@akashnetwork/http-sdk";
 import { LoggerService } from "@akashnetwork/logging";
@@ -23,7 +22,6 @@ import { retryOnServerError, shouldReportError } from "@src/services/query-error
 import { StaleOrganizationRecovery } from "@src/services/stale-organization-recovery/stale-organization-recovery";
 import { createTabOrganizationInterceptor, TabOrganization } from "@src/services/tab-organization/tab-organization";
 import networkStore from "@src/store/networkStore";
-import { registry } from "@src/utils/customRegistry";
 import { UrlService } from "@src/utils/urlUtils";
 import type { ApiUrlService } from "../api-url/api-url.service";
 import { withUserToken } from "../auth/auth/interceptors";
@@ -77,10 +75,6 @@ export const createAppRootContainer = (config: ServicesConfig) => {
         config: {
           publishableKey: container.publicConfig.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
         }
-      }),
-    tx: () =>
-      container.applyAxiosInterceptors(new TxHttpService(registry, apiConfig), {
-        request: [withUserToken]
       }),
     template: () => {
       const httpClient = container.createAxios({

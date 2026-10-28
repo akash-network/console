@@ -23,7 +23,7 @@ function isPaymentRequired(cause: unknown): boolean {
   return isApiError(cause) && cause.status === 402;
 }
 
-/** Mirrors signAndBroadcast, which keeps client-side refusals out of the failed_tx metric. */
+/** A refusal of what the user sent, which stays out of the failed_tx metric. */
 export function isClientRefusal(cause: unknown): boolean {
   return isBadRequest(cause) || isPaymentRequired(cause);
 }

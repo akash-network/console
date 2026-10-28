@@ -7,13 +7,12 @@ import { useSnackbar } from "notistack";
 import { deploymentLabelOf } from "@src/components/activity/activityLabels/activityLabels";
 import { ActivityToast } from "@src/components/activity/ActivityToast/ActivityToast";
 import { useDeploymentsReadiness } from "@src/hooks/useDeploymentsReadiness/useDeploymentsReadiness";
-import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { type Activity, useActivityFeedQuery } from "@src/queries/useLatestActivitiesQuery";
 import { UrlService } from "@src/utils/urlUtils";
 
-export const DEPENDENCIES = { useFlag, useUser, useActivityFeedQuery, useDeploymentsReadiness, useSnackbar, useQueryClient, useRouter };
+export const DEPENDENCIES = { useUser, useActivityFeedQuery, useDeploymentsReadiness, useSnackbar, useQueryClient, useRouter };
 
 /** A deploy that went through this long ago is left to the deployment's own page, so a feed of old deploys never fans out into checks on each. */
 const READY_WATCH_WINDOW_MS = 30 * 60 * 1000;
@@ -25,9 +24,8 @@ type Deploy = Activity & { meta: { dseq: string } };
  * seen underway, or one that showed up after the feed first loaded, gets the news, so one already running is never announced.
  */
 export function DeploymentReadyHost({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES }) {
-  const isEnabled = d.useFlag("notifications_activity_center");
   const { user } = d.useUser();
-  const isFollowingFeed = isEnabled && !!user?.userId;
+  const isFollowingFeed = !!user?.userId;
   const { data: feed } = d.useActivityFeedQuery({ enabled: isFollowingFeed });
   const activities = isFollowingFeed ? feed?.activities : undefined;
   const [settledDeployIds, setSettledDeployIds] = useState<ReadonlySet<string>>(() => new Set());

@@ -24,7 +24,6 @@ import { SectionLabel } from "@src/components/projects/SectionLabel/SectionLabel
 import { ViewOnlyNotice } from "@src/components/projects/ViewOnlyNotice/ViewOnlyNotice";
 import { LinkTo } from "@src/components/shared/LinkTo";
 import { useBlockchainStatus } from "@src/context/BlockchainStatusProvider";
-import { useFlag } from "@src/hooks/useFlag";
 import { useNewDeploymentUrl } from "@src/hooks/useNewDeploymentUrl/useNewDeploymentUrl";
 import { useProjectAccess } from "@src/hooks/useProjectAccess/useProjectAccess";
 import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
@@ -42,7 +41,6 @@ export const DEPENDENCIES = {
   useBlockchainStatus,
   useNewDeploymentUrl,
   useProjectAccess,
-  useFlag,
   Layout,
   DeploymentsEmptyState,
   ViewOnlyNotice,
@@ -73,7 +71,6 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
   const { canChangeDeployments } = d.useProjectsUi();
   const access = d.useProjectAccess();
   const canDeploy = canChangeDeployments && (project ? access.canManageDeployments(project.id) : access.canDeployAnywhere);
-  const isShowingRecentActivity = d.useFlag("notifications_activity_center");
 
   const changeSearch = (event: ChangeEvent<HTMLInputElement>) => model.changeSearch(event.target.value);
 
@@ -253,14 +250,12 @@ export const DeploymentsList: React.FunctionComponent<Props> = ({ project, depen
                   </LabelledDeployments>
                 </WithSideColumn>
               </ProjectScopeProvider>
-            ) : isShowingRecentActivity ? (
+            ) : (
               <WithSideColumn aside={<d.RecentActivity />}>
                 <LabelledDeployments label="My deployments" activeTotal={model.activeTotal}>
                   {content}
                 </LabelledDeployments>
               </WithSideColumn>
-            ) : (
-              content
             )}
           </div>
         </div>

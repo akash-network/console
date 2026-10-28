@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { BootLoadingProvider } from "@src/context/BootLoadingProvider/BootLoadingProvider";
@@ -48,18 +48,6 @@ describe(WalletProvider.name, () => {
     rerenderWithManagedWallet({ isInitializing: false, wallet: buildManagedWallet() });
 
     expect(screen.getByTestId("child")).toBeInTheDocument();
-  });
-
-  it("does not render the transaction modal while gated", () => {
-    setup({ user: registeredUser(), managedWallet: { isInitializing: true, wallet: undefined } });
-
-    expect(screen.queryByTestId("tx-modal")).not.toBeInTheDocument();
-  });
-
-  it("renders the transaction modal once settled", () => {
-    setup({ user: registeredUser(), managedWallet: { isInitializing: false, wallet: buildManagedWallet() } });
-
-    expect(screen.getByTestId("tx-modal")).toBeInTheDocument();
   });
 
   it("exposes the settled wallet through useWallet", () => {
@@ -112,14 +100,11 @@ describe(WalletProvider.name, () => {
     const dependencies: typeof DEPENDENCIES = {
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.user }),
       useManagedWallet: () => managedWalletMock,
-      useBalances: () => mock<ReturnType<typeof DEPENDENCIES.useBalances>>(),
-      useSignAndBroadcast: () => ({ signAndBroadcastTx: vi.fn(), loadingState: undefined }),
       useServices: () =>
         mock<ReturnType<typeof DEPENDENCIES.useServices>>({
           analyticsService: mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>(),
           publicConfig: mock<ReturnType<typeof DEPENDENCIES.useServices>["publicConfig"]>({ NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: "sandbox" })
         }),
-      TransactionModal: vi.fn(() => <div data-testid="tx-modal" />),
       BootLoading: DEPENDENCIES.BootLoading
     };
 
