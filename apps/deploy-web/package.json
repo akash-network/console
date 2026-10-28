@@ -42,8 +42,6 @@
     "@auth0/nextjs-auth0": "^3.5.0",
     "@cosmjs/encoding": "~0.38.0",
     "@cosmjs/math": "~0.38.0",
-    "@cosmjs/proto-signing": "~0.38.0",
-    "@cosmjs/stargate": "~0.38.0",
     "@emotion/cache": "^11.7.1",
     "@emotion/css": "^11.7.1",
     "@emotion/react": "^11.11.0",
