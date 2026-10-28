@@ -6,6 +6,7 @@ import type { BillingConfig } from "@src/billing/providers";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { CreateLogger } from "@src/core";
+import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import { SdlService } from "./sdl.service";
@@ -376,6 +377,15 @@ deployment:
       count: 1
 `;
 
+const SDL_SHARING_ONE_ENV_ACROSS_SERVICES = `version: "2.0"
+services:
+  s0:
+    image: nginx
+    env: &shared
+${Array.from({ length: 300 }, (_, index) => `      - KEY_${index}=value`).join("\n")}
+${Array.from({ length: 299 }, (_, index) => `  s${index + 1}:\n    image: nginx\n    env: *shared`).join("\n")}
+`;
+
 const SDL_WITH_ENV = (entry: string) => VALID_SDL.replace("    expose:", `    env:\n      - "${entry}"\n    expose:`);
 
 const SDL_WITH_CREDENTIALS = (username: string, password: string) =>
@@ -678,6 +688,27 @@ describe(SdlService.name, () => {
 
       expect(result.ok).toBe(true);
       expect(getSignedBy(result, "westcoast").anyOf).toEqual([]);
+    });
+
+    it("refuses an sdl whose anchors expand it past the largest submittable sdl before reading its references", async () => {
+      const { service, sdlReferenceService } = await setup();
+      const validate = vi.spyOn(sdlReferenceService, "validate");
+
+      const result = await service.generateManifest(SDL_SHARING_ONE_ENV_ACROSS_SERVICES);
+
+      expect(result).toEqual({
+        ok: false,
+        value: [
+          {
+            schemaPath: "",
+            instancePath: "",
+            keyword: "maxLength",
+            params: { limit: MAX_SUBMITTED_SDL_LENGTH },
+            message: `SDL is too large: its anchors expand it past the maximum of ${MAX_SUBMITTED_SDL_LENGTH} characters`
+          }
+        ]
+      });
+      expect(validate).not.toHaveBeenCalled();
     });
 
     it("returns error result for invalid SDL", async () => {
@@ -991,6 +1022,16 @@ describe(SdlService.name, () => {
       const result = await service.generateResolvedManifest({ sdl: SDL_DEPLOYING_AN_UNDECLARED_SERVICE, secrets: {} });
 
       expect(errorsOf(result)).toEqual([expect.objectContaining({ keyword: "manifest" })]);
+    });
+
+    it("refuses an sdl whose anchors expand it past the largest submittable sdl before substituting anything", async () => {
+      const { service, sdlReferenceService } = await setup();
+      const substitute = vi.spyOn(sdlReferenceService, "substitute");
+
+      const result = await service.generateResolvedManifest({ sdl: SDL_SHARING_ONE_ENV_ACROSS_SERVICES, secrets: {} });
+
+      expect(errorsOf(result)).toEqual([expect.objectContaining({ keyword: "maxLength" })]);
+      expect(substitute).not.toHaveBeenCalled();
     });
 
     it("lets a failure of its own through rather than reporting the sdl as invalid", async () => {

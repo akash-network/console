@@ -11482,6 +11482,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "type": "string",
                       },
                       "sdl": {
+                        "maxLength": 524288,
                         "type": "string",
                       },
                       "sealedSecrets": {

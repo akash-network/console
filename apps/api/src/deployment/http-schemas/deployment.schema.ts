@@ -329,7 +329,7 @@ export const DepositDeploymentResponseSchema = z.object({
 
 export const UpdateDeploymentRequestSchema = z.object({
   data: z.object({
-    sdl: z.string(),
+    sdl: z.string().max(MAX_SUBMITTED_SDL_LENGTH),
     name: DeploymentNameSchema.optional().openapi({
       description:
         "Renames the deployment. Omitting it keeps the name the deployment already carries, unlike the rest of the definition this endpoint replaces wholesale."

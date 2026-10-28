@@ -1813,6 +1813,25 @@ describe("Deployments API", () => {
       expect(await response.json()).toMatchObject({ error: "Error", code: "bad_request", type: "client_error" });
     });
 
+    it("returns 400 for an sdl whose anchors expand it past the largest submittable sdl", async () => {
+      const { userApiKeySecret } = await mockPersistedUser();
+      const sharedEnv = Array.from({ length: 300 }, (_, index) => `      - KEY_${index}=value`).join("\n");
+      const aliasingServices = Array.from(
+        { length: 299 },
+        (_, index) => `  s${index}:\n    image: ghcr.io/akash-network/hello-akash-world:2.1.0\n    env: *shared`
+      ).join("\n");
+      const sdl = HELLO_WORLD_SDL.replace("    expose:", `    env: &shared\n${sharedEnv}\n    expose:`).replace("profiles:", `${aliasingServices}\nprofiles:`);
+
+      const response = await app.request("/v1/deployments", {
+        method: "POST",
+        body: JSON.stringify({ data: { sdl } }),
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ message: expect.stringContaining("SDL is too large") });
+    });
+
     it("says nothing about the sdl in the 400 it returns", async () => {
       const { userApiKeySecret } = await mockPersistedUser();
 

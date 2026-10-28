@@ -24,7 +24,7 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { RpcMessageService } from "@src/billing/services/rpc-message-service/rpc-message.service";
 import { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import { type CreateLogger, JOB_NAME, JobQueueService, LOGGER_FACTORY, TxService } from "@src/core";
-import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
+import { MAX_SUBMITTED_SDL_LENGTH, SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import {
   assignsAnyServiceField,
   CreateDeploymentAcceptedResponse,
@@ -90,7 +90,12 @@ import {
 import { deploymentChangesOf } from "@src/deployment/utils/deployment-changes/deployment-changes";
 import { deriveDeploymentName } from "@src/deployment/utils/deployment-name/deployment-name";
 import type { StorableSdl, StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
-import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
+import {
+  exceedsSubmittableLength,
+  EXPANDED_SDL_TOO_LARGE_MESSAGE,
+  parseSdlForStorage,
+  sdlForStorage
+} from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { findMissingGlobalExposure } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 import { failedUpdateActivityOf, pendingUpdateActivityOf, renamedActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -637,6 +642,10 @@ export class DeploymentWriterService {
       throw this.#rejectUnstorableSdl("unparseable", { dseq, length: submittedSdl.length, at: parsed.at });
     }
 
+    if (exceedsSubmittableLength(submittedSdl, parsed.document)) {
+      throw this.#rejectUnstorableSdl("expands-too-large", { dseq, length: submittedSdl.length });
+    }
+
     const derived = this.#takeValuesOutOf(parsed.document, values);
     const { sdl, length } = sdlForStorage(parsed, SDL_MAX_LENGTH);
 
@@ -692,6 +701,12 @@ export class DeploymentWriterService {
       this.logger.warn({ event: "DEPLOYMENT_SDL_UNPARSEABLE", ...loggable, line: at?.line, column: at?.column });
 
       return new UnstorableSdlError(refusal, at ? `SDL is not valid YAML: line ${at.line}, column ${at.column}` : "SDL is not valid YAML");
+    }
+
+    if (refusal === "expands-too-large") {
+      this.logger.warn({ event: "DEPLOYMENT_SDL_EXPANDS_TOO_LARGE", ...loggable, maxLength: MAX_SUBMITTED_SDL_LENGTH });
+
+      return new UnstorableSdlError(refusal, EXPANDED_SDL_TOO_LARGE_MESSAGE);
     }
 
     this.logger.warn({ event: "DEPLOYMENT_SDL_TOO_LARGE", ...loggable, maxLength: SDL_MAX_LENGTH });

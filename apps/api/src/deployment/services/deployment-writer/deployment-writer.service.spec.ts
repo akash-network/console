@@ -23,7 +23,7 @@ import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manag
 import type { WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 import type { CreateLogger, JobQueueService, TxService } from "@src/core";
 import { JOB_NAME } from "@src/core";
-import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
+import { MAX_SUBMITTED_SDL_LENGTH, SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import type { DeploymentResponse } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { APPLY_DEPLOYMENT_UPDATE_RETRY_OPTIONS, ApplyDeploymentUpdate } from "@src/deployment/services/apply-deployment-update/apply-deployment-update.job";
@@ -56,6 +56,7 @@ import type { OnChainGroupSpec } from "@src/deployment/utils/changed-group-resou
 import { closedActivityOf, failedCloseActivityOf } from "@src/deployment/utils/close-activity/close-activity";
 import { createdActivityOf, creatingActivityOf, failedCreateActivityOf } from "@src/deployment/utils/create-activity/create-activity";
 import { decodeCreateDeploymentMessage, encodeCreateDeploymentMessage } from "@src/deployment/utils/create-deployment-message/create-deployment-message";
+import { EXPANDED_SDL_TOO_LARGE_MESSAGE } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { failedUpdateActivityOf, pendingUpdateActivityOf, renamedActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
 import type { ProviderService } from "@src/provider/services/provider/provider.service";
 import { SECRET_UNREADABLE_ERROR_MESSAGE } from "@src/secret/config/secret-at-rest.config";
@@ -745,6 +746,23 @@ describe(DeploymentWriterService.name, () => {
       expect(order).toEqual(["seal", "transaction"]);
     });
 
+    it("takes no value out of an sdl whose anchors expand it past the largest submittable sdl", async () => {
+      const { service, walletReaderService, sdlSecretsDerivationService, logger } = setup();
+      const derive = vi.spyOn(sdlSecretsDerivationService, "derive");
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 })).rejects.toMatchObject({
+        status: 400,
+        refusal: "expands-too-large",
+        message: EXPANDED_SDL_TOO_LARGE_MESSAGE
+      });
+
+      expect(derive).not.toHaveBeenCalled();
+      expect(walletReaderService.getWalletByUserId).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DEPLOYMENT_SDL_EXPANDS_TOO_LARGE", length: SDL_ALIASING_ONE_SCALAR.length, maxLength: MAX_SUBMITTED_SDL_LENGTH })
+      );
+    });
+
     it("refuses an sdl too large to store before reading the wallet or opening the seal", async () => {
       const { service, walletReaderService, sdlSecretsService, sdlService } = setup();
 
@@ -1224,8 +1242,8 @@ describe(DeploymentWriterService.name, () => {
 
       expect(rejection.message).not.toContain(ALIASED_FILLER);
       expect(rejection.message).not.toContain("payload");
-      expect(rejection.message).toContain(String(SDL_MAX_LENGTH));
-      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SDL_TOO_LARGE", maxLength: SDL_MAX_LENGTH }));
+      expect(rejection.message).toBe(EXPANDED_SDL_TOO_LARGE_MESSAGE);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_SDL_EXPANDS_TOO_LARGE", maxLength: MAX_SUBMITTED_SDL_LENGTH }));
       expect(loggedTextOf(logger)).not.toContain(ALIASED_FILLER);
     });
 
@@ -3021,6 +3039,16 @@ describe(DeploymentWriterService.name, () => {
 
       expect(signerService.executeDecodedTxByUserWallet).not.toHaveBeenCalled();
       expect(providerService.sendManifest).not.toHaveBeenCalled();
+    });
+
+    it("takes no value out of an sdl whose anchors expand it past the largest submittable sdl", async () => {
+      const { service, deploymentSettingRepository, sdlSecretsDerivationService } = setup();
+      const derive = vi.spyOn(sdlSecretsDerivationService, "derive");
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_ALIASING_ONE_SCALAR })).rejects.toMatchObject({ status: 400 });
+
+      expect(derive).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
     });
 
     it("rejects an sdl too large to store without touching the deployment", async () => {
@@ -4977,6 +5005,18 @@ describe(DeploymentWriterService.name, () => {
   describe("recordDefinitionByUserIdAndDseq", () => {
     const COMMITTED_VERSION = new Uint8Array([1, 2, 3]);
 
+    it("takes no value out of an sdl whose anchors expand it past the largest submittable sdl", async () => {
+      const { service, scopedSettingRepository, sdlSecretsDerivationService, ability } = setup({ sourceSetting: undefined });
+      const derive = vi.spyOn(sdlSecretsDerivationService, "derive");
+
+      await expect(service.recordDefinitionByUserIdAndDseq("user-1", "100", { sdl: SDL_ALIASING_ONE_SCALAR }, ability)).rejects.toMatchObject({
+        status: 400
+      });
+
+      expect(derive).not.toHaveBeenCalled();
+      expect(scopedSettingRepository.recordDefinitionIfAbsent).not.toHaveBeenCalled();
+    });
+
     it("records nothing for an organization's deployment outside the caller's projects", async () => {
       const { service, signerService, walletReaderService, scopedSettingRepository, sdlSecretsService, ability } = setup({ sourceSetting: undefined });
       walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, userId: null, organizationId: "organization-1" });
@@ -5449,6 +5489,7 @@ describe(DeploymentWriterService.name, () => {
       deploymentPresenceService,
       userGpuBidCheckService,
       userRepository,
+      sdlSecretsDerivationService,
       accepted,
       ability: mock<AnyAbility>(),
       storedSecrets
