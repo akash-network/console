@@ -50,7 +50,12 @@ const BANK_REFUSAL_CODE = "card_declined";
 /** Stripe already reports a first decline inline, so the form only steps in once the bank refuses a new card twice in a row. */
 const NEW_CARD_REFUSALS_BEFORE_RESET = 2;
 
+/** A decline such as insufficient funds can clear before a retry, so it takes a second one on the same payment method to move off it. */
+const CHARGE_DECLINES_BEFORE_RESET = 2;
+
 const BANK_REFUSED_MESSAGE = "Your bank refused this card. Try a different card or payment method.";
+
+const PAYMENT_IN_PROGRESS_CODE = "payment_in_progress";
 
 const PAYMENT_FORM_LOAD_TIMEOUT_MS = 10_000;
 
@@ -120,7 +125,6 @@ interface PendingCharge {
   paymentMethodId: string;
   amount: number;
   wasTrialing: boolean;
-  status: "pending" | "charging";
   idempotencyKey: string;
   analytics: PaymentAnalytics;
   transactionId?: string;
@@ -130,11 +134,13 @@ interface PendingCharge {
  * Orchestrates the Add Credits flow. Saved payment methods are offered when
  * the user has any (default pre-selected), with new-card entry as a fallback
  * or explicit choice. On submit it resolves the payment method (saved id, or
- * the swappable child for a new card) and stores it as a pending charge; a
- * reactive effect fires confirmPayment immediately — the managed wallet may
- * still be provisioning, in which case the server replies with a retriable
- * `wallet_provisioning` 409 that the payment mutation retries with backoff
- * until activation lands. It hands off to the 3D Secure popup when required,
+ * the swappable child for a new card), stores it as a pending charge and fires
+ * confirmPayment once — the managed wallet may still be provisioning, in which
+ * case the server replies with a retriable `wallet_provisioning` 409 that the
+ * payment mutation retries with backoff until activation lands. A 409
+ * `payment_in_progress` means an earlier request is still charging the same
+ * attempt, so the form keeps the charge locked and polls for its settlement
+ * instead of failing. It hands off to the 3D Secure popup when required,
  * then waits for payment polling to confirm settlement before notifying the caller
  * through onDone. A poll that exhausts without confirmation is NOT completion:
  * the charge may still settle, so the form releases its in-flight state
@@ -180,6 +186,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   /** Analytics of the charge awaiting 3D Secure, read by the 3DS callbacks which fire outside the charge flow. */
   const threeDSecureAnalyticsRef = useRef<PaymentAnalytics | null>(null);
   const consecutiveNewCardRefusalsRef = useRef(0);
+  const chargeDeclinesByPaymentMethodRef = useRef(new Map<string, number>());
   /** The payment element reloads with every new SetupIntent, so readiness is reported for the first load only. */
   const paymentFormReadyTrackedRef = useRef(false);
   const [openedAt] = useState(() => performance.now());
@@ -312,11 +319,10 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
       return;
     }
 
-    setCharge({
+    const pendingCharge: PendingCharge = {
       paymentMethodId,
       amount,
       wasTrialing: isTrialing,
-      status: "pending",
       idempotencyKey: attempt.resolve({
         userId: user.id,
         amount,
@@ -324,7 +330,9 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
         walletType: wallet?.type ?? (walletMethod?.paymentMethodId === paymentMethodId ? walletMethod.type : undefined)
       }),
       analytics
-    });
+    };
+    setCharge(pendingCharge);
+    void performCharge(pendingCharge);
   };
 
   const submit: FormEventHandler<HTMLFormElement> = async e => {
@@ -416,11 +424,19 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
         trackPaymentFailed(pending.analytics, "charge_declined");
         finalizeFailure("Payment failed. Please try again.");
       } catch (err) {
-        attempt.clearIfConcluded(err);
         const details = toPaymentFailureDetails(err);
+        if (details.errorCode === PAYMENT_IN_PROGRESS_CODE) {
+          pollForPayment();
+          return;
+        }
+
+        attempt.clearIfConcluded(err);
         trackPaymentFailed(pending.analytics, "charge_error", details);
 
-        if (isBankRefusal(details)) {
+        const isDeclinedAgain =
+          details.httpStatus === 402 && countChargeDecline(chargeDeclinesByPaymentMethodRef.current, pending.paymentMethodId) >= CHARGE_DECLINES_BEFORE_RESET;
+
+        if (isBankRefusal(details) || isDeclinedAgain) {
           finalizeFailure(BANK_REFUSED_MESSAGE);
           leadWithNewPaymentMethod();
           return;
@@ -443,16 +459,6 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
       attempt,
       d
     ]
-  );
-
-  useEffect(
-    function chargePendingTopUp() {
-      if (!charge || charge.status !== "pending" || charge.amount < topUpMinAmountUsd) return;
-
-      setCharge({ ...charge, status: "charging" });
-      void performCharge(charge);
-    },
-    [charge, topUpMinAmountUsd, performCharge]
   );
 
   useEffect(
@@ -742,6 +748,12 @@ function restartPaymentFormLoad({ attempt }: PaymentFormLoad): PaymentFormLoad {
 
 function isBankRefusal(failure: PaymentMethodSetupFailure): boolean {
   return failure.errorCode === BANK_REFUSAL_CODE;
+}
+
+function countChargeDecline(declinesByPaymentMethod: Map<string, number>, paymentMethodId: string): number {
+  const declines = (declinesByPaymentMethod.get(paymentMethodId) ?? 0) + 1;
+  declinesByPaymentMethod.set(paymentMethodId, declines);
+  return declines;
 }
 
 function toPaymentFailureDetails(error: unknown): PaymentFailureDetails {
