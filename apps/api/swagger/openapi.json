@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "servers": [
     {
-      "url": "https://console-api-sandbox.akash.network"
+      "url": "https://console-api.akash.network"
     }
   ],
   "info": {
