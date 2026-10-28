@@ -84,6 +84,8 @@ const CpuResourceSchema = z
 export const MAX_REPLICA_COUNT = 100;
 export const MAX_RESOURCE_UNITS = 32;
 export const MAX_STORAGE_VOLUMES = 16;
+export const MAX_SIGNED_BY_AUDITORS = 16;
+export const MAX_PLACEMENT_ATTRIBUTES = 32;
 
 const ResourceSchema = z
   .object({
@@ -121,13 +123,13 @@ const ResourceUnitSchema = z.object({
 });
 
 const SignedBySchema = z.object({
-  allOf: z.array(z.string()).default([]),
-  anyOf: z.array(z.string()).default([])
+  allOf: z.array(z.string()).max(MAX_SIGNED_BY_AUDITORS).default([]),
+  anyOf: z.array(z.string()).max(MAX_SIGNED_BY_AUDITORS).default([])
 });
 
 const RequirementsSchema = z.object({
   signedBy: SignedBySchema.default({}),
-  attributes: z.array(AttributeSchema).default([])
+  attributes: z.array(AttributeSchema).max(MAX_PLACEMENT_ATTRIBUTES).default([])
 });
 
 export const BidScreeningRequestSchema = z.object({

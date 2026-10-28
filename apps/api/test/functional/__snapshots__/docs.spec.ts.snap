@@ -3657,6 +3657,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           ],
                           "type": "object",
                         },
+                        "maxItems": 32,
                         "type": "array",
                       },
                       "signedBy": {
@@ -3667,6 +3668,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "items": {
                               "type": "string",
                             },
+                            "maxItems": 16,
                             "type": "array",
                           },
                           "anyOf": {
@@ -3674,6 +3676,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "items": {
                               "type": "string",
                             },
+                            "maxItems": 16,
                             "type": "array",
                           },
                         },

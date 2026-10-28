@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { BidScreeningRequestSchema, MAX_REPLICA_COUNT, MAX_RESOURCE_UNITS, MAX_STORAGE_VOLUMES } from "./bid-screening.schema";
+import {
+  BidScreeningRequestSchema,
+  MAX_PLACEMENT_ATTRIBUTES,
+  MAX_REPLICA_COUNT,
+  MAX_RESOURCE_UNITS,
+  MAX_SIGNED_BY_AUDITORS,
+  MAX_STORAGE_VOLUMES
+} from "./bid-screening.schema";
 
 describe("BidScreeningRequestSchema", () => {
   it("accepts a replica count up to the cap", () => {
@@ -67,6 +74,56 @@ describe("BidScreeningRequestSchema", () => {
 
     expect(result.success).toBe(true);
   });
+
+  it.each(["allOf", "anyOf"] as const)("accepts %s auditors up to the cap", list => {
+    const result = BidScreeningRequestSchema.safeParse({
+      ...buildRequest([buildResourceUnit()]),
+      requirements: { signedBy: { [list]: buildAuditors(MAX_SIGNED_BY_AUDITORS) }, attributes: [] }
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it.each(["allOf", "anyOf"] as const)("rejects %s auditors beyond the cap", list => {
+    const result = BidScreeningRequestSchema.safeParse({
+      ...buildRequest([buildResourceUnit()]),
+      requirements: { signedBy: { [list]: buildAuditors(MAX_SIGNED_BY_AUDITORS + 1) }, attributes: [] }
+    });
+
+    expect(result.success).toBe(false);
+    expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+      expect.objectContaining({ code: "too_big", path: ["requirements", "signedBy", list] })
+    );
+  });
+
+  it("accepts placement attributes up to the cap", () => {
+    const result = BidScreeningRequestSchema.safeParse({
+      ...buildRequest([buildResourceUnit()]),
+      requirements: { signedBy: {}, attributes: buildPlacementAttributes(MAX_PLACEMENT_ATTRIBUTES) }
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects placement attributes beyond the cap", () => {
+    const result = BidScreeningRequestSchema.safeParse({
+      ...buildRequest([buildResourceUnit()]),
+      requirements: { signedBy: {}, attributes: buildPlacementAttributes(MAX_PLACEMENT_ATTRIBUTES + 1) }
+    });
+
+    expect(result.success).toBe(false);
+    expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+      expect.objectContaining({ code: "too_big", path: ["requirements", "attributes"] })
+    );
+  });
+
+  function buildAuditors(count: number) {
+    return Array.from({ length: count }, (_, index) => `akash1auditor${index}`);
+  }
+
+  function buildPlacementAttributes(count: number) {
+    return Array.from({ length: count }, (_, index) => ({ key: `region${index}`, value: "us-west" }));
+  }
 
   function buildRequest(resources: ReturnType<typeof buildResourceUnit>[]) {
     return {
