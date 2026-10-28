@@ -30,6 +30,7 @@ import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const HELLO_WORLD_SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+const REQUEST_MANIFEST = '{"client":"supplied"}';
 
 const jobWorkers = useJobWorkers(() => [container.resolve(CreateLeaseHandler)]);
 
@@ -92,15 +93,14 @@ describe("POST /v1/leases?async=true", () => {
     expect(await activityRepository.find({ userId: user.id })).toEqual([]);
   });
 
-  it("creates the leases during the request and answers with the deployment when background leases are switched off", async () => {
-    const { postLeases, user, address, dseq, providerService } = await setup();
-    vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockReturnValue(false);
+  it("creates the leases during the request with the manifest it carried when the console recorded no definition to derive one from", async () => {
+    const { postLeases, user, address, dseq, providerService } = await setup({ recordsDefinition: false });
 
-    const response = await postLeases({ async: true });
+    const response = await postLeases({ async: true, manifest: REQUEST_MANIFEST });
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ data: { deployment: { id: { owner: address, dseq } }, leases: [] } });
-    expect(providerService.sendManifest).toHaveBeenCalledTimes(1);
+    expect(providerService.sendManifest).toHaveBeenCalledWith(expect.objectContaining({ dseq, manifest: REQUEST_MANIFEST }));
     expect(await findJobRows(CreateLease[JOB_NAME], { singletonKey: createLeaseKeyFor({ owner: address, dseq }) })).toEqual([]);
     expect(await activityRepository.find({ userId: user.id })).toEqual([expect.objectContaining({ type: "lease_create", status: "succeeded" })]);
   });
@@ -250,11 +250,11 @@ describe("POST /v1/leases?async=true", () => {
     }
   });
 
-  async function setup(input: { bidState?: Bid["bid"]["state"] } = {}) {
+  async function setup(input: { bidState?: Bid["bid"]["state"]; recordsDefinition?: boolean } = {}) {
     const { user, wallet, address } = await seedUserWithWallet({ user: { userId: faker.string.uuid() } });
     const dseq = createDseq();
     const provider = createAkashAddress();
-    await seedDeploymentSetting({ userId: user.id, dseq, sdl: HELLO_WORLD_SDL, manifestVersion: "AAAA" });
+    if (input.recordsDefinition ?? true) await seedDeploymentSetting({ userId: user.id, dseq, sdl: HELLO_WORLD_SDL, manifestVersion: "AAAA" });
     const token = faker.string.alphanumeric(40);
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async header =>
       header.replace(/^Bearer +/i, "") === token ? user.userId! : null
@@ -271,10 +271,10 @@ describe("POST /v1/leases?async=true", () => {
       provider,
       signerService,
       providerService,
-      postLeases: async ({ async, leases = [{ dseq, gseq: 1, oseq: 1, provider }] }: { async: boolean; leases?: unknown[] }) =>
+      postLeases: async ({ async, leases = [{ dseq, gseq: 1, oseq: 1, provider }], manifest }: { async: boolean; leases?: unknown[]; manifest?: string }) =>
         await app.request(`/v1/leases${async ? "?async=true" : ""}`, {
           method: "POST",
-          body: JSON.stringify({ leases }),
+          body: JSON.stringify({ leases, manifest }),
           headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` }
         })
     };

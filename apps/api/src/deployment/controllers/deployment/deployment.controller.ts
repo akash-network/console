@@ -79,7 +79,7 @@ export class DeploymentController {
     const userId = this.authService.currentUser.id;
     const recordGpuBids = origin.authMethod === "bearer";
 
-    if (query.async && this.featureFlagsService.isEnabled(FeatureFlags.BACKGROUND_DEPLOYMENT_CREATE, { userId })) {
+    if (query.async) {
       const autoLease = !!query.autoLease && recordGpuBids && this.featureFlagsService.isEnabled(FeatureFlags.BACKGROUND_AUTO_LEASE, { userId });
       return { data: await this.deploymentWriterService.createInBackground({ ...input, userId, recordGpuBids, autoLease }) };
     }
@@ -87,12 +87,11 @@ export class DeploymentController {
     return { data: await this.deploymentWriterService.create({ ...input, userId, recordGpuBids }) };
   }
 
-  /** The flag is read here rather than in the worker, because inside a job every user evaluates as the background-job user. */
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async close(dseq: string, query: CloseDeploymentQuery = { async: false }): Promise<CloseDeploymentResponse | CloseDeploymentAcceptedResponse> {
     const userId = this.authService.currentUser.id;
 
-    if (query.async && this.featureFlagsService.isEnabled(FeatureFlags.BACKGROUND_DEPLOYMENT_CLOSE, { userId })) {
+    if (query.async) {
       const queued = await this.deploymentWriterService.closeInBackgroundByUserIdAndDseq(userId, dseq, { batchId: query.batchId });
       return queued ? { data: queued } : { data: { success: true } };
     }
@@ -117,7 +116,6 @@ export class DeploymentController {
     return { data: result };
   }
 
-  /** The flag is read here rather than in the worker, because inside a job every user evaluates as the background-job user. */
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async patch(
     dseq: string,
@@ -126,7 +124,7 @@ export class DeploymentController {
   ): Promise<{ data: PatchDeploymentResponse["data"] | PatchDeploymentAcceptedResponse["data"] }> {
     const userId = this.authService.currentUser.id;
 
-    if (query.async && this.featureFlagsService.isEnabled(FeatureFlags.BACKGROUND_DEPLOYMENT_UPDATE, { userId })) {
+    if (query.async) {
       return { data: await this.deploymentWriterService.patchInBackgroundByUserIdAndDseq(userId, dseq, input, this.authService.ability) };
     }
 

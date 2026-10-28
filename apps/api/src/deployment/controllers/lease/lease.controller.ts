@@ -1,8 +1,6 @@
 import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
-import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
-import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { type CreateLeaseResponse } from "@src/deployment/http-schemas/deployment.schema";
 import { type CreateLeaseAcceptedResponse, type CreateLeaseQuery, type CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
 import { type FallbackLeaseListResponse } from "@src/deployment/http-schemas/lease-rpc.schema";
@@ -15,11 +13,9 @@ export class LeaseController {
   constructor(
     private readonly fallbackLeaseReaderService: FallbackLeaseReaderService,
     private readonly leaseService: LeaseService,
-    private readonly authService: AuthService,
-    private readonly featureFlagsService: FeatureFlagsService
+    private readonly authService: AuthService
   ) {}
 
-  /** The flag is read here rather than in the worker, because inside a job every user evaluates as the background-job user. */
   @Protected([{ action: "sign", subject: "UserWallet" }])
   async createLeasesAndSendManifest(
     input: CreateLeaseRequest,
@@ -27,7 +23,7 @@ export class LeaseController {
   ): Promise<CreateLeaseResponse | CreateLeaseAcceptedResponse> {
     const userId = this.authService.currentUser.id;
 
-    if (query.async && this.featureFlagsService.isEnabled(FeatureFlags.BACKGROUND_LEASE_CREATE, { userId })) {
+    if (query.async) {
       const queued = await this.leaseService.createLeasesInBackground({ ...input, userId });
       if (queued) return { data: queued };
     }

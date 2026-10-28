@@ -258,7 +258,7 @@ export const CreateDeploymentQuerySchema = z.object({
     .transform(value => value === "true")
     .openapi({
       description:
-        "With `true`, the deployment is created in the background: once every check that could refuse it has passed, the request answers 202 with the new deployment's `dseq` and an `activityId` to follow at `GET /v1/activities/{id}`. It answers 201 as without it when background creates are unavailable."
+        "With `true`, the deployment is created in the background: once every check that could refuse it has passed, the request answers 202 with the new deployment's `dseq` and an `activityId` to follow at `GET /v1/activities/{id}`."
     }),
   autoLease: z
     .enum(["true", "false"])
@@ -290,7 +290,7 @@ export const CloseDeploymentQuerySchema = z.object({
     .transform(value => value === "true")
     .openapi({
       description:
-        "With `true`, the close finishes in the background: the request answers 202 with an `activityId` to follow at `GET /v1/activities/{id}` once every check that could refuse it has passed. It answers 200 as without it when the deployment was already closed or background closes are unavailable."
+        "With `true`, the close finishes in the background: the request answers 202 with an `activityId` to follow at `GET /v1/activities/{id}` once every check that could refuse it has passed. It answers 200 as without it when there is nothing left to close, as when the deployment was already closed."
     }),
   batchId: z.string().uuid().optional().openapi({
     description:
@@ -500,7 +500,7 @@ export const PatchDeploymentQuerySchema = z.object({
     .transform(value => value === "true")
     .openapi({
       description:
-        "With `true`, the patch is saved during the request and applied in the background: once it is saved, the request answers 202 with an `activityId` to follow at `GET /v1/activities/{id}` and the `manifestVersion` it saved. Every refusal and conflict still answers on the request and saves nothing. It answers 200 as without it for a rename alone, which has nothing to apply, and when background updates are unavailable."
+        "With `true`, the patch is saved during the request and applied in the background: once it is saved, the request answers 202 with an `activityId` to follow at `GET /v1/activities/{id}` and the `manifestVersion` it saved. Every refusal and conflict still answers on the request and saves nothing. It answers 200 as without it for a rename alone, which has nothing to apply."
     })
 });
 

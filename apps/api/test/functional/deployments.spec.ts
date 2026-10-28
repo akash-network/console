@@ -1539,23 +1539,6 @@ describe("Deployments API", () => {
       expect(await container.resolve(DeploymentSettingRepository).findOneBy({ userId: user.id })).toBeUndefined();
     });
 
-    it("creates the deployment during the request, answering as before, when background creates are switched off", async () => {
-      const { userApiKeySecret, wallets } = await mockPersistedUser();
-      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockReturnValue(false);
-
-      const response = await createInBackground(userApiKeySecret);
-
-      expect(response.status).toBe(201);
-      expect(await response.json()).toEqual({
-        data: {
-          dseq: expect.any(String),
-          manifest: expect.any(String),
-          signTx: { code: 200, transactionHash: "fake-transaction-hash", hash: "fake-transaction-hash", rawLog: "fake-raw-log" }
-        }
-      });
-      expect(await findJobRows(CreateDeployment[JOB_NAME], { singletonKeyLike: `createDeployment.${wallets[0].id}.%` })).toEqual([]);
-    });
-
     it("returns 400 for an async value other than true or false", async () => {
       const { userApiKeySecret } = await mockUser();
 
@@ -2128,7 +2111,6 @@ describe("Deployments API", () => {
       const dseq = createDseq();
       const batchId = faker.string.uuid();
       await setupDeploymentInfoMock(wallets, dseq);
-      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockReturnValue(false);
       vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValueOnce({
         code: 0,
         hash: "test-hash",
@@ -2136,7 +2118,10 @@ describe("Deployments API", () => {
         rawLog: "success"
       });
 
-      const response = await closeInBackground(dseq, userApiKeySecret, { batchId });
+      const response = await app.request(`/v1/deployments/${dseq}?batchId=${batchId}`, {
+        method: "DELETE",
+        headers: new Headers({ "Content-Type": "application/json", "x-api-key": userApiKeySecret })
+      });
 
       expect(response.status).toBe(200);
       expect(await activityRepository.find({ userId: user.id })).toEqual([expect.objectContaining({ status: "succeeded", meta: { dseq, batchId } })]);
@@ -2234,6 +2219,21 @@ describe("Deployments API", () => {
       expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: user.id, dseq }) })).toEqual([]);
     });
 
+    it("answers a background close of a deployment already closed on chain with success, recording, queueing and broadcasting nothing", async () => {
+      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
+      const dseq = createDseq();
+      await setupDeploymentInfoMock(wallets, dseq, createDeploymentInfoSeed({ owner: wallets[0].address!, dseq, state: "closed" }));
+      const broadcast = vi.spyOn(signerService, "executeDecodedTxByUserWallet");
+
+      const response = await closeInBackground(dseq, userApiKeySecret);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ data: { success: true } });
+      expect(broadcast).not.toHaveBeenCalled();
+      expect(await activityRepository.find({ userId: user.id })).toEqual([]);
+      expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: user.id, dseq }) })).toEqual([]);
+    });
+
     it("queues a background close of a deployment that shares its dseq with one Console closed for another wallet", async () => {
       const { user, userApiKeySecret, wallets } = await mockPersistedUser();
       const dseq = createDseq();
@@ -2304,25 +2304,6 @@ describe("Deployments API", () => {
       expect(response.status).toBe(202);
       expect(await response.json()).toEqual({ data: { activityId: undecided.id } });
       expect(await activityRepository.find({ userId: user.id })).toEqual([undecided]);
-      expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: user.id, dseq }) })).toEqual([]);
-    });
-
-    it("closes the deployment during the request when background closes are switched off", async () => {
-      const { user, userApiKeySecret, wallets } = await mockPersistedUser();
-      const dseq = createDseq();
-      await setupDeploymentInfoMock(wallets, dseq);
-      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockReturnValue(false);
-      vi.spyOn(signerService, "executeDecodedTxByUserWallet").mockResolvedValueOnce({
-        code: 0,
-        hash: "test-hash",
-        transactionHash: "test-hash",
-        rawLog: "success"
-      });
-
-      const response = await closeInBackground(dseq, userApiKeySecret);
-
-      expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ data: { success: true } });
       expect(await findJobRows(CloseDeployment[JOB_NAME], { singletonKey: closeDeploymentKeyFor({ userId: user.id, dseq }) })).toEqual([]);
     });
 

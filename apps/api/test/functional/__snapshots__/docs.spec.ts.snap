@@ -9342,7 +9342,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "async",
             "required": false,
             "schema": {
-              "description": "With \`true\`, the deployment is created in the background: once every check that could refuse it has passed, the request answers 202 with the new deployment's \`dseq\` and an \`activityId\` to follow at \`GET /v1/activities/{id}\`. It answers 201 as without it when background creates are unavailable.",
+              "description": "With \`true\`, the deployment is created in the background: once every check that could refuse it has passed, the request answers 202 with the new deployment's \`dseq\` and an \`activityId\` to follow at \`GET /v1/activities/{id}\`.",
               "enum": [
                 "true",
                 "false",
@@ -9712,7 +9712,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "async",
             "required": false,
             "schema": {
-              "description": "With \`true\`, the close finishes in the background: the request answers 202 with an \`activityId\` to follow at \`GET /v1/activities/{id}\` once every check that could refuse it has passed. It answers 200 as without it when the deployment was already closed or background closes are unavailable.",
+              "description": "With \`true\`, the close finishes in the background: the request answers 202 with an \`activityId\` to follow at \`GET /v1/activities/{id}\` once every check that could refuse it has passed. It answers 200 as without it when there is nothing left to close, as when the deployment was already closed.",
               "enum": [
                 "true",
                 "false",
@@ -10451,7 +10451,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "async",
             "required": false,
             "schema": {
-              "description": "With \`true\`, the patch is saved during the request and applied in the background: once it is saved, the request answers 202 with an \`activityId\` to follow at \`GET /v1/activities/{id}\` and the \`manifestVersion\` it saved. Every refusal and conflict still answers on the request and saves nothing. It answers 200 as without it for a rename alone, which has nothing to apply, and when background updates are unavailable.",
+              "description": "With \`true\`, the patch is saved during the request and applied in the background: once it is saved, the request answers 202 with an \`activityId\` to follow at \`GET /v1/activities/{id}\` and the \`manifestVersion\` it saved. Every refusal and conflict still answers on the request and saves nothing. It answers 200 as without it for a rename alone, which has nothing to apply.",
               "enum": [
                 "true",
                 "false",
@@ -14717,7 +14717,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "async",
             "required": false,
             "schema": {
-              "description": "With \`true\`, the leases are created and the manifest sent in the background: the request answers 202 with an \`activityId\` to follow at \`GET /v1/activities/{id}\` once every check that could refuse it has passed. A second request by the same user for the same leases while they are still being created answers with the same activity, and any other request for that deployment meanwhile answers 409. It answers 200 as without it when background leases are unavailable, when the leases span more than one deployment, or when the manifest can only come from the request.",
+              "description": "With \`true\`, the leases are created and the manifest sent in the background: the request answers 202 with an \`activityId\` to follow at \`GET /v1/activities/{id}\` once every check that could refuse it has passed. A second request by the same user for the same leases while they are still being created answers with the same activity, and any other request for that deployment meanwhile answers 409. It answers 200 as without it when the leases span more than one deployment or the manifest can only come from the request.",
               "enum": [
                 "true",
                 "false",
