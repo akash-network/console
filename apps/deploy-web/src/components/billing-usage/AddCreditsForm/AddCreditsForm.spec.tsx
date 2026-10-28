@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useImperativeHandle } from "react";
+import React, { useContext, useEffect, useImperativeHandle, useSyncExternalStore } from "react";
 import type { BillingTransaction, PaymentMethod } from "@akashnetwork/http-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
 import type { QueryClient } from "@tanstack/react-query";
@@ -391,6 +391,25 @@ describe(AddCreditsForm.name, () => {
 
     expect(addPaymentMethod).not.toHaveBeenCalled();
     expect(confirmPayment).toHaveBeenCalledWith({ userId: "user_1", paymentMethodId: "pm_saved", amount: 100, idempotencyKey: expect.any(String) });
+  });
+
+  it("sends a single charge per purchase when starting the charge re-renders the form", async () => {
+    const pendingStore = makeMutationPendingStore();
+    const confirmPayment = vi.fn(() => {
+      pendingStore.markPending();
+      return new Promise<never>(() => {});
+    });
+    const usePaymentMutations: typeof DEPENDENCIES.usePaymentMutations = () => {
+      useSyncExternalStore(pendingStore.subscribe, pendingStore.isPending);
+      return mock<ReturnType<typeof DEPENDENCIES.usePaymentMutations>>({
+        confirmPayment: mock<ReturnType<typeof DEPENDENCIES.usePaymentMutations>["confirmPayment"]>({ mutateAsync: confirmPayment })
+      });
+    };
+    setup({ status: "idle", paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })], dependencies: { usePaymentMutations } });
+
+    await submitWithAmount("100");
+
+    expect(confirmPayment).toHaveBeenCalledOnce();
   });
 
   it("passes a loading flag to the payment-method fields while the setup intent is being prepared", () => {
@@ -1153,6 +1172,31 @@ describe(AddCreditsForm.name, () => {
     expect(keys[1]).toBe(keys[0]);
   });
 
+  it("keeps purchase locked and polls instead of failing when an earlier request is still charging the attempt", async () => {
+    const pollForPayment = vi.fn();
+    setup({
+      status: "idle",
+      confirmPayment: vi.fn().mockRejectedValue({ response: { status: 409, data: { code: "payment_in_progress" } } }),
+      pollForPayment,
+      handleStripeError,
+      paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+    });
+
+    await submitWithAmount("100");
+
+    expect(pollForPayment).toHaveBeenCalledWith();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /purchase credits/i })).toBeDisabled();
+  });
+
+  it("completes once polling confirms a charge that an earlier request was still processing", async () => {
+    const { onDone } = await purchaseUntilPollingSettles({
+      confirmPayment: vi.fn().mockRejectedValue({ response: { status: 409, data: { code: "payment_in_progress" } } })
+    });
+
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith(100, 0));
+  });
+
   it("keeps the key when 3D Secure fails so the retry resumes the same attempt", async () => {
     const confirmPayment = vi.fn().mockResolvedValue({ requiresAction: true, clientSecret: "pi_secret", paymentIntentId: "pi_1" });
     let threeDSecureOptions: Parameters<typeof DEPENDENCIES.use3DSecure>[0] | undefined;
@@ -1666,6 +1710,47 @@ describe(AddCreditsForm.name, () => {
       expect(reset).not.toHaveBeenCalled();
     });
 
+    it("moves off a saved card and says the bank refused it once its charge is declined a second time", async () => {
+      const reset = vi.fn();
+      setup({
+        status: "idle",
+        reset,
+        confirmPayment: vi.fn().mockRejectedValue({ response: { status: 402, data: { code: "insufficient_funds" } } }),
+        handleStripeError: () => ({ message: "Your card has insufficient funds.", userAction: undefined }),
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })]
+      });
+
+      await submitWithAmount("100");
+      await submitWithAmount("100");
+
+      expect(screen.getByRole("button", { name: /add new payment method/i })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByTestId("new-payment-method-fields")).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent(BANK_REFUSED_MESSAGE);
+      expect(reset).toHaveBeenCalledOnce();
+    });
+
+    it("counts declines separately for each saved card", async () => {
+      const reset = vi.fn();
+      setup({
+        status: "idle",
+        reset,
+        confirmPayment: vi.fn().mockRejectedValue({ response: { status: 402, data: { code: "insufficient_funds" } } }),
+        handleStripeError: () => ({ message: "Your card has insufficient funds.", userAction: undefined }),
+        paymentMethods: [
+          paymentMethod({ id: "pm_first", isDefault: true }),
+          paymentMethod({ id: "pm_second", card: { brand: "visa", last4: "1881", funding: "credit", exp_month: 12, exp_year: 2030 } })
+        ]
+      });
+
+      await submitWithAmount("100");
+      fireEvent.click(screen.getByRole("button", { name: /1881/ }));
+      await submitWithAmount("100");
+
+      expect(screen.getByRole("button", { name: /1881/ })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("alert")).toHaveTextContent("Your card has insufficient funds.");
+      expect(reset).not.toHaveBeenCalled();
+    });
+
     it("asks for a different card when the bank refuses the charge on a card saved for this purchase", async () => {
       const reset = vi.fn();
       const refreshPaymentMethods = vi.fn().mockResolvedValue(undefined);
@@ -2000,6 +2085,22 @@ describe(AddCreditsForm.name, () => {
       });
     };
     return { use3DSecure, threeDSecureOptions: () => options };
+  }
+
+  function makeMutationPendingStore() {
+    const listeners = new Set<() => void>();
+    let pending = false;
+    return {
+      subscribe(listener: () => void) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      isPending: () => pending,
+      markPending() {
+        pending = true;
+        listeners.forEach(listener => listener());
+      }
+    };
   }
 
   function makePaymentMethodFieldsMock(
