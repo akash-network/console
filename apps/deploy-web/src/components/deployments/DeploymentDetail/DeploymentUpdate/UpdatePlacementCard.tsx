@@ -47,13 +47,13 @@ export const UpdatePlacementCard: FC<UpdatePlacementCardProps> = ({ position, na
 
   return (
     <section role="group" aria-label={`Placement ${name}`} className="rounded-xl border bg-card">
-      <div className="flex flex-col gap-6 border-b p-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-medium text-muted-foreground">
+      <div className="flex flex-col gap-4 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-medium text-muted-foreground">
               {position + 1}
             </div>
-            <h3 className="text-2xl font-medium tracking-tight">{name}</h3>
+            <h3 className="text-xl font-medium tracking-tight">{name}</h3>
           </div>
           {(region || providerName) && (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -86,7 +86,7 @@ export const UpdatePlacementCard: FC<UpdatePlacementCardProps> = ({ position, na
         )}
       </div>
 
-      <div className="flex flex-col gap-3 p-6">
+      <div className="flex flex-col gap-3 p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             <span>Services in this placement</span>

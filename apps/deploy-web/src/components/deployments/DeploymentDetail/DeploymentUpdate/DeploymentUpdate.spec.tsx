@@ -296,10 +296,14 @@ describe(DeploymentUpdate.name, () => {
       expect(within(placementCard("edge-us")).getByTestId("gpu-model-skeleton")).toBeInTheDocument();
     });
 
-    it("names the fields that stay locked after deploy", () => {
+    it("names the fields that stay locked after deploy on hover", async () => {
       setup();
 
-      expect(screen.getByText(/Some fields are locked after deploy/)).toBeInTheDocument();
+      await userEvent.hover(screen.getByRole("button", { name: "Some fields are locked after deploy" }));
+
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(
+        "Service name, hardware, replicas, and adding/removing exposed ports require a new deployment."
+      );
     });
 
     it("shows each service's hardware as fixed for this lease", () => {
