@@ -6,8 +6,10 @@ import { useManagedWalletQuery } from "@src/queries/useManagedWalletQuery";
 
 export const useManagedWallet = () => {
   const { user } = useUser();
-  const { data: queried, isLoading: isInitialLoading, isFetching, isError: isLookupFailed, refetch } = useManagedWalletQuery(user?.id);
+  const { data: queried, isLoading, isFetched, isFetching, isError: isLookupFailed, refetch } = useManagedWalletQuery(user?.id);
   const wallet = queried as ApiManagedWalletOutput | undefined;
+  /** React Query reports `isLoading` again while it retries a failed first lookup, which must not re-close the wallet boot gate. */
+  const isInitialLoading = isLoading && !isFetched;
 
   return useMemo(() => {
     return {
