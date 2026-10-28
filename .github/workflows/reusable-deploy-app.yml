@@ -49,7 +49,7 @@ env:
   APP_CONFIGS: | # yaml
     console-api:
       prod:
-        chains: [mainnet, sandbox]
+        chains: [mainnet]
       staging:
         chains: [mainnet, sandbox]
         test: [sandbox]
@@ -70,14 +70,14 @@ env:
       staging: {}
     provider-proxy:
       prod:
-        chains: [mainnet, sandbox]
-        test: [mainnet, sandbox]
+        chains: [mainnet]
+        test: [mainnet]
       staging:
         chains: [mainnet, sandbox]
         test: [mainnet, sandbox]
     tx-signer:
       prod:
-        chains: [mainnet, sandbox]
+        chains: [mainnet]
       staging:
         chains: [mainnet, sandbox]
     provider-inventory:
