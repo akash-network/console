@@ -43,7 +43,7 @@ export const DeploymentPlacements: FC<DeploymentPlacementsProps> = ({
       <DeploymentTabHeader
         title="Placements"
         actions={
-          <span className="text-sm text-muted-foreground">
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
             {leases.length} {pluralize("placement", leases.length)} · {serviceCount} {pluralize("service", serviceCount)}
           </span>
         }

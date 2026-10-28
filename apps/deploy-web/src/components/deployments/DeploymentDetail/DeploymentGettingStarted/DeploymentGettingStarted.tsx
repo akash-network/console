@@ -52,7 +52,7 @@ export const DeploymentGettingStarted: FC<DeploymentGettingStartedProps> = ({
   if (!showsSsh && !templateGuide) return null;
 
   return (
-    <section className="mb-8">
+    <section className="mb-7">
       <DeploymentTabHeader title="Getting started" />
       <div className="overflow-hidden rounded-xl border bg-card">
         {showsSsh && (
