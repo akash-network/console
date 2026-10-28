@@ -1,5 +1,5 @@
-import type { Counter, Histogram, Meter } from "@opentelemetry/api";
-import { inject, singleton } from "tsyringe";
+import type { BatchObservableCallback, Counter, Histogram, Meter } from "@opentelemetry/api";
+import { type Disposable, inject, singleton } from "tsyringe";
 
 import { activityInitiatorEnum, activityStatusEnum, activityTypeEnum, type NewActivity } from "@src/activity/model-schemas";
 import { type ActivityOutput, ActivityRepository, type PendingActivitySummary } from "@src/activity/repositories/activity/activity.repository";
@@ -11,13 +11,14 @@ const OUTCOME_STATUSES = activityStatusEnum.enumValues.filter(status => status !
 type TrackedActivity = Pick<NewActivity, "type" | "status" | "initiator">;
 
 @singleton()
-export class ActivityInstrumentationService {
+export class ActivityInstrumentationService implements Disposable {
   readonly #opened: Counter;
   readonly #settled: Counter;
   readonly #recorded: Counter;
   readonly #settleDuration: Histogram;
   readonly #logger: ReturnType<CreateLogger>;
   readonly #txService: TxService;
+  readonly #stopObservingPending: () => void;
 
   constructor(
     metricsService: MetricsService,
@@ -44,7 +45,12 @@ export class ActivityInstrumentationService {
     });
 
     this.#measure(() => this.#startCountersAtZero());
-    this.#observePending(metricsService, meter, activityRepository);
+    this.#stopObservingPending = this.#observePending(metricsService, meter, activityRepository);
+  }
+
+  /** The SDK's last metrics export runs after the database connection has closed, so the backlog stops being read on shutdown. */
+  dispose(): void {
+    this.#stopObservingPending();
   }
 
   trackOpened({ type, initiator }: Omit<TrackedActivity, "status">): void {
@@ -79,7 +85,7 @@ export class ActivityInstrumentationService {
     }
   }
 
-  #observePending(metricsService: MetricsService, meter: Meter, activityRepository: ActivityRepository): void {
+  #observePending(metricsService: MetricsService, meter: Meter, activityRepository: ActivityRepository): () => void {
     const pending = metricsService.createObservableGauge(meter, "activities_pending", {
       description: "Activities in progress, by type"
     });
@@ -87,21 +93,22 @@ export class ActivityInstrumentationService {
       description: "Age of the oldest activity in progress, by type, or 0 when none is",
       unit: "s"
     });
+    const backlogGauges = [pending, oldestPendingAge];
 
-    meter.addBatchObservableCallback(
-      async result => {
-        const summaries = await this.#summarizePending(activityRepository);
-        if (!summaries) return;
+    const observeBacklog: BatchObservableCallback = async result => {
+      const summaries = await this.#summarizePending(activityRepository);
+      if (!summaries) return;
 
-        const now = new Date();
-        for (const type of activityTypeEnum.enumValues) {
-          const summary = summaries.find(candidate => candidate.type === type);
-          result.observe(pending, summary?.count ?? 0, { type });
-          result.observe(oldestPendingAge, summary ? secondsBetween(summary.oldestCreatedAt, now) : 0, { type });
-        }
-      },
-      [pending, oldestPendingAge]
-    );
+      const now = new Date();
+      for (const type of activityTypeEnum.enumValues) {
+        const summary = summaries.find(candidate => candidate.type === type);
+        result.observe(pending, summary?.count ?? 0, { type });
+        result.observe(oldestPendingAge, summary ? secondsBetween(summary.oldestCreatedAt, now) : 0, { type });
+      }
+    };
+
+    meter.addBatchObservableCallback(observeBacklog, backlogGauges);
+    return () => meter.removeBatchObservableCallback(observeBacklog, backlogGauges);
   }
 
   async #summarizePending(activityRepository: ActivityRepository): Promise<PendingActivitySummary[] | undefined> {

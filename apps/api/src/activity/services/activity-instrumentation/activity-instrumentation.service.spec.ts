@@ -169,6 +169,7 @@ describe(ActivityInstrumentationService.name, () => {
 
       expect(result.observe).toHaveBeenCalledWith(pending, 3, { type: "deployment_close" });
       expect(result.observe).toHaveBeenCalledWith(oldestPendingAge, expect.closeTo(5400, 0), { type: "deployment_close" });
+      expect(result.observe).toHaveBeenCalledWith(pending, 0, { type: "deployment_create" });
     });
 
     it("reports every type with nothing in progress as zero, so its series never goes missing", async () => {
@@ -192,6 +193,23 @@ describe(ActivityInstrumentationService.name, () => {
 
       expect(result.observe).not.toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith({ event: "PENDING_ACTIVITIES_SUMMARY_FAILED", error });
+    });
+  });
+
+  describe("dispose", () => {
+    it("unregisters the backlog gauges, so the export that follows shutdown never reads the closed database", () => {
+      const { service, meter, pending, oldestPendingAge } = setup();
+      const [observeBacklog] = meter.addBatchObservableCallback.mock.calls[0];
+
+      service.dispose();
+
+      expect(meter.removeBatchObservableCallback).toHaveBeenCalledWith(observeBacklog, [pending, oldestPendingAge]);
+    });
+
+    it("keeps the backlog gauges registered until then", () => {
+      const { meter } = setup();
+
+      expect(meter.removeBatchObservableCallback).not.toHaveBeenCalled();
     });
   });
 
