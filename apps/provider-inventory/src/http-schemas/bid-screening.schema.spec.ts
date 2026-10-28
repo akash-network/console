@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { BidScreeningRequestSchema, MAX_PLACEMENT_ATTRIBUTES, MAX_SIGNED_BY_AUDITORS } from "./bid-screening.schema";
+import {
+  BidScreeningRequestSchema,
+  MAX_PLACEMENT_ATTRIBUTES,
+  MAX_REPLICA_COUNT,
+  MAX_RESOURCE_UNITS,
+  MAX_SIGNED_BY_AUDITORS,
+  MAX_STORAGE_VOLUMES
+} from "./bid-screening.schema";
 
 describe("BidScreeningRequestSchema", () => {
   it("accepts a request that declares no CPU attributes", () => {
@@ -84,6 +91,96 @@ describe("BidScreeningRequestSchema", () => {
       expect.objectContaining({ code: "too_big", path: ["requirements", "attributes"] })
     );
   });
+
+  it("accepts a replica count up to the cap", () => {
+    const result = BidScreeningRequestSchema.safeParse(buildRequestWithUnits([buildResourceUnit({ count: MAX_REPLICA_COUNT })]));
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a replica count beyond the cap", () => {
+    const result = BidScreeningRequestSchema.safeParse(buildRequestWithUnits([buildResourceUnit({ count: MAX_REPLICA_COUNT + 1 })]));
+
+    expect(result.success).toBe(false);
+    expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+      expect.objectContaining({ code: "too_big", path: ["resources", 0, "count"] })
+    );
+  });
+
+  it("accepts resource units up to the cap", () => {
+    const result = BidScreeningRequestSchema.safeParse(buildRequestWithUnits(Array.from({ length: MAX_RESOURCE_UNITS }, () => buildResourceUnit())));
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects resource units beyond the cap", () => {
+    const result = BidScreeningRequestSchema.safeParse(buildRequestWithUnits(Array.from({ length: MAX_RESOURCE_UNITS + 1 }, () => buildResourceUnit())));
+
+    expect(result.success).toBe(false);
+    expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(expect.objectContaining({ code: "too_big", path: ["resources"] }));
+  });
+
+  it("accepts storage volumes up to the cap", () => {
+    const result = BidScreeningRequestSchema.safeParse(buildRequestWithUnits([buildResourceUnit({ storage: buildStorageVolumes(MAX_STORAGE_VOLUMES, "1") })]));
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects storage volumes beyond the cap", () => {
+    const result = BidScreeningRequestSchema.safeParse(
+      buildRequestWithUnits([buildResourceUnit({ storage: buildStorageVolumes(MAX_STORAGE_VOLUMES + 1, "1") })])
+    );
+
+    expect(result.success).toBe(false);
+    expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+      expect.objectContaining({ code: "too_big", path: ["resources", 0, "resource", "storage"] })
+    );
+  });
+
+  it("rejects a resource unit that requests no CPU, memory, GPU or storage", () => {
+    const result = BidScreeningRequestSchema.safeParse(
+      buildRequestWithUnits([buildResourceUnit({ cpu: "0", memory: "0", gpu: "0", storage: buildStorageVolumes(2, "0") })])
+    );
+
+    expect(result.success).toBe(false);
+    expect((result as { error: { issues: unknown[] } }).error.issues).toContainEqual(
+      expect.objectContaining({ message: "A resource unit must request some CPU, memory, GPU or storage", path: ["resources", 0, "resource"] })
+    );
+  });
+
+  it.each([
+    { requested: "CPU", unit: { cpu: "1", memory: "0", gpu: "0", storage: [] } },
+    { requested: "memory", unit: { cpu: "0", memory: "1", gpu: "0", storage: [] } },
+    { requested: "GPU", unit: { cpu: "0", memory: "0", gpu: "1", storage: [] } },
+    { requested: "storage", unit: { cpu: "0", memory: "0", gpu: "0", storage: [...buildStorageVolumes(1, "0"), ...buildStorageVolumes(1, "1")] } }
+  ])("accepts a resource unit that requests only $requested", ({ unit }) => {
+    const result = BidScreeningRequestSchema.safeParse(buildRequestWithUnits([buildResourceUnit(unit)]));
+
+    expect(result.success).toBe(true);
+  });
+
+  function buildRequestWithUnits(resources: ReturnType<typeof buildResourceUnit>[]) {
+    return { ...buildRequest(), resources };
+  }
+
+  function buildResourceUnit(input?: { count?: number; cpu?: string; memory?: string; gpu?: string; storage?: ReturnType<typeof buildStorageVolumes> }) {
+    return {
+      resource: {
+        id: 1,
+        cpu: { units: { val: input?.cpu ?? "1000" } },
+        memory: { quantity: { val: input?.memory ?? "1073741824" } },
+        gpu: { units: { val: input?.gpu ?? "0" } },
+        storage: input?.storage ?? buildStorageVolumes(1, "5368709120"),
+        endpoints: []
+      },
+      count: input?.count ?? 1,
+      price: { denom: "uakt", amount: "1000" }
+    };
+  }
+
+  function buildStorageVolumes(count: number, quantity: string) {
+    return Array.from({ length: count }, (_, index) => ({ name: `volume${index}`, quantity: { val: quantity } }));
+  }
 
   function buildAuditors(count: number) {
     return Array.from({ length: count }, (_, index) => `akash1auditor${index}`);
