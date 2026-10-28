@@ -99,8 +99,8 @@ describe(ErrorHandlerService.name, () => {
     it.each([
       ["a 403 page from an axios call", () => buildAxiosError({ status: 403, contentType: "text/html; charset=UTF-8" })],
       ["a 429 page from an axios call", () => buildAxiosError({ status: 429, contentType: "text/html" })],
-      ["a 403 page from an api call", () => new ApiError(403, "<!DOCTYPE html>", "GET /v1/activities → 403")],
-      ["a 429 page from an api call", () => new ApiError(429, "<!DOCTYPE html>", "GET /v1/activities → 429")]
+      ["a 403 page from an api call", () => new ApiError(403, '<!DOCTYPE html><html lang="en-US"></html>', "GET /v1/activities → 403")],
+      ["a 429 page from an api call", () => new ApiError(429, "<HTML><BODY></BODY></HTML>", "GET /v1/activities → 429")]
     ])("reports %s once per page under one fingerprint", (_label, buildError) => {
       const captureException = vi.fn();
       const errorHandler = setup({ captureException });
@@ -129,7 +129,8 @@ describe(ErrorHandlerService.name, () => {
       ["a 500 page from an axios call", () => buildAxiosError({ status: 500, contentType: "text/html" })],
       ["an axios call that never got a response", () => new AxiosError("Network Error", "ERR_NETWORK", requestConfig())],
       ["a 403 the api answered in json", () => new ApiError(403, { code: "FORBIDDEN" }, "GET /v1/activities → 403")],
-      ["a 500 page from an api call", () => new ApiError(500, "<!DOCTYPE html>", "GET /v1/activities → 500")]
+      ["a 403 the api answered in plain text", () => new ApiError(403, "Forbidden", "GET /v1/activities → 403")],
+      ["a 500 page from an api call", () => new ApiError(500, "<html><body></body></html>", "GET /v1/activities → 500")]
     ])("reports %s every time without the edge fingerprint", (_label, buildError) => {
       const captureException = vi.fn();
       const errorHandler = setup({ captureException });

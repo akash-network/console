@@ -8,6 +8,8 @@ const EDGE_REFUSAL_STATUSES = [403, 429];
 
 const EDGE_REFUSAL_FINGERPRINT = ["edge-refusal"];
 
+const HTML_DOCUMENT = /<html[\s>]/i;
+
 export class ErrorHandlerService {
   /** The CDN refuses every request of a page it blocks, so the first refusal says all the others would. */
   #hasReportedEdgeRefusal = false;
@@ -84,9 +86,9 @@ function isCancellation(error: unknown): boolean {
   return name === "AbortError" || name === "CanceledError" || name === "Canceled" || code === "ERR_CANCELED";
 }
 
-/** Console's API answers in JSON, so a 403 or 429 that carries a page instead was refused by the CDN before reaching Console. */
+/** Console's API answers in JSON, so a 403 or 429 that carries an HTML page was refused by the CDN before reaching Console. */
 function isEdgeRefusal(error: unknown): boolean {
-  if (isApiError(error)) return EDGE_REFUSAL_STATUSES.includes(error.status) && typeof error.body === "string";
+  if (isApiError(error)) return EDGE_REFUSAL_STATUSES.includes(error.status) && typeof error.body === "string" && HTML_DOCUMENT.test(error.body);
 
   return (
     isHttpError(error) &&
