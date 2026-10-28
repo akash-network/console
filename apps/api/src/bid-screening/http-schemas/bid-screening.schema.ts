@@ -80,20 +80,34 @@ const CpuResourceSchema = z
     }
   });
 
-const ResourceSchema = z.object({
-  id: z.number().int().openapi({ description: "Resource unit ID", example: 1 }),
-  cpu: CpuResourceSchema,
-  memory: z.object({
-    quantity: ResourceValueSchema,
-    attributes: z.array(AttributeSchema).optional()
-  }),
-  gpu: z.object({
-    units: ResourceValueSchema,
-    attributes: z.array(AttributeSchema).optional()
-  }),
-  storage: z.array(StorageResourceSchema),
-  endpoints: z.array(z.unknown()).optional().optional()
-});
+/** Mirrors the caps in apps/provider-inventory, which owns the screening this route proxies to. */
+export const MAX_REPLICA_COUNT = 100;
+export const MAX_RESOURCE_UNITS = 32;
+export const MAX_STORAGE_VOLUMES = 16;
+
+const ResourceSchema = z
+  .object({
+    id: z.number().int().openapi({ description: "Resource unit ID", example: 1 }),
+    cpu: CpuResourceSchema,
+    memory: z.object({
+      quantity: ResourceValueSchema,
+      attributes: z.array(AttributeSchema).optional()
+    }),
+    gpu: z.object({
+      units: ResourceValueSchema,
+      attributes: z.array(AttributeSchema).optional()
+    }),
+    storage: z.array(StorageResourceSchema).max(MAX_STORAGE_VOLUMES),
+    endpoints: z.array(z.unknown()).optional().optional()
+  })
+  .refine(
+    resource =>
+      resource.cpu.units.val > 0n ||
+      resource.memory.quantity.val > 0n ||
+      resource.gpu.units.val > 0n ||
+      resource.storage.some(volume => volume.quantity.val > 0n),
+    "A resource unit must request some CPU, memory, GPU or storage"
+  );
 
 const PriceSchema = z.object({
   denom: z.string(),
@@ -102,7 +116,7 @@ const PriceSchema = z.object({
 
 const ResourceUnitSchema = z.object({
   resource: ResourceSchema,
-  count: z.number().int().min(1).openapi({ description: "Replica count", example: 1 }),
+  count: z.number().int().min(1).max(MAX_REPLICA_COUNT).openapi({ description: "Replica count", example: 1 }),
   price: PriceSchema
 });
 
@@ -118,7 +132,7 @@ const RequirementsSchema = z.object({
 
 export const BidScreeningRequestSchema = z.object({
   requirements: RequirementsSchema.default({}),
-  resources: z.array(ResourceUnitSchema).openapi({ description: "Resource units with replica counts" }),
+  resources: z.array(ResourceUnitSchema).max(MAX_RESOURCE_UNITS).openapi({ description: "Resource units with replica counts" }),
   timezone: z
     .string()
     .refine(isSupportedTimeZone, { message: "Timezone is not supported" })
