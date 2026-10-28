@@ -2,6 +2,8 @@ import type { SDLInput } from "@akashnetwork/chain-sdk";
 import { yaml } from "@akashnetwork/chain-sdk";
 import { dump } from "js-yaml";
 
+import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
+
 /** Why a document was not stored, so a caller can report which without reading a parse error, whose message quotes the line it failed on. */
 export type StoredSdlRefusal = "unparseable" | "too-large";
 
@@ -38,6 +40,11 @@ export function sdlForStorage(parsed: StorableSdl, maxLength: number): StoredSdl
   const stored = dump(parsed.document, { lineWidth: -1 });
 
   return stored.length > maxLength ? { sdl: null, length: stored.length } : { sdl: stored, length: stored.length };
+}
+
+/** Measures an anchored document by what it expands to, so no walk over it per service costs more than an unanchored SDL of the largest submittable size. */
+export function exceedsSubmittableLength(rawSdl: string, document: unknown): boolean {
+  return mayShareNodesOf(rawSdl) && estimateSerializedLength(document, MAX_SUBMITTED_SDL_LENGTH) > MAX_SUBMITTED_SDL_LENGTH;
 }
 
 /** Reads `line` and `column` and nothing else, because the other fields of a `js-yaml` mark quote the document that failed to parse. */

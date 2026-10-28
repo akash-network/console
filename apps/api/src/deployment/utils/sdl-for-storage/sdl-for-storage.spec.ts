@@ -9,11 +9,11 @@ import type { BillingConfig } from "@src/billing/providers";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { CreateLogger } from "@src/core";
-import { SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
+import { MAX_SUBMITTED_SDL_LENGTH, SDL_MAX_LENGTH } from "@src/deployment/config/sdl.config";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { SdlService } from "@src/deployment/services/sdl/sdl.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
-import { parseSdlForStorage, sdlForStorage } from "./sdl-for-storage";
+import { exceedsSubmittableLength, parseSdlForStorage, sdlForStorage } from "./sdl-for-storage";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
 
@@ -344,5 +344,43 @@ describe(sdlForStorage.name, () => {
     const createLogger: CreateLogger = () => mock<ReturnType<CreateLogger>>();
 
     return new SdlService(config, blockedGpuService, new SdlReferenceService(), denomExchangeService, createLogger).generateManifest(rawSdl);
+  }
+});
+
+describe(exceedsSubmittableLength.name, () => {
+  it("refuses services sharing one env list through an anchor once they expand past the largest submittable sdl", () => {
+    const rawSdl = `version: "2.0"
+services:
+  s0:
+    image: nginx
+    env: &shared
+${Array.from({ length: 300 }, (_, index) => `      - KEY_${index}=value`).join("\n")}
+${Array.from({ length: 299 }, (_, index) => `  s${index + 1}:\n    image: nginx\n    env: *shared`).join("\n")}
+`;
+
+    expect(rawSdl.length).toBeLessThan(MAX_SUBMITTED_SDL_LENGTH / 16);
+    expect(exceedsSubmittableLength(rawSdl, yaml.raw(rawSdl))).toBe(true);
+  });
+
+  it("accepts an anchored document that expands to exactly the largest submittable sdl", () => {
+    const rawSdl = anchoredPairOf(MAX_SUBMITTED_SDL_LENGTH);
+
+    expect(exceedsSubmittableLength(rawSdl, yaml.raw(rawSdl))).toBe(false);
+  });
+
+  it("refuses an anchored document that expands just past the largest submittable sdl", () => {
+    const rawSdl = anchoredPairOf(MAX_SUBMITTED_SDL_LENGTH + 2);
+
+    expect(exceedsSubmittableLength(rawSdl, yaml.raw(rawSdl))).toBe(true);
+  });
+
+  it("does not measure a document with no anchors, however long", () => {
+    const rawSdl = `a: ${"x".repeat(MAX_SUBMITTED_SDL_LENGTH)}`;
+
+    expect(exceedsSubmittableLength(rawSdl, yaml.raw(rawSdl))).toBe(false);
+  });
+
+  function anchoredPairOf(expandedLength: number) {
+    return `a: &x ${"x".repeat((expandedLength - 6) / 2)}\nb: *x`;
   }
 });

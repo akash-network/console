@@ -6,12 +6,14 @@ import { inject, singleton } from "tsyringe";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
+import { MAX_SUBMITTED_SDL_LENGTH } from "@src/deployment/config/sdl.config";
 import { BlockedGpuService } from "@src/deployment/services/blocked-gpu/blocked-gpu.service";
 import { SdlReferenceService } from "@src/deployment/services/sdl-reference/sdl-reference.service";
 import type { SdlSecrets } from "@src/deployment/services/sdl-secrets-unsealer/sdl-secrets-unsealer.service";
 import { sdlRequestsGpuInterconnect } from "@src/deployment/utils/gpu-interconnect/gpu-interconnect";
 import { findTrialResourceViolation } from "@src/deployment/utils/group-resources/group-resources";
 import { restatePricesInGrantDenom } from "@src/deployment/utils/price-denom/price-denom";
+import { exceedsSubmittableLength } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { generateManifestReportingBuildFailures } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 
 export type SdlParseResult = { ok: true; value: SDLInput } | { ok: false; value: ValidationError[] };
@@ -86,7 +88,24 @@ export class SdlService {
 
   parse(rawSDL: string): SdlParseResult {
     try {
-      return { ok: true, value: yaml.raw<SDLInput>(rawSDL) };
+      const value = yaml.raw<SDLInput>(rawSDL);
+
+      if (exceedsSubmittableLength(rawSDL, value)) {
+        return {
+          ok: false,
+          value: [
+            {
+              schemaPath: "",
+              instancePath: "",
+              keyword: "maxLength",
+              params: { limit: MAX_SUBMITTED_SDL_LENGTH },
+              message: `SDL is too large: its anchors expand it past the maximum of ${MAX_SUBMITTED_SDL_LENGTH} characters`
+            }
+          ]
+        };
+      }
+
+      return { ok: true, value };
     } catch (error) {
       if (error instanceof YAMLException) {
         return { ok: false, value: [{ schemaPath: "", instancePath: "", keyword: "yaml", params: {}, message: error.message }] };

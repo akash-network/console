@@ -90,7 +90,7 @@ import {
 import { deploymentChangesOf } from "@src/deployment/utils/deployment-changes/deployment-changes";
 import { deriveDeploymentName } from "@src/deployment/utils/deployment-name/deployment-name";
 import type { StorableSdl, StoredSdlPosition, StoredSdlRefusal } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
-import { parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
+import { exceedsSubmittableLength, parseSdlForStorage, sdlForStorage } from "@src/deployment/utils/sdl-for-storage/sdl-for-storage";
 import { findMissingGlobalExposure } from "@src/deployment/utils/sdl-manifest/sdl-manifest";
 import { failedUpdateActivityOf, pendingUpdateActivityOf, renamedActivityOf, updatedActivityOf } from "@src/deployment/utils/update-activity/update-activity";
 import { ProviderService } from "@src/provider/services/provider/provider.service";
@@ -635,6 +635,10 @@ export class DeploymentWriterService {
 
     if (parsed.document === null) {
       throw this.#rejectUnstorableSdl("unparseable", { dseq, length: submittedSdl.length, at: parsed.at });
+    }
+
+    if (exceedsSubmittableLength(submittedSdl, parsed.document)) {
+      throw this.#rejectUnstorableSdl("too-large", { dseq, length: submittedSdl.length });
     }
 
     const derived = this.#takeValuesOutOf(parsed.document, values);

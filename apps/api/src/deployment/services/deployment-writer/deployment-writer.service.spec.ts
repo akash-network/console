@@ -745,6 +745,16 @@ describe(DeploymentWriterService.name, () => {
       expect(order).toEqual(["seal", "transaction"]);
     });
 
+    it("takes no value out of an sdl whose anchors expand it past the largest submittable sdl", async () => {
+      const { service, walletReaderService, sdlSecretsDerivationService } = setup();
+      const derive = vi.spyOn(sdlSecretsDerivationService, "derive");
+
+      await expect(service.create({ userId: "user-1", sdl: SDL_ALIASING_ONE_SCALAR, deposit: 5 })).rejects.toMatchObject({ status: 400 });
+
+      expect(derive).not.toHaveBeenCalled();
+      expect(walletReaderService.getWalletByUserId).not.toHaveBeenCalled();
+    });
+
     it("refuses an sdl too large to store before reading the wallet or opening the seal", async () => {
       const { service, walletReaderService, sdlSecretsService, sdlService } = setup();
 
@@ -3023,6 +3033,16 @@ describe(DeploymentWriterService.name, () => {
       expect(providerService.sendManifest).not.toHaveBeenCalled();
     });
 
+    it("takes no value out of an sdl whose anchors expand it past the largest submittable sdl", async () => {
+      const { service, deploymentSettingRepository, sdlSecretsDerivationService } = setup();
+      const derive = vi.spyOn(sdlSecretsDerivationService, "derive");
+
+      await expect(service.updateByUserIdAndDseq("user-1", "100", { sdl: SDL_ALIASING_ONE_SCALAR })).rejects.toMatchObject({ status: 400 });
+
+      expect(derive).not.toHaveBeenCalled();
+      expect(deploymentSettingRepository.upsertDefinition).not.toHaveBeenCalled();
+    });
+
     it("rejects an sdl too large to store without touching the deployment", async () => {
       const { service, signerService, providerService, deploymentSettingRepository } = setup();
 
@@ -4977,6 +4997,18 @@ describe(DeploymentWriterService.name, () => {
   describe("recordDefinitionByUserIdAndDseq", () => {
     const COMMITTED_VERSION = new Uint8Array([1, 2, 3]);
 
+    it("takes no value out of an sdl whose anchors expand it past the largest submittable sdl", async () => {
+      const { service, scopedSettingRepository, sdlSecretsDerivationService, ability } = setup({ sourceSetting: undefined });
+      const derive = vi.spyOn(sdlSecretsDerivationService, "derive");
+
+      await expect(service.recordDefinitionByUserIdAndDseq("user-1", "100", { sdl: SDL_ALIASING_ONE_SCALAR }, ability)).rejects.toMatchObject({
+        status: 400
+      });
+
+      expect(derive).not.toHaveBeenCalled();
+      expect(scopedSettingRepository.recordDefinitionIfAbsent).not.toHaveBeenCalled();
+    });
+
     it("records nothing for an organization's deployment outside the caller's projects", async () => {
       const { service, signerService, walletReaderService, scopedSettingRepository, sdlSecretsService, ability } = setup({ sourceSetting: undefined });
       walletReaderService.getWalletByUserId.mockResolvedValue({ ...wallet, userId: null, organizationId: "organization-1" });
@@ -5449,6 +5481,7 @@ describe(DeploymentWriterService.name, () => {
       deploymentPresenceService,
       userGpuBidCheckService,
       userRepository,
+      sdlSecretsDerivationService,
       accepted,
       ability: mock<AnyAbility>(),
       storedSecrets
