@@ -1901,7 +1901,7 @@ describe(AddCreditsForm.name, () => {
       expect(analyticsService.track).not.toHaveBeenCalledWith("add_credits_payment_form_load_failed", expect.anything());
     });
 
-    it("shows the card form as failed with Retry after 10 seconds without a ready form, and tracks it once", () => {
+    it("keeps loading the same card form with a Retry after 10 seconds without a ready form, and tracks the timeout once", () => {
       let clock = 1000.4;
       vi.spyOn(performance, "now").mockImplementation(() => clock);
       vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
@@ -1909,20 +1909,55 @@ describe(AddCreditsForm.name, () => {
       const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
       setup({ status: "success", clientSecret: "seti_secret", analyticsService, context: "billing", dependencies: { AddCreditsNewPaymentMethodFields } });
       fireEvent.click(screen.getByRole("radio", { name: "100" }));
+      const fields = screen.getByTestId("new-payment-method-fields");
 
       act(() => vi.advanceTimersByTime(9_999));
-      expect(screen.queryByText("The card form didn't load")).not.toBeInTheDocument();
+      expect(screen.queryByText(/taking longer than usual/)).not.toBeInTheDocument();
       clock = 11_250.6;
       act(() => vi.advanceTimersByTime(1));
       act(() => vi.advanceTimersByTime(10_000));
 
-      expect(screen.getByRole("alert")).toHaveTextContent("The card form didn't load");
+      expect(screen.getByRole("alert")).toHaveTextContent("The card form is taking longer than usual");
       expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
-      expect(screen.queryByTestId("new-payment-method-fields")).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Purchase Credits" })).toBeDisabled();
+      expect(screen.getByTestId("new-payment-method-fields")).toBe(fields);
+      expect(screen.queryByText("The card form didn't load")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Loading card form…" })).toBeDisabled();
       expect(loadFailedEvents(analyticsService)).toEqual([
         ["add_credits_payment_form_load_failed", { category: "billing", reason: "timeout", msSinceOpen: 10_250, context: "billing" }]
       ]);
+    });
+
+    it("lets the user pay once a card form that missed its 10 seconds finishes loading", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const analyticsService = mock<AnalyticsService>();
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      setup({ status: "success", clientSecret: "seti_secret", analyticsService, dependencies: { AddCreditsNewPaymentMethodFields } });
+      fireEvent.click(screen.getByRole("radio", { name: "100" }));
+      act(() => vi.advanceTimersByTime(10_000));
+
+      act(() => lastProps()!.onReady?.());
+
+      expect(screen.queryByText(/taking longer than usual/)).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Purchase Credits" })).toBeEnabled();
+      expect(analyticsService.track).toHaveBeenCalledWith("add_credits_payment_form_ready", expect.anything());
+    });
+
+    it("keeps a card form that reports ready just as its 10 seconds run out", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const analyticsService = mock<AnalyticsService>();
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      setup({ status: "success", clientSecret: "seti_secret", analyticsService, dependencies: { AddCreditsNewPaymentMethodFields } });
+      fireEvent.click(screen.getByRole("radio", { name: "100" }));
+      act(() => vi.advanceTimersByTime(9_999));
+
+      act(() => {
+        lastProps()!.onReady?.();
+        vi.advanceTimersByTime(1);
+      });
+
+      expect(screen.queryByText(/taking longer than usual/)).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Purchase Credits" })).toBeEnabled();
+      expect(loadFailedEvents(analyticsService)).toEqual([]);
     });
 
     it.each(["stripe_unavailable", "load_error"] as const)("shows the card form as failed when it reports %s", reason => {
@@ -1933,7 +1968,22 @@ describe(AddCreditsForm.name, () => {
       act(() => lastProps()!.onLoadFailed(reason));
 
       expect(screen.getByRole("alert")).toHaveTextContent("The card form didn't load");
+      expect(screen.queryByText(/taking longer than usual/)).not.toBeInTheDocument();
+      expect(screen.queryByTestId("new-payment-method-fields")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Purchase Credits" })).toBeDisabled();
       expect(loadFailedEvents(analyticsService)).toEqual([["add_credits_payment_form_load_failed", expect.objectContaining({ reason })]]);
+    });
+
+    it("shows the card form as failed when a slow card form reports a load error", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      setup({ status: "success", clientSecret: "seti_secret", dependencies: { AddCreditsNewPaymentMethodFields } });
+      act(() => vi.advanceTimersByTime(10_000));
+
+      act(() => lastProps()!.onLoadFailed("load_error"));
+
+      expect(screen.getByRole("alert")).toHaveTextContent("The card form didn't load");
+      expect(screen.queryByText(/taking longer than usual/)).not.toBeInTheDocument();
     });
 
     it("does not time out a card form that is ready", () => {
@@ -1943,6 +1993,7 @@ describe(AddCreditsForm.name, () => {
 
       act(() => vi.advanceTimersByTime(10_000));
 
+      expect(screen.queryByText(/taking longer than usual/)).not.toBeInTheDocument();
       expect(screen.queryByText("The card form didn't load")).not.toBeInTheDocument();
       expect(loadFailedEvents(analyticsService)).toEqual([]);
     });
@@ -1959,6 +2010,17 @@ describe(AddCreditsForm.name, () => {
       expect(loadFailedEvents(analyticsService)).toEqual([]);
     });
 
+    it("leaves a setup intent that fails after the timeout to its own retry", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const { rerender } = setup({ status: "pending" });
+      act(() => vi.advanceTimersByTime(10_000));
+
+      rerender({ status: "error" });
+
+      expect(screen.getByRole("alert")).toHaveTextContent(/couldn't load the payment form/i);
+      expect(screen.queryByText(/taking longer than usual/)).not.toBeInTheDocument();
+    });
+
     it("shows only the card form failure when the setup intent failed as well", () => {
       const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
       setup({ status: "error", dependencies: { AddCreditsNewPaymentMethodFields } });
@@ -1969,30 +2031,45 @@ describe(AddCreditsForm.name, () => {
       expect(screen.queryByText(/couldn't load the payment form/i)).not.toBeInTheDocument();
     });
 
-    it("retries with a fresh setup intent and card form, and times out again if that one stalls too", () => {
+    it("retries a slow card form with a fresh setup intent and card form, and flags it again if that one stalls too", () => {
       vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
       const reset = vi.fn();
       const analyticsService = mock<AnalyticsService>();
       const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
       setup({ status: "success", clientSecret: "seti_secret", reset, analyticsService, dependencies: { AddCreditsNewPaymentMethodFields } });
       act(() => vi.advanceTimersByTime(10_000));
+      const slowFields = screen.getByTestId("new-payment-method-fields");
 
       fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
       expect(reset).toHaveBeenCalledOnce();
-      expect(screen.queryByText("The card form didn't load")).not.toBeInTheDocument();
-      expect(screen.getByTestId("new-payment-method-fields")).toBeInTheDocument();
+      expect(screen.queryByText(/taking longer than usual/)).not.toBeInTheDocument();
+      expect(screen.getByTestId("new-payment-method-fields")).not.toBe(slowFields);
       expect(screen.getByRole("button", { name: "Loading card form…" })).toBeDisabled();
       act(() => vi.advanceTimersByTime(10_000));
-      expect(screen.getByRole("alert")).toHaveTextContent("The card form didn't load");
+      expect(screen.getByRole("alert")).toHaveTextContent("The card form is taking longer than usual");
       expect(loadFailedEvents(analyticsService)).toHaveLength(2);
     });
 
-    it("loads the card form once a setup intent that took longer than 10 seconds arrives", () => {
+    it("hands a setup intent that took longer than 10 seconds to the card form that is still loading", () => {
       vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
       const { rerender } = setup({ status: "pending", dependencies: { AddCreditsNewPaymentMethodFields } });
       act(() => vi.advanceTimersByTime(10_000));
+      const fields = screen.getByTestId("new-payment-method-fields");
+      expect(screen.getByRole("alert")).toHaveTextContent("The card form is taking longer than usual");
+
+      rerender({ status: "success", clientSecret: "seti_secret" });
+
+      expect(screen.getByTestId("new-payment-method-fields")).toBe(fields);
+      expect(lastProps()).toEqual(expect.objectContaining({ clientSecret: "seti_secret", isLoading: false }));
+      expect(screen.getByRole("button", { name: "Loading card form…" })).toBeDisabled();
+    });
+
+    it("reloads a card form that failed before its setup intent arrived", () => {
+      const { Mock: AddCreditsNewPaymentMethodFields, lastProps } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      const { rerender } = setup({ status: "pending", dependencies: { AddCreditsNewPaymentMethodFields } });
+      act(() => lastProps()!.onLoadFailed("stripe_unavailable"));
       expect(screen.getByRole("alert")).toHaveTextContent("The card form didn't load");
 
       rerender({ status: "success", clientSecret: "seti_secret" });
@@ -2026,6 +2103,20 @@ describe(AddCreditsForm.name, () => {
       fireEvent.click(screen.getByRole("button", { name: /add new payment method/i }));
       expect(screen.queryByText("The card form didn't load")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Loading card form…" })).toBeDisabled();
+    });
+
+    it("lets a saved method pay while a slow card form is still loading", () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(undefined, { reportsReady: false });
+      setup({ status: "success", clientSecret: "seti_secret", paymentMethods: [paymentMethod()], dependencies: { AddCreditsNewPaymentMethodFields } });
+      fireEvent.click(screen.getByRole("radio", { name: "100" }));
+      fireEvent.click(screen.getByRole("button", { name: /add new payment method/i }));
+      act(() => vi.advanceTimersByTime(10_000));
+
+      fireEvent.click(screen.getByRole("button", { name: /4242/ }));
+
+      expect(screen.queryByText(/taking longer than usual/)).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Purchase Credits" })).toBeEnabled();
     });
 
     it("waits for the card form again when the user comes back to a new card after it was ready", () => {
