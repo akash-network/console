@@ -447,6 +447,30 @@ export const operations = {
     },
     previewInvitation: { path: "/v1/invitations/preview", method: "post", operationId: "previewInvitation", pathParams: [], queryParams: [], hasBody: true },
     acceptInvitation: { path: "/v1/invitations/accept", method: "post", operationId: "acceptInvitation", pathParams: [], queryParams: [], hasBody: true },
+    listReceivedInvitations: {
+      path: "/v1/received-invitations",
+      method: "get",
+      operationId: "listReceivedInvitations",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
+    acceptReceivedInvitation: {
+      path: "/v1/received-invitations/{id}/accept",
+      method: "post",
+      operationId: "acceptReceivedInvitation",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
+    declineReceivedInvitation: {
+      path: "/v1/received-invitations/{id}/decline",
+      method: "post",
+      operationId: "declineReceivedInvitation",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
     listProjectMembers: {
       path: "/v1/projects/{id}/members",
       method: "get",

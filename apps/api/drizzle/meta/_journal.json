@@ -729,6 +729,13 @@
       "when": 1793128123975,
       "tag": "0103_deployment_settings_template_id",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1793300786070,
+      "tag": "0104_organization_invitation_declined",
+      "breakpoints": true
     }
   ]
 }

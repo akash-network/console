@@ -135,6 +135,7 @@ export function createOrganizationInvitation({
   acceptedByUserId = null,
   acceptedAt = null,
   revokedAt = null,
+  declinedAt = null,
   createdAt = faker.date.recent(),
   updatedAt = faker.date.recent()
 }: Partial<OrganizationInvitationOutput> = {}): OrganizationInvitationOutput {
@@ -152,6 +153,7 @@ export function createOrganizationInvitation({
     acceptedByUserId,
     acceptedAt,
     revokedAt,
+    declinedAt,
     createdAt,
     updatedAt
   };

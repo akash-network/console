@@ -21,7 +21,8 @@ export const organizationActivityTypeEnum = pgEnum("organization_activity_type",
   "member_updated",
   "organization_renamed",
   "deployment_updated",
-  "deployment_renamed"
+  "deployment_renamed",
+  "invitation_declined"
 ]);
 
 export type OrganizationActivityType = (typeof organizationActivityTypeEnum.enumValues)[number];
@@ -41,6 +42,7 @@ export type OrganizationActivityPayloads = {
   organization_renamed: { fromName: string; toName: string };
   deployment_updated: { dseq: string; name: string | null; changes?: DeploymentChanges };
   deployment_renamed: { dseq: string; fromName: string; toName: string };
+  invitation_declined: { email: string };
 };
 
 export const OrganizationActivities = pgTable(

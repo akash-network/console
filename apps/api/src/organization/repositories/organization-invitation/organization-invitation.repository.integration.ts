@@ -158,6 +158,65 @@ describe(OrganizationInvitationRepository.name, () => {
     });
   });
 
+  describe("findPendingSentTo", () => {
+    it("lists the open invitations sent to the address across organizations, newest first, with their organization and inviter", async () => {
+      const { repository, organization, inviter } = await setup();
+      const email = `jane-${faker.string.alphanumeric(12).toLowerCase()}@example.com`;
+      const otherTeam = await seedOrganization({ name: `other-${faker.string.alphanumeric(8)}` });
+      const older = await seedOrganizationInvitation({
+        organizationId: organization.id,
+        email,
+        role: "admin",
+        invitedByUserId: inviter.id,
+        createdAt: addDays(new Date(), -2)
+      });
+      const newer = await seedOrganizationInvitation({
+        organizationId: otherTeam.id,
+        email,
+        role: "viewer",
+        invitedByUserId: null,
+        createdAt: addDays(new Date(), -1)
+      });
+
+      const invitations = await repository.findPendingSentTo(email);
+
+      expect(invitations).toEqual([
+        {
+          id: newer.id,
+          organizationId: otherTeam.id,
+          organizationName: otherTeam.name,
+          inviterName: null,
+          role: "viewer",
+          createdAt: newer.createdAt,
+          expiresAt: newer.expiresAt
+        },
+        {
+          id: older.id,
+          organizationId: organization.id,
+          organizationName: organization.name,
+          inviterName: inviter.username,
+          role: "admin",
+          createdAt: older.createdAt,
+          expiresAt: older.expiresAt
+        }
+      ]);
+    });
+
+    it("leaves out invitations that are answered, revoked, expired, of a deleted organization or sent to another address", async () => {
+      const { repository, organization } = await setup();
+      const email = `jane-${faker.string.alphanumeric(12).toLowerCase()}@example.com`;
+      const deleted = await seedOrganization({ deletedAt: new Date() });
+      await seedOrganizationInvitation({ organizationId: organization.id, email, status: "accepted" });
+      await seedOrganizationInvitation({ organizationId: organization.id, email, status: "revoked" });
+      await seedOrganizationInvitation({ organizationId: organization.id, email, status: "declined" });
+      await seedOrganizationInvitation({ organizationId: organization.id, email, expiresAt: addDays(new Date(), -1) });
+      await seedOrganizationInvitation({ organizationId: deleted.id, email });
+      await seedOrganizationInvitation({ organizationId: organization.id, email: `joe-${email}` });
+
+      expect(await repository.findPendingSentTo(email)).toEqual([]);
+    });
+  });
+
   describe("replaceTokenHash", () => {
     it("replaces the token of a pending invitation that still carries the expected one", async () => {
       const { repository, organization } = await setup();

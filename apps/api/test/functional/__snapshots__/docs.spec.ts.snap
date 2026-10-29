@@ -14674,6 +14674,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "pending",
                             "accepted",
                             "revoked",
+                            "declined",
                             "expired",
                           ],
                           "type": "string",
@@ -15996,6 +15997,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               "organization_renamed",
                               "deployment_updated",
                               "deployment_renamed",
+                              "invitation_declined",
                             ],
                             "type": "string",
                           },
@@ -24468,6 +24470,280 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "tags": [
           "Providers",
           "Deployments",
+        ],
+      },
+    },
+    "/v1/received-invitations": {
+      "get": {
+        "description": "An account whose email is not verified receives none, since anyone can sign up with an address they do not own.",
+        "operationId": "listReceivedInvitations",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "description": "Newest first.",
+                      "items": {
+                        "properties": {
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string",
+                          },
+                          "expiresAt": {
+                            "format": "date-time",
+                            "type": "string",
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "inviterName": {
+                            "nullable": true,
+                            "type": "string",
+                          },
+                          "organizationId": {
+                            "format": "uuid",
+                            "type": "string",
+                          },
+                          "organizationName": {
+                            "type": "string",
+                          },
+                          "role": {
+                            "enum": [
+                              "owner",
+                              "admin",
+                              "member",
+                              "billing",
+                              "viewer",
+                            ],
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "id",
+                          "organizationId",
+                          "organizationName",
+                          "inviterName",
+                          "role",
+                          "createdAt",
+                          "expiresAt",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The invitations the caller can still accept",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "Requested with an API key instead of a signed-in session (\`session_required\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
+        "summary": "List the pending invitations sent to the caller's verified email",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/received-invitations/{id}/accept": {
+      "post": {
+        "operationId": "acceptReceivedInvitation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "hasPaymentMethod": {
+                          "description": "Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in.",
+                          "nullable": true,
+                          "type": "boolean",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "isActive": {
+                          "description": "Whether this request ran in this organization.",
+                          "type": "boolean",
+                        },
+                        "name": {
+                          "type": "string",
+                        },
+                        "role": {
+                          "description": "The caller's role in the organization.",
+                          "enum": [
+                            "owner",
+                            "admin",
+                            "member",
+                            "billing",
+                            "viewer",
+                          ],
+                          "type": "string",
+                        },
+                        "slug": {
+                          "type": "string",
+                        },
+                        "type": {
+                          "enum": [
+                            "personal",
+                            "team",
+                          ],
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "type",
+                        "role",
+                        "isActive",
+                        "hasPaymentMethod",
+                        "createdAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The organization the caller now belongs to",
+          },
+          "400": {
+            "description": "The id is not a uuid",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "Requested with an API key instead of a signed-in session (\`session_required\`)",
+          },
+          "404": {
+            "description": "No invitation with this id was sent to the caller's verified email, or its organization was deleted",
+          },
+          "409": {
+            "description": "The caller accepted the invitation and has since left (\`invitation_already_accepted\`)",
+          },
+          "410": {
+            "description": "The invitation expired (\`invitation_expired\`), was revoked (\`invitation_revoked\`) or was declined (\`invitation_declined\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
+        "summary": "Join the organization of an invitation sent to the caller's verified email, without the token of its link",
+        "tags": [
+          "Organizations",
+        ],
+      },
+    },
+    "/v1/received-invitations/{id}/decline": {
+      "post": {
+        "description": "Declining an invitation twice changes nothing. The team's activity shows the invited address, not the account that declined.",
+        "operationId": "declineReceivedInvitation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "The invitation was declined",
+          },
+          "400": {
+            "description": "The id is not a uuid",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "Requested with an API key instead of a signed-in session (\`session_required\`)",
+          },
+          "404": {
+            "description": "No invitation with this id was sent to the caller's verified email, or its organization was deleted",
+          },
+          "409": {
+            "description": "The invitation was already accepted (\`invitation_already_accepted\`)",
+          },
+          "410": {
+            "description": "The invitation expired (\`invitation_expired\`) or was revoked (\`invitation_revoked\`)",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
+        "summary": "Decline an invitation sent to the caller's verified email",
+        "tags": [
+          "Organizations",
         ],
       },
     },

@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 
 import { decodeActivityCursor, encodeActivityCursor } from "@src/activity/lib/activity-cursor/activity-cursor";
 import { AuthService } from "@src/auth/services/auth.service";
+import type { UnscopedReason } from "@src/core/repositories/unscoped-reasons";
 import type {
   OrganizationActivityPayloads,
   OrganizationActivityType
@@ -48,9 +49,12 @@ export class OrganizationActivityService {
     await this.organizationActivityRepository.unscoped("organization-creation").create(activity);
   }
 
-  /** Filed into the team the invitee joins, which their request does not run in yet. */
-  async recordJoined(activity: OrganizationActivityRecord<"member_joined">): Promise<void> {
-    await this.organizationActivityRepository.unscoped("invitation-by-token").create(activity);
+  /** Filed into the team that invited them, which the invitee's request does not run in. */
+  async recordInvitationAnswer<T extends "member_joined" | "invitation_declined">(
+    activity: OrganizationActivityRecord<T>,
+    reason: Extract<UnscopedReason, "invitation-by-token" | "invitation-by-verified-email">
+  ): Promise<void> {
+    await this.organizationActivityRepository.unscoped(reason).create(activity);
   }
 
   async list({ limit, cursor, projectId }: { limit: number; cursor?: string; projectId?: string }): Promise<OrganizationActivityPage> {

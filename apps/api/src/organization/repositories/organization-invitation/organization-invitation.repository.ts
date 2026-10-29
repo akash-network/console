@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNull, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNull, type SQL } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -20,6 +20,11 @@ export type OrganizationInvitationWithInviter = Pick<
 };
 
 export type OrganizationInvitationPreview = Pick<OrganizationInvitationOutput, "organizationId" | "role" | "email" | "status" | "expiresAt"> & {
+  organizationName: string;
+  inviterName: string | null;
+};
+
+export type ReceivedInvitation = Pick<OrganizationInvitationOutput, "id" | "organizationId" | "role" | "createdAt" | "expiresAt"> & {
   organizationName: string;
   inviterName: string | null;
 };
@@ -114,6 +119,24 @@ export class OrganizationInvitationRepository extends OrgScopedRepository<Table,
       .limit(1);
 
     return preview;
+  }
+
+  async findPendingSentTo(email: OrganizationInvitationOutput["email"]): Promise<ReceivedInvitation[]> {
+    return await this.cursor
+      .select({
+        id: this.table.id,
+        organizationId: this.table.organizationId,
+        organizationName: Organizations.name,
+        inviterName: Users.username,
+        role: this.table.role,
+        createdAt: this.table.createdAt,
+        expiresAt: this.table.expiresAt
+      })
+      .from(this.table)
+      .innerJoin(Organizations, and(eq(Organizations.id, this.table.organizationId), isNull(Organizations.deletedAt)))
+      .leftJoin(Users, eq(Users.id, this.table.invitedByUserId))
+      .where(this.whereAccessibleBy(and(eq(this.table.email, email), eq(this.table.status, "pending"), gt(this.table.expiresAt, new Date()))))
+      .orderBy(desc(this.table.createdAt), desc(this.table.id));
   }
 
   /** Swaps the token only while the invitation still carries the expected one, so a token issued in between is never overwritten. */

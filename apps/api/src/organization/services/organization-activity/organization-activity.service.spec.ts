@@ -68,19 +68,27 @@ describe(OrganizationActivityService.name, () => {
     });
   });
 
-  describe("recordJoined", () => {
-    it("files the activity into the joined team, outside the organization the request runs in", async () => {
+  describe("recordInvitationAnswer", () => {
+    it.each([
+      {
+        reason: "invitation-by-token" as const,
+        activity: {
+          organizationId: faker.string.uuid(),
+          type: "member_joined" as const,
+          actorUserId: faker.string.uuid(),
+          payload: { role: "member" as const }
+        }
+      },
+      {
+        reason: "invitation-by-verified-email" as const,
+        activity: { organizationId: faker.string.uuid(), type: "invitation_declined" as const, actorUserId: null, payload: { email: "jane@example.com" } }
+      }
+    ])("files the $activity.type activity into the inviting team, reached $reason", async ({ reason, activity }) => {
       const { service, organizationActivityRepository, unscopedRepository } = setup();
-      const activity = {
-        organizationId: faker.string.uuid(),
-        type: "member_joined" as const,
-        actorUserId: faker.string.uuid(),
-        payload: { role: "member" as const }
-      };
 
-      await service.recordJoined(activity);
+      await service.recordInvitationAnswer(activity, reason);
 
-      expect(organizationActivityRepository.unscoped).toHaveBeenCalledWith("invitation-by-token");
+      expect(organizationActivityRepository.unscoped).toHaveBeenCalledWith(reason);
       expect(unscopedRepository.create).toHaveBeenCalledWith(activity);
       expect(organizationActivityRepository.create).not.toHaveBeenCalled();
     });
