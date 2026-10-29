@@ -327,6 +327,131 @@ describe(OnboardingPickerPage.name, () => {
     expect(deployClicks).toHaveLength(1);
   });
 
+  it("tells the user how much free trial credit they start with while they still have credit", () => {
+    const { container } = setup({ isOutOfCredit: false, trialCreditsAmount: 1 });
+
+    expect(container).toHaveTextContent("We've provided you with $1 in free trial credits. This covers a couple of smaller deployments");
+  });
+
+  it("tells a trialing user their trial is over and offers the first-purchase bonus once they have no credit left", () => {
+    const { container } = setup({ isTrialing: true, isOutOfCredit: true });
+
+    expect(container).toHaveTextContent(
+      "Your free trial is over. Add credits to deploy one of these templates. Your first purchase gets 10% in bonus credits, up to $100, and unlocks full GPU access and 30 day deployments."
+    );
+    expect(screen.queryByText(/in free trial credits/)).not.toBeInTheDocument();
+  });
+
+  it("tells a paid user they are out of credits once they have no credit left", () => {
+    const { container } = setup({ isTrialing: false, isOutOfCredit: true });
+
+    expect(container).toHaveTextContent("You're out of credits. Add credits to deploy one of these templates.");
+    expect(container).not.toHaveTextContent("Your free trial is over");
+    expect(screen.queryByText(/in free trial credits/)).not.toBeInTheDocument();
+  });
+
+  it.each(["Hello world", "Space Agent"])("labels the %s card with the deploy CTA while the user has credit", title => {
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    setup({ isOutOfCredit: false, dependencies: { DeploymentTemplatePickerCard } });
+
+    expect(getCard(DeploymentTemplatePickerCard, title).ctaLabel).toBe("Deploy now");
+    expect(getCard(DeploymentTemplatePickerCard, title).ctaIcon).toBe("arrow");
+  });
+
+  it.each(["Hello world", "Space Agent"])("labels the %s card with the add-credits CTA and keeps its price once the user has no credit left", title => {
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    setup({ isOutOfCredit: true, dependencies: { DeploymentTemplatePickerCard } });
+
+    const card = getCard(DeploymentTemplatePickerCard, title);
+    expect(card.ctaLabel).toBe("Add credits to deploy");
+    expect(card.ctaIcon).toBe("lock");
+    expect(card.priceBold).toMatch(/^~\$/);
+  });
+
+  it("opens the add-credits sheet for the out-of-credit funnel instead of redirecting when a card is pressed without credit", () => {
+    const push = vi.fn();
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isOutOfCredit: true, push, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, "Hello world").onDeploy!());
+
+    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
+    expect(sheetProps.open).toBe(true);
+    expect(sheetProps.context).toBe("out-of-credit");
+    expect(sheetProps.initialTab).toBe("purchase");
+    expect(sheetProps.nextStepLabel).toBe("Continue to deploy");
+    expect(sheetProps.description).toBe("Your balance is too low to start a deployment. Add credits, then continue to deploy this template.");
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("still tracks the deploy click when a card is pressed without credit", () => {
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const { analyticsService } = setup({ isOutOfCredit: true, dependencies: { DeploymentTemplatePickerCard } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, "Space Agent").onDeploy!());
+
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", option: SPACE_AGENT_ID });
+  });
+
+  it.each([
+    { title: "Hello world", templateId: HELLO_WORLD_ID },
+    { title: "Space Agent", templateId: SPACE_AGENT_ID }
+  ])("deploys the $title template once credits are added after pressing its card without credit", ({ title, templateId }) => {
+    const push = vi.fn();
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isOutOfCredit: true, push, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, title).onDeploy!());
+    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100));
+
+    expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId, sdlStrategy: "default", bidStrategy: "auto" }));
+  });
+
+  it("opens the add-credits sheet with the gpu unlock context and its default description for the gated LLM card", () => {
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isTrialing: true, isOutOfCredit: true, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, "LLM Chatbot").onDeploy!());
+
+    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
+    expect(sheetProps.context).toBe("unlock-gpu");
+    expect(sheetProps.description).toBeUndefined();
+  });
+
+  it("keeps the add-credits sheet open when it reports itself open", () => {
+    const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({ isOutOfCredit: true, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
+
+    act(() => getCard(DeploymentTemplatePickerCard, "Hello world").onDeploy!());
+    act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onOpenChange(true));
+
+    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(true);
+  });
+
+  it("closes the hackathon coupon sheet without deploying when a purchase completes", () => {
+    const push = vi.fn();
+    const Button = vi.fn(ComponentMock);
+    const AddCreditsSheet = vi.fn(ComponentMock);
+    setup({
+      isTrialing: true,
+      isHackathonsEnabled: true,
+      push,
+      dependencies: { Button: Button as unknown as typeof DEPENDENCIES.Button, AddCreditsSheet }
+    });
+
+    act(() => (getButtonByText(Button, "Hackathon? click here").onClick as () => void)());
+    const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
+    expect(sheetProps.context).toBe("hackathon-coupon");
+    act(() => sheetProps.onDone(100));
+
+    expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).open).toBe(false);
+    expect(push).not.toHaveBeenCalled();
+  });
+
   function getCard(DeploymentTemplatePickerCard: ReturnType<typeof vi.fn>, title: string) {
     return DeploymentTemplatePickerCard.mock.calls.find(call => (call[0] as PickerCardProps).title === title)![0] as PickerCardProps;
   }
@@ -347,6 +472,7 @@ describe(OnboardingPickerPage.name, () => {
       searchParams?: string;
       isTrialing?: boolean;
       isHackathonsEnabled?: boolean;
+      isOutOfCredit?: boolean;
       trialCreditsAmount?: number;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
@@ -366,6 +492,7 @@ describe(OnboardingPickerPage.name, () => {
       })
     );
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing });
+    const useIsOutOfDeployCredit: typeof DEPENDENCIES.useIsOutOfDeployCredit = () => input.isOutOfCredit ?? false;
     const useFlag: typeof DEPENDENCIES.useFlag = flag => (flag === "hackathons" ? isHackathonsEnabled : false);
     const analyticsService = mock<AnalyticsService>();
     const useServices: typeof DEPENDENCIES.useServices = () =>
@@ -381,6 +508,7 @@ describe(OnboardingPickerPage.name, () => {
           useRouter,
           useSearchParams,
           useEnsureTrialStarted,
+          useIsOutOfDeployCredit,
           useWallet,
           useFlag,
           useServices,

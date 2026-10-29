@@ -17,6 +17,7 @@ import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
 import { useFlag } from "@src/hooks/useFlag";
+import { useIsOutOfDeployCredit } from "@src/hooks/useIsOutOfDeployCredit/useIsOutOfDeployCredit";
 
 /**
  * Template ids the picker cards deploy. Each card redirects to the bid-screening (configure) view carrying its
@@ -30,11 +31,23 @@ const TEMPLATE_IDS = {
   llmChatbot: "akash-network-awesome-akash-Llama-3.1-8B"
 } as const;
 
+const DEPLOY_CTA = { label: "Deploy now", icon: "arrow" } as const;
+
+const ADD_CREDITS_TO_DEPLOY_CTA = { label: "Add credits to deploy", icon: "lock" } as const;
+
+const OUT_OF_CREDIT_SHEET_DESCRIPTION = "Your balance is too low to start a deployment. Add credits, then continue to deploy this template.";
+
+type AddCreditsPrompt = { context: "unlock-gpu" | "out-of-credit"; templateId: string } | { context: "hackathon-coupon" };
+
+/** One shared object, so the deep-link effect re-running sets identical state and React skips the re-render instead of looping. */
+const HACKATHON_COUPON_PROMPT: AddCreditsPrompt = { context: "hackathon-coupon" };
+
 export const DEPENDENCIES = {
   useRouter,
   useSearchParams,
   useWallet,
   useEnsureTrialStarted,
+  useIsOutOfDeployCredit,
   useServices,
   useFlag,
   DeploymentTemplatePickerCard,
@@ -53,8 +66,11 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const { isTrialing } = d.useWallet();
   const { publicConfig, urlService, analyticsService } = d.useServices();
   const trialCreditsAmount = publicConfig.NEXT_PUBLIC_TRIAL_CREDITS_AMOUNT;
-  const [addCreditsSheetReason, setAddCreditsSheetReason] = useState<"unlock-gpu" | "hackathon-coupon" | null>(null);
+  const [addCreditsPrompt, setAddCreditsPrompt] = useState<AddCreditsPrompt | null>(null);
+  const templateIdToDeployAfterCredits = addCreditsPrompt && "templateId" in addCreditsPrompt ? addCreditsPrompt.templateId : undefined;
   const { isWalletReady } = d.useEnsureTrialStarted();
+  const isOutOfCredit = d.useIsOutOfDeployCredit();
+  const starterTemplateCta = isOutOfCredit ? ADD_CREDITS_TO_DEPLOY_CTA : DEPLOY_CTA;
   const isHackathonsEnabled = d.useFlag("hackathons");
   const isLlmGated = isTrialing || !isWalletReady;
   const isLlmAvailable = !isLlmGated;
@@ -66,7 +82,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   // until the trial/flag state resolves (both load async) the param stays untouched.
   useEffect(() => {
     if (showHackathonEntry && searchParams?.get("redeemCoupon") === "true") {
-      setAddCreditsSheetReason("hackathon-coupon");
+      setAddCreditsPrompt(HACKATHON_COUPON_PROMPT);
       router.replace(urlService.onboardingPicker(), { scroll: false });
     }
   }, [showHackathonEntry, searchParams, router, urlService]);
@@ -83,7 +99,11 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
 
   function deployTemplate(templateId: string) {
     trackDeployClick(templateId);
-    redirectToConfigure(templateId);
+    if (isOutOfCredit) {
+      setAddCreditsPrompt({ context: "out-of-credit", templateId });
+    } else {
+      redirectToConfigure(templateId);
+    }
   }
 
   /** The LLM card reports the same deploy click whether it deploys or is credit-gated; the gated path is told apart downstream by the add-credits sheet events that follow rather than a distinct click event. */
@@ -92,7 +112,19 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
     if (isLlmAvailable) {
       redirectToConfigure(TEMPLATE_IDS.llmChatbot);
     } else {
-      setAddCreditsSheetReason("unlock-gpu");
+      setAddCreditsPrompt({ context: "unlock-gpu", templateId: TEMPLATE_IDS.llmChatbot });
+    }
+  }
+
+  function closeAddCreditsPrompt() {
+    setAddCreditsPrompt(null);
+  }
+
+  function continueAfterAddingCredits() {
+    if (templateIdToDeployAfterCredits) {
+      redirectToConfigure(templateIdToDeployAfterCredits);
+    } else {
+      closeAddCreditsPrompt();
     }
   }
 
@@ -109,7 +141,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
       <div className="flex min-h-dvh flex-col bg-background">
         <d.OnboardingHeader>
           {showHackathonEntry && (
-            <d.Button onClick={() => setAddCreditsSheetReason("hackathon-coupon")} variant="ghost" size="sm">
+            <d.Button onClick={() => setAddCreditsPrompt(HACKATHON_COUPON_PROMPT)} variant="ghost" size="sm">
               Hackathon? click here
               <ArrowRight className="ml-2 h-4 w-4" />
             </d.Button>
@@ -121,10 +153,17 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
             <div className="flex flex-col gap-1.5">
               <h1 className="text-3xl leading-9 text-foreground">Let&apos;s deploy your first app</h1>
               <p className="max-w-2xl text-sm leading-5 text-muted-foreground">
-                We&apos;ve provided you with <span className="font-medium text-blue-600 dark:text-blue-400">${trialCreditsAmount} in free trial credits</span>.
-                This covers a couple of smaller deployments so you can see how easy it is. Purchase your first credits to unlock our full experience - up to $
-                {MAX_BONUS} free credits, full GPU access and 30 day deployments. Plus, get {BONUS_PERCENT}% in bonus credits on your first purchase, up to $
-                {MAX_BONUS}. Pick a template to get a live URL in about 30 seconds.
+                {isOutOfCredit ? (
+                  <OutOfCreditIntro isTrialing={isTrialing} />
+                ) : (
+                  <>
+                    We&apos;ve provided you with{" "}
+                    <span className="font-medium text-blue-600 dark:text-blue-400">${trialCreditsAmount} in free trial credits</span>. This covers a couple of
+                    smaller deployments so you can see how easy it is. Purchase your first credits to unlock our full experience - up to ${MAX_BONUS} free
+                    credits, full GPU access and 30 day deployments. Plus, get {BONUS_PERCENT}% in bonus credits on your first purchase, up to ${MAX_BONUS}.
+                    Pick a template to get a live URL in about 30 seconds.
+                  </>
+                )}
               </p>
             </div>
 
@@ -136,7 +175,8 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 description="Spin up a modern Next.js app running in a Docker container in seconds."
                 priceBold="~$0.25/mo"
                 priceRest=" · 0.5 vCPU · 512MiB RAM · 512MiB"
-                ctaLabel="Deploy now"
+                ctaLabel={starterTemplateCta.label}
+                ctaIcon={starterTemplateCta.icon}
                 ctaVariant="primary"
                 heroImageSrc="/images/onboarding/hello-world.png"
                 heroImageAlt="Hello world template"
@@ -149,7 +189,8 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 description="An open-source AI agent that runs in the browser layer and can reshape its own workspace on the fly."
                 priceBold="~$3.41/mo"
                 priceRest=" · 4 vCPU · 8GiB RAM · 50GiB"
-                ctaLabel="Deploy now"
+                ctaLabel={starterTemplateCta.label}
+                ctaIcon={starterTemplateCta.icon}
                 ctaVariant="outline"
                 heroImageSrc="/images/onboarding/stable-diffusion.png"
                 heroImageAlt="Space Agent template"
@@ -194,21 +235,29 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
         </div>
 
         <d.AddCreditsSheet
-          open={addCreditsSheetReason !== null}
-          context={addCreditsSheetReason ?? undefined}
-          onOpenChange={open => setAddCreditsSheetReason(open ? "unlock-gpu" : null)}
-          onRedeemed={() => setAddCreditsSheetReason(null)}
-          initialTab={addCreditsSheetReason === "hackathon-coupon" ? "coupon" : "purchase"}
-          nextStepLabel={addCreditsSheetReason === "unlock-gpu" ? "Continue to deploy" : undefined}
-          onDone={() => {
-            if (addCreditsSheetReason === "unlock-gpu") {
-              redirectToConfigure(TEMPLATE_IDS.llmChatbot);
-            } else {
-              setAddCreditsSheetReason(null);
-            }
-          }}
+          open={addCreditsPrompt !== null}
+          context={addCreditsPrompt?.context}
+          description={addCreditsPrompt?.context === "out-of-credit" ? OUT_OF_CREDIT_SHEET_DESCRIPTION : undefined}
+          onOpenChange={open => (!open ? closeAddCreditsPrompt() : undefined)}
+          onRedeemed={closeAddCreditsPrompt}
+          initialTab={addCreditsPrompt?.context === "hackathon-coupon" ? "coupon" : "purchase"}
+          nextStepLabel={templateIdToDeployAfterCredits ? "Continue to deploy" : undefined}
+          onDone={continueAfterAddingCredits}
         />
       </div>
+    </>
+  );
+}
+
+function OutOfCreditIntro({ isTrialing }: { isTrialing: boolean }) {
+  if (!isTrialing) {
+    return <>You&apos;re out of credits. Add credits to deploy one of these templates.</>;
+  }
+
+  return (
+    <>
+      Your free trial is over. Add credits to deploy one of these templates. Your first purchase gets {BONUS_PERCENT}% in bonus credits, up to ${MAX_BONUS}, and
+      unlocks full GPU access and 30 day deployments.
     </>
   );
 }
