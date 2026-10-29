@@ -9,6 +9,7 @@ import { cn } from "@akashnetwork/ui/utils";
 import { ACCOUNT_BAR_HEIGHT } from "@src/config/ui.config";
 import { useOnboardingChrome } from "@src/hooks/useOnboardingChrome";
 import { useTopBanner } from "@src/hooks/useTopBanner";
+import { getBrowserLocale } from "@src/lib/browser-locale/browser-locale";
 import { LinearLoadingSkeleton } from "../shared/LinearLoadingSkeleton";
 import { TopNav } from "./TopNav/TopNav";
 import { TrackingScripts } from "./TrackingScripts";
@@ -33,10 +34,8 @@ type Props = {
 const Layout: React.FunctionComponent<Props> = ({ children, isLoading, disableContainer, containerClassName, background, dependencies }) => {
   const [locale, setLocale] = useState("en-US");
 
-  useEffect(() => {
-    if (navigator?.language) {
-      setLocale(navigator?.language);
-    }
+  useEffect(function adoptBrowserLocale() {
+    setLocale(getBrowserLocale());
   }, []);
 
   return (

@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { IntlProvider } from "react-intl";
 
+import { getBrowserLocale } from "@src/lib/browser-locale/browser-locale";
+
 type Props = {
   children?: ReactNode;
 };
@@ -10,10 +12,8 @@ type Props = {
 export const CustomIntlProvider: React.FunctionComponent<Props> = ({ children }) => {
   const [locale, setLocale] = useState("en-US");
 
-  useEffect(() => {
-    if (navigator?.language) {
-      setLocale(navigator?.language);
-    }
+  useEffect(function adoptBrowserLocale() {
+    setLocale(getBrowserLocale());
   }, []);
 
   return (
