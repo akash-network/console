@@ -74,15 +74,17 @@ describe(ActivityBell.name, () => {
     expect(invitationList).toHaveTextContent("Acme Corp");
     expect(entryItems()).toHaveLength(1);
     expect(invitationList.compareDocumentPosition(entryItems()[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getAllByRole("separator")).toHaveLength(3);
   });
 
-  it("leaves out the notice about an empty feed below invitations", async () => {
+  it("leaves out the notice about an empty feed, and the line above it, below invitations", async () => {
     setup({ activities: [], invitations: [buildReceivedInvitation()] });
 
     await open();
 
     expect(screen.getByRole("list", { name: "Invitations" })).toBeInTheDocument();
     expect(screen.queryByText("No activity yet")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("separator")).toHaveLength(2);
   });
 
   it("shows no invitation list without invitations", async () => {

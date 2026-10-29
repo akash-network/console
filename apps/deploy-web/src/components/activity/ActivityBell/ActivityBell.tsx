@@ -14,7 +14,7 @@ import Link from "next/link";
 
 import { activityEntriesOf, type ActivityEntry } from "@src/components/activity/activityEntries/activityEntries";
 import { ActivityEntryContent } from "@src/components/activity/ActivityEntryContent/ActivityEntryContent";
-import { ActivityFeedNotice, activityFeedStatusOf } from "@src/components/activity/ActivityFeedNotice/ActivityFeedNotice";
+import { ActivityFeedNotice, type ActivityFeedStatus, activityFeedStatusOf } from "@src/components/activity/ActivityFeedNotice/ActivityFeedNotice";
 import { deploymentLabelOf } from "@src/components/activity/activityLabels/activityLabels";
 import { ReceivedInvitationList } from "@src/components/organizations/ReceivedInvitationList/ReceivedInvitationList";
 import { useServices } from "@src/context/ServicesProvider";
@@ -55,6 +55,8 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
   if (!isShown) return null;
 
   const entries = activityEntriesOf(activities, dseq => deploymentLabelOf(getDeploymentName(dseq), dseq), MAX_LISTED_ENTRIES);
+  const feedStatus = activityFeedStatusOf({ isLoaded: !!feed, isError, entryCount: entries.length });
+  const isFeedShown = feedStatus !== "empty" || invitations.length === 0;
 
   /** Marking seen refreshes the feed while the list is still open, so the highlight is a snapshot taken in the very render that opens it. */
   function toggleActivityList(isOpening: boolean) {
@@ -98,17 +100,10 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
         {invitations.length > 0 && (
           <>
             <d.ReceivedInvitationList invitations={invitations} />
-            <DropdownMenuSeparator className="m-0" />
+            {isFeedShown && <DropdownMenuSeparator className="m-0" />}
           </>
         )}
-        <ActivityList
-          entries={entries}
-          actorName={user?.username}
-          unseenWhenOpened={unseenWhenOpened}
-          isLoaded={!!feed}
-          isError={isError}
-          hasInvitations={invitations.length > 0}
-        />
+        {isFeedShown && <ActivityList entries={entries} actorName={user?.username} unseenWhenOpened={unseenWhenOpened} status={feedStatus} />}
         <DropdownMenuSeparator className="m-0" />
         <DropdownMenuItem asChild className="cursor-pointer justify-center rounded-none px-4 py-2.5 text-sm font-medium">
           <Link href={UrlService.activity()}>See all activity</Link>
@@ -131,20 +126,13 @@ function ActivityList({
   entries,
   actorName,
   unseenWhenOpened,
-  isLoaded,
-  isError,
-  hasInvitations
+  status
 }: {
   entries: ActivityEntry[];
   actorName: string | undefined;
   unseenWhenOpened: ReadonlySet<string>;
-  isLoaded: boolean;
-  isError: boolean;
-  hasInvitations: boolean;
+  status: ActivityFeedStatus;
 }) {
-  const status = activityFeedStatusOf({ isLoaded, isError, entryCount: entries.length });
-
-  if (status === "empty" && hasInvitations) return null;
   if (status !== "listed") return <ActivityFeedNotice status={status} />;
 
   return (
