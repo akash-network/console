@@ -80,6 +80,7 @@ type Outcome = { kind: "render"; resume: ResumeResolution } | { kind: "redirect"
  * - **Not found but being created**: the activity feed holds its create, still running in the background, so it shows in
  *   progress and is read again until the chain has it.
  * - **Closed** — redirect to the deployment detail page.
+ * - **Open while Console is still leasing it** — redirect to the detail page, which follows that lease to its end.
  * - **Open with live (non-closed) leases** — already leased: resume so the flow re-sends the manifest when
  *   `canResume`, otherwise redirect to the detail page.
  * - **Open with no live leases** — resume quoting from scratch (no provider reconstruction).
@@ -99,11 +100,11 @@ export const ResumeDeploymentGuard: FC<Props> = ({ intent, canResume, children, 
   const notifiedRef = useRef(false);
   const [isAwaitingCreate, setIsAwaitingCreate] = useState(false);
   const query = d.useGetDeployment(resumeDseq, { isAwaitingCreate: isAwaitingCreate && !outcome });
-  const feed = d.useActivityFeedQuery({ enabled: !outcome && (isAwaitingCreate || isNotFoundError(query.error)) });
-  const creates = { activities: feed.data?.activities, isUnavailable: feed.isError && !feed.data };
+  const feed = d.useActivityFeedQuery({ enabled: !outcome && !!resumeDseq });
+  const feedActivities = { activities: feed.data?.activities, isUnavailable: feed.isError && !feed.data };
 
   const decision = useMemo(
-    () => resolveDecision(resumeDseq, query, canResume, creates),
+    () => resolveDecision(resumeDseq, query, canResume, feedActivities),
     [resumeDseq, query.data, query.isError, query.error, canResume, feed.data, feed.isError]
   );
 
@@ -164,7 +165,7 @@ export const ResumeDeploymentGuard: FC<Props> = ({ intent, canResume, children, 
 
 type Decision = { kind: "loading" } | { kind: "creating" } | { kind: "render"; resume: ResumeResolution } | { kind: "redirect" } | { kind: "notFound" };
 
-type CreatesInFeed = { activities?: Activity[]; isUnavailable: boolean };
+type FeedActivities = { activities?: Activity[]; isUnavailable: boolean };
 
 type DeploymentResponse = NonNullable<ReturnType<typeof useGetDeployment>["data"]>["data"];
 
@@ -173,13 +174,20 @@ type DeploymentResponse = NonNullable<ReturnType<typeof useGetDeployment>["data"
  * wipes the dseq: a transient failure falls through to a best-effort resume (the children re-quote the existing dseq)
  * rather than discarding it — the server's create-lease is idempotent, so this can't produce a duplicate lease.
  */
-function resolveDecision(resumeDseq: string | undefined, query: ReturnType<typeof useGetDeployment>, canResume: boolean, creates: CreatesInFeed): Decision {
+function resolveDecision(
+  resumeDseq: string | undefined,
+  query: ReturnType<typeof useGetDeployment>,
+  canResume: boolean,
+  feedActivities: FeedActivities
+): Decision {
   if (!resumeDseq) return { kind: "render", resume: EMPTY_RESUME };
-  if (query.isError) return isNotFoundError(query.error) ? resolveMissingDeployment(resumeDseq, creates) : { kind: "render", resume: EMPTY_RESUME };
+  if (query.isError) return isNotFoundError(query.error) ? resolveMissingDeployment(resumeDseq, feedActivities) : { kind: "render", resume: EMPTY_RESUME };
 
   const data = query.data?.data;
   if (!data) return { kind: "loading" };
   if (data.deployment.state === "closed") return { kind: "redirect" };
+  if (!feedActivities.activities && !feedActivities.isUnavailable) return { kind: "loading" };
+  if (isLeaseUnderway(resumeDseq, feedActivities.activities)) return { kind: "redirect" };
 
   const liveLeases = data.leases.filter(lease => lease.state !== "closed");
   if (liveLeases.length === 0) return { kind: "render", resume: { activeLeases: [], ...recordedDefinitionOf(data) } };
@@ -191,11 +199,13 @@ function resolveDecision(resumeDseq: string | undefined, query: ReturnType<typeo
 }
 
 /** The chain can lag a create the feed already reports succeeded, so only a create that failed or was never made reads as missing. */
-function resolveMissingDeployment(resumeDseq: string, creates: CreatesInFeed): Decision {
-  if (creates.isUnavailable) return { kind: "notFound" };
-  if (!creates.activities) return { kind: "loading" };
+function resolveMissingDeployment(resumeDseq: string, feedActivities: FeedActivities): Decision {
+  if (feedActivities.isUnavailable) return { kind: "notFound" };
+  if (!feedActivities.activities) return { kind: "loading" };
 
-  const isBeingCreated = creates.activities.some(({ type, status, meta }) => type === "deployment_create" && status !== "failed" && meta.dseq === resumeDseq);
+  const isBeingCreated = feedActivities.activities.some(
+    ({ type, status, meta }) => type === "deployment_create" && status !== "failed" && meta.dseq === resumeDseq
+  );
   return isBeingCreated ? { kind: "creating" } : { kind: "notFound" };
 }
 
@@ -204,4 +214,9 @@ function recordedDefinitionOf(data: DeploymentResponse): { recordedDefinition?: 
   const recorded = data.consoleSettings;
   if (!recorded || recorded.manifestVersion !== data.deployment.hash || !isStoredSdlRedeployable(recorded.sdl)) return {};
   return { recordedDefinition: { sdl: recorded.sdl, ...(data.name ? { name: data.name } : {}) } };
+}
+
+/** Console finishes a lease it took on whatever this page does, so leasing the deployment again here would only race it. */
+function isLeaseUnderway(dseq: string, activities: Activity[] = []): boolean {
+  return activities.some(({ type, status, meta }) => type === "lease_create" && status === "pending" && meta.dseq === dseq);
 }

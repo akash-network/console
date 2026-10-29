@@ -71,7 +71,7 @@ export const DeploymentFlowProvider: FC<Props> = ({ intent, children, dependenci
   const keepsDeployingWithoutPage = isLeaseInFlight || flow.deploySucceeded || flow.autoLeasedDseq !== null;
   const { discard } = flow.actions;
   d.useWarnBeforeUnload(isCreating);
-  d.useUnlockAppOnFirstCreate(flow.dseq);
+  d.useUnlockAppOnFirstCreate(flow.dseq ?? flow.autoLeasedDseq);
   const leaveGuard = useMemo(
     () => ({ isCreating, holdsUnleasedDeployment, isLeaseInFlight, keepsDeployingWithoutPage, discard }),
     [isCreating, holdsUnleasedDeployment, isLeaseInFlight, keepsDeployingWithoutPage, discard]

@@ -4139,8 +4139,49 @@ describe(useDeploymentFlow.name, () => {
       });
       expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["v1", "listActivities"] });
       expect(followUntilSettled).not.toHaveBeenCalled();
-      expect(replace).not.toHaveBeenCalled();
       expect(services.api.v1.getActivity.useQuery).toHaveBeenLastCalledWith({ id: "" }, { enabled: false, refetchInterval: 5_000 });
+    });
+
+    it("writes the handed over deployment into the URL, so a reload finds it rather than creating another", async () => {
+      const replace = vi.fn();
+      const { acceptWithLease } = await setupOneClickCreate({ replace });
+
+      act(() => acceptWithLease());
+
+      expect(replace).toHaveBeenCalledWith(
+        buildConfigureUrl({ sdlStrategy: "default", bidStrategy: "auto", templateId: "hello-world", vm: false }, "1000", "auto"),
+        undefined,
+        { shallow: true }
+      );
+    });
+
+    it("leaves the URL alone for a handed over deploy that a newer create superseded", async () => {
+      const replace = vi.fn();
+      const { result, acceptWithLease } = await setupOneClickCreate({ replace });
+      act(() => result.current.actions.requestQuotes("sdl-2"));
+      await settleSeal();
+
+      act(() => acceptWithLease());
+
+      expect(replace).not.toHaveBeenCalledWith(expect.stringContaining("1000"), undefined, { shallow: true });
+    });
+
+    it("lets go of the handed over deployment when the user starts over", async () => {
+      const { result, acceptWithLease } = await setupOneClickCreate({});
+      act(() => acceptWithLease());
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(result.current).toMatchObject({ phase: "configuring", autoLeasedDseq: null, isCreatingInBackground: false });
+    });
+
+    it("does not count starting over after the hand-over as cancelling a create", async () => {
+      const { result, analyticsService, acceptWithLease } = await setupOneClickCreate({});
+      act(() => acceptWithLease());
+
+      act(() => result.current.actions.cancelAndEdit());
+
+      expect(analyticsService.track).not.toHaveBeenCalledWith("cancel_during_create", expect.anything());
     });
 
     it("follows the create itself when the api leaves the provider pick to the page", async () => {

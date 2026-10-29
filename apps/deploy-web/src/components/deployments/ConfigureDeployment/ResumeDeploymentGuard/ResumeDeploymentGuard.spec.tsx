@@ -264,14 +264,80 @@ describe(ResumeDeploymentGuard.name, () => {
       const { useActivityFeedQuery, respond } = setup({ intent: intentFor("555"), query: notFound(), feed: {} });
       const enabledWhileMissing = useActivityFeedQuery.mock.lastCall?.[0];
 
-      respond({ query: deployment({ state: "active" }) });
+      respond({ query: deployment({ state: "active" }), feed: { activities: [] } });
 
       expect(enabledWhileMissing).toEqual({ enabled: true });
       expect(useActivityFeedQuery).toHaveBeenLastCalledWith({ enabled: false });
     });
+  });
 
-    it("does not read the feed for a deployment the chain has", () => {
+  describe("when Console may still be leasing the deployment", () => {
+    it("redirects to the detail page, which follows the lease Console is still creating", () => {
+      const { replace } = setup({
+        intent: intentFor("555"),
+        query: deployment({ state: "active" }),
+        feed: { activities: [leaseCreationOf("555", "pending")] }
+      });
+
+      expect(replace).toHaveBeenCalledWith(UrlService.deploymentDetails("555"));
+      expect(screen.queryByTestId("child")).not.toBeInTheDocument();
+    });
+
+    it("redirects even a deployment the flow could finish itself, since Console finishes it anyway", () => {
+      const { replace } = setup({
+        intent: intentFor("555"),
+        canResume: true,
+        query: deployment({ state: "active", leases: [{ id: { dseq: "555", gseq: 1, oseq: 1, provider: PROVIDER }, state: "active" }] }),
+        feed: { activities: [leaseCreationOf("555", "pending")] }
+      });
+
+      expect(replace).toHaveBeenCalledWith(UrlService.deploymentDetails("555"));
+    });
+
+    it("resumes once Console's lease creation has ended", () => {
+      const { getResume, replace } = setup({
+        intent: intentFor("555"),
+        query: deployment({ state: "active" }),
+        feed: { activities: [leaseCreationOf("555", "failed")] }
+      });
+
+      expect(getResume()).toEqual({ activeLeases: [] });
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("resumes while Console leases a different deployment", () => {
+      const { getResume, replace } = setup({
+        intent: intentFor("555"),
+        query: deployment({ state: "active" }),
+        feed: { activities: [leaseCreationOf("999", "pending")] }
+      });
+
+      expect(getResume()).toEqual({ activeLeases: [] });
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("waits for the feed before resuming an open deployment", () => {
+      const { replace } = setup({ intent: intentFor("555"), query: deployment({ state: "active" }), feed: {} });
+
+      expect(screen.queryByTestId("child")).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toBeInTheDocument();
+      expect(replace).not.toHaveBeenCalled();
+    });
+
+    it("resumes without the feed when it cannot be read", () => {
+      const { getResume } = setup({ intent: intentFor("555"), query: deployment({ state: "active" }), feed: { isError: true } });
+
+      expect(getResume()).toEqual({ activeLeases: [] });
+    });
+
+    it("reads the feed while the resumed deployment is unresolved", () => {
       const { useActivityFeedQuery } = setup({ intent: intentFor("555"), query: { isLoading: true } });
+
+      expect(useActivityFeedQuery).toHaveBeenLastCalledWith({ enabled: true });
+    });
+
+    it("reads no feed for a fresh start", () => {
+      const { useActivityFeedQuery } = setup({ intent: intentFor(undefined) });
 
       expect(useActivityFeedQuery).toHaveBeenLastCalledWith({ enabled: false });
     });
@@ -283,6 +349,10 @@ describe(ResumeDeploymentGuard.name, () => {
 
   function createOf(dseq: string, status: Activity["status"]) {
     return buildActivity({ type: "deployment_create", status, meta: { dseq } });
+  }
+
+  function leaseCreationOf(dseq: string, status: Activity["status"]) {
+    return buildActivity({ type: "lease_create", status, meta: { dseq, providers: [] } });
   }
 
   function intentFor(dseq: string | undefined): DeploymentIntent {

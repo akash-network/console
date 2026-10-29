@@ -43,6 +43,18 @@ describe(DeploymentFlowProvider.name, () => {
     expect(useUnlockAppOnFirstCreate).toHaveBeenLastCalledWith("1000");
   });
 
+  it("unlocks the app once the api took a one-click deploy on, which the flow never adopts", () => {
+    const { useUnlockAppOnFirstCreate } = setup({ flow: mock<DeploymentFlow>({ phase: "creating", dseq: null, autoLeasedDseq: "1000" }) });
+
+    expect(useUnlockAppOnFirstCreate).toHaveBeenLastCalledWith("1000");
+  });
+
+  it("unlocks nothing before a create was accepted", () => {
+    const { useUnlockAppOnFirstCreate } = setup({ flow: mock<DeploymentFlow>({ phase: "creating", dseq: null, autoLeasedDseq: null }) });
+
+    expect(useUnlockAppOnFirstCreate).toHaveBeenLastCalledWith(null);
+  });
+
   it("lets the page unload unwarned once the deployment is quoting", () => {
     const { useWarnBeforeUnload } = setup({ flow: mock<DeploymentFlow>({ phase: "quoting", isCreatingInBackground: false }) });
 
