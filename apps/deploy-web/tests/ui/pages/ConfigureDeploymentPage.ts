@@ -19,7 +19,7 @@ export class ConfigureDeploymentPage {
 
   async goto() {
     await this.page.goto(`${testEnvConfig.BASE_URL}/new-deployment/configure`);
-    await this.page.getByRole("heading", { name: "Configure your deployment" }).waitFor({ state: "visible", timeout: 15_000 });
+    await this.waitForConfigureScreen(15_000);
   }
 
   /**
@@ -39,7 +39,7 @@ export class ConfigureDeploymentPage {
   /** The legacy Container-VM URL, kept alive for old links and bookmarks; it redirects onto configure. */
   async gotoDeployLinux() {
     await this.page.goto(`${testEnvConfig.BASE_URL}/deploy-linux`);
-    await this.page.getByRole("heading", { name: "Configure your deployment" }).waitFor({ state: "visible", timeout: 30_000 });
+    await this.waitForConfigureScreen(30_000);
   }
 
   /**
@@ -74,12 +74,17 @@ export class ConfigureDeploymentPage {
 
   private async pickStartingPoint(cardTitle: string) {
     await this.page.getByRole("button", { name: cardTitle }).click({ timeout: 60_000 });
-    await this.page.getByRole("heading", { name: "Configure your deployment" }).waitFor({ state: "visible", timeout: 30_000 });
+    await this.waitForConfigureScreen(30_000);
+  }
+
+  /** A Container-VM setup lands on its SSH key step, a modal that hides the heading behind it from the accessibility tree. */
+  private async waitForConfigureScreen(timeout: number) {
+    await this.page.getByRole("heading", { name: "Configure your deployment" }).or(this.sshKeyStep()).first().waitFor({ state: "visible", timeout });
   }
 
   async reload() {
     await this.page.reload();
-    await this.page.getByRole("heading", { name: "Configure your deployment" }).waitFor({ state: "visible", timeout: 15_000 });
+    await this.waitForConfigureScreen(15_000);
   }
 
   async fillImageName(image: string) {
