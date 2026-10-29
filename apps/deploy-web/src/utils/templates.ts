@@ -5,6 +5,8 @@ export const sdlBuilderTemplate = {
   description: "An empty template with some basic config to get started.",
   content: "# Paste your SDL here!"
 };
+export const HELLO_WORLD_IMAGE = "ghcr.io/akash-network/hello-akash-world:2.1.0";
+export const HELLO_WORLD_PORT = 3000;
 export const helloWorldTemplate = {
   title: "Hello World",
   name: "Hello World",
@@ -29,10 +31,10 @@ services:
   # The name of the service "web"
   web:
     # The docker container image with version. You must specify a version, the "latest" tag doesn't work.
-    image: ghcr.io/akash-network/hello-akash-world:2.1.0
+    image: ${HELLO_WORLD_IMAGE}
     # You can map ports here https://akash.network/docs/getting-started/stack-definition-language/#servicesexpose
     expose:
-      - port: 3000
+      - port: ${HELLO_WORLD_PORT}
         as: 80
         to:
           - global: true

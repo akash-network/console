@@ -4503,4 +4503,11 @@ describe(buildConfigureUrl.name, () => {
 
     expect(url).not.toContain("userTemplateId");
   });
+
+  it("preserves the example image entry across rewrites", () => {
+    const url = buildConfigureUrl({ sdlStrategy: "edit", bidStrategy: "select", draftId: "draft-1", vm: false, exampleImage: true }, "999", "select");
+
+    expect(url).toContain("/new-deployment/configure/999");
+    expect(url).toContain("exampleImage=true");
+  });
 });

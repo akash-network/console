@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { defaultPlacement, defaultService, SSH_VM_IMAGES } from "@src/utils/sdl/data";
+import { HELLO_WORLD_IMAGE } from "@src/utils/templates";
 import type { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
 import type { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
 import type { MarketplacePane } from "../MarketplacePane/MarketplacePane";
@@ -116,9 +117,17 @@ describe(ConfigureWorkspace.name, () => {
 
       act(() => availabilityProps().onChooseProvider());
 
-      expect(analyticsService.track).toHaveBeenCalledWith("configure_choose_provider_clicked", { category: "deployments" });
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_choose_provider_clicked", { category: "deployments", usesExampleImage: false });
       expect(requestQuotes).toHaveBeenCalled();
       expect(useRequestQuotes).toHaveBeenCalledWith(expect.objectContaining({ deploymentName: "typed-name" }));
+    });
+
+    it("tells analytics when the provider choice still runs the onboarding example image", () => {
+      const { availabilityProps, analyticsService } = setup({ webImage: HELLO_WORLD_IMAGE });
+
+      act(() => availabilityProps().onChooseProvider());
+
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_choose_provider_clicked", { category: "deployments", usesExampleImage: true });
     });
 
     it("asks for more capacity when bids are unlikely and tracks that the request came from the not-bidding notice", () => {
@@ -213,7 +222,7 @@ describe(ConfigureWorkspace.name, () => {
 
       act(() => sheetBarProps().onChooseProvider());
 
-      expect(analyticsService.track).toHaveBeenCalledWith("configure_choose_provider_clicked", { category: "deployments" });
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_choose_provider_clicked", { category: "deployments", usesExampleImage: false });
       expect(requestQuotes).toHaveBeenCalled();
     });
 
@@ -288,7 +297,7 @@ describe(ConfigureWorkspace.name, () => {
 
       act(() => availabilityProps().onChooseProvider());
 
-      expect(analyticsService.track).toHaveBeenCalledWith("configure_choose_provider_clicked", { category: "deployments" });
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_choose_provider_clicked", { category: "deployments", usesExampleImage: false });
       expect(screen.getByText("SSH key step")).toBeInTheDocument();
       expect(sshKeyStepProps()).toMatchObject({ source: "choose_provider", serviceIndex: 1 });
       expect(requestQuotes).not.toHaveBeenCalled();
@@ -595,6 +604,7 @@ describe(ConfigureWorkspace.name, () => {
     apiGpuModels?: string[];
     hasPlacementWithoutProviders?: boolean;
     vmSshPubKey?: string;
+    webImage?: string;
   }) {
     const first = { ...defaultPlacement({ name: "placement-1" }), id: "p1", regions: [] };
     const second = { ...defaultPlacement({ name: "gpu-pool" }), id: "p2", regions: ["us-west", "eu-west"] };
@@ -603,7 +613,7 @@ describe(ConfigureWorkspace.name, () => {
     const values: SdlBuilderFormValuesType = {
       placements: [first, second],
       services: [
-        { ...defaultService("p1", { title: "web" }), id: "web" },
+        { ...defaultService("p1", { title: "web", image: input.webImage ?? "" }), id: "web" },
         { ...withGpuModels(defaultService("p2", apiOverrides), input.apiGpuModels), id: "api" }
       ],
       endpoints: []

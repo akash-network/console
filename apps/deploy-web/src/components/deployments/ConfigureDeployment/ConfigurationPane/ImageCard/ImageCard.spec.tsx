@@ -6,11 +6,12 @@ import { describe, expect, it } from "vitest";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
-import { defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
+import { defaultHttpExpose, defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { withServiceSshKey } from "@src/utils/sdl/sshKey";
+import { HELLO_WORLD_IMAGE } from "@src/utils/templates";
 import { ImageCard } from "./ImageCard";
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(ImageCard.name, () => {
@@ -20,6 +21,128 @@ describe(ImageCard.name, () => {
     await userEvent.type(screen.getByLabelText("Docker image"), "MyImage:1.0");
 
     expect(getValues().services[0].image).toBe("myimage:1.0");
+  });
+
+  it("marks the example image as one the user can replace", () => {
+    setup({ image: HELLO_WORLD_IMAGE, ports: [{ port: 3000, as: 80 }] });
+
+    expect(screen.getByLabelText("Docker image")).toHaveAccessibleDescription("You can deploy this example as is or replace it with your own image.");
+  });
+
+  it("marks the example image when the service exposes other ports next to the example's", () => {
+    setup({
+      image: HELLO_WORLD_IMAGE,
+      ports: [
+        { port: 3000, as: 80 },
+        { port: 8080, as: 8080 }
+      ]
+    });
+
+    expect(screen.getByLabelText("Docker image")).toHaveAccessibleDescription("You can deploy this example as is or replace it with your own image.");
+  });
+
+  it("drops the example hint once the user moves the example's port away from it", () => {
+    const { editExposedPort } = setup({ image: HELLO_WORLD_IMAGE, ports: [{ port: 3000, as: 80 }] });
+
+    editExposedPort(0, 8080);
+
+    expect(screen.getByLabelText("Docker image")).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(/deploy this example as is/)).not.toBeInTheDocument();
+  });
+
+  it("shows no example hint when the example image is not exposed on its own port", () => {
+    setup({ image: HELLO_WORLD_IMAGE, ports: [{ port: 80, as: 80 }] });
+
+    expect(screen.getByLabelText("Docker image")).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(/deploy this example as is/)).not.toBeInTheDocument();
+  });
+
+  it("drops the example hint once the user types their own image", async () => {
+    const { getValues } = setup({ image: HELLO_WORLD_IMAGE, ports: [{ port: 3000, as: 80 }] });
+
+    await userEvent.clear(screen.getByLabelText("Docker image"));
+    await userEvent.type(screen.getByLabelText("Docker image"), "MyImage:1.0");
+
+    expect(getValues().services[0].image).toBe("myimage:1.0");
+    expect(screen.getByLabelText("Docker image")).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(/deploy this example as is/)).not.toBeInTheDocument();
+  });
+
+  it("shows no example hint for an image the user brought", () => {
+    setup({ image: "nginx:latest" });
+
+    expect(screen.getByLabelText("Docker image")).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(/deploy this example as is/)).not.toBeInTheDocument();
+  });
+
+  it("moves the example's port back to the default when the user replaces the example image", async () => {
+    const { getValues } = setup({ image: HELLO_WORLD_IMAGE, ports: [{ port: 3000, as: 80 }] });
+
+    await userEvent.clear(screen.getByLabelText("Docker image"));
+    await userEvent.type(screen.getByLabelText("Docker image"), "nginx:latest");
+
+    expect(getValues().services[0].image).toBe("nginx:latest");
+    expect(portsOf(getValues())).toEqual([{ port: 80, as: 80 }]);
+  });
+
+  it("moves only the example's port mapping when the service exposes several ports", async () => {
+    const { getValues } = setup({
+      image: HELLO_WORLD_IMAGE,
+      ports: [
+        { port: 5432, as: 5432 },
+        { port: 3000, as: 80 }
+      ]
+    });
+
+    await userEvent.clear(screen.getByLabelText("Docker image"));
+
+    expect(portsOf(getValues())).toEqual([
+      { port: 5432, as: 5432 },
+      { port: 80, as: 80 }
+    ]);
+  });
+
+  it.each([
+    { edited: "container port", port: 8080, as: 80 },
+    { edited: "exposed port", port: 3000, as: 8000 }
+  ])("keeps the $edited the user edited when the example image is replaced", async ({ port, as }) => {
+    const { getValues } = setup({ image: HELLO_WORLD_IMAGE, ports: [{ port, as }] });
+
+    await userEvent.clear(screen.getByLabelText("Docker image"));
+    await userEvent.type(screen.getByLabelText("Docker image"), "nginx:latest");
+
+    expect(portsOf(getValues())).toEqual([{ port, as }]);
+  });
+
+  it("leaves the ports alone when the user types the example image back", async () => {
+    const { getValues } = setup({ image: HELLO_WORLD_IMAGE, ports: [{ port: 3000, as: 80 }] });
+    await userEvent.clear(screen.getByLabelText("Docker image"));
+    await userEvent.type(screen.getByLabelText("Docker image"), "nginx:latest");
+
+    await userEvent.clear(screen.getByLabelText("Docker image"));
+    await userEvent.type(screen.getByLabelText("Docker image"), HELLO_WORLD_IMAGE);
+
+    expect(getValues().services[0].image).toBe(HELLO_WORLD_IMAGE);
+    expect(portsOf(getValues())).toEqual([{ port: 80, as: 80 }]);
+    expect(screen.queryByText(/deploy this example as is/)).not.toBeInTheDocument();
+  });
+
+  it("leaves the ports alone when the user edits an image that is not the example", async () => {
+    const { getValues } = setup({ image: "node-app:1.0", ports: [{ port: 3000, as: 80 }] });
+
+    await userEvent.type(screen.getByLabelText("Docker image"), "1");
+
+    expect(getValues().services[0].image).toBe("node-app:1.01");
+    expect(portsOf(getValues())).toEqual([{ port: 3000, as: 80 }]);
+  });
+
+  it("keeps the example's port when an edit still leaves the example image in place", () => {
+    const { getValues } = setup({ image: HELLO_WORLD_IMAGE, ports: [{ port: 3000, as: 80 }] });
+
+    fireEvent.change(screen.getByLabelText("Docker image"), { target: { value: HELLO_WORLD_IMAGE.toUpperCase() } });
+
+    expect(getValues().services[0].image).toBe(HELLO_WORLD_IMAGE);
+    expect(portsOf(getValues())).toEqual([{ port: 3000, as: 80 }]);
   });
 
   it("disables the image and credentials fields while locked", () => {
@@ -410,8 +533,13 @@ describe(ImageCard.name, () => {
     expect(screen.getByRole("button", { name: "Collapse Operating System" }).closest(".border-destructive")).toBeNull();
   });
 
+  function portsOf(values: SdlBuilderFormValuesType) {
+    return values.services[0].expose.map(({ port, as }) => ({ port, as }));
+  }
+
   function setup(input: {
     image?: string;
+    ports?: { port: number; as: number }[];
     hasSSHKey?: boolean;
     sshPubKey?: string;
     otherService?: { image: string; sshPubKey?: string };
@@ -431,14 +559,16 @@ describe(ImageCard.name, () => {
     const otherServices = input.otherService
       ? [withKey(defaultService(seeded.placements[0].id, { title: "service-2", image: input.otherService.image }), input.otherService.sshPubKey)]
       : [];
+    const seededService = input.ports ? { ...seeded.services[0], expose: input.ports.map(port => defaultHttpExpose(port)) } : seeded.services[0];
     const values: SdlBuilderFormValuesType = {
       ...seeded,
-      services: [withKey(seeded.services[0], input.sshPubKey), ...otherServices],
+      services: [withKey(seededService, input.sshPubKey), ...otherServices],
       hasSSHKey: input.hasSSHKey ?? false
     };
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
     let reset: (imported: SdlBuilderFormValuesType) => void = () => undefined;
+    let setExposedPort: (exposeIndex: number, port: number) => void = () => undefined;
     let getFieldError: (name: FieldPath<SdlBuilderFormValuesType>) => FieldError | undefined = () => undefined;
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({
@@ -449,6 +579,7 @@ describe(ImageCard.name, () => {
       });
       getValues = form.getValues;
       reset = form.reset;
+      setExposedPort = (exposeIndex, port) => form.setValue(`services.${input.serviceIndex ?? 0}.expose.${exposeIndex}.port`, port);
       getFieldError = name => form.getFieldState(name).error;
       return (
         <FormProvider {...form}>
@@ -469,6 +600,7 @@ describe(ImageCard.name, () => {
     return {
       getValues: () => getValues(),
       importValues: (imported: SdlBuilderFormValuesType) => act(() => reset(imported)),
+      editExposedPort: (exposeIndex: number, port: number) => act(() => setExposedPort(exposeIndex, port)),
       fieldError: (name: FieldPath<SdlBuilderFormValuesType>) => getFieldError(name)
     };
   }

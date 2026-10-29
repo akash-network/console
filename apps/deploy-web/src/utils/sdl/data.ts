@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 
 import { UACT_DENOM } from "@src/config/denom.config";
 import type { EndpointType, ExposeType, PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { HELLO_WORLD_IMAGE, HELLO_WORLD_PORT } from "@src/utils/templates";
 import { SSH_VM_IMAGES } from "./vmImages";
 
 export { SSH_VM_IMAGES };
@@ -54,6 +55,29 @@ export const defaultPricing = (): ServiceType["pricing"] => ({
   denom: UACT_DENOM
 });
 
+export const DEFAULT_HTTP_PORT = 80;
+
+/** Builds a fresh HTTP port published globally on port 80 with the default HTTP options. */
+export const defaultHttpExpose = (overrides?: Partial<ExposeType>): ExposeType => ({
+  id: nanoid(),
+  port: DEFAULT_HTTP_PORT,
+  as: DEFAULT_HTTP_PORT,
+  proto: "http",
+  global: true,
+  to: [],
+  accept: [],
+  ipName: "",
+  httpOptions: {
+    maxBodySize: defaultHttpOptions.maxBodySize,
+    readTimeout: defaultHttpOptions.readTimeout,
+    sendTimeout: defaultHttpOptions.sendTimeout,
+    nextCases: [...defaultHttpOptions.nextCases],
+    nextTries: defaultHttpOptions.nextTries,
+    nextTimeout: defaultHttpOptions.nextTimeout
+  },
+  ...overrides
+});
+
 /**
  * Builds a fresh service bound to the given placement id and seeded with the
  * standard single-port HTTP expose / compute / pricing defaults.
@@ -79,26 +103,7 @@ export const defaultService = (placementId: string, overrides?: Partial<ServiceT
       }
     ]
   },
-  expose: [
-    {
-      id: nanoid(),
-      port: 80,
-      as: 80,
-      proto: "http",
-      global: true,
-      to: [],
-      accept: [],
-      ipName: "",
-      httpOptions: {
-        maxBodySize: defaultHttpOptions.maxBodySize,
-        readTimeout: defaultHttpOptions.readTimeout,
-        sendTimeout: defaultHttpOptions.sendTimeout,
-        nextCases: [...defaultHttpOptions.nextCases],
-        nextTries: defaultHttpOptions.nextTries,
-        nextTimeout: defaultHttpOptions.nextTimeout
-      }
-    }
-  ],
+  expose: [defaultHttpExpose()],
   command: { command: "", arg: "" },
   env: [],
   placementId,
@@ -171,6 +176,12 @@ export const vmServiceOverrides = (): Partial<ServiceType> => ({
   image: SSH_VM_IMAGES["Ubuntu 24.04"],
   expose: [vmSshExpose()],
   count: 1
+});
+
+/** Overrides for a fresh service running the hello world example, which listens on its own port behind the usual port 80. */
+export const exampleImageServiceOverrides = (): Partial<ServiceType> => ({
+  image: HELLO_WORLD_IMAGE,
+  expose: [defaultHttpExpose({ port: HELLO_WORLD_PORT })]
 });
 
 export const nextCases = [

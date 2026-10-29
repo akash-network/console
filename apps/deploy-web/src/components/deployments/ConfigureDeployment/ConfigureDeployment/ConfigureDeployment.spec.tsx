@@ -137,6 +137,15 @@ describe(ConfigureDeployment.name, () => {
     );
   });
 
+  it("ignores the carried-in deploySdl on an example image entry and forwards the example image intent", () => {
+    const { ConfigureDeploymentForm } = setup({ templateId: null, exampleImage: true, deploySdl: mock<TemplateCreation>({ content: "carried: sdl" }) });
+
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({ initialSdl: undefined, intent: expect.objectContaining({ exampleImage: true }) }),
+      expect.anything()
+    );
+  });
+
   it("still restores the draft's persisted SDL on a vm entry", () => {
     const { ConfigureDeploymentForm } = setup({ templateId: null, vm: true, persistedSdl: "restored: sdl" });
 
@@ -375,6 +384,7 @@ describe(ConfigureDeployment.name, () => {
     userTemplate?: { isLoading?: boolean; isError?: boolean; isSuccess?: boolean; data?: ITemplate | null };
     deploySdl?: TemplateCreation | null;
     vm?: boolean;
+    exampleImage?: boolean;
     resume?: ResumeResolution;
     dseq?: string;
   }) {
@@ -404,6 +414,7 @@ describe(ConfigureDeployment.name, () => {
     if (input.sdlStrategy) query["sdl-strategy"] = input.sdlStrategy;
     if (input.bidStrategy) query["bid-strategy"] = input.bidStrategy;
     if (input.vm) query.vm = "true";
+    if (input.exampleImage) query.exampleImage = "true";
     const params = new URLSearchParams(query);
 
     const DeployTargetGate = vi.fn<typeof DEPENDENCIES.DeployTargetGate>(({ children }) => <>{children}</>);

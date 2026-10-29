@@ -70,4 +70,8 @@ describe(UrlService.configureDeployment.name, () => {
   it("builds a user template path", () => {
     expect(UrlService.configureDeployment({ userTemplateId: "user-1" })).toBe("/new-deployment/configure?userTemplateId=user-1");
   });
+
+  it("builds an example image path", () => {
+    expect(UrlService.configureDeployment({ exampleImage: true })).toBe("/new-deployment/configure?exampleImage=true");
+  });
 });

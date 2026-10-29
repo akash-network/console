@@ -12,6 +12,8 @@ export interface DeploymentIntent {
   draftId?: string;
   /** Container-VM entry (`?vm=true`): the form seeds an SSH-ready VM service instead of the blank default. */
   vm: boolean;
+  /** Onboarding's Deploy image entry (`?exampleImage=true`): the form seeds a working example image instead of a blank one. */
+  exampleImage?: boolean;
 }
 
 interface ParseInput {
@@ -28,7 +30,8 @@ interface ParseInput {
  * `default` strategy), so the manual form always opens. The two template sources are mutually
  * exclusive and resolved here rather than downstream: a `vm` entry drops both, and a gallery
  * `templateId` wins over a `userTemplateId`. A user template never carries a `sdl-strategy`, so
- * it always opens the manual form rather than the auto-deploy flow.
+ * it always opens the manual form rather than the auto-deploy flow. An `exampleImage=true` entry
+ * only changes the blank default, so a `vm` entry, which seeds its own service, drops it.
  */
 export function parseDeploymentIntent({ dseqSegment, searchParams }: ParseInput): DeploymentIntent {
   const vm = searchParams.get("vm") === "true";
@@ -37,7 +40,8 @@ export function parseDeploymentIntent({ dseqSegment, searchParams }: ParseInput)
   const sdlStrategy = templateId ? toSdlStrategy(searchParams.get("sdl-strategy")) : "edit";
   const bidStrategy = toBidStrategy(searchParams.get("bid-strategy"));
   const draftId = searchParams.get("draftId") || undefined;
-  return { templateId, userTemplateId, sdlStrategy, bidStrategy, dseq: dseqSegment || undefined, draftId, vm };
+  const exampleImage = !vm && searchParams.get("exampleImage") === "true";
+  return { templateId, userTemplateId, sdlStrategy, bidStrategy, dseq: dseqSegment || undefined, draftId, vm, exampleImage };
 }
 
 /** Narrows the raw `sdl-strategy` param to the union, defaulting to `edit`. */

@@ -5,7 +5,7 @@ import { parseDeploymentIntent } from "./deploymentIntent";
 describe(parseDeploymentIntent.name, () => {
   it("defaults strategies when params are absent", () => {
     const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams() });
-    expect(intent).toEqual({ templateId: undefined, sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, vm: false });
+    expect(intent).toEqual({ templateId: undefined, sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, vm: false, exampleImage: false });
   });
 
   it("reads templateId and both strategies", () => {
@@ -13,7 +13,15 @@ describe(parseDeploymentIntent.name, () => {
       dseqSegment: undefined,
       searchParams: new URLSearchParams("templateId=abc&sdl-strategy=default&bid-strategy=auto")
     });
-    expect(intent).toEqual({ templateId: "abc", sdlStrategy: "default", bidStrategy: "auto", dseq: undefined, draftId: undefined, vm: false });
+    expect(intent).toEqual({
+      templateId: "abc",
+      sdlStrategy: "default",
+      bidStrategy: "auto",
+      dseq: undefined,
+      draftId: undefined,
+      vm: false,
+      exampleImage: false
+    });
   });
 
   it("reads the draft id alongside the other params", () => {
@@ -21,7 +29,15 @@ describe(parseDeploymentIntent.name, () => {
       dseqSegment: "12345",
       searchParams: new URLSearchParams("templateId=abc&draftId=draft-1")
     });
-    expect(intent).toEqual({ templateId: "abc", sdlStrategy: "edit", bidStrategy: "select", dseq: "12345", draftId: "draft-1", vm: false });
+    expect(intent).toEqual({
+      templateId: "abc",
+      sdlStrategy: "edit",
+      bidStrategy: "select",
+      dseq: "12345",
+      draftId: "draft-1",
+      vm: false,
+      exampleImage: false
+    });
   });
 
   it("leaves the draft id undefined when absent", () => {
@@ -88,6 +104,22 @@ describe(parseDeploymentIntent.name, () => {
   it("drops the user template id on a vm entry", () => {
     const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("vm=true&userTemplateId=user-1") });
     expect(intent.userTemplateId).toBeUndefined();
+    expect(intent.vm).toBe(true);
+  });
+
+  it("parses exampleImage=true as an example image entry", () => {
+    const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("exampleImage=true") });
+    expect(intent.exampleImage).toBe(true);
+  });
+
+  it("treats anything but exampleImage=true as a blank entry", () => {
+    const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("exampleImage=1") });
+    expect(intent.exampleImage).toBe(false);
+  });
+
+  it("drops the example image on a vm entry", () => {
+    const intent = parseDeploymentIntent({ dseqSegment: undefined, searchParams: new URLSearchParams("vm=true&exampleImage=true") });
+    expect(intent.exampleImage).toBe(false);
     expect(intent.vm).toBe(true);
   });
 
