@@ -114,7 +114,7 @@ type PaymentFormLoadFailure = PaymentFormLoadError | "timeout";
 
 interface PaymentFormLoad {
   attempt: number;
-  status: "loading" | "ready" | "failed";
+  status: "loading" | "slow" | "ready" | "failed";
 }
 
 interface PaymentFailureDetails extends PaymentMethodSetupFailure {
@@ -189,6 +189,8 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   const chargeDeclinesByPaymentMethodRef = useRef(new Map<string, number>());
   /** The payment element reloads with every new SetupIntent, so readiness is reported for the first load only. */
   const paymentFormReadyTrackedRef = useRef(false);
+  /** Cleared by the ready callback itself, since the card form can report ready after the timeout is due but before a re-render clears it. */
+  const paymentFormLoadTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const [openedAt] = useState(() => performance.now());
 
   const amount = useMemo(() => Number(amountInput.predefinedAmount || amountInput.customAmount) || 0, [amountInput.predefinedAmount, amountInput.customAmount]);
@@ -196,6 +198,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   const isSetupLoading = setupIntentStatus === "pending" || setupIntentStatus === "idle";
   const isNewCard = selectedMethodId === NEW_CARD || (selectedMethodId === undefined && !isLoadingMethods && !paymentMethods?.length);
   const isPaymentFormLoading = isNewCard && setupIntentStatus !== "error" && paymentFormLoad.status === "loading";
+  const isPaymentFormSlow = isNewCard && setupIntentStatus !== "error" && paymentFormLoad.status === "slow";
   const hasPaymentFormFailed = isNewCard && paymentFormLoad.status === "failed";
   const isBusy = isProcessing || isWalletOpen;
   const pendingWallet = user?.id ? attempt.getWalletAttempt({ userId: user.id, amount }) : null;
@@ -548,6 +551,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   );
 
   const markPaymentFormReady = useCallback(() => {
+    clearTimeout(paymentFormLoadTimeoutRef.current);
     setPaymentFormLoad(load => ({ ...load, status: "ready" }));
     if (paymentFormReadyTrackedRef.current) return;
     paymentFormReadyTrackedRef.current = true;
@@ -561,7 +565,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
 
   const failPaymentFormLoad = useCallback(
     (reason: PaymentFormLoadFailure) => {
-      setPaymentFormLoad(load => ({ ...load, status: "failed" }));
+      setPaymentFormLoad(load => ({ ...load, status: reason === "timeout" ? "slow" : "failed" }));
       analyticsService.track("add_credits_payment_form_load_failed", {
         category: "billing",
         reason,
@@ -573,9 +577,10 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   );
 
   useEffect(
-    function failPaymentFormLoadAfterTimeout() {
+    function flagASlowPaymentFormAfterTimeout() {
       if (!isPaymentFormLoading) return;
       const timeout = setTimeout(() => failPaymentFormLoad("timeout"), PAYMENT_FORM_LOAD_TIMEOUT_MS);
+      paymentFormLoadTimeoutRef.current = timeout;
       return () => clearTimeout(timeout);
     },
     [isPaymentFormLoading, failPaymentFormLoad]
@@ -680,6 +685,15 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
             </Alert>
           )}
 
+          {isPaymentFormSlow && (
+            <Alert variant="warning">
+              <AlertDescription>The card form is taking longer than usual. You can keep waiting for it below, or retry.</AlertDescription>
+              <Button type="button" variant="outline" onClick={leadWithNewPaymentMethod} className="mt-2">
+                Retry
+              </Button>
+            </Alert>
+          )}
+
           {isNewCard && !hasPaymentFormFailed && (
             <d.AddCreditsNewPaymentMethodFields
               key={paymentFormLoad.attempt}
@@ -719,7 +733,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
             loading={isProcessing}
             disabled={isBusy || amount < topUpMinAmountUsd || isLoadingMethods || (isNewCard && paymentFormLoad.status !== "ready")}
           >
-            {isPaymentFormLoading ? "Loading card form…" : "Purchase Credits"}
+            {isPaymentFormLoading || isPaymentFormSlow ? "Loading card form…" : "Purchase Credits"}
           </LoadingButton>
         </fieldset>
       </form>
