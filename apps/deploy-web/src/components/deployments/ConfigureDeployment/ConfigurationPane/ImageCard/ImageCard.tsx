@@ -19,13 +19,14 @@ import {
 } from "@akashnetwork/ui/components";
 import { BoxIcon, EyeClosedIcon, EyeIcon, MonitorIcon } from "lucide-react";
 
-import type { SdlBuilderFormValuesType } from "@src/types";
+import type { ExposeType, SdlBuilderFormValuesType } from "@src/types";
 import { CUSTOM_HOST_ID } from "@src/types";
+import { DEFAULT_HTTP_PORT } from "@src/utils/sdl/data";
 import { normalizeDockerImage } from "@src/utils/sdl/normalizeDockerImage";
 import { isSdlReference } from "@src/utils/sdl/sdlSecrets";
 import { takesSshKey } from "@src/utils/sdl/sshKey";
 import { isVmImage, SSH_VM_IMAGES } from "@src/utils/sdl/vmImages";
-import { HELLO_WORLD_IMAGE } from "@src/utils/templates";
+import { HELLO_WORLD_IMAGE, HELLO_WORLD_PORT } from "@src/utils/templates";
 import { dockerImageTooltip, operatingSystemTooltip } from "../cardTooltips";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
 import { SshPublicKeyField } from "../SshPublicKeyField/SshPublicKeyField";
@@ -153,10 +154,26 @@ type ImageFieldProps = {
 };
 
 const ImageField: FC<ImageFieldProps> = ({ serviceIndex, hasCredentials, onToggleCredentials }) => {
-  const { control, setValue } = useFormContext<SdlBuilderFormValuesType>();
+  const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const image = useController({ control, name: `services.${serviceIndex}.image` });
   const isExampleImage = image.field.value === HELLO_WORLD_IMAGE;
   const exampleImageHintId = `image-${serviceIndex}-example-hint`;
+
+  /** The example's port only fits the example, so replacing it hands the image the port a blank start would have exposed. */
+  function changeImage(nextImage: string) {
+    if (isExampleImage && nextImage !== HELLO_WORLD_IMAGE) {
+      restoreDefaultPortOfExampleMapping();
+    }
+    image.field.onChange(nextImage);
+  }
+
+  function restoreDefaultPortOfExampleMapping() {
+    getValues(`services.${serviceIndex}.expose`).forEach((expose, exposeIndex) => {
+      if (isExamplePortMapping(expose)) {
+        setValue(`services.${serviceIndex}.expose.${exposeIndex}.port`, DEFAULT_HTTP_PORT);
+      }
+    });
+  }
 
   /**
    * Seeds blank default credentials when enabling a private registry and clears
@@ -183,7 +200,7 @@ const ImageField: FC<ImageFieldProps> = ({ serviceIndex, hasCredentials, onToggl
           aria-label="Docker image"
           placeholder="e.g. ghcr.io/your-org/app:latest"
           value={image.field.value ?? ""}
-          onChange={event => image.field.onChange(normalizeDockerImage(event.target.value || ""))}
+          onChange={event => changeImage(normalizeDockerImage(event.target.value || ""))}
           onBlur={image.field.onBlur}
           error={!!image.fieldState.error}
           aria-describedby={isExampleImage ? exampleImageHintId : undefined}
@@ -191,7 +208,7 @@ const ImageField: FC<ImageFieldProps> = ({ serviceIndex, hasCredentials, onToggl
         />
         {isExampleImage && (
           <FieldDescription id={exampleImageHintId} className="text-xs">
-            This example app deploys as is. To run your own, replace it with your image and set its container port under Expose Ports.
+            You can deploy this example as is or replace it with your own image.
           </FieldDescription>
         )}
         <FieldError className="text-muted-foreground">{image.fieldState.error?.message}</FieldError>
@@ -203,6 +220,10 @@ const ImageField: FC<ImageFieldProps> = ({ serviceIndex, hasCredentials, onToggl
     </Field>
   );
 };
+
+function isExamplePortMapping(expose: ExposeType): boolean {
+  return expose.port === HELLO_WORLD_PORT && expose.as === DEFAULT_HTTP_PORT;
+}
 
 /**
  * A kept credential shows as an empty box, so clearing it has to restore the reference rather than submit a blank one,

@@ -55,11 +55,13 @@ export const defaultPricing = (): ServiceType["pricing"] => ({
   denom: UACT_DENOM
 });
 
+export const DEFAULT_HTTP_PORT = 80;
+
 /** Builds a fresh HTTP port published globally on port 80 with the default HTTP options. */
 export const defaultHttpExpose = (overrides?: Partial<ExposeType>): ExposeType => ({
   id: nanoid(),
-  port: 80,
-  as: 80,
+  port: DEFAULT_HTTP_PORT,
+  as: DEFAULT_HTTP_PORT,
   proto: "http",
   global: true,
   to: [],
