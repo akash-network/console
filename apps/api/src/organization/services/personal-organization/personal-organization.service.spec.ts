@@ -144,6 +144,26 @@ describe(PersonalOrganizationService.name, () => {
     });
   });
 
+  describe("renameToUsername", () => {
+    it("renames the user's personal organization to their username", async () => {
+      const user = createUser({ id: USER_ID, username: "alice" });
+      const { service, organizationRepository } = setup();
+
+      await service.renameToUsername(user);
+
+      expect(organizationRepository.updateBy).toHaveBeenCalledWith({ createdByUserId: USER_ID, type: "personal" }, { name: "alice" });
+    });
+
+    it("cuts a long username down to the organization name length", async () => {
+      const user = createUser({ username: "b".repeat(MAX_ORGANIZATION_NAME_LENGTH + 1) });
+      const { service, organizationRepository } = setup();
+
+      await service.renameToUsername(user);
+
+      expect(organizationRepository.updateBy).toHaveBeenCalledWith(expect.anything(), { name: "b".repeat(MAX_ORGANIZATION_NAME_LENGTH) });
+    });
+  });
+
   describe("adoptUserRows", () => {
     it("stamps the user's rows in every table with the organization and its default project", async () => {
       const user = createUser();

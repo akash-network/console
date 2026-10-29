@@ -261,13 +261,18 @@ export class UserService {
       changes.timezonePickedAt = new Date();
     }
 
-    if (data.username && user.username !== data.username) {
-      const existingUser = await this.userRepository.findOneBy({ username: data.username });
-      assert(!existingUser, 422, `Username not available: ${data.username} (${userId})`);
-      changes.username = data.username;
+    const newUsername = data.username && user.username !== data.username ? data.username : undefined;
+
+    if (newUsername) {
+      const existingUser = await this.userRepository.findOneBy({ username: newUsername });
+      assert(!existingUser, 422, `Username not available: ${newUsername} (${userId})`);
+      changes.username = newUsername;
     }
 
-    await this.userRepository.updateById(userId, changes);
+    await this.txService.transaction(async () => {
+      await this.userRepository.updateById(userId, changes);
+      if (newUsername) await this.personalOrganizationService.renameToUsername({ id: userId, username: newUsername });
+    });
 
     if (timezone && user.email) {
       await this.#shareTimezoneWithAlertEmails({ id: userId, email: user.email, timezone });

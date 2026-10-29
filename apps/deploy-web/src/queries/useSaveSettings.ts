@@ -1,9 +1,10 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios, { type AxiosResponse } from "axios";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { ORGANIZATIONS_QUERY_KEY } from "@src/queries/useOrganizationQueries";
 import { SKIP_REPORTING_HANDLED_BY_CALLER } from "@src/services/query-error-policy/query-error-policy";
 import type { UserSettings } from "@src/types/user";
 
@@ -12,6 +13,7 @@ export type UserSettingsUpdate = UserSettings & { subscribedToProductUpdates?: b
 export function useSaveSettings() {
   const { consoleApiHttpClient, errorHandler } = useServices();
 
+  const queryClient = useQueryClient();
   const { enqueueSnackbar } = useSnackbar();
   const { checkSession } = useCustomUser();
 
@@ -19,7 +21,10 @@ export function useSaveSettings() {
     mutationFn: async newSettings => {
       return consoleApiHttpClient.put("/v1/user/updateSettings", newSettings);
     },
-    onSuccess: () => checkSession(),
+    onSuccess: async (_, newSettings) => {
+      if (newSettings.username) await queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
+      await checkSession();
+    },
     onError: error => {
       let message = "Error saving settings";
       if (axios.isAxiosError(error) && error.response?.data) {

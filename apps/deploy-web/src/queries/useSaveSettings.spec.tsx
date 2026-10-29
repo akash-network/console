@@ -1,14 +1,16 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
+import { CustomSnackbarProvider } from "@akashnetwork/ui/context";
 import type { UserProviderProps } from "@auth0/nextjs-auth0/client";
 import { UserProvider } from "@auth0/nextjs-auth0/client";
+import { QueryClient } from "@tanstack/react-query";
 import type { AxiosInstance } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
 import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
-import { CustomSnackbarProvider } from "../../../../packages/ui/context/CustomSnackbarProvider";
 import { setupQuery } from "../../tests/unit/query-client";
+import { ORGANIZATIONS_QUERY_KEY } from "./useOrganizationQueries";
 import { useSaveSettings } from "./useSaveSettings";
 
 import { act, screen } from "@testing-library/react";
@@ -56,6 +58,34 @@ describe("Settings management", () => {
       expect(consoleApiHttpClient.put).toHaveBeenCalledWith(expect.stringContaining("/v1/user/updateSettings"), newSettings);
       expect(fetchUser).toHaveBeenCalledTimes(2);
       expect(result.current.isSuccess).toBe(true);
+    });
+
+    it("reloads only the organizations after a username change so the personal organization shows the new name", async () => {
+      const consoleApiHttpClient = mock<HttpClient>();
+      consoleApiHttpClient.put.mockResolvedValue({ status: 200 });
+      const queryClient = new QueryClient();
+      queryClient.setQueryData(ORGANIZATIONS_QUERY_KEY, { data: [] });
+      queryClient.setQueryData(["v1", "listProjects"], { data: [] });
+      const { result } = setup({ services: { consoleApiHttpClient: () => consoleApiHttpClient, queryClient: () => queryClient } });
+
+      act(() => result.current.mutate({ username: "testuser" }));
+      await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      expect(queryClient.getQueryState(ORGANIZATIONS_QUERY_KEY)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(["v1", "listProjects"])?.isInvalidated).toBe(false);
+    });
+
+    it("keeps the cached organizations when the username is not part of the change", async () => {
+      const consoleApiHttpClient = mock<HttpClient>();
+      consoleApiHttpClient.put.mockResolvedValue({ status: 200 });
+      const queryClient = new QueryClient();
+      queryClient.setQueryData(ORGANIZATIONS_QUERY_KEY, { data: [] });
+      const { result } = setup({ services: { consoleApiHttpClient: () => consoleApiHttpClient, queryClient: () => queryClient } });
+
+      act(() => result.current.mutate({ subscribedToProductUpdates: false }));
+      await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      expect(queryClient.getQueryState(ORGANIZATIONS_QUERY_KEY)?.isInvalidated).toBe(false);
     });
 
     it("handles error when saving settings and show error snackbar", async () => {

@@ -449,6 +449,45 @@ describe(UserService.name, () => {
       expect(notificationService.createDefaultChannel).not.toHaveBeenCalled();
     });
 
+    it("renames the personal organization to the new username", async () => {
+      const user = createUser({ username: "alice" });
+      const { service, userRepository, personalOrganizationService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      userRepository.findOneBy.mockResolvedValue(undefined);
+
+      await service.updateUserDetails(user.id, { username: "alice-renamed" });
+
+      expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { username: "alice-renamed" });
+      expect(personalOrganizationService.renameToUsername).toHaveBeenCalledWith({ id: user.id, username: "alice-renamed" });
+    });
+
+    it("refuses a username someone else holds without renaming anything", async () => {
+      const user = createUser({ username: "alice" });
+      const { service, userRepository, personalOrganizationService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      userRepository.findOneBy.mockResolvedValue(createUser({ username: "bob" }));
+
+      await expect(service.updateUserDetails(user.id, { username: "bob" })).rejects.toMatchObject({
+        status: 422,
+        message: `Username not available: bob (${user.id})`
+      });
+
+      expect(userRepository.findOneBy).toHaveBeenCalledWith({ username: "bob" });
+      expect(userRepository.updateById).not.toHaveBeenCalled();
+      expect(personalOrganizationService.renameToUsername).not.toHaveBeenCalled();
+    });
+
+    it("leaves the personal organization alone when the username is unchanged", async () => {
+      const user = createUser({ username: "alice" });
+      const { service, userRepository, personalOrganizationService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+
+      await service.updateUserDetails(user.id, { username: "alice", bio: "Builds on Akash" });
+
+      expect(userRepository.findOneBy).not.toHaveBeenCalled();
+      expect(personalOrganizationService.renameToUsername).not.toHaveBeenCalled();
+    });
+
     it("leaves the opt-out untouched when the product updates preference is not sent", async () => {
       const user = createUser({ productUpdatesUnsubscribedAt: faker.date.past() });
       const { service, userRepository } = setup();
