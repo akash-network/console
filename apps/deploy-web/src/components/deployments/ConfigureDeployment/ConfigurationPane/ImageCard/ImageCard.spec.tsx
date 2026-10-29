@@ -41,6 +41,15 @@ describe(ImageCard.name, () => {
     expect(screen.getByLabelText("Docker image")).toHaveAccessibleDescription("You can deploy this example as is or replace it with your own image.");
   });
 
+  it("drops the example hint once the user moves the example's port away from it", () => {
+    const { editExposedPort } = setup({ image: HELLO_WORLD_IMAGE, ports: [{ port: 3000, as: 80 }] });
+
+    editExposedPort(0, 8080);
+
+    expect(screen.getByLabelText("Docker image")).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(/deploy this example as is/)).not.toBeInTheDocument();
+  });
+
   it("shows no example hint when the example image is not exposed on its own port", () => {
     setup({ image: HELLO_WORLD_IMAGE, ports: [{ port: 80, as: 80 }] });
 
@@ -559,6 +568,7 @@ describe(ImageCard.name, () => {
 
     let getValues: () => SdlBuilderFormValuesType = () => values;
     let reset: (imported: SdlBuilderFormValuesType) => void = () => undefined;
+    let setExposedPort: (exposeIndex: number, port: number) => void = () => undefined;
     let getFieldError: (name: FieldPath<SdlBuilderFormValuesType>) => FieldError | undefined = () => undefined;
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({
@@ -569,6 +579,7 @@ describe(ImageCard.name, () => {
       });
       getValues = form.getValues;
       reset = form.reset;
+      setExposedPort = (exposeIndex, port) => form.setValue(`services.${input.serviceIndex ?? 0}.expose.${exposeIndex}.port`, port);
       getFieldError = name => form.getFieldState(name).error;
       return (
         <FormProvider {...form}>
@@ -589,6 +600,7 @@ describe(ImageCard.name, () => {
     return {
       getValues: () => getValues(),
       importValues: (imported: SdlBuilderFormValuesType) => act(() => reset(imported)),
+      editExposedPort: (exposeIndex: number, port: number) => act(() => setExposedPort(exposeIndex, port)),
       fieldError: (name: FieldPath<SdlBuilderFormValuesType>) => getFieldError(name)
     };
   }
