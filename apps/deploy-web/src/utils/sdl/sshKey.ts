@@ -6,6 +6,11 @@ export function takesSshKey(service: { image?: string; env?: Array<{ key?: strin
   return isVmImage(service.image ?? "") || !!service.env?.some(entry => entry?.key === SSH_PUBKEY_ENV_KEY);
 }
 
+/** Mirrors the form schema's rule, so a container that merely takes a key may still go without one. */
+export function lacksRequiredSshKey(service: { image?: string; sshPubKey?: string }): boolean {
+  return isVmImage(service.image ?? "") && !service.sshPubKey?.trim();
+}
+
 /**
  * Reads the SSH public key carried by a service, preferring the managed
  * `SSH_PUBKEY` env entry (the form of the key that ends up in the generated SDL)

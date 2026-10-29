@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useCallback } from "react";
+import { useCallback, useId } from "react";
 import { useController, useFormContext } from "react-hook-form";
 import { Button, CustomTooltip, Field, FieldContent, FieldError, FieldLabel, Input, Snackbar, TooltipProvider } from "@akashnetwork/ui/components";
 import { saveAs } from "file-saver";
@@ -31,6 +31,8 @@ type SshKeyScope = "deployment" | "service";
 type Props = {
   serviceIndex: number;
   scope?: SshKeyScope;
+  /** Called only once the keypair zip was handed to the browser and the public key applied. */
+  onKeyGenerated?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -54,9 +56,10 @@ function useApplySshKey(serviceIndex: number, scope: SshKeyScope) {
 }
 
 /** The SSH public key input, filled by hand or by generating a keypair that downloads as a zip, with usage instructions alongside. */
-export const SshPublicKeyField: FC<Props> = ({ serviceIndex, scope = "deployment", dependencies: d = DEPENDENCIES }) => {
+export const SshPublicKeyField: FC<Props> = ({ serviceIndex, scope = "deployment", onKeyGenerated, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
+  const inputId = useId();
   const sshPubKey = useController({ control, name: `services.${serviceIndex}.sshPubKey` });
   const applyKey = useApplySshKey(serviceIndex, scope);
 
@@ -81,15 +84,17 @@ export const SshPublicKeyField: FC<Props> = ({ serviceIndex, scope = "deployment
       enqueueSnackbar(<Snackbar title="SSH key cannot be generated" subTitle="Failed to generate or download the SSH keypair." iconVariant="error" />, {
         variant: "error"
       });
+      return;
     }
-  }, [d, enqueueSnackbar, applyKey]);
+    onKeyGenerated?.();
+  }, [d, enqueueSnackbar, applyKey, onKeyGenerated]);
 
   return (
     <Field className="gap-2">
-      <FieldLabel htmlFor={`ssh-pub-key-${serviceIndex}`}>SSH public key</FieldLabel>
+      <FieldLabel htmlFor={inputId}>SSH public key</FieldLabel>
       <FieldContent>
         <Input
-          id={`ssh-pub-key-${serviceIndex}`}
+          id={inputId}
           aria-label="SSH public key"
           placeholder="ssh-ed25519 AAAA… user@host"
           value={sshPubKey.field.value ?? ""}

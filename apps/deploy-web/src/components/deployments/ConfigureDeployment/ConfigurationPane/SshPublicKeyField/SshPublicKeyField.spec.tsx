@@ -120,6 +120,42 @@ describe(SshPublicKeyField.name, () => {
     expect(zipFile).toHaveBeenCalledWith("id_rsa", "PRIVATE");
   });
 
+  it("tells the caller about a generated key only after the keypair download started and the key was applied", async () => {
+    const saveAs = vi.fn();
+    let keyWhenTold: string | undefined;
+    const onKeyGenerated = vi.fn(() => {
+      keyWhenTold = getValues().services[0].sshPubKey;
+    });
+    const { getValues } = setup({
+      onKeyGenerated,
+      dependencies: { generateSSHKeyPair: vi.fn().mockResolvedValue({ publicKey: "ssh-rsa GENERATED", privatePem: "PRIVATE" }), saveAs }
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Generate new key" }));
+
+    await vi.waitFor(() => expect(onKeyGenerated).toHaveBeenCalledTimes(1));
+    expect(saveAs.mock.invocationCallOrder[0]).toBeLessThan(onKeyGenerated.mock.invocationCallOrder[0]);
+    expect(keyWhenTold).toBe("ssh-rsa GENERATED");
+  });
+
+  it("does not tell the caller about a keypair that could not be downloaded", async () => {
+    const onKeyGenerated = vi.fn();
+    const enqueueSnackbar = vi.fn();
+    setup({
+      onKeyGenerated,
+      dependencies: {
+        generateSSHKeyPair: vi.fn().mockResolvedValue({ publicKey: "ssh-rsa GENERATED", privatePem: "PRIVATE" }),
+        loadJSZip: vi.fn().mockRejectedValue(new Error("chunk failed to load")),
+        useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })
+      }
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Generate new key" }));
+
+    await vi.waitFor(() => expect(enqueueSnackbar).toHaveBeenCalled());
+    expect(onKeyGenerated).not.toHaveBeenCalled();
+  });
+
   it("reports a keypair that fails to generate as an error", async () => {
     const enqueueSnackbar = vi.fn();
     const { getValues } = setup({
@@ -216,6 +252,16 @@ describe(SshPublicKeyField.name, () => {
     expect(screen.getByRole("button", { name: "How to use the SSH key" })).toBeInTheDocument();
   });
 
+  it("points each copy's label at its own input when the same service's field is shown twice", async () => {
+    setup({ copies: 2 });
+    const [, secondLabel] = screen.getAllByText("SSH public key", { selector: "label" });
+    const [, secondInput] = screen.getAllByRole("textbox", { name: "SSH public key" });
+
+    await userEvent.click(secondLabel);
+
+    expect(secondInput).toHaveFocus();
+  });
+
   function setup(input: {
     image?: string;
     sshPubKey?: string;
@@ -223,6 +269,8 @@ describe(SshPublicKeyField.name, () => {
     extraServices?: number;
     scope?: "deployment" | "service";
     validate?: boolean;
+    onKeyGenerated?: () => void;
+    copies?: number;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const base = defaultServiceWithPlacement({
@@ -273,7 +321,9 @@ describe(SshPublicKeyField.name, () => {
 
     render(
       <Wrapper>
-        <SshPublicKeyField serviceIndex={0} scope={input.scope} dependencies={dependencies} />
+        {Array.from({ length: input.copies ?? 1 }, (_, copy) => (
+          <SshPublicKeyField key={copy} serviceIndex={0} scope={input.scope} onKeyGenerated={input.onKeyGenerated} dependencies={dependencies} />
+        ))}
       </Wrapper>
     );
 
