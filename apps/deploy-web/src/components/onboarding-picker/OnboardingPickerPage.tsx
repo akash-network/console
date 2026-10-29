@@ -220,7 +220,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
                 </div>
 
                 <Button variant="outline" className="w-full gap-2 no-underline hover:no-underline sm:w-auto" asChild>
-                  <Link href={urlService.configureDeployment()} onClick={trackCustomImageDeploy}>
+                  <Link href={urlService.configureDeployment({ exampleImage: true })} onClick={trackCustomImageDeploy}>
                     <span>Deploy image</span>
                     <ArrowRight className="h-4 w-4" />
                   </Link>

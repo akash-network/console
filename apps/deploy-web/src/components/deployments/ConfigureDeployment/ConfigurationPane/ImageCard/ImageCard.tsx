@@ -6,6 +6,7 @@ import {
   CollapsibleCard,
   Field,
   FieldContent,
+  FieldDescription,
   FieldError,
   FieldLabel,
   Input,
@@ -24,6 +25,7 @@ import { normalizeDockerImage } from "@src/utils/sdl/normalizeDockerImage";
 import { isSdlReference } from "@src/utils/sdl/sdlSecrets";
 import { takesSshKey } from "@src/utils/sdl/sshKey";
 import { isVmImage, SSH_VM_IMAGES } from "@src/utils/sdl/vmImages";
+import { HELLO_WORLD_IMAGE } from "@src/utils/templates";
 import { dockerImageTooltip, operatingSystemTooltip } from "../cardTooltips";
 import { SELECT_TRUNCATE_VALUE } from "../selectStyles";
 import { SshPublicKeyField } from "../SshPublicKeyField/SshPublicKeyField";
@@ -153,6 +155,8 @@ type ImageFieldProps = {
 const ImageField: FC<ImageFieldProps> = ({ serviceIndex, hasCredentials, onToggleCredentials }) => {
   const { control, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const image = useController({ control, name: `services.${serviceIndex}.image` });
+  const isExampleImage = image.field.value === HELLO_WORLD_IMAGE;
+  const exampleImageHintId = `image-${serviceIndex}-example-hint`;
 
   /**
    * Seeds blank default credentials when enabling a private registry and clears
@@ -182,8 +186,14 @@ const ImageField: FC<ImageFieldProps> = ({ serviceIndex, hasCredentials, onToggl
           onChange={event => image.field.onChange(normalizeDockerImage(event.target.value || ""))}
           onBlur={image.field.onBlur}
           error={!!image.fieldState.error}
+          aria-describedby={isExampleImage ? exampleImageHintId : undefined}
           inputClassName="h-9"
         />
+        {isExampleImage && (
+          <FieldDescription id={exampleImageHintId} className="text-xs">
+            This example app deploys as is. To run your own, replace it with your image and set its container port under Expose Ports.
+          </FieldDescription>
+        )}
         <FieldError className="text-muted-foreground">{image.fieldState.error?.message}</FieldError>
       </FieldContent>
       <div className="flex items-center gap-2">

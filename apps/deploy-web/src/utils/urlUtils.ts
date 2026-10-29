@@ -10,6 +10,7 @@ export type ConfigureDeploymentParams = {
   bidStrategy?: "auto" | "select";
   draftId?: string;
   vm?: boolean;
+  exampleImage?: boolean;
 };
 
 export const domainName = "https://console.akash.network";
@@ -91,9 +92,9 @@ export const UrlService = {
   newDeployment: ({ projectId }: { projectId?: string } = {}) => `/new-deployment${appendSearchParams({ projectId })}`,
 
   configureDeployment: (params: ConfigureDeploymentParams = {}) => {
-    const { dseq, templateId, userTemplateId, sdlStrategy, bidStrategy, draftId, vm } = params;
+    const { dseq, templateId, userTemplateId, sdlStrategy, bidStrategy, draftId, vm, exampleImage } = params;
     const base = dseq ? `/new-deployment/configure/${dseq}` : "/new-deployment/configure";
-    return `${base}${appendSearchParams({ templateId, userTemplateId, "sdl-strategy": sdlStrategy, "bid-strategy": bidStrategy, draftId, vm })}`;
+    return `${base}${appendSearchParams({ templateId, userTemplateId, "sdl-strategy": sdlStrategy, "bid-strategy": bidStrategy, draftId, vm, exampleImage })}`;
   }
 };
 

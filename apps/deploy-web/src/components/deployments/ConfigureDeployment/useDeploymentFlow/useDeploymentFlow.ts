@@ -1335,6 +1335,7 @@ export function buildConfigureUrl(intent: DeploymentIntent, dseq: string | undef
     sdlStrategy: intent.templateId ? intent.sdlStrategy : undefined,
     bidStrategy,
     draftId: intent.draftId,
-    vm: intent.vm
+    vm: intent.vm,
+    exampleImage: intent.exampleImage
   });
 }

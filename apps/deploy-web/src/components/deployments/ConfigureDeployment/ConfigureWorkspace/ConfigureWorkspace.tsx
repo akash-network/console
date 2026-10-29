@@ -10,6 +10,7 @@ import { useGpuModels } from "@src/queries/useGpuQuery";
 import { useHasPlacementWithoutProviders, useScreenedProviders } from "@src/queries/useScreenedProviders";
 import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { lacksRequiredSshKey } from "@src/utils/sdl/sshKey";
+import { HELLO_WORLD_IMAGE } from "@src/utils/templates";
 import { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
 import { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
 import { ResetConfigurationButton } from "../ConfigureEditor/ResetConfigurationButton/ResetConfigurationButton";
@@ -160,7 +161,10 @@ export const ConfigureWorkspace: FC<Props> = ({
 
   function chooseProvider() {
     setIsProvidersSheetOpen(false);
-    analyticsService.track("configure_choose_provider_clicked", { category: "deployments" });
+    analyticsService.track("configure_choose_provider_clicked", {
+      category: "deployments",
+      usesExampleImage: getValues("services").some(service => service.image === HELLO_WORLD_IMAGE)
+    });
     const missingKeyStep = sshKeyStepFor("choose_provider", getValues("services"));
     if (missingKeyStep) {
       setSshKeyStep(missingKeyStep);

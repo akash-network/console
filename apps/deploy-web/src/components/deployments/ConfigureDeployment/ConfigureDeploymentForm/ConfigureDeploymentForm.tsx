@@ -18,7 +18,7 @@ import { usePlacementsWithBids } from "@src/queries/usePlacementsWithBids";
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { parseBidId } from "@src/utils/bids/bidId";
-import { defaultServiceWithPlacement, vmServiceOverrides } from "@src/utils/sdl/data";
+import { defaultServiceWithPlacement, exampleImageServiceOverrides, vmServiceOverrides } from "@src/utils/sdl/data";
 import { getPlacementGseq } from "@src/utils/sdl/placementGseq";
 import { severalRegionPicksOf } from "@src/utils/sdl/placementRegions";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
@@ -95,7 +95,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   /** Unleash can flip a flag mid-session, and swapping the layout under someone configuring would lose their place. */
   const [isTwoPanel] = useState(isTwoPanelEnabled);
   const draft = d.useConfigureDraft(intent);
-  const [initialState] = useState(() => getInitialState(initialSdl, intent.vm, draft.persistedPlacementRegions));
+  const [initialState] = useState(() => getInitialState(initialSdl, intent, draft.persistedPlacementRegions));
   const [liveSdl, setLiveSdl] = useState(initialState.sdl);
   const [previewSdl, setPreviewSdl] = useState(initialState.sdl);
   const [selectedServiceId, setSelectedServiceId] = useState<string>(initialState.selectedServiceId);
@@ -401,8 +401,8 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
 
   const resetConfiguration = useCallback(() => {
     analyticsService.track("configure_reset_confirmed", { category: "deployments" });
-    applyImportedState(getInitialState(startingSdl, intent.vm));
-  }, [analyticsService, applyImportedState, startingSdl, intent.vm]);
+    applyImportedState(getInitialState(startingSdl, intent));
+  }, [analyticsService, applyImportedState, startingSdl, intent]);
   /** Import is only meaningful while the deployment is still editable; export stays available in every phase. */
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
   /** The review stays up, its deploy pending, until the api has the deploy, and comes back once that takes too long, which also keeps Edit and Leave out of reach. */
@@ -508,6 +508,9 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   );
 };
 
+/** What a fresh deployment is seeded with when nothing was carried in. */
+type DefaultSeed = Pick<DeploymentIntent, "vm" | "exampleImage">;
+
 interface InitialState {
   values: SdlBuilderFormValuesType;
   sdl: string;
@@ -521,17 +524,18 @@ interface InitialState {
  * A carried-in SDL is used only when it imports to a usable deployment (at least one visible service);
  * otherwise — invalid YAML, or a service-less SDL the configure screen can't work with — the screen falls
  * back to a default deployment. This guarantees there is always a service (and placement) to select.
- * A Container-VM entry (`isVm`) seeds an SSH-ready VM service instead of the blank default.
+ * A Container-VM entry (`vm`) seeds an SSH-ready VM service instead of the blank default, and an `exampleImage`
+ * entry seeds the default service with a working example image.
  */
-function getInitialState(carriedInSdl: string | undefined, isVm: boolean, placementRegions?: PlacementRegionPicks): InitialState {
-  if (!carriedInSdl) return defaultInitialState(isVm);
+function getInitialState(carriedInSdl: string | undefined, seed: DefaultSeed, placementRegions?: PlacementRegionPicks): InitialState {
+  if (!carriedInSdl) return defaultInitialState(seed);
 
   try {
     const imported = withRestoredRegions(importDeploymentState(carriedInSdl), placementRegions);
     return { ...imported, sdl: sdlOfImportedState(imported) };
   } catch (error) {
-    if (error instanceof NoVisibleServiceError) return defaultInitialState(isVm);
-    return defaultInitialState(isVm, getImportErrorMessage(error));
+    if (error instanceof NoVisibleServiceError) return defaultInitialState(seed);
+    return defaultInitialState(seed, getImportErrorMessage(error));
   }
 }
 
@@ -555,11 +559,11 @@ function draftableSdlOf(sdl: string, services: ServiceType[]): string | undefine
   }
 }
 
-/** A fresh default deployment (or SSH-ready VM deployment), optionally annotated with the error that made an import unusable. */
-function defaultInitialState(isVm: boolean, importError?: string): InitialState {
+/** A fresh default deployment (or SSH-ready VM or example image deployment), optionally annotated with the error that made an import unusable. */
+function defaultInitialState({ vm: isVm, exampleImage }: DefaultSeed, importError?: string): InitialState {
   const values = isVm
     ? { ...withDefaultPreset(defaultServiceWithPlacement(vmServiceOverrides())), hasSSHKey: true }
-    : withDefaultPreset(defaultServiceWithPlacement());
+    : withDefaultPreset(defaultServiceWithPlacement(exampleImage ? exampleImageServiceOverrides() : undefined));
   return { values, sdl: regenerateSdl(values, ""), selectedServiceId: seedSelectedServiceId(values), changes: [], importError };
 }
 

@@ -51,8 +51,8 @@ type Props = {
  * carry their SDL inline and are matched by code, while everything else is fetched as a public gallery template. A
  * `userTemplateId` instead fetches the viewer's own saved template, which the API answers with an empty body when it
  * isn't theirs to see — surfaced as the same "couldn't load" fallback as a failed request. With neither, the carried-in
- * `deploySdl` atom is used, except on a `vm=true` entry, which ignores the atom so a fresh Container-VM session always
- * seeds deterministically. A resume none of those answer for starts the form from the definition the console recorded.
+ * `deploySdl` atom is used, except on a `vm=true` or `exampleImage=true` entry, which ignores the atom so a fresh
+ * Container-VM or example image session always seeds deterministically. A resume none of those answer for starts the form from the definition the console recorded.
  * Keeping resolution here lets the form initialize synchronously from a single source — and lets a resume skip the
  * template fetch.
  */
@@ -81,7 +81,7 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
 
   const fetchedSdl = fetchedTemplateId ? templateQuery.data?.deploy : userTemplateQuery.data?.sdl;
   const fetchedName = fetchedTemplateId ? templateQuery.data?.name : userTemplateQuery.data?.title;
-  const carriedInSdl = intent.vm ? undefined : deploySdl?.content;
+  const carriedInSdl = intent.vm || intent.exampleImage ? undefined : deploySdl?.content;
   const initialSdl = draft.persistedSdl ?? hardcodedTemplate?.content ?? (isFetchingTemplate ? fetchedSdl : carriedInSdl);
   const initialName = draft.persistedName ?? hardcodedTemplate?.name ?? (isFetchingTemplate ? fetchedName : undefined);
   const isStartingFromDefault = hasTemplateFailed && !initialSdl;
@@ -112,9 +112,21 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
       bidStrategy: intent.bidStrategy,
       dseq: intent.dseq,
       draftId: draft.draftId,
-      vm: intent.vm
+      vm: intent.vm,
+      exampleImage: intent.exampleImage
     }),
-    [intent.templateId, intent.userTemplateId, intent.sdlStrategy, needsSecretValues, isEditedInForm, intent.bidStrategy, intent.dseq, draft.draftId, intent.vm]
+    [
+      intent.templateId,
+      intent.userTemplateId,
+      intent.sdlStrategy,
+      needsSecretValues,
+      isEditedInForm,
+      intent.bidStrategy,
+      intent.dseq,
+      draft.draftId,
+      intent.vm,
+      intent.exampleImage
+    ]
   );
 
   const isAutoDeploy = resolvedIntent.sdlStrategy === "default" && resolvedIntent.bidStrategy === "auto";

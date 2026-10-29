@@ -281,6 +281,12 @@ describe(OnboardingPickerPage.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", option: LLM_ID });
   });
 
+  it("opens the configure screen with the example image filled in from the Deploy image link", () => {
+    setup({});
+
+    expect(screen.getByRole("link", { name: /deploy image/i })).toHaveAttribute("href", UrlService.configureDeployment({ exampleImage: true }));
+  });
+
   it("tracks a deploy click with the custom-image option from the Deploy image link", () => {
     const { analyticsService } = setup({});
 

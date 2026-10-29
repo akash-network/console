@@ -10,6 +10,7 @@ import type { PlacementType, SdlBuilderFormValuesType } from "@src/types";
 import type { OrganizationRole } from "@src/types/organization";
 import { defaultService } from "@src/utils/sdl/data";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
+import { HELLO_WORLD_IMAGE } from "@src/utils/templates";
 import { ConfigurationPane } from "../ConfigurationPane/ConfigurationPane";
 import { DEPENDENCIES as LOGS_CARD_DEPENDENCIES, LogsCard } from "../ConfigurationPane/LogsCard/LogsCard";
 import { ConfigureEditor, DEPENDENCIES as CONFIGURE_EDITOR_DEPENDENCIES } from "../ConfigureEditor/ConfigureEditor";
@@ -921,6 +922,29 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(screen.getByTestId("ssh-pub-key").textContent).toBe("");
   });
 
+  it("seeds the example image on its own port behind port 80 on an example image entry with no carried-in SDL", () => {
+    setup({ initialSdl: undefined, exampleImage: true, Panes: VmStateProbePanes });
+
+    expect(screen.getByTestId("image").textContent).toBe(HELLO_WORLD_IMAGE);
+    expect(JSON.parse(screen.getByTestId("expose").textContent ?? "[]")).toEqual([{ port: 3000, as: 80, proto: "http", global: true }]);
+    expect(screen.getByTestId("has-ssh-key").textContent).toBe("false");
+  });
+
+  it("keeps the example image seed on the small hardware preset", () => {
+    setup({ initialSdl: undefined, exampleImage: true, Panes: VmStateProbePanes });
+
+    const sdl = screen.getByTestId("sdl").textContent ?? "";
+    expect(sdl).toContain(HELLO_WORLD_IMAGE);
+    expect(sdl).toContain("2Gi");
+    expect(sdl).toContain("10Gi");
+  });
+
+  it("leaves the image blank on an entry without the example image", () => {
+    setup({ initialSdl: undefined, Panes: VmStateProbePanes });
+
+    expect(screen.getByTestId("image").textContent).toBe("");
+  });
+
   it("restores the expose-ssh flag for a carried-in deployment holding a vm service", () => {
     setup({ initialSdl: VM_SDL_WITHOUT_KEY, Panes: VmStateProbePanes });
 
@@ -1062,6 +1086,17 @@ describe(ConfigureDeploymentForm.name, () => {
       await userEvent.click(screen.getByRole("button", { name: "reset" }));
 
       await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("service-1"));
+    });
+
+    it("starts over from the example image when an example image session is reset", async () => {
+      setup({ initialSdl: undefined, exampleImage: true, twoPanel: true, Workspace: ResetProbeWorkspace });
+      await userEvent.click(screen.getByRole("button", { name: "rename first service" }));
+      await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("renamed"));
+
+      await userEvent.click(screen.getByRole("button", { name: "reset" }));
+
+      await waitFor(() => expect(screen.getByTestId("service-titles").textContent).toBe("service-1"));
+      expect(screen.getByTestId("sdl").textContent).toContain(HELLO_WORLD_IMAGE);
     });
 
     it("restores the sdl a restored draft started from rather than the draft's own edits", async () => {
@@ -1225,6 +1260,7 @@ describe(ConfigureDeploymentForm.name, () => {
     flowError?: FlowError;
     noBidsReceived?: boolean;
     vm?: boolean;
+    exampleImage?: boolean;
     phase?: DeploymentFlow["phase"];
     pendingClose?: DeploymentFlow["pendingClose"];
     recommendedBidIds?: string[];
@@ -1344,7 +1380,14 @@ describe(ConfigureDeploymentForm.name, () => {
       <ConfigureDeploymentForm
         initialSdl={input.initialSdl}
         initialName={input.initialName}
-        intent={{ sdlStrategy: "edit", bidStrategy: "select", dseq: undefined, draftId: input.draftId, vm: input.vm ?? false }}
+        intent={{
+          sdlStrategy: "edit",
+          bidStrategy: "select",
+          dseq: undefined,
+          draftId: input.draftId,
+          vm: input.vm ?? false,
+          exampleImage: input.exampleImage
+        }}
         flow={flow}
         dependencies={{
           ...dependencies,

@@ -8,6 +8,7 @@ import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { defaultService, defaultServiceWithPlacement } from "@src/utils/sdl/data";
 import { withServiceSshKey } from "@src/utils/sdl/sshKey";
+import { HELLO_WORLD_IMAGE } from "@src/utils/templates";
 import { ImageCard } from "./ImageCard";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -20,6 +21,32 @@ describe(ImageCard.name, () => {
     await userEvent.type(screen.getByLabelText("Docker image"), "MyImage:1.0");
 
     expect(getValues().services[0].image).toBe("myimage:1.0");
+  });
+
+  it("marks the example image as one the user can replace", () => {
+    setup({ image: HELLO_WORLD_IMAGE });
+
+    expect(screen.getByLabelText("Docker image")).toHaveAccessibleDescription(
+      "This example app deploys as is. To run your own, replace it with your image and set its container port under Expose Ports."
+    );
+  });
+
+  it("drops the example hint once the user types their own image", async () => {
+    const { getValues } = setup({ image: HELLO_WORLD_IMAGE });
+
+    await userEvent.clear(screen.getByLabelText("Docker image"));
+    await userEvent.type(screen.getByLabelText("Docker image"), "MyImage:1.0");
+
+    expect(getValues().services[0].image).toBe("myimage:1.0");
+    expect(screen.getByLabelText("Docker image")).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(/This example app deploys as is/)).not.toBeInTheDocument();
+  });
+
+  it("shows no example hint for an image the user brought", () => {
+    setup({ image: "nginx:latest" });
+
+    expect(screen.getByLabelText("Docker image")).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(/This example app deploys as is/)).not.toBeInTheDocument();
   });
 
   it("disables the image and credentials fields while locked", () => {
