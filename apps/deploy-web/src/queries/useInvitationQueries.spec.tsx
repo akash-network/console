@@ -40,7 +40,7 @@ describe("useInvitationQueries", () => {
   });
 
   describe(useAcceptInvitationMutation.name, () => {
-    it("adds the joined organization to the cached memberships and refreshes the preview", async () => {
+    it("adds the joined organization to the cached memberships and refreshes the preview and the received invitations", async () => {
       const { result, acceptInvitation, queryClient } = setup({ useHook: () => useAcceptInvitationMutation() });
       queryClient.setQueryData(ORGANIZATIONS_QUERY_KEY, { data: [PERSONAL] });
 
@@ -49,6 +49,8 @@ describe("useInvitationQueries", () => {
       expect(acceptInvitation).toHaveBeenCalledWith({ data: { token: TOKEN, confirmEmailMismatch: true } });
       expect(readCachedOrganizations(queryClient)).toEqual([PERSONAL, JOINED]);
       expect(queryClient.getQueryState(PREVIEW_KEY)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(RECEIVED_KEY)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(ORGANIZATIONS_QUERY_KEY)?.isInvalidated).toBe(false);
     });
 
     it("does not list an organization twice when the caller already belongs to it", async () => {
@@ -60,7 +62,7 @@ describe("useInvitationQueries", () => {
       expect(readCachedOrganizations(queryClient)).toEqual([PERSONAL, JOINED]);
     });
 
-    it("refreshes the preview and leaves the memberships alone when the invitation is refused", async () => {
+    it("refreshes the preview and the received invitations and leaves the memberships alone when the invitation is refused", async () => {
       const { result, acceptInvitation, queryClient } = setup({ useHook: () => useAcceptInvitationMutation() });
       queryClient.setQueryData(ORGANIZATIONS_QUERY_KEY, { data: [PERSONAL] });
       acceptInvitation.mockRejectedValue(new Error("expired"));
@@ -71,6 +73,8 @@ describe("useInvitationQueries", () => {
 
       expect(readCachedOrganizations(queryClient)).toEqual([PERSONAL]);
       expect(queryClient.getQueryState(PREVIEW_KEY)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(RECEIVED_KEY)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(ORGANIZATIONS_QUERY_KEY)?.isInvalidated).toBe(false);
       const [mutation] = queryClient.getMutationCache().getAll();
       expect(mutation.meta?.skipErrorReporting).toEqual(expect.any(Function));
     });
@@ -104,6 +108,7 @@ describe("useInvitationQueries", () => {
       expect(acceptReceivedInvitation).toHaveBeenCalledWith({ id: RECEIVED.id });
       expect(readCachedOrganizations(queryClient)).toEqual([PERSONAL, JOINED]);
       expect(queryClient.getQueryState(RECEIVED_KEY)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(PREVIEW_KEY)?.isInvalidated).toBe(false);
     });
 
     it("refreshes the received invitations and leaves the memberships alone when the invitation is refused", async () => {
@@ -117,6 +122,7 @@ describe("useInvitationQueries", () => {
 
       expect(readCachedOrganizations(queryClient)).toEqual([PERSONAL]);
       expect(queryClient.getQueryState(RECEIVED_KEY)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(PREVIEW_KEY)?.isInvalidated).toBe(false);
       const [mutation] = queryClient.getMutationCache().getAll();
       expect(mutation.meta?.skipErrorReporting).toEqual(expect.any(Function));
     });
@@ -130,6 +136,7 @@ describe("useInvitationQueries", () => {
 
       expect(declineReceivedInvitation).toHaveBeenCalledWith({ id: RECEIVED.id });
       expect(queryClient.getQueryState(RECEIVED_KEY)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(PREVIEW_KEY)?.isInvalidated).toBe(false);
     });
 
     it("refreshes the received invitations when the decline is refused, without reporting the refusal", async () => {
@@ -141,6 +148,7 @@ describe("useInvitationQueries", () => {
       });
 
       expect(queryClient.getQueryState(RECEIVED_KEY)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(PREVIEW_KEY)?.isInvalidated).toBe(false);
       const [mutation] = queryClient.getMutationCache().getAll();
       expect(mutation.meta?.skipErrorReporting).toEqual(expect.any(Function));
     });

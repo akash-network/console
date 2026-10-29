@@ -21,7 +21,11 @@ export function useAcceptInvitationMutation() {
   return api.v1.acceptInvitation.useMutation({
     meta: SKIP_REPORTING_REFUSED_INPUT,
     onSuccess: ({ data: joined }) => addCachedOrganization(queryClient, joined),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: api.v1.previewInvitation.getKey() })
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: api.v1.previewInvitation.getKey() }),
+        queryClient.invalidateQueries({ queryKey: api.v1.listReceivedInvitations.getKey() })
+      ])
   });
 }
 
