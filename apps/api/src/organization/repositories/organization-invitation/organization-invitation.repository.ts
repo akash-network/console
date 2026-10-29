@@ -6,7 +6,9 @@ import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repositor
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
+import { OrganizationMembers } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
+import type { UserOutput } from "@src/user/repositories/user/user.repository";
 
 type Table = ApiPgTables["OrganizationInvitations"];
 export type OrganizationInvitationInput = Table["$inferInsert"];
@@ -121,7 +123,7 @@ export class OrganizationInvitationRepository extends OrgScopedRepository<Table,
     return preview;
   }
 
-  async findPendingSentTo(email: OrganizationInvitationOutput["email"]): Promise<ReceivedInvitation[]> {
+  async findPendingSentTo(email: OrganizationInvitationOutput["email"], { exceptTeamsOf }: { exceptTeamsOf: UserOutput["id"] }): Promise<ReceivedInvitation[]> {
     return await this.cursor
       .select({
         id: this.table.id,
@@ -135,7 +137,12 @@ export class OrganizationInvitationRepository extends OrgScopedRepository<Table,
       .from(this.table)
       .innerJoin(Organizations, and(eq(Organizations.id, this.table.organizationId), isNull(Organizations.deletedAt)))
       .leftJoin(Users, eq(Users.id, this.table.invitedByUserId))
-      .where(this.whereAccessibleBy(and(eq(this.table.email, email), eq(this.table.status, "pending"), gt(this.table.expiresAt, new Date()))))
+      .leftJoin(OrganizationMembers, and(eq(OrganizationMembers.organizationId, this.table.organizationId), eq(OrganizationMembers.userId, exceptTeamsOf)))
+      .where(
+        this.whereAccessibleBy(
+          and(eq(this.table.email, email), eq(this.table.status, "pending"), gt(this.table.expiresAt, new Date()), isNull(OrganizationMembers.id))
+        )
+      )
       .orderBy(desc(this.table.createdAt), desc(this.table.id));
   }
 

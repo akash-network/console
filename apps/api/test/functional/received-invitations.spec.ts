@@ -82,6 +82,18 @@ describe("Received invitations", () => {
       expect(await response.json()).toEqual({ data: [] });
     });
 
+    it("leaves out an invitation to a team the caller already belongs to", async () => {
+      const { organization, invite, seedInvitee, request } = await setup({});
+      const invitee = await seedInvitee();
+      await seedOrganizationMember({ organizationId: organization.id, userId: invitee.id });
+      await invite({ email: invitee.email! });
+
+      const response = await request("/v1/received-invitations", { method: "GET", asUser: invitee });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ data: [] });
+    });
+
     it("refuses an API key", async () => {
       const { invite, seedInvitee, seedApiKey, request } = await setup({});
       const invitee = await seedInvitee();

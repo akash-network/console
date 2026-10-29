@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { hashInvitationToken } from "@src/organization/lib/invitation-token/invitation-token";
 import { OrganizationInvitationRepository } from "./organization-invitation.repository";
 
-import { seedOrganization, seedOrganizationInvitation } from "@test/seeders/db/organization.seeder";
+import { seedOrganization, seedOrganizationInvitation, seedOrganizationMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 
 describe(OrganizationInvitationRepository.name, () => {
@@ -178,7 +178,7 @@ describe(OrganizationInvitationRepository.name, () => {
         createdAt: addDays(new Date(), -1)
       });
 
-      const invitations = await repository.findPendingSentTo(email);
+      const invitations = await repository.findPendingSentTo(email, { exceptTeamsOf: inviter.id });
 
       expect(invitations).toEqual([
         {
@@ -213,7 +213,21 @@ describe(OrganizationInvitationRepository.name, () => {
       await seedOrganizationInvitation({ organizationId: deleted.id, email });
       await seedOrganizationInvitation({ organizationId: organization.id, email: `joe-${email}` });
 
-      expect(await repository.findPendingSentTo(email)).toEqual([]);
+      expect(await repository.findPendingSentTo(email, { exceptTeamsOf: faker.string.uuid() })).toEqual([]);
+    });
+
+    it("leaves out invitations to organizations the recipient already belongs to", async () => {
+      const { repository, organization } = await setup();
+      const email = `jane-${faker.string.alphanumeric(12).toLowerCase()}@example.com`;
+      const recipient = await seedUser({ userId: faker.string.uuid(), email });
+      const otherTeam = await seedOrganization({ name: `other-${faker.string.alphanumeric(8)}` });
+      await seedOrganizationMember({ organizationId: organization.id, userId: recipient.id });
+      await seedOrganizationInvitation({ organizationId: organization.id, email });
+      const stillOpen = await seedOrganizationInvitation({ organizationId: otherTeam.id, email });
+
+      const invitations = await repository.findPendingSentTo(email, { exceptTeamsOf: recipient.id });
+
+      expect(invitations.map(invitation => invitation.id)).toEqual([stillOpen.id]);
     });
   });
 

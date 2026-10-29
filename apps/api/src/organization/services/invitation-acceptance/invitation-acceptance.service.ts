@@ -74,12 +74,12 @@ export class InvitationAcceptanceService {
   }
 
   async listReceivedInvitations(): Promise<ReceivedInvitation[]> {
-    const { userId } = this.authService.currentUser;
+    const { id, userId } = this.authService.currentUser;
     const email = userId && (await this.verifiedEmailService.getRecentVerifiedEmail(userId));
 
     if (!email) return [];
 
-    return await this.invitationRepository.unscoped("invitation-by-verified-email").findPendingSentTo(email);
+    return await this.invitationRepository.unscoped("invitation-by-verified-email").findPendingSentTo(email, { exceptTeamsOf: id });
   }
 
   /** Accepting an invitation already accepted by the same user answers the organization again without changing their membership. */

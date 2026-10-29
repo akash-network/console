@@ -339,7 +339,7 @@ describe(InvitationAcceptanceService.name, () => {
   });
 
   describe("listReceivedInvitations", () => {
-    it("lists the pending invitations sent to the email Auth0 verified for the caller", async () => {
+    it("lists the pending invitations sent to the email Auth0 verified for the caller, except to the teams they belong to", async () => {
       const receivedInvitations = [createReceivedInvitation(), createReceivedInvitation()];
       const { service, invitee, invitationRepository, unscopedRepositories, verifiedEmailService } = setup({
         verifiedEmail: "jane@example.com",
@@ -349,7 +349,7 @@ describe(InvitationAcceptanceService.name, () => {
       await expect(service.listReceivedInvitations()).resolves.toEqual(receivedInvitations);
       expect(verifiedEmailService.getRecentVerifiedEmail).toHaveBeenCalledWith(invitee.userId);
       expect(invitationRepository.unscoped).toHaveBeenCalledWith("invitation-by-verified-email");
-      expect(unscopedRepositories.invitations.findPendingSentTo).toHaveBeenCalledWith("jane@example.com");
+      expect(unscopedRepositories.invitations.findPendingSentTo).toHaveBeenCalledWith("jane@example.com", { exceptTeamsOf: invitee.id });
     });
 
     it("lists nothing when Auth0 verified no email for the caller", async () => {
