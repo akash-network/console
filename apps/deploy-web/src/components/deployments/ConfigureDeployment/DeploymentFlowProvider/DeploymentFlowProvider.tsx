@@ -23,6 +23,8 @@ export type DeploymentLeaveGuard = {
   holdsUnleasedDeployment: boolean;
   /** A lease already sent may still land once the page is gone, so leaving keeps the deployment instead of discarding it. */
   isLeaseInFlight: boolean;
+  /** The deployment keeps going once the page is gone: its lease was sent or created, or the api took the whole one-click deploy on. */
+  keepsDeployingWithoutPage: boolean;
   discard: () => void;
 };
 
@@ -33,7 +35,13 @@ interface Props {
   dependencies?: typeof DEPENDENCIES;
 }
 
-const NOTHING_TO_GUARD: DeploymentLeaveGuard = { isCreating: false, holdsUnleasedDeployment: false, isLeaseInFlight: false, discard: () => {} };
+const NOTHING_TO_GUARD: DeploymentLeaveGuard = {
+  isCreating: false,
+  holdsUnleasedDeployment: false,
+  isLeaseInFlight: false,
+  keepsDeployingWithoutPage: false,
+  discard: () => {}
+};
 
 const DeploymentLeaveGuardContext = createContext<DeploymentLeaveGuard>(NOTHING_TO_GUARD);
 
@@ -60,12 +68,13 @@ export const DeploymentFlowProvider: FC<Props> = ({ intent, children, dependenci
   const isCreating = flow.phase === "creating" && !flow.isCreatingInBackground;
   const { isLeaseInFlight } = flow;
   const holdsUnleasedDeployment = isAwaitingLease(flow) && !flow.isCreatingInBackground && !isLeaseInFlight;
+  const keepsDeployingWithoutPage = isLeaseInFlight || flow.deploySucceeded || flow.autoLeasedDseq !== null;
   const { discard } = flow.actions;
   d.useWarnBeforeUnload(isCreating);
   d.useUnlockAppOnFirstCreate(flow.dseq);
   const leaveGuard = useMemo(
-    () => ({ isCreating, holdsUnleasedDeployment, isLeaseInFlight, discard }),
-    [isCreating, holdsUnleasedDeployment, isLeaseInFlight, discard]
+    () => ({ isCreating, holdsUnleasedDeployment, isLeaseInFlight, keepsDeployingWithoutPage, discard }),
+    [isCreating, holdsUnleasedDeployment, isLeaseInFlight, keepsDeployingWithoutPage, discard]
   );
   const { enqueueSnackbar } = d.useSnackbar();
 

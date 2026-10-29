@@ -74,7 +74,7 @@ export function PhasedDeploymentProgress({
     );
   }
 
-  const canChooseProvider = state.kind === "matching" || state.kind === "creating";
+  const canChooseProvider = state.kind === "matching" && !!state.hasBids;
   return (
     <DeployProgressPanel
       templateName={templateName}

@@ -154,7 +154,7 @@ describe(useAutoDeploymentFlow.name, () => {
     await waitForDeadline();
 
     expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
-    expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: false });
+    expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: false, hasBids: false });
   });
 
   describe("when the flow says the first bid is late", () => {
@@ -164,7 +164,7 @@ describe(useAutoDeploymentFlow.name, () => {
 
       act(() => flow.reportNoBids());
 
-      expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: true });
+      expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: true, hasBids: false });
       expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
     });
 
@@ -208,7 +208,7 @@ describe(useAutoDeploymentFlow.name, () => {
       await act(() => vi.advanceTimersByTimeAsync(DEADLINE_PAST_WAIT_FOR_MS));
 
       expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
-      expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: false });
+      expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: false, hasBids: true });
     });
 
     it("leaves the deployment open once the autopilot has been stopped for a manual hand-off", async () => {
@@ -404,6 +404,71 @@ describe(useAutoDeploymentFlow.name, () => {
     await vi.waitFor(() => expect(result.current.state.kind).toBe("success"));
   });
 
+  describe("recommending a bid for a manual pick", () => {
+    const OTHER_PROVIDER = "akash1otherprovider";
+
+    it("recommends the first open bid while no provider is matched yet, and says bids are in", async () => {
+      const { result } = setup({ providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")) });
+
+      await vi.waitFor(() => expect(result.current.recommendedBidIds).toEqual([BID_ID]));
+      expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: false, hasBids: true });
+    });
+
+    it("recommends nothing while no provider has bid", async () => {
+      const { result } = setup({ bids: [] });
+
+      await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
+      expect(result.current.recommendedBidIds).toEqual([]);
+      expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: false, hasBids: false });
+    });
+
+    it("passes over bids that are no longer open or are for another placement", async () => {
+      const closedBid = bidFrom(OTHER_PROVIDER, { state: "closed" });
+      const otherPlacementBid = bidFrom(OTHER_PROVIDER, { gseq: 2 });
+      const { result } = setup({
+        bids: [closedBid, otherPlacementBid, openBid()],
+        providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable"))
+      });
+
+      await vi.waitFor(() => expect(result.current.recommendedBidIds).toEqual([BID_ID]));
+    });
+
+    it("recommends the provider it matched over a bid that came in before it", async () => {
+      const otherProvider = mock<ApiProviderList>({ owner: OTHER_PROVIDER, hostUri: "https://other-provider.example" });
+      const provider = mock<ApiProviderList>({ owner: PROVIDER_OWNER, hostUri: "https://provider.example" });
+      const { result, flow } = setup({
+        bids: [bidFrom(OTHER_PROVIDER), openBid()],
+        providers: [otherProvider, provider],
+        providerProxyRequest: vi.fn((_path: string, options: { providerIdentity: { owner: string } }) =>
+          options.providerIdentity.owner === OTHER_PROVIDER ? Promise.reject(new Error("unreachable")) : Promise.resolve({ data: {} })
+        ),
+        holdDeploy: true
+      });
+
+      await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalled());
+      expect(result.current.recommendedBidIds).toEqual([BID_ID]);
+    });
+
+    it("recommends nothing until every placement has an open bid", async () => {
+      const bidForSecondPlacement = bidFrom(OTHER_PROVIDER, { gseq: 2 });
+      const { result, flow } = setup({ requiredGseqs: [1, 2], providerProxyRequest: vi.fn().mockRejectedValue(new Error("unreachable")) });
+
+      await vi.waitFor(() => expect(result.current.state.kind).toBe("matching"));
+      expect(result.current.recommendedBidIds).toEqual([]);
+      expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: false, hasBids: false });
+
+      act(() => flow.receiveBids([openBid(), bidForSecondPlacement]));
+
+      expect(result.current.recommendedBidIds).toEqual([BID_ID, formatBidId(bidForSecondPlacement.bid.id)]);
+    });
+
+    function bidFrom(provider: string, overrides?: { state?: string; gseq?: number }) {
+      return mock<DeploymentBids[number]>({
+        bid: { state: overrides?.state ?? "open", id: { provider, dseq: DSEQ, gseq: overrides?.gseq ?? 1, oseq: 1 } }
+      });
+    }
+  });
+
   it("drops the providers it picked once the autopilot is stopped, so a manual pick leases on its own", async () => {
     const { result, flow } = setup({ holdDeploy: true });
 
@@ -496,6 +561,20 @@ describe(useAutoDeploymentFlow.name, () => {
 
       expect(result.current.state).toEqual({ kind: "error", message: "lease failed", reason: "lease-failed" });
       expect(flow.actions.clearSelection).not.toHaveBeenCalled();
+    });
+
+    it("never recommends a provider a failed lease went to while the next one is still being matched", async () => {
+      const { result, flow } = setup({
+        ...withNextProvider(),
+        holdDeploy: true,
+        providerProxyRequest: probeProviders(() => new Promise(() => undefined))
+      });
+
+      await vi.waitFor(() => expect(flow.actions.deploy).toHaveBeenCalledTimes(1));
+      act(() => flow.setDeployError("lease failed", true));
+
+      await vi.waitFor(() => expect(result.current.recommendedBidIds).toEqual([NEXT_BID_ID]));
+      expect(result.current.state.kind).toBe("matching");
     });
 
     it("does not count a closed bid as another provider to try", async () => {
@@ -633,6 +712,24 @@ describe(useAutoDeploymentFlow.name, () => {
       expect(flow.actions.selectProvider).toHaveBeenCalledTimes(1);
       expect(flow.actions.deploy).not.toHaveBeenCalled();
       expect(result.current.state.kind).toBe("matching");
+    });
+
+    it("recommends each placement's own bid, keeping the provider matched for one placement to that placement", async () => {
+      const { providerA, providerB, bidA, bidB } = multiPlacement();
+      const { result, flow } = setup({
+        providers: [providerA, providerB],
+        bids: [bidA, bidB],
+        requiredGseqs: [1, 2],
+        providerProxyRequest: vi.fn((_path: string, options: { providerIdentity: { owner: string } }) =>
+          options.providerIdentity.owner === PROVIDER_B ? Promise.reject(new Error("unreachable")) : Promise.resolve({ data: {} })
+        )
+      });
+
+      const bidAId = formatBidId({ provider: PROVIDER_A, dseq: DSEQ, gseq: 1, oseq: 1 });
+      const bidBId = formatBidId({ provider: PROVIDER_B, dseq: DSEQ, gseq: 2, oseq: 1 });
+      await vi.waitFor(() => expect(result.current.matchedProviderAddress).toBe(PROVIDER_A));
+      expect(flow.actions.selectProvider).toHaveBeenCalledTimes(1);
+      expect(result.current.recommendedBidIds).toEqual([bidAId, bidBId]);
     });
 
     it("looks up the providers of the open bids on the placement it is matching", async () => {
@@ -833,6 +930,7 @@ describe(useAutoDeploymentFlow.name, () => {
         isCreatingInBackground: false,
         isLeaseInFlight: false,
         autoLeasedDseq: null,
+        recommendedBidIds: [],
         actions: { ...actions, requestQuotes, selectProvider, clearSelection, deploy, retry, cancelAndEdit, closeAndFail }
       };
     }

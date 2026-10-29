@@ -797,6 +797,48 @@ describe(ConfigureDeploymentForm.name, () => {
     expect(flow.actions.selectProvider).not.toHaveBeenCalled();
   });
 
+  describe("when the onboarding autopilot hands its recommended bids over", () => {
+    const RECOMMENDED_BID_ID = "akash1provider/999/1/1";
+    const OTHER_PLACEMENT_BID_ID = "akash1other/999/2/1";
+
+    it("starts with the bid recommended for each placement selected", () => {
+      const { flow } = setup({
+        initialSdl: VALID_SDL,
+        phase: "quoting",
+        recommendedBidIds: [OTHER_PLACEMENT_BID_ID, RECOMMENDED_BID_ID],
+        Panes: ProviderSelectProbePanes
+      });
+
+      expect(flow.actions.selectProvider).toHaveBeenCalledTimes(1);
+      expect(flow.actions.selectProvider).toHaveBeenCalledWith(screen.getByTestId("focused-placement").textContent, RECOMMENDED_BID_ID);
+    });
+
+    it("leaves a placement no recommended bid is for without a selection", () => {
+      const { flow } = setup({ initialSdl: VALID_SDL, phase: "quoting", recommendedBidIds: [OTHER_PLACEMENT_BID_ID] });
+
+      expect(flow.actions.selectProvider).not.toHaveBeenCalled();
+    });
+
+    it("selects the recommendation once, leaving every later pick to the user", () => {
+      const { flow, rerenderWith } = setup({ initialSdl: VALID_SDL, phase: "quoting", recommendedBidIds: [RECOMMENDED_BID_ID] });
+
+      flow.recommendedBidIds = ["akash1another/999/1/1"];
+      rerenderWith({});
+
+      expect(flow.actions.selectProvider).toHaveBeenCalledTimes(1);
+      expect(flow.actions.selectProvider).toHaveBeenCalledWith(expect.any(String), RECOMMENDED_BID_ID);
+    });
+
+    it("selects a recommendation handed over after the form opened", () => {
+      const { flow, rerenderWith } = setup({ initialSdl: VALID_SDL, phase: "quoting" });
+
+      flow.recommendedBidIds = [RECOMMENDED_BID_ID];
+      rerenderWith({});
+
+      expect(flow.actions.selectProvider).toHaveBeenCalledWith(expect.any(String), RECOMMENDED_BID_ID);
+    });
+  });
+
   it("tracks the review modal opening from the header deploy action", () => {
     const { ConfigureDeploymentHeader, analyticsService } = setup({ initialSdl: VALID_SDL });
     const onDeploy = (ConfigureDeploymentHeader as ReturnType<typeof vi.fn>).mock.calls[0][0].onDeploy as () => void;
@@ -1185,6 +1227,7 @@ describe(ConfigureDeploymentForm.name, () => {
     vm?: boolean;
     phase?: DeploymentFlow["phase"];
     pendingClose?: DeploymentFlow["pendingClose"];
+    recommendedBidIds?: string[];
     twoPanel?: boolean;
     Workspace?: (props: WorkspaceProbeProps) => ReactNode;
     persistedInheritSecretsFrom?: string;
@@ -1261,6 +1304,7 @@ describe(ConfigureDeploymentForm.name, () => {
         isDeployTakingLong: input.isDeployTakingLong ?? false,
         noBidsReceived: input.noBidsReceived ?? false,
         pendingClose: input.pendingClose ?? null,
+        recommendedBidIds: input.recommendedBidIds ?? [],
         actions: mock<DeploymentFlow["actions"]>({ requestQuotes })
       }),
       { error: input.flowError }

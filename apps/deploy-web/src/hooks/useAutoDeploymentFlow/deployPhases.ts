@@ -13,7 +13,14 @@ export type DeployFailure = {
 };
 
 /** The progress state the shared deploy scene renders from: an in-flight/succeeded phase, or a terminal error. */
-export type DeployProgressState = { kind: DeployPhaseId | "success"; isWaitingForLateBids?: boolean } | ({ kind: "error" } & DeployFailure);
+export type DeployProgressState =
+  | {
+      kind: DeployPhaseId | "success";
+      isWaitingForLateBids?: boolean;
+      /** True once every placement has an open bid, so picking a provider by hand has something to pick from. */
+      hasBids?: boolean;
+    }
+  | ({ kind: "error" } & DeployFailure);
 
 /** The step a *manual* configure deploy can be on while its scene is up: the lease ("preparing"), then "success". */
 export type ManualDeployActivePhase = "preparing" | "success";

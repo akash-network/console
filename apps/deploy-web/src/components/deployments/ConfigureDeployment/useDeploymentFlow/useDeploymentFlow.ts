@@ -82,6 +82,8 @@ export interface DeploymentFlowState {
   isLeaseInFlight: boolean;
   /** The one-click deploy the api took on to create, match and lease by itself, which this page holds no dseq of and so can never close. */
   autoLeasedDseq: string | null;
+  /** The bids the onboarding autopilot would have leased, one per placement, handed to the manual pick to start with them selected. */
+  recommendedBidIds: string[];
 }
 
 export interface RequestQuotesOptions {
@@ -124,7 +126,7 @@ export interface DeploymentFlowActions {
   retryClose: () => void;
   /** Gives the attempt up for good before leaving the page: the phase stays put so nothing flashes while the page navigates away, and nothing leases it meanwhile. No-op while a lease is in flight, since that lease may still land. */
   discard: () => void;
-  setBidStrategy: (strategy: BidStrategy) => void;
+  setBidStrategy: (strategy: BidStrategy, recommendedBidIds?: string[]) => void;
   refreshQuotes: () => void;
   retry: () => void;
   selectProvider: (placementId: string, bidId: string) => void;
@@ -266,6 +268,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const [pendingClose, setPendingClose] = useState<PendingClose | null>(null);
   const [noBidsReceived, setNoBidsReceived] = useState(false);
   const [autoLeasedDseq, setAutoLeasedDseq] = useState<string | null>(null);
+  const [recommendedBidIds, setRecommendedBidIds] = useState<string[]>([]);
 
   /** A close the api took on in the background, followed through the activity feed until it settles; `token` is the close that started it. */
   const [backgroundClose, setBackgroundClose] = useState<{ dseq: string; token: number; activityId: string } | null>(null);
@@ -892,8 +895,9 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   );
 
   const setBidStrategy = useCallback(
-    function setBidStrategy(strategy: BidStrategy) {
+    function setBidStrategy(strategy: BidStrategy, nextRecommendedBidIds: string[] = []) {
       setBidStrategyState(strategy);
+      setRecommendedBidIds(nextRecommendedBidIds);
       router.replace(buildConfigureUrl(intentRef.current, dseq ?? undefined, strategy), undefined, { shallow: true });
     },
     [router, dseq]
@@ -1164,6 +1168,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     isCreatingInBackground: backgroundCreate?.dseq === dseq || autoLeasedDseq !== null,
     isLeaseInFlight,
     autoLeasedDseq,
+    recommendedBidIds,
     actions: {
       requestQuotes,
       requestQuotesAgain,

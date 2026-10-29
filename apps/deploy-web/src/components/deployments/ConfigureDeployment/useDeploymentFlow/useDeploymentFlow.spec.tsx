@@ -826,6 +826,25 @@ describe(useDeploymentFlow.name, () => {
     expect(replace).toHaveBeenCalledWith(expect.stringContaining("bid-strategy=auto"), undefined, { shallow: true });
   });
 
+  it("hands the recommended bids to the manual pick it switches to", () => {
+    const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto" } });
+
+    act(() => result.current.actions.setBidStrategy("select", ["akash1provider/999/1/1"]));
+
+    expect(result.current.bidStrategy).toBe("select");
+    expect(result.current.recommendedBidIds).toEqual(["akash1provider/999/1/1"]);
+  });
+
+  it("recommends no bid until a hand-off does, and drops the recommendation on a switch that carries none", () => {
+    const { result } = setup({ intent: { sdlStrategy: "default", bidStrategy: "auto" } });
+    expect(result.current.recommendedBidIds).toEqual([]);
+
+    act(() => result.current.actions.setBidStrategy("select", ["akash1provider/999/1/1"]));
+    act(() => result.current.actions.setBidStrategy("auto"));
+
+    expect(result.current.recommendedBidIds).toEqual([]);
+  });
+
   it("preserves the draft id in the URL when creating a deployment", async () => {
     const replace = vi.fn();
     const createMutate = vi.fn((_args, { onSuccess }) => onSuccess({ data: { dseq: "999", manifest: "m" } }));

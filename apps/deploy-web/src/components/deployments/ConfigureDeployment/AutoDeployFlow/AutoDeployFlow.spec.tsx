@@ -140,16 +140,16 @@ describe(AutoDeployFlow.name, () => {
     expect(tryAgain).not.toHaveBeenCalled();
   });
 
-  it("stops the autopilot and switches to manual bid selection when the user chooses a provider", () => {
+  it("stops the autopilot and switches to manual bid selection with the recommended bids when the user chooses a provider", () => {
     const stopAutopilot = vi.fn();
     const setBidStrategy = vi.fn();
     const flow = buildFlow({ actions: mock<DeploymentFlow["actions"]>({ setBidStrategy }) });
-    const { sceneProps } = setup({ flow, autopilot: { stopAutopilot } });
+    const { sceneProps } = setup({ flow, autopilot: { stopAutopilot, recommendedBidIds: ["akash1provider/12345/1/1"] } });
 
     sceneProps().onChooseProvider?.();
 
     expect(stopAutopilot).toHaveBeenCalledTimes(1);
-    expect(setBidStrategy).toHaveBeenCalledWith("select");
+    expect(setBidStrategy).toHaveBeenCalledWith("select", ["akash1provider/12345/1/1"]);
   });
 
   it("stops the autopilot and switches to manual bid selection when the user tries another provider after a failed lease", () => {
@@ -161,17 +161,26 @@ describe(AutoDeployFlow.name, () => {
     sceneProps().onTryAnotherProvider?.();
 
     expect(stopAutopilot).toHaveBeenCalledTimes(1);
-    expect(setBidStrategy).toHaveBeenCalledWith("select");
+    expect(setBidStrategy).toHaveBeenCalledWith("select", []);
     expect(analyticsService.track).not.toHaveBeenCalledWith("onboarding_choose_provider_click", expect.anything());
   });
 
-  it("tracks the choose-provider click with the template name when the user switches to manual selection", () => {
-    const flow = buildFlow({ actions: mock<DeploymentFlow["actions"]>({ setBidStrategy: vi.fn() }) });
+  it("tracks the choose-provider click with the template name, deployment and bid count when the user switches to manual selection", () => {
+    const flow = buildFlow({
+      dseq: "12345",
+      bids: [mock<DeploymentFlow["bids"][number]>(), mock<DeploymentFlow["bids"][number]>()],
+      actions: mock<DeploymentFlow["actions"]>({ setBidStrategy: vi.fn() })
+    });
     const { sceneProps, analyticsService } = setup({ flow, templateName: "my-app" });
 
     sceneProps().onChooseProvider?.();
 
-    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_choose_provider_click", { category: "onboarding", templateName: "my-app" });
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_choose_provider_click", {
+      category: "onboarding",
+      templateName: "my-app",
+      dseq: "12345",
+      numberOfBids: 2
+    });
   });
 
   it("opens the configured contact-support URL when the scene requests support", () => {
@@ -240,6 +249,7 @@ describe(AutoDeployFlow.name, () => {
         { id: "preparing", label: "Preparing", status: "pending" }
       ],
       matchedProviderAddress: null,
+      recommendedBidIds: [],
       tryAgain: vi.fn(),
       stopAutopilot: vi.fn(),
       ...overrides
