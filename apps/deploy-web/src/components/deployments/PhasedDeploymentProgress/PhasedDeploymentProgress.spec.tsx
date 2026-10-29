@@ -224,6 +224,37 @@ describe(PhasedDeploymentProgress.name, () => {
     });
   });
 
+  describe("choosing the provider by hand", () => {
+    it("offers it once bids are in, handing off when chosen", () => {
+      const onChooseProvider = vi.fn();
+      setup({ state: { kind: "matching", hasBids: true }, onChooseProvider });
+
+      expect(screen.getByText("Want to choose the provider yourself?")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Choose my provider" }));
+
+      expect(onChooseProvider).toHaveBeenCalledTimes(1);
+    });
+
+    it("holds it back while providers have not bid yet", () => {
+      setup({ state: { kind: "matching", hasBids: false }, onChooseProvider: vi.fn() });
+
+      expect(screen.queryByRole("button", { name: "Choose my provider" })).not.toBeInTheDocument();
+      expect(screen.queryByText("Want to choose the provider yourself?")).not.toBeInTheDocument();
+    });
+
+    it("holds it back while the deployment is still being created", () => {
+      setup({ state: { kind: "creating", hasBids: true }, onChooseProvider: vi.fn() });
+
+      expect(screen.queryByRole("button", { name: "Choose my provider" })).not.toBeInTheDocument();
+    });
+
+    it("takes it away once a provider is being leased", () => {
+      setup({ state: { kind: "preparing", hasBids: true }, onChooseProvider: vi.fn() });
+
+      expect(screen.queryByRole("button", { name: "Choose my provider" })).not.toBeInTheDocument();
+    });
+  });
+
   describe("progress bar", () => {
     it("exposes the rounded progress percent via aria-valuenow", () => {
       setup({ progressPercent: 42.6 });

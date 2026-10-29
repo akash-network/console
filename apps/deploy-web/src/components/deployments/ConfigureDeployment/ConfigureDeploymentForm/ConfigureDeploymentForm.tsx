@@ -19,6 +19,7 @@ import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { SdlBuilderFormValuesSchema } from "@src/types";
 import { parseBidId } from "@src/utils/bids/bidId";
 import { defaultServiceWithPlacement, vmServiceOverrides } from "@src/utils/sdl/data";
+import { getPlacementGseq } from "@src/utils/sdl/placementGseq";
 import { severalRegionPicksOf } from "@src/utils/sdl/placementRegions";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { resolveSdlSecrets, secretReferenceNamesIn, withSecretsMarkedLike } from "@src/utils/sdl/sdlSecrets";
@@ -199,6 +200,7 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
   const lastToastedDeployError = useRef(flow.deployError);
   const lastToastedFlowError = useRef<typeof flow.error>(undefined);
   const hasAutoFocusedFirstBids = useRef(false);
+  const hasSelectedRecommendedBids = useRef(false);
 
   useEffect(
     function toastDeployFailure() {
@@ -320,6 +322,19 @@ export const ConfigureDeploymentForm: FC<Props> = ({ initialSdl, initialName, in
       if (targetServiceId) setSelectedServiceId(targetServiceId);
     },
     [flow.phase, flow.selections, placementsWithBids, selectedPlacement.id, placements, services]
+  );
+
+  useEffect(
+    function selectRecommendedBidsOnce() {
+      if (hasSelectedRecommendedBids.current || flow.recommendedBidIds.length === 0) return;
+      hasSelectedRecommendedBids.current = true;
+      for (const placement of placements) {
+        const gseq = getPlacementGseq(liveSdl, placement.name);
+        const bidId = flow.recommendedBidIds.find(recommendedBidId => parseBidId(recommendedBidId).gseq === gseq);
+        if (bidId) flow.actions.selectProvider(placement.id, bidId);
+      }
+    },
+    [flow.recommendedBidIds, flow.actions, placements, liveSdl]
   );
 
   /**

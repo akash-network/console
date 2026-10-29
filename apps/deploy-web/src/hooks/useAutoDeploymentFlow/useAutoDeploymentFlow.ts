@@ -41,6 +41,8 @@ type Result = {
    * abandoning it.
    */
   dseq?: string;
+  /** Per placement, the autopilot's own pick or else the first open bid it would probe, skipping providers a failed lease went to; empty until every placement has one. */
+  recommendedBidIds: string[];
   /** Discards the failed attempt — closing the on-chain deployment when one exists — and restarts from creating a fresh one. */
   tryAgain: () => void;
   /**
@@ -231,6 +233,19 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     return selectedBidId ? parseBidId(selectedBidId).provider : null;
   }, [flow.selections]);
 
+  const recommendedBidIds = useMemo(() => {
+    const selectedBidIds = Object.values(flow.selections);
+    const bidIds = requiredGseqs.map(function recommendBidFor(gseq) {
+      const selectedBidId = selectedBidIds.find(bidId => parseBidId(bidId).gseq === gseq);
+      if (selectedBidId) return selectedBidId;
+      const firstOpenBid = flow.bids.find(
+        ({ bid }) => bid.state === "open" && bid.id.gseq === gseq && !nextProviderRetry?.skippedProviders.includes(bid.id.provider)
+      );
+      return firstOpenBid && formatBidId(firstOpenBid.bid.id);
+    });
+    return bidIds.every((bidId): bidId is string => bidId !== undefined) ? bidIds : [];
+  }, [requiredGseqs, flow.selections, flow.bids, nextProviderRetry]);
+
   useEffect(
     function fireDeploy() {
       // deploy moves the flow off "quoting" synchronously; a failure drops it back with a `deployError`, which holds this
@@ -372,11 +387,12 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   }
 
   return {
-    state: projected === "error" ? { kind: "error", ...failureOf(flow) } : { kind: projected, isWaitingForLateBids },
+    state: projected === "error" ? { kind: "error", ...failureOf(flow) } : { kind: projected, isWaitingForLateBids, hasBids: recommendedBidIds.length > 0 },
     progressPercent,
     phases,
     matchedProviderAddress,
     dseq: dseq ?? undefined,
+    recommendedBidIds,
     tryAgain,
     stopAutopilot
   };

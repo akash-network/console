@@ -60,7 +60,7 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
   const openAddCredits = d.useAddCredits();
   const { activeOrganization, projectsEnabled } = d.useActiveOrganization();
   const router = d.useRouter();
-  const { state, progressPercent, phases, matchedProviderAddress, tryAgain, stopAutopilot } = d.useAutoDeploymentFlow({
+  const { state, progressPercent, phases, matchedProviderAddress, recommendedBidIds, tryAgain, stopAutopilot } = d.useAutoDeploymentFlow({
     sdl,
     resumeLeases: resume.activeLeases,
     flow
@@ -77,9 +77,9 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
   d.useLandOnDeploymentList(flow.autoLeasedDseq);
 
   /** Halts the autopilot first, since the bid-strategy change only unmounts this flow once the URL propagates. */
-  function handOffToManualPick() {
+  function handOffToManualPick(bidIdsToSelect: string[]) {
     stopAutopilot();
-    flow.actions.setBidStrategy("select");
+    flow.actions.setBidStrategy("select", bidIdsToSelect);
   }
 
   if (isStartingInBackground(flow, state)) {
@@ -102,7 +102,7 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
         phases={phases}
         focusedProviderAddress={matchedProviderAddress}
         onTryAgain={tryAgain}
-        onTryAnotherProvider={handOffToManualPick}
+        onTryAnotherProvider={() => handOffToManualPick([])}
         onAddFunds={() => {
           openAddCredits({
             initialTab: "purchase",
@@ -117,8 +117,13 @@ export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dep
           window.open(publicConfig.NEXT_PUBLIC_CONTACT_SUPPORT_URL, "_blank", "noopener,noreferrer");
         }}
         onChooseProvider={() => {
-          analyticsService.track("onboarding_choose_provider_click", { category: "onboarding", templateName });
-          handOffToManualPick();
+          analyticsService.track("onboarding_choose_provider_click", {
+            category: "onboarding",
+            templateName,
+            dseq: flow.dseq,
+            numberOfBids: flow.bids.length
+          });
+          handOffToManualPick(recommendedBidIds);
         }}
       />
     </d.Layout>

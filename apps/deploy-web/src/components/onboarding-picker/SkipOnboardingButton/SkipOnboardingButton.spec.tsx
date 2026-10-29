@@ -35,12 +35,13 @@ describe(SkipOnboardingButton.name, () => {
       category: "onboarding",
       control: "skip_button",
       discardedDeployment: false,
-      midLease: false
+      midLease: false,
+      deploymentKeepsGoing: false
     });
   });
 
   it("skips without asking while the lease is in flight, keeping the deployment, and tracks leaving mid-lease", () => {
-    const { skip, discard, analyticsService } = setup({ source: "auto_deploy", isLeaseInFlight: true });
+    const { skip, discard, analyticsService } = setup({ source: "auto_deploy", isLeaseInFlight: true, keepsDeployingWithoutPage: true });
 
     fireEvent.click(screen.getByRole("button", { name: "Skip onboarding - Explore Console" }));
 
@@ -51,8 +52,37 @@ describe(SkipOnboardingButton.name, () => {
       category: "onboarding",
       control: "skip_button",
       discardedDeployment: false,
-      midLease: true
+      midLease: true,
+      deploymentKeepsGoing: true
     });
+  });
+
+  it("tells the user the deployment keeps going when it goes on without the page", () => {
+    const { skip, discard, enqueueSnackbar } = setup({ source: "auto_deploy", keepsDeployingWithoutPage: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip onboarding - Explore Console" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(discard).not.toHaveBeenCalled();
+    expect(skip).toHaveBeenCalledWith("auto_deploy");
+    expect(enqueueSnackbar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: {
+          title: "Your deployment keeps going",
+          subTitle: "Skipping onboarding doesn't stop it. You'll find it in Deployments.",
+          iconVariant: "info"
+        }
+      }),
+      { variant: "info" }
+    );
+  });
+
+  it("says nothing about a deployment when there is none to keep going", () => {
+    const { enqueueSnackbar } = setup({ source: "picker" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip onboarding - Explore Console" }));
+
+    expect(enqueueSnackbar).not.toHaveBeenCalled();
   });
 
   it("disables the button while a skip is in progress", () => {
@@ -104,7 +134,8 @@ describe(SkipOnboardingButton.name, () => {
         category: "onboarding",
         control: "skip_button",
         discardedDeployment: true,
-        midLease: false
+        midLease: false,
+        deploymentKeepsGoing: false
       });
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
@@ -122,14 +153,15 @@ describe(SkipOnboardingButton.name, () => {
         category: "onboarding",
         control: "skip_button",
         discardedDeployment: false,
-        midLease: false
+        midLease: false,
+        deploymentKeepsGoing: false
       });
     });
 
     it("keeps a deployment whose lease went out while the dialog was open, and tracks leaving mid-lease", async () => {
       const { skip, discard, analyticsService, rerenderWith } = setup({ source: "auto_deploy", holdsUnleasedDeployment: true });
       fireEvent.click(screen.getByRole("button", { name: "Skip onboarding - Explore Console" }));
-      rerenderWith({ holdsUnleasedDeployment: false, isLeaseInFlight: true });
+      rerenderWith({ holdsUnleasedDeployment: false, isLeaseInFlight: true, keepsDeployingWithoutPage: true });
 
       await userEvent.click(screen.getByRole("button", { name: "Skip anyway" }));
 
@@ -139,7 +171,8 @@ describe(SkipOnboardingButton.name, () => {
         category: "onboarding",
         control: "skip_button",
         discardedDeployment: false,
-        midLease: true
+        midLease: true,
+        deploymentKeepsGoing: true
       });
     });
   });
@@ -150,30 +183,44 @@ describe(SkipOnboardingButton.name, () => {
     isCreating?: boolean;
     holdsUnleasedDeployment?: boolean;
     isLeaseInFlight?: boolean;
+    keepsDeployingWithoutPage?: boolean;
   }) {
     const skip = vi.fn(async () => {});
     const discard = vi.fn();
     const analyticsService = mock<AnalyticsService>();
-    const dependenciesWith = (guard: { holdsUnleasedDeployment: boolean; isLeaseInFlight?: boolean }): typeof DEPENDENCIES => ({
+    const enqueueSnackbar = vi.fn();
+    const Snackbar = vi.fn(() => null);
+    const dependenciesWith = (guard: {
+      holdsUnleasedDeployment: boolean;
+      isLeaseInFlight?: boolean;
+      keepsDeployingWithoutPage?: boolean;
+    }): typeof DEPENDENCIES => ({
       useSkipOnboarding: () => mock<ReturnType<typeof DEPENDENCIES.useSkipOnboarding>>({ skip, isSkipping: input.isSkipping ?? false }),
       useDeploymentLeaveGuard: () => ({
         isCreating: input.isCreating ?? false,
         holdsUnleasedDeployment: guard.holdsUnleasedDeployment,
         isLeaseInFlight: guard.isLeaseInFlight ?? false,
+        keepsDeployingWithoutPage: guard.keepsDeployingWithoutPage ?? false,
         discard
       }),
-      useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService })
+      useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),
+      useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
+      Snackbar
     });
 
     const { rerender } = render(
       <SkipOnboardingButton
         source={input.source}
-        dependencies={dependenciesWith({ holdsUnleasedDeployment: input.holdsUnleasedDeployment ?? false, isLeaseInFlight: input.isLeaseInFlight })}
+        dependencies={dependenciesWith({
+          holdsUnleasedDeployment: input.holdsUnleasedDeployment ?? false,
+          isLeaseInFlight: input.isLeaseInFlight,
+          keepsDeployingWithoutPage: input.keepsDeployingWithoutPage
+        })}
       />
     );
-    const rerenderWith = (guard: { holdsUnleasedDeployment: boolean; isLeaseInFlight?: boolean }) =>
+    const rerenderWith = (guard: { holdsUnleasedDeployment: boolean; isLeaseInFlight?: boolean; keepsDeployingWithoutPage?: boolean }) =>
       rerender(<SkipOnboardingButton source={input.source} dependencies={dependenciesWith(guard)} />);
 
-    return { skip, discard, analyticsService, rerenderWith };
+    return { skip, discard, analyticsService, enqueueSnackbar, rerenderWith };
   }
 });

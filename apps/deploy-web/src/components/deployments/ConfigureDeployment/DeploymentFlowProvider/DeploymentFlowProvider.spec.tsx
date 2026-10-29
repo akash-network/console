@@ -111,6 +111,17 @@ describe(DeploymentFlowProvider.name, () => {
     expect(screen.getByTestId("lease-in-flight")).toHaveTextContent(String(isLeaseInFlight));
   });
 
+  it.each([
+    ["nothing has been sent to lease it", {}, false],
+    ["its lease is in flight", { phase: "deploying", isLeaseInFlight: true }, true],
+    ["it got its lease", { phase: "deploying", deploySucceeded: true }, true],
+    ["the api took the whole one-click deploy on", { phase: "creating", autoLeasedDseq: "1234" }, true]
+  ] as const)("tells its descendants whether the deployment keeps going without the page once %s", (_, state, keepsDeployingWithoutPage) => {
+    setup({ flow: flowIn({ phase: "quoting", ...state }) });
+
+    expect(screen.getByTestId("keeps-deploying-without-page")).toHaveTextContent(String(keepsDeployingWithoutPage));
+  });
+
   it("lets its descendants discard the deployment through the flow", () => {
     const flow = flowIn({ phase: "quoting" });
     setup({ flow });
@@ -160,7 +171,7 @@ describe(DeploymentFlowProvider.name, () => {
     it("guards nothing outside the provider", () => {
       const { result } = renderHook(() => useDeploymentLeaveGuard());
 
-      expect(result.current).toMatchObject({ isCreating: false, holdsUnleasedDeployment: false, isLeaseInFlight: false });
+      expect(result.current).toMatchObject({ isCreating: false, holdsUnleasedDeployment: false, isLeaseInFlight: false, keepsDeployingWithoutPage: false });
       expect(() => result.current.discard()).not.toThrow();
     });
   });
@@ -179,7 +190,10 @@ describe(DeploymentFlowProvider.name, () => {
 
   function flowIn(
     state: Partial<
-      Pick<DeploymentFlow, "phase" | "deploySucceeded" | "isCreatingInBackground" | "isDeployedInBackground" | "dseq" | "pendingClose" | "isLeaseInFlight">
+      Pick<
+        DeploymentFlow,
+        "phase" | "deploySucceeded" | "isCreatingInBackground" | "isDeployedInBackground" | "dseq" | "pendingClose" | "isLeaseInFlight" | "autoLeasedDseq"
+      >
     >
   ): DeploymentFlow {
     return mock<DeploymentFlow>({
@@ -189,6 +203,7 @@ describe(DeploymentFlowProvider.name, () => {
       deploySucceeded: false,
       dseq: null,
       pendingClose: null,
+      autoLeasedDseq: null,
       actions: mock<DeploymentFlowActions>(),
       ...state
     });
@@ -234,11 +249,12 @@ describe(DeploymentFlowProvider.name, () => {
   }
 
   function LeaveGuardProbe() {
-    const { holdsUnleasedDeployment, isLeaseInFlight, discard } = useDeploymentLeaveGuard();
+    const { holdsUnleasedDeployment, isLeaseInFlight, keepsDeployingWithoutPage, discard } = useDeploymentLeaveGuard();
     return (
       <>
         <span data-testid="holds-unleased-deployment">{String(holdsUnleasedDeployment)}</span>
         <span data-testid="lease-in-flight">{String(isLeaseInFlight)}</span>
+        <span data-testid="keeps-deploying-without-page">{String(keepsDeployingWithoutPage)}</span>
         <button type="button" onClick={discard}>
           Discard
         </button>
