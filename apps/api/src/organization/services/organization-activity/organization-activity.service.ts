@@ -71,7 +71,7 @@ export class OrganizationActivityService {
 
   /** An invitee's address stays as private as the invitation that holds it. */
   #hideInviteeEmailUnlessInvitationsReadable(activity: OrganizationActivityWithActor): OrganizationActivityWithActor {
-    if (activity.type !== "member_invited" || this.#canReadInvitationsOf(activity.organizationId)) {
+    if ((activity.type !== "member_invited" && activity.type !== "invitation_declined") || this.#canReadInvitationsOf(activity.organizationId)) {
       return activity;
     }
 
