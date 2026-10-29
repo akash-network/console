@@ -11,8 +11,8 @@ export type DeployLanding = "deployment" | "deploymentsList";
 /**
  * Drives the "Configure your deployment" screen and its quoting lifecycle: configure a spec, request
  * quotes (creates the deployment), then cancel-and-edit (closes it). Interactions only, assertions live
- * in the spec. Every locator matches both the three pane layout and the two panel one, since the layout
- * follows a feature flag that can change without a deploy.
+ * in the spec. Every locator but `sshKeyStep` matches both the three pane layout and the two panel one, since
+ * the layout follows a feature flag that can change without a deploy.
  */
 export class ConfigureDeploymentPage {
   constructor(readonly page: Page) {}

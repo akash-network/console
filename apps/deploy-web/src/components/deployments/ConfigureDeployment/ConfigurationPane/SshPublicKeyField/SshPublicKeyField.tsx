@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useCallback } from "react";
+import { useCallback, useId } from "react";
 import { useController, useFormContext } from "react-hook-form";
 import { Button, CustomTooltip, Field, FieldContent, FieldError, FieldLabel, Input, Snackbar, TooltipProvider } from "@akashnetwork/ui/components";
 import { saveAs } from "file-saver";
@@ -59,6 +59,7 @@ function useApplySshKey(serviceIndex: number, scope: SshKeyScope) {
 export const SshPublicKeyField: FC<Props> = ({ serviceIndex, scope = "deployment", onKeyGenerated, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
+  const inputId = useId();
   const sshPubKey = useController({ control, name: `services.${serviceIndex}.sshPubKey` });
   const applyKey = useApplySshKey(serviceIndex, scope);
 
@@ -90,10 +91,10 @@ export const SshPublicKeyField: FC<Props> = ({ serviceIndex, scope = "deployment
 
   return (
     <Field className="gap-2">
-      <FieldLabel htmlFor={`ssh-pub-key-${serviceIndex}`}>SSH public key</FieldLabel>
+      <FieldLabel htmlFor={inputId}>SSH public key</FieldLabel>
       <FieldContent>
         <Input
-          id={`ssh-pub-key-${serviceIndex}`}
+          id={inputId}
           aria-label="SSH public key"
           placeholder="ssh-ed25519 AAAA… user@host"
           value={sshPubKey.field.value ?? ""}

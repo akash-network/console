@@ -252,6 +252,16 @@ describe(SshPublicKeyField.name, () => {
     expect(screen.getByRole("button", { name: "How to use the SSH key" })).toBeInTheDocument();
   });
 
+  it("points each copy's label at its own input when the same service's field is shown twice", async () => {
+    setup({ copies: 2 });
+    const [, secondLabel] = screen.getAllByText("SSH public key", { selector: "label" });
+    const [, secondInput] = screen.getAllByRole("textbox", { name: "SSH public key" });
+
+    await userEvent.click(secondLabel);
+
+    expect(secondInput).toHaveFocus();
+  });
+
   function setup(input: {
     image?: string;
     sshPubKey?: string;
@@ -260,6 +270,7 @@ describe(SshPublicKeyField.name, () => {
     scope?: "deployment" | "service";
     validate?: boolean;
     onKeyGenerated?: () => void;
+    copies?: number;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const base = defaultServiceWithPlacement({
@@ -310,7 +321,9 @@ describe(SshPublicKeyField.name, () => {
 
     render(
       <Wrapper>
-        <SshPublicKeyField serviceIndex={0} scope={input.scope} onKeyGenerated={input.onKeyGenerated} dependencies={dependencies} />
+        {Array.from({ length: input.copies ?? 1 }, (_, copy) => (
+          <SshPublicKeyField key={copy} serviceIndex={0} scope={input.scope} onKeyGenerated={input.onKeyGenerated} dependencies={dependencies} />
+        ))}
       </Wrapper>
     );
 
