@@ -38,6 +38,12 @@ describe(SshKeyStepDialog.name, () => {
     expect(dependencies.SshPublicKeyField).toHaveBeenCalledWith(expect.objectContaining({ serviceIndex: 0 }), expect.anything());
   });
 
+  it("asks for the key without flagging it as required when the user leaves the field", () => {
+    const { dependencies } = setup({ source: "setup" });
+
+    expect(dependencies.SshPublicKeyField).toHaveBeenCalledWith(expect.objectContaining({ validateOnBlur: false }), expect.anything());
+  });
+
   it("holds Continue until a key is entered", () => {
     setup({ source: "choose_provider" });
 

@@ -31,6 +31,8 @@ type SshKeyScope = "deployment" | "service";
 type Props = {
   serviceIndex: number;
   scope?: SshKeyScope;
+  /** The SSH key step is itself the prompt for a missing key, so leaving its field must not flag the key as required. */
+  validateOnBlur?: boolean;
   /** Called only once the keypair zip was handed to the browser and the public key applied. */
   onKeyGenerated?: () => void;
   dependencies?: typeof DEPENDENCIES;
@@ -56,7 +58,7 @@ function useApplySshKey(serviceIndex: number, scope: SshKeyScope) {
 }
 
 /** The SSH public key input, filled by hand or by generating a keypair that downloads as a zip, with usage instructions alongside. */
-export const SshPublicKeyField: FC<Props> = ({ serviceIndex, scope = "deployment", onKeyGenerated, dependencies: d = DEPENDENCIES }) => {
+export const SshPublicKeyField: FC<Props> = ({ serviceIndex, scope = "deployment", validateOnBlur = true, onKeyGenerated, dependencies: d = DEPENDENCIES }) => {
   const { control } = useFormContext<SdlBuilderFormValuesType>();
   const { enqueueSnackbar } = d.useSnackbar();
   const inputId = useId();
@@ -99,7 +101,7 @@ export const SshPublicKeyField: FC<Props> = ({ serviceIndex, scope = "deployment
           placeholder="ssh-ed25519 AAAA… user@host"
           value={sshPubKey.field.value ?? ""}
           onChange={event => applyKey(event.target.value || "")}
-          onBlur={sshPubKey.field.onBlur}
+          onBlur={validateOnBlur ? sshPubKey.field.onBlur : undefined}
           error={!!sshPubKey.fieldState.error}
           inputClassName="h-9"
         />

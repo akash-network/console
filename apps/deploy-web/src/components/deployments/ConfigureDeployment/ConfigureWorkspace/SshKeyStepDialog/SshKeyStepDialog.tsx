@@ -82,7 +82,7 @@ export const SshKeyStepDialog: FC<Props> = ({ source, serviceIndex, onContinue, 
             </DialogV2Description>
           </DialogV2Header>
           <DialogV2Body>
-            <d.SshPublicKeyField serviceIndex={serviceIndex} onKeyGenerated={() => complete("generated")} />
+            <d.SshPublicKeyField serviceIndex={serviceIndex} validateOnBlur={false} onKeyGenerated={() => complete("generated")} />
           </DialogV2Body>
           <DialogV2Footer>
             <Button type="button" variant="ghost" onClick={dismiss}>

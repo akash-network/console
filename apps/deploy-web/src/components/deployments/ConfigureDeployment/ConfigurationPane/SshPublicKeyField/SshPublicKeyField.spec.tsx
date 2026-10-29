@@ -237,6 +237,25 @@ describe(SshPublicKeyField.name, () => {
     await waitFor(() => expect(screen.queryByText("SSH Public key is required.")).not.toBeInTheDocument());
   });
 
+  it("flags an empty key as required once the field is left", async () => {
+    setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", validate: true, mode: "onTouched" });
+
+    await userEvent.click(screen.getByRole("textbox", { name: "SSH public key" }));
+    await userEvent.tab();
+
+    expect(await screen.findByText("SSH Public key is required.")).toBeInTheDocument();
+  });
+
+  it("leaves an empty key unflagged when the field is left without validating on blur", async () => {
+    const { fieldState } = setup({ image: "ghcr.io/akash-network/ubuntu-2404-ssh:2", validate: true, mode: "onTouched", validateOnBlur: false });
+
+    await userEvent.click(screen.getByRole("textbox", { name: "SSH public key" }));
+    await userEvent.tab();
+
+    expect(fieldState("services.0.sshPubKey").isTouched).toBe(false);
+    expect(screen.queryByText("SSH Public key is required.")).not.toBeInTheDocument();
+  });
+
   it("marks the key and its env var as edited", async () => {
     const { fieldState } = setup({});
 
@@ -269,6 +288,8 @@ describe(SshPublicKeyField.name, () => {
     extraServices?: number;
     scope?: "deployment" | "service";
     validate?: boolean;
+    mode?: "onSubmit" | "onTouched";
+    validateOnBlur?: boolean;
     onKeyGenerated?: () => void;
     copies?: number;
     dependencies?: Partial<typeof DEPENDENCIES>;
@@ -287,7 +308,7 @@ describe(SshPublicKeyField.name, () => {
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({
         defaultValues: values,
-        mode: "onSubmit",
+        mode: input.mode ?? "onSubmit",
         reValidateMode: "onChange",
         resolver: input.validate ? zodResolver(SdlBuilderFormValuesSchema) : undefined
       });
@@ -322,7 +343,14 @@ describe(SshPublicKeyField.name, () => {
     render(
       <Wrapper>
         {Array.from({ length: input.copies ?? 1 }, (_, copy) => (
-          <SshPublicKeyField key={copy} serviceIndex={0} scope={input.scope} onKeyGenerated={input.onKeyGenerated} dependencies={dependencies} />
+          <SshPublicKeyField
+            key={copy}
+            serviceIndex={0}
+            scope={input.scope}
+            validateOnBlur={input.validateOnBlur}
+            onKeyGenerated={input.onKeyGenerated}
+            dependencies={dependencies}
+          />
         ))}
       </Wrapper>
     );
