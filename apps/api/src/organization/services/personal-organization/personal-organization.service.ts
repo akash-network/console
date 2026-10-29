@@ -51,6 +51,10 @@ export class PersonalOrganizationService {
     });
   }
 
+  async renameToUsername(user: PersonalOrganizationUser): Promise<void> {
+    await this.organizationRepository.updateBy({ createdByUserId: user.id, type: "personal" }, { name: personalOrganizationName(user.username) });
+  }
+
   async adoptUserRows(user: AdoptableUser, organization: Pick<OrganizationOutput, "id">): Promise<AdoptedRowCounts> {
     const project = await this.projectRepository.unscoped("personal-organization-provisioning").findDefaultByOrganizationId(organization.id);
 

@@ -328,6 +328,33 @@ describe(UserService.name, () => {
       expect(updatedUser?.username).toBe(newUsername);
     });
 
+    it("renames the user's personal organization to the new username without touching anyone else's", async () => {
+      const { service, organizationRepository } = setup();
+      const user = await service.registerUser(createRegisterInput());
+      const stranger = await service.registerUser(createRegisterInput());
+      const newUsername = `renamed-${faker.string.alphanumeric(12)}`;
+
+      await service.updateUserDetails(user.id, { username: newUsername });
+
+      expect(await organizationRepository.findPersonalByUserId(user.id)).toMatchObject({ name: newUsername });
+      expect(await organizationRepository.findPersonalByUserId(stranger.id)).toMatchObject({ name: stranger.username });
+    });
+
+    it("keeps the username when the personal organization cannot be renamed", async () => {
+      const { service, userRepository } = setup({ renameToUsername: vi.fn().mockRejectedValue(new Error("organizations are down")) });
+      const user = await userRepository.create({
+        userId: faker.string.uuid(),
+        username: `test-user-${faker.string.uuid()}`,
+        email: faker.internet.email(),
+        emailVerified: false,
+        subscribedToNewsletter: false
+      });
+
+      await expect(service.updateUserDetails(user.id, { username: `renamed-${faker.string.alphanumeric(12)}` })).rejects.toThrow("organizations are down");
+
+      expect(await userRepository.findById(user.id)).toMatchObject({ username: user.username });
+    });
+
     it("throws 404 when user is not found", async () => {
       const { service } = setup();
 
@@ -484,6 +511,7 @@ describe(UserService.name, () => {
     createDefaultNotificationChannel?: NotificationService["createDefaultChannel"];
     ensureDataKey?: DataKeyService["ensureDataKey"];
     ensureForUser?: PersonalOrganizationService["ensureForUser"];
+    renameToUsername?: PersonalOrganizationService["renameToUsername"];
     isBlockedEmail?: boolean;
   }) {
     const analyticsService = mock<AnalyticsService>();
@@ -500,9 +528,14 @@ describe(UserService.name, () => {
     const sealingKeyService = mock<SdlSecretsSealingKeyService>();
     sealingKeyService.peekSealingKey.mockReturnValue({ kid: "sdl-secrets.v1", publicKey, jwk: { kty: "RSA", n: n!, e: e!, use: "enc", alg: "RSA-OAEP-256" } });
     const dataKeyService = new DataKeyService(dataKeyRepository, sealingKeyService, createLogger);
-    const personalOrganizationService = input?.ensureForUser
-      ? mock<PersonalOrganizationService>({ ensureForUser: input.ensureForUser, adoptUserRows: vi.fn().mockResolvedValue(createAdoptedRowCounts()) })
-      : container.resolve(PersonalOrganizationService);
+    const personalOrganizationService =
+      input?.ensureForUser || input?.renameToUsername
+        ? mock<PersonalOrganizationService>({
+            ensureForUser: input.ensureForUser ?? vi.fn(),
+            renameToUsername: input.renameToUsername ?? vi.fn(),
+            adoptUserRows: vi.fn().mockResolvedValue(createAdoptedRowCounts())
+          })
+        : container.resolve(PersonalOrganizationService);
     const service = new UserService(
       userRepository,
       analyticsService,
