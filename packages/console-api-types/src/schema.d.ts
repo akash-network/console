@@ -15667,7 +15667,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller accepted the invitation and has since left (`invitation_already_accepted`) */
+      /** @description Someone else accepted the invitation, or the caller accepted it and has since left (`invitation_already_accepted`) */
       409: {
         headers: {
           [name: string]: unknown;

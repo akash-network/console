@@ -24675,7 +24675,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "No invitation with this id was sent to the caller's verified email, or its organization was deleted",
           },
           "409": {
-            "description": "The caller accepted the invitation and has since left (\`invitation_already_accepted\`)",
+            "description": "Someone else accepted the invitation, or the caller accepted it and has since left (\`invitation_already_accepted\`)",
           },
           "410": {
             "description": "The invitation expired (\`invitation_expired\`), was revoked (\`invitation_revoked\`) or was declined (\`invitation_declined\`)",

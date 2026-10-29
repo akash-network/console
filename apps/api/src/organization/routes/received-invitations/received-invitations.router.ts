@@ -57,7 +57,7 @@ const acceptReceivedInvitationRoute = createRoute({
     200: { description: "The organization the caller now belongs to", content: { "application/json": { schema: AcceptInvitationResponseSchema } } },
     ...receivedInvitationErrorResponses,
     409: {
-      description: "The caller accepted the invitation and has since left (`invitation_already_accepted`)"
+      description: "Someone else accepted the invitation, or the caller accepted it and has since left (`invitation_already_accepted`)"
     },
     410: { description: "The invitation expired (`invitation_expired`), was revoked (`invitation_revoked`) or was declined (`invitation_declined`)" }
   }
