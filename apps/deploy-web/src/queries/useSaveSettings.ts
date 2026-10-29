@@ -22,7 +22,7 @@ export function useSaveSettings() {
       return consoleApiHttpClient.put("/v1/user/updateSettings", newSettings);
     },
     onSuccess: async (_, newSettings) => {
-      if (newSettings.username) await queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
+      if (newSettings.username) void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
       await checkSession();
     },
     onError: error => {
