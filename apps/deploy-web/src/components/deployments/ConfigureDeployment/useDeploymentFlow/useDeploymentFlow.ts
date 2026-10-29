@@ -158,7 +158,7 @@ const HTTP_CONFLICT = 409;
 const INHERITED_SECRETS_UNREADABLE_CODE = "inherited_secrets_unreadable";
 
 /** Hold after a successful lease so the deploy overlay's progress bar can fill to 100% and its final step turn green before redirecting. */
-const DEPLOY_SUCCESS_DWELL_MS = 1200;
+export const DEPLOY_SUCCESS_DWELL_MS = 1200;
 
 /** Must stay above the second or so the api takes to hand a lease to the background, and below the 5 s or more it needs to create one during the request. */
 const BACKGROUND_HANDOFF_WAIT_MS = 3000;
@@ -459,6 +459,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     setDeployError(undefined);
     setDeploySucceeded(false);
     setNoBidsReceived(false);
+    setAutoLeasedDseq(null);
   }, []);
 
   /** Leaves `pendingClose` alone, because the close it tracks outlives the reset that hands the form back. */
@@ -685,7 +686,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         holdActivityEvents(activityId, { succeeded: [{ event: "create_deployment", properties: createdEventOf(result.dseq) }] });
       }
 
-      /** Neither adopted nor followed, so no close path here can reach it, even once superseded, and the activity host tells how it ends. */
+      /** Never adopted, so no close path here can reach it, even once superseded; the URL carries it so a reload finds it rather than creating another. */
       function handOverToApi(newDseq: string, activityId: string) {
         createInFlightRef.current = false;
         recordOneClickDeploy(newDseq, oneClickDeployUrlOf(intentRef.current));
@@ -694,8 +695,12 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
           failed: [{ event: "create_deployment_failed", properties: { category: "deployments", kind: "create", inBackground: true } }]
         });
         queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
-        if (isCurrentAttempt()) setAutoLeasedDseq(newDseq);
-        else runQueuedCreate();
+        if (!isCurrentAttempt()) {
+          runQueuedCreate();
+          return;
+        }
+        setAutoLeasedDseq(newDseq);
+        router.replace(buildConfigureUrl(intentRef.current, newDseq, bidStrategyRef.current), undefined, { shallow: true });
       }
 
       /** The api answers `autoLease: true` only once it has taken the provider pick and the lease on as well, and ignores the ask while that is unavailable. */
@@ -846,14 +851,14 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
     function cancelAndEdit() {
       router.replace(buildConfigureUrl(intentRef.current, undefined, bidStrategy), undefined, { shallow: true });
       createAttemptRef.current += 1;
-      const isCreateOutstanding = phase === "creating" && !queuedCreateRef.current;
+      const isCreateOutstanding = phase === "creating" && !queuedCreateRef.current && !autoLeasedDseq;
       queuedCreateRef.current = null;
       const dseqToClose = createdDseq ?? strandedDseq;
       if (!dseqToClose && isCreateOutstanding) analyticsService.track("cancel_during_create", { category: "deployments" });
       resetToConfiguring();
       if (dseqToClose) startClose(dseqToClose, "in-background");
     },
-    [createdDseq, strandedDseq, phase, router, bidStrategy, analyticsService, resetToConfiguring, startClose]
+    [createdDseq, strandedDseq, phase, autoLeasedDseq, router, bidStrategy, analyticsService, resetToConfiguring, startClose]
   );
   /**
    * Lands in `error`, never `configuring`: the auto flow creates a fresh deployment the instant it reads `configuring`.

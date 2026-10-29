@@ -11,6 +11,7 @@ import type {
   FlowError
 } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { NO_PROVIDERS_MESSAGE } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import type { AutoLeaseProgress } from "@src/components/deployments/ConfigureDeployment/useFollowAutoLease/useFollowAutoLease";
 import { BID_POLL_INTERVAL } from "@src/queries/useListBids";
 import { useFirstReachableProvider } from "@src/queries/useProvidersQuery";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
@@ -155,6 +156,77 @@ describe(useAutoDeploymentFlow.name, () => {
 
     expect(flow.actions.closeAndFail).not.toHaveBeenCalled();
     expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: false, hasBids: false });
+  });
+
+  describe("when the api takes the deploy on", () => {
+    it("follows nothing before the api takes the deploy on", async () => {
+      const { flow, useFollowAutoLease } = setup({ bids: [] });
+
+      await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalled());
+
+      expect(useFollowAutoLease).toHaveBeenLastCalledWith(null);
+    });
+
+    it("follows the deployment the api took on", async () => {
+      const { flow, useFollowAutoLease } = setup({ bids: [] });
+      await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalled());
+
+      act(() => flow.handOverToApi("1000"));
+
+      expect(useFollowAutoLease).toHaveBeenLastCalledWith("1000");
+    });
+
+    it("moves the scene on to matching as Console looks for a provider", async () => {
+      const { result, flow } = setup({ bids: [], autoLease: { phase: "matching", providers: [] } });
+      await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalled());
+
+      act(() => flow.handOverToApi("1000"));
+
+      expect(result.current.state).toEqual({ kind: "matching", isWaitingForLateBids: false, hasBids: false });
+      expect(result.current.phases.map(phase => phase.status)).toEqual(["completed", "active", "pending"]);
+      expect(result.current.matchedProviderAddress).toBeNull();
+    });
+
+    it("focuses the provider Console matched while it leases the deployment", async () => {
+      const { result, flow } = setup({ bids: [], autoLease: { phase: "preparing", providers: ["akash1console", "akash1second"] } });
+      await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalled());
+
+      act(() => flow.handOverToApi("1000"));
+
+      expect(result.current.state).toEqual({ kind: "preparing", isWaitingForLateBids: false, hasBids: false });
+      expect(result.current.matchedProviderAddress).toBe("akash1console");
+    });
+
+    it("fills the bar once Console has leased the deployment", async () => {
+      const { result, flow } = setup({ bids: [], autoLease: { phase: "success", providers: ["akash1console"] } });
+      await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalled());
+
+      act(() => flow.handOverToApi("1000"));
+
+      expect(result.current.state).toEqual({ kind: "success", isWaitingForLateBids: false, hasBids: false });
+      expect(result.current.progressPercent).toBe(100);
+      expect(result.current.phases.map(phase => phase.status)).toEqual(["completed", "completed", "completed"]);
+    });
+
+    it("tells why Console gave the deploy up", async () => {
+      const { result, flow } = setup({ bids: [], autoLease: { phase: "error", providers: [], message: "No provider bid on this deployment in time" } });
+      await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalled());
+
+      act(() => flow.handOverToApi("1000"));
+
+      expect(result.current.state).toEqual({ kind: "error", message: "No provider bid on this deployment in time" });
+    });
+
+    it("starts a new deployment when the user tries again after Console gave the deploy up", async () => {
+      const { result, flow } = setup({ bids: [], autoLease: { phase: "error", providers: [] } });
+      await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalledTimes(1));
+      act(() => flow.handOverToApi("1000"));
+
+      act(() => result.current.tryAgain());
+
+      expect(flow.actions.cancelAndEdit).toHaveBeenCalledTimes(1);
+      await vi.waitFor(() => expect(flow.actions.requestQuotes).toHaveBeenCalledTimes(2));
+    });
   });
 
   describe("when the flow says the first bid is late", () => {
@@ -785,6 +857,7 @@ describe(useAutoDeploymentFlow.name, () => {
     holdDeploy?: boolean;
     matchDeadlineMs?: number;
     lateBidWaitMs?: number;
+    autoLease?: AutoLeaseProgress;
   }) {
     vi.spyOn(globalThis, "requestAnimationFrame").mockReturnValue(1);
     vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined);
@@ -821,6 +894,7 @@ describe(useAutoDeploymentFlow.name, () => {
       setFlowError: (error: FlowError) => void;
       setDeployError: (message?: string, canLeaseElsewhere?: boolean) => void;
       setCreating: () => void;
+      handOverToApi: (dseq: string) => void;
       dropSelections: () => void;
       replaceDseq: (next: string) => void;
       reportNoBids: () => void;
@@ -830,6 +904,7 @@ describe(useAutoDeploymentFlow.name, () => {
       setFlowError: () => undefined,
       setDeployError: () => undefined,
       setCreating: () => undefined,
+      handOverToApi: () => undefined,
       dropSelections: () => undefined,
       replaceDseq: () => undefined,
       reportNoBids: () => undefined,
@@ -848,6 +923,7 @@ describe(useAutoDeploymentFlow.name, () => {
       const [error, setError] = useState<FlowError | undefined>(undefined);
       const [liveBids, setLiveBids] = useState(bids);
       const [noBidsReceived, setNoBidsReceived] = useState(false);
+      const [autoLeasedDseq, setAutoLeasedDseq] = useState<string | null>(null);
 
       flowControls.setPhaseError = (message?: string) => {
         setError({ message });
@@ -862,6 +938,11 @@ describe(useAutoDeploymentFlow.name, () => {
         setPhase("quoting");
       };
       flowControls.setCreating = () => setPhase("creating");
+      flowControls.handOverToApi = (handedOverDseq: string) => {
+        setPhase("creating");
+        setDseq(null);
+        setAutoLeasedDseq(handedOverDseq);
+      };
       flowControls.dropSelections = () => setSelections({});
       flowControls.replaceDseq = (next: string) => setDseq(next);
       flowControls.reportNoBids = () => setNoBidsReceived(true);
@@ -910,6 +991,7 @@ describe(useAutoDeploymentFlow.name, () => {
         setDeployError(undefined);
         setSelections({});
         setDeploySucceeded(false);
+        setAutoLeasedDseq(null);
         setPhase("configuring");
       }, []);
 
@@ -927,9 +1009,9 @@ describe(useAutoDeploymentFlow.name, () => {
         deployError,
         error,
         pendingClose: null,
-        isCreatingInBackground: false,
+        isCreatingInBackground: autoLeasedDseq !== null,
         isLeaseInFlight: false,
-        autoLeasedDseq: null,
+        autoLeasedDseq,
         recommendedBidIds: [],
         actions: { ...actions, requestQuotes, selectProvider, clearSelection, deploy, retry, cancelAndEdit, closeAndFail }
       };
@@ -951,6 +1033,10 @@ describe(useAutoDeploymentFlow.name, () => {
     // Stubbed so the deadline's backstop is declared per test; unstubbed it would poll `useListBids`/`useBlock`.
     const useQuoteExpiry: typeof DEPENDENCIES.useQuoteExpiry = () => input?.quoteExpiry ?? null;
 
+    const useFollowAutoLease = vi.fn((autoLeasedDseq: string | null): AutoLeaseProgress | null =>
+      autoLeasedDseq ? input?.autoLease ?? { phase: "creating", providers: [] } : null
+    );
+
     const analyticsService = mock<ReturnType<typeof DEPENDENCIES.useServices>["analyticsService"]>();
     const logger = mock<ReturnType<typeof DEPENDENCIES.useServices>["logger"]>();
     const useServices: typeof DEPENDENCIES.useServices = (() => ({ analyticsService, logger })) as never;
@@ -971,6 +1057,7 @@ describe(useAutoDeploymentFlow.name, () => {
             useProvidersByAddresses,
             useFirstReachableProvider,
             useQuoteExpiry,
+            useFollowAutoLease,
             getRequiredGseqs,
             matchDeadlineMs: input?.matchDeadlineMs ?? UNREACHED_DEADLINE_MS,
             lateBidWaitMs: input?.lateBidWaitMs ?? UNREACHED_DEADLINE_MS
@@ -985,6 +1072,6 @@ describe(useAutoDeploymentFlow.name, () => {
       }
     );
 
-    return { ...view, actions, flow: { actions, ...flowControls }, providerProxy, analyticsService, useProvidersByAddresses };
+    return { ...view, actions, flow: { actions, ...flowControls }, providerProxy, analyticsService, useProvidersByAddresses, useFollowAutoLease };
   }
 });

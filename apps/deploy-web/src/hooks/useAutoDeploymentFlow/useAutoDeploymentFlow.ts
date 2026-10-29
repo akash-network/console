@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { DeploymentFlow, DeploymentFlowPhase } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import { NO_BIDS_TIMEOUT_MS, NO_PROVIDERS_MESSAGE } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
+import type { AutoLeaseProgress } from "@src/components/deployments/ConfigureDeployment/useFollowAutoLease/useFollowAutoLease";
+import { useFollowAutoLease } from "@src/components/deployments/ConfigureDeployment/useFollowAutoLease/useFollowAutoLease";
 import { useQuoteExpiry } from "@src/components/deployments/ConfigureDeployment/useQuoteExpiry/useQuoteExpiry";
 import { useServices } from "@src/context/ServicesProvider";
 import type { DeployFailure, DeployPhase, DeployPhaseId, DeployProgressState } from "@src/hooks/useAutoDeploymentFlow/deployPhases";
@@ -88,6 +90,7 @@ export const DEPENDENCIES = {
   useProvidersByAddresses,
   useFirstReachableProvider,
   useQuoteExpiry,
+  useFollowAutoLease,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   getRequiredGseqs,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -130,6 +133,8 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   const hasDeployFailed = !!flow.deployError && !isMatchingNextProvider;
 
   const dseq = flow.dseq;
+
+  const autoLease = dependencies.useFollowAutoLease(flow.autoLeasedDseq);
 
   // The live (non-closed) leases keyed by group sequence, resolved upfront by the `ResumeDeploymentGuard` so a resumed
   // multi-placement deployment restores the provider chosen for each already-leased group. Empty on a fresh start, or
@@ -359,7 +364,7 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
     [nextProviderRetry, flow.deployError, dependencies.matchDeadlineMs]
   );
 
-  const projected = projectPhase(flow.phase, flow.deploySucceeded, hasDeployFailed);
+  const projected = autoLease?.phase ?? projectPhase(flow.phase, flow.deploySucceeded, hasDeployFailed);
 
   const phaseIndex = getPhaseIndex(projected);
   const { progressPercent, phases } = useDeployPhaseProgress(phaseIndex, { succeeded: projected === "success", resetKey: retryToken });
@@ -387,10 +392,11 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
   }
 
   return {
-    state: projected === "error" ? { kind: "error", ...failureOf(flow) } : { kind: projected, isWaitingForLateBids, hasBids: recommendedBidIds.length > 0 },
+    state:
+      projected === "error" ? { kind: "error", ...failureOf(flow, autoLease) } : { kind: projected, isWaitingForLateBids, hasBids: recommendedBidIds.length > 0 },
     progressPercent,
     phases,
-    matchedProviderAddress,
+    matchedProviderAddress: autoLease ? autoLease.providers[0] ?? null : matchedProviderAddress,
     dseq: dseq ?? undefined,
     recommendedBidIds,
     tryAgain,
@@ -400,7 +406,8 @@ export function useAutoDeploymentFlow({ sdl, resumeLeases = [], flow }: Options,
 
 type ProjectedPhase = DeployPhaseId | "success" | "error";
 
-function failureOf(flow: DeploymentFlow): DeployFailure {
+function failureOf(flow: DeploymentFlow, autoLease: AutoLeaseProgress | null): DeployFailure {
+  if (autoLease?.phase === "error") return { message: autoLease.message };
   if (flow.deployError) return { message: flow.deployError.message, reason: flow.deployError.canLeaseElsewhere ? "lease-failed" : undefined };
 
   const { message, kind, shortfall, projectId } = flow.error ?? {};

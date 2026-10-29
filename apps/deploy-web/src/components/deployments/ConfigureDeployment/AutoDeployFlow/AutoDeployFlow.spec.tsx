@@ -8,7 +8,7 @@ import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./AutoDeployFlow";
 import { AutoDeployFlow } from "./AutoDeployFlow";
 
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { ComponentMock } from "@tests/unit/mocks";
 
 type SceneProps = Parameters<typeof DEPENDENCIES.PhasedDeployProgressScene>[0];
@@ -193,38 +193,25 @@ describe(AutoDeployFlow.name, () => {
   });
 
   describe("while the api takes a one-click deploy on", () => {
-    it("shows only that the deployment is starting while the create awaits the api's answer", () => {
+    it("shows the globe while the create awaits the api's answer", () => {
       const PhasedDeployProgressScene = vi.fn(ComponentMock);
-      setup({ autopilot: { state: { kind: "creating" } }, dependencies: { PhasedDeployProgressScene } });
+      setup({ flow: buildFlow({ phase: "creating" }), autopilot: { state: { kind: "creating" } }, dependencies: { PhasedDeployProgressScene } });
 
-      expect(screen.getByRole("heading", { name: "Starting your deployment" })).toBeInTheDocument();
-      expect(PhasedDeployProgressScene).not.toHaveBeenCalled();
+      expect(PhasedDeployProgressScene).toHaveBeenCalledWith(expect.objectContaining({ state: { kind: "creating" } }), expect.anything());
     });
 
-    it("keeps showing that the deployment is starting while it lands the user on the deployments list", () => {
-      const useLandOnDeploymentList = vi.fn();
+    it("keeps the globe on the provider Console matched while it leases a deploy it took on", () => {
+      const PhasedDeployProgressScene = vi.fn(ComponentMock);
       setup({
-        flow: buildFlow({ autoLeasedDseq: "1000", isCreatingInBackground: true }),
-        dependencies: { useLandOnDeploymentList }
+        flow: buildFlow({ phase: "creating", autoLeasedDseq: "1000", isCreatingInBackground: true }),
+        autopilot: { state: { kind: "preparing" }, matchedProviderAddress: "akash1provider" },
+        dependencies: { PhasedDeployProgressScene }
       });
 
-      expect(screen.getByRole("heading", { name: "Starting your deployment" })).toBeInTheDocument();
-      expect(useLandOnDeploymentList).toHaveBeenLastCalledWith("1000");
-    });
-
-    it("lands nowhere before the api took the deploy on", () => {
-      const useLandOnDeploymentList = vi.fn();
-      setup({ dependencies: { useLandOnDeploymentList } });
-
-      expect(useLandOnDeploymentList).toHaveBeenLastCalledWith(null);
-    });
-
-    it("drives the globe for a create the api took on without the provider pick", () => {
-      const PhasedDeployProgressScene = vi.fn(ComponentMock);
-      setup({ autopilot: { state: { kind: "creating" } }, flow: buildFlow({ isCreatingInBackground: true }), dependencies: { PhasedDeployProgressScene } });
-
-      expect(PhasedDeployProgressScene).toHaveBeenCalled();
-      expect(screen.queryByRole("heading", { name: "Starting your deployment" })).not.toBeInTheDocument();
+      expect(PhasedDeployProgressScene).toHaveBeenCalledWith(
+        expect.objectContaining({ state: { kind: "preparing" }, focusedProviderAddress: "akash1provider" }),
+        expect.anything()
+      );
     });
 
     it("shows a refused create on the progress scene, where funds can be added", () => {
@@ -310,7 +297,6 @@ describe(AutoDeployFlow.name, () => {
           useAddCredits,
           useActiveOrganization,
           useRouter,
-          useLandOnDeploymentList: vi.fn(),
           ...input.dependencies
         }}
       />
