@@ -50,6 +50,8 @@ export function describeActivity(activity: OrganizationActivity): ActivityText {
       return describeUpdatedDeployment(activity);
     case "deployment_renamed":
       return { segments: describeDeploymentRename(payload), systemIcon: "activity" };
+    case "invitation_declined":
+      return { segments: [strong(payload.email ?? "Someone"), text("declined the invitation")], systemIcon: "activity" };
     default:
       return { segments: [text("made a change")], systemIcon: "activity" };
   }

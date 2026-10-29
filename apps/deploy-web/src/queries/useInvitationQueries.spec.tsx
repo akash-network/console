@@ -3,8 +3,14 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
 import type { OrganizationOutput } from "@src/types/organization";
-import type { InvitationPreviewOutput } from "@src/types/organizationMembership";
-import { useAcceptInvitationMutation, useInvitationPreviewQuery } from "./useInvitationQueries";
+import type { InvitationPreviewOutput, ReceivedInvitationOutput } from "@src/types/organizationMembership";
+import {
+  useAcceptInvitationMutation,
+  useAcceptReceivedInvitationMutation,
+  useDeclineReceivedInvitationMutation,
+  useInvitationPreviewQuery,
+  useReceivedInvitationsQuery
+} from "./useInvitationQueries";
 import { ORGANIZATIONS_QUERY_KEY, readCachedOrganizations } from "./useOrganizationQueries";
 
 import { act, waitFor } from "@testing-library/react";
@@ -70,20 +76,108 @@ describe("useInvitationQueries", () => {
     });
   });
 
+  describe(useReceivedInvitationsQuery.name, () => {
+    it("lists the invitations sent to the user and lets the bell stay quiet about refusals", async () => {
+      const { result, listReceivedInvitations, queryClient } = setup({ useHook: () => useReceivedInvitationsQuery({ enabled: true }) });
+
+      await waitFor(() => expect(result.current.data).toEqual([RECEIVED]));
+      expect(listReceivedInvitations).toHaveBeenCalled();
+      const query = queryClient.getQueryCache().find({ queryKey: RECEIVED_KEY });
+      expect(query?.meta?.skipErrorReporting).toEqual(expect.any(Function));
+    });
+
+    it("waits while disabled", () => {
+      const { result, listReceivedInvitations } = setup({ useHook: () => useReceivedInvitationsQuery({ enabled: false }) });
+
+      expect(result.current.fetchStatus).toBe("idle");
+      expect(listReceivedInvitations).not.toHaveBeenCalled();
+    });
+  });
+
+  describe(useAcceptReceivedInvitationMutation.name, () => {
+    it("joins by id, adds the organization to the cached memberships and refreshes the received invitations", async () => {
+      const { result, acceptReceivedInvitation, queryClient } = setup({ useHook: () => useAcceptReceivedInvitationMutation() });
+      queryClient.setQueryData(ORGANIZATIONS_QUERY_KEY, { data: [PERSONAL] });
+
+      await act(() => result.current.mutateAsync({ id: RECEIVED.id }));
+
+      expect(acceptReceivedInvitation).toHaveBeenCalledWith({ id: RECEIVED.id });
+      expect(readCachedOrganizations(queryClient)).toEqual([PERSONAL, JOINED]);
+      expect(queryClient.getQueryState(RECEIVED_KEY)?.isInvalidated).toBe(true);
+    });
+
+    it("refreshes the received invitations and leaves the memberships alone when the invitation is refused", async () => {
+      const { result, acceptReceivedInvitation, queryClient } = setup({ useHook: () => useAcceptReceivedInvitationMutation() });
+      queryClient.setQueryData(ORGANIZATIONS_QUERY_KEY, { data: [PERSONAL] });
+      acceptReceivedInvitation.mockRejectedValue(new Error("declined"));
+
+      await act(async () => {
+        await expect(result.current.mutateAsync({ id: RECEIVED.id })).rejects.toThrow("declined");
+      });
+
+      expect(readCachedOrganizations(queryClient)).toEqual([PERSONAL]);
+      expect(queryClient.getQueryState(RECEIVED_KEY)?.isInvalidated).toBe(true);
+      const [mutation] = queryClient.getMutationCache().getAll();
+      expect(mutation.meta?.skipErrorReporting).toEqual(expect.any(Function));
+    });
+  });
+
+  describe(useDeclineReceivedInvitationMutation.name, () => {
+    it("declines by id and refreshes the received invitations", async () => {
+      const { result, declineReceivedInvitation, queryClient } = setup({ useHook: () => useDeclineReceivedInvitationMutation() });
+
+      await act(() => result.current.mutateAsync({ id: RECEIVED.id }));
+
+      expect(declineReceivedInvitation).toHaveBeenCalledWith({ id: RECEIVED.id });
+      expect(queryClient.getQueryState(RECEIVED_KEY)?.isInvalidated).toBe(true);
+    });
+
+    it("refreshes the received invitations when the decline is refused, without reporting the refusal", async () => {
+      const { result, declineReceivedInvitation, queryClient } = setup({ useHook: () => useDeclineReceivedInvitationMutation() });
+      declineReceivedInvitation.mockRejectedValue(new Error("accepted"));
+
+      await act(async () => {
+        await expect(result.current.mutateAsync({ id: RECEIVED.id })).rejects.toThrow("accepted");
+      });
+
+      expect(queryClient.getQueryState(RECEIVED_KEY)?.isInvalidated).toBe(true);
+      const [mutation] = queryClient.getMutationCache().getAll();
+      expect(mutation.meta?.skipErrorReporting).toEqual(expect.any(Function));
+    });
+  });
+
   function setup<T>(input: { useHook: () => T }) {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     queryClient.setQueryData(PREVIEW_KEY, { data: PREVIEW });
     const previewInvitation = vi.fn().mockResolvedValue({ data: PREVIEW });
+    queryClient.setQueryData(RECEIVED_KEY, { data: [RECEIVED] });
     const acceptInvitation = vi.fn().mockResolvedValue({ data: JOINED });
-    const api = createProxy({ v1: { previewInvitation, acceptInvitation } }) as unknown as ApiService;
+    const listReceivedInvitations = vi.fn().mockResolvedValue({ data: [RECEIVED] });
+    const acceptReceivedInvitation = vi.fn().mockResolvedValue({ data: JOINED });
+    const declineReceivedInvitation = vi.fn().mockResolvedValue(undefined);
+    const api = createProxy({
+      v1: { previewInvitation, acceptInvitation, listReceivedInvitations, acceptReceivedInvitation, declineReceivedInvitation }
+    }) as unknown as ApiService;
 
     const { result } = setupQuery(input.useHook, { services: { api: () => api, queryClient: () => queryClient } });
 
-    return { result, queryClient, previewInvitation, acceptInvitation };
+    return { result, queryClient, previewInvitation, acceptInvitation, listReceivedInvitations, acceptReceivedInvitation, declineReceivedInvitation };
   }
 });
 
 const PREVIEW_KEY = ["v1", "previewInvitation", { data: { token: "cached" } }];
+
+const RECEIVED_KEY = ["v1", "listReceivedInvitations"];
+
+const RECEIVED: ReceivedInvitationOutput = {
+  id: "2f4b5a3e-8f1c-4c55-9a1e-3c1d2b4e5f60",
+  organizationId: "org-2",
+  organizationName: "Acme Corp",
+  inviterName: "alice",
+  role: "member",
+  createdAt: "2026-10-28T00:00:00Z",
+  expiresAt: "2026-11-04T00:00:00Z"
+};
 
 const PREVIEW: InvitationPreviewOutput = {
   organizationName: "Acme Corp",

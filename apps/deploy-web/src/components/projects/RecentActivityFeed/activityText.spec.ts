@@ -28,7 +28,9 @@ describe(describeActivity.name, () => {
     ["organization_renamed", { toName: "Acme Labs" }, "renamed the organization"],
     ["deployment_updated", { dseq: "1", name: "web" }, "updated [web]"],
     ["deployment_renamed", { dseq: "1", fromName: "web", toName: "web-update" }, "renamed *web* to [web-update]"],
-    ["deployment_renamed", { dseq: "1", toName: "web-update" }, "renamed [#1]"]
+    ["deployment_renamed", { dseq: "1", toName: "web-update" }, "renamed [#1]"],
+    ["invitation_declined", { email: "lena@acme.com" }, "*lena@acme.com* declined the invitation"],
+    ["invitation_declined", {}, "*Someone* declined the invitation"]
   ])("reads a %s event by a member as %s", (type, payload, expected) => {
     expect(sentence(read({ type, payload }))).toBe(expected);
   });

@@ -3,6 +3,7 @@ import { extractApiErrorCode } from "@akashnetwork/openapi-sdk";
 import {
   ALREADY_MEMBER_ERROR_CODE,
   INVITATION_ALREADY_ACCEPTED_ERROR_CODE,
+  INVITATION_DECLINED_ERROR_CODE,
   INVITATION_EMAIL_LIMIT_REACHED_ERROR_CODE,
   INVITATION_EXPIRED_ERROR_CODE,
   INVITATION_LIMIT_REACHED_ERROR_CODE,
@@ -22,6 +23,7 @@ const MEMBERSHIP_ERROR_MESSAGES = new Map<string, string>([
   [INVITATION_EMAIL_LIMIT_REACHED_ERROR_CODE, "Too many invitation emails were sent recently. Try again later."],
   [INVITATION_EXPIRED_ERROR_CODE, "This invitation has expired."],
   [INVITATION_REVOKED_ERROR_CODE, "This invitation was revoked."],
+  [INVITATION_DECLINED_ERROR_CODE, "This invitation was declined."],
   [INVITATION_ALREADY_ACCEPTED_ERROR_CODE, "This invitation has already been accepted."],
   [SESSION_REQUIRED_ERROR_CODE, "Sign in again to accept this invitation."]
 ]);

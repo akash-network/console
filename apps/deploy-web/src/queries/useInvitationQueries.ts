@@ -24,3 +24,37 @@ export function useAcceptInvitationMutation() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: api.v1.previewInvitation.getKey() })
   });
 }
+
+const RECEIVED_INVITATIONS_POLL_MS = 60_000;
+
+export function useReceivedInvitationsQuery({ enabled }: { enabled: boolean }) {
+  const { api } = useServices();
+
+  return api.v1.listReceivedInvitations.useQuery(undefined, {
+    enabled,
+    meta: SKIP_REPORTING_REFUSED_INPUT,
+    refetchInterval: RECEIVED_INVITATIONS_POLL_MS,
+    select: response => response.data
+  });
+}
+
+export function useAcceptReceivedInvitationMutation() {
+  const { api } = useServices();
+  const queryClient = useQueryClient();
+
+  return api.v1.acceptReceivedInvitation.useMutation({
+    meta: SKIP_REPORTING_REFUSED_INPUT,
+    onSuccess: ({ data: joined }) => addCachedOrganization(queryClient, joined),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: api.v1.listReceivedInvitations.getKey() })
+  });
+}
+
+export function useDeclineReceivedInvitationMutation() {
+  const { api } = useServices();
+  const queryClient = useQueryClient();
+
+  return api.v1.declineReceivedInvitation.useMutation({
+    meta: SKIP_REPORTING_REFUSED_INPUT,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: api.v1.listReceivedInvitations.getKey() })
+  });
+}

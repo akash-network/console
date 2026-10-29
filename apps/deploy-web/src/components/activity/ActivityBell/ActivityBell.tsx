@@ -16,13 +16,16 @@ import { activityEntriesOf, type ActivityEntry } from "@src/components/activity/
 import { ActivityEntryContent } from "@src/components/activity/ActivityEntryContent/ActivityEntryContent";
 import { ActivityFeedNotice, activityFeedStatusOf } from "@src/components/activity/ActivityFeedNotice/ActivityFeedNotice";
 import { deploymentLabelOf } from "@src/components/activity/activityLabels/activityLabels";
+import { ReceivedInvitationList } from "@src/components/organizations/ReceivedInvitationList/ReceivedInvitationList";
 import { useServices } from "@src/context/ServicesProvider";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
+import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
+import { useReceivedInvitationsQuery } from "@src/queries/useInvitationQueries";
 import { useActivityFeedQuery } from "@src/queries/useLatestActivitiesQuery";
 import { UrlService } from "@src/utils/urlUtils";
 
-export const DEPENDENCIES = { useUser, useActivityFeedQuery, useDeploymentNames, useQueryClient };
+export const DEPENDENCIES = { useUser, useFlag, useActivityFeedQuery, useReceivedInvitationsQuery, useDeploymentNames, useQueryClient, ReceivedInvitationList };
 
 const MAX_LISTED_ENTRIES = 10;
 
@@ -35,8 +38,11 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
   const { api } = useServices();
   const queryClient = d.useQueryClient();
   const { data: feed, isError } = d.useActivityFeedQuery({ enabled: isShown });
+  const isOrganizationsEnabled = d.useFlag("organizations");
+  const { data: invitations = [] } = d.useReceivedInvitationsQuery({ enabled: isShown && isOrganizationsEnabled });
   const activities = feed?.activities ?? [];
   const unseenCount = feed?.unseenCount ?? 0;
+  const attentionCount = unseenCount + invitations.length;
   const { getDeploymentName } = d.useDeploymentNames(activities.map(activity => activity.meta.dseq));
   const markSeen = api.v1.markActivitiesSeen.useMutation({
     onSuccess: function refreshUnseenCount() {
@@ -73,15 +79,15 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
         <button
           type="button"
           className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border bg-background text-muted-foreground transition-colors data-[state=open]:bg-muted data-[state=open]:text-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label={unseenCount > 0 ? `Activity, ${unseenCount} unseen` : "Activity"}
+          aria-label={describeBell({ unseenCount, invitationCount: invitations.length })}
         >
           <Bell className="h-4 w-4" />
-          {unseenCount > 0 && (
+          {attentionCount > 0 && (
             <span
               aria-hidden="true"
               className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground"
             >
-              {unseenCount > MAX_COUNTED_UNSEEN ? `${MAX_COUNTED_UNSEEN}+` : unseenCount}
+              {attentionCount > MAX_COUNTED_UNSEEN ? `${MAX_COUNTED_UNSEEN}+` : attentionCount}
             </span>
           )}
         </button>
@@ -89,7 +95,20 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
       <DropdownMenuContent align="end" collisionPadding={16} className="w-[min(22rem,calc(100vw-2rem))] p-0">
         <DropdownMenuLabel className="px-4 py-3">Activity</DropdownMenuLabel>
         <DropdownMenuSeparator className="m-0" />
-        <ActivityList entries={entries} actorName={user?.username} unseenWhenOpened={unseenWhenOpened} isLoaded={!!feed} isError={isError} />
+        {invitations.length > 0 && (
+          <>
+            <d.ReceivedInvitationList invitations={invitations} />
+            <DropdownMenuSeparator className="m-0" />
+          </>
+        )}
+        <ActivityList
+          entries={entries}
+          actorName={user?.username}
+          unseenWhenOpened={unseenWhenOpened}
+          isLoaded={!!feed}
+          isError={isError}
+          hasInvitations={invitations.length > 0}
+        />
         <DropdownMenuSeparator className="m-0" />
         <DropdownMenuItem asChild className="cursor-pointer justify-center rounded-none px-4 py-2.5 text-sm font-medium">
           <Link href={UrlService.activity()}>See all activity</Link>
@@ -99,21 +118,33 @@ export function ActivityBell({ dependencies: d = DEPENDENCIES }: { dependencies?
   );
 }
 
+function describeBell({ unseenCount, invitationCount }: { unseenCount: number; invitationCount: number }): string {
+  const counts = [
+    invitationCount > 0 && `${invitationCount} ${invitationCount === 1 ? "invitation" : "invitations"}`,
+    unseenCount > 0 && `${unseenCount} unseen`
+  ].filter(Boolean);
+
+  return ["Activity", ...counts].join(", ");
+}
+
 function ActivityList({
   entries,
   actorName,
   unseenWhenOpened,
   isLoaded,
-  isError
+  isError,
+  hasInvitations
 }: {
   entries: ActivityEntry[];
   actorName: string | undefined;
   unseenWhenOpened: ReadonlySet<string>;
   isLoaded: boolean;
   isError: boolean;
+  hasInvitations: boolean;
 }) {
   const status = activityFeedStatusOf({ isLoaded, isError, entryCount: entries.length });
 
+  if (status === "empty" && hasInvitations) return null;
   if (status !== "listed") return <ActivityFeedNotice status={status} />;
 
   return (

@@ -5,11 +5,13 @@ import { mock, mockDeep } from "vitest-mock-extended";
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
 import type { Activity, ActivityOfAnyType } from "@src/queries/useLatestActivitiesQuery";
 import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
+import type { ReceivedInvitationOutput } from "@src/types/organizationMembership";
 import { ActivityBell, DEPENDENCIES } from "./ActivityBell";
 
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildActivity, buildActivityOfUnknownType } from "@tests/seeders/activity";
+import { buildReceivedInvitation } from "@tests/seeders/receivedInvitation";
 import { buildUser } from "@tests/seeders/user";
 import { jsonResponse } from "@tests/unit/jsonResponse";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
@@ -38,6 +40,57 @@ describe(ActivityBell.name, () => {
     setup({ unseenCount: 12 });
 
     expect(screen.getByRole("button", { name: "Activity, 12 unseen" })).toHaveTextContent("9+");
+  });
+
+  it("counts the invitations the user can still answer along with the unseen entries", () => {
+    setup({ unseenCount: 3, invitations: [buildReceivedInvitation(), buildReceivedInvitation()] });
+
+    expect(screen.getByRole("button", { name: "Activity, 2 invitations, 3 unseen" })).toHaveTextContent(/^5$/);
+  });
+
+  it("counts a single invitation once everything else is seen", () => {
+    setup({ unseenCount: 0, invitations: [buildReceivedInvitation()] });
+
+    expect(screen.getByRole("button", { name: "Activity, 1 invitation" })).toHaveTextContent(/^1$/);
+  });
+
+  it.each([
+    { case: "a signed-in user with organizations on", isSignedIn: true, isOrganizationsEnabled: true, enabled: true },
+    { case: "a signed-in user with organizations off", isSignedIn: true, isOrganizationsEnabled: false, enabled: false },
+    { case: "a signed-out visitor", isSignedIn: false, isOrganizationsEnabled: true, enabled: false }
+  ])("asks for invitations only for $case", ({ isSignedIn, isOrganizationsEnabled, enabled }) => {
+    const { useReceivedInvitationsQuery } = setup({ isSignedIn, isOrganizationsEnabled });
+
+    expect(useReceivedInvitationsQuery).toHaveBeenCalledWith({ enabled });
+  });
+
+  it("lists the invitations above the recent entries", async () => {
+    const invitations = [buildReceivedInvitation({ organizationName: "Acme Corp" })];
+    setup({ invitations, activities: [buildActivity({ status: "succeeded", meta: { dseq: "1" } })] });
+
+    await open();
+
+    const invitationList = screen.getByRole("list", { name: "Invitations" });
+    expect(invitationList).toHaveTextContent("Acme Corp");
+    expect(entryItems()).toHaveLength(1);
+    expect(invitationList.compareDocumentPosition(entryItems()[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("leaves out the notice about an empty feed below invitations", async () => {
+    setup({ activities: [], invitations: [buildReceivedInvitation()] });
+
+    await open();
+
+    expect(screen.getByRole("list", { name: "Invitations" })).toBeInTheDocument();
+    expect(screen.queryByText("No activity yet")).not.toBeInTheDocument();
+  });
+
+  it("shows no invitation list without invitations", async () => {
+    setup({ invitations: [] });
+
+    await open();
+
+    expect(screen.queryByRole("list", { name: "Invitations" })).not.toBeInTheDocument();
   });
 
   it("shows no count once everything is seen", () => {
@@ -307,9 +360,12 @@ describe(ActivityBell.name, () => {
 
       const dependencies: typeof DEPENDENCIES = {
         useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: buildUser() }),
+        useFlag: () => false,
         useActivityFeedQuery: DEPENDENCIES.useActivityFeedQuery,
+        useReceivedInvitationsQuery: () => receivedInvitationsQueryOf([]),
         useDeploymentNames: () => mock<ReturnType<typeof DEPENDENCIES.useDeploymentNames>>({ getDeploymentName: () => null, isLoading: false }),
-        useQueryClient: () => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>()
+        useQueryClient: () => mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>(),
+        ReceivedInvitationList: InvitationListStub
       };
 
       render(
@@ -334,6 +390,20 @@ describe(ActivityBell.name, () => {
     await userEvent.keyboard("{Escape}");
   }
 
+  function receivedInvitationsQueryOf(invitations: ReceivedInvitationOutput[]) {
+    return Object.assign(mock<ReturnType<typeof DEPENDENCIES.useReceivedInvitationsQuery>>(), { data: invitations });
+  }
+
+  function InvitationListStub({ invitations }: { invitations: ReceivedInvitationOutput[] }) {
+    return (
+      <ul aria-label="Invitations">
+        {invitations.map(invitation => (
+          <li key={invitation.id}>{invitation.organizationName}</li>
+        ))}
+      </ul>
+    );
+  }
+
   function feedQueryOf(result: { data?: NonNullable<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>["data"]>; isError: boolean }) {
     return Object.assign(mock<ReturnType<typeof DEPENDENCIES.useActivityFeedQuery>>(), result);
   }
@@ -346,6 +416,8 @@ describe(ActivityBell.name, () => {
     names?: Record<string, string>;
     feed?: "loading" | "failed";
     isRefreshFailing?: boolean;
+    invitations?: ReceivedInvitationOutput[];
+    isOrganizationsEnabled?: boolean;
   }) {
     const markSeen = vi.fn();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
@@ -364,11 +436,16 @@ describe(ActivityBell.name, () => {
         isError: input.feed === "failed" || !!input.isRefreshFailing
       })) as typeof DEPENDENCIES.useActivityFeedQuery);
 
+    const useReceivedInvitationsQuery = vi.fn((() => receivedInvitationsQueryOf(input.invitations ?? [])) as typeof DEPENDENCIES.useReceivedInvitationsQuery);
+
     const dependencies: typeof DEPENDENCIES = {
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : buildUser() }),
+      useFlag: () => input.isOrganizationsEnabled ?? true,
       useActivityFeedQuery,
+      useReceivedInvitationsQuery,
       useDeploymentNames,
-      useQueryClient: () => queryClient
+      useQueryClient: () => queryClient,
+      ReceivedInvitationList: InvitationListStub
     };
     const services = { api: () => api };
 
@@ -387,6 +464,6 @@ describe(ActivityBell.name, () => {
       );
     }
 
-    return { markSeen, api, queryClient, useActivityFeedQuery, useDeploymentNames, refreshFeed };
+    return { markSeen, api, queryClient, useActivityFeedQuery, useReceivedInvitationsQuery, useDeploymentNames, refreshFeed };
   }
 });

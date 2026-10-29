@@ -11,6 +11,7 @@ export * from "./payment";
 export * from "./project";
 export * from "./projectSpend";
 export * from "./provider";
+export * from "./receivedInvitation";
 export * from "./screenedProvider";
 export * from "./usage";
 export * from "./user";

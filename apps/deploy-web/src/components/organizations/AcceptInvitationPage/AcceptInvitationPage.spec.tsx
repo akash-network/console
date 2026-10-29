@@ -112,6 +112,15 @@ describe(AcceptInvitationPage.name, () => {
     expect(screen.getByText("Ask An admin of Acme Corp if you still need access to Acme Corp.")).toBeInTheDocument();
   });
 
+  it("explains a declined invitation and forgets its token", () => {
+    const { forgetToken } = setup({ preview: { status: "declined" } });
+
+    expect(screen.getByRole("heading", { name: "This invitation was declined" })).toBeInTheDocument();
+    expect(screen.getByText("Ask alice for a new one if you'd like to join Acme Corp.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Accept invitation" })).not.toBeInTheDocument();
+    expect(forgetToken).toHaveBeenCalled();
+  });
+
   it("explains an invitation that was already accepted and offers the way into Console", () => {
     setup({ preview: { status: "accepted" } });
 
@@ -261,6 +270,7 @@ describe(AcceptInvitationPage.name, () => {
   it.each([
     [410, "invitation_expired", "This invitation has expired."],
     [410, "invitation_revoked", "This invitation was revoked."],
+    [410, "invitation_declined", "This invitation was declined."],
     [409, "invitation_already_accepted", "This invitation has already been accepted."]
   ])("explains a %s %s refusal and forgets the token", async (status, code, message) => {
     const { user, acceptInvitation, confirm, enqueueSnackbar, forgetToken } = setup({});
