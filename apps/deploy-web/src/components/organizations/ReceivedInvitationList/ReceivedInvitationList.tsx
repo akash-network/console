@@ -25,10 +25,10 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-/** Renders inside a dropdown menu, so its answers are menu items the arrow keys reach. */
+/** Answers follow each mutation's promise, since picking one closes the menu and unmounts this list, which drops mutate callbacks. */
 export function ReceivedInvitationList({ invitations, dependencies: d = DEPENDENCIES }: Props) {
-  const { mutate: acceptInvitation } = d.useAcceptReceivedInvitationMutation();
-  const { mutate: declineInvitation } = d.useDeclineReceivedInvitationMutation();
+  const { mutateAsync: acceptInvitation } = d.useAcceptReceivedInvitationMutation();
+  const { mutateAsync: declineInvitation } = d.useDeclineReceivedInvitationMutation();
   const { switchOrganization } = d.useActiveOrganization();
   const { confirm } = d.usePopup();
   const { enqueueSnackbar } = d.useSnackbar();
@@ -38,15 +38,12 @@ export function ReceivedInvitationList({ invitations, dependencies: d = DEPENDEN
     enqueueSnackbar(<Snackbar title={getMembershipErrorMessage(error, fallback)} iconVariant="error" />, { variant: "error" });
 
   const accept = (invitation: ReceivedInvitationOutput) =>
-    acceptInvitation(
-      { id: invitation.id },
-      {
-        onSuccess: ({ data: joined }) => {
-          notifySuccess(`You joined ${joined.name}`);
-          switchOrganization(joined.id);
-        },
-        onError: error => notifyFailure(error, `Couldn't join ${invitation.organizationName}. Try again in a moment.`)
-      }
+    acceptInvitation({ id: invitation.id }).then(
+      ({ data: joined }) => {
+        notifySuccess(`You joined ${joined.name}`);
+        switchOrganization(joined.id);
+      },
+      error => notifyFailure(error, `Couldn't join ${invitation.organizationName}. Try again in a moment.`)
     );
 
   const decline = async (invitation: ReceivedInvitationOutput) => {
@@ -56,12 +53,9 @@ export function ReceivedInvitationList({ invitations, dependencies: d = DEPENDEN
     });
     if (!isConfirmed) return;
 
-    declineInvitation(
-      { id: invitation.id },
-      {
-        onSuccess: () => notifySuccess(`You declined the invitation to ${invitation.organizationName}`),
-        onError: error => notifyFailure(error, `Couldn't decline the invitation to ${invitation.organizationName}. Try again in a moment.`)
-      }
+    await declineInvitation({ id: invitation.id }).then(
+      () => notifySuccess(`You declined the invitation to ${invitation.organizationName}`),
+      error => notifyFailure(error, `Couldn't decline the invitation to ${invitation.organizationName}. Try again in a moment.`)
     );
   };
 

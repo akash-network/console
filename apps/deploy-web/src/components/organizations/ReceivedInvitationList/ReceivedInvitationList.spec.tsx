@@ -39,16 +39,19 @@ describe(ReceivedInvitationList.name, () => {
     expect(screen.getByRole("menuitem", { name: "Decline the invitation to Northwind Labs" })).toBeInTheDocument();
   });
 
-  it("joins the team, says so and switches to it", async () => {
+  it("joins the team, says so and switches to it once the menu has closed", async () => {
     const shown = buildReceivedInvitation({ id: "inv-1", organizationName: "Acme Corp" });
     const { user, acceptInvitation, switchOrganization, enqueueSnackbar } = setup({ invitations: [shown] });
-    acceptInvitation.mockImplementation((input, options) => options?.onSuccess?.({ data: JOINED }, input, undefined));
+    let finishJoining: (response: Awaited<ReturnType<typeof acceptInvitation>>) => void = () => undefined;
+    acceptInvitation.mockReturnValue(new Promise(resolve => (finishJoining = resolve)));
 
     await user.click(screen.getByRole("menuitem", { name: "Accept the invitation to Acme Corp" }));
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    finishJoining({ data: JOINED });
 
-    expect(acceptInvitation).toHaveBeenCalledWith({ id: "inv-1" }, expect.anything());
+    await waitFor(() => expect(switchOrganization).toHaveBeenCalledWith(JOINED.id));
+    expect(acceptInvitation).toHaveBeenCalledWith({ id: "inv-1" });
     expect(lastSnackbar(enqueueSnackbar)).toEqual({ title: "You joined Acme Corp", variant: "success" });
-    expect(switchOrganization).toHaveBeenCalledWith(JOINED.id);
   });
 
   it.each([
@@ -58,11 +61,11 @@ describe(ReceivedInvitationList.name, () => {
     const { user, acceptInvitation, switchOrganization, enqueueSnackbar } = setup({
       invitations: [buildReceivedInvitation({ organizationName: "Acme Corp" })]
     });
-    acceptInvitation.mockImplementation((input, options) => options?.onError?.(error, input, undefined));
+    acceptInvitation.mockRejectedValue(error);
 
     await user.click(screen.getByRole("menuitem", { name: "Accept the invitation to Acme Corp" }));
 
-    expect(lastSnackbar(enqueueSnackbar)).toEqual({ title, variant: "error" });
+    await waitFor(() => expect(lastSnackbar(enqueueSnackbar)).toEqual({ title, variant: "error" }));
     expect(switchOrganization).not.toHaveBeenCalled();
   });
 
@@ -70,16 +73,16 @@ describe(ReceivedInvitationList.name, () => {
     const { user, confirm, declineInvitation, enqueueSnackbar } = setup({
       invitations: [buildReceivedInvitation({ id: "inv-1", organizationName: "Acme Corp" })]
     });
-    declineInvitation.mockImplementation((input, options) => options?.onSuccess?.(undefined, input, undefined));
+    declineInvitation.mockResolvedValue(undefined);
 
     await user.click(screen.getByRole("menuitem", { name: "Decline the invitation to Acme Corp" }));
 
-    await waitFor(() => expect(declineInvitation).toHaveBeenCalledWith({ id: "inv-1" }, expect.anything()));
+    await waitFor(() => expect(lastSnackbar(enqueueSnackbar)).toEqual({ title: "You declined the invitation to Acme Corp", variant: "success" }));
+    expect(declineInvitation).toHaveBeenCalledWith({ id: "inv-1" });
     expect(confirm).toHaveBeenCalledWith({
       title: "Decline the invitation to Acme Corp?",
       message: "To join later, you'll need a new invitation."
     });
-    expect(lastSnackbar(enqueueSnackbar)).toEqual({ title: "You declined the invitation to Acme Corp", variant: "success" });
   });
 
   it("keeps the invitation when the user changes their mind", async () => {
@@ -96,7 +99,7 @@ describe(ReceivedInvitationList.name, () => {
     { case: "falls back to a generic message", error: new Error("offline"), title: "Couldn't decline the invitation to Acme Corp. Try again in a moment." }
   ])("$case when declining fails", async ({ error, title }) => {
     const { user, declineInvitation, enqueueSnackbar } = setup({ invitations: [buildReceivedInvitation({ organizationName: "Acme Corp" })] });
-    declineInvitation.mockImplementation((input, options) => options?.onError?.(error, input, undefined));
+    declineInvitation.mockRejectedValue(error);
 
     await user.click(screen.getByRole("menuitem", { name: "Decline the invitation to Acme Corp" }));
 
@@ -113,22 +116,23 @@ describe(ReceivedInvitationList.name, () => {
   }
 
   function setup(input: { invitations: ReceivedInvitationOutput[]; isConfirmed?: boolean }) {
-    const acceptInvitation = vi.fn<ReturnType<typeof DEPENDENCIES.useAcceptReceivedInvitationMutation>["mutate"]>();
-    const declineInvitation = vi.fn<ReturnType<typeof DEPENDENCIES.useDeclineReceivedInvitationMutation>["mutate"]>();
+    const acceptInvitation = vi.fn<ReturnType<typeof DEPENDENCIES.useAcceptReceivedInvitationMutation>["mutateAsync"]>();
+    const declineInvitation = vi.fn<ReturnType<typeof DEPENDENCIES.useDeclineReceivedInvitationMutation>["mutateAsync"]>();
     const switchOrganization = vi.fn<ReturnType<typeof DEPENDENCIES.useActiveOrganization>["switchOrganization"]>().mockReturnValue(true);
     const confirm = vi.fn<ReturnType<typeof DEPENDENCIES.usePopup>["confirm"]>(async () => input.isConfirmed ?? true);
     const enqueueSnackbar = vi.fn();
 
     const dependencies: typeof DEPENDENCIES = {
-      useAcceptReceivedInvitationMutation: () => mock<ReturnType<typeof DEPENDENCIES.useAcceptReceivedInvitationMutation>>({ mutate: acceptInvitation }),
-      useDeclineReceivedInvitationMutation: () => mock<ReturnType<typeof DEPENDENCIES.useDeclineReceivedInvitationMutation>>({ mutate: declineInvitation }),
+      useAcceptReceivedInvitationMutation: () => mock<ReturnType<typeof DEPENDENCIES.useAcceptReceivedInvitationMutation>>({ mutateAsync: acceptInvitation }),
+      useDeclineReceivedInvitationMutation: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useDeclineReceivedInvitationMutation>>({ mutateAsync: declineInvitation }),
       useActiveOrganization: () => mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ switchOrganization }),
       usePopup: () => mock<ReturnType<typeof DEPENDENCIES.usePopup>>({ confirm }),
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })
     };
 
     render(
-      <DropdownMenu open modal={false}>
+      <DropdownMenu defaultOpen modal={false}>
         <DropdownMenuTrigger>Activity</DropdownMenuTrigger>
         <DropdownMenuContent>
           <ReceivedInvitationList invitations={input.invitations} dependencies={dependencies} />
