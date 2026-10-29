@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNull, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNull, type SQL } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -6,7 +6,9 @@ import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repositor
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { Organizations } from "@src/organization/model-schemas/organization/organization.schema";
+import { OrganizationMembers } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { Users } from "@src/user/model-schemas/user/user.schema";
+import type { UserOutput } from "@src/user/repositories/user/user.repository";
 
 type Table = ApiPgTables["OrganizationInvitations"];
 export type OrganizationInvitationInput = Table["$inferInsert"];
@@ -20,6 +22,11 @@ export type OrganizationInvitationWithInviter = Pick<
 };
 
 export type OrganizationInvitationPreview = Pick<OrganizationInvitationOutput, "organizationId" | "role" | "email" | "status" | "expiresAt"> & {
+  organizationName: string;
+  inviterName: string | null;
+};
+
+export type ReceivedInvitation = Pick<OrganizationInvitationOutput, "id" | "organizationId" | "role" | "createdAt" | "expiresAt"> & {
   organizationName: string;
   inviterName: string | null;
 };
@@ -114,6 +121,29 @@ export class OrganizationInvitationRepository extends OrgScopedRepository<Table,
       .limit(1);
 
     return preview;
+  }
+
+  async findPendingSentTo(email: OrganizationInvitationOutput["email"], { exceptTeamsOf }: { exceptTeamsOf: UserOutput["id"] }): Promise<ReceivedInvitation[]> {
+    return await this.cursor
+      .select({
+        id: this.table.id,
+        organizationId: this.table.organizationId,
+        organizationName: Organizations.name,
+        inviterName: Users.username,
+        role: this.table.role,
+        createdAt: this.table.createdAt,
+        expiresAt: this.table.expiresAt
+      })
+      .from(this.table)
+      .innerJoin(Organizations, and(eq(Organizations.id, this.table.organizationId), isNull(Organizations.deletedAt)))
+      .leftJoin(Users, eq(Users.id, this.table.invitedByUserId))
+      .leftJoin(OrganizationMembers, and(eq(OrganizationMembers.organizationId, this.table.organizationId), eq(OrganizationMembers.userId, exceptTeamsOf)))
+      .where(
+        this.whereAccessibleBy(
+          and(eq(this.table.email, email), eq(this.table.status, "pending"), gt(this.table.expiresAt, new Date()), isNull(OrganizationMembers.id))
+        )
+      )
+      .orderBy(desc(this.table.createdAt), desc(this.table.id));
   }
 
   /** Swaps the token only while the invitation still carries the expected one, so a token issued in between is never overwritten. */

@@ -7,3 +7,4 @@ export { projectBudgetsRouter } from "./routes/project-budgets/project-budgets.r
 export { projectMembersRouter } from "./routes/project-members/project-members.router";
 export { projectSpendRouter } from "./routes/project-spend/project-spend.router";
 export { projectsRouter } from "./routes/projects/projects.router";
+export { receivedInvitationsRouter } from "./routes/received-invitations/received-invitations.router";

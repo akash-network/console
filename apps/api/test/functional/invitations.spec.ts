@@ -57,7 +57,8 @@ describe("Invitations", () => {
     it.each([
       { status: "expired", invitation: { expiresAt: addDays(new Date(), -1) } },
       { status: "revoked", invitation: { status: "revoked" as const, revokedAt: new Date() } },
-      { status: "accepted", invitation: { status: "accepted" as const, acceptedAt: new Date() } }
+      { status: "accepted", invitation: { status: "accepted" as const, acceptedAt: new Date() } },
+      { status: "declined", invitation: { status: "declined" as const, declinedAt: new Date() } }
     ])("tells the visitor the invitation is $status", async ({ status, invitation }) => {
       const { invite, request } = await setup({});
       const { token } = await invite(invitation);
@@ -148,7 +149,8 @@ describe("Invitations", () => {
 
     it.each([
       { case: "expired", invitation: { expiresAt: addDays(new Date(), -1) }, status: 410, code: "invitation_expired" },
-      { case: "revoked", invitation: { status: "revoked" as const, revokedAt: new Date() }, status: 410, code: "invitation_revoked" }
+      { case: "revoked", invitation: { status: "revoked" as const, revokedAt: new Date() }, status: 410, code: "invitation_revoked" },
+      { case: "declined", invitation: { status: "declined" as const, declinedAt: new Date() }, status: 410, code: "invitation_declined" }
     ])("explains that the invitation is $case", async ({ invitation, status, code }) => {
       const { invite, seedInvitee, request, membershipsOf } = await setup({});
       const invitee = await seedInvitee();

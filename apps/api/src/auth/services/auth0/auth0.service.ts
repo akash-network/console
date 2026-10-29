@@ -35,6 +35,17 @@ export class Auth0Service {
     }
   }
 
+  async getUser(userId: string): Promise<GetUsers200ResponseOneOfInner | null> {
+    try {
+      const { data: user } = await this.managementClient.users.get({ id: userId });
+
+      return user;
+    } catch (error) {
+      if (isAuth0ApiError(error) && error.statusCode === 404) return null;
+      throw error;
+    }
+  }
+
   async getUserByEmail(email: string): Promise<GetUsers200ResponseOneOfInner | null> {
     const { data: users } = await this.managementClient.usersByEmail.getByEmail({ email });
     if (users.length === 0) {

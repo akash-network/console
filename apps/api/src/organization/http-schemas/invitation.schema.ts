@@ -42,7 +42,26 @@ export const AcceptInvitationResponseSchema = z.object({
   data: OrganizationSchema
 });
 
+export const ReceivedInvitationSchema = z.object({
+  id: z.string().uuid(),
+  organizationId: z.string().uuid(),
+  organizationName: z.string(),
+  inviterName: z.string().nullable(),
+  role: z.enum(organizationRoleEnum.enumValues),
+  createdAt: z.string().datetime(),
+  expiresAt: z.string().datetime()
+});
+
+export const ListReceivedInvitationsResponseSchema = z.object({
+  data: z.array(ReceivedInvitationSchema).openapi({ description: "Newest first." })
+});
+
+export const ReceivedInvitationParamsSchema = z.object({
+  id: z.string().uuid()
+});
+
 export type PreviewInvitationRequest = z.infer<typeof PreviewInvitationRequestSchema>;
 export type InvitationPreviewResponse = z.infer<typeof InvitationPreviewResponseSchema>;
 export type AcceptInvitationRequest = z.infer<typeof AcceptInvitationRequestSchema>;
 export type AcceptInvitationResponse = z.infer<typeof AcceptInvitationResponseSchema>;
+export type ListReceivedInvitationsResponse = z.infer<typeof ListReceivedInvitationsResponseSchema>;

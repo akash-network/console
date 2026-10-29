@@ -7431,6 +7431,63 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/received-invitations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List the pending invitations sent to the caller's verified email
+     * @description An account whose email is not verified receives none, since anyone can sign up with an address they do not own.
+     */
+    get: operations["listReceivedInvitations"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/received-invitations/{id}/accept": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Join the organization of an invitation sent to the caller's verified email, without the token of its link */
+    post: operations["acceptReceivedInvitation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/received-invitations/{id}/decline": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Decline an invitation sent to the caller's verified email
+     * @description Declining an invitation twice changes nothing. The team's activity shows the invited address, not the account that declined.
+     */
+    post: operations["declineReceivedInvitation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/projects/{id}/members": {
     parameters: {
       query?: never;
@@ -14547,7 +14604,8 @@ export interface operations {
                 | "member_updated"
                 | "organization_renamed"
                 | "deployment_updated"
-                | "deployment_renamed";
+                | "deployment_renamed"
+                | "invitation_declined";
               /** @description The names and values the client renders the activity text with, per type. */
               payload: {
                 [key: string]: unknown;
@@ -15360,7 +15418,7 @@ export interface operations {
               /** @description The address the invitation was sent to. */
               email: string;
               /** @enum {string} */
-              status: "pending" | "accepted" | "revoked" | "expired";
+              status: "pending" | "accepted" | "revoked" | "declined" | "expired";
               /** Format: date-time */
               expiresAt: string;
             };
@@ -15466,6 +15524,217 @@ export interface operations {
         content?: never;
       };
       /** @description The invitation was sent to an address the caller has not verified and they did not confirm (`invitation_email_mismatch`), someone else accepted it or the caller accepted it and has since left (`invitation_already_accepted`), or the caller already belongs to the organization and was not the verified invitee (`already_member`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The invitation expired (`invitation_expired`) or was revoked (`invitation_revoked`) */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listReceivedInvitations: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The invitations the caller can still accept */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @description Newest first. */
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** Format: uuid */
+              organizationId: string;
+              organizationName: string;
+              inviterName: string | null;
+              /** @enum {string} */
+              role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /** Format: date-time */
+              createdAt: string;
+              /** Format: date-time */
+              expiresAt: string;
+            }[];
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Requested with an API key instead of a signed-in session (`session_required`) */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  acceptReceivedInvitation: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The organization the caller now belongs to */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              name: string;
+              slug: string;
+              /** @enum {string} */
+              type: "personal" | "team";
+              /**
+               * @description The caller's role in the organization.
+               * @enum {string}
+               */
+              role: "owner" | "admin" | "member" | "billing" | "viewer";
+              /** @description Whether this request ran in this organization. */
+              isActive: boolean;
+              /** @description Whether the organization has a payment method saved, its owner's own cards for a personal organization. Null for an organization this request did not run in. */
+              hasPaymentMethod: boolean | null;
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+      };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Requested with an API key instead of a signed-in session (`session_required`) */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No invitation with this id was sent to the caller's verified email, or its organization was deleted */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Someone else accepted the invitation, or the caller accepted it and has since left (`invitation_already_accepted`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The invitation expired (`invitation_expired`), was revoked (`invitation_revoked`) or was declined (`invitation_declined`) */
+      410: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  declineReceivedInvitation: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The invitation was declined */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The id is not a uuid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Requested with an API key instead of a signed-in session (`session_required`) */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No invitation with this id was sent to the caller's verified email, or its organization was deleted */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The invitation was already accepted (`invitation_already_accepted`) */
       409: {
         headers: {
           [name: string]: unknown;

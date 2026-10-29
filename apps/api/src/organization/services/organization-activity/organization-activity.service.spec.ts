@@ -68,19 +68,27 @@ describe(OrganizationActivityService.name, () => {
     });
   });
 
-  describe("recordJoined", () => {
-    it("files the activity into the joined team, outside the organization the request runs in", async () => {
+  describe("recordInvitationAnswer", () => {
+    it.each([
+      {
+        reason: "invitation-by-token" as const,
+        activity: {
+          organizationId: faker.string.uuid(),
+          type: "member_joined" as const,
+          actorUserId: faker.string.uuid(),
+          payload: { role: "member" as const }
+        }
+      },
+      {
+        reason: "invitation-by-verified-email" as const,
+        activity: { organizationId: faker.string.uuid(), type: "invitation_declined" as const, actorUserId: null, payload: { email: "jane@example.com" } }
+      }
+    ])("files the $activity.type activity into the inviting team, reached $reason", async ({ reason, activity }) => {
       const { service, organizationActivityRepository, unscopedRepository } = setup();
-      const activity = {
-        organizationId: faker.string.uuid(),
-        type: "member_joined" as const,
-        actorUserId: faker.string.uuid(),
-        payload: { role: "member" as const }
-      };
 
-      await service.recordJoined(activity);
+      await service.recordInvitationAnswer(activity, reason);
 
-      expect(organizationActivityRepository.unscoped).toHaveBeenCalledWith("invitation-by-token");
+      expect(organizationActivityRepository.unscoped).toHaveBeenCalledWith(reason);
       expect(unscopedRepository.create).toHaveBeenCalledWith(activity);
       expect(organizationActivityRepository.create).not.toHaveBeenCalled();
     });
@@ -163,6 +171,30 @@ describe(OrganizationActivityService.name, () => {
       expect(page.activities).toEqual([{ ...invited, payload: { role: "admin" } }]);
     });
 
+    it("hides the declined address from a caller who may not read invitations", async () => {
+      const declined = createDeclinedActivity();
+      const { service } = setup({
+        activities: [declined],
+        rules: [{ action: "read", subject: "OrganizationActivity", conditions: { organizationId: declined.organizationId } }]
+      });
+
+      const page = await service.list({ limit: 20 });
+
+      expect(page.activities).toEqual([{ ...declined, payload: {} }]);
+    });
+
+    it("shows the declined address to a caller who may read the invitations of the activity's organization", async () => {
+      const declined = createDeclinedActivity();
+      const { service } = setup({
+        activities: [declined],
+        rules: [{ action: "read", subject: "OrganizationInvitation", conditions: { organizationId: declined.organizationId } }]
+      });
+
+      const page = await service.list({ limit: 20 });
+
+      expect(page.activities).toEqual([declined]);
+    });
+
     it("leaves the payload of every other type as stored for a caller who may not read invitations", async () => {
       const joined = createOrganizationActivity({ type: "member_joined", projectId: null, payload: { role: "member", email: "lena@acme.com" } });
       const { service } = setup({ activities: [joined], rules: [] });
@@ -184,6 +216,10 @@ describe(OrganizationActivityService.name, () => {
 
   function createInvitedActivity() {
     return createOrganizationActivity({ type: "member_invited", projectId: null, payload: { email: "lena@acme.com", role: "admin" } });
+  }
+
+  function createDeclinedActivity() {
+    return createOrganizationActivity({ type: "invitation_declined", actorUserId: null, projectId: null, payload: { email: "lena@acme.com" } });
   }
 
   function setup(input: { activities?: OrganizationActivityWithActor[]; rules?: RawRuleOf<MongoAbility>[] } = {}) {

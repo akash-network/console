@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
+import type { VerifiedEmailService } from "@src/auth/services/verified-email/verified-email.service";
 import type { TxService } from "@src/core/services";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { createInvitationToken, hashInvitationToken } from "@src/organization/lib/invitation-token/invitation-token";
@@ -11,7 +12,8 @@ import type { OrganizationOutput, OrganizationRepository } from "@src/organizati
 import type {
   OrganizationInvitationOutput,
   OrganizationInvitationPreview,
-  OrganizationInvitationRepository
+  OrganizationInvitationRepository,
+  ReceivedInvitation
 } from "@src/organization/repositories/organization-invitation/organization-invitation.repository";
 import type { Membership, OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectRepository } from "@src/organization/repositories/project/project.repository";
@@ -22,6 +24,7 @@ import type { OrganizationContext } from "@src/organization/types/organization-c
 import type { UserOutput, UserRepository } from "@src/user/repositories";
 import {
   INVITATION_ALREADY_ACCEPTED_ERROR_CODE,
+  INVITATION_DECLINED_ERROR_CODE,
   INVITATION_EMAIL_MISMATCH_ERROR_CODE,
   INVITATION_EXPIRED_ERROR_CODE,
   INVITATION_REVOKED_ERROR_CODE,
@@ -116,13 +119,11 @@ describe(InvitationAcceptanceService.name, () => {
 
       await service.acceptInvitation({ token: createInvitationToken() });
 
-      expect(organizationActivityService.recordJoined).toHaveBeenCalledTimes(1);
-      expect(organizationActivityService.recordJoined).toHaveBeenCalledWith({
-        organizationId: invitation.organizationId,
-        type: "member_joined",
-        actorUserId: invitee.id,
-        payload: { role: "billing" }
-      });
+      expect(organizationActivityService.recordInvitationAnswer).toHaveBeenCalledTimes(1);
+      expect(organizationActivityService.recordInvitationAnswer).toHaveBeenCalledWith(
+        { organizationId: invitation.organizationId, type: "member_joined", actorUserId: invitee.id, payload: { role: "billing" } },
+        "invitation-by-token"
+      );
     });
 
     it("answers the joined organization as inactive while the request ran in another one", async () => {
@@ -184,7 +185,7 @@ describe(InvitationAcceptanceService.name, () => {
 
       await expect(service.acceptInvitation({ token: createInvitationToken() })).resolves.toMatchObject({ role: "viewer" });
       expect(unscopedRepositories.projectMembers.createManyUnlessExist).not.toHaveBeenCalled();
-      expect(organizationActivityService.recordJoined).not.toHaveBeenCalled();
+      expect(organizationActivityService.recordInvitationAnswer).not.toHaveBeenCalled();
       expect(unscopedRepositories.invitations.updateById).toHaveBeenCalledWith(invitation.id, expect.objectContaining({ acceptedByUserId: invitee.id }));
     });
 
@@ -202,7 +203,7 @@ describe(InvitationAcceptanceService.name, () => {
       });
       expect(unscopedRepositories.invitations.updateById).not.toHaveBeenCalled();
       expect(userRepository.updateById).not.toHaveBeenCalled();
-      expect(organizationActivityService.recordJoined).not.toHaveBeenCalled();
+      expect(organizationActivityService.recordInvitationAnswer).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -257,7 +258,7 @@ describe(InvitationAcceptanceService.name, () => {
 
       await expect(service.acceptInvitation({ token: createInvitationToken() })).resolves.toMatchObject({ isActive: false });
       expect(unscopedRepositories.members.createUnlessExists).not.toHaveBeenCalled();
-      expect(organizationActivityService.recordJoined).not.toHaveBeenCalled();
+      expect(organizationActivityService.recordInvitationAnswer).not.toHaveBeenCalled();
       expect(unscopedRepositories.invitations.updateById).not.toHaveBeenCalled();
       expect(userRepository.updateById).toHaveBeenCalledWith(invitee.id, { lastUsedOrganizationId: invitation.organizationId });
     });
@@ -296,6 +297,11 @@ describe(InvitationAcceptanceService.name, () => {
         error: { status: 410, errorCode: INVITATION_REVOKED_ERROR_CODE, message: "The invitation was revoked" }
       },
       {
+        case: "a declined invitation",
+        invitation: { status: "declined" as const, declinedAt: new Date() },
+        error: { status: 410, errorCode: INVITATION_DECLINED_ERROR_CODE, message: "The invitation was declined" }
+      },
+      {
         case: "an expired invitation",
         invitation: { expiresAt: addDays(new Date(), -1) },
         error: { status: 410, errorCode: INVITATION_EXPIRED_ERROR_CODE, message: "The invitation has expired" }
@@ -332,6 +338,231 @@ describe(InvitationAcceptanceService.name, () => {
     });
   });
 
+  describe("listReceivedInvitations", () => {
+    it("lists the pending invitations sent to the email Auth0 verified for the caller, except to the teams they belong to", async () => {
+      const receivedInvitations = [createReceivedInvitation(), createReceivedInvitation()];
+      const { service, invitee, invitationRepository, unscopedRepositories, verifiedEmailService } = setup({
+        verifiedEmail: "jane@example.com",
+        receivedInvitations
+      });
+
+      await expect(service.listReceivedInvitations()).resolves.toEqual(receivedInvitations);
+      expect(verifiedEmailService.getRecentVerifiedEmail).toHaveBeenCalledWith(invitee.userId);
+      expect(invitationRepository.unscoped).toHaveBeenCalledWith("invitation-by-verified-email");
+      expect(unscopedRepositories.invitations.findPendingSentTo).toHaveBeenCalledWith("jane@example.com", { exceptTeamsOf: invitee.id });
+    });
+
+    it("lists nothing when Auth0 verified no email for the caller", async () => {
+      const { service, unscopedRepositories } = setup({
+        invitee: { email: "jane@example.com", emailVerified: true },
+        verifiedEmail: null,
+        receivedInvitations: [createReceivedInvitation()]
+      });
+
+      await expect(service.listReceivedInvitations()).resolves.toEqual([]);
+      expect(unscopedRepositories.invitations.findPendingSentTo).not.toHaveBeenCalled();
+    });
+
+    it("lists nothing without asking Auth0 for a user it does not know", async () => {
+      const { service, verifiedEmailService, unscopedRepositories } = setup({ invitee: { userId: null }, verifiedEmail: "jane@example.com" });
+
+      await expect(service.listReceivedInvitations()).resolves.toEqual([]);
+      expect(verifiedEmailService.getRecentVerifiedEmail).not.toHaveBeenCalled();
+      expect(unscopedRepositories.invitations.findPendingSentTo).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("acceptReceivedInvitation", () => {
+    it("joins the invitee through the invitation with this id sent to the email Auth0 verified for them, without its token", async () => {
+      vi.useFakeTimers({ now: new Date("2026-10-29T12:00:00.000Z") });
+      const projectId = faker.string.uuid();
+      const invitation = createOrganizationInvitation({
+        email: "jane@example.com",
+        role: "member",
+        projectAccess: "selected",
+        projectGrants: [{ projectId, role: "viewer" }]
+      });
+      const {
+        service,
+        invitee,
+        verifiedEmailService,
+        invitationRepository,
+        organizationMemberRepository,
+        projectRepository,
+        projectMemberRepository,
+        organizationRepository,
+        unscopedRepositories,
+        organizationActivityService,
+        userRepository
+      } = setup({ invitation, invitee: { email: "joe@example.com", emailVerified: false }, verifiedEmail: "jane@example.com", liveProjectIds: [projectId] });
+
+      await expect(service.acceptReceivedInvitation(invitation.id)).resolves.toMatchObject({ role: "member" });
+
+      const where = { id: invitation.id, email: "jane@example.com" };
+      expect(verifiedEmailService.getVerifiedEmail).toHaveBeenCalledWith(invitee.userId);
+      expect(verifiedEmailService.getRecentVerifiedEmail).not.toHaveBeenCalled();
+      expect(unscopedRepositories.invitations.findOneBy).toHaveBeenCalledWith(where);
+      expect(unscopedRepositories.invitations.findOneByAndLock).toHaveBeenCalledWith(where, { strength: "no key update" });
+      expect(organizationRepository.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(
+        unscopedRepositories.invitations.findOneByAndLock.mock.invocationCallOrder[0]
+      );
+      for (const repository of [invitationRepository, organizationMemberRepository, projectRepository, projectMemberRepository]) {
+        expect(repository.unscoped).toHaveBeenCalledWith("invitation-by-verified-email");
+        expect(repository.unscoped).not.toHaveBeenCalledWith("invitation-by-token");
+      }
+      expect(unscopedRepositories.members.createUnlessExists).toHaveBeenCalledWith({
+        organizationId: invitation.organizationId,
+        userId: invitee.id,
+        role: "member",
+        projectAccess: "selected"
+      });
+      expect(unscopedRepositories.projectMembers.createManyUnlessExist).toHaveBeenCalledWith([
+        { organizationId: invitation.organizationId, projectId, userId: invitee.id, role: "viewer" }
+      ]);
+      expect(organizationActivityService.recordInvitationAnswer).toHaveBeenCalledWith(
+        { organizationId: invitation.organizationId, type: "member_joined", actorUserId: invitee.id, payload: { role: "member" } },
+        "invitation-by-verified-email"
+      );
+      expect(unscopedRepositories.invitations.updateById).toHaveBeenCalledWith(invitation.id, {
+        status: "accepted",
+        acceptedByUserId: invitee.id,
+        acceptedAt: new Date("2026-10-29T12:00:00.000Z")
+      });
+      expect(userRepository.updateById).toHaveBeenCalledWith(invitee.id, { lastUsedOrganizationId: invitation.organizationId });
+    });
+
+    it("consumes the invitation of an invitee who is already a member", async () => {
+      const invitation = createOrganizationInvitation({ email: "jane@example.com" });
+      const { service, invitee, unscopedRepositories } = setup({
+        invitation,
+        invitee: { email: "joe@example.com" },
+        verifiedEmail: "jane@example.com",
+        isAlreadyMember: true
+      });
+
+      await service.acceptReceivedInvitation(invitation.id);
+
+      expect(unscopedRepositories.invitations.updateById).toHaveBeenCalledWith(invitation.id, expect.objectContaining({ acceptedByUserId: invitee.id }));
+    });
+
+    it("answers not found for an invitation not sent to the caller's verified email", async () => {
+      const { service, unscopedRepositories } = setup({ invitation: undefined });
+
+      await expect(service.acceptReceivedInvitation(faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Invitation not found" });
+      expect(unscopedRepositories.members.createUnlessExists).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        case: "Auth0 verified no email for the caller",
+        invitee: { email: "jane@example.com", emailVerified: true },
+        verifiedEmail: null
+      },
+      { case: "Auth0 does not know the caller", invitee: { userId: null }, verifiedEmail: "jane@example.com" }
+    ])("answers not found without looking anything up when $case", async ({ invitee, verifiedEmail }) => {
+      const invitation = createOrganizationInvitation({ email: "jane@example.com" });
+      const { service, txService, unscopedRepositories } = setup({ invitation, invitee, verifiedEmail });
+
+      await expect(service.acceptReceivedInvitation(invitation.id)).rejects.toMatchObject({ status: 404, message: "Invitation not found" });
+      expect(txService.transaction).not.toHaveBeenCalled();
+      expect(unscopedRepositories.invitations.findOneBy).not.toHaveBeenCalled();
+    });
+
+    it("refuses an invitation the caller declined", async () => {
+      const invitation = createOrganizationInvitation({ status: "declined", declinedAt: new Date() });
+      const { service, unscopedRepositories } = setup({ invitation });
+
+      await expect(service.acceptReceivedInvitation(invitation.id)).rejects.toMatchObject({ status: 410, errorCode: INVITATION_DECLINED_ERROR_CODE });
+      expect(unscopedRepositories.members.createUnlessExists).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("declineReceivedInvitation", () => {
+    it("marks the invitation declined and shows the team the invited address rather than who declined", async () => {
+      vi.useFakeTimers({ now: new Date("2026-10-29T12:00:00.000Z") });
+      const invitation = createOrganizationInvitation({ email: "jane@example.com" });
+      const {
+        service,
+        invitee,
+        verifiedEmailService,
+        txService,
+        invitationRepository,
+        organizationRepository,
+        unscopedRepositories,
+        organizationActivityService
+      } = setup({ invitation, verifiedEmail: "jane@example.com" });
+
+      await service.declineReceivedInvitation(invitation.id);
+
+      const where = { id: invitation.id, email: "jane@example.com" };
+      expect(verifiedEmailService.getVerifiedEmail).toHaveBeenCalledWith(invitee.userId);
+      expect(txService.transaction).toHaveBeenCalledTimes(1);
+      expect(invitationRepository.unscoped).toHaveBeenCalledWith("invitation-by-verified-email");
+      expect(invitationRepository.unscoped).not.toHaveBeenCalledWith("invitation-by-token");
+      expect(unscopedRepositories.invitations.findOneBy).toHaveBeenCalledWith(where);
+      expect(organizationRepository.findOneByAndLock).toHaveBeenCalledWith({ id: invitation.organizationId, deletedAt: null }, { strength: "no key update" });
+      expect(unscopedRepositories.invitations.findOneByAndLock).toHaveBeenCalledWith(where, { strength: "no key update" });
+      expect(unscopedRepositories.invitations.updateById).toHaveBeenCalledWith(invitation.id, {
+        status: "declined",
+        declinedAt: new Date("2026-10-29T12:00:00.000Z")
+      });
+      expect(organizationActivityService.recordInvitationAnswer).toHaveBeenCalledWith(
+        { organizationId: invitation.organizationId, type: "invitation_declined", actorUserId: null, payload: { email: "jane@example.com" } },
+        "invitation-by-verified-email"
+      );
+      expect(unscopedRepositories.members.createUnlessExists).not.toHaveBeenCalled();
+    });
+
+    it("changes nothing for an invitation already declined", async () => {
+      const invitation = createOrganizationInvitation({ status: "declined", declinedAt: new Date() });
+      const { service, unscopedRepositories, organizationActivityService } = setup({ invitation });
+
+      await expect(service.declineReceivedInvitation(invitation.id)).resolves.toBeUndefined();
+      expect(unscopedRepositories.invitations.updateById).not.toHaveBeenCalled();
+      expect(organizationActivityService.recordInvitationAnswer).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      {
+        case: "an accepted invitation",
+        invitation: { status: "accepted" as const, acceptedAt: new Date() },
+        error: { status: 409, errorCode: INVITATION_ALREADY_ACCEPTED_ERROR_CODE }
+      },
+      {
+        case: "a revoked invitation",
+        invitation: { status: "revoked" as const, revokedAt: new Date() },
+        error: { status: 410, errorCode: INVITATION_REVOKED_ERROR_CODE }
+      },
+      { case: "an expired invitation", invitation: { expiresAt: addDays(new Date(), -1) }, error: { status: 410, errorCode: INVITATION_EXPIRED_ERROR_CODE } }
+    ])("refuses $case and writes nothing", async ({ invitation: overrides, error }) => {
+      const invitation = createOrganizationInvitation(overrides);
+      const { service, unscopedRepositories, organizationActivityService } = setup({ invitation });
+
+      await expect(service.declineReceivedInvitation(invitation.id)).rejects.toMatchObject(error);
+      expect(unscopedRepositories.invitations.updateById).not.toHaveBeenCalled();
+      expect(organizationActivityService.recordInvitationAnswer).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { case: "Auth0 verified no email for the caller", invitee: {}, verifiedEmail: null },
+      { case: "Auth0 does not know the caller", invitee: { userId: null }, verifiedEmail: "jane@example.com" }
+    ])("answers not found without looking anything up when $case", async ({ invitee, verifiedEmail }) => {
+      const invitation = createOrganizationInvitation();
+      const { service, txService, unscopedRepositories } = setup({ invitation, invitee, verifiedEmail });
+
+      await expect(service.declineReceivedInvitation(invitation.id)).rejects.toMatchObject({ status: 404, message: "Invitation not found" });
+      expect(txService.transaction).not.toHaveBeenCalled();
+      expect(unscopedRepositories.invitations.findOneBy).not.toHaveBeenCalled();
+    });
+
+    it("answers not found for an invitation not sent to the caller", async () => {
+      const { service, unscopedRepositories } = setup({ invitation: undefined });
+
+      await expect(service.declineReceivedInvitation(faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Invitation not found" });
+      expect(unscopedRepositories.invitations.updateById).not.toHaveBeenCalled();
+    });
+  });
+
   describe(invitationStatusOf.name, () => {
     it("keeps a pending invitation pending up to the instant it expires", () => {
       const now = new Date("2026-10-10T12:00:00.000Z");
@@ -341,7 +572,7 @@ describe(InvitationAcceptanceService.name, () => {
       expect(invitationStatusOf({ status: "pending", expiresAt: addMilliseconds(now, -1) })).toBe("expired");
     });
 
-    it.each(["accepted", "revoked"] as const)("keeps an %s invitation %s after its expiry", status => {
+    it.each(["accepted", "revoked", "declined"] as const)("keeps an %s invitation %s after its expiry", status => {
       expect(invitationStatusOf({ status, expiresAt: addDays(new Date(), -1) })).toBe(status);
     });
   });
@@ -359,12 +590,27 @@ describe(InvitationAcceptanceService.name, () => {
     };
   }
 
+  function createReceivedInvitation(overrides: Partial<ReceivedInvitation> = {}): ReceivedInvitation {
+    return {
+      id: faker.string.uuid(),
+      organizationId: faker.string.uuid(),
+      organizationName: faker.company.name(),
+      inviterName: faker.internet.userName(),
+      role: "member",
+      createdAt: faker.date.recent(),
+      expiresAt: addDays(new Date(), 7),
+      ...overrides
+    };
+  }
+
   function createMembership({ organizationId, role = "member" }: { organizationId?: string; role?: Membership["role"] } = {}): Membership {
     return { role, organization: createOrganization({ id: organizationId }) };
   }
 
   function setup(input: {
     preview?: OrganizationInvitationPreview;
+    receivedInvitations?: ReceivedInvitation[];
+    verifiedEmail?: string | null;
     invitation?: OrganizationInvitationOutput;
     membership?: Membership | null;
     invitee?: Partial<UserOutput>;
@@ -378,6 +624,7 @@ describe(InvitationAcceptanceService.name, () => {
     const unscopedRepositories = {
       invitations: mock<OrganizationInvitationRepository>({
         findPreviewByTokenHash: vi.fn().mockResolvedValue(input.preview),
+        findPendingSentTo: vi.fn().mockResolvedValue(input.receivedInvitations ?? []),
         findOneBy: vi.fn().mockResolvedValue(input.invitation),
         findOneByAndLock: vi.fn().mockResolvedValue(input.lockedInvitation === undefined ? input.invitation : input.lockedInvitation ?? undefined)
       }),
@@ -388,16 +635,18 @@ describe(InvitationAcceptanceService.name, () => {
       projectMembers: mock<ProjectMemberRepository>()
     };
     const invitationRepository = mock<OrganizationInvitationRepository>();
-    invitationRepository.unscoped.calledWith("invitation-by-token").mockReturnValue(unscopedRepositories.invitations);
     const membership = input.membership === undefined ? createMembership({ organizationId: input.invitation?.organizationId }) : input.membership;
     const organizationMemberRepository = mock<OrganizationMemberRepository>({
       findActiveMembership: vi.fn().mockResolvedValue(membership ?? undefined)
     });
-    organizationMemberRepository.unscoped.calledWith("invitation-by-token").mockReturnValue(unscopedRepositories.members);
     const projectRepository = mock<ProjectRepository>();
-    projectRepository.unscoped.calledWith("invitation-by-token").mockReturnValue(unscopedRepositories.projects);
     const projectMemberRepository = mock<ProjectMemberRepository>();
-    projectMemberRepository.unscoped.calledWith("invitation-by-token").mockReturnValue(unscopedRepositories.projectMembers);
+    for (const reason of ["invitation-by-token", "invitation-by-verified-email"] as const) {
+      invitationRepository.unscoped.calledWith(reason).mockReturnValue(unscopedRepositories.invitations);
+      organizationMemberRepository.unscoped.calledWith(reason).mockReturnValue(unscopedRepositories.members);
+      projectRepository.unscoped.calledWith(reason).mockReturnValue(unscopedRepositories.projects);
+      projectMemberRepository.unscoped.calledWith(reason).mockReturnValue(unscopedRepositories.projectMembers);
+    }
     const organizationRepository = mock<OrganizationRepository>({
       findOneByAndLock: vi.fn().mockResolvedValue(input.organization === undefined ? createOrganization() : input.organization ?? undefined)
     });
@@ -409,6 +658,11 @@ describe(InvitationAcceptanceService.name, () => {
       .mockReturnValue(input.context === undefined ? createOrganizationContext() : input.context ?? undefined);
     const txService = mock<TxService>({ transaction: vi.fn(cb => cb()) });
     const organizationActivityService = mock<OrganizationActivityService>();
+    const verifiedEmail = input.verifiedEmail === undefined ? input.invitation?.email ?? faker.internet.email().toLowerCase() : input.verifiedEmail;
+    const verifiedEmailService = mock<VerifiedEmailService>({
+      getVerifiedEmail: vi.fn().mockResolvedValue(verifiedEmail),
+      getRecentVerifiedEmail: vi.fn().mockResolvedValue(verifiedEmail)
+    });
     const service = new InvitationAcceptanceService(
       invitationRepository,
       organizationRepository,
@@ -419,7 +673,8 @@ describe(InvitationAcceptanceService.name, () => {
       authService,
       executionContextService,
       txService,
-      organizationActivityService
+      organizationActivityService,
+      verifiedEmailService
     );
 
     return {
@@ -429,9 +684,12 @@ describe(InvitationAcceptanceService.name, () => {
       invitationRepository,
       organizationRepository,
       organizationMemberRepository,
+      projectRepository,
+      projectMemberRepository,
       userRepository,
       unscopedRepositories,
-      organizationActivityService
+      organizationActivityService,
+      verifiedEmailService
     };
   }
 });

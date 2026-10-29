@@ -10,6 +10,7 @@ export const UNSCOPED_REASONS = [
   "gpu-driver-statistics",
   "gpu-win-back-catch-up",
   "invitation-by-token",
+  "invitation-by-verified-email",
   "invitation-email-limits",
   "invitation-email-retention",
   "member-access-validation",
