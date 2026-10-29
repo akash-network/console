@@ -24,13 +24,32 @@ describe(ImageCard.name, () => {
   });
 
   it("marks the example image as one the user can replace", () => {
-    setup({ image: HELLO_WORLD_IMAGE });
+    setup({ image: HELLO_WORLD_IMAGE, ports: [{ port: 3000, as: 80 }] });
 
     expect(screen.getByLabelText("Docker image")).toHaveAccessibleDescription("You can deploy this example as is or replace it with your own image.");
   });
 
+  it("marks the example image when the service exposes other ports next to the example's", () => {
+    setup({
+      image: HELLO_WORLD_IMAGE,
+      ports: [
+        { port: 3000, as: 80 },
+        { port: 8080, as: 8080 }
+      ]
+    });
+
+    expect(screen.getByLabelText("Docker image")).toHaveAccessibleDescription("You can deploy this example as is or replace it with your own image.");
+  });
+
+  it("shows no example hint when the example image is not exposed on its own port", () => {
+    setup({ image: HELLO_WORLD_IMAGE, ports: [{ port: 80, as: 80 }] });
+
+    expect(screen.getByLabelText("Docker image")).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(/deploy this example as is/)).not.toBeInTheDocument();
+  });
+
   it("drops the example hint once the user types their own image", async () => {
-    const { getValues } = setup({ image: HELLO_WORLD_IMAGE });
+    const { getValues } = setup({ image: HELLO_WORLD_IMAGE, ports: [{ port: 3000, as: 80 }] });
 
     await userEvent.clear(screen.getByLabelText("Docker image"));
     await userEvent.type(screen.getByLabelText("Docker image"), "MyImage:1.0");
@@ -96,6 +115,7 @@ describe(ImageCard.name, () => {
 
     expect(getValues().services[0].image).toBe(HELLO_WORLD_IMAGE);
     expect(portsOf(getValues())).toEqual([{ port: 80, as: 80 }]);
+    expect(screen.queryByText(/deploy this example as is/)).not.toBeInTheDocument();
   });
 
   it("leaves the ports alone when the user edits an image that is not the example", async () => {

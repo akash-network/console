@@ -156,7 +156,9 @@ type ImageFieldProps = {
 const ImageField: FC<ImageFieldProps> = ({ serviceIndex, hasCredentials, onToggleCredentials }) => {
   const { control, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
   const image = useController({ control, name: `services.${serviceIndex}.image` });
+  const exposes = useWatch({ control, name: `services.${serviceIndex}.expose` });
   const isExampleImage = image.field.value === HELLO_WORLD_IMAGE;
+  const deploysExampleAsIs = isExampleImage && !!exposes?.some(isExamplePortMapping);
   const exampleImageHintId = `image-${serviceIndex}-example-hint`;
 
   /** The example's port only fits the example, so replacing it hands the image the port a blank start would have exposed. */
@@ -203,10 +205,10 @@ const ImageField: FC<ImageFieldProps> = ({ serviceIndex, hasCredentials, onToggl
           onChange={event => changeImage(normalizeDockerImage(event.target.value || ""))}
           onBlur={image.field.onBlur}
           error={!!image.fieldState.error}
-          aria-describedby={isExampleImage ? exampleImageHintId : undefined}
+          aria-describedby={deploysExampleAsIs ? exampleImageHintId : undefined}
           inputClassName="h-9"
         />
-        {isExampleImage && (
+        {deploysExampleAsIs && (
           <FieldDescription id={exampleImageHintId} className="text-xs">
             You can deploy this example as is or replace it with your own image.
           </FieldDescription>
