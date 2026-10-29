@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { applyImportedSshState, readServiceSshKey, takesSshKey, withServiceSshKey } from "./sshKey";
+import { applyImportedSshState, lacksRequiredSshKey, readServiceSshKey, takesSshKey, withServiceSshKey } from "./sshKey";
 import { SSH_VM_IMAGES } from "./vmImages";
 
 describe("sshKey", () => {
@@ -21,6 +21,32 @@ describe("sshKey", () => {
 
     it("takes no key on a service with neither an image nor variables", () => {
       expect(takesSshKey({})).toBe(false);
+    });
+  });
+
+  describe(lacksRequiredSshKey.name, () => {
+    it("requires a key on a managed vm image that has none", () => {
+      expect(lacksRequiredSshKey({ image: SSH_VM_IMAGES["Ubuntu 24.04"], sshPubKey: "" })).toBe(true);
+    });
+
+    it("requires a key on a managed vm image whose key is only whitespace", () => {
+      expect(lacksRequiredSshKey({ image: SSH_VM_IMAGES["Debian 13"], sshPubKey: "  " })).toBe(true);
+    });
+
+    it("requires a key on a managed vm image whose key was never set", () => {
+      expect(lacksRequiredSshKey({ image: SSH_VM_IMAGES["Ubuntu 24.04"] })).toBe(true);
+    });
+
+    it("is satisfied once the vm image has a key", () => {
+      expect(lacksRequiredSshKey({ image: SSH_VM_IMAGES["Ubuntu 24.04"], sshPubKey: "ssh-ed25519 AAAA" })).toBe(false);
+    });
+
+    it("requires no key on a container image", () => {
+      expect(lacksRequiredSshKey({ image: "nginx:1.25", sshPubKey: "" })).toBe(false);
+    });
+
+    it("requires no key on a service without an image", () => {
+      expect(lacksRequiredSshKey({})).toBe(false);
     });
   });
 

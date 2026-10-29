@@ -8,7 +8,8 @@ import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/L
 import { useServices } from "@src/context/ServicesProvider";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import { useHasPlacementWithoutProviders, useScreenedProviders } from "@src/queries/useScreenedProviders";
-import type { PlacementType, SdlBuilderFormValuesType } from "@src/types";
+import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
+import { lacksRequiredSshKey } from "@src/utils/sdl/sshKey";
 import { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
 import { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
 import { ResetConfigurationButton } from "../ConfigureEditor/ResetConfigurationButton/ResetConfigurationButton";
@@ -38,6 +39,8 @@ import { LockedDeploymentRail } from "./LockedDeploymentRail/LockedDeploymentRai
 import { NoBidsNotice } from "./NoBidsNotice/NoBidsNotice";
 import { PlacementProviderChips } from "./PlacementProviderChips/PlacementProviderChips";
 import { ProvidersSheetBar } from "./ProvidersSheetBar/ProvidersSheetBar";
+import type { SshKeyStepSource } from "./SshKeyStepDialog/SshKeyStepDialog";
+import { SshKeyStepDialog } from "./SshKeyStepDialog/SshKeyStepDialog";
 
 export const DEPENDENCIES = {
   LeaveConfigureButton,
@@ -56,6 +59,7 @@ export const DEPENDENCIES = {
   ResetConfigurationButton,
   SdlPreviewPane,
   HardwareRequestDialog,
+  SshKeyStepDialog,
   useSdlPreviewPanel,
   useGpuModels,
   useQuoteExpiry,
@@ -75,6 +79,8 @@ type View = "configure" | "pick";
 type ComputeRequestSource = "footer" | "no_bids_notice" | "not_bidding_notice";
 
 type HardwareRequest = { configuration: HardwareRequestConfiguration; category: HardwareRequestCategory; gpuModel: string };
+
+type SshKeyStep = { source: SshKeyStepSource; serviceIndex: number };
 
 type Props = {
   intent: DeploymentIntent;
@@ -131,6 +137,7 @@ export const ConfigureWorkspace: FC<Props> = ({
   const hasPlacementWithoutProviders = d.useHasPlacementWithoutProviders(sdl, placements);
   const [hardwareRequest, setHardwareRequest] = useState<HardwareRequest | null>(null);
   const [isProvidersSheetOpen, setIsProvidersSheetOpen] = useState(false);
+  const [sshKeyStep, setSshKeyStep] = useState<SshKeyStep | null>(() => (flow.phase === "configuring" ? sshKeyStepFor("setup", getValues("services")) : null));
   const panelsRef = useRef<HTMLDivElement>(null);
   const isEditable = flow.phase === "configuring" || flow.phase === "error";
   const view: View = isEditable ? "configure" : "pick";
@@ -154,7 +161,17 @@ export const ConfigureWorkspace: FC<Props> = ({
   function chooseProvider() {
     setIsProvidersSheetOpen(false);
     analyticsService.track("configure_choose_provider_clicked", { category: "deployments" });
+    const missingKeyStep = sshKeyStepFor("choose_provider", getValues("services"));
+    if (missingKeyStep) {
+      setSshKeyStep(missingKeyStep);
+      return;
+    }
     void requestQuotes();
+  }
+
+  function continueAfterSshKey() {
+    setSshKeyStep(null);
+    if (sshKeyStep?.source === "choose_provider") void requestQuotes();
   }
 
   function requestCompute(source: ComputeRequestSource, category: HardwareRequestCategory) {
@@ -344,9 +361,23 @@ export const ConfigureWorkspace: FC<Props> = ({
           onClose={() => setHardwareRequest(null)}
         />
       )}
+      {sshKeyStep && (
+        <d.SshKeyStepDialog
+          source={sshKeyStep.source}
+          serviceIndex={sshKeyStep.serviceIndex}
+          onContinue={continueAfterSshKey}
+          onDismiss={() => setSshKeyStep(null)}
+        />
+      )}
     </div>
   );
 };
+
+/** The key the step takes is applied to every service, so it only needs to point at the first one missing it. */
+function sshKeyStepFor(source: SshKeyStepSource, services: ServiceType[]): SshKeyStep | null {
+  const serviceIndex = services.findIndex(lacksRequiredSshKey);
+  return serviceIndex === -1 ? null : { source, serviceIndex };
+}
 
 type PlacementScreeningProps = {
   sdl: string;

@@ -147,6 +147,15 @@ export class ConfigureDeploymentPage {
     return this.page.getByRole("textbox", { name: "SSH public key" });
   }
 
+  /** Asks a Container-VM setup for its key up front, and again when a provider is chosen without one. */
+  sshKeyStep() {
+    return this.page.getByRole("dialog", { name: "Add an SSH key" });
+  }
+
+  async skipSshKeyStep() {
+    await this.sshKeyStep().getByRole("button", { name: "Not now" }).click();
+  }
+
   /** Exact so it skips the blocked-submit snackbar, which repeats the message prefixed with the service name. */
   sshKeyRequiredError() {
     return this.page.getByText("SSH Public key is required.", { exact: true });

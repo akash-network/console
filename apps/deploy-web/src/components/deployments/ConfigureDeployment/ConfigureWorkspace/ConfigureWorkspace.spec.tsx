@@ -6,7 +6,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
-import { defaultPlacement, defaultService } from "@src/utils/sdl/data";
+import { defaultPlacement, defaultService, SSH_VM_IMAGES } from "@src/utils/sdl/data";
 import type { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
 import type { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
 import type { MarketplacePane } from "../MarketplacePane/MarketplacePane";
@@ -20,6 +20,7 @@ import type { LockedDeploymentRail } from "./LockedDeploymentRail/LockedDeployme
 import type { NoBidsNotice } from "./NoBidsNotice/NoBidsNotice";
 import type { PlacementProviderChips } from "./PlacementProviderChips/PlacementProviderChips";
 import type { ProvidersSheetBar } from "./ProvidersSheetBar/ProvidersSheetBar";
+import type { SshKeyStepDialog } from "./SshKeyStepDialog/SshKeyStepDialog";
 import { ConfigureWorkspace, DEPENDENCIES } from "./ConfigureWorkspace";
 
 import { act, render, screen, waitFor } from "@testing-library/react";
@@ -246,6 +247,102 @@ describe(ConfigureWorkspace.name, () => {
       act(() => sheetBarProps().onSheetOpenChange(false));
 
       expect(sheetBarProps().isSheetOpen).toBe(false);
+    });
+  });
+
+  describe("when a VM service has no SSH key", () => {
+    it("asks for the key up front on a new VM setup", () => {
+      const { sshKeyStepProps } = setup({ vmSshPubKey: "" });
+
+      expect(screen.getByText("SSH key step")).toBeInTheDocument();
+      expect(sshKeyStepProps()).toMatchObject({ source: "setup", serviceIndex: 1 });
+    });
+
+    it("goes back to configuring once the key is added up front, without requesting bids", () => {
+      const { sshKeyStepProps, requestQuotes } = setup({ vmSshPubKey: "" });
+
+      act(() => sshKeyStepProps().onContinue());
+
+      expect(screen.queryByText("SSH key step")).not.toBeInTheDocument();
+      expect(requestQuotes).not.toHaveBeenCalled();
+    });
+
+    it("lets the user skip the key up front", () => {
+      const { sshKeyStepProps, requestQuotes } = setup({ vmSshPubKey: "" });
+
+      act(() => sshKeyStepProps().onDismiss());
+
+      expect(screen.queryByText("SSH key step")).not.toBeInTheDocument();
+      expect(requestQuotes).not.toHaveBeenCalled();
+    });
+
+    it("leaves a resumed deployment alone", () => {
+      setup({ phase: "quoting", vmSshPubKey: "" });
+
+      expect(screen.queryByText("SSH key step")).not.toBeInTheDocument();
+    });
+
+    it("opens the key step instead of requesting bids when Choose provider is pressed", () => {
+      const { availabilityProps, sshKeyStepProps, requestQuotes, analyticsService } = setup({ vmSshPubKey: "" });
+      act(() => sshKeyStepProps().onDismiss());
+
+      act(() => availabilityProps().onChooseProvider());
+
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_choose_provider_clicked", { category: "deployments" });
+      expect(screen.getByText("SSH key step")).toBeInTheDocument();
+      expect(sshKeyStepProps()).toMatchObject({ source: "choose_provider", serviceIndex: 1 });
+      expect(requestQuotes).not.toHaveBeenCalled();
+    });
+
+    it("goes straight on to bids once the key is added from Choose provider", () => {
+      const { availabilityProps, sshKeyStepProps, requestQuotes } = setup({ vmSshPubKey: "" });
+      act(() => sshKeyStepProps().onDismiss());
+      act(() => availabilityProps().onChooseProvider());
+
+      act(() => sshKeyStepProps().onContinue());
+
+      expect(screen.queryByText("SSH key step")).not.toBeInTheDocument();
+      expect(requestQuotes).toHaveBeenCalledTimes(1);
+    });
+
+    it("stays on the configuration when the key step from Choose provider is dismissed", () => {
+      const { availabilityProps, sshKeyStepProps, requestQuotes } = setup({ vmSshPubKey: "" });
+      act(() => sshKeyStepProps().onDismiss());
+      act(() => availabilityProps().onChooseProvider());
+
+      act(() => sshKeyStepProps().onDismiss());
+
+      expect(screen.queryByText("SSH key step")).not.toBeInTheDocument();
+      expect(requestQuotes).not.toHaveBeenCalled();
+    });
+
+    it("opens the key step from the bottom bar and closes the providers sheet", () => {
+      const { sheetBarProps, sshKeyStepProps, requestQuotes } = setup({ vmSshPubKey: "" });
+      act(() => sshKeyStepProps().onDismiss());
+      act(() => sheetBarProps().onSheetOpenChange(true));
+
+      act(() => sheetBarProps().onChooseProvider());
+
+      expect(sheetBarProps().isSheetOpen).toBe(false);
+      expect(sshKeyStepProps().source).toBe("choose_provider");
+      expect(requestQuotes).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when every VM service has an SSH key", () => {
+    it("does not ask for a key up front", () => {
+      setup({ vmSshPubKey: "ssh-ed25519 AAAA" });
+
+      expect(screen.queryByText("SSH key step")).not.toBeInTheDocument();
+    });
+
+    it("requests bids straight from Choose provider", () => {
+      const { availabilityProps, requestQuotes } = setup({ vmSshPubKey: "ssh-ed25519 AAAA" });
+
+      act(() => availabilityProps().onChooseProvider());
+
+      expect(screen.queryByText("SSH key step")).not.toBeInTheDocument();
+      expect(requestQuotes).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -497,14 +594,17 @@ describe(ConfigureWorkspace.name, () => {
     noBidsReceived?: boolean;
     apiGpuModels?: string[];
     hasPlacementWithoutProviders?: boolean;
+    vmSshPubKey?: string;
   }) {
     const first = { ...defaultPlacement({ name: "placement-1" }), id: "p1", regions: [] };
     const second = { ...defaultPlacement({ name: "gpu-pool" }), id: "p2", regions: ["us-west", "eu-west"] };
+    const apiOverrides =
+      input.vmSshPubKey === undefined ? { title: "api" } : { title: "api", image: SSH_VM_IMAGES["Ubuntu 24.04"], sshPubKey: input.vmSshPubKey };
     const values: SdlBuilderFormValuesType = {
       placements: [first, second],
       services: [
         { ...defaultService("p1", { title: "web" }), id: "web" },
-        { ...withGpuModels(defaultService("p2", { title: "api" }), input.apiGpuModels), id: "api" }
+        { ...withGpuModels(defaultService("p2", apiOverrides), input.apiGpuModels), id: "api" }
       ],
       endpoints: []
     };
@@ -537,6 +637,7 @@ describe(ConfigureWorkspace.name, () => {
         </h2>
       )),
       HardwareRequestDialog: vi.fn(() => <div>Hardware request dialog</div>),
+      SshKeyStepDialog: vi.fn(() => <div>SSH key step</div>),
       useSdlPreviewPanel: () => ({ isEnabled: input.sdlPreviewEnabled ?? false, isOpen: false, open: vi.fn(), close: vi.fn() }),
       useGpuModels: () => mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>({ data: [] }),
       useQuoteExpiry: () => (input.expired ? { secondsLeft: 0, isExpired: true } : null),
@@ -619,6 +720,7 @@ describe(ConfigureWorkspace.name, () => {
       editorProps: () => dependencies.ConfigureEditor.mock.calls.at(-1)?.[0] as ComponentProps<typeof ConfigureEditor>,
       availabilityProps: () => dependencies.AvailabilityPane.mock.calls.at(-1)?.[0] as ComponentProps<typeof AvailabilityPane>,
       sheetBarProps: () => dependencies.ProvidersSheetBar.mock.calls.at(-1)?.[0] as ComponentProps<typeof ProvidersSheetBar>,
+      sshKeyStepProps: () => dependencies.SshKeyStepDialog.mock.calls.at(-1)?.[0] as ComponentProps<typeof SshKeyStepDialog>,
       sheetPaneProps: () => {
         const sheetBar = dependencies.ProvidersSheetBar.mock.calls.at(-1)?.[0] as ComponentProps<typeof ProvidersSheetBar>;
         return (sheetBar.sheet as ReactElement).props as ComponentProps<typeof AvailabilityPane>;
