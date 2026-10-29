@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { FormattedNumber } from "react-intl";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import Layout, { DEPENDENCIES, Loading } from "./Layout";
@@ -11,6 +12,10 @@ import { MockComponents } from "@tests/unit/mocks";
 const AKASH_MARK_VIEW_BOX = "0 0 481 420";
 
 describe("Layout", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("reserves the loading indicator space when no isLoading prop is provided", () => {
     const { dependencies } = setup({});
 
@@ -49,7 +54,15 @@ describe("Layout", () => {
     expect(dependencies.TopNav).toHaveBeenCalledWith(expect.objectContaining({ minimal: false }), expect.anything());
   });
 
-  function setup(input: { isLoading?: boolean; children?: ReactNode; disableContainer?: boolean; containerClassName?: string }) {
+  it("formats children with the locale of a POSIX browser language instead of crashing", async () => {
+    setup({ children: <FormattedNumber value={1234.5} />, browserLanguage: "de-DE@posix" });
+
+    expect(await screen.findByText("1.234,5")).toBeInTheDocument();
+  });
+
+  function setup(input: { isLoading?: boolean; children?: ReactNode; disableContainer?: boolean; containerClassName?: string; browserLanguage?: string }) {
+    vi.spyOn(navigator, "language", "get").mockReturnValue(input.browserLanguage ?? "en-US");
+
     const dependencies = MockComponents(DEPENDENCIES, {
       useOnboardingChrome: () => mock<ReturnType<typeof DEPENDENCIES.useOnboardingChrome>>({ isStripped: false }),
       useTopBanner: () => mock<ReturnType<typeof DEPENDENCIES.useTopBanner>>({ hasBanner: false })
