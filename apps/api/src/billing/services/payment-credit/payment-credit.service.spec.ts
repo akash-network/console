@@ -131,7 +131,11 @@ describe(PaymentCreditService.name, () => {
         paymentCreditRepository.findByTransactionId.mockResolvedValue(pending);
         txPresenceService.findTx.mockResolvedValue(null);
 
-        await expect(service.creditOnce(credit)).rejects.toMatchObject({ status: 503, errorCode: PAYMENT_CREDIT_UNDECIDED_ERROR_CODE });
+        await expect(service.creditOnce(credit)).rejects.toMatchObject({
+          status: 503,
+          errorCode: PAYMENT_CREDIT_UNDECIDED_ERROR_CODE,
+          message: "The payment's credit may still be landing, so it is not granted again until its outcome is known"
+        });
 
         expect(paymentCreditRepository.deletePending).not.toHaveBeenCalled();
         expect(managedUserWalletService.authorizeDeploymentSpendingOnly).not.toHaveBeenCalled();
@@ -199,7 +203,7 @@ describe(PaymentCreditService.name, () => {
         const { service, credit, managedUserWalletService, paymentCreditRepository } = setup();
         managedUserWalletService.authorizeDeploymentSpendingOnly.mockResolvedValue({ code: 13, hash: "FAILED_HASH", rawLog: "out of fees" });
 
-        await expect(service.creditOnce(credit)).rejects.toMatchObject({ status: 502, txHash: "FAILED_HASH" });
+        await expect(service.creditOnce(credit)).rejects.toMatchObject({ status: 502, txHash: "FAILED_HASH", message: "The chain refused the credit grant" });
 
         expect(paymentCreditRepository.deletePending).toHaveBeenCalledWith(credit.transactionId);
         expect(paymentCreditRepository.markLanded).not.toHaveBeenCalled();
