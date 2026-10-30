@@ -18,7 +18,7 @@ export class DeploymentNameService {
 
     if (!wallet || !isInTenantOf(wallet, reader)) return null;
 
-    const setting = await this.deploymentSettingRepository.findOneOwnedByWallet(wallet, dseq);
+    const setting = await this.deploymentSettingRepository.findOneOfWallet(wallet, dseq);
 
     return setting?.name ?? null;
   }

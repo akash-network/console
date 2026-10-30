@@ -545,7 +545,7 @@ describe(DeploymentSettingRepository.name, () => {
   describe("claimProviderUnreachableNotification", () => {
     it("awards the claim to exactly one caller across concurrent attempts", async () => {
       const { deploymentSettingRepository, user } = await setup();
-      const claim = { userId: user.id, dseq: newDseq(), downSinceMarker: OUTAGE_STARTED_AT };
+      const claim = { userId: user.id, dseq: newDseq(), organizationId: null, downSinceMarker: OUTAGE_STARTED_AT };
 
       const results = await Promise.all(Array.from({ length: 5 }, () => deploymentSettingRepository.claimProviderUnreachableNotification(claim)));
 
@@ -554,7 +554,7 @@ describe(DeploymentSettingRepository.name, () => {
 
     it("refuses a second claim for the same outage", async () => {
       const { deploymentSettingRepository, user } = await setup();
-      const claim = { userId: user.id, dseq: newDseq(), downSinceMarker: OUTAGE_STARTED_AT };
+      const claim = { userId: user.id, dseq: newDseq(), organizationId: null, downSinceMarker: OUTAGE_STARTED_AT };
       await deploymentSettingRepository.claimProviderUnreachableNotification(claim);
 
       const claimed = await deploymentSettingRepository.claimProviderUnreachableNotification(claim);
@@ -565,11 +565,17 @@ describe(DeploymentSettingRepository.name, () => {
     it("claims again once the provider recovers and goes dark a second time", async () => {
       const { deploymentSettingRepository, user } = await setup();
       const dseq = newDseq();
-      await deploymentSettingRepository.claimProviderUnreachableNotification({ userId: user.id, dseq, downSinceMarker: OUTAGE_STARTED_AT });
+      await deploymentSettingRepository.claimProviderUnreachableNotification({
+        userId: user.id,
+        dseq,
+        organizationId: null,
+        downSinceMarker: OUTAGE_STARTED_AT
+      });
 
       const claimed = await deploymentSettingRepository.claimProviderUnreachableNotification({
         userId: user.id,
         dseq,
+        organizationId: null,
         downSinceMarker: LATER_OUTAGE_STARTED_AT
       });
 
@@ -580,7 +586,12 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, user } = await setup();
       const dseq = newDseq();
 
-      await deploymentSettingRepository.claimProviderUnreachableNotification({ userId: user.id, dseq, downSinceMarker: OUTAGE_STARTED_AT });
+      await deploymentSettingRepository.claimProviderUnreachableNotification({
+        userId: user.id,
+        dseq,
+        organizationId: null,
+        downSinceMarker: OUTAGE_STARTED_AT
+      });
 
       const setting = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq });
       expect(setting).toMatchObject({ autoTopUpEnabled: false });
@@ -594,18 +605,47 @@ describe(DeploymentSettingRepository.name, () => {
       await deploymentSettingRepository.claimProviderUnreachableNotification({
         userId: user.id,
         dseq: setting.dseq,
+        organizationId: null,
         downSinceMarker: OUTAGE_STARTED_AT
       });
 
       const updated = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq: setting.dseq });
       expect(updated).toMatchObject({ autoTopUpEnabled: true });
     });
+
+    it("claims on the row filed in the organization it names", async () => {
+      const { deploymentSettingRepository, member, team, teamDeployment } = await setupMemberOfTeam();
+
+      const claimed = await deploymentSettingRepository.claimProviderUnreachableNotification({
+        userId: member.id,
+        dseq: teamDeployment.dseq,
+        organizationId: team.id,
+        downSinceMarker: OUTAGE_STARTED_AT
+      });
+
+      expect(claimed).toBe(true);
+      expect((await deploymentSettingRepository.findById(teamDeployment.id))?.providerUnreachableNotifiedFor?.toISOString()).toBe(OUTAGE_STARTED_AT);
+    });
+
+    it("claims nothing on a row its user filed in a team for a personal wallet's deployment", async () => {
+      const { deploymentSettingRepository, member, personalWallet, teamDeployment } = await setupMemberOfTeam();
+
+      const claimed = await deploymentSettingRepository.claimProviderUnreachableNotification({
+        userId: member.id,
+        dseq: teamDeployment.dseq,
+        organizationId: personalWallet.organizationId,
+        downSinceMarker: OUTAGE_STARTED_AT
+      });
+
+      expect(claimed).toBe(false);
+      expect(await deploymentSettingRepository.findById(teamDeployment.id)).toMatchObject({ providerUnreachableNotifiedFor: null });
+    });
   });
 
   describe("releaseProviderUnreachableClaim", () => {
     it("lets the next sweep report the same outage again", async () => {
       const { deploymentSettingRepository, user } = await setup();
-      const claim = { userId: user.id, dseq: newDseq(), downSinceMarker: OUTAGE_STARTED_AT };
+      const claim = { userId: user.id, dseq: newDseq(), organizationId: null, downSinceMarker: OUTAGE_STARTED_AT };
       await deploymentSettingRepository.claimProviderUnreachableNotification(claim);
 
       await deploymentSettingRepository.releaseProviderUnreachableClaim(claim);
@@ -616,12 +656,27 @@ describe(DeploymentSettingRepository.name, () => {
     it("leaves a stamp written for a later outage untouched", async () => {
       const { deploymentSettingRepository, user } = await setup();
       const dseq = newDseq();
-      await deploymentSettingRepository.claimProviderUnreachableNotification({ userId: user.id, dseq, downSinceMarker: LATER_OUTAGE_STARTED_AT });
+      await deploymentSettingRepository.claimProviderUnreachableNotification({
+        userId: user.id,
+        dseq,
+        organizationId: null,
+        downSinceMarker: LATER_OUTAGE_STARTED_AT
+      });
 
-      await deploymentSettingRepository.releaseProviderUnreachableClaim({ userId: user.id, dseq, downSinceMarker: OUTAGE_STARTED_AT });
+      await deploymentSettingRepository.releaseProviderUnreachableClaim({ userId: user.id, dseq, organizationId: null, downSinceMarker: OUTAGE_STARTED_AT });
 
       const setting = await deploymentSettingRepository.findOneBy({ userId: user.id, dseq });
       expect(setting?.providerUnreachableNotifiedFor?.toISOString()).toBe(LATER_OUTAGE_STARTED_AT);
+    });
+
+    it("leaves the stamp on a row filed in another organization than the one it names", async () => {
+      const { deploymentSettingRepository, member, team, personalWallet, teamDeployment } = await setupMemberOfTeam();
+      const claim = { userId: member.id, dseq: teamDeployment.dseq, downSinceMarker: OUTAGE_STARTED_AT };
+      await deploymentSettingRepository.claimProviderUnreachableNotification({ ...claim, organizationId: team.id });
+
+      await deploymentSettingRepository.releaseProviderUnreachableClaim({ ...claim, organizationId: personalWallet.organizationId });
+
+      expect((await deploymentSettingRepository.findById(teamDeployment.id))?.providerUnreachableNotifiedFor?.toISOString()).toBe(OUTAGE_STARTED_AT);
     });
   });
 
@@ -3069,7 +3124,7 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, teamWallet, teamDeployment } = await setupTeamDeployment();
       const reading = createLeaseGpuReading();
       await deploymentSettingRepository.mergeGpuReadings({ wallet: teamWallet, dseq: teamDeployment.dseq, readings: [reading] });
-      await deploymentSettingRepository.upsertName({ userId: teamDeployment.userId, dseq: teamDeployment.dseq, name: "team-web" });
+      await deploymentSettingRepository.updateById(teamDeployment.id, { name: "team-web" });
       const dseqs = [teamDeployment.dseq];
 
       expect(await deploymentSettingRepository.findNamesByDseqs({ wallet: teamWallet, dseqs })).toEqual(new Map([[teamDeployment.dseq, "team-web"]]));
@@ -3084,7 +3139,7 @@ describe(DeploymentSettingRepository.name, () => {
       const { deploymentSettingRepository, teamWallet, teamDeployment, team } = await setupTeamDeployment();
       const laterMember = await seedUser();
       await seedDeploymentSetting({ userId: laterMember.id, organizationId: team.id, dseq: teamDeployment.dseq, name: "later" });
-      await deploymentSettingRepository.upsertName({ userId: teamDeployment.userId, dseq: teamDeployment.dseq, name: "first" });
+      await deploymentSettingRepository.updateById(teamDeployment.id, { name: "first" });
       const dseqs = [teamDeployment.dseq];
 
       await expect(deploymentSettingRepository.findOneOfWallet(teamWallet, teamDeployment.dseq)).resolves.toMatchObject({ id: teamDeployment.id });
@@ -3132,15 +3187,15 @@ describe(DeploymentSettingRepository.name, () => {
     it("never answers a member's personal wallet with the row they filed for the team", async () => {
       const { deploymentSettingRepository, personalWallet, teamWallet, teamDeployment } = await setupTeamDeployment();
 
-      await expect(deploymentSettingRepository.findOneOwnedByWallet(personalWallet, teamDeployment.dseq)).resolves.toBeUndefined();
-      await expect(deploymentSettingRepository.findOneOwnedByWallet(teamWallet, teamDeployment.dseq)).resolves.toMatchObject({ id: teamDeployment.id });
+      await expect(deploymentSettingRepository.findOneOfWallet(personalWallet, teamDeployment.dseq)).resolves.toBeUndefined();
+      await expect(deploymentSettingRepository.findOneOfWallet(teamWallet, teamDeployment.dseq)).resolves.toMatchObject({ id: teamDeployment.id });
     });
 
     it("answers a member's personal wallet with their own deployment's row", async () => {
       const { deploymentSettingRepository, member, personalWallet } = await setupTeamDeployment();
       const ownDeployment = await seedDeploymentSetting({ userId: member.id });
 
-      await expect(deploymentSettingRepository.findOneOwnedByWallet(personalWallet, ownDeployment.dseq)).resolves.toMatchObject({ id: ownDeployment.id });
+      await expect(deploymentSettingRepository.findOneOfWallet(personalWallet, ownDeployment.dseq)).resolves.toMatchObject({ id: ownDeployment.id });
     });
 
     it("resolves the wallet that owns each deployment", async () => {
@@ -3273,6 +3328,161 @@ describe(DeploymentSettingRepository.name, () => {
       return { deploymentSettingRepository, member, personalWallet, teamWallet, teamDeployment, team, teamProject };
     }
   });
+
+  describe("when a member's personal deployment shares its dseq with a row they filed in a team", () => {
+    it("answers the personal wallet with no row and the team wallet with the team's", async () => {
+      const { deploymentSettingRepository, personalWallet, teamWallet, teamDeployment } = await setupMemberOfTeam();
+
+      await expect(deploymentSettingRepository.findOneOfWallet(personalWallet, teamDeployment.dseq)).resolves.toBeUndefined();
+      await expect(deploymentSettingRepository.findOneOfWallet(teamWallet, teamDeployment.dseq)).resolves.toMatchObject({ id: teamDeployment.id });
+    });
+
+    it("answers the personal wallet with the row filed in its user's personal organization, before and after the wallet is filed into it", async () => {
+      const { deploymentSettingRepository, member, personal, personalWallet } = await setupMemberOfTeam();
+      const ownDeployment = await seedDeploymentSetting({ userId: member.id, organizationId: personal.id });
+
+      await expect(deploymentSettingRepository.findOneOfWallet(personalWallet, ownDeployment.dseq)).resolves.toMatchObject({ id: ownDeployment.id });
+      await expect(deploymentSettingRepository.findOneOfWallet({ ...personalWallet, organizationId: null }, ownDeployment.dseq)).resolves.toMatchObject({
+        id: ownDeployment.id
+      });
+    });
+
+    it("never answers the personal wallet with a row filed under its user in another user's personal organization", async () => {
+      const { deploymentSettingRepository, member, personalWallet } = await setupMemberOfTeam();
+      const { organization: otherPersonal } = await seedOrganizationWithOwner({ type: "personal" });
+      const misfiled = await seedDeploymentSetting({ userId: member.id, organizationId: otherPersonal.id });
+
+      await expect(deploymentSettingRepository.findOneOfWallet(personalWallet, misfiled.dseq)).resolves.toBeUndefined();
+      await expect(deploymentSettingRepository.findOneOfWallet({ ...personalWallet, organizationId: null }, misfiled.dseq)).resolves.toBeUndefined();
+    });
+
+    it("lists no name of the team's row for the personal wallet", async () => {
+      const { deploymentSettingRepository, personalWallet, teamWallet, teamDeployment } = await setupMemberOfTeam();
+
+      await expect(deploymentSettingRepository.findNamesByDseqs({ wallet: personalWallet, dseqs: [teamDeployment.dseq] })).resolves.toEqual(new Map());
+      await expect(deploymentSettingRepository.findNamesByDseqs({ wallet: teamWallet, dseqs: [teamDeployment.dseq] })).resolves.toEqual(
+        new Map([[teamDeployment.dseq, "team deployment"]])
+      );
+    });
+
+    it("merges no gpu readings or offers from the personal wallet into the team's row", async () => {
+      const { deploymentSettingRepository, personalWallet, teamDeployment } = await setupMemberOfTeam();
+      const { dseq } = teamDeployment;
+
+      await expect(deploymentSettingRepository.mergeGpuReadings({ wallet: personalWallet, dseq, readings: [createLeaseGpuReading()] })).resolves.toBe(false);
+      await expect(deploymentSettingRepository.mergeGpuOffers({ wallet: personalWallet, dseq, offers: [createLeaseGpuOffer()] })).resolves.toBe(false);
+      expect(await deploymentSettingRepository.findById(teamDeployment.id)).toMatchObject({
+        detectedGpus: teamDeployment.detectedGpus,
+        offeredGpus: teamDeployment.offeredGpus
+      });
+    });
+
+    it("leaves the team's row open when the personal deployment closes", async () => {
+      const { deploymentSettingRepository, member, personalWallet, teamDeployment } = await setupMemberOfTeam();
+
+      await deploymentSettingRepository.markClosed({ userId: member.id, dseq: teamDeployment.dseq, organizationId: personalWallet.organizationId });
+      await deploymentSettingRepository.markClosed({ userId: member.id, dseq: teamDeployment.dseq, organizationId: null });
+
+      expect(await deploymentSettingRepository.findById(teamDeployment.id)).toMatchObject({ closed: false });
+    });
+
+    it("closes the user's own row through a close naming no organization", async () => {
+      const { deploymentSettingRepository, member, personal } = await setupMemberOfTeam();
+      const ownDeployment = await seedDeploymentSetting({ userId: member.id, organizationId: personal.id });
+
+      await deploymentSettingRepository.markClosed({ userId: member.id, dseq: ownDeployment.dseq });
+
+      expect(await deploymentSettingRepository.findById(ownDeployment.id)).toMatchObject({ closed: true });
+    });
+
+    describe("in legacy mode", () => {
+      it("refuses to write a definition onto the team's row", async () => {
+        const { deploymentSettingRepository, member, teamDeployment, runInPersonalOrganization } = await setupMemberOfTeam();
+
+        await expect(
+          runInPersonalOrganization(() =>
+            deploymentSettingRepository.upsertDefinition({ userId: member.id, dseq: teamDeployment.dseq, sdl: SDL, manifestVersion: "BBBB" })
+          )
+        ).rejects.toMatchObject({ status: 403 });
+        expect(await deploymentSettingRepository.findById(teamDeployment.id)).toMatchObject({ sdl: null, manifestVersion: null });
+      });
+
+      it("refuses to rename the team's row", async () => {
+        const { deploymentSettingRepository, member, teamDeployment, runInPersonalOrganization } = await setupMemberOfTeam();
+
+        await expect(
+          runInPersonalOrganization(() => deploymentSettingRepository.upsertName({ userId: member.id, dseq: teamDeployment.dseq, name: "renamed" }))
+        ).rejects.toMatchObject({ status: 403 });
+        expect(await deploymentSettingRepository.findById(teamDeployment.id)).toMatchObject({ name: "team deployment" });
+      });
+
+      it("records no definition onto the team's row", async () => {
+        const { deploymentSettingRepository, member, teamDeployment, runInPersonalOrganization } = await setupMemberOfTeam();
+
+        const recorded = await runInPersonalOrganization(() =>
+          deploymentSettingRepository.recordDefinitionIfAbsent({
+            userId: member.id,
+            dseq: teamDeployment.dseq,
+            sdl: SDL,
+            manifestVersion: "BBBB",
+            sealedSecrets: null,
+            closed: false
+          })
+        );
+
+        expect(recorded).toBeUndefined();
+        expect(await deploymentSettingRepository.findById(teamDeployment.id)).toMatchObject({ sdl: null });
+      });
+
+      it("writes the definition and the name of the user's own row in their personal organization", async () => {
+        const { deploymentSettingRepository, member, personal, runInPersonalOrganization } = await setupMemberOfTeam();
+        const ownDeployment = await seedDeploymentSetting({ userId: member.id, organizationId: personal.id });
+
+        await runInPersonalOrganization(async () => {
+          await deploymentSettingRepository.upsertDefinition({ userId: member.id, dseq: ownDeployment.dseq, sdl: SDL, manifestVersion: "BBBB" });
+          await deploymentSettingRepository.upsertName({ userId: member.id, dseq: ownDeployment.dseq, name: "mine" });
+        });
+
+        expect(await deploymentSettingRepository.findById(ownDeployment.id)).toMatchObject({ sdl: SDL, name: "mine" });
+      });
+    });
+  });
+
+  async function setupMemberOfTeam() {
+    const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+    const executionContextService = container.resolve(ExecutionContextService);
+    const { user: member, organization: personal } = await seedOrganizationWithOwner({ type: "personal" });
+    const { organization: team } = await seedOrganizationWithOwner();
+    await seedOrganizationMember({ organizationId: team.id, userId: member.id });
+    const teamDeployment = await seedDeploymentSetting({
+      userId: member.id,
+      organizationId: team.id,
+      name: "team deployment",
+      detectedGpus: [createLeaseGpuReading()],
+      offeredGpus: [createLeaseGpuOffer()]
+    });
+
+    function runInPersonalOrganization<R>(run: () => Promise<R>) {
+      return executionContextService.runWithContext(async () => {
+        executionContextService.set(
+          "ORGANIZATION_CONTEXT",
+          createOrganizationContext({ organizationId: personal.id, organizationType: "personal", mode: "legacy" })
+        );
+        return await run();
+      });
+    }
+
+    return {
+      deploymentSettingRepository,
+      member,
+      personal,
+      team,
+      teamDeployment,
+      personalWallet: { userId: member.id, organizationId: personal.id },
+      teamWallet: { userId: null, organizationId: team.id },
+      runInPersonalOrganization
+    };
+  }
 
   async function setupOrganizations() {
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
