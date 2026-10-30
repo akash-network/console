@@ -98,28 +98,7 @@ class NodeAccessor {
   }
 
   public async getLatestBlockHeight(): Promise<number> {
-    const results = await Promise.allSettled(
-      this.nodes
-        .filter(node => node.status === NodeStatus.OK)
-        .map(async node => {
-          const response = await node.query("/status");
-          return parseInt(response.result.sync_info.latest_block_height);
-        })
-    );
-
-    const validResults = results.filter(result => result.status === "fulfilled").map(result => (result as PromiseFulfilledResult<number>).value);
-
-    if (validResults.length === 0) {
-      throw new Error("No active nodes");
-    }
-
-    const latestAvailableHeight = Math.max(...validResults);
-
-    if (typeof latestAvailableHeight !== "number") {
-      throw new Error("Invalid latest block height");
-    }
-
-    return latestAvailableHeight;
+    return await findLatestBlockHeight(this.nodes);
   }
 
   public async waitForAvailableNode(height?: number): Promise<NodeInfo> {
@@ -191,6 +170,17 @@ class NodeAccessor {
 }
 
 export const nodeAccessor = new NodeAccessor({ maxConcurrentQueryPerNode: concurrentNodeQuery });
+
+export async function findLatestBlockHeight(nodes: NodeInfo[]): Promise<number> {
+  const results = await Promise.allSettled(nodes.filter(node => node.status === NodeStatus.OK).map(node => node.queryLatestBlockHeight()));
+  const validHeights = results.filter(result => result.status === "fulfilled").map(result => result.value);
+
+  if (validHeights.length === 0) {
+    throw new Error("No active node reported a valid latest block height");
+  }
+
+  return Math.max(...validHeights);
+}
 
 function getQueryIdentifier(url: string) {
   if (url.startsWith("/block_results")) {
