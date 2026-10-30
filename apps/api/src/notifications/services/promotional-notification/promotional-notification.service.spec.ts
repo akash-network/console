@@ -27,7 +27,7 @@ describe(PromotionalNotificationService.name, () => {
     const webUrl = new URL(sent.unsubscribe!.url);
     const oneClickUrl = new URL(sent.unsubscribe!.oneClickUrl);
     expect(outcome).toBe("sent");
-    expect(sent).toEqual({ ...notification, unsubscribe: expect.any(Object), recipient: user.email });
+    expect(sent).toEqual({ ...notification, unsubscribe: expect.any(Object) });
     expect(`${webUrl.origin}${webUrl.pathname}`).toBe(`${WEB_ORIGIN}/unsubscribe`);
     expect(`${oneClickUrl.origin}${oneClickUrl.pathname}`).toBe(`${API_ORIGIN}/v1/product-update-unsubscriptions`);
     expect(readProductUpdateUnsubscribeToken(SECRET, webUrl.searchParams.get("token")!)).toBe(user.id);
