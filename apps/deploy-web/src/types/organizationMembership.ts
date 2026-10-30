@@ -6,6 +6,8 @@ export type OrganizationInvitationOutput = operationDefs["listOrganizationInvita
 
 export type ProjectAccess = OrganizationInvitationOutput["projectAccess"];
 
+export type ReceivedInvitationOutput = operationDefs["listReceivedInvitations"]["responses"][200]["content"]["application/json"]["data"][number];
+
 type InvitationPreviewResponse = operationDefs["previewInvitation"]["responses"][200]["content"]["application/json"]["data"];
 
 /** The web can reach prod before the api that answers with `organizationId`, so a preview may come without it. */
@@ -28,6 +30,8 @@ export const INVITATION_EMAIL_MISMATCH_ERROR_CODE = "invitation_email_mismatch";
 export const INVITATION_EXPIRED_ERROR_CODE = "invitation_expired";
 
 export const INVITATION_REVOKED_ERROR_CODE = "invitation_revoked";
+
+export const INVITATION_DECLINED_ERROR_CODE = "invitation_declined";
 
 export const INVITATION_ALREADY_ACCEPTED_ERROR_CODE = "invitation_already_accepted";
 

@@ -20,6 +20,7 @@ import type { InvitationPreviewOutput } from "@src/types/organizationMembership"
 import {
   ALREADY_MEMBER_ERROR_CODE,
   INVITATION_ALREADY_ACCEPTED_ERROR_CODE,
+  INVITATION_DECLINED_ERROR_CODE,
   INVITATION_EMAIL_MISMATCH_ERROR_CODE,
   INVITATION_EXPIRED_ERROR_CODE,
   INVITATION_REVOKED_ERROR_CODE
@@ -38,7 +39,12 @@ export const DEPENDENCIES = {
   useSnackbar
 };
 
-const SETTLED_INVITATION_ERROR_CODES = [INVITATION_EXPIRED_ERROR_CODE, INVITATION_REVOKED_ERROR_CODE, INVITATION_ALREADY_ACCEPTED_ERROR_CODE];
+const SETTLED_INVITATION_ERROR_CODES = [
+  INVITATION_EXPIRED_ERROR_CODE,
+  INVITATION_REVOKED_ERROR_CODE,
+  INVITATION_DECLINED_ERROR_CODE,
+  INVITATION_ALREADY_ACCEPTED_ERROR_CODE
+];
 
 const NOT_FOUND_STATUS = 404;
 
@@ -108,6 +114,14 @@ const InvitationView: FC<InvitationViewProps> = ({ invitation, token, onSettled,
     return (
       <InvitationNotice title="This invitation was revoked">
         Ask {inviter} if you still need access to {invitation.organizationName}.
+      </InvitationNotice>
+    );
+  }
+
+  if (invitation.status === "declined") {
+    return (
+      <InvitationNotice title="This invitation was declined">
+        Ask {inviter} for a new one if you'd like to join {invitation.organizationName}.
       </InvitationNotice>
     );
   }

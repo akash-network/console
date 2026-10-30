@@ -50,6 +50,14 @@ describe(RecentActivityFeed.name, () => {
     expect(screen.queryByText("Deleted account")).not.toBeInTheDocument();
   });
 
+  it("reads a declined invitation as the invited address, not as a deleted account", () => {
+    const { container } = setup({ activities: [activity({ actor: null, type: "invitation_declined", payload: { email: "lena@acme.com" } })] });
+
+    expect(screen.getByRole("listitem")).toHaveTextContent(/^lena@acme.com declined the invitation/, { normalizeWhitespace: false });
+    expect(container.querySelector("svg.lucide-activity")).not.toBeNull();
+    expect(screen.queryByText("Deleted account")).not.toBeInTheDocument();
+  });
+
   it("opens a sentence without a subject at its first word", () => {
     setup({ activities: [activity({ actor: null, type: "deployment_closed", payload: { dseq: "2987", name: "session-cache", reason: null } })] });
 

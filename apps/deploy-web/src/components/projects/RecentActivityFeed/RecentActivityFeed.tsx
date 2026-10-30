@@ -74,9 +74,11 @@ export function RecentActivityFeed({ activities, projects, hasMore, onShowMore, 
   );
 }
 
-/** Only the console's own deployment closes are recorded without an actor, so any other entry lacking one was made by a since deleted account. */
+const ACTORLESS_ACTIVITY_TYPES: OrganizationActivity["type"][] = ["deployment_closed", "invitation_declined"];
+
+/** Only the console's own deployment closes and declined invitations are recorded without an actor, so any other entry lacking one was made by a since deleted account. */
 function isByDeletedAccount(activity: OrganizationActivity): boolean {
-  return activity.actor === null && activity.type !== "deployment_closed";
+  return activity.actor === null && !ACTORLESS_ACTIVITY_TYPES.includes(activity.type);
 }
 
 function ActivityItem({ activity, projectName }: { activity: OrganizationActivity; projectName: string | undefined }) {
