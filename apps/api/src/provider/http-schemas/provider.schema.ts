@@ -293,12 +293,12 @@ export const ProviderResponseSchema = z.object({
           description:
             "The newest CUDA version whose minimum Linux driver this driver meets, per NVIDIA's published driver requirements. Null when it meets none of them."
         }),
-        lastSeenDate: z.string().openapi({ description: "The UTC day this driver was last read.", example: "2026-09-21" })
+        lastSeenDate: z.string().openapi({ description: "The UTC day a workload last reported this driver.", example: "2026-09-21" })
       })
     )
     .openapi({
       description:
-        "Up to 5 NVIDIA driver versions Console confirmed on GPU leases it runs on this provider over the last 30 days, most recently read first. Empty when none has been confirmed.",
+        "Up to 5 NVIDIA driver versions reported by workloads running on this provider over the last 30 days, most widely reported first. Console does not verify them. Empty when there is none to list.",
       example: [{ driverVersion: "550.54.15", cudaVersion: "12.4", lastSeenDate: "2026-09-21" }]
     }),
   hardwareGpuVendor: z.string().nullable(),
