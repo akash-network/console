@@ -35,6 +35,8 @@ export const INVITATION_DECLINED_ERROR_CODE = "invitation_declined";
 
 export const INVITATION_ALREADY_ACCEPTED_ERROR_CODE = "invitation_already_accepted";
 
+export const INVITATION_INVITER_LOST_ACCESS_ERROR_CODE = "invitation_inviter_lost_access";
+
 export const SESSION_REQUIRED_ERROR_CODE = "session_required";
 
 export const OWNER_CANNOT_LEAVE_ERROR_CODE = "owner_cannot_leave";

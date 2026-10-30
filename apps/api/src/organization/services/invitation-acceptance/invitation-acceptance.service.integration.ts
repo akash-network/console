@@ -17,7 +17,12 @@ import { OrganizationMemberRepository } from "@src/organization/repositories/org
 import { ALREADY_MEMBER_ERROR_CODE } from "@src/organization/services/organization-invitation/organization-invitation.service";
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
-import { INVITATION_ALREADY_ACCEPTED_ERROR_CODE, INVITATION_REVOKED_ERROR_CODE, InvitationAcceptanceService } from "./invitation-acceptance.service";
+import {
+  INVITATION_ALREADY_ACCEPTED_ERROR_CODE,
+  INVITATION_INVITER_LOST_ACCESS_ERROR_CODE,
+  INVITATION_REVOKED_ERROR_CODE,
+  InvitationAcceptanceService
+} from "./invitation-acceptance.service";
 
 import {
   seedOrganization,
@@ -124,6 +129,50 @@ describe(InvitationAcceptanceService.name, () => {
       expect(await container.resolve(OrganizationMemberRepository).count({ organizationId: organization.id, userId: invitee.id })).toBe(0);
     });
 
+    it("waits for the removal of the invitation's inviter and refuses once it committed", async () => {
+      const { service, organization, invite, seedInvitee, runAs, txService } = await setup();
+      const admin = await seedInvitee();
+      const adminMembership = await seedOrganizationMember({ organizationId: organization.id, userId: admin.id, role: "admin" });
+      const invitee = await seedInvitee();
+      const { token } = await invite({ email: invitee.email!, role: "admin", invitedByUserId: admin.id });
+
+      const removal = txService.transaction(async () => {
+        const members = container.resolve(OrganizationMemberRepository);
+        await members.findOneByAndLock({ id: adminMembership.id });
+        await delay(200);
+        await members.deleteById(adminMembership.id);
+      });
+      await delay(50);
+      const acceptance = runAs(invitee, () => service.acceptInvitation({ token }));
+
+      await removal;
+      await expect(acceptance).rejects.toMatchObject({ status: 410, errorCode: INVITATION_INVITER_LOST_ACCESS_ERROR_CODE });
+      expect(await container.resolve(OrganizationMemberRepository).count({ organizationId: organization.id, userId: invitee.id })).toBe(0);
+    });
+
+    it("keeps the inviter's role from changing until the invitee has joined", async () => {
+      const { service, organization, invite, seedInvitee, runAs, txService } = await setup();
+      const admin = await seedInvitee();
+      const adminMembership = await seedOrganizationMember({ organizationId: organization.id, userId: admin.id, role: "admin" });
+      const invitee = await seedInvitee();
+      const { token } = await invite({ email: invitee.email!, role: "admin", invitedByUserId: admin.id });
+      const events: string[] = [];
+
+      const acceptance = runAs(invitee, () =>
+        txService.transaction(async () => {
+          await service.acceptInvitation({ token });
+          await delay(200);
+          events.push("invitee joined");
+        })
+      );
+      await delay(100);
+      await container.resolve(OrganizationMemberRepository).updateById(adminMembership.id, { role: "member" });
+      events.push("inviter demoted");
+      await acceptance;
+
+      expect(events).toEqual(["invitee joined", "inviter demoted"]);
+    });
+
     it("leaves rows referencing the organization or the invitation writable while an acceptance holds its locks", async () => {
       const { service, organization, owner, invite, seedInvitee, runAs, txService } = await setup();
       const invitee = await seedInvitee();
@@ -217,7 +266,7 @@ describe(InvitationAcceptanceService.name, () => {
       return user;
     }
 
-    async function invite(input: { email: string; role: OrganizationRole; projectGrants?: ProjectGrant[] }) {
+    async function invite(input: { email: string; role: OrganizationRole; projectGrants?: ProjectGrant[]; invitedByUserId?: string }) {
       const token = createInvitationToken();
       const invitation = await seedOrganizationInvitation({
         organizationId: organization.id,

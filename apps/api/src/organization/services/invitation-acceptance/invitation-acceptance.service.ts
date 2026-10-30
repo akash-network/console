@@ -10,6 +10,7 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { TxService } from "@src/core/services/tx/tx.service";
 import { hashInvitationToken } from "@src/organization/lib/invitation-token/invitation-token";
 import type { OrganizationInvitationStatus } from "@src/organization/model-schemas/organization-invitation/organization-invitation.schema";
+import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import {
   type OrganizationInvitationOutput,
@@ -31,6 +32,7 @@ export const INVITATION_EXPIRED_ERROR_CODE = "invitation_expired";
 export const INVITATION_REVOKED_ERROR_CODE = "invitation_revoked";
 export const INVITATION_DECLINED_ERROR_CODE = "invitation_declined";
 export const INVITATION_ALREADY_ACCEPTED_ERROR_CODE = "invitation_already_accepted";
+export const INVITATION_INVITER_LOST_ACCESS_ERROR_CODE = "invitation_inviter_lost_access";
 
 export type InvitationStatus = OrganizationInvitationStatus | "expired";
 
@@ -121,6 +123,7 @@ export class InvitationAcceptanceService {
       assertAcceptable(invitation, status, invitee, isSentToInvitee || confirmEmailMismatch);
 
       if (status === "pending") {
+        await this.#assertInviterMayStillInvite(invitation, access.reason);
         await this.#join(invitation, invitee, access.reason, isSentToInvitee);
       }
 
@@ -157,6 +160,17 @@ export class InvitationAcceptanceService {
     assert(invitation, 404, "Invitation not found");
 
     return invitation;
+  }
+
+  /** Locks the inviter's membership, so they cannot leave or lose their role while the invitee joins on their word. */
+  async #assertInviterMayStillInvite({ organizationId, invitedByUserId, role }: OrganizationInvitationOutput, reason: InvitationAccessReason): Promise<void> {
+    const inviter =
+      invitedByUserId &&
+      (await this.organizationMemberRepository.unscoped(reason).findOneByAndLock({ organizationId, userId: invitedByUserId }, { strength: "no key update" }));
+
+    if (!inviter || !mayInviteAs(inviter.role, role)) {
+      throw createError(410, "Whoever sent the invitation can no longer invite to its role", { errorCode: INVITATION_INVITER_LOST_ACCESS_ERROR_CODE });
+    }
   }
 
   /** A user who already belongs to the organization keeps their role and project grants, and consumes only an invitation sent to their verified address. */
@@ -228,6 +242,10 @@ function assertOpen(status: InvitationStatus): void {
   if (status === "expired") {
     throw createError(410, "The invitation has expired", { errorCode: INVITATION_EXPIRED_ERROR_CODE });
   }
+}
+
+function mayInviteAs(inviterRole: OrganizationRole, invitedRole: OrganizationRole): boolean {
+  return inviterRole === "owner" || (inviterRole === "admin" && invitedRole !== "owner");
 }
 
 function isVerifiedInvitedAddress(invitation: OrganizationInvitationOutput, invitee: Invitee): boolean {

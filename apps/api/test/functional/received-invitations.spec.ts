@@ -139,6 +139,20 @@ describe("Received invitations", () => {
       expect(await invitationOf(invitation.id)).toMatchObject({ status: "accepted", acceptedByUserId: invitee.id });
     });
 
+    it("refuses with 410 an invitation whose inviter no longer belongs to the organization and leaves it pending", async () => {
+      const { invite, seedInvitee, request, membershipsOf, invitationOf } = await setup({});
+      const formerAdmin = await seedInvitee();
+      const invitee = await seedInvitee();
+      const invitation = await invite({ email: invitee.email!, role: "admin", invitedByUserId: formerAdmin.id });
+
+      const response = await request(`/v1/received-invitations/${invitation.id}/accept`, { asUser: invitee });
+
+      expect(response.status).toBe(410);
+      expect(await response.json()).toMatchObject({ code: "invitation_inviter_lost_access" });
+      expect(await membershipsOf(invitee)).toEqual([]);
+      expect(await invitationOf(invitation.id)).toMatchObject({ status: "pending" });
+    });
+
     it("joins through the address Auth0 verified for the caller", async () => {
       const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
       const invitee = await seedInvitee({ emailVerified: false, auth0: { email: "Jane.Doe@Example.com" } });

@@ -15,7 +15,11 @@ import type {
   OrganizationInvitationRepository,
   ReceivedInvitation
 } from "@src/organization/repositories/organization-invitation/organization-invitation.repository";
-import type { Membership, OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
+import type {
+  Membership,
+  OrganizationMemberOutput,
+  OrganizationMemberRepository
+} from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import type { ProjectMemberRepository } from "@src/organization/repositories/project-member/project-member.repository";
 import type { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
@@ -27,12 +31,13 @@ import {
   INVITATION_DECLINED_ERROR_CODE,
   INVITATION_EMAIL_MISMATCH_ERROR_CODE,
   INVITATION_EXPIRED_ERROR_CODE,
+  INVITATION_INVITER_LOST_ACCESS_ERROR_CODE,
   INVITATION_REVOKED_ERROR_CODE,
   InvitationAcceptanceService,
   invitationStatusOf
 } from "./invitation-acceptance.service";
 
-import { createOrganization, createOrganizationInvitation } from "@test/seeders/organization.seeder";
+import { createOrganization, createOrganizationInvitation, createOrganizationMember } from "@test/seeders/organization.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
@@ -336,6 +341,78 @@ describe(InvitationAcceptanceService.name, () => {
       await expect(service.acceptInvitation({ token: createInvitationToken() })).rejects.toMatchObject({ status: 404, message: "Invitation not found" });
       expect(unscopedRepositories.members.createUnlessExists).not.toHaveBeenCalled();
     });
+
+    it("locks the inviter's membership in the invitation's organization after the invitation and before the invitee joins", async () => {
+      const invitation = createOrganizationInvitation();
+      const { service, unscopedRepositories } = setup({ invitation });
+
+      await service.acceptInvitation({ token: createInvitationToken() });
+
+      expect(unscopedRepositories.members.findOneByAndLock).toHaveBeenCalledWith(
+        { organizationId: invitation.organizationId, userId: invitation.invitedByUserId },
+        { strength: "no key update" }
+      );
+      expect(unscopedRepositories.invitations.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(
+        unscopedRepositories.members.findOneByAndLock.mock.invocationCallOrder[0]
+      );
+      expect(unscopedRepositories.members.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(
+        unscopedRepositories.members.createUnlessExists.mock.invocationCallOrder[0]
+      );
+    });
+
+    it.each([
+      { inviterRole: "owner" as const, role: "owner" as const },
+      { inviterRole: "owner" as const, role: "admin" as const },
+      { inviterRole: "admin" as const, role: "admin" as const },
+      { inviterRole: "admin" as const, role: "viewer" as const }
+    ])("lets the invitee join as $role on the word of an inviter who is still $inviterRole", async ({ inviterRole, role }) => {
+      const { service, unscopedRepositories } = setup({ invitation: createOrganizationInvitation({ role }), inviter: { role: inviterRole } });
+
+      await service.acceptInvitation({ token: createInvitationToken() });
+
+      expect(unscopedRepositories.members.createUnlessExists).toHaveBeenCalledWith(expect.objectContaining({ role }));
+    });
+
+    it.each([
+      { case: "who is no longer a member", invitation: {}, inviter: null },
+      { case: "who is now a member", invitation: { role: "member" as const }, inviter: { role: "member" as const } },
+      { case: "who is now billing", invitation: { role: "viewer" as const }, inviter: { role: "billing" as const } },
+      { case: "who is now a viewer", invitation: { role: "viewer" as const }, inviter: { role: "viewer" as const } },
+      { case: "who is now an admin, to an owner invitation", invitation: { role: "owner" as const }, inviter: { role: "admin" as const } },
+      { case: "whose account is gone", invitation: { invitedByUserId: null }, inviter: undefined }
+    ])("refuses with 410 an invitation from an inviter $case, writing nothing", async ({ invitation, inviter }) => {
+      const { service, unscopedRepositories, userRepository, organizationActivityService } = setup({
+        invitation: createOrganizationInvitation(invitation),
+        inviter
+      });
+
+      await expect(service.acceptInvitation({ token: createInvitationToken() })).rejects.toMatchObject({
+        status: 410,
+        errorCode: INVITATION_INVITER_LOST_ACCESS_ERROR_CODE,
+        message: "Whoever sent the invitation can no longer invite to its role"
+      });
+      expect(unscopedRepositories.members.createUnlessExists).not.toHaveBeenCalled();
+      expect(unscopedRepositories.invitations.updateById).not.toHaveBeenCalled();
+      expect(organizationActivityService.recordInvitationAnswer).not.toHaveBeenCalled();
+      expect(userRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("looks for no inviter on an invitation whose inviter's account is gone", async () => {
+      const { service, unscopedRepositories } = setup({ invitation: createOrganizationInvitation({ invitedByUserId: null }) });
+
+      await expect(service.acceptInvitation({ token: createInvitationToken() })).rejects.toMatchObject({ status: 410 });
+      expect(unscopedRepositories.members.findOneByAndLock).not.toHaveBeenCalled();
+    });
+
+    it("answers the organization again to the invitee who already accepted, whatever became of the inviter", async () => {
+      const { service, invitee, unscopedRepositories } = setup({ invitation: undefined, inviter: null });
+      const invitation = createOrganizationInvitation({ status: "accepted", acceptedByUserId: invitee.id });
+      unscopedRepositories.invitations.findOneBy.mockResolvedValue(invitation);
+      unscopedRepositories.invitations.findOneByAndLock.mockResolvedValue(invitation);
+
+      await expect(service.acceptInvitation({ token: createInvitationToken() })).resolves.toMatchObject({ role: "member" });
+      expect(unscopedRepositories.members.findOneByAndLock).not.toHaveBeenCalled();
+    });
   });
 
   describe("listReceivedInvitations", () => {
@@ -619,6 +696,7 @@ describe(InvitationAcceptanceService.name, () => {
     context?: OrganizationContext | null;
     organization?: OrganizationOutput | null;
     lockedInvitation?: OrganizationInvitationOutput | null;
+    inviter?: Partial<OrganizationMemberOutput> | null;
   }) {
     const invitee = createUser({ email: input.invitation?.email ?? faker.internet.email(), emailVerified: true, ...input.invitee });
     const unscopedRepositories = {
@@ -629,7 +707,8 @@ describe(InvitationAcceptanceService.name, () => {
         findOneByAndLock: vi.fn().mockResolvedValue(input.lockedInvitation === undefined ? input.invitation : input.lockedInvitation ?? undefined)
       }),
       members: mock<OrganizationMemberRepository>({
-        createUnlessExists: vi.fn().mockResolvedValue(input.isAlreadyMember ? undefined : { id: faker.string.uuid() })
+        createUnlessExists: vi.fn().mockResolvedValue(input.isAlreadyMember ? undefined : { id: faker.string.uuid() }),
+        findOneByAndLock: vi.fn().mockResolvedValue(input.inviter === null ? undefined : createOrganizationMember({ role: "owner", ...input.inviter }))
       }),
       projects: mock<ProjectRepository>({ findActiveIdsAmong: vi.fn().mockResolvedValue(input.liveProjectIds ?? []) }),
       projectMembers: mock<ProjectMemberRepository>()
