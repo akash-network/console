@@ -17,14 +17,22 @@ describe(migratePG.name, () => {
     expect(await countProbeMigrationRuns()).toBe(1);
   });
 
-  function setup() {
+  it("migrates through the dedicated migration connection when one is configured", async () => {
+    const { config, countProbeMigrationRuns } = setup({ appDbUri: "postgres://postgres@127.0.0.1:1/unreachable" });
+
+    await migratePG(config);
+
+    expect(await countProbeMigrationRuns()).toBe(1);
+  });
+
+  function setup(input: { appDbUri?: string } = {}) {
     const migrationsFolder = mkdtempSync(path.join(tmpdir(), "migration-race-"));
     const createdAt = Date.now();
     const tag = "0000_migration_race_probe";
 
     writeFileSync(
       path.join(migrationsFolder, `${tag}.sql`),
-      'SELECT pg_sleep(0.3);\n--> statement-breakpoint\nCREATE TABLE "migration_race_probe" ("id" integer);\n'
+      `SELECT pg_sleep(0.3);\n--> statement-breakpoint\nCREATE TABLE "migration_race_probe_${createdAt}" ("id" integer);\n`
     );
     mkdirSync(path.join(migrationsFolder, "meta"));
     writeFileSync(
@@ -32,8 +40,13 @@ describe(migratePG.name, () => {
       JSON.stringify({ version: "7", dialect: "postgresql", entries: [{ idx: 0, version: "7", when: createdAt, tag, breakpoints: true }] })
     );
 
-    const config = { ...container.resolve(CORE_CONFIG), DRIZZLE_MIGRATIONS_FOLDER: migrationsFolder };
-    const sql = postgres(config.POSTGRES_DB_URI, { max: 1 });
+    const coreConfig = container.resolve(CORE_CONFIG);
+    const config = {
+      ...coreConfig,
+      DRIZZLE_MIGRATIONS_FOLDER: migrationsFolder,
+      ...(input.appDbUri && { POSTGRES_DB_URI: input.appDbUri, POSTGRES_MIGRATION_DB_URI: coreConfig.POSTGRES_DB_URI })
+    };
+    const sql = postgres(coreConfig.POSTGRES_DB_URI, { max: 1 });
 
     onTestFinished(async () => {
       await sql.end();

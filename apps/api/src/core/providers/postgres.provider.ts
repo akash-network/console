@@ -32,6 +32,7 @@ container.register(APP_PG_CLIENT, {
       connect_timeout: config.POSTGRES_CONNECT_TIMEOUT,
       idle_timeout: config.POSTGRES_IDLE_TIMEOUT,
       max_lifetime: config.POSTGRES_MAX_LIFETIME,
+      prepare: config.POSTGRES_PREPARE,
       onnotice: logger.info.bind(logger)
     });
     c.resolve(DisposableRegistry).register({ dispose: () => client.end() });
@@ -73,7 +74,7 @@ const getDrizzleOptions = (config: Pick<CoreConfig, "SQL_LOG_FORMAT">) => ({
 const MIGRATION_ADVISORY_LOCK_KEY = 5_377_032_119;
 
 export async function migratePG(config: CoreConfig = container.resolve(CORE_CONFIG)): Promise<void> {
-  const migrationClient = postgres(config.POSTGRES_DB_URI, { max: 1, onnotice: logger.info.bind(logger) });
+  const migrationClient = postgres(config.POSTGRES_MIGRATION_DB_URI ?? config.POSTGRES_DB_URI, { max: 1, onnotice: logger.info.bind(logger) });
   const pgMigrationDatabase = drizzle(migrationClient, getDrizzleOptions(config));
 
   try {
