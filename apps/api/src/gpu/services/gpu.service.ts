@@ -44,7 +44,7 @@ export class GpuService {
           allocatable: gpuNodes.map(x => x.allocatable).reduce((acc, x) => acc + x, 0),
           allocated: gpuNodes.map(x => x.allocated).reduce((acc, x) => acc + x, 0)
         },
-        details: {} as { [key: string]: { model: string; ram: string; interface: string; allocatable: number; allocated: number }[] }
+        details: Object.create(null) as { [key: string]: { model: string; ram: string; interface: string; allocatable: number; allocated: number }[] }
       }
     };
 

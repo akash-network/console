@@ -9,7 +9,43 @@ import type { GpuRepository } from "../repositories/gpu.repository";
 import { GpuFormattingService } from "./gpu-formatting/gpu-formatting.service";
 import { GpuService } from "./gpu.service";
 
+type GpuNode = Awaited<ReturnType<GpuRepository["getGpuList"]>>[number];
+
 describe(GpuService.name, () => {
+  describe("getGpuList", () => {
+    it("lists a vendor named like a built-in object property as any other vendor", async () => {
+      const { service, gpuRepository } = setup();
+      gpuRepository.getGpuList.mockResolvedValue([
+        createGpuNode({ vendor: "constructor", modelName: "a100" }),
+        createGpuNode({ vendor: "__proto__", modelName: "h100" }),
+        createGpuNode({ vendor: "nvidia", modelName: "rtx4090" })
+      ]);
+
+      const { gpus } = await service.getGpuList();
+
+      expect(Object.entries(gpus.details)).toEqual([
+        ["constructor", [{ model: "a100", ram: "80Gi", interface: "PCIe", allocatable: 8, allocated: 2 }]],
+        ["__proto__", [{ model: "h100", ram: "80Gi", interface: "PCIe", allocatable: 8, allocated: 2 }]],
+        ["nvidia", [{ model: "rtx4090", ram: "80Gi", interface: "PCIe", allocatable: 8, allocated: 2 }]]
+      ]);
+    });
+
+    function createGpuNode(overrides: Partial<GpuNode>): GpuNode {
+      return {
+        hostUri: "https://provider.example.com:8443",
+        name: "node-1",
+        allocatable: 8,
+        allocated: 2,
+        modelId: "2330",
+        vendor: "nvidia",
+        modelName: "h100",
+        interface: "PCIe",
+        memorySize: "80Gi",
+        ...overrides
+      };
+    }
+  });
+
   describe("getGpuModels", () => {
     it("fetches the provider-config catalog and returns the formatted vendor list", async () => {
       const { service, httpClient } = setup({
