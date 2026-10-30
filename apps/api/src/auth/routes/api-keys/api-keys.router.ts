@@ -12,7 +12,7 @@ import {
 import { ListApiKeysResponseSchema } from "@src/auth/http-schemas/api-key.schema";
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
-import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
+import { SECURITY_BEARER, SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 
 export const apiKeysRouter = new OpenApiHonoHandler();
 
@@ -79,8 +79,9 @@ const postRoute = createRoute({
   method: "post",
   path: "/v1/api-keys",
   summary: "Create new API key",
+  description: "Requires a signed-in Console session. A request authenticated with an API key is refused.",
   tags: ["API Keys"],
-  security: SECURITY_BEARER_OR_API_KEY,
+  security: SECURITY_BEARER,
   request: {
     body: {
       content: {
@@ -99,12 +100,13 @@ const postRoute = createRoute({
         }
       }
     },
+    403: { description: "The request was not made from a signed-in session (`session_required`)" },
     404: { description: "No project with this `projectId` in the caller's reach" }
   }
 });
 apiKeysRouter.openapi(postRoute, async function routeCreateApiKey(c) {
   const { data } = c.req.valid("json");
-  const result = await container.resolve(ApiKeyController).create(data);
+  const result = await container.resolve(ApiKeyController).create(data, { authMethod: c.get("authMethod") });
   return c.json(result, 201);
 });
 

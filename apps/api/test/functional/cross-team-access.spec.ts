@@ -196,6 +196,7 @@ const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
   {
     route: "POST /v1/api-keys bound to a project",
     status: 404,
+    apiKeyStatus: 403,
     ownerStatus: 201,
     request: team => post("/v1/api-keys", { name: "ci", projectId: team.grantedProjectId })
   },

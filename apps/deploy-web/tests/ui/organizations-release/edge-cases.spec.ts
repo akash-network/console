@@ -867,7 +867,7 @@ test.describe("Ids of another team", () => {
           }),
           api.post("v1/api-keys", { data: { data: { name: `e2e-cross-${suffix}`, projectId: foreign.project.id } } })
         ]);
-        expect(responses.map(response => response.status())).toEqual([404, 400, 404]);
+        expect(responses.map(response => response.status())).toEqual([404, 400, 403]);
         expect(await readData<Budget[]>(await api.get("v1/project-budgets", { params: { projectId: foreign.project.id } }))).toEqual([]);
         expect(await readData<unknown[]>(await api.get("v1/organization-activities", { params: { projectId: foreign.project.id } }))).toEqual([]);
       });
