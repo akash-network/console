@@ -112,6 +112,21 @@ export class ManagedUserWalletService {
     this.logger.debug({ event: "SPENDING_AUTHORIZED", address: options.address });
   }
 
+  /** Sets only the deployment allowance and returns its funding tx, so the caller can record whether the grant landed. */
+  @Trace()
+  async authorizeDeploymentSpendingOnly(
+    signer: ManagedSignerService,
+    { address, derivationIndex, limit }: { address: string; derivationIndex: number; limit: number }
+  ) {
+    const granter = await this.txManagerService.getFundingWalletAddress();
+
+    return await this.authorizeDeploymentSpending(
+      signer,
+      { granter, grantee: address, denom: this.config.DEPLOYMENT_GRANT_DENOM, limit },
+      { granteeDerivationIndex: derivationIndex }
+    );
+  }
+
   /**
    * Refills fee authorization for a wallet that is eligible for trial allowances.
    * Authorizes fees for wallets in the trial window, applying the same logic as RefillService.refillWalletFees.

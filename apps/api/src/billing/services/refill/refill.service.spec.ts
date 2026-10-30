@@ -5,6 +5,7 @@ import type { BillingConfig } from "@src/billing/providers";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { ManagedSignerService, ManagedUserWalletService } from "@src/billing/services";
 import type { BalancesService } from "@src/billing/services/balances/balances.service";
+import type { PaymentCreditService } from "@src/billing/services/payment-credit/payment-credit.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
@@ -18,6 +19,7 @@ describe(RefillService.name, () => {
   describe("topUpWallet", () => {
     const userId = "test-user-id";
     const amountUsd = 100;
+    const payment = { transactionId: "tx-123" };
 
     it("credits a team organization's wallet, not the wallet of the member who paid", async () => {
       const { service, userWalletRepository, managedUserWalletService, walletInitializerService, balancesService, analyticsService } = setup();
@@ -27,7 +29,7 @@ describe(RefillService.name, () => {
       userWalletRepository.claimActivation.mockResolvedValue(undefined);
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
 
-      const result = await service.topUpWallet(amountUsd, { userId, organizationId: team.id, team });
+      const result = await service.topUpWallet(amountUsd, { userId, organizationId: team.id, team }, { payment });
 
       expect(walletInitializerService.ensureTeamWallet).toHaveBeenCalledWith(team, userId);
       expect(walletInitializerService.ensureWallet).not.toHaveBeenCalled();
@@ -45,7 +47,7 @@ describe(RefillService.name, () => {
       userWalletRepository.clearAbuseLock.mockResolvedValue(true);
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
 
-      const result = await service.topUpWallet(amountUsd, { userId: null, organizationId: team.id, team });
+      const result = await service.topUpWallet(amountUsd, { userId: null, organizationId: team.id, team }, { payment });
 
       expect(walletInitializerService.ensureTeamWallet).toHaveBeenCalledWith(team, null);
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ address: teamWallet.address }));
@@ -54,12 +56,13 @@ describe(RefillService.name, () => {
     });
 
     it("refuses to fund anything but a team for a payment no member made", async () => {
-      const { service, walletInitializerService, managedUserWalletService } = setup();
+      const { service, walletInitializerService, managedUserWalletService, paymentCreditService } = setup();
 
-      await expect(service.topUpWallet(amountUsd, { userId: null, organizationId: "org-personal" })).rejects.toMatchObject({ status: 500 });
+      await expect(service.topUpWallet(amountUsd, { userId: null, organizationId: "org-personal" }, { payment })).rejects.toMatchObject({ status: 500 });
 
       expect(walletInitializerService.ensureWallet).not.toHaveBeenCalled();
       expect(managedUserWalletService.authorizeSpending).not.toHaveBeenCalled();
+      expect(paymentCreditService.creditOnce).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -71,33 +74,74 @@ describe(RefillService.name, () => {
       userWalletRepository.claimActivation.mockResolvedValue(undefined);
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
 
-      await service.topUpWallet(amountUsd, { userId, organizationId });
+      await service.topUpWallet(amountUsd, { userId, organizationId }, { payment });
 
       expect(walletInitializerService.ensureWallet).toHaveBeenCalledWith(userId);
       expect(walletInitializerService.ensureTeamWallet).not.toHaveBeenCalled();
     });
 
-    it("should top up existing activated wallet", async () => {
-      const { service, userWalletRepository, managedUserWalletService, managedSignerService, balancesService, walletInitializerService, analyticsService } =
-        setup();
+    it("credits the payment once by its transaction and refills the fee allowance of an activated wallet", async () => {
+      const {
+        service,
+        userWalletRepository,
+        managedUserWalletService,
+        managedSignerService,
+        paymentCreditService,
+        balancesService,
+        walletInitializerService,
+        analyticsService
+      } = setup();
       const existingWallet = createInitializedUserWallet({ userId });
       walletInitializerService.ensureWallet.mockResolvedValue(existingWallet);
       userWalletRepository.claimActivation.mockResolvedValue(undefined);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
-      balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
       balancesService.refreshUserWalletLimits.mockResolvedValue();
 
-      await service.topUpWallet(amountUsd, { userId });
+      await service.topUpWallet(amountUsd, { userId }, { payment });
 
       expect(walletInitializerService.ensureWallet).toHaveBeenCalledWith(userId);
+      expect(paymentCreditService.creditOnce).toHaveBeenCalledWith({
+        transactionId: payment.transactionId,
+        wallet: { id: existingWallet.id, address: existingWallet.address },
+        amountCents: amountUsd
+      });
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: existingWallet.address,
         derivationIndex: existingWallet.id,
-        limits: { deployment: 1005000, fees: 1000 }
+        limits: { fees: 1000 }
       });
-      expect(balancesService.retrieveDeploymentLimit).toHaveBeenCalledWith(existingWallet);
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet, { endTrial: true });
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd, amount_usd: 1 }));
+    });
+
+    it("fails only once the credit has been recorded when the fee allowance fails", async () => {
+      const { service, userWalletRepository, managedUserWalletService, paymentCreditService, balancesService, walletInitializerService } = setup();
+      walletInitializerService.ensureWallet.mockResolvedValue(createInitializedUserWallet({ userId }));
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      const feeError = new Error("fee allowance refused");
+      managedUserWalletService.authorizeSpending.mockRejectedValue(feeError);
+      let isCreditRecorded = false;
+      paymentCreditService.creditOnce.mockImplementation(async () => {
+        await new Promise(resolve => setTimeout(resolve, 10));
+        isCreditRecorded = true;
+      });
+
+      await expect(service.topUpWallet(amountUsd, { userId }, { payment })).rejects.toBe(feeError);
+
+      expect(isCreditRecorded).toBe(true);
+      expect(balancesService.refreshUserWalletLimits).not.toHaveBeenCalled();
+    });
+
+    it("fails without refreshing the wallet's limits when the credit fails", async () => {
+      const { service, userWalletRepository, paymentCreditService, balancesService, walletInitializerService } = setup();
+      walletInitializerService.ensureWallet.mockResolvedValue(createInitializedUserWallet({ userId }));
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+      const creditError = new Error("credit refused");
+      paymentCreditService.creditOnce.mockRejectedValue(creditError);
+
+      await expect(service.topUpWallet(amountUsd, { userId }, { payment })).rejects.toBe(creditError);
+
+      expect(balancesService.refreshUserWalletLimits).not.toHaveBeenCalled();
     });
 
     it("holds the wallet row before touching the chain, so a concurrent abuse wipe waits for the settlement", async () => {
@@ -108,7 +152,7 @@ describe(RefillService.name, () => {
       userWalletRepository.findOneByAndLock.mockResolvedValue(existingWallet);
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
 
-      await service.topUpWallet(amountUsd, { userId });
+      await service.topUpWallet(amountUsd, { userId }, { payment });
 
       expect(userWalletRepository.findOneByAndLock).toHaveBeenCalledWith({ id: existingWallet.id });
       expect(userWalletRepository.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(
@@ -117,7 +161,7 @@ describe(RefillService.name, () => {
     });
 
     it("refuses to credit a team that was deleted while the payment settled, reading the team only once the wallet is locked", async () => {
-      const { service, userWalletRepository, managedUserWalletService, walletInitializerService, organizationRepository } = setup();
+      const { service, userWalletRepository, managedUserWalletService, paymentCreditService, walletInitializerService, organizationRepository } = setup();
       const team = createOrganization({ type: "team" });
       const teamWallet = createInitializedUserWallet({ organizationId: team.id });
       walletInitializerService.ensureTeamWallet.mockResolvedValue(teamWallet);
@@ -125,7 +169,7 @@ describe(RefillService.name, () => {
       userWalletRepository.findOneByAndLock.mockResolvedValue(teamWallet);
       organizationRepository.findById.mockResolvedValue({ ...team, deletedAt: new Date() });
 
-      await expect(service.topUpWallet(amountUsd, { userId, organizationId: team.id, team })).rejects.toMatchObject({
+      await expect(service.topUpWallet(amountUsd, { userId, organizationId: team.id, team }, { payment })).rejects.toMatchObject({
         status: 409,
         errorCode: "organization_deleted",
         message: "The team organization was deleted, so its wallet takes no more credits"
@@ -133,6 +177,7 @@ describe(RefillService.name, () => {
       expect(organizationRepository.findById).toHaveBeenCalledWith(team.id);
       expect(organizationRepository.findById.mock.invocationCallOrder[0]).toBeGreaterThan(userWalletRepository.findOneByAndLock.mock.invocationCallOrder[0]);
       expect(managedUserWalletService.authorizeSpending).not.toHaveBeenCalled();
+      expect(paymentCreditService.creditOnce).not.toHaveBeenCalled();
     });
 
     it("credits a team that is still live once its wallet is locked", async () => {
@@ -145,7 +190,10 @@ describe(RefillService.name, () => {
       organizationRepository.findById.mockResolvedValue(team);
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
 
-      expect(await service.topUpWallet(amountUsd, { userId, organizationId: team.id, team })).toEqual({ walletId: teamWallet.id, address: teamWallet.address });
+      expect(await service.topUpWallet(amountUsd, { userId, organizationId: team.id, team }, { payment })).toEqual({
+        walletId: teamWallet.id,
+        address: teamWallet.address
+      });
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledTimes(1);
     });
 
@@ -155,7 +203,7 @@ describe(RefillService.name, () => {
       userWalletRepository.claimActivation.mockResolvedValue(undefined);
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
 
-      await service.topUpWallet(amountUsd, { userId });
+      await service.topUpWallet(amountUsd, { userId }, { payment });
 
       expect(organizationRepository.findById).not.toHaveBeenCalled();
     });
@@ -168,7 +216,7 @@ describe(RefillService.name, () => {
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
       userWalletRepository.clearAbuseLock.mockResolvedValue(true);
 
-      await service.topUpWallet(amountUsd, { userId });
+      await service.topUpWallet(amountUsd, { userId }, { payment });
 
       expect(userWalletRepository.clearAbuseLock).toHaveBeenCalledWith(unlockedWallet.id);
       expect(logger.info).toHaveBeenCalledWith({ event: "WALLET_ABUSE_LOCK_CLEARED", walletId: unlockedWallet.id, userId: unlockedWallet.userId });
@@ -182,7 +230,7 @@ describe(RefillService.name, () => {
       balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
       userWalletRepository.clearAbuseLock.mockResolvedValue(false);
 
-      await service.topUpWallet(amountUsd, { userId });
+      await service.topUpWallet(amountUsd, { userId }, { payment });
 
       expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "WALLET_ABUSE_LOCK_CLEARED" }));
       expect(analyticsService.track).not.toHaveBeenCalledWith(userId, "account_restriction_lifted", expect.anything());
@@ -197,7 +245,7 @@ describe(RefillService.name, () => {
       const error = new Error("deadlock detected");
       userWalletRepository.clearAbuseLock.mockRejectedValue(error);
 
-      await expect(service.topUpWallet(amountUsd, { userId })).resolves.toEqual({ walletId: wallet.id, address: wallet.address });
+      await expect(service.topUpWallet(amountUsd, { userId }, { payment })).resolves.toEqual({ walletId: wallet.id, address: wallet.address });
 
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd }));
       expect(logger.error).toHaveBeenCalledWith({ event: "WALLET_ABUSE_LOCK_CLEAR_FAILED", walletId: wallet.id, userId: wallet.userId, error });
@@ -250,31 +298,26 @@ describe(RefillService.name, () => {
       balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
       balancesService.refreshUserWalletLimits.mockResolvedValue();
 
-      await service.topUpWallet(amountUsd, { userId }, { endTrial: false });
+      await service.topUpWallet(amountUsd, { userId }, { endTrial: false, payment });
 
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(existingWallet, { endTrial: false });
     });
 
     it("activates a non-activated wallet on first funding", async () => {
-      const { service, userWalletRepository, walletInitializerService, balancesService, managedUserWalletService, managedSignerService, analyticsService } =
+      const { service, userWalletRepository, walletInitializerService, balancesService, managedUserWalletService, paymentCreditService, analyticsService } =
         setup();
       const wallet = createInitializedUserWallet({ userId, activatedAt: null });
       const activatedWallet = { ...wallet, activatedAt: new Date() };
       walletInitializerService.ensureWallet.mockResolvedValue(wallet);
       userWalletRepository.claimActivation.mockResolvedValue(activatedWallet);
       managedUserWalletService.authorizeSpending.mockResolvedValue();
-      balancesService.retrieveDeploymentLimit.mockResolvedValue(0);
       balancesService.refreshUserWalletLimits.mockResolvedValue();
 
-      await service.topUpWallet(amountUsd, { userId });
+      await service.topUpWallet(amountUsd, { userId }, { payment });
 
       expect(walletInitializerService.ensureWallet).toHaveBeenCalledWith(userId);
       expect(userWalletRepository.claimActivation).toHaveBeenCalledWith(wallet.id);
-      expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
-        address: wallet.address,
-        derivationIndex: wallet.id,
-        limits: { deployment: 1000000, fees: 1000 }
-      });
+      expect(paymentCreditService.creditOnce).toHaveBeenCalledWith(expect.objectContaining({ wallet: { id: wallet.id, address: wallet.address } }));
       expect(balancesService.refreshUserWalletLimits).toHaveBeenCalledWith(activatedWallet, { endTrial: true });
       expect(analyticsService.track).toHaveBeenCalledWith(userId, "balance_top_up", expect.objectContaining({ amount_cents: amountUsd, amount_usd: 1 }));
     });
@@ -288,7 +331,7 @@ describe(RefillService.name, () => {
       balancesService.retrieveDeploymentLimit.mockResolvedValue(5000);
       balancesService.refreshUserWalletLimits.mockResolvedValue();
 
-      const result = await service.topUpWallet(amountUsd, { userId });
+      const result = await service.topUpWallet(amountUsd, { userId }, { payment });
 
       expect(result).toEqual({ walletId: existingWallet.id, address: existingWallet.address });
     });
@@ -299,6 +342,7 @@ describe(RefillService.name, () => {
       const managedUserWalletService = mock<ManagedUserWalletService>();
       const managedSignerService = mock<ManagedSignerService>();
       const balancesService = mock<BalancesService>();
+      const paymentCreditService = mock<PaymentCreditService>();
       const walletInitializerService = mock<WalletInitializerService>();
       const analyticsService = mock<AnalyticsService>();
       const organizationRepository = mock<OrganizationRepository>();
@@ -313,6 +357,7 @@ describe(RefillService.name, () => {
         managedUserWalletService,
         managedSignerService,
         balancesService,
+        paymentCreditService,
         walletInitializerService,
         analyticsService,
         organizationRepository,
@@ -326,6 +371,7 @@ describe(RefillService.name, () => {
         managedUserWalletService,
         managedSignerService,
         balancesService,
+        paymentCreditService,
         walletInitializerService,
         analyticsService,
         organizationRepository,
@@ -484,6 +530,7 @@ describe(RefillService.name, () => {
         managedUserWalletService,
         managedSignerService,
         balancesService,
+        mock<PaymentCreditService>(),
         walletInitializerService,
         analyticsService,
         organizationRepository,

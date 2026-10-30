@@ -495,6 +495,7 @@ export class StripeTransactionService {
     return lastTransaction;
   }
 
+  /** Locks its row only against other writers, since the payment's credit is recorded on another connection whose foreign key reads the row. */
   @WithTransaction()
   async settleSucceededTransaction(params: {
     transactionId: string;
@@ -518,7 +519,7 @@ export class StripeTransactionService {
     toppedUpWallet?: ToppedUpWallet;
     actingUserId: string | null;
   }> {
-    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId });
+    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId }, { strength: "no key update" });
 
     if (!transaction) {
       this.loggerService.warn({

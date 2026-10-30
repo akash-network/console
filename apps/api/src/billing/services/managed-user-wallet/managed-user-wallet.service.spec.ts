@@ -243,6 +243,30 @@ describe(ManagedUserWalletService.name, () => {
       expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPOSIT_GRANT_ALREADY_ABSENT" }));
     });
 
+    it("grants only the deposit authorization and returns its funding tx when asked for the deployment allowance alone", async () => {
+      const { service, signer, config, rpcMessageService, txManagerService } = setup();
+      const address = createAkashAddress();
+      const derivationIndex = faker.number.int({ min: 1 });
+      const granter = await txManagerService.getFundingWalletAddress();
+      const grantMsg = { typeUrl: "/deposit-grant", value: {} } as unknown as EncodeObject;
+      const tx = { code: 0, hash: "GRANT_HASH", rawLog: "" };
+      rpcMessageService.getDepositDeploymentGrantMsg.mockReturnValue(grantMsg);
+      signer.executeFundingTx.mockResolvedValue(tx as never);
+
+      const result = await service.authorizeDeploymentSpendingOnly(signer, { address, derivationIndex, limit: 110_000_000 });
+
+      expect(rpcMessageService.getDepositDeploymentGrantMsg).toHaveBeenCalledWith({
+        granter,
+        grantee: address,
+        denom: config.DEPLOYMENT_GRANT_DENOM,
+        limit: 110_000_000
+      });
+      expect(signer.executeFundingTx).toHaveBeenCalledTimes(1);
+      expect(signer.executeFundingTx).toHaveBeenCalledWith([grantMsg], { granteeDerivationIndex: derivationIndex });
+      expect(rpcMessageService.getFeesAllowanceGrantMsg).not.toHaveBeenCalled();
+      expect(result).toBe(tx);
+    });
+
     it("keeps refilling the fee allowance when the deployment limit drops to zero", async () => {
       const { service, signer, config, rpcMessageService, authzHttpService } = setup();
       authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue(mock<ExactDepositDeploymentGrant>());
