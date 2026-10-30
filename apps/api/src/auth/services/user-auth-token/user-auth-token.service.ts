@@ -1,51 +1,65 @@
 import { Trace } from "@akashnetwork/instrumentation";
-import { singleton } from "tsyringe";
+import type { LoggerService } from "@akashnetwork/logging";
+import { createRemoteJWKSet, errors, jwtVerify } from "jose";
+import { inject, singleton } from "tsyringe";
 
-import { cacheEngine } from "@src/caching/helpers";
-import type { CacheValue } from "@src/caching/memoryCacheEngine";
-import { getJwks, useKVStore, verify, type VerifyRsaJwtEnv } from "@src/verify-rsa-jwt-cloudflare-worker-main";
+import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { AuthConfigService } from "../auth-config/auth-config.service";
+
+/** Bounds how long a signing key removed from Auth0 keeps verifying tokens. */
+const JWKS_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
+/** Minimum gap between key set refetches triggered by tokens signed with an unknown key. */
+const JWKS_REFETCH_COOLDOWN_MS = 30 * 1000;
+const CLOCK_TOLERANCE_SECONDS = 30;
+
+const TOKEN_REJECTIONS = [
+  errors.JWTClaimValidationFailed,
+  errors.JWTExpired,
+  errors.JWTInvalid,
+  errors.JWSInvalid,
+  errors.JWSSignatureVerificationFailed,
+  errors.JOSEAlgNotAllowed,
+  errors.JOSENotSupported,
+  errors.JWKSNoMatchingKey,
+  errors.JWKSMultipleMatchingKeys
+];
 
 @singleton()
 export class UserAuthTokenService {
   readonly #authConfigService: AuthConfigService;
+  readonly #logger: LoggerService;
+  readonly #jwks: ReturnType<typeof createRemoteJWKSet>;
 
-  constructor(authConfigService: AuthConfigService) {
+  constructor(authConfigService: AuthConfigService, @inject(LOGGER_FACTORY) createLogger: CreateLogger) {
     this.#authConfigService = authConfigService;
+    this.#logger = createLogger({ context: UserAuthTokenService.name });
+    this.#jwks = createRemoteJWKSet(new URL(authConfigService.get("AUTH0_JWKS_URI")), {
+      cacheMaxAge: JWKS_CACHE_MAX_AGE_MS,
+      cooldownDuration: JWKS_REFETCH_COOLDOWN_MS
+    });
   }
 
   @Trace()
-  async getValidUserId(bearer: string, options?: VerifyRsaJwtEnv): Promise<string | null> {
+  async getValidUserId(bearer: string): Promise<string | null> {
     const token = bearer.replace(/^Bearer\s+/i, "");
-    const jwksUri = this.#authConfigService.get("AUTH0_JWKS_URI") || options?.JWKS_URI;
 
-    if (!jwksUri) {
-      throw new Error("Environment variable AUTH0_JWKS_URI is not set and options.JWKS_URI is not provided");
+    try {
+      const { payload } = await jwtVerify(token, this.#jwks, {
+        algorithms: ["RS256"],
+        issuer: this.#authConfigService.get("AUTH0_ISSUER"),
+        audience: this.#authConfigService.get("AUTH0_AUDIENCE"),
+        requiredClaims: ["exp", "sub"],
+        clockTolerance: CLOCK_TOLERANCE_SECONDS
+      });
+
+      return payload.sub as string;
+    } catch (error) {
+      if (TOKEN_REJECTIONS.some(rejection => error instanceof rejection)) {
+        this.#logger.info({ event: "ACCESS_TOKEN_REJECTED", reason: (error as errors.JOSEError).code });
+        return null;
+      }
+
+      throw error;
     }
-
-    const jwks = await getJwks(jwksUri, useKVStore(kvStore), options?.VERIFY_RSA_JWT_JWKS_CACHE_KEY);
-    const result = await verify(token, jwks);
-
-    if (!result.payload) {
-      return null;
-    }
-
-    return (result.payload as { sub: string }).sub;
   }
 }
-
-const kvStore = {
-  async get(key: string, format: string) {
-    const result = cacheEngine.getFromCache(key);
-    if (!result) {
-      return null;
-    } else if (format === "json" && typeof result === "string") {
-      return JSON.parse(result);
-    } else {
-      return cacheEngine.getFromCache(key);
-    }
-  },
-  async put(key: string, value: CacheValue) {
-    cacheEngine.storeInCache(key, value);
-  }
-};
