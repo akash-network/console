@@ -8,6 +8,7 @@ import { ACTIVITIES_DEDUPE_KEY_INDEX, type FiledActivity } from "@src/activity/m
 import type { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
 import type { ActivityInstrumentationService } from "@src/activity/services/activity-instrumentation/activity-instrumentation.service";
 import { PurgeExpiredActivities } from "@src/activity/services/purge-expired-activities/purge-expired-activities.job";
+import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { CreateLogger, JobQueueService, TxService } from "@src/core";
 import { ORGANIZATION_FORBIDDEN_ERROR_CODE } from "@src/core/repositories/org-scoped.repository";
@@ -587,6 +588,55 @@ describe(ActivityService.name, () => {
       expect(readRepository.findPage).toHaveBeenCalledWith(expect.objectContaining({ feed: undefined }));
     });
 
+    it("reads the whole feed of the organization an API key bound to no project runs in", async () => {
+      const { service, readRepository, organizationContext } = setup({
+        requestContext: { mode: "organization", organizationType: "team", projectScope: projectScopeOf([faker.string.uuid()]) },
+        apiKey: { projectId: null }
+      });
+      readRepository.findPage.mockResolvedValue([]);
+
+      await service.list({ limit: 20 });
+
+      expect(readRepository.findPage).toHaveBeenCalledWith(expect.objectContaining({ feed: organizationContext }));
+    });
+
+    it("reads only what concerns the deployments of the projects a project-bound API key still reaches", async () => {
+      const { service, readRepository, organizationContext } = setup({
+        requestContext: { mode: "organization", organizationType: "team", projectScope: projectScopeOf([]) },
+        apiKey: { projectId: faker.string.uuid() }
+      });
+      readRepository.findPage.mockResolvedValue([]);
+
+      await service.list({ limit: 20 });
+
+      expect(readRepository.findPage).toHaveBeenCalledWith(expect.objectContaining({ feed: { ...organizationContext, projectIds: [] } }));
+    });
+
+    it("reads only what concerns the key's own project when the request reaches every project", async () => {
+      const keyProjectId = faker.string.uuid();
+      const { service, readRepository, organizationContext } = setup({
+        requestContext: { mode: "organization", organizationType: "team", projectScope: { kind: "all" } },
+        apiKey: { projectId: keyProjectId }
+      });
+      readRepository.findPage.mockResolvedValue([]);
+
+      await service.list({ limit: 20 });
+
+      expect(readRepository.findPage).toHaveBeenCalledWith(expect.objectContaining({ feed: { ...organizationContext, projectIds: [keyProjectId] } }));
+    });
+
+    it("reads the user's whole feed for an API key on the legacy rules", async () => {
+      const { service, readRepository } = setup({
+        requestContext: { mode: "legacy", organizationType: "personal" },
+        apiKey: { projectId: faker.string.uuid() }
+      });
+      readRepository.findPage.mockResolvedValue([]);
+
+      await service.list({ limit: 20 });
+
+      expect(readRepository.findPage).toHaveBeenCalledWith(expect.objectContaining({ feed: undefined }));
+    });
+
     it("refuses a cursor it cannot read before querying", async () => {
       const { service, readRepository } = setup();
 
@@ -600,11 +650,48 @@ describe(ActivityService.name, () => {
     it("reads the activity only among the caller's own", async () => {
       const { service, activityRepository, readRepository, ability } = setup();
       const activity = createActivity();
-      readRepository.findById.mockResolvedValue(activity);
+      readRepository.findByIdListedIn.mockResolvedValue(activity);
 
       expect(await service.findById(activity.id)).toBe(activity);
       expect(activityRepository.accessibleBy).toHaveBeenCalledWith(ability, "read");
-      expect(readRepository.findById).toHaveBeenCalledWith(activity.id);
+      expect(readRepository.findByIdListedIn).toHaveBeenCalledWith(activity.id, undefined);
+    });
+
+    it("reads among all of a signed-in user's activities, whichever organization the request runs in", async () => {
+      const { service, readRepository } = setup({ requestContext: { mode: "organization", organizationType: "team" } });
+      const activity = createActivity();
+      readRepository.findByIdListedIn.mockResolvedValue(activity);
+
+      await service.findById(activity.id);
+
+      expect(readRepository.findByIdListedIn).toHaveBeenCalledWith(activity.id, undefined);
+    });
+
+    it("reads only within the feed of the organization an API key runs in", async () => {
+      const { service, readRepository, organizationContext } = setup({
+        requestContext: { mode: "organization", organizationType: "team" },
+        apiKey: { projectId: null }
+      });
+      const activity = createActivity();
+      readRepository.findByIdListedIn.mockResolvedValue(activity);
+
+      await service.findById(activity.id);
+
+      expect(readRepository.findByIdListedIn).toHaveBeenCalledWith(activity.id, organizationContext);
+    });
+
+    it("reads only what concerns the deployments of a project-bound API key's project", async () => {
+      const projectId = faker.string.uuid();
+      const { service, readRepository, organizationContext } = setup({
+        requestContext: { mode: "organization", organizationType: "team", projectScope: projectScopeOf([projectId]) },
+        apiKey: { projectId }
+      });
+      const activity = createActivity();
+      readRepository.findByIdListedIn.mockResolvedValue(activity);
+
+      await service.findById(activity.id);
+
+      expect(readRepository.findByIdListedIn).toHaveBeenCalledWith(activity.id, { ...organizationContext, projectIds: [projectId] });
     });
   });
 
@@ -649,6 +736,22 @@ describe(ActivityService.name, () => {
       expect(updateRepository.markSeen).toHaveBeenCalledWith(selection, organizationContext);
       expect(readRepository.countUnseen).toHaveBeenCalledWith(organizationContext);
     });
+
+    it("marks seen and counts only what concerns the deployments of a project-bound API key's project", async () => {
+      const projectId = faker.string.uuid();
+      const { service, updateRepository, readRepository, organizationContext } = setup({
+        requestContext: { mode: "organization", organizationType: "team", projectScope: projectScopeOf([projectId]) },
+        apiKey: { projectId }
+      });
+      readRepository.countUnseen.mockResolvedValue(0);
+      const selection = { upTo: "2026-10-26T10:00:00.000Z" };
+
+      await service.markSeen(selection);
+
+      const feed = { ...organizationContext, projectIds: [projectId] };
+      expect(updateRepository.markSeen).toHaveBeenCalledWith(selection, feed);
+      expect(readRepository.countUnseen).toHaveBeenCalledWith(feed);
+    });
   });
 
   function createNewActivity(overrides: Partial<FiledActivity> = {}): FiledActivity {
@@ -687,7 +790,8 @@ describe(ActivityService.name, () => {
     input: {
       access?: ProjectScope | "not_a_member" | "no_context" | Error;
       userExists?: boolean;
-      requestContext?: Pick<OrganizationContext, "mode" | "organizationType">;
+      requestContext?: Pick<OrganizationContext, "mode" | "organizationType"> & Partial<Pick<OrganizationContext, "projectScope">>;
+      apiKey?: Pick<ApiKeyOutput, "projectId">;
     } = {}
   ) {
     const activityRepository = mock<ActivityRepository>();
@@ -721,9 +825,15 @@ describe(ActivityService.name, () => {
       organizationContextResolver.resolveBoundTo.mockResolvedValue(mock<OrganizationContext>({ projectScope: access }));
     }
 
-    const organizationContext = input.requestContext && mock<OrganizationContext>({ organizationId: faker.string.uuid(), ...input.requestContext });
+    const organizationContext: OrganizationContext | undefined = input.requestContext && {
+      organizationId: faker.string.uuid(),
+      role: "owner",
+      projectScope: { kind: "all" },
+      ...input.requestContext
+    };
+    const requestValues: Record<string, unknown> = { ORGANIZATION_CONTEXT: organizationContext, CURRENT_API_KEY: input.apiKey };
     const executionContextService = mock<ExecutionContextService>({
-      get: vi.fn((key: string) => (key === "ORGANIZATION_CONTEXT" ? organizationContext : undefined)) as ExecutionContextService["get"]
+      get: vi.fn((key: string) => requestValues[key]) as ExecutionContextService["get"]
     });
 
     const service = new ActivityService(

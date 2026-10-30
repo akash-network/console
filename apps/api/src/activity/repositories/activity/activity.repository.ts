@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, gt, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import type { ActivityPosition } from "@src/activity/lib/activity-cursor/activity-cursor";
@@ -6,6 +6,7 @@ import { ACTIVITIES_DEDUPE_KEY_INDEX, type ActivityStatus, type ActivityType } f
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository, getPostgresError, isUniqueViolation } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import { DeploymentSettings } from "@src/deployment/model-schemas";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 
 type Table = ApiPgTables["Activities"];
@@ -20,8 +21,8 @@ export type ActivityOutput = Omit<ActivityDbOutput, "seenAt" | "createdAt" | "up
 
 export type ActivitySelection = { ids: string[] } | { upTo: string };
 
-/** One organization's feed, which leaves out what the user did in their other organizations. */
-export type ActivityFeed = Pick<OrganizationContext, "organizationId" | "organizationType">;
+/** One organization's feed, which leaves out what the user did in their other organizations and, given `projectIds`, about deployments outside those projects. */
+export type ActivityFeed = Pick<OrganizationContext, "organizationId" | "organizationType"> & { projectIds?: readonly string[] };
 
 export type PendingActivitySummary = { type: ActivityType; count: number; oldestCreatedAt: Date };
 
@@ -93,6 +94,16 @@ export class ActivityRepository extends BaseRepository<Table, ActivityInput, Act
       .limit(limit);
 
     return this.toOutputList(rows);
+  }
+
+  async findByIdListedIn(id: string, feed?: ActivityFeed): Promise<ActivityOutput | undefined> {
+    const [row] = await this.cursor
+      .select()
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), this.#isListedIn(feed))))
+      .limit(1);
+
+    return row && this.toOutput(row);
   }
 
   async countUnseen(feed?: ActivityFeed): Promise<number> {
@@ -168,8 +179,19 @@ export class ActivityRepository extends BaseRepository<Table, ActivityInput, Act
     if (!feed) return undefined;
 
     const isFiledIn = eq(this.table.organizationId, feed.organizationId);
+    const isInOrganization = feed.organizationType === "personal" ? or(isFiledIn, isNull(this.table.organizationId)) : isFiledIn;
 
-    return feed.organizationType === "personal" ? or(isFiledIn, isNull(this.table.organizationId)) : isFiledIn;
+    return feed.projectIds ? and(isInOrganization, this.#namesDeploymentIn(feed.projectIds)) : isInOrganization;
+  }
+
+  /** An activity follows its deployment into whichever project holds it now, so one that names no deployment, such as a wallet alert, is in no project. */
+  #namesDeploymentIn(projectIds: readonly string[]) {
+    return exists(
+      this.cursor
+        .select({ id: DeploymentSettings.id })
+        .from(DeploymentSettings)
+        .where(and(eq(DeploymentSettings.dseq, sql`${this.table.meta} ->> 'dseq'`), inArray(DeploymentSettings.projectId, [...projectIds])))
+    );
   }
 
   #isOlderThan({ createdAt, id }: ActivityPosition) {

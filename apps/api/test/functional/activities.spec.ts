@@ -4,15 +4,19 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ActivityStatus } from "@src/activity/model-schemas";
 import { ActivityRepository } from "@src/activity/repositories/activity/activity.repository";
+import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { systemClosedActivityOf } from "@src/deployment/utils/close-activity/close-activity";
+import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
-import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
 
 type ActivityBody = {
   id: string;
@@ -162,6 +166,24 @@ describe("Activities", () => {
       expect(data.unseenCount).toBe(2);
     });
 
+    it("lists and counts only what concerns the deployments of its project to an API key bound to one", async () => {
+      const { user, seed } = await setup();
+      const { personal, team, project, otherProject, owner } = await joinOrganizations(user.id, { role: "admin" });
+      const apiKey = await seedApiKey({ userId: user.id, organizationId: team.id, projectId: project.id });
+      const teammatesDeployment = await seedDeploymentSetting({ userId: owner.id, organizationId: team.id, projectId: project.id });
+      const otherDeployment = await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: otherProject.id });
+      const inProject = await seed({ organizationId: team.id, meta: { dseq: teammatesDeployment.dseq } });
+      await seed({ organizationId: team.id, meta: { dseq: otherDeployment.dseq } });
+      await seed({ organizationId: team.id, meta: {} });
+      await seed({ organizationId: personal.id });
+
+      const response = await request("/v1/activities", undefined, undefined, { apiKey });
+      const { data } = (await response.json()) as PageBody;
+
+      expect(data.activities.map(activity => activity.id)).toEqual([inProject.id]);
+      expect(data.unseenCount).toBe(1);
+    });
+
     it("shows an alert that fired for the caller as an unseen info entry with its summary and the organization it is filed in", async () => {
       const { user, token } = await setup();
       const alertId = faker.string.uuid();
@@ -283,6 +305,46 @@ describe("Activities", () => {
       expect(await response.json()).toMatchObject({ message: "Activity not found" });
     });
 
+    it("returns a signed-in caller's activity of another organization than the one the request runs in", async () => {
+      const { user, token, seed } = await setup();
+      const { team, personal } = await joinOrganizations(user.id);
+      const inPersonal = await seed({ organizationId: personal.id });
+
+      const response = await request(`/v1/activities/${inPersonal.id}`, token, undefined, { organizationId: team.id });
+
+      expect(response.status).toBe(200);
+    });
+
+    it("answers 404 to an API key bound to a team for its owner's activity of another organization", async () => {
+      const { user, seed } = await setup();
+      const { team, personal } = await joinOrganizations(user.id);
+      const apiKey = await seedApiKey({ userId: user.id, organizationId: team.id });
+      const inTeam = await seed({ organizationId: team.id });
+      const inPersonal = await seed({ organizationId: personal.id });
+
+      const inTeamResponse = await request(`/v1/activities/${inTeam.id}`, undefined, undefined, { apiKey });
+      const inPersonalResponse = await request(`/v1/activities/${inPersonal.id}`, undefined, undefined, { apiKey });
+
+      expect(inTeamResponse.status).toBe(200);
+      expect(inPersonalResponse.status).toBe(404);
+    });
+
+    it("answers 404 to an API key bound to a project for an activity about a deployment of another project", async () => {
+      const { user, seed } = await setup();
+      const { team, project, otherProject } = await joinOrganizations(user.id, { role: "admin" });
+      const apiKey = await seedApiKey({ userId: user.id, organizationId: team.id, projectId: project.id });
+      const deployment = await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: project.id });
+      const otherDeployment = await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: otherProject.id });
+      const inProject = await seed({ organizationId: team.id, meta: { dseq: deployment.dseq } });
+      const inOtherProject = await seed({ organizationId: team.id, meta: { dseq: otherDeployment.dseq } });
+
+      const inProjectResponse = await request(`/v1/activities/${inProject.id}`, undefined, undefined, { apiKey });
+      const inOtherProjectResponse = await request(`/v1/activities/${inOtherProject.id}`, undefined, undefined, { apiKey });
+
+      expect(inProjectResponse.status).toBe(200);
+      expect(inOtherProjectResponse.status).toBe(404);
+    });
+
     it("refuses an id that is not a uuid", async () => {
       const { token } = await setup();
 
@@ -332,6 +394,24 @@ describe("Activities", () => {
       expect((await activityRepository.findById(unfiled.id))?.seenAt).toBeNull();
     });
 
+    it("marks seen only what concerns the deployments of its project for an API key bound to one", async () => {
+      const { user, seed } = await setup();
+      const { team, personal, project, otherProject } = await joinOrganizations(user.id, { role: "admin" });
+      const apiKey = await seedApiKey({ userId: user.id, organizationId: team.id, projectId: project.id });
+      const deployment = await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: project.id });
+      const otherDeployment = await seedDeploymentSetting({ userId: user.id, organizationId: team.id, projectId: otherProject.id });
+      const inProject = await seed({ organizationId: team.id, meta: { dseq: deployment.dseq } });
+      const inOtherProject = await seed({ organizationId: team.id, meta: { dseq: otherDeployment.dseq } });
+      const inPersonal = await seed({ organizationId: personal.id });
+
+      const response = await request("/v1/activities/seen", undefined, { ids: [inProject.id, inOtherProject.id, inPersonal.id] }, { apiKey });
+
+      expect(await response.json()).toEqual({ data: { unseenCount: 0 } });
+      expect((await activityRepository.findById(inProject.id))?.seenAt).toEqual(expect.any(String));
+      expect((await activityRepository.findById(inOtherProject.id))?.seenAt).toBeNull();
+      expect((await activityRepository.findById(inPersonal.id))?.seenAt).toBeNull();
+    });
+
     it("leaves another user's activities unseen even when their ids are named", async () => {
       const { token } = await setup();
       const stranger = await setup();
@@ -351,12 +431,13 @@ describe("Activities", () => {
     });
   });
 
-  async function request(path: string, token?: string, data?: Record<string, unknown>, options: { organizationId?: string } = {}) {
+  async function request(path: string, token?: string, data?: Record<string, unknown>, options: { organizationId?: string; apiKey?: string } = {}) {
     return await app.request(path, {
       method: data ? "POST" : "GET",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...(options.apiKey ? { "x-api-key": options.apiKey } : {}),
         ...(options.organizationId ? { "x-organization-id": options.organizationId } : {})
       },
       ...(data ? { body: JSON.stringify({ data }) } : {})
@@ -387,13 +468,27 @@ describe("Activities", () => {
     return { user, token, seed };
   }
 
-  async function joinOrganizations(userId: string) {
+  async function joinOrganizations(userId: string, { role = "member" }: { role?: OrganizationRole } = {}) {
     const personal = await seedOrganization({ type: "personal", createdByUserId: userId });
     await seedOrganizationMember({ organizationId: personal.id, userId, role: "owner" });
-    const { organization: team } = await seedOrganizationWithOwner();
-    await seedOrganizationMember({ organizationId: team.id, userId });
+    const { organization: team, project, user: owner } = await seedOrganizationWithOwner();
+    const otherProject = await seedProject({ organizationId: team.id });
+    await seedOrganizationMember({ organizationId: team.id, userId, role });
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
 
-    return { personal, team };
+    return { personal, team, project, otherProject, owner };
+  }
+
+  async function seedApiKey(input: { userId: string; organizationId: string; projectId?: string }) {
+    const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
+    const apiKey = apiKeyGenerator.generateApiKey();
+    await container.resolve(ApiKeyRepository).create({
+      ...input,
+      hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
+      keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
+      name: "ci"
+    });
+
+    return apiKey;
   }
 });
