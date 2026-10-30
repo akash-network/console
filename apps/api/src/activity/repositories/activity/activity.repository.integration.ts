@@ -91,19 +91,34 @@ describe(ActivityRepository.name, () => {
       expect(page.map(activity => activity.id)).toEqual([aboutProject.id]);
     });
 
-    it("lists what concerns a personal deployment recorded before activities named an organization in a feed narrowed to its project", async () => {
+    it("lists in a personal feed narrowed to a project only what was filed in the personal organization about that project's deployments", async () => {
       const { repository, createUser, seed } = setup();
       const owner = await createUser();
       const personal = await seedOrganization({ type: "personal", createdByUserId: owner.id });
       const project = await seedProject({ organizationId: personal.id });
       const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: personal.id, projectId: project.id });
-      const unfiled = await seed(owner.id, { meta: { dseq: deployment.dseq } });
+      const filed = await seed(owner.id, { organizationId: personal.id, meta: { dseq: deployment.dseq } });
+      await seed(owner.id, { meta: { dseq: deployment.dseq } });
 
       const page = await repository
         .accessibleBy(owner.ability, "read")
         .findPage({ limit: 10, feed: { organizationId: personal.id, organizationType: "personal", projectIds: [project.id] } });
 
-      expect(page.map(activity => activity.id)).toEqual([unfiled.id]);
+      expect(page.map(activity => activity.id)).toEqual([filed.id]);
+    });
+
+    it("leaves out an activity of another organization whose deployment shares its dseq with one of the given projects", async () => {
+      const { repository, createUser, seedProjectFeed, seed } = setup();
+      const owner = await createUser();
+      const { feed, aboutProject } = await seedProjectFeed(owner.id);
+      const otherTeam = await seedOrganization({ type: "team" });
+      await seed(owner.id, { organizationId: otherTeam.id, meta: aboutProject.meta });
+
+      const page = await repository
+        .accessibleBy(owner.ability, "read")
+        .findPage({ limit: 10, feed: { organizationId: otherTeam.id, organizationType: "team", projectIds: feed.projectIds } });
+
+      expect(page).toEqual([]);
     });
 
     it("lists nothing in a feed narrowed to no project", async () => {

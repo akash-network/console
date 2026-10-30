@@ -184,13 +184,19 @@ export class ActivityRepository extends BaseRepository<Table, ActivityInput, Act
     return feed.projectIds ? and(isInOrganization, this.#namesDeploymentIn(feed.projectIds)) : isInOrganization;
   }
 
-  /** An activity follows its deployment into whichever project holds it now, so one that names no deployment, such as a wallet alert, is in no project. */
+  /** An activity follows its deployment into whichever project holds it now, so one that names no deployment or no organization, such as a wallet alert, is in no project. */
   #namesDeploymentIn(projectIds: readonly string[]) {
     return exists(
       this.cursor
         .select({ id: DeploymentSettings.id })
         .from(DeploymentSettings)
-        .where(and(eq(DeploymentSettings.dseq, sql`${this.table.meta} ->> 'dseq'`), inArray(DeploymentSettings.projectId, [...projectIds])))
+        .where(
+          and(
+            eq(DeploymentSettings.organizationId, this.table.organizationId),
+            eq(DeploymentSettings.dseq, sql`${this.table.meta} ->> 'dseq'`),
+            inArray(DeploymentSettings.projectId, [...projectIds])
+          )
+        )
     );
   }
 
