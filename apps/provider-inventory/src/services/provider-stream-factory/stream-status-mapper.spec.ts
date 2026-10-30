@@ -116,6 +116,40 @@ describe(parseQuantity.name, () => {
     it("truncates a negative exponent toward zero", () => {
       expect(parseQuantity({ string: "5e-3" })).toBe(0n);
     });
+
+    it("accepts exponents up to 30 in either direction", () => {
+      expect(parseQuantity({ string: "1e30" })).toBe(10n ** 30n);
+      expect(parseQuantity({ string: `${"9".repeat(34)}e-30` })).toBe(9999n);
+    });
+  });
+
+  describe("out-of-range input", () => {
+    it("returns 0n when the exponent is above 30", () => {
+      expect(parseQuantity({ string: "1e31" })).toBe(0n);
+    });
+
+    it("returns 0n when the exponent is below -30", () => {
+      expect(parseQuantity({ string: `${"9".repeat(34)}e-31` })).toBe(0n);
+    });
+
+    it("parses a quantity of 64 characters", () => {
+      expect(parseQuantity({ string: "1".repeat(64) })).toBe(BigInt("1".repeat(64)));
+    });
+
+    it("returns 0n when the quantity is longer than 64 characters", () => {
+      expect(parseQuantity({ string: "1".repeat(65) })).toBe(0n);
+    });
+
+    it("returns 0n for huge exponents and very long mantissas without scaling them", () => {
+      const quantities = ["1e16000000", "1e-16000000", `0.${"0".repeat(10_000)}1`, `${"1".repeat(10_000)}Ki`];
+
+      const startedAt = performance.now();
+      const parsed = quantities.map(string => parseQuantity({ string }));
+      const elapsedMs = performance.now() - startedAt;
+
+      expect(parsed).toEqual([0n, 0n, 0n, 0n]);
+      expect(elapsedMs).toBeLessThan(50);
+    });
   });
 
   describe("signed values", () => {
