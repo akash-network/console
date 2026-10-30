@@ -47,8 +47,8 @@ describe(NodeInfo.name, () => {
       expect(node.errorCount).toBe(1);
     });
 
-    it("rejects a status without sync info and marks the node unavailable", async () => {
-      const { node } = setup({ statusResponses: [{ result: {} }] });
+    it.each([null, {}, { result: {} }])("rejects a status of %j and marks the node unavailable", async status => {
+      const { node } = setup({ statusResponses: [status] });
 
       await expect(node.queryLatestBlockHeight()).rejects.toThrow("Invalid latest block height");
       expect(node.status).toBe(NodeStatus.UNAVAILABLE);
