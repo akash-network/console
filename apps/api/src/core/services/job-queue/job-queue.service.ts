@@ -73,14 +73,34 @@ function describeRejection(value: unknown): string {
   }
 }
 
-/** pg-boss serializes the whole thrown value into the job's jsonb output, and Postgres rejects that write over a NUL anywhere in it, which leaves the job active for good. */
-function toStorableError(error: unknown): unknown {
-  if (!carriesNulByte(error, new WeakSet())) return error;
-  if (!(error instanceof Error)) return withoutNulBytes(describeRejection(error));
+type StorableError = Error & { code?: string | number; status?: string | number; originalError?: StorableError };
 
-  const storable = new Error(withoutNulBytes(error.message));
+type FailedJobError = Error & { code?: unknown; status?: unknown; originalError?: unknown };
+
+const STORABLE_ERROR_FIELDS = ["code", "status"] as const;
+
+/** pg-boss serializes the whole thrown value into the job's jsonb output, so an error keeps only the fields that explain it, never a request's headers or body, and nothing carries a NUL, which Postgres rejects. */
+function toStorableError(error: unknown): unknown {
+  if (error instanceof Error) return rebuildStorableError(error, new WeakSet());
+  if (!carriesNulByte(error, new WeakSet())) return error;
+
+  return withoutNulBytes(describeRejection(error));
+}
+
+function rebuildStorableError(error: FailedJobError, seen: WeakSet<Error>): StorableError {
+  seen.add(error);
+  const storable: StorableError = new Error(withoutNulBytes(error.message));
   storable.name = error.name;
   storable.stack = error.stack === undefined ? undefined : withoutNulBytes(error.stack);
+
+  for (const field of STORABLE_ERROR_FIELDS) {
+    const value = error[field];
+    if (typeof value === "string") storable[field] = withoutNulBytes(value);
+    if (typeof value === "number") storable[field] = value;
+  }
+
+  if (error.cause instanceof Error && !seen.has(error.cause)) storable.cause = rebuildStorableError(error.cause, seen);
+  if (error.originalError instanceof Error && !seen.has(error.originalError)) storable.originalError = rebuildStorableError(error.originalError, seen);
 
   return storable;
 }
