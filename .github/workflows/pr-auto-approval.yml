@@ -42,8 +42,8 @@ jobs:
             const prNumber = parseInt(process.env.PR_NUMBER || "");
             const baseRepo = `${context.repo.owner}/${context.repo.repo}`;
             const headRepo = process.env.PR_HEAD_REPO ?? "";
-            if (headRepo && headRepo !== baseRepo) {
-              core.info("Skipping: PR is from a fork");
+            if (headRepo !== baseRepo) {
+              core.info(`Skipping: PR head repository "${headRepo}" is not ${baseRepo}`);
               return;
             }
 
@@ -84,6 +84,12 @@ jobs:
               per_page: 100,
             });
             const filenames = files.map(f => f.filename);
+
+            const agentConfigFile = /(^|\/)(CLAUDE|AGENTS)\.md$|^\.claude\//;
+            if (filenames.some(f => agentConfigFile.test(f))) {
+              core.info("Skipping: PR changes agent instructions or configuration");
+              return;
+            }
 
             if (isTest) {
               const testFilePattern = /(\.(spec|integration)\.(ts|tsx)$|\/tests?\/)|(jest|vitest)\.config\.[tj]s$/;
