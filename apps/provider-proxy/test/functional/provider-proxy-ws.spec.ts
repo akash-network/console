@@ -5,6 +5,7 @@ import type { TLSSocket } from "tls";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import WebSocket from "ws";
 
+import { MAX_CLIENT_MESSAGE_BYTES, MAX_PROVIDER_MESSAGE_BYTES } from "../../src/services/WebsocketServer";
 import { createX509CertPair } from "../seeders/createX509CertPair";
 import { generateBech32, registerProviderHost, startChainApiServer, stopChainAPIServer } from "../setup/chainApiServer";
 import { startProviderServer, stopProviderServer } from "../setup/providerServer";
@@ -432,6 +433,50 @@ describe("Provider proxy ws", () => {
       type: "websocket",
       error: "tokenExpired"
     });
+  });
+
+  it("closes the client connection with code 1009 when a client message exceeds the size limit", async () => {
+    const chainServer = await startChainApiServer([]);
+    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const ws = new WebSocket(`${proxyServerUrl}/ws`);
+    await new Promise(resolve => ws.once("open", resolve));
+    const closed = new Promise<number>(resolve => ws.once("close", resolve));
+
+    ws.send("a".repeat(MAX_CLIENT_MESSAGE_BYTES + 1));
+
+    expect(await closed).toBe(1009);
+  });
+
+  it("closes the provider connection without relaying a provider message that exceeds the size limit", async () => {
+    const providerAddress = generateBech32();
+    const certPair = await createX509CertPair({ commonName: providerAddress });
+    const chainServer = await startChainApiServer([certPair.cert]);
+    const { providerUrl } = await startProviderServer({
+      certPair,
+      websocketServer: {
+        enable: true,
+        onConnection: pws => pws.on("message", () => pws.send(Buffer.alloc(MAX_PROVIDER_MESSAGE_BYTES + 1)))
+      }
+    });
+    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const ws = new WebSocket(`${proxyServerUrl}/ws`);
+    await new Promise(resolve => ws.once("open", resolve));
+    const received: Array<{ message: unknown; closed?: boolean }> = [];
+    const providerClosed = new Promise<void>(resolve =>
+      ws.on("message", data => {
+        const message = JSON.parse(data.toString());
+        received.push(message);
+        if (message.closed) resolve();
+      })
+    );
+
+    ws.send(JSON.stringify(ourMessage("hello", providerUrl, { providerAddress })));
+    await providerClosed;
+
+    expect(received).toEqual([
+      providerMessage("Received error from provider websocket", { error: "Received error from provider websocket" }),
+      expect.objectContaining({ type: "websocket", closed: true })
+    ]);
   });
 
   function withExpiredPayload(token: string, issuer: string): string {
