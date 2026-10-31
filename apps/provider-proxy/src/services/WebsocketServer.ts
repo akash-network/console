@@ -3,11 +3,13 @@ import { trace } from "@akashnetwork/instrumentation";
 import type { LoggerService } from "@akashnetwork/logging";
 import dns from "dns";
 import type http from "http";
+import type { Socket } from "net";
 import WebSocket from "ws";
 import { z } from "zod";
 
 import type { NetworkLookup } from "../utils/createForbidPrivateNetworkLookup/createForbidPrivateNetworkLookup";
 import { addProviderAuthValidation, providerRequestSchema } from "../utils/schema";
+import { sendWithBackpressure } from "../utils/sendWithBackpressure/sendWithBackpressure";
 import { propagateTracingContext, traceActiveSpan } from "../utils/telemetry";
 import type { CertificateValidator } from "./CertificateValidator/CertificateValidator";
 import { ProviderCertificateAgent, ProviderCertificateRejectedError } from "./ProviderCertificateAgent/ProviderCertificateAgent";
@@ -33,6 +35,12 @@ const MESSAGE_SCHEMA = addProviderAuthValidation(
 type WsMessage = z.infer<typeof MESSAGE_SCHEMA> & { id: unknown };
 
 // @see https://www.rfc-editor.org/rfc/rfc6455.html#page-46
+/** Client messages carry shell input, so this is far above what a session sends while bounding what one message costs to parse. */
+export const MAX_CLIENT_MESSAGE_BYTES = 1024 * 1024;
+
+/** Providers stream logs and shell output in small frames, so this is far above a real frame while bounding what one frame holds. */
+export const MAX_PROVIDER_MESSAGE_BYTES = 4 * 1024 * 1024;
+
 const WS_ERRORS = {
   VIOLATED_POLICY: 1008
 };
@@ -60,7 +68,7 @@ export class WebsocketServer {
   }
 
   listen(): this {
-    const wss = new WebSocket.Server({ noServer: true });
+    const wss = new WebSocket.Server({ noServer: true, maxPayload: MAX_CLIENT_MESSAGE_BYTES });
     this.wss = wss;
 
     this.appServer.on("upgrade", (request, socket, head) =>
@@ -275,7 +283,8 @@ export class WebsocketServer {
 
     pws.on(
       "upgrade",
-      propagateTracingContext(() => {
+      propagateTracingContext(response => {
+        wsDetails.socket = response.socket;
         wsDetails.verification = "finished";
         emitVerifiedWhenOpen(pws);
       })
@@ -310,6 +319,7 @@ export class WebsocketServer {
       return new WebSocket(url, {
         key: options.auth.keyPem,
         cert: options.auth.certPem,
+        maxPayload: MAX_PROVIDER_MESSAGE_BYTES,
         agent: new ProviderCertificateAgent({
           // do not use TLS session resumption for websocket
           sessionTimeout: 0,
@@ -326,6 +336,7 @@ export class WebsocketServer {
 
     return new WebSocket(url, {
       headers,
+      maxPayload: MAX_PROVIDER_MESSAGE_BYTES,
       agent: new ProviderCertificateAgent({
         // do not use TLS session resumption for websocket
         sessionTimeout: 0,
@@ -380,7 +391,7 @@ export class WebsocketServer {
           message: socketMessage
         });
         stats.logDataTransfer(Buffer.from(data).length);
-        ws.send(data);
+        sendWithBackpressure(ws, data, providerSocketDetails.socket);
       })
     );
 
@@ -469,4 +480,5 @@ interface WebSocketDetails {
   ws: WebSocket;
   verification: "in-progress" | "finished" | "failed";
   certificateRejection?: string;
+  socket?: Socket;
 }
