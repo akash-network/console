@@ -71,10 +71,8 @@ const nextConfig = {
     styledComponents: true
   },
   images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "raw.githubusercontent.com" },
-      { protocol: "https", hostname: "avatars.githubusercontent.com" }
-    ]
+    localPatterns: [{ pathname: "/images/**", search: "" }],
+    qualities: [75]
   },
   output: "standalone",
   typescript: {
