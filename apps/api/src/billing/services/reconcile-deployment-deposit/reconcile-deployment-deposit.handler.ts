@@ -97,8 +97,9 @@ export class ReconcileDeploymentDepositHandler implements JobHandler<ReconcileDe
   /** The pooled endpoint can miss a landed tx on every attempt, so its absence voids the rows only once the chain index has passed their window without it. */
   async #waitForIndexToPassHash(txHash: string, indexLagRetries: number): Promise<boolean> {
     const pending = await this.deploymentDepositRepository.findPendingByTxHash(txHash);
+    const latestBlockTime = await this.deploymentSpendRepository.findLatestBlockTime();
 
-    if (!(await this.#isIndexBehind(pending)) || indexLagRetries >= MAX_INDEX_LAG_RETRIES) return false;
+    if (!this.#isIndexBehind(pending, latestBlockTime) || indexLagRetries >= MAX_INDEX_LAG_RETRIES) return false;
 
     try {
       await this.jobQueueService.enqueue(new ReconcileDeploymentDeposit({ txHash, indexLagRetries: indexLagRetries + 1 }), {
@@ -110,13 +111,11 @@ export class ReconcileDeploymentDepositHandler implements JobHandler<ReconcileDe
       return false;
     }
 
-    this.logger.warn({ event: "DEPLOYMENT_DEPOSIT_INDEX_BEHIND", txHash, indexLagRetries: indexLagRetries + 1 });
+    this.logger.warn({ event: "DEPLOYMENT_DEPOSIT_INDEX_BEHIND", txHash, latestBlockTime, indexLagRetries: indexLagRetries + 1 });
     return true;
   }
 
-  async #isIndexBehind(deposits: DeploymentDepositOutput[]): Promise<boolean> {
-    const latestBlockTime = await this.deploymentSpendRepository.findLatestBlockTime();
-
+  #isIndexBehind(deposits: DeploymentDepositOutput[], latestBlockTime: Date | undefined): boolean {
     return deposits.some(deposit => !latestBlockTime || latestBlockTime < this.#landingWindowOf(deposit).until);
   }
 
@@ -145,7 +144,7 @@ export class ReconcileDeploymentDepositHandler implements JobHandler<ReconcileDe
   async #voidUnlessIndexBehind(unseen: DeploymentDepositOutput[], indexLagRetries: number): Promise<void> {
     const depositIds = unseen.map(({ id }) => id);
     const latestBlockTime = await this.deploymentSpendRepository.findLatestBlockTime();
-    const isIndexBehind = unseen.some(deposit => !latestBlockTime || latestBlockTime < this.#landingWindowOf(deposit).until);
+    const isIndexBehind = this.#isIndexBehind(unseen, latestBlockTime);
 
     if (isIndexBehind && indexLagRetries < MAX_INDEX_LAG_RETRIES && (await this.#waitForIndex(depositIds, indexLagRetries + 1))) {
       this.logger.warn({ event: "DEPLOYMENT_DEPOSIT_INDEX_BEHIND", depositIds, latestBlockTime, indexLagRetries: indexLagRetries + 1 });
