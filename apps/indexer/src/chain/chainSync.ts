@@ -14,7 +14,7 @@ import { BME_BLOCK_EVENT_TYPE_VALUES, BME_EVENT_TYPES } from "@src/indexers/bmeI
 import { ExecutionMode, executionMode, isProd, lastBlockToSync } from "@src/shared/constants";
 import type { BlockResultType } from "@src/shared/types";
 import { decodeIfBase64 } from "@src/shared/utils/base64";
-import { toStorableText } from "@src/shared/utils/chain-string";
+import { toStorableText, toStorableVarchar } from "@src/shared/utils/chain-string";
 import { env } from "@src/shared/utils/env";
 import { getTransactionHash } from "@src/shared/utils/hash";
 import * as benchmark from "../shared/utils/benchmark";
@@ -279,7 +279,7 @@ async function insertBlocks(startHeight: number, endHeight: number) {
             ...event.attributes.map((attr, i) => ({
               transactionEventId: eventId,
               index: i,
-              key: toStorableText(decodeIfBase64(attr.key)),
+              key: toStorableVarchar(decodeIfBase64(attr.key)),
               value: attr.value ? toStorableText(decodeIfBase64(attr.value)) : attr.value
             }))
           );
