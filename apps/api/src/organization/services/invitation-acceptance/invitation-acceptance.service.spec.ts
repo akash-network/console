@@ -342,9 +342,9 @@ describe(InvitationAcceptanceService.name, () => {
       expect(unscopedRepositories.members.createUnlessExists).not.toHaveBeenCalled();
     });
 
-    it("locks the inviter's membership in the invitation's organization after the invitation and before the invitee joins", async () => {
+    it("locks the inviter's membership in the invitation's organization before the organization and the invitation", async () => {
       const invitation = createOrganizationInvitation();
-      const { service, unscopedRepositories } = setup({ invitation });
+      const { service, organizationRepository, unscopedRepositories } = setup({ invitation });
 
       await service.acceptInvitation({ token: createInvitationToken() });
 
@@ -352,11 +352,29 @@ describe(InvitationAcceptanceService.name, () => {
         { organizationId: invitation.organizationId, userId: invitation.invitedByUserId },
         { strength: "no key update" }
       );
-      expect(unscopedRepositories.invitations.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(
-        unscopedRepositories.members.findOneByAndLock.mock.invocationCallOrder[0]
-      );
       expect(unscopedRepositories.members.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(
-        unscopedRepositories.members.createUnlessExists.mock.invocationCallOrder[0]
+        organizationRepository.findOneByAndLock.mock.invocationCallOrder[0]
+      );
+      expect(organizationRepository.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(
+        unscopedRepositories.invitations.findOneByAndLock.mock.invocationCallOrder[0]
+      );
+    });
+
+    it("checks the inviter of the invitation it locked when the invitation was resent by someone else after it was first read", async () => {
+      const read = createOrganizationInvitation();
+      const resent = { ...read, invitedByUserId: faker.string.uuid() };
+      const { service, unscopedRepositories } = setup({ invitation: read, lockedInvitation: resent });
+      unscopedRepositories.members.findOneByAndLock.mockImplementation(async query =>
+        query?.userId === read.invitedByUserId ? createOrganizationMember({ role: "owner" }) : undefined
+      );
+
+      await expect(service.acceptInvitation({ token: createInvitationToken() })).rejects.toMatchObject({
+        status: 410,
+        errorCode: INVITATION_INVITER_LOST_ACCESS_ERROR_CODE
+      });
+      expect(unscopedRepositories.members.findOneByAndLock).toHaveBeenCalledWith(
+        { organizationId: read.organizationId, userId: read.invitedByUserId },
+        { strength: "no key update" }
       );
     });
 
@@ -411,7 +429,6 @@ describe(InvitationAcceptanceService.name, () => {
       unscopedRepositories.invitations.findOneByAndLock.mockResolvedValue(invitation);
 
       await expect(service.acceptInvitation({ token: createInvitationToken() })).resolves.toMatchObject({ role: "member" });
-      expect(unscopedRepositories.members.findOneByAndLock).not.toHaveBeenCalled();
     });
   });
 
@@ -579,6 +596,7 @@ describe(InvitationAcceptanceService.name, () => {
       expect(unscopedRepositories.invitations.findOneBy).toHaveBeenCalledWith(where);
       expect(organizationRepository.findOneByAndLock).toHaveBeenCalledWith({ id: invitation.organizationId, deletedAt: null }, { strength: "no key update" });
       expect(unscopedRepositories.invitations.findOneByAndLock).toHaveBeenCalledWith(where, { strength: "no key update" });
+      expect(unscopedRepositories.members.findOneByAndLock).not.toHaveBeenCalled();
       expect(unscopedRepositories.invitations.updateById).toHaveBeenCalledWith(invitation.id, {
         status: "declined",
         declinedAt: new Date("2026-10-29T12:00:00.000Z")

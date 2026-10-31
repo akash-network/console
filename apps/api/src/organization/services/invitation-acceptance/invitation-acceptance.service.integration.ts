@@ -150,6 +150,26 @@ describe(InvitationAcceptanceService.name, () => {
       expect(await container.resolve(OrganizationMemberRepository).count({ organizationId: organization.id, userId: invitee.id })).toBe(0);
     });
 
+    it("waits for the deletion of the inviter's account, which holds their membership before the invitation, and refuses once it committed", async () => {
+      const { service, organization, invite, seedInvitee, runAs, txService } = await setup();
+      const coOwner = await seedInvitee();
+      const coOwnerMembership = await seedOrganizationMember({ organizationId: organization.id, userId: coOwner.id, role: "owner" });
+      const invitee = await seedInvitee();
+      const { token, invitation } = await invite({ email: invitee.email!, role: "admin", invitedByUserId: coOwner.id });
+
+      const accountDeletion = txService.transaction(async () => {
+        await container.resolve(OrganizationMemberRepository).findOneByAndLock({ id: coOwnerMembership.id });
+        await delay(200);
+        await container.resolve(UserRepository).deleteById(coOwner.id);
+      });
+      await delay(50);
+      const acceptance = runAs(invitee, () => service.acceptInvitation({ token }));
+
+      await expect(accountDeletion).resolves.toBeUndefined();
+      await expect(acceptance).rejects.toMatchObject({ status: 410, errorCode: INVITATION_INVITER_LOST_ACCESS_ERROR_CODE });
+      expect(await container.resolve(OrganizationInvitationRepository).findById(invitation.id)).toMatchObject({ status: "pending", invitedByUserId: null });
+    });
+
     it("keeps the inviter's role from changing until the invitee has joined", async () => {
       const { service, organization, invite, seedInvitee, runAs, txService } = await setup();
       const admin = await seedInvitee();

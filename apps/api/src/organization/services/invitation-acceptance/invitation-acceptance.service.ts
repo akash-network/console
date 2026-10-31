@@ -117,7 +117,7 @@ export class InvitationAcceptanceService {
     const invitee = this.authService.currentUser;
 
     const membership = await this.txService.transaction(async () => {
-      const invitation = await this.#lockInvitation(access);
+      const invitation = await this.#lockInvitation(access, { lockingInviter: true });
       const status = invitationStatusOf(invitation);
       const isSentToInvitee = access.reason === "invitation-by-verified-email" || isVerifiedInvitedAddress(invitation, invitee);
       assertAcceptable(invitation, status, invitee, isSentToInvitee || confirmEmailMismatch);
@@ -150,10 +150,14 @@ export class InvitationAcceptanceService {
     return { reason: "invitation-by-verified-email", where: { id, email } };
   }
 
-  /** Locks the organization row, then the invitation row, the order every invitation write takes, without blocking inserts that reference either row. */
-  async #lockInvitation({ reason, where }: InvitationAccess): Promise<OrganizationInvitationOutput> {
+  /** Locks the inviter's membership when asked, the organization row, then the invitation row, the order member changes, account deletion and invitation writes take them, without blocking inserts that reference any of them. */
+  async #lockInvitation(
+    { reason, where }: InvitationAccess,
+    { lockingInviter = false }: { lockingInviter?: boolean } = {}
+  ): Promise<OrganizationInvitationOutput> {
     const invitations = this.invitationRepository.unscoped(reason);
     const found = await invitations.findOneBy(where);
+    if (found && lockingInviter) await this.#lockInviterMembership(found, reason);
     const organization =
       found && (await this.organizationRepository.findOneByAndLock({ id: found.organizationId, deletedAt: null }, { strength: "no key update" }));
     const invitation = organization && (await invitations.findOneByAndLock(where, { strength: "no key update" }));
@@ -162,13 +166,20 @@ export class InvitationAcceptanceService {
     return invitation;
   }
 
-  /** Locks the inviter's membership, so they cannot leave or lose their role while the invitee joins on their word. */
-  async #assertInviterMayStillInvite({ organizationId, invitedByUserId, role }: OrganizationInvitationOutput, reason: InvitationAccessReason): Promise<void> {
-    const inviter =
-      invitedByUserId &&
-      (await this.organizationMemberRepository.unscoped(reason).findOneByAndLock({ organizationId, userId: invitedByUserId }, { strength: "no key update" }));
+  /** Holds the inviter's membership, so they cannot leave or lose their role while the invitee joins on their word. */
+  async #lockInviterMembership({ organizationId, invitedByUserId }: OrganizationInvitationOutput, reason: InvitationAccessReason) {
+    if (!invitedByUserId) return undefined;
 
-    if (!inviter || !mayInviteAs(inviter.role, role)) {
+    return await this.organizationMemberRepository
+      .unscoped(reason)
+      .findOneByAndLock({ organizationId, userId: invitedByUserId }, { strength: "no key update" });
+  }
+
+  /** Locks the membership again, which takes nothing new unless the invitation was resent by someone else after it was first read. */
+  async #assertInviterMayStillInvite(invitation: OrganizationInvitationOutput, reason: InvitationAccessReason): Promise<void> {
+    const inviter = await this.#lockInviterMembership(invitation, reason);
+
+    if (!inviter || !mayInviteAs(inviter.role, invitation.role)) {
       throw createError(410, "Whoever sent the invitation can no longer invite to its role", { errorCode: INVITATION_INVITER_LOST_ACCESS_ERROR_CODE });
     }
   }
