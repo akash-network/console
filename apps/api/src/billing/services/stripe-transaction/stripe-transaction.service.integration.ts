@@ -29,6 +29,7 @@ import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder"
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganization } from "@test/seeders/organization.seeder";
 import { createTestUser } from "@test/seeders/user-test.seeder";
+import { waitForLockWait } from "@test/services/lock-wait";
 
 /**
  * These cover the webhook-facing settlement/refund methods, which route through `@WithTransaction`
@@ -948,7 +949,7 @@ describe(StripeTransactionService.name, () => {
         })
       );
 
-      expect(stripeTransactionRepository.updateByPaymentIntentId).toHaveBeenCalledWith("pi_123", { status: "failed", errorMessage });
+      expect(stripeTransactionRepository.updateByPaymentIntentIdUnlessSettled).toHaveBeenCalledWith("pi_123", { status: "failed", errorMessage });
     });
 
     it("uses default error message when none provided", async () => {
@@ -956,7 +957,10 @@ describe(StripeTransactionService.name, () => {
 
       await service.failPaymentIntent(createPaymentIntentFailedEvent({ id: "pi_123", last_payment_error: null }));
 
-      expect(stripeTransactionRepository.updateByPaymentIntentId).toHaveBeenCalledWith("pi_123", { status: "failed", errorMessage: "Payment failed" });
+      expect(stripeTransactionRepository.updateByPaymentIntentIdUnlessSettled).toHaveBeenCalledWith("pi_123", {
+        status: "failed",
+        errorMessage: "Payment failed"
+      });
     });
 
     it("reports a declined top-up to analytics under the paying user, once per Stripe event", async () => {
@@ -1131,7 +1135,7 @@ describe(StripeTransactionService.name, () => {
 
       await service.cancelPaymentIntent(createPaymentIntentCanceledEvent({ id: "pi_123" }));
 
-      expect(stripeTransactionRepository.updateByPaymentIntentId).toHaveBeenCalledWith("pi_123", { status: "canceled" });
+      expect(stripeTransactionRepository.updateByPaymentIntentIdUnlessSettled).toHaveBeenCalledWith("pi_123", { status: "canceled" });
     });
   });
 
@@ -1498,6 +1502,80 @@ describe(StripeTransactionService.name, () => {
     });
   });
 
+  describe("when a failure or cancel of a credited payment arrives late", () => {
+    type LateEvent = Pick<Stripe.PaymentIntent, "id" | "metadata">;
+
+    it.each([
+      { kind: "failure", report: (service: StripeTransactionService, event: LateEvent) => service.failPaymentIntent(createPaymentIntentFailedEvent(event)) },
+      { kind: "cancel", report: (service: StripeTransactionService, event: LateEvent) => service.cancelPaymentIntent(createPaymentIntentCanceledEvent(event)) }
+    ])("keeps the payment credited after a late $kind", async ({ report }) => {
+      const { service, persistedTransactions, settlePersisted } = setup({ persistTransactions: true });
+      const { purchase, paymentIntentId, chargeId } = await seedCardPurchase(persistedTransactions);
+      await settlePersisted(purchase, { stripePaymentIntentId: paymentIntentId, chargeId });
+
+      await report(service, { id: paymentIntentId, metadata: { internal_transaction_id: purchase.id } });
+
+      expect(await persistedTransactions.findById(purchase.id)).toMatchObject({ status: "succeeded", errorMessage: null, stripeChargeId: chargeId });
+    });
+
+    it("takes the credit back when the payment is refunded after a late failure", async () => {
+      const { service, persistedTransactions, settlePersisted, refillService } = setup({ persistTransactions: true });
+      const { person, purchase, paymentIntentId, chargeId } = await seedCardPurchase(persistedTransactions);
+      await settlePersisted(purchase, { stripePaymentIntentId: paymentIntentId, chargeId });
+      await service.failPaymentIntent(createPaymentIntentFailedEvent({ id: paymentIntentId, metadata: { internal_transaction_id: purchase.id } }));
+
+      await service.applyRefund({ chargeId, amountRefunded: purchase.amount, fullyRefunded: true, customerOwner: { user: person } });
+
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(purchase.amount, expect.objectContaining({ userId: person.id }), {
+        currency: "usd",
+        transactionId: purchase.id
+      });
+      expect(await persistedTransactions.findById(purchase.id)).toMatchObject({ status: "refunded", amountRefunded: purchase.amount });
+    });
+
+    it("credits the payment once when its success arrives again after a late failure", async () => {
+      const { service, persistedTransactions, settlePersisted, refillService } = setup({ persistTransactions: true });
+      const { purchase, paymentIntentId, chargeId } = await seedCardPurchase(persistedTransactions);
+      await settlePersisted(purchase, { stripePaymentIntentId: paymentIntentId, chargeId });
+      await service.failPaymentIntent(createPaymentIntentFailedEvent({ id: paymentIntentId, metadata: { internal_transaction_id: purchase.id } }));
+
+      const { settled } = await settlePersisted(purchase, { stripePaymentIntentId: paymentIntentId, chargeId });
+
+      expect(settled).toBe(false);
+      expect(refillService.topUpWallet).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the payment credited when its failure arrives while the credit is being granted", async () => {
+      const { service, persistedTransactions, settlePersisted, refillService, toppedUpWallet } = setup({ persistTransactions: true });
+      const { purchase, paymentIntentId, chargeId } = await seedCardPurchase(persistedTransactions);
+      const grant = Promise.withResolvers<typeof toppedUpWallet>();
+      refillService.topUpWallet.mockReturnValue(grant.promise);
+
+      const settling = settlePersisted(purchase, { stripePaymentIntentId: paymentIntentId, chargeId });
+      await vi.waitFor(() => expect(refillService.topUpWallet).toHaveBeenCalled());
+      const failing = service.failPaymentIntent(createPaymentIntentFailedEvent({ id: paymentIntentId, metadata: { internal_transaction_id: purchase.id } }));
+      await waitForLockWait('update "stripe_transactions"%');
+      grant.resolve(toppedUpWallet);
+      await Promise.all([settling, failing]);
+
+      expect(await persistedTransactions.findById(purchase.id)).toMatchObject({ status: "succeeded", errorMessage: null });
+    });
+
+    async function seedCardPurchase(persistedTransactions: StripeTransactionRepository) {
+      const person = await seedUser();
+      const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+      const purchase = await persistedTransactions.create({
+        userId: person.id,
+        type: "payment_intent",
+        status: "requires_action",
+        amount: 2000,
+        stripePaymentIntentId: paymentIntentId
+      });
+
+      return { person, purchase, paymentIntentId, chargeId: `ch_${faker.string.alphanumeric(24)}` };
+    }
+  });
+
   describe("when the eligibility check lets a person's second bonus through", () => {
     it("grants one bonus and credits both payments when two of the person's purchases for different teams settle at once", async () => {
       const { service, persistedTransactions, persistedBonusService, refillService, logger } = setup({ persistTransactions: true });
@@ -1579,15 +1657,15 @@ describe(StripeTransactionService.name, () => {
       () => logger
     );
 
-    async function settlePersisted(purchase: StripeTransactionOutput) {
+    async function settlePersisted(purchase: StripeTransactionOutput, ids: { stripePaymentIntentId?: string; chargeId?: string } = {}) {
       return await service.settleSucceededTransaction({
         transactionId: purchase.id,
-        chargeId: `ch_${faker.string.alphanumeric(24)}`,
+        chargeId: ids.chargeId ?? `ch_${faker.string.alphanumeric(24)}`,
         paymentMethodType: "card",
         cardBrand: "visa",
         cardLast4: "4242",
         receiptUrl: undefined,
-        stripePaymentIntentId: `pi_${faker.string.alphanumeric(24)}`,
+        stripePaymentIntentId: ids.stripePaymentIntentId ?? `pi_${faker.string.alphanumeric(24)}`,
         paymentAmount: purchase.amount,
         customerUserId: undefined,
         eventDescription: `payment_intent for ${purchase.id}`,

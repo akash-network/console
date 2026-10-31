@@ -197,6 +197,39 @@ describe(StripeTransactionRepository.name, () => {
     });
   });
 
+  describe("updateByPaymentIntentIdUnlessSettled", () => {
+    it("updates the unsettled row of the payment intent and returns it", async () => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+      const transaction = await createTestTransaction({ status: "requires_action", stripePaymentIntentId: paymentIntentId });
+      const other = await createTestTransaction({ status: "requires_action", stripePaymentIntentId: `pi_${faker.string.alphanumeric(24)}` });
+
+      const updated = await stripeTransactionRepository.updateByPaymentIntentIdUnlessSettled(paymentIntentId, { status: "failed", errorMessage: "declined" });
+
+      expect(updated).toMatchObject({ id: transaction.id, status: "failed", errorMessage: "declined" });
+      expect(await stripeTransactionRepository.findById(other.id)).toMatchObject({ status: "requires_action", errorMessage: null });
+    });
+
+    it.each(["succeeded", "refunded"] as const)("leaves a %s row of the payment intent as it is", async status => {
+      const { stripeTransactionRepository, createTestTransaction } = setup();
+      const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+      const transaction = await createTestTransaction({ status, stripePaymentIntentId: paymentIntentId });
+
+      const updated = await stripeTransactionRepository.updateByPaymentIntentIdUnlessSettled(paymentIntentId, { status: "canceled" });
+
+      expect(updated).toBeUndefined();
+      expect(await stripeTransactionRepository.findById(transaction.id)).toMatchObject({ status });
+    });
+
+    it("returns undefined when no row holds the payment intent", async () => {
+      const { stripeTransactionRepository } = setup();
+
+      const updated = await stripeTransactionRepository.updateByPaymentIntentIdUnlessSettled(`pi_${faker.string.alphanumeric(24)}`, { status: "failed" });
+
+      expect(updated).toBeUndefined();
+    });
+  });
+
   describe("findByOwner", () => {
     it("returns the user's transactions newest first", async () => {
       const { stripeTransactionRepository, createTestUser } = setup();

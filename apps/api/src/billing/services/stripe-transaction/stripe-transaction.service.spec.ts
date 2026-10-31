@@ -477,7 +477,7 @@ describe(StripeTransactionService.name, () => {
       await service.cancelUnauthenticatedPaymentIntent("pi_stalled");
 
       expect(stripe.paymentIntents.cancel).toHaveBeenCalledWith("pi_stalled", { cancellation_reason: "abandoned" });
-      expect(stripeTransactionRepository.updateByPaymentIntentId).toHaveBeenCalledWith("pi_stalled", { status: "canceled" });
+      expect(stripeTransactionRepository.updateByPaymentIntentIdUnlessSettled).toHaveBeenCalledWith("pi_stalled", { status: "canceled" });
     });
 
     it("logs a refused cancel instead of throwing, so the decline it accompanies is still recorded", async () => {

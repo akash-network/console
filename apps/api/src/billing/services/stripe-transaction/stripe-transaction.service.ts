@@ -430,7 +430,7 @@ export class StripeTransactionService {
   async cancelUnauthenticatedPaymentIntent(paymentIntentId: string): Promise<void> {
     try {
       await this.stripe.paymentIntents.cancel(paymentIntentId, { cancellation_reason: "abandoned" });
-      await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntentId, { status: "canceled" });
+      await this.stripeTransactionRepository.updateByPaymentIntentIdUnlessSettled(paymentIntentId, { status: "canceled" });
     } catch (error) {
       this.loggerService.error({ event: "PAYMENT_INTENT_CANCEL_FAILED", paymentIntentId, error });
     }
@@ -795,7 +795,7 @@ export class StripeTransactionService {
     const paymentError = paymentIntent.last_payment_error;
     const errorMessage = paymentError?.message ?? PAYMENT_FAILED_MESSAGE;
 
-    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntent.id, {
+    await this.stripeTransactionRepository.updateByPaymentIntentIdUnlessSettled(paymentIntent.id, {
       status: "failed",
       errorMessage
     });
@@ -853,7 +853,7 @@ export class StripeTransactionService {
   async cancelPaymentIntent(event: Stripe.PaymentIntentCanceledEvent): Promise<void> {
     const paymentIntent = event.data.object;
 
-    await this.stripeTransactionRepository.updateByPaymentIntentId(paymentIntent.id, {
+    await this.stripeTransactionRepository.updateByPaymentIntentIdUnlessSettled(paymentIntent.id, {
       status: "canceled"
     });
 
