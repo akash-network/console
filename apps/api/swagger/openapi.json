@@ -12752,7 +12752,7 @@
                       ]
                     },
                     "minItems": 1,
-                    "maxItems": 20
+                    "maxItems": 100
                   }
                 },
                 "required": [

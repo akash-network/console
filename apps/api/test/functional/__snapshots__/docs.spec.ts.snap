@@ -14770,7 +14770,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       ],
                       "type": "object",
                     },
-                    "maxItems": 20,
+                    "maxItems": 100,
                     "minItems": 1,
                     "type": "array",
                   },
