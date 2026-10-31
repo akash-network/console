@@ -104,11 +104,7 @@ export class SigningClientService {
             return { broadcast: await this.#broadcast(signedTx), expiresAt: readExpiry(signedTx) };
           });
 
-          const foundTx = await this.#pollTx(broadcast, deadline);
-
-          if (!foundTx) {
-            throw this.#txNotIncludedError(broadcast.txHash, expiresAt);
-          }
+          const foundTx = (await this.#pollTx(broadcast, deadline)) ?? (await this.#settleUnseenTx(broadcast.txHash, expiresAt, deadline));
 
           prevResult = foundTx;
           return foundTx;
@@ -140,14 +136,33 @@ export class SigningClientService {
     );
   }
 
-  /** A tx the chain answered for and has not included is finished only once its own `timeoutTimestamp` has passed, since until then the chain can still include it. */
-  #txNotIncludedError(txHash: string, expiresAt: Date | undefined): Error {
-    if (expiresAt && Date.now() >= expiresAt.getTime()) {
+  /** The chain refuses a tx only in a block whose header time is past its `timeoutTimestamp`, so a tx is not included once the node committed such a block without it. */
+  async #settleUnseenTx(txHash: string, expiresAt: Date | undefined, deadline: number): Promise<IndexedTx> {
+    const tx = expiresAt && (await this.#readTxOnceChainPasses(expiresAt, txHash, deadline));
+
+    if (tx) return tx;
+
+    if (tx === null) {
       this.#logger.error({ event: "SIGN_AND_BROADCAST_TX_NOT_INCLUDED", txHash, expiresAt });
-      return new TxNotIncludedError(txHash);
+      throw new TxNotIncludedError(txHash);
     }
 
-    return this.#undecidedOutcomeError(txHash, { expiresAt });
+    throw this.#undecidedOutcomeError(txHash, { expiresAt });
+  }
+
+  /** Undefined when the deadline comes before the node has committed a block past the expiry. */
+  async #readTxOnceChainPasses(expiresAt: Date, txHash: string, deadline: number): Promise<IndexedTx | null | undefined> {
+    try {
+      while (new Date((await this.#client.getBlock()).header.time) <= expiresAt) {
+        if (Date.now() + TX_RECOVERY_POLL_INTERVAL_MS > deadline) return undefined;
+
+        await delay(TX_RECOVERY_POLL_INTERVAL_MS);
+      }
+
+      return await this.#client.getTx(txHash);
+    } catch (error) {
+      throw this.#undecidedOutcomeError(txHash, { error });
+    }
   }
 
   /** Reported for every failure after the tx was broadcast, because a caller that retries one could pay for the same thing twice. */
