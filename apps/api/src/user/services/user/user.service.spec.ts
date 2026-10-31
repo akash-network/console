@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { ACCOUNT_UNAVAILABLE_ERROR_CODE, ACCOUNT_UNAVAILABLE_MESSAGE } from "@src/auth/lib/account-unavailable/account-unavailable";
-import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
@@ -533,7 +532,6 @@ describe(UserService.name, () => {
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const notificationService = mock<NotificationService>({ createDefaultChannel: vi.fn().mockResolvedValue(undefined) });
-    const auth0Service = mock<Auth0Service>();
     const emailVerificationCodeService = mock<EmailVerificationCodeService>();
     const walletInitializerService = mock<WalletInitializerService>({
       ensureWallet: vi.fn().mockResolvedValue(createUserWallet())
@@ -553,7 +551,6 @@ describe(UserService.name, () => {
       analyticsService,
       createLogger,
       notificationService,
-      auth0Service,
       emailVerificationCodeService,
       walletInitializerService,
       trialActivationJobService,
@@ -571,7 +568,6 @@ describe(UserService.name, () => {
       logger,
       createLogger,
       notificationService,
-      auth0Service,
       emailVerificationCodeService,
       walletInitializerService,
       dataKeyService,

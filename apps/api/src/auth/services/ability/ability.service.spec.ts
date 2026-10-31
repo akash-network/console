@@ -44,19 +44,6 @@ describe(AbilityService.name, () => {
       expect(ability.rules).toEqual([{ action: "manage", subject: "all" }]);
     });
 
-    it.each([
-      { mode: "no organization context", organizationContext: undefined },
-      { mode: "legacy mode", organizationContext: createOrganizationContext({ mode: "legacy" }) },
-      { mode: "organization mode", organizationContext: createOrganizationContext({ mode: "organization" }) }
-    ])("accepts a user whose email contains a double quote in $mode", ({ organizationContext }) => {
-      const email = `jane"doe${faker.number.int()}@example.com`;
-      const { service } = setup({ organizationContext });
-
-      const ability = service.getAbilityFor("REGULAR_USER", createUser({ email }));
-
-      expect(ability.can("verify-email", subject("User", { email }))).toBe(true);
-    });
-
     it("uses only the organization rules in organization mode", () => {
       const organizationContext = createOrganizationContext({ mode: "organization", role: "member", projectScope: createProjectsScope([]) });
       const { service, user, logger } = setup({ organizationContext });
@@ -104,7 +91,10 @@ describe(AbilityService.name, () => {
       const { service, user, logger } = setup({ organizationContext });
 
       const ability = service.getAbilityFor("REGULAR_USER", user);
-      ability.can("read", subject("DeploymentSetting", { userId: user.id, organizationId: organizationContext.organizationId, projectId: faker.string.uuid() }));
+      ability.can(
+        "read",
+        subject("DeploymentSetting", { userId: user.id, organizationId: organizationContext.organizationId, projectId: faker.string.uuid() })
+      );
 
       expect(logger.warn).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ allowedBy: "legacy" }));
     });
