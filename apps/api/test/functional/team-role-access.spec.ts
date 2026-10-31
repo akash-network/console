@@ -81,6 +81,14 @@ const READ_ONLY_SCOPE = ["status", "events", "logs"];
 
 const MAX_ACKNOWLEDGED_FORFEIT_USD = 1_000_000;
 
+const NOTIFICATION_CHANNEL = {
+  id: faker.string.uuid(),
+  name: "Deployment alerts",
+  type: "email",
+  config: { addresses: [faker.internet.email()] },
+  isDefault: true
+};
+
 const CALLERS: Caller[] = ["owner", "admin", "member", "billing", "viewer", "projectKey"];
 
 const access = (owner: number, admin: number, member: number, billing: number, viewer: number, projectKey: number): Record<Caller, number> => ({
@@ -241,6 +249,26 @@ const ROUTE_ACCESS: RouteAccess[] = [
   },
   { route: "GET /v1/notification-channels", request: () => get("/v1/notification-channels"), statusFor: access(200, 200, 200, 403, 200, 200) },
   {
+    route: "POST /v1/notification-channels",
+    request: () => post("/v1/notification-channels", { name: "Ops", type: "email", config: { addresses: [faker.internet.email()] } }),
+    statusFor: access(200, 200, 200, 403, 403, 403)
+  },
+  {
+    route: "POST /v1/notification-channels/default",
+    request: () => post("/v1/notification-channels/default", { name: "Default", type: "email", config: { addresses: [faker.internet.email()] } }),
+    statusFor: access(200, 200, 200, 403, 403, 403)
+  },
+  {
+    route: "PATCH /v1/notification-channels/{id}",
+    request: () => patch(`/v1/notification-channels/${NOTIFICATION_CHANNEL.id}`, { config: { addresses: [faker.internet.email()] } }),
+    statusFor: access(200, 200, 200, 403, 403, 403)
+  },
+  {
+    route: "DELETE /v1/notification-channels/{id}",
+    request: () => remove(`/v1/notification-channels/${NOTIFICATION_CHANNEL.id}`),
+    statusFor: access(200, 200, 200, 403, 403, 403)
+  },
+  {
     route: "POST /v1/create-jwt-token for a deployment of the granted project",
     request: team => post("/v1/create-jwt-token", providerTokenFor(team.grantedDseq)),
     statusFor: access(201, 201, 201, 403, 403, 201)
@@ -372,6 +400,21 @@ describe("Team role access", () => {
 
     const { data } = (await response.json()) as { data: Array<{ id: string }> };
     expect(data.map(({ id }) => id).sort()).toEqual(budgets.map(budget => team[budget]).sort());
+  });
+
+  it.each([
+    { caller: "owner", shown: "every field", listed: NOTIFICATION_CHANNEL },
+    {
+      caller: "projectKey",
+      shown: "their id, name and type only",
+      listed: { id: NOTIFICATION_CHANNEL.id, name: NOTIFICATION_CHANNEL.name, type: NOTIFICATION_CHANNEL.type }
+    }
+  ] as const)("lists the notification channels to the $caller with $shown", async ({ caller, listed }) => {
+    const { send, credentialsOf } = await setup();
+
+    const response = await send(get("/v1/notification-channels"), credentialsOf(caller));
+
+    expect(await response.json()).toEqual({ data: [listed] });
   });
 
   it.each(ORGANIZATION_SPEND_READERS)("gives the $caller the organization's total spend: $seesTotal", async ({ caller, seesTotal }) => {
@@ -558,10 +601,16 @@ describe("Team role access", () => {
   function answerNotifications() {
     nock(container.resolve(NOTIFICATIONS_CONFIG).NOTIFICATIONS_API_BASE_URL as string)
       .persist()
+      .get(uri => uri.startsWith("/v1/notification-channels"))
+      .reply(200, { data: [NOTIFICATION_CHANNEL] })
       .get(() => true)
       .reply(200, { data: [] })
       .post(() => true)
-      .reply(200, { data: {} });
+      .reply(200, { data: {} })
+      .patch(() => true)
+      .reply(200, { data: NOTIFICATION_CHANNEL })
+      .delete(() => true)
+      .reply(200, { data: NOTIFICATION_CHANNEL });
   }
 
   async function setup() {
