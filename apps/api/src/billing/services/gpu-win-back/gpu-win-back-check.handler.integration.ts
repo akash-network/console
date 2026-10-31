@@ -146,7 +146,8 @@ describe(GpuWinBackCheckHandler.name, () => {
     const { enqueue, startWorkers } = await jobWorkers();
     const { user: person, address } = await seedUserWithWallet({
       isTrialing: input.isTrialing ?? false,
-      user: { email: faker.internet.email(), createdAt: subDays(new Date(), 90) }
+      activatedAt: subDays(new Date(), 90),
+      user: { email: faker.internet.email() }
     });
     const notifications: SentNotification[] = [];
     nock(container.resolve(NOTIFICATIONS_CONFIG).NOTIFICATIONS_API_BASE_URL as string)

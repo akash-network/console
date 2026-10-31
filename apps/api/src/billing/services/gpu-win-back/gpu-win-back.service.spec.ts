@@ -153,11 +153,18 @@ describe(GpuWinBackService.name, () => {
       expect(logger.info).not.toHaveBeenCalled();
     });
 
-    it("anchors the trial on the wallet when the person's account carries no creation time", async () => {
+    it("anchors the trial on the day the wallet was activated, not the day the person signed up", async () => {
+      const trialStartedAt = subDays(NOW, 20);
+      const { service, userId, userRepository } = setup({ hasPaid: false, isTrialing: true, trialStartedAt });
+      userRepository.findById.mockResolvedValue(createUser({ id: userId, createdAt: subDays(NOW, 200) }));
+
+      await expect(service.check(userId, NOW)).resolves.toEqual({ outcome: "rescheduled", startAfter: addHours(addDays(trialStartedAt, TRIAL_DAYS + 7), 1) });
+    });
+
+    it("anchors the trial on the wallet's creation when the wallet was never activated", async () => {
       const walletCreatedAt = subDays(NOW, 20);
-      const { service, userId, userRepository, userWalletRepository } = setup({ hasPaid: false, isTrialing: true });
-      userRepository.findById.mockResolvedValue(createUser({ id: userId, createdAt: null }));
-      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId, isTrialing: true, createdAt: walletCreatedAt }));
+      const { service, userId, userWalletRepository } = setup({ hasPaid: false, isTrialing: true });
+      userWalletRepository.findOneByUserId.mockResolvedValue(createUserWallet({ userId, isTrialing: true, createdAt: walletCreatedAt, activatedAt: null }));
 
       await expect(service.check(userId, NOW)).resolves.toEqual({ outcome: "rescheduled", startAfter: addHours(addDays(walletCreatedAt, TRIAL_DAYS + 7), 1) });
     });
@@ -203,25 +210,25 @@ describe(GpuWinBackService.name, () => {
     });
 
     it("waits for the last trial email before opening the window of a trial user who never paid", async () => {
-      const createdAt = subDays(NOW, 20);
-      const { service, userId, jobQueueService, winBackRepository } = setup({ hasPaid: false, isTrialing: true, userCreatedAt: createdAt });
+      const trialStartedAt = subDays(NOW, 20);
+      const { service, userId, jobQueueService, winBackRepository } = setup({ hasPaid: false, isTrialing: true, trialStartedAt });
 
       const result = await service.check(userId, NOW);
 
-      const afterLastTrialEmail = addHours(addDays(createdAt, TRIAL_DAYS + 7), 1);
+      const afterLastTrialEmail = addHours(addDays(trialStartedAt, TRIAL_DAYS + 7), 1);
       expect(result).toEqual({ outcome: "rescheduled", startAfter: afterLastTrialEmail });
       expectRescheduled(jobQueueService, userId, afterLastTrialEmail);
       expect(winBackRepository.create).not.toHaveBeenCalled();
     });
 
     it("waits for the last trial email when it is a moment away", async () => {
-      const { service, userId } = setup({ hasPaid: false, isTrialing: true, userCreatedAt: addMilliseconds(subDays(subHours(NOW, 1), TRIAL_DAYS + 7), 1) });
+      const { service, userId } = setup({ hasPaid: false, isTrialing: true, trialStartedAt: addMilliseconds(subDays(subHours(NOW, 1), TRIAL_DAYS + 7), 1) });
 
       await expect(service.check(userId, NOW)).resolves.toEqual({ outcome: "rescheduled", startAfter: addMilliseconds(NOW, 1) });
     });
 
     it("opens the window of a trial user who never paid once the last trial email went out", async () => {
-      const { service, userId, winBackRepository } = setup({ hasPaid: false, isTrialing: true, userCreatedAt: subDays(subHours(NOW, 1), TRIAL_DAYS + 7) });
+      const { service, userId, winBackRepository } = setup({ hasPaid: false, isTrialing: true, trialStartedAt: subDays(subHours(NOW, 1), TRIAL_DAYS + 7) });
 
       await expect(service.check(userId, NOW)).resolves.toEqual({ outcome: "opened" });
       expect(winBackRepository.create).toHaveBeenCalledWith({ userId, openedAt: NOW, closesAt: null });
@@ -231,7 +238,7 @@ describe(GpuWinBackService.name, () => {
       { case: "who paid, though still trialing", hasPaid: true, isTrialing: true },
       { case: "who never paid but is not trialing", hasPaid: false, isTrialing: false }
     ])("does not wait for trial emails for a person $case", async ({ hasPaid, isTrialing }) => {
-      const { service, userId } = setup({ hasPaid, isTrialing, userCreatedAt: subDays(NOW, 20) });
+      const { service, userId } = setup({ hasPaid, isTrialing, trialStartedAt: subDays(NOW, 20) });
 
       await expect(service.check(userId, NOW)).resolves.toEqual({ outcome: "opened" });
     });
@@ -385,15 +392,15 @@ describe(GpuWinBackService.name, () => {
       hasLargePurchase?: boolean;
       hasPaid?: boolean;
       isTrialing?: boolean;
-      userCreatedAt?: Date;
+      trialStartedAt?: Date;
       latestGpuDeploymentCreatedAt?: Date | null;
       hasOpenDeployment?: boolean;
       chainHeight?: number;
     } = {}
   ) {
     const userId = faker.string.uuid();
-    const user = createUser({ id: userId, createdAt: input.userCreatedAt ?? subDays(NOW, 90) });
-    const wallet = createUserWallet({ userId, isTrialing: input.isTrialing ?? false });
+    const user = createUser({ id: userId, createdAt: subDays(NOW, 90) });
+    const wallet = createUserWallet({ userId, isTrialing: input.isTrialing ?? false, activatedAt: input.trialStartedAt ?? subDays(NOW, 90) });
 
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
     stripeTransactionRepository.hasReceivedFirstPurchaseBonus.mockResolvedValue(input.hasBonus ?? false);

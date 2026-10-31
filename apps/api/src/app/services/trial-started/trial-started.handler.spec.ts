@@ -3,6 +3,7 @@ import { addDays, subDays } from "date-fns";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { UserWalletRepository } from "@src/billing/repositories";
 import type { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
@@ -13,6 +14,7 @@ import type { UserRepository } from "@src/user/repositories";
 import { TrialStartedHandler } from "./trial-started.handler";
 
 import { createUser } from "@test/seeders/user.seeder";
+import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 import { mockConfig } from "@test/services/mock-config.service";
 
 describe(TrialStartedHandler.name, () => {
@@ -30,6 +32,21 @@ describe(TrialStartedHandler.name, () => {
       expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ event: "TRIAL_STARTED_USER_NOT_FOUND" }));
     });
 
+    it("returns early when the user's wallet is not found", async () => {
+      const user = createUser({ id: "user-123", email: "user@example.com" });
+      const { handler, userWalletRepository, notificationService, jobQueueManager, logger } = setup({
+        findUserById: vi.fn().mockResolvedValue(user),
+        findWalletByUserId: vi.fn().mockResolvedValue(undefined)
+      });
+
+      await handler.handle({ userId: user.id, version: 1 });
+
+      expect(userWalletRepository.findOneByUserId).toHaveBeenCalledWith(user.id);
+      expect(notificationService.createNotification).not.toHaveBeenCalled();
+      expect(jobQueueManager.enqueue).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith({ event: "TRIAL_STARTED_WALLET_NOT_FOUND", userId: user.id });
+    });
+
     it("does not send start trial notification when user has no email but enqueues notification jobs", async () => {
       const user = createUser({
         id: "user-123",
@@ -40,6 +57,7 @@ describe(TrialStartedHandler.name, () => {
 
       const { handler, userRepository, notificationService, jobQueueManager, logger } = setup({
         findUserById: vi.fn().mockResolvedValue(user),
+        findWalletByUserId: vi.fn().mockResolvedValue(createUserWallet({ userId: user.id })),
         trialExpirationDays: 30
       });
 
@@ -52,19 +70,20 @@ describe(TrialStartedHandler.name, () => {
     });
 
     it("sends start trial notification when user has email and enqueues notification jobs", async () => {
-      const USER_CREATED_AT = new Date("2025-09-22T07:58:47.770Z");
+      const TRIAL_STARTED_AT = new Date("2025-09-22T07:58:47.770Z");
       const TRIAL_ENDS_AT = "2025-10-22T07:58:47.770Z";
       const user = createUser({
         id: "user-123",
         email: "user@example.com",
         emailVerified: true,
         subscribedToNewsletter: true,
-        createdAt: USER_CREATED_AT
+        createdAt: new Date("2025-08-01T10:00:00.000Z")
       });
       const deploymentLifetimeInHours = faker.number.int({ min: 1, max: 24 });
 
       const { handler, userRepository, notificationService, jobQueueManager, logger } = setup({
         findUserById: vi.fn().mockResolvedValue(user),
+        findWalletByUserId: vi.fn().mockResolvedValue(createUserWallet({ userId: user.id, activatedAt: TRIAL_STARTED_AT })),
         trialExpirationDays: 30,
         deploymentLifetimeInHours
       });
@@ -97,12 +116,14 @@ describe(TrialStartedHandler.name, () => {
         subscribedToNewsletter: true,
         createdAt: new Date("2023-10-15T12:00:00Z")
       });
+      const wallet = createUserWallet({ userId: user.id, activatedAt: new Date("2023-12-01T09:30:00Z") });
 
       const trialDays = 30;
-      const trialEndsAt = addDays(user.createdAt!, trialDays);
+      const trialEndsAt = addDays(wallet.activatedAt!, trialDays);
 
       const { handler, jobQueueManager, paymentLink } = setup({
         findUserById: vi.fn().mockResolvedValue(user),
+        findWalletByUserId: vi.fn().mockResolvedValue(wallet),
         trialExpirationDays: trialDays
       });
 
@@ -187,12 +208,14 @@ describe(TrialStartedHandler.name, () => {
         subscribedToNewsletter: true,
         createdAt: new Date("2023-10-15T12:00:00Z")
       });
+      const wallet = createUserWallet({ userId: user.id, activatedAt: new Date("2023-12-01T09:30:00Z") });
 
       const trialDays = 10;
-      const trialEndsAt = addDays(user.createdAt!, trialDays);
+      const trialEndsAt = addDays(wallet.activatedAt!, trialDays);
 
       const { handler, jobQueueManager } = setup({
         findUserById: vi.fn().mockResolvedValue(user),
+        findWalletByUserId: vi.fn().mockResolvedValue(wallet),
         trialExpirationDays: trialDays
       });
 
@@ -231,6 +254,7 @@ describe(TrialStartedHandler.name, () => {
 
   function setup(input?: {
     findUserById?: UserRepository["findById"];
+    findWalletByUserId?: UserWalletRepository["findOneByUserId"];
     createNotification?: NotificationService["createNotification"];
     enqueueJob?: JobQueueService["enqueue"];
     trialExpirationDays?: number;
@@ -247,6 +271,9 @@ describe(TrialStartedHandler.name, () => {
       userRepository: mock<UserRepository>({
         findById: input?.findUserById ?? vi.fn()
       }),
+      userWalletRepository: mock<UserWalletRepository>({
+        findOneByUserId: input?.findWalletByUserId ?? vi.fn()
+      }),
       logger: mock<ReturnType<CreateLogger>>(),
       coreConfig: mockConfig<BillingConfigService>({
         TRIAL_ALLOWANCE_EXPIRATION_DAYS: input?.trialExpirationDays ?? 30,
@@ -257,7 +284,14 @@ describe(TrialStartedHandler.name, () => {
 
     const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
-    const handler = new TrialStartedHandler(mocks.notificationService, mocks.jobQueueManager, mocks.userRepository, createLogger, mocks.coreConfig);
+    const handler = new TrialStartedHandler(
+      mocks.notificationService,
+      mocks.jobQueueManager,
+      mocks.userRepository,
+      mocks.userWalletRepository,
+      createLogger,
+      mocks.coreConfig
+    );
 
     return { handler, createLogger, ...mocks, paymentLink };
   }
