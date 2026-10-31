@@ -85,7 +85,7 @@ export class DeploymentOrganizationActivityService {
   /** The deployment already changed by the time this runs, so a failure to record it is logged rather than raised. */
   async #recordFor({ wallet, dseq }: WalletDeploymentKey, type: string, record: (deployment: FiledDeployment) => Promise<void>): Promise<void> {
     try {
-      const deployment = await this.deploymentSettingRepository.unscoped("deployment-activity").findOneOwnedByWallet(wallet, dseq);
+      const deployment = await this.deploymentSettingRepository.unscoped("deployment-activity").findOneOfWallet(wallet, dseq);
 
       if (!deployment?.organizationId) return;
 

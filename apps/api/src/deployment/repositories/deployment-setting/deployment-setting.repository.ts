@@ -201,6 +201,8 @@ export type DeploymentSettingOwner = {
   projectId?: string | null;
 };
 
+export type ProviderUnreachableClaim = Pick<DeploymentSettingOwner, "userId" | "dseq"> & { organizationId: string | null; downSinceMarker: string };
+
 @singleton()
 export class DeploymentSettingRepository extends OrgScopedRepository<Table, DeploymentSettingsInput, DeploymentSettingsOutput> {
   constructor(
@@ -525,7 +527,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .limit(limit);
   }
 
-  /** The row a deployment was first filed under, which is the one every member of an organization reads and writes. */
+  /** The row a deployment was first filed under, which is the one every member of an organization reads and writes; a personal wallet never answers with a row its user filed in another organization. */
   async findOneOfWallet(wallet: DeploymentWallet, dseq: string): Promise<DeploymentSettingsOutput | undefined> {
     const [row] = await this.cursor
       .select()
@@ -535,19 +537,6 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .limit(1);
 
     return row && this.toOutput(row);
-  }
-
-  /** Like {@link findOneOfWallet}, except a personal wallet never answers with a row its user filed in a team, so a dseq shared across tenants stays out of a team's records. */
-  async findOneOwnedByWallet(wallet: DeploymentWallet, dseq: string): Promise<DeploymentSettingsOutput | undefined> {
-    const [row] = await this.cursor
-      .select({ setting: this.table })
-      .from(this.table)
-      .leftJoin(TeamOrganizations, isFiledInTeam)
-      .where(this.whereAccessibleBy(and(this.#filedFor(wallet), eq(this.table.dseq, dseq), wallet.userId ? isNull(TeamOrganizations.id) : undefined)))
-      .orderBy(asc(this.table.createdAt), asc(this.table.id))
-      .limit(1);
-
-    return row && this.toOutput(row.setting);
   }
 
   async findFiledRowsOfWallet(wallet: DeploymentWallet, dseqs: readonly string[]): Promise<{ id: string; dseq: string }[]> {
@@ -636,8 +625,17 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
   }
 
   /** An ownerless wallet matches no row rather than every row with a null column. */
-  #filedFor(wallet: DeploymentWallet): SQL {
-    return wallet.userId ? eq(this.table.userId, wallet.userId) : sql`${this.table.organizationId} = ${wallet.organizationId}`;
+  #filedFor(wallet: DeploymentWallet): SQL | undefined {
+    return wallet.userId
+      ? and(eq(this.table.userId, wallet.userId), this.#isFiledIn({ userId: wallet.userId, organizationId: wallet.organizationId }))
+      : sql`${this.table.organizationId} = ${wallet.organizationId}`;
+  }
+
+  /** A row no organization holds yet is its filer's own; naming no organization holds the row to the filer's personal one. */
+  #isFiledIn({ userId, organizationId }: { userId: string; organizationId?: string | null }): SQL | undefined {
+    const personalOrganizationId = sql`(select ${Organizations.id} from ${Organizations} where ${Organizations.type} = 'personal' and ${Organizations.createdByUserId} = ${userId})`;
+
+    return or(isNull(this.table.organizationId), eq(this.table.organizationId, organizationId ?? personalOrganizationId));
   }
 
   /** Merges under a row lock so a reading lands on what is stored now, and returns false when the deployment has no row to hold it. */
@@ -1192,7 +1190,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         .onConflictDoUpdate({
           target: [this.table.dseq, this.table.userId],
           set: { sdl, manifestVersion, runtimeLimitHours, sealedSecrets, name, templateId, updatedAt: sql`now()` },
-          setWhere: this.whereAccessibleBy(undefined)
+          setWhere: this.whereAccessibleBy(this.#isFiledIn(values))
         });
     const [row] = this.ability ? await this.writeChecked(cursor => upsert(cursor).returning()) : await upsert(this.cursor).returning({ id: this.table.id });
 
@@ -1276,7 +1274,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
         set: { sdl, manifestVersion, sealedSecrets, updatedAt: sql`now()` },
-        setWhere: this.whereAccessibleBy(isNull(this.table.sdl))
+        setWhere: this.whereAccessibleBy(and(isNull(this.table.sdl), this.#isFiledIn(values)))
       })
       .returning({ id: this.table.id });
 
@@ -1305,7 +1303,7 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
         .onConflictDoUpdate({
           target: [this.table.dseq, this.table.userId],
           set: { name, updatedAt: sql`now()` },
-          setWhere: this.whereAccessibleBy(undefined)
+          setWhere: this.whereAccessibleBy(this.#isFiledIn(values))
         });
     const [row] = this.ability ? await this.writeChecked(cursor => upsert(cursor).returning()) : await upsert(this.cursor).returning({ name: this.table.name });
 
@@ -1459,21 +1457,23 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
   }
 
   /** Claimed before the email goes out, not stamped after, because the sweep runs many times an hour while an outage lasts days. */
-  async claimProviderUnreachableNotification({ userId, dseq, downSinceMarker }: { userId: string; dseq: string; downSinceMarker: string }): Promise<boolean> {
+  async claimProviderUnreachableNotification({ userId, dseq, organizationId, downSinceMarker }: ProviderUnreachableClaim): Promise<boolean> {
+    const values = await this.attributeToOrganization({
+      userId,
+      dseq,
+      organizationId,
+      autoTopUpEnabled: false,
+      providerUnreachableNotifiedFor: sql`${downSinceMarker}::timestamptz`
+    });
     const [claimed] = await this.cursor
       .insert(this.table)
-      .values(
-        await this.attributeToOrganization({
-          userId,
-          dseq,
-          autoTopUpEnabled: false,
-          providerUnreachableNotifiedFor: sql`${downSinceMarker}::timestamptz`
-        })
-      )
+      .values(values)
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
         set: { providerUnreachableNotifiedFor: sql`${downSinceMarker}::timestamptz`, updatedAt: sql`now()` },
-        setWhere: this.whereAccessibleBy(sql`${this.table.providerUnreachableNotifiedFor} is distinct from ${downSinceMarker}::timestamptz`)
+        setWhere: this.whereAccessibleBy(
+          and(sql`${this.table.providerUnreachableNotifiedFor} is distinct from ${downSinceMarker}::timestamptz`, this.#isFiledIn(values))
+        )
       })
       .returning({ id: this.table.id });
 
@@ -1481,13 +1481,18 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
   }
 
   /** Scoped to the exact outage the claim was taken against, so a late release cannot clear the stamp a later pass wrote for a newer outage. */
-  async releaseProviderUnreachableClaim({ userId, dseq, downSinceMarker }: { userId: string; dseq: string; downSinceMarker: string }): Promise<void> {
+  async releaseProviderUnreachableClaim({ userId, dseq, organizationId, downSinceMarker }: ProviderUnreachableClaim): Promise<void> {
     await this.cursor
       .update(this.table)
       .set({ providerUnreachableNotifiedFor: null, updatedAt: sql`now()` })
       .where(
         this.whereAccessibleBy(
-          and(eq(this.table.userId, userId), eq(this.table.dseq, dseq), eq(this.table.providerUnreachableNotifiedFor, sql`${downSinceMarker}::timestamptz`))
+          and(
+            eq(this.table.userId, userId),
+            eq(this.table.dseq, dseq),
+            eq(this.table.providerUnreachableNotifiedFor, sql`${downSinceMarker}::timestamptz`),
+            this.#isFiledIn({ userId, organizationId })
+          )
         )
       );
   }
@@ -1498,20 +1503,22 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
    * every later sweep would try to close it again. Such a row is written with funding off, since a
    * closed deployment has nothing to fund.
    */
-  /** Leaves open a row the user filed in another organization than the close names, since a dseq can be shared across tenants. */
+  /** Leaves open a row the user filed in another organization than the close is filed in, since a dseq can be shared across tenants. */
   async markClosed({
     userId,
     dseq,
     organizationId,
     consoleCloseReason
   }: DeploymentSettingOwner & Pick<DeploymentSettingsInput, "consoleCloseReason">): Promise<void> {
+    const values = await this.attributeToOrganization({ userId, dseq, organizationId, autoTopUpEnabled: false, closed: true, consoleCloseReason });
+
     await this.cursor
       .insert(this.table)
-      .values(await this.attributeToOrganization({ userId, dseq, organizationId, autoTopUpEnabled: false, closed: true, consoleCloseReason }))
+      .values(values)
       .onConflictDoUpdate({
         target: [this.table.dseq, this.table.userId],
         set: { closed: true, consoleCloseReason: sql`coalesce(${this.table.consoleCloseReason}, excluded.console_close_reason)`, updatedAt: sql`now()` },
-        setWhere: this.whereAccessibleBy(organizationId ? or(isNull(this.table.organizationId), eq(this.table.organizationId, organizationId)) : undefined)
+        setWhere: this.whereAccessibleBy(this.#isFiledIn(values))
       });
   }
 }
