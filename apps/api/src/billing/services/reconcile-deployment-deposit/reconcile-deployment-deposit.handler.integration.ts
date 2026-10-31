@@ -53,9 +53,51 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
       expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "pending" });
     });
 
-    it("voids the deposits once the last attempt still finds no transaction", async () => {
+    it("voids the deposits once the last attempt finds the transaction neither on chain nor in an index past their window", async () => {
       const { txHash, pending, handler, answerChainWith } = await setupHash();
       answerChainWith(null);
+      await indexTip(secondsAfter(pending.createdAt, 600));
+
+      await handler.handle({ txHash, version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "void" });
+    });
+
+    it.each([
+      { outcome: "confirms", hasProcessingError: false, status: "confirmed" },
+      { outcome: "voids", hasProcessingError: true, status: "void" }
+    ])("$outcome the deposits by the chain index when the last attempt still finds no transaction", async ({ hasProcessingError, status }) => {
+      const { txHash, pending, handler, answerChainWith } = await setupHash();
+      answerChainWith(null);
+      await indexTx(txHash, { hasProcessingError, at: secondsAfter(pending.createdAt, 20) });
+
+      await handler.handle({ txHash, version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status, txHash });
+    });
+
+    it("waits for an index that has not reached the deposits' window, then voids them after the last wait", async () => {
+      const { txHash, pending, handler, answerChainWith } = await setupHash();
+      answerChainWith(null);
+      await indexTip(secondsAfter(pending.createdAt, 30));
+
+      await handler.handle({ txHash, version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "pending" });
+      expect(await findJobRows(ReconcileDeploymentDeposit[JOB_NAME], { singletonKey: `${ReconcileDeploymentDeposit[JOB_NAME]}.${txHash}.1` })).toEqual([
+        expect.objectContaining({ data: expect.objectContaining({ txHash, indexLagRetries: 1 }) })
+      ]);
+
+      await handler.handle({ txHash, indexLagRetries: 6, version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "void" });
+    });
+
+    it("voids the deposits when the wait for the index cannot be queued", async () => {
+      const { txHash, pending, handler, answerChainWith } = await setupHash();
+      answerChainWith(null);
+      await indexTip(secondsAfter(pending.createdAt, 30));
+      vi.spyOn(container.resolve(JobQueueService), "enqueue").mockRejectedValue(new Error("queue unavailable"));
 
       await handler.handle({ txHash, version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
 
@@ -277,6 +319,13 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
     await createAkashMessage({ txId: transaction.id, height, type: "/akash.escrow.v1.MsgAccountDeposit", amount, relatedDeploymentId: deploymentId });
 
     return hash;
+  }
+
+  async function indexTx(hash: string, { hasProcessingError, at }: { hasProcessingError: boolean; at: Date }) {
+    container.resolve(CHAIN_DB);
+    const height = uniqueHeight();
+    await createAkashBlock({ height, datetime: at });
+    await createTransaction({ height, hash, hasProcessingError });
   }
 
   function uniqueHeight() {
