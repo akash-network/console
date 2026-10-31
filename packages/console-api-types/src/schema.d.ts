@@ -682,8 +682,6 @@ export interface paths {
         content: {
           "application/json": {
             wantedUsername: string;
-            email: string;
-            emailVerified: boolean;
             subscribedToNewsletter?: boolean;
             /**
              * @description The browser's IANA timezone, kept on the account until the user picks one in their profile. A value that names no zone is ignored.
