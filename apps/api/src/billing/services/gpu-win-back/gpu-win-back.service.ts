@@ -3,6 +3,7 @@ import { secondsInMinute } from "date-fns/constants";
 import { inject, singleton } from "tsyringe";
 
 import { FirstPurchaseBonusWindowOpened } from "@src/billing/events/first-purchase-bonus-window-opened";
+import { getTrialStartedAt } from "@src/billing/lib/trial-window/trial-window";
 import { StripeTransactionRepository, UserWalletRepository } from "@src/billing/repositories";
 import { FirstPurchaseBonusWinBackRepository } from "@src/billing/repositories/first-purchase-bonus-win-back/first-purchase-bonus-win-back.repository";
 import { UsageRepository } from "@src/billing/repositories/usage/usage.repository";
@@ -78,7 +79,7 @@ export class GpuWinBackService {
     ]);
     if (!user || !wallet?.address) return INELIGIBLE;
 
-    const lastTrialEmailAt = this.#lastTrialEmailAt(user.createdAt ?? wallet.createdAt);
+    const lastTrialEmailAt = this.#lastTrialEmailAt(getTrialStartedAt(wallet));
     if (!hasPaid && wallet.isTrialing && lastTrialEmailAt > now) return await this.#recheckAt(userId, lastTrialEmailAt);
 
     const owners = await this.usageRepository.resolveAddresses(wallet.address);

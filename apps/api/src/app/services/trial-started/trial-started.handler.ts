@@ -2,6 +2,8 @@ import { addDays, subDays } from "date-fns";
 import { inject, singleton } from "tsyringe";
 
 import { TrialStarted } from "@src/billing/events/trial-started";
+import { getTrialEndsAt } from "@src/billing/lib/trial-window/trial-window";
+import { UserWalletRepository } from "@src/billing/repositories";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { type CreateLogger, EventPayload, JobHandler, type JobPermissions, JobQueueService, LOGGER_FACTORY } from "@src/core";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
@@ -22,6 +24,7 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
     private readonly notificationService: NotificationService,
     private readonly jobQueueManager: JobQueueService,
     private readonly userRepository: UserRepository,
+    private readonly userWalletRepository: UserWalletRepository,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly billingConfig: BillingConfigService
   ) {
@@ -42,8 +45,17 @@ export class TrialStartedHandler implements JobHandler<TrialStarted> {
       return;
     }
 
+    const wallet = await this.userWalletRepository.findOneByUserId(user.id);
+    if (!wallet) {
+      this.logger.warn({
+        event: "TRIAL_STARTED_WALLET_NOT_FOUND",
+        userId: user.id
+      });
+      return;
+    }
+
     const TRIAL_ALLOWANCE_EXPIRATION_DAYS = this.billingConfig.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS");
-    const trialEndsAt = addDays(user.createdAt!, TRIAL_ALLOWANCE_EXPIRATION_DAYS);
+    const trialEndsAt = getTrialEndsAt(wallet, TRIAL_ALLOWANCE_EXPIRATION_DAYS);
 
     if (user.email) {
       this.logger.info({ event: "START_TRIAL_NOTIFICATION_SENDING", userId: user.id });

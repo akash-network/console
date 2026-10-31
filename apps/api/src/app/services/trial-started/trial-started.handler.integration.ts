@@ -12,12 +12,13 @@ import { JOB_NAME } from "@src/core";
 import { DOMAIN_EVENT_NAME } from "@src/core/services/domain-events/domain-events.service";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { NotificationHandler, NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
-import { UserRepository } from "@src/user/repositories";
 import { TrialStartedHandler } from "./trial-started.handler";
 
+import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const NOTIFICATION_PATH = "/internal/v1/jobs/notification";
+const SIGNED_UP_DAYS_BEFORE_TRIAL = 40;
 
 const jobWorkers = useJobWorkers(() => [container.resolve(TrialStartedHandler), container.resolve(NotificationHandler)]);
 
@@ -26,7 +27,7 @@ describe(TrialStartedHandler.name, () => {
     nock.cleanAll();
   });
 
-  it("schedules the whole trial email sequence off the day the user was created", async () => {
+  it("schedules the whole trial email sequence off the day the trial started, not the day the user signed up", async () => {
     const { userId, trialEndsAt, expirationDays, handle, findNotificationJobs } = await setup();
 
     await handle();
@@ -66,14 +67,28 @@ describe(TrialStartedHandler.name, () => {
     expect(await findNotificationJobs(strangerId)).toHaveLength(0);
   });
 
-  async function setup(input: { email?: string | null } = {}) {
+  it("schedules nothing for a user whose wallet is gone", async () => {
+    const { userId, handle, findNotificationJobs, sentNotifications } = await setup({ hasWallet: false });
+
+    await handle();
+
+    expect(sentNotifications()).toHaveLength(0);
+    expect(await findNotificationJobs(userId)).toHaveLength(0);
+  });
+
+  async function setup(input: { email?: string | null; hasWallet?: boolean } = {}) {
     const { enqueue, startWorkers } = await jobWorkers();
     const billingConfig = container.resolve(BillingConfigService);
     const expirationDays = billingConfig.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS");
     const notificationsBaseUrl = container.resolve(NOTIFICATIONS_CONFIG).NOTIFICATIONS_API_BASE_URL as string;
 
-    const email = input.email === undefined ? faker.internet.email() : input.email;
-    const user = await container.resolve(UserRepository).create({ email });
+    const trialStartedAt = new Date();
+    const userInput = {
+      email: input.email === undefined ? faker.internet.email() : input.email,
+      createdAt: subDays(trialStartedAt, SIGNED_UP_DAYS_BEFORE_TRIAL)
+    };
+    const user =
+      input.hasWallet === false ? await seedUser(userInput) : (await seedUserWithWallet({ user: userInput, isTrialing: true, activatedAt: trialStartedAt })).user;
 
     const sent: unknown[] = [];
     nock(notificationsBaseUrl)
@@ -96,7 +111,7 @@ describe(TrialStartedHandler.name, () => {
     return {
       userId: user.id,
       expirationDays,
-      trialEndsAt: addDays(user.createdAt!, expirationDays),
+      trialEndsAt: addDays(trialStartedAt, expirationDays),
       sentNotifications: () => sent,
       findNotificationJobs,
       handle: async (userId: string = user.id) => {
