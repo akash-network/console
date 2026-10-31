@@ -22,6 +22,17 @@ function parseJsonOrKeepText(text: string) {
   }
 }
 
+function readLatestBlockHeight(status: any): number {
+  const reportedHeight = status?.result?.sync_info?.latest_block_height;
+  const height = typeof reportedHeight === "string" && /^\d+$/.test(reportedHeight) ? Number(reportedHeight) : reportedHeight;
+
+  if (!Number.isSafeInteger(height) || height <= 0) {
+    throw new Error("Invalid latest block height");
+  }
+
+  return height;
+}
+
 const RateLimitWaitingPeriod = 2 * 60_000; // 2 minutes
 const LateNodeWaitingPeriod = 5 * 60_000; // 5 minutes
 const UnavailableShortWaitingPeriod = 1 * 60_000; // 1 minutes
@@ -125,6 +136,7 @@ export class NodeInfo {
       if (!response.ok) throw await toHttpResponseError(response);
 
       const data = (await response.json()) as any;
+      readLatestBlockHeight(data);
       this.status = NodeStatus.OK;
       this.earliestBlockHeight = parseInt(data.result.sync_info.earliest_block_height);
     } catch (err: any) {
@@ -137,6 +149,24 @@ export class NodeInfo {
         this.handleUnavailable();
       }
     }
+  }
+
+  public async queryLatestBlockHeight(): Promise<number> {
+    const status = await this.query("/status");
+
+    try {
+      return readLatestBlockHeight(status);
+    } catch (err: any) {
+      this.#markUnavailable(err.message);
+      throw err;
+    }
+  }
+
+  #markUnavailable(error: string) {
+    this.status = NodeStatus.UNAVAILABLE;
+    this.latestError = error;
+    this.errorCount++;
+    this.handleUnavailable();
   }
 
   public isAvailable(height?: number): boolean {
