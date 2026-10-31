@@ -12,7 +12,7 @@ export const envSchema = z
     NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development"),
     POSTGRES_DB_URI: z.string(),
     /** Must bypass any transaction-mode pooler, because migrations hold a session-level advisory lock. */
-    POSTGRES_MIGRATION_DB_URI: z.string().optional(),
+    POSTGRES_MIGRATION_DB_URI: z.string().min(1).optional(),
     POSTGRES_BACKGROUND_JOBS_SCHEMA: z.string().optional().default("pgboss"),
     POSTGRES_BACKGROUND_JOBS_POOL_SIZE: z.number({ coerce: true }).optional().default(20),
     POSTGRES_BACKGROUND_JOBS_CONNECT_TIMEOUT: z.number({ coerce: true }).optional().default(3),
@@ -20,11 +20,11 @@ export const envSchema = z
     POSTGRES_CONNECT_TIMEOUT: z.number({ coerce: true }).optional().default(3),
     POSTGRES_IDLE_TIMEOUT: z.number({ coerce: true }).optional().default(120),
     POSTGRES_MAX_LIFETIME: z.number({ coerce: true }).optional().default(1800),
-    /** Turn off behind a transaction-mode pooler whose `max_prepared_statements` is 0. */
+    /** Turn off behind a transaction-mode pooler whose `max_prepared_statements` is 0; when unset, a `prepare` in `POSTGRES_DB_URI` still applies. */
     POSTGRES_PREPARE: z
       .enum(["true", "false"])
-      .default("true")
-      .transform(value => value === "true"),
+      .transform(value => value === "true")
+      .optional(),
     SEQUELIZE_POOL_MIN: z.number({ coerce: true }).optional().default(5),
     SEQUELIZE_POOL_MAX: z.number({ coerce: true }).optional().default(20),
     SEQUELIZE_POOL_IDLE: z.number({ coerce: true }).optional().default(30000),

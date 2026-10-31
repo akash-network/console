@@ -32,7 +32,7 @@ container.register(APP_PG_CLIENT, {
       connect_timeout: config.POSTGRES_CONNECT_TIMEOUT,
       idle_timeout: config.POSTGRES_IDLE_TIMEOUT,
       max_lifetime: config.POSTGRES_MAX_LIFETIME,
-      prepare: config.POSTGRES_PREPARE,
+      ...(config.POSTGRES_PREPARE !== undefined && { prepare: config.POSTGRES_PREPARE }),
       onnotice: logger.info.bind(logger)
     });
     c.resolve(DisposableRegistry).register({ dispose: () => client.end() });

@@ -6,7 +6,7 @@ import { container } from "tsyringe";
 import { describe, expect, it, onTestFinished } from "vitest";
 
 import { CORE_CONFIG } from "./config.provider";
-import { migratePG } from "./postgres.provider";
+import { migratePG, POSTGRES_DB } from "./postgres.provider";
 
 describe(migratePG.name, () => {
   it("applies a pending migration once when several servers boot at the same time", async () => {
@@ -44,7 +44,8 @@ describe(migratePG.name, () => {
     const config = {
       ...coreConfig,
       DRIZZLE_MIGRATIONS_FOLDER: migrationsFolder,
-      ...(input.appDbUri && { POSTGRES_DB_URI: input.appDbUri, POSTGRES_MIGRATION_DB_URI: coreConfig.POSTGRES_DB_URI })
+      POSTGRES_DB_URI: input.appDbUri ?? coreConfig.POSTGRES_DB_URI,
+      POSTGRES_MIGRATION_DB_URI: input.appDbUri ? coreConfig.POSTGRES_DB_URI : undefined
     };
     const sql = postgres(coreConfig.POSTGRES_DB_URI, { max: 1 });
 
@@ -59,5 +60,33 @@ describe(migratePG.name, () => {
     };
 
     return { config, countProbeMigrationRuns };
+  }
+});
+
+describe("POSTGRES_DB", () => {
+  it("keeps the prepare setting from the connection URI when POSTGRES_PREPARE is unset", () => {
+    const { client } = setup({ uriPrepare: "false" });
+
+    expect(client.options.prepare).toBe(false);
+  });
+
+  it("lets POSTGRES_PREPARE override the prepare setting from the connection URI", () => {
+    const { client } = setup({ uriPrepare: "false", POSTGRES_PREPARE: true });
+
+    expect(client.options.prepare).toBe(true);
+  });
+
+  function setup(input: { uriPrepare: string; POSTGRES_PREPARE?: boolean }) {
+    const coreConfig = container.resolve(CORE_CONFIG);
+    const uri = new URL(coreConfig.POSTGRES_DB_URI);
+    uri.searchParams.set("prepare", input.uriPrepare);
+
+    const childContainer = container.createChildContainer();
+    childContainer.register(CORE_CONFIG, { useValue: { ...coreConfig, POSTGRES_DB_URI: uri.toString(), POSTGRES_PREPARE: input.POSTGRES_PREPARE } });
+    const client = childContainer.resolve(POSTGRES_DB).$client;
+
+    onTestFinished(() => client.end());
+
+    return { client };
   }
 });
