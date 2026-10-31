@@ -108,6 +108,67 @@ describe(ChainProviderPollerService.name, () => {
     ]);
   });
 
+  describe("when an attribute holds characters the database refuses", () => {
+    it("removes NUL characters and lone surrogates from self and signed attributes", async () => {
+      const { service, getAllProvidersAttributes, getProviders } = setup();
+      getAllProvidersAttributes.mockResolvedValueOnce(
+        auditResponse(
+          [mock<AuditRecord>({ owner: "akash1aaa", auditor: "akash1auditor", attributes: [{ key: "tier\0", value: "gpu\uD800" }] })],
+          new Uint8Array(0)
+        )
+      );
+      getProviders.mockResolvedValueOnce(
+        providersResponse([chainProvider({ owner: "akash1aaa", attributes: [{ key: "region", value: "us-west\0" }] })], new Uint8Array(0))
+      );
+
+      const [batch] = await Array.fromAsync(service.poll());
+
+      expect(batch[0].selfAttributes).toEqual([{ key: "region", value: "us-west" }]);
+      expect(batch[0].signedAttributes).toEqual([{ key: "tier", value: "gpu", auditor: "akash1auditor" }]);
+    });
+
+    it("keeps the other providers of the page", async () => {
+      const { service, getProviders } = setup();
+      getProviders.mockResolvedValueOnce(
+        providersResponse(
+          [chainProvider({ owner: "akash1aaa", attributes: [{ key: "region", value: "us-west\0" }] }), chainProvider({ owner: "akash1bbb" })],
+          new Uint8Array(0)
+        )
+      );
+
+      const [batch] = await Array.fromAsync(service.poll());
+
+      expect(batch.map(provider => provider.owner)).toEqual(["akash1aaa", "akash1bbb"]);
+    });
+
+    it("logs the owner and key of each attribute it cleans", async () => {
+      const { service, getAllProvidersAttributes, getProviders, logger } = setup();
+      getAllProvidersAttributes.mockResolvedValueOnce(
+        auditResponse([mock<AuditRecord>({ owner: "akash1bbb", auditor: "akash1auditor", attributes: [{ key: "tier", value: "gpu\0" }] })], new Uint8Array(0))
+      );
+      getProviders.mockResolvedValueOnce(
+        providersResponse([chainProvider({ owner: "akash1aaa", attributes: [{ key: "region\0", value: "us-west" }] })], new Uint8Array(0))
+      );
+
+      await Array.fromAsync(service.poll());
+
+      expect(logger.warn).toHaveBeenCalledWith({ event: "PROVIDER_ATTRIBUTE_CLEANED", owner: "akash1bbb", key: "tier" });
+      expect(logger.warn).toHaveBeenCalledWith({ event: "PROVIDER_ATTRIBUTE_CLEANED", owner: "akash1aaa", key: "region" });
+    });
+
+    it("logs nothing for well-formed attributes", async () => {
+      const { service, getProviders, logger } = setup();
+      getProviders.mockResolvedValueOnce(
+        providersResponse([chainProvider({ owner: "akash1aaa", attributes: [{ key: "region", value: "us-west 🚀" }] })], new Uint8Array(0))
+      );
+
+      const [batch] = await Array.fromAsync(service.poll());
+
+      expect(batch[0].selfAttributes).toEqual([{ key: "region", value: "us-west 🚀" }]);
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+  });
+
   function setup() {
     const chainSDK = mockDeep<ChainNodeWebSDK>();
     const getAllProvidersAttributes = chainSDK.akash.audit.v1.getAllProvidersAttributes;
@@ -115,10 +176,11 @@ describe(ChainProviderPollerService.name, () => {
 
     getAllProvidersAttributes.mockResolvedValue(auditResponse([], new Uint8Array(0)));
 
-    const loggerFactory: LoggerFactory = () => mock<ReturnType<LoggerFactory>>();
+    const logger = mock<ReturnType<LoggerFactory>>();
+    const loggerFactory: LoggerFactory = () => logger;
     const service = new ChainProviderPollerService(chainSDK, loggerFactory);
 
-    return { service, chainSDK, getAllProvidersAttributes, getProviders };
+    return { service, chainSDK, getAllProvidersAttributes, getProviders, logger };
   }
 });
 

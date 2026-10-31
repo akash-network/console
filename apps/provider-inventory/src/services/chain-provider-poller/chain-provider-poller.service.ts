@@ -2,11 +2,12 @@ import type { ChainNodeWebSDK } from "@akashnetwork/chain-sdk/web";
 import type { LoggerService } from "@akashnetwork/logging";
 import { inject, singleton } from "tsyringe";
 
+import { toStorableChainString } from "@src/lib/chain-string/chain-string";
 import { paginate } from "@src/lib/generators/paginate/paginate";
 import { CHAIN_SDK } from "@src/providers/chain-sdk.provider";
 import type { LoggerFactory } from "@src/providers/logger-factory.provider";
 import { LOGGER_FACTORY } from "@src/providers/logger-factory.provider";
-import type { ChainProvider } from "@src/types/chain-provider";
+import type { ChainProvider, SelfAttribute } from "@src/types/chain-provider";
 
 @singleton()
 export class ChainProviderPollerService {
@@ -37,7 +38,7 @@ export class ChainProviderPollerService {
     for await (const records of auditPages) {
       for (const record of records) {
         const existing = signedByOwner.get(record.owner);
-        const attributes = record.attributes.map(a => ({ key: a.key, value: a.value, auditor: record.auditor }));
+        const attributes = this.#toStorableAttributes(record.owner, record.attributes).map(a => ({ key: a.key, value: a.value, auditor: record.auditor }));
         if (existing) {
           existing.attributes.push(...attributes);
           existing.auditors.add(record.auditor);
@@ -69,7 +70,7 @@ export class ChainProviderPollerService {
           validProviders.push({
             owner: provider.owner,
             hostUri: provider.hostUri,
-            selfAttributes: provider.attributes,
+            selfAttributes: this.#toStorableAttributes(provider.owner, provider.attributes),
             signedAttributes: signedByOwner.get(provider.owner)?.attributes ?? [],
             auditedBy: signedByOwner.get(provider.owner)?.auditors ? Array.from(signedByOwner.get(provider.owner)!.auditors) : []
           });
@@ -84,6 +85,20 @@ export class ChainProviderPollerService {
     }
 
     this.#logger.info({ event: "CHAIN_PROVIDERS_POLL_COMPLETE", providerCount });
+  }
+
+  /** Any account can sign attributes for any provider and the chain checks no value, so one unstorable value would otherwise fail the page of providers it is stored with. */
+  #toStorableAttributes<T extends SelfAttribute>(owner: string, attributes: T[]): T[] {
+    return attributes.map(attribute => {
+      const key = toStorableChainString(attribute.key);
+      const value = toStorableChainString(attribute.value);
+
+      if (key !== attribute.key || value !== attribute.value) {
+        this.#logger.warn({ event: "PROVIDER_ATTRIBUTE_CLEANED", owner, key });
+      }
+
+      return { ...attribute, key, value };
+    });
   }
 }
 
