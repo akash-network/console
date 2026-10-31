@@ -12,9 +12,18 @@ describe("private-network", () => {
       ["169.254.169.254", 4],
       ["172.16.0.1", 4],
       ["192.168.1.1", 4],
+      ["192.0.0.8", 4],
+      ["198.18.0.1", 4],
+      ["224.0.0.1", 4],
+      ["240.0.0.1", 4],
       ["::1", 6],
+      ["::ffff:127.0.0.1", 6],
+      ["64:ff9b::7f00:1", 6],
+      ["64:ff9b:1::a00:1", 6],
+      ["2002:7f00:1::1", 6],
       ["fd00::1", 6],
-      ["fe80::1", 6]
+      ["fe80::1", 6],
+      ["ff02::1", 6]
     ])("refuses a host that resolves to %s", async (address, family) => {
       const lookup = createForbidPrivateNetworkLookup(resolvingTo([{ address, family }]));
 
