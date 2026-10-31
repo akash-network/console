@@ -83,11 +83,65 @@ describe(FallbackLeaseReaderService.name, () => {
   describe("list", () => {
     it("keeps the bid each lease was created from", async () => {
       const { service, leaseRepository } = setup();
-      leaseRepository.findLeasesWithPagination.mockResolvedValue({ count: 1, rows: [indexedLease({ bseq: 7 })] });
+      leaseRepository.findLeasesWithPagination.mockResolvedValue({ total: 1, rows: [indexedLease({ bseq: 7 })] });
 
       const { leases } = await service.list({ owner: createAkashAddress() });
 
       expect(leases[0].lease.id.bseq).toBe(7);
+    });
+
+    it("reports the total and the next page when a total is requested", async () => {
+      const { service, leaseRepository } = setup();
+      leaseRepository.findLeasesWithPagination.mockResolvedValue({ total: 5, rows: [indexedLease(), indexedLease()] });
+
+      const { pagination } = await service.list({ owner: createAkashAddress(), skip: 2, limit: 2, countTotal: true });
+
+      expect(pagination).toEqual({ next_key: "4", total: "5" });
+    });
+
+    it("reports no next page on the last page of a counted list", async () => {
+      const { service, leaseRepository } = setup();
+      leaseRepository.findLeasesWithPagination.mockResolvedValue({ total: 4, rows: [indexedLease(), indexedLease()] });
+
+      const { pagination } = await service.list({ owner: createAkashAddress(), skip: 2, limit: 2, countTotal: true });
+
+      expect(pagination).toEqual({ next_key: null, total: "4" });
+    });
+
+    it("counts the next page from the key when one is given", async () => {
+      const { service, leaseRepository } = setup();
+      leaseRepository.findLeasesWithPagination.mockResolvedValue({ total: 10, rows: [indexedLease()] });
+
+      const { pagination } = await service.list({ owner: createAkashAddress(), key: "6", limit: 2, countTotal: true });
+
+      expect(pagination.next_key).toBe("8");
+    });
+
+    it("reports the next page without a total when no total is requested", async () => {
+      const { service, leaseRepository } = setup();
+      leaseRepository.findLeasesWithPagination.mockResolvedValue({ hasNextPage: true, rows: [indexedLease(), indexedLease()] });
+
+      const { pagination } = await service.list({ owner: createAkashAddress(), skip: 2, limit: 2, countTotal: false });
+
+      expect(pagination).toEqual({ next_key: "4", total: "0" });
+    });
+
+    it("reports no next page when the repository finds none past this one", async () => {
+      const { service, leaseRepository } = setup();
+      leaseRepository.findLeasesWithPagination.mockResolvedValue({ hasNextPage: false, rows: [indexedLease()] });
+
+      const { pagination } = await service.list({ owner: createAkashAddress(), limit: 2, countTotal: false });
+
+      expect(pagination).toEqual({ next_key: null, total: "0" });
+    });
+
+    it("pages by 100 leases from the start when no page is given", async () => {
+      const { service, leaseRepository } = setup();
+      leaseRepository.findLeasesWithPagination.mockResolvedValue({ hasNextPage: true, rows: [indexedLease()] });
+
+      const { pagination } = await service.list({ owner: createAkashAddress(), countTotal: false });
+
+      expect(pagination.next_key).toBe("100");
     });
   });
 

@@ -1,5 +1,5 @@
 import { Lease } from "@akashnetwork/database/dbSchemas/akash";
-import { col, fn, Op, QueryTypes, Sequelize, WhereOptions } from "sequelize";
+import { col, FindOptions, fn, Op, QueryTypes, Sequelize, WhereOptions } from "sequelize";
 import { inject, singleton } from "tsyringe";
 
 import { CHAIN_DB } from "@src/chain";
@@ -48,6 +48,8 @@ export interface DatabaseLeaseListParams {
   countTotal?: boolean;
   reverse?: boolean;
 }
+
+export type LeasePage = { rows: Lease[]; total: number } | { rows: Lease[]; hasNextPage: boolean };
 
 @singleton()
 export class LeaseRepository implements DrainingDeploymentLeaseSource {
@@ -233,10 +235,10 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
    * Includes associated deployment data in the results.
    *
    * @param params - Query parameters for filtering and pagination
-   * @returns Object with total count and array of lease rows
+   * @returns The page of lease rows, with the total count when `countTotal` is set and whether a next page exists otherwise
    */
-  async findLeasesWithPagination(params: DatabaseLeaseListParams): Promise<{ count: number; rows: Lease[] }> {
-    const { skip = 0, limit = 100, owner, dseq, gseq, oseq, provider, state, reverse = false } = params;
+  async findLeasesWithPagination(params: DatabaseLeaseListParams): Promise<LeasePage> {
+    const { skip = 0, limit = 100, key, owner, dseq, gseq, oseq, provider, state, reverse = false, countTotal = true } = params;
 
     const whereConditions: WhereOptions = {};
 
@@ -263,10 +265,9 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
       }
     }
 
-    const { count, rows } = await Lease.findAndCountAll({
+    const query: FindOptions = {
       where: whereConditions,
-      limit,
-      offset: skip,
+      offset: key ? parseInt(key, 10) || 0 : skip,
       order: reverse ? [["createdHeight", "DESC"]] : [["createdHeight", "ASC"]],
       include: [
         {
@@ -275,8 +276,14 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
           required: false
         }
       ]
-    });
+    };
 
-    return { count, rows: rows as Lease[] };
+    if (countTotal) {
+      const { count, rows } = await Lease.findAndCountAll({ ...query, limit });
+      return { rows: rows as Lease[], total: count };
+    }
+
+    const rows = await Lease.findAll({ ...query, limit: limit + 1 });
+    return { rows: rows.slice(0, limit), hasNextPage: rows.length > limit };
   }
 }
