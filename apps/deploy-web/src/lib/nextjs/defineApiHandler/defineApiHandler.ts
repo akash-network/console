@@ -6,6 +6,7 @@ import type { Session } from "@src/lib/auth0";
 import { clearSessionCookies } from "@src/lib/auth0/clearSessionCookies/clearSessionCookies";
 import { isInvalidSessionError } from "@src/lib/auth0/isInvalidSessionError/isInvalidSessionError";
 import { services } from "@src/services/app-di-container/server-di-container.service";
+import { isWriteFromAnotherOrigin } from "../isWriteFromAnotherOrigin/isWriteFromAnotherOrigin";
 import { createRequestExecutionContext, requestExecutionContext } from "../requestExecutionContext";
 
 /** @internal use for testing only */
@@ -22,6 +23,16 @@ export function defineApiHandler<TResponse, TSchema extends z.ZodSchema<any> | u
       }
 
       const requestServices = (req as NextApiRequestWithServices)[REQ_SERVICES_KEY] || services;
+      if (isWriteFromAnotherOrigin(req)) {
+        requestServices.logger.warn({
+          event: "CROSS_ORIGIN_WRITE_REFUSED",
+          url: req.url,
+          origin: req.headers.origin,
+          fetchSite: req.headers["sec-fetch-site"]
+        });
+        return res.status(403).json({ message: "Forbidden" } as TResponse);
+      }
+
       let session: Session | null = null;
       try {
         session = (await requestServices.getSession(req, res)) ?? null;
