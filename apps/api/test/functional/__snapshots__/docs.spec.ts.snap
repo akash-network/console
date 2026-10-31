@@ -25076,7 +25076,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "responses": {
           "200": {
             "content": {},
-            "description": "Returns a created wallet",
+            "description": "Sends a verification email to the signed-in user",
           },
         },
         "security": [

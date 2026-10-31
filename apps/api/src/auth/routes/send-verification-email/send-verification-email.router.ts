@@ -34,7 +34,7 @@ const route = createRoute({
   },
   responses: {
     200: {
-      description: "Returns a created wallet",
+      description: "Sends a verification email to the signed-in user",
       content: {}
     }
   }
