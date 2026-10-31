@@ -249,7 +249,7 @@ const XTerm: React.FunctionComponent<IProps & { dependencies?: typeof DEPENDENCI
   useEffect(() => disposable(props.onResize && terminalRef.current?.onResize(props.onResize)), [props.onResize]);
   useEffect(() => disposable(props.onTitleChange && terminalRef.current?.onTitleChange(props.onTitleChange)), [props.onTitleChange]);
 
-  return <div className={cn(props.className, "h-full [&>.terminal]:h-full")} ref={terminalEleRef} />;
+  return <div className={cn(props.className, "amp-mask h-full [&>.terminal]:h-full")} ref={terminalEleRef} />;
 };
 
 export default XTerm;
