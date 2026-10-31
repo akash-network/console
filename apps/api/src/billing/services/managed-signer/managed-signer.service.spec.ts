@@ -26,7 +26,7 @@ import type { TrialActivationJobService } from "@src/billing/services/trial-acti
 import type { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import type { WalletReloadJobService } from "@src/billing/services/wallet-reload-job/wallet-reload-job.service";
 import type { CreateLogger } from "@src/core";
-import type { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import type { DomainEvent, DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
@@ -602,6 +602,50 @@ describe(ManagedSignerService.name, () => {
       await service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(123)]);
 
       expect(leaseHttpService.hasLeases).not.toHaveBeenCalled();
+    });
+
+    it("announces every deployment a trial wallet leases in one transaction, flagging only the first as the wallet's first lease", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: true });
+      const { service, domainEvents } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        publish: vi.fn().mockResolvedValue("job-id")
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [leaseMessageFor(1), leaseMessageFor(2)]);
+
+      expect(publishedDataOf(domainEvents, TrialDeploymentLeaseCreated)).toEqual([
+        { walletId: wallet.id, dseq: "1", createdAt: expect.any(String), isFirstLease: true },
+        { walletId: wallet.id, dseq: "2", createdAt: expect.any(String), isFirstLease: false }
+      ]);
+      expect(publishedDataOf(domainEvents, EnableDeploymentAlertCommand).map(({ dseq }) => dseq)).toEqual(["1", "2"]);
+    });
+
+    it("funds every deployment a paying wallet leases in one transaction", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: false });
+      const { service, domainEvents } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        publish: vi.fn().mockResolvedValue("job-id")
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [leaseMessageFor(1), leaseMessageFor(2)]);
+
+      expect(publishedDataOf(domainEvents, FundDeploymentCommand).map(({ dseq }) => dseq)).toEqual(["1", "2"]);
+      expect(publishedDataOf(domainEvents, ManagedDeploymentLeaseCreated).map(({ dseq }) => dseq)).toEqual(["1", "2"]);
+    });
+
+    it("follows up a deployment leased to several providers in one transaction once", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100, isTrialing: true });
+      const { service, domainEvents } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        publish: vi.fn().mockResolvedValue("job-id")
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [leaseMessageFor(1), leaseMessageFor(1, { gseq: 2, provider: "akash1other" })]);
+
+      expect(publishedDataOf(domainEvents, TrialDeploymentLeaseCreated).map(({ dseq }) => dseq)).toEqual(["1"]);
     });
 
     it("funds and records a landed lease even when its gpu read cannot be published", async () => {
@@ -1338,6 +1382,39 @@ describe(ManagedSignerService.name, () => {
       await service.followUpLandedLeases(wallet, [lease], wallet.userId);
 
       expect(trialAnnouncementOf(domainEvents)).toMatchObject({ isFirstLease: false });
+    });
+
+    it("announces every deployment among a trial wallet's landed leases, flagging only the first as the wallet's first lease", async () => {
+      const wallet = createUserWallet({ isTrialing: true });
+      const leases = [
+        { dseq: "1", gseq: 1, oseq: 1, provider: createAkashAddress() },
+        { dseq: "1", gseq: 2, oseq: 1, provider: createAkashAddress() },
+        { dseq: "2", gseq: 1, oseq: 1, provider: createAkashAddress() }
+      ];
+      const { service, domainEvents } = setup({ listLeases: listing(leases.map(lease => leaseOn(wallet, lease))) });
+
+      await service.followUpLandedLeases(wallet, leases, wallet.userId);
+
+      expect(publishedDataOf(domainEvents, TrialDeploymentLeaseCreated)).toEqual([
+        { walletId: wallet.id, dseq: "1", createdAt: expect.any(String), isFirstLease: true },
+        { walletId: wallet.id, dseq: "2", createdAt: expect.any(String), isFirstLease: false }
+      ]);
+    });
+
+    it("funds every deployment among a paying wallet's landed leases", async () => {
+      const wallet = createUserWallet({ isTrialing: false });
+      const { service, domainEvents } = setup();
+
+      await service.followUpLandedLeases(
+        wallet,
+        [
+          { dseq: "1", gseq: 1, oseq: 1, provider: createAkashAddress() },
+          { dseq: "2", gseq: 1, oseq: 1, provider: createAkashAddress() }
+        ],
+        wallet.userId
+      );
+
+      expect(publishedDataOf(domainEvents, FundDeploymentCommand).map(({ dseq }) => dseq)).toEqual(["1", "2"]);
     });
 
     it("reads no lease history for a wallet that is not trialing", async () => {
@@ -2362,6 +2439,14 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  function publishedDataOf<T extends DomainEvent>(domainEvents: { publish: DomainEventsService["publish"] }, type: new (...args: never[]) => T): T["data"][] {
+    return vi
+      .mocked(domainEvents.publish)
+      .mock.calls.map(([event]) => event)
+      .filter((event): event is T => event instanceof type)
+      .map(event => event.data);
+  }
+
   function setupForTeam(input?: { wallet?: WalletInitialized } & Parameters<typeof setup>[0]) {
     const wallet = input?.wallet ?? createOrganizationWallet({ feeAllowance: 100, deploymentAllowance: 100, activatedAt: new Date() });
     const mocks = setup({
@@ -2398,10 +2483,10 @@ describe(ManagedSignerService.name, () => {
     };
   }
 
-  function leaseMessageFor(dseq: number): EncodeObject {
+  function leaseMessageFor(dseq: number, bid: { gseq?: number; provider?: string } = {}): EncodeObject {
     return {
       typeUrl: MsgCreateLease.$type,
-      value: MsgCreateLease.fromPartial({ bidId: { dseq, owner: "akash1test", gseq: 1, oseq: 1, provider: "akash1test" } })
+      value: MsgCreateLease.fromPartial({ bidId: { dseq, owner: "akash1test", gseq: 1, oseq: 1, provider: "akash1test", ...bid } })
     };
   }
 
