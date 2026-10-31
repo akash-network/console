@@ -7,7 +7,6 @@ import { AuthService } from "@src/auth/services/auth.service";
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { AUTH0_DB_CONNECTION } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
-import type { UserService } from "@src/user/services/user/user.service";
 import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { AuthController } from "./auth.controller";
 
@@ -157,17 +156,10 @@ describe(AuthController.name, () => {
 
     const auth0Service = mock<Auth0Service>();
     const emailVerificationCodeService = mock<EmailVerificationCodeService>();
-    const userService = mock<UserService>();
     const blockedEmailDomainService = mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(input.isBlockedEmail ?? false) });
 
-    const controller = new AuthController(
-      rootContainer.resolve(AuthService),
-      auth0Service,
-      userService,
-      emailVerificationCodeService,
-      blockedEmailDomainService
-    );
+    const controller = new AuthController(rootContainer.resolve(AuthService), auth0Service, emailVerificationCodeService, blockedEmailDomainService);
 
-    return { controller, auth0Service, emailVerificationCodeService, userService, blockedEmailDomainService };
+    return { controller, auth0Service, emailVerificationCodeService, blockedEmailDomainService };
   }
 });

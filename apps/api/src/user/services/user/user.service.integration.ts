@@ -211,53 +211,6 @@ describe(UserService.name, () => {
     });
   });
 
-  describe("syncEmailVerified", () => {
-    it("syncs `emailVerified` from auth0", async () => {
-      const { service, auth0Service } = setup();
-
-      const email = faker.internet.email();
-      await container.resolve(UserRepository).create({
-        email,
-        emailVerified: false
-      });
-
-      auth0Service.getUserByEmail.mockResolvedValue({
-        email_verified: true
-      } as GetUsers200ResponseOneOfInner);
-
-      const user = await service.syncEmailVerified({ email });
-      expect(user).toMatchObject({
-        emailVerified: true
-      });
-
-      auth0Service.getUserByEmail.mockResolvedValue({
-        email_verified: false
-      } as GetUsers200ResponseOneOfInner);
-      const sameUser = await service.syncEmailVerified({ email });
-      expect(sameUser).toMatchObject({
-        emailVerified: false
-      });
-    });
-
-    it("throws 404 when user is not found", async () => {
-      const { service, auth0Service } = setup();
-
-      const email = faker.internet.email();
-      auth0Service.getUserByEmail.mockResolvedValue(null);
-      await expect(service.syncEmailVerified({ email })).rejects.toThrow(/Not found/i);
-    });
-
-    it("throws 404 when user is not found in db", async () => {
-      const { service, auth0Service } = setup();
-
-      const email = faker.internet.email();
-      auth0Service.getUserByEmail.mockResolvedValue({
-        email_verified: true
-      } as GetUsers200ResponseOneOfInner);
-      await expect(service.syncEmailVerified({ email })).rejects.toThrow(/Not found/i);
-    });
-  });
-
   describe("getUserByUsername", () => {
     it("returns user with username and bio", async () => {
       const { service, userRepository } = setup();
@@ -556,7 +509,6 @@ describe(UserService.name, () => {
       mock<NotificationService>({
         createDefaultChannel: input?.createDefaultNotificationChannel ?? (() => Promise.resolve())
       }),
-      auth0Service,
       mock<EmailVerificationCodeService>({
         sendCode: vi.fn().mockResolvedValue({ codeSentAt: new Date().toISOString() })
       }),
@@ -573,7 +525,6 @@ describe(UserService.name, () => {
       service,
       analyticsService,
       logger,
-      auth0Service,
       userRepository,
       walletInitializerService,
       dataKeyRepository,
