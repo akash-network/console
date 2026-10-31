@@ -31,6 +31,7 @@ import {
   GetDeploymentResponse,
   ListDeploymentsItem
 } from "@src/deployment/http-schemas/deployment.schema";
+import type { ListLeasesQuery } from "@src/deployment/http-schemas/lease.schema";
 import { toDeploymentListItem, withLeaseGpus } from "@src/deployment/lib/deployment-list-item/deployment-list-item";
 import { DeploymentRepository } from "@src/deployment/repositories/deployment/deployment.repository";
 import {
@@ -203,7 +204,42 @@ export class DeploymentReaderService {
     }
   }
 
+  /** The caller's deployment as the chain holds it, without its leases, so the read costs one chain request. */
+  public async findInfoByUserIdAndDseq(userId: string, dseq: string): Promise<DeploymentInfo> {
+    const wallet = await this.walletReaderService.getReadableWalletByUserId(userId);
+    assert(await this.signerService.isDeploymentInProjectScope(wallet, dseq, "read"), 404, "Deployment not found");
+
+    return await this.#findInfoOnChain(wallet.address, dseq);
+  }
+
+  /** One page per requested state, read concurrently, because the chain filters a lease list by a single state. */
+  public async listLeasesByUserId(userId: string, query: ListLeasesQuery): Promise<RpcLease["lease"][]> {
+    const wallet = await this.walletReaderService.getReadableWalletByUserId(userId);
+    if (query.dseq) {
+      assert(await this.signerService.isDeploymentInProjectScope(wallet, query.dseq, "read"), 404, "Deployment not found");
+    }
+
+    const states = query.state ?? [undefined];
+    const pages = await Promise.all(
+      states.map(state => this.getLeaseList({ owner: wallet.address, dseq: query.dseq, provider: query.provider, state, pagination: { limit: query.limit } }))
+    );
+
+    return pages.flatMap(page => page.leases.map(({ lease }) => lease));
+  }
+
   async #findOnChain(owner: string, dseq: string) {
+    const deploymentInfo = await this.#findInfoOnChain(owner, dseq);
+    const { leases } = await this.getLeaseList({ owner, dseq });
+
+    return {
+      deployment: deploymentInfo.deployment,
+      leases: leases.map(({ lease }) => lease),
+      escrow_account: deploymentInfo.escrow_account,
+      groups: deploymentInfo.groups
+    };
+  }
+
+  async #findInfoOnChain(owner: string, dseq: string): Promise<DeploymentInfo> {
     const deploymentResponse = await this.getDeployment(owner, dseq);
     assert(deploymentResponse, 404, "Deployment not found");
 
@@ -214,14 +250,7 @@ export class DeploymentReaderService {
       throw new InternalServerError("Deployment could not be read, please retry");
     }
 
-    const { leases } = await this.getLeaseList({ owner, dseq });
-
-    return {
-      deployment: deploymentResponse.deployment,
-      leases: leases.map(({ lease }) => lease),
-      escrow_account: deploymentResponse.escrow_account,
-      groups: deploymentResponse.groups
-    };
+    return deploymentResponse;
   }
 
   /**

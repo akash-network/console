@@ -2322,6 +2322,26 @@ export interface paths {
     patch: operations["patchDeployment"];
     trace?: never;
   };
+  "/v1/deployments/{dseq}/info": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get a deployment as the Akash Network holds it
+     * @description Reads the deployment with its groups and escrow account from the Akash Network, or from the console's index while the network cannot be reached. Unlike `GET /v1/deployments/{dseq}`, it asks no provider for lease statuses and returns no leases; list those with `GET /v1/leases?dseq=`.
+     */
+    get: operations["getDeploymentInfo"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/deployment-names": {
     parameters: {
       query?: never;
@@ -3117,7 +3137,11 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * List the current wallet's leases
+     * @description Reads the current wallet's leases from the Akash Network, or from the console's index while the network cannot be reached. Filtering by deployment answers 404 for a deployment the caller cannot read.
+     */
+    get: operations["listLeases"];
     put?: never;
     /**
      * Create leases and send manifest
@@ -3745,6 +3769,46 @@ export interface paths {
         };
       };
     };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/wallet-balances": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get the current wallet's balances
+     * @description Reads from the Akash Network what the current wallet holds, what its deposit grants let it spend, and what the escrow of each of its active deployments holds.
+     */
+    get: operations["getWalletBalances"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/fee-allowances": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List the current wallet's fee allowances
+     * @description Reads from the Akash Network the unexpired fee allowances granted to the current wallet.
+     */
+    get: operations["listFeeAllowances"];
     put?: never;
     post?: never;
     delete?: never;
@@ -5675,66 +5739,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get a block by height. */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          height: number | null;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description Returns predicted block date */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              height: number;
-              datetime: string;
-              proposer: {
-                operatorAddress: string;
-                moniker: string;
-                avatarUrl?: string;
-                address: string;
-              };
-              hash: string;
-              gasUsed: number;
-              gasWanted: number;
-              transactions: {
-                hash: string;
-                isSuccess: boolean;
-                error?: string | null;
-                fee: number;
-                datetime: string;
-                messages: {
-                  id: string;
-                  type: string;
-                  amount: number;
-                }[];
-              }[];
-            };
-          };
-        };
-        /** @description Invalid height */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-        /** @description Block not found */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
+    get: operations["getBlock"];
     put?: never;
     post?: never;
     delete?: never;
@@ -6946,6 +6951,8 @@ export interface paths {
             "application/json": {
               /** @description Whether the console can reach the Akash Network right now. */
               isBlockchainReachable: boolean;
+              /** @description Height of the latest block, up to one block behind the Akash Network. Null while the network is unreachable. */
+              latestBlockHeight: number | null;
             };
           };
         };
@@ -10800,6 +10807,155 @@ export interface operations {
       };
     };
   };
+  getDeploymentInfo: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        /** @description Deployment sequence number */
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns the deployment as the Akash Network holds it */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @description The deployment with its groups and escrow account, as the Akash Network holds them. */
+            data: {
+              deployment: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                };
+                state: string;
+                hash: string;
+                created_at: string;
+              };
+              groups: {
+                id: {
+                  owner: string;
+                  dseq: string;
+                  gseq: number;
+                };
+                state: string;
+                group_spec: {
+                  name: string;
+                  requirements: {
+                    signed_by: {
+                      all_of: string[];
+                      any_of: string[];
+                    };
+                    attributes: {
+                      key: string;
+                      value: string;
+                    }[];
+                  };
+                  resources: {
+                    resource: {
+                      id: number;
+                      cpu: {
+                        units: {
+                          val: string;
+                        };
+                        attributes: {
+                          key: string;
+                          value: string;
+                        }[];
+                      };
+                      memory: {
+                        quantity: {
+                          val: string;
+                        };
+                        attributes: {
+                          key: string;
+                          value: string;
+                        }[];
+                      };
+                      storage: {
+                        name: string;
+                        quantity: {
+                          val: string;
+                        };
+                        attributes: {
+                          key: string;
+                          value: string;
+                        }[];
+                      }[];
+                      gpu: {
+                        units: {
+                          val: string;
+                        };
+                        attributes: {
+                          key: string;
+                          value: string;
+                        }[];
+                      };
+                      endpoints: {
+                        kind: string;
+                        sequence_number: number;
+                      }[];
+                    };
+                    count: number;
+                    price: {
+                      denom: string;
+                      amount: string;
+                    };
+                  }[];
+                };
+                created_at: string;
+              }[];
+              escrow_account: {
+                id: {
+                  scope: string;
+                  xid: string;
+                };
+                state: {
+                  owner: string;
+                  state: string;
+                  transferred: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  settled_at: string;
+                  funds: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  deposits: {
+                    owner: string;
+                    height: string;
+                    source: string;
+                    balance: {
+                      denom: string;
+                      amount: string;
+                    };
+                  }[];
+                };
+              };
+            };
+          };
+        };
+      };
+      /** @description Deployment not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   listDeploymentNames: {
     parameters: {
       query: {
@@ -11866,6 +12022,69 @@ export interface operations {
       };
     };
   };
+  listLeases: {
+    parameters: {
+      query?: {
+        dseq?: string;
+        provider?: string;
+        state?: ("active" | "insufficient_funds" | "closed" | "reclaiming")[];
+        limit?: number;
+      };
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns the wallet's leases */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @description The current wallet's leases as the Akash Network holds them. */
+            data: {
+              id: {
+                owner: string;
+                dseq: string;
+                gseq: number;
+                oseq: number;
+                provider: string;
+                bseq: number;
+              };
+              state: string;
+              price: {
+                denom: string;
+                amount: string;
+              };
+              created_at: string;
+              closed_on: string;
+              reason?: string;
+              reclamation?: {
+                window?: string;
+                started_at?: string;
+                deadline?: string;
+                reason?: string;
+              };
+            }[];
+          };
+        };
+      };
+      /** @description The wallet or the deployment filtered by was not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   createLease: {
     parameters: {
       query?: {
@@ -12303,6 +12522,105 @@ export interface operations {
       };
     };
   };
+  getWalletBalances: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns the wallet's balances */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description What the wallet holds, per denom. */
+              balances: {
+                denom: string;
+                amount: string;
+              }[];
+              /** @description What the wallet's unexpired deposit grants let it spend on deployments, summed per denom. */
+              deploymentGrants: {
+                denom: string;
+                amount: string;
+              }[];
+              /** @description The wallet's active deployments and what their escrow holds. */
+              activeDeployments: {
+                dseq: string;
+                escrow: {
+                  funds: {
+                    denom: string;
+                    amount: string;
+                  }[];
+                  /** @description Height the escrow last settled at. The funds exclude what the deployment spent since. */
+                  settledAt: number;
+                };
+              }[];
+            };
+          };
+        };
+      };
+      /** @description UserWallet Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listFeeAllowances: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns the wallet's fee allowances */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @description The unexpired fee allowances granted to the wallet. */
+            data: {
+              granter: string;
+              spendLimit: {
+                denom: string;
+                amount: string;
+              }[];
+              expiration: string | null;
+            }[];
+          };
+        };
+      };
+      /** @description UserWallet Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   listProviders: {
     parameters: {
       query?: {
@@ -12413,6 +12731,66 @@ export interface operations {
             featEndpointIp: boolean;
           }[];
         };
+      };
+    };
+  };
+  getBlock: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        height: number | null;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Returns predicted block date */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            height: number;
+            datetime: string;
+            proposer: {
+              operatorAddress: string;
+              moniker: string;
+              avatarUrl?: string;
+              address: string;
+            };
+            hash: string;
+            gasUsed: number;
+            gasWanted: number;
+            transactions: {
+              hash: string;
+              isSuccess: boolean;
+              error?: string | null;
+              fee: number;
+              datetime: string;
+              messages: {
+                id: string;
+                type: string;
+                amount: number;
+              }[];
+            }[];
+          };
+        };
+      };
+      /** @description Invalid height */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Block not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

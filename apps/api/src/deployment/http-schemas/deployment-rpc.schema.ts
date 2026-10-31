@@ -184,7 +184,12 @@ export const FallbackDeploymentInfoResponseSchema = z.union([
   DeploymentWithGroupsSchema
 ]);
 
+export const GetDeploymentInfoResponseSchema = z.object({
+  data: DeploymentWithGroupsSchema.openapi({ description: "The deployment with its groups and escrow account, as the Akash Network holds them." })
+});
+
 export type FallbackDeploymentListQuery = z.infer<typeof FallbackDeploymentListQuerySchema>;
 export type FallbackDeploymentListResponse = z.infer<typeof FallbackDeploymentListResponseSchema>;
 export type FallbackDeploymentInfoQuery = z.infer<typeof FallbackDeploymentInfoQuerySchema>;
 export type FallbackDeploymentInfoResponse = z.infer<typeof FallbackDeploymentInfoResponseSchema>;
+export type GetDeploymentInfoResponse = z.infer<typeof GetDeploymentInfoResponseSchema>;

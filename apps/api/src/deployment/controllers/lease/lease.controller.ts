@@ -2,9 +2,16 @@ import { singleton } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { type CreateLeaseResponse } from "@src/deployment/http-schemas/deployment.schema";
-import { type CreateLeaseAcceptedResponse, type CreateLeaseQuery, type CreateLeaseRequest } from "@src/deployment/http-schemas/lease.schema";
+import {
+  type CreateLeaseAcceptedResponse,
+  type CreateLeaseQuery,
+  type CreateLeaseRequest,
+  type ListLeasesQuery,
+  type ListLeasesResponse
+} from "@src/deployment/http-schemas/lease.schema";
 import { type FallbackLeaseListResponse } from "@src/deployment/http-schemas/lease-rpc.schema";
 import { DatabaseLeaseListParams } from "@src/deployment/repositories/lease/lease.repository";
+import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { FallbackLeaseReaderService } from "@src/deployment/services/fallback-lease-reader/fallback-lease-reader.service";
 import { LeaseService } from "@src/deployment/services/lease/lease.service";
 
@@ -13,7 +20,8 @@ export class LeaseController {
   constructor(
     private readonly fallbackLeaseReaderService: FallbackLeaseReaderService,
     private readonly leaseService: LeaseService,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly deploymentReaderService: DeploymentReaderService
   ) {}
 
   @Protected([{ action: "sign", subject: "UserWallet" }])
@@ -30,6 +38,11 @@ export class LeaseController {
 
     const data = await this.leaseService.createLeasesAndSendManifest({ ...input, userId });
     return { data };
+  }
+
+  @Protected([{ action: "read", subject: "UserWallet" }])
+  async list(query: ListLeasesQuery): Promise<ListLeasesResponse> {
+    return { data: await this.deploymentReaderService.listLeasesByUserId(this.authService.currentUser.id, query) };
   }
 
   async listLeasesFallback(params: DatabaseLeaseListParams): Promise<FallbackLeaseListResponse> {

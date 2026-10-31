@@ -68,7 +68,59 @@ export const LeaseStatusResponseSchema = z.object({
   services: z.record(z.string(), LeaseServiceStatusSchema)
 });
 
+export const MAX_LEASE_LIST_LIMIT = 1000;
+
+const LeaseStateSchema = z.enum(["active", "insufficient_funds", "closed", "reclaiming"]);
+
+export const ListLeasesQuerySchema = z.object({
+  dseq: DseqSchema.optional().openapi({ description: "Only the leases of this deployment." }),
+  provider: AkashAddressSchema.optional().openapi({ description: "Only the leases with this provider." }),
+  state: z
+    .preprocess(value => (value === undefined || Array.isArray(value) ? value : [value]), z.array(LeaseStateSchema).min(1).optional())
+    .openapi({ description: "Only the leases in these states, repeated once per state. Every state when omitted." }),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_LEASE_LIST_LIMIT)
+    .default(MAX_LEASE_LIST_LIMIT)
+    .openapi({ description: `At most this many leases per requested state, up to ${MAX_LEASE_LIST_LIMIT}.` })
+});
+
+const ListedLeaseSchema = z.object({
+  id: z.object({
+    owner: z.string(),
+    dseq: z.string(),
+    gseq: z.number(),
+    oseq: z.number(),
+    provider: z.string(),
+    bseq: z.number()
+  }),
+  state: z.string(),
+  price: z.object({
+    denom: z.string(),
+    amount: z.string()
+  }),
+  created_at: z.string(),
+  closed_on: z.string(),
+  reason: z.string().optional(),
+  reclamation: z
+    .object({
+      window: z.string().optional(),
+      started_at: z.string().optional(),
+      deadline: z.string().optional(),
+      reason: z.string().optional()
+    })
+    .optional()
+});
+
+export const ListLeasesResponseSchema = z.object({
+  data: z.array(ListedLeaseSchema).openapi({ description: "The current wallet's leases as the Akash Network holds them." })
+});
+
 export type CreateLeaseRequest = z.infer<typeof CreateLeaseRequestSchema>;
 export type CreateLeaseQuery = z.infer<typeof CreateLeaseQuerySchema>;
 export type CreateLeaseAcceptedResponse = z.infer<typeof CreateLeaseAcceptedResponseSchema>;
 export type LeaseStatusResponse = z.infer<typeof LeaseStatusResponseSchema>;
+export type ListLeasesQuery = z.infer<typeof ListLeasesQuerySchema>;
+export type ListLeasesResponse = z.infer<typeof ListLeasesResponseSchema>;

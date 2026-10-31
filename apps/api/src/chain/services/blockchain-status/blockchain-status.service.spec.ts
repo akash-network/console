@@ -1,44 +1,46 @@
-import type { GetNodeInfoResponse } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { describe, expect, it, vi } from "vitest";
-import { mock, mockDeep } from "vitest-mock-extended";
+import { mock } from "vitest-mock-extended";
 
-import type { ChainSDK } from "@src/chain/providers/chain-sdk.provider";
+import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { CreateLogger } from "@src/core";
 import { BlockchainStatusService } from "./blockchain-status.service";
 
 describe.concurrent(BlockchainStatusService.name, () => {
-  it("returns isBlockchainReachable true when getNodeInfo succeeds", async () => {
-    const { service } = setup({ succeeds: true });
+  it("reports the chain reachable at its latest height", async () => {
+    const { service } = setup({ height: 1_234_567 });
 
     const result = await service.getStatus();
 
-    expect(result).toEqual({ isBlockchainReachable: true });
+    expect(result).toEqual({ isBlockchainReachable: true, latestBlockHeight: 1_234_567 });
   });
 
-  it("returns isBlockchainReachable false when getNodeInfo fails", async () => {
-    const { service } = setup({ succeeds: false });
+  it("reports the chain unreachable without a height when the latest block cannot be read", async () => {
+    const error = new Error("Connection refused");
+    const { service, logger } = setup({ error });
 
     const result = await service.getStatus();
 
-    expect(result).toEqual({ isBlockchainReachable: false });
+    expect(result).toEqual({ isBlockchainReachable: false, latestBlockHeight: null });
+    expect(logger.warn).toHaveBeenCalledWith({ event: "BLOCKCHAIN_UNREACHABLE", error });
   });
 
   it("creates the logger with the service context", () => {
-    const { createLogger } = setup({ succeeds: true });
+    const { createLogger } = setup({ height: 1 });
 
     expect(createLogger).toHaveBeenCalledWith({ context: BlockchainStatusService.name });
   });
 
-  function setup(input: { succeeds: boolean }) {
-    const chainSdk = mockDeep<ChainSDK>();
-    chainSdk.cosmos.base.tendermint.v1beta1.getNodeInfo.mockImplementation(async () => {
-      return input.succeeds ? Promise.resolve({} as GetNodeInfoResponse) : Promise.reject(new Error("Connection refused"));
+  function setup(input: { height?: number; error?: Error }) {
+    const blockHttpService = mock<BlockHttpService>({
+      getCurrentHeight: vi.fn(async () => {
+        if (input.error) throw input.error;
+        return input.height ?? 0;
+      })
     });
-
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
-    const service = new BlockchainStatusService(chainSdk, createLogger);
+    const service = new BlockchainStatusService(blockHttpService, createLogger);
 
-    return { service, chainSdk, logger, createLogger };
+    return { service, blockHttpService, logger, createLogger };
   }
 });

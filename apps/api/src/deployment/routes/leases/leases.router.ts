@@ -6,7 +6,13 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 import { LeaseController } from "@src/deployment/controllers/lease/lease.controller";
 import { CreateLeaseResponseSchema } from "@src/deployment/http-schemas/deployment.schema";
-import { CreateLeaseAcceptedResponseSchema, CreateLeaseQuerySchema, CreateLeaseRequestSchema } from "@src/deployment/http-schemas/lease.schema";
+import {
+  CreateLeaseAcceptedResponseSchema,
+  CreateLeaseQuerySchema,
+  CreateLeaseRequestSchema,
+  ListLeasesQuerySchema,
+  ListLeasesResponseSchema
+} from "@src/deployment/http-schemas/lease.schema";
 import { FallbackLeaseListQuerySchema, FallbackLeaseListResponseSchema } from "@src/deployment/http-schemas/lease-rpc.schema";
 import {
   PROJECT_FORBIDDEN_DESCRIPTION,
@@ -98,6 +104,36 @@ const createLeaseRoute = createRoute({
 leasesRouter.openapi(createLeaseRoute, async function routeCreateLease(c) {
   const result = await container.resolve(LeaseController).createLeasesAndSendManifest(c.req.valid("json"), c.req.valid("query"));
   return "activityId" in result.data ? c.json({ data: result.data }, 202) : c.json({ data: result.data }, 200);
+});
+
+const listLeasesRoute = createRoute({
+  method: "get",
+  path: "/v1/leases",
+  summary: "List the current wallet's leases",
+  description:
+    "Reads the current wallet's leases from the Akash Network, or from the console's index while the network cannot be reached. Filtering by deployment answers 404 for a deployment the caller cannot read.",
+  operationId: "listLeases",
+  tags: ["Leases"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  request: {
+    query: ListLeasesQuerySchema
+  },
+  responses: {
+    200: {
+      description: "Returns the wallet's leases",
+      content: {
+        "application/json": {
+          schema: ListLeasesResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "The wallet or the deployment filtered by was not found"
+    }
+  }
+});
+leasesRouter.openapi(listLeasesRoute, async function routeListLeases(c) {
+  return c.json(await container.resolve(LeaseController).list(c.req.valid("query")), 200);
 });
 
 const fallbackListRoute = createRoute({

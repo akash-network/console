@@ -44,6 +44,7 @@ const getBlockByHeightRoute = createRoute({
   method: "get",
   path: "/v1/blocks/{height}",
   summary: "Get a block by height.",
+  operationId: "getBlock",
   tags: ["Blocks"],
   security: SECURITY_NONE,
   request: {

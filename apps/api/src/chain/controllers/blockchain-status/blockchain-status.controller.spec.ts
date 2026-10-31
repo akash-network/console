@@ -7,11 +7,11 @@ import { BlockchainStatusController } from "./blockchain-status.controller";
 describe(BlockchainStatusController.name, () => {
   it("delegates to BlockchainStatusService and returns the result", async () => {
     const { controller, blockchainStatusService } = setup();
-    blockchainStatusService.getStatus.mockResolvedValue({ isBlockchainReachable: true });
+    blockchainStatusService.getStatus.mockResolvedValue({ isBlockchainReachable: true, latestBlockHeight: 42 });
 
     const result = await controller.getStatus();
 
-    expect(result).toEqual({ isBlockchainReachable: true });
+    expect(result).toEqual({ isBlockchainReachable: true, latestBlockHeight: 42 });
   });
 
   function setup() {

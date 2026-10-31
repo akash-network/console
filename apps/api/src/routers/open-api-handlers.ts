@@ -6,6 +6,7 @@ import { bidsRouter } from "@src/bid/routes/bids/bids.router";
 import { bidScreeningRouter } from "@src/bid-screening";
 import {
   billingDetailsRouter,
+  feeAllowancesRouter,
   firstPurchaseBonusRouter,
   getBalancesRouter,
   getWalletListRouter,
@@ -16,6 +17,7 @@ import {
   stripeTransactionsRouter,
   stripeWebhook,
   usageRouter,
+  walletBalancesRouter,
   walletSettingRouter
 } from "@src/billing";
 import { blockPredictionRouter, blocksRouter } from "@src/block";
@@ -112,6 +114,8 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   bidsRouter,
   certificateRouter,
   getBalancesRouter,
+  walletBalancesRouter,
+  feeAllowancesRouter,
   providersRouter,
   auditorsRouter,
   providerAttributesSchemaRouter,

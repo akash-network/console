@@ -274,6 +274,110 @@ describe(DeploymentReaderService.name, () => {
     });
   });
 
+  describe("findInfoByUserIdAndDseq", () => {
+    it("reads the caller's deployment from the chain without asking for its leases", async () => {
+      const { service, deploymentHttpService, leaseHttpService, walletReaderService, wallet } = setup();
+      const deploymentInfo = createDeploymentInfoSeed({ owner: wallet.address, dseq: "12345" });
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue(deploymentInfo);
+
+      const result = await service.findInfoByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(result).toEqual(deploymentInfo);
+      expect(walletReaderService.getReadableWalletByUserId).toHaveBeenCalledWith(wallet.userId);
+      expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledWith(wallet.address, "12345");
+      expect(leaseHttpService.list).not.toHaveBeenCalled();
+    });
+
+    it("answers not found before asking the chain when the caller's projects do not reach the deployment", async () => {
+      const { service, signerService, deploymentHttpService, wallet } = setup({ inProjectScope: false });
+
+      await expect(service.findInfoByUserIdAndDseq(wallet.userId, "12345")).rejects.toMatchObject({ status: 404, message: "Deployment not found" });
+
+      expect(signerService.isDeploymentInProjectScope).toHaveBeenCalledWith(wallet, "12345", "read");
+      expect(deploymentHttpService.findByOwnerAndDseq).not.toHaveBeenCalled();
+    });
+
+    it("answers not found for a deployment the chain does not hold", async () => {
+      const { service, deploymentHttpService, wallet } = setup();
+      deploymentHttpService.findByOwnerAndDseq.mockResolvedValue({ code: 5, message: "deployment not found", details: [] });
+
+      await expect(service.findInfoByUserIdAndDseq(wallet.userId, "12345")).rejects.toMatchObject({ status: 404, message: "Deployment not found" });
+    });
+
+    it("answers from the database when the chain cannot be reached", async () => {
+      const wallet = createInitializedUserWallet();
+      const fallbackDeploymentInfo = createDeploymentInfoSeed({ owner: wallet.address, dseq: "12345" });
+      const { service, deploymentHttpService, fallbackDeploymentReaderService } = setup({ wallet, fallbackDeploymentInfo });
+      deploymentHttpService.findByOwnerAndDseq.mockRejectedValue(createNetworkError("ECONNREFUSED"));
+
+      const result = await service.findInfoByUserIdAndDseq(wallet.userId, "12345");
+
+      expect(result).toEqual(fallbackDeploymentInfo);
+      expect(fallbackDeploymentReaderService.findByOwnerAndDseq).toHaveBeenCalledWith(wallet.address, "12345");
+    });
+  });
+
+  describe("listLeasesByUserId", () => {
+    it("lists the caller's leases with every filter passed to the chain", async () => {
+      const wallet = createInitializedUserWallet();
+      const provider = createAkashAddress();
+      const lease = createLeaseApiResponse({ owner: wallet.address, dseq: "12345" });
+      const { service, leaseHttpService } = setup({ wallet, leases: [lease] });
+
+      const result = await service.listLeasesByUserId(wallet.userId, { dseq: "12345", provider, limit: 10 });
+
+      expect(result).toEqual([lease.lease]);
+      expect(leaseHttpService.list).toHaveBeenCalledWith({ owner: wallet.address, dseq: "12345", provider, state: undefined, pagination: { limit: 10 } });
+    });
+
+    it("reads one page per requested state and joins them", async () => {
+      const wallet = createInitializedUserWallet();
+      const active = createLeaseApiResponse({ owner: wallet.address, state: "active" });
+      const reclaiming = createLeaseApiResponse({ owner: wallet.address, state: "reclaiming" });
+      const { service, leaseHttpService } = setup({ wallet });
+      leaseHttpService.list.mockImplementation(async ({ state }) => ({
+        leases: state === "active" ? [active] : [reclaiming],
+        pagination: { next_key: null, total: "1" }
+      }));
+
+      const result = await service.listLeasesByUserId(wallet.userId, { state: ["active", "reclaiming"], limit: 1000 });
+
+      expect(result).toEqual([active.lease, reclaiming.lease]);
+      expect(leaseHttpService.list).toHaveBeenCalledTimes(2);
+      expect(leaseHttpService.list).toHaveBeenCalledWith(expect.objectContaining({ state: "active" }));
+      expect(leaseHttpService.list).toHaveBeenCalledWith(expect.objectContaining({ state: "reclaiming" }));
+    });
+
+    it("answers not found without reading leases when the caller's projects do not reach the filtered deployment", async () => {
+      const { service, signerService, leaseHttpService, wallet } = setup({ inProjectScope: false });
+
+      await expect(service.listLeasesByUserId(wallet.userId, { dseq: "12345", limit: 1000 })).rejects.toMatchObject({ status: 404 });
+
+      expect(signerService.isDeploymentInProjectScope).toHaveBeenCalledWith(wallet, "12345", "read");
+      expect(leaseHttpService.list).not.toHaveBeenCalled();
+    });
+
+    it("lists every lease of the wallet without a project check when no deployment is filtered", async () => {
+      const { service, signerService, wallet } = setup({ inProjectScope: false });
+
+      await service.listLeasesByUserId(wallet.userId, { limit: 1 });
+
+      expect(signerService.isDeploymentInProjectScope).not.toHaveBeenCalled();
+    });
+
+    it("answers from the database when the chain cannot be reached", async () => {
+      const wallet = createInitializedUserWallet();
+      const fallbackLease = createLeaseApiResponse({ owner: wallet.address });
+      const { service, leaseHttpService, fallbackLeaseReaderService } = setup({ wallet, fallbackLeases: [fallbackLease] });
+      leaseHttpService.list.mockRejectedValue(createNetworkError("ETIMEDOUT"));
+
+      const result = await service.listLeasesByUserId(wallet.userId, { limit: 1 });
+
+      expect(result).toEqual([fallbackLease.lease]);
+      expect(fallbackLeaseReaderService.list).toHaveBeenCalledWith(expect.objectContaining({ owner: wallet.address }));
+    });
+  });
+
   describe("findWithGroupSpecsByWalletAndDseq", () => {
     it("returns the group specs the chain holds beside the deployment", async () => {
       const wallet = createInitializedUserWallet();

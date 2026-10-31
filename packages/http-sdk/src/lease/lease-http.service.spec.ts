@@ -6,6 +6,28 @@ import type { RestAkashLeaseListResponse, RpcLease } from "./lease-http.service"
 import { LeaseHttpService } from "./lease-http.service";
 
 describe(LeaseHttpService.name, () => {
+  describe("list", () => {
+    it("forwards every filter to the chain", async () => {
+      const { service, httpClient } = setup();
+
+      await service.list({ owner: "akash1abc", dseq: "42", provider: "akash1provider", state: "active", pagination: { limit: 5, key: "next" } });
+
+      expect(httpClient.get).toHaveBeenCalledWith(
+        "/akash/market/v1beta5/leases/list",
+        expect.objectContaining({
+          params: {
+            "filters.owner": "akash1abc",
+            "filters.dseq": "42",
+            "filters.provider": "akash1provider",
+            "filters.state": "active",
+            "pagination.limit": 5,
+            "pagination.key": "next"
+          }
+        })
+      );
+    });
+  });
+
   describe("hasLeases", () => {
     it("requests a single lease for the address", async () => {
       const { service, httpClient } = setup();
