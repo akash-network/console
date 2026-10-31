@@ -29,8 +29,6 @@ export class UserController {
     const { isNewUser, ...user } = await this.userService.registerUser({
       userId,
       wantedUsername: data.wantedUsername,
-      email: data.email,
-      emailVerified: data.emailVerified,
       subscribedToNewsletter: !!data.subscribedToNewsletter,
       timezone: data.timezone,
       ip: httpVars.clientInfo?.ip,

@@ -2651,12 +2651,6 @@
                   "wantedUsername": {
                     "type": "string"
                   },
-                  "email": {
-                    "type": "string"
-                  },
-                  "emailVerified": {
-                    "type": "boolean"
-                  },
                   "subscribedToNewsletter": {
                     "type": "boolean"
                   },
@@ -2667,9 +2661,7 @@
                   }
                 },
                 "required": [
-                  "wantedUsername",
-                  "email",
-                  "emailVerified"
+                  "wantedUsername"
                 ]
               }
             }
