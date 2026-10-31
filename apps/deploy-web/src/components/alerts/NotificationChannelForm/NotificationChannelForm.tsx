@@ -6,6 +6,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { isEqual } from "lodash";
 import { z } from "zod";
 
+/** Mirrors the notifications service, which also lets a channel saved over the limit keep its addresses. */
+const MAX_ADDRESSES = 10;
+
 const formSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   emails: z.string().min(1, "At least one email is required")
@@ -26,6 +29,12 @@ function splitEmails(value: string) {
     .split(",")
     .map(email => email.trim())
     .filter(Boolean);
+}
+
+function addsAddressPastLimit(emails: string[], initialEmails: string[] = []) {
+  const initial = new Set(initialEmails.map(email => email.toLowerCase()));
+
+  return emails.length > MAX_ADDRESSES && emails.some(email => !initial.has(email.toLowerCase()));
 }
 
 export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({ initialValues, submitLabel, onSubmit, onCancel, isLoading }) => {
@@ -54,9 +63,16 @@ export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({ init
         return;
       }
 
-      onSubmit({ name: values.name, emails: Array.from(new Set(emails)) });
+      const uniqueEmails = Array.from(new Set(emails));
+
+      if (addsAddressPastLimit(uniqueEmails, initialValues?.emails)) {
+        form.setError("emails", { message: `A channel can have at most ${MAX_ADDRESSES} addresses` });
+        return;
+      }
+
+      onSubmit({ name: values.name, emails: uniqueEmails });
     },
-    [form, onSubmit]
+    [form, onSubmit, initialValues?.emails]
   );
 
   /** The dialog can open from inside another form, and React bubbles submit events through portals. */
@@ -107,7 +123,7 @@ export const NotificationChannelForm: FC<NotificationChannelFormProps> = ({ init
                   onChange={event => field.onChange(event.target.value)}
                   disabled={isLoading}
                 />
-                <p className="text-xs text-muted-foreground">Separate several addresses with commas.</p>
+                <p className="text-xs text-muted-foreground">Separate up to {MAX_ADDRESSES} addresses with commas.</p>
                 <FormMessage data-testid="notification-channel-form-emails-error" />
               </div>
             )}
