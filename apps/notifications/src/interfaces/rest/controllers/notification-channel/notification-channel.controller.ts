@@ -15,10 +15,17 @@ import {
   NotificationChannelRepository
 } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 
+/** Channels saved before the cap may hold more addresses, and keep them until they are removed. */
+export const MAX_NOTIFICATION_CHANNEL_ADDRESSES = 10;
+
+const TOO_MANY_ADDRESSES_MESSAGE = `A notification channel can have at most ${MAX_NOTIFICATION_CHANNEL_ADDRESSES} email addresses`;
+
 export const notificationChannelCreateInputSchema = z.object({
   name: z.string(),
   type: z.literal("email"),
-  config: notificationChannelConfigSchema,
+  config: notificationChannelConfigSchema.extend({
+    addresses: notificationChannelConfigSchema.shape.addresses.max(MAX_NOTIFICATION_CHANNEL_ADDRESSES, TOO_MANY_ADDRESSES_MESSAGE)
+  }),
   isDefault: z.boolean().optional()
 });
 
@@ -31,6 +38,7 @@ export const notificationChannelCreateDefaultInputSchema = notificationChannelCr
 });
 
 export const notificationChannelOutputSchema = notificationChannelCreateInputSchema.extend({
+  config: notificationChannelConfigSchema,
   id: z.string().uuid(),
   userId: z.string().uuid(),
   isDefault: z.boolean(),
@@ -91,7 +99,9 @@ export class NotificationChannelController {
   @Post("default")
   @HttpCode(204)
   @ValidateHttp({})
-  @ApiNoContentResponse({ description: "Creates the default notification channel only if it doesn't exist, and otherwise updates its timezone when one is given." })
+  @ApiNoContentResponse({
+    description: "Creates the default notification channel only if it doesn't exist, and otherwise updates its timezone when one is given."
+  })
   async createDefaultNotificationChannel(@Body() { data }: NotificationChannelCreateDefaultInput): Promise<Result<void, unknown>> {
     await this.notificationChannelRepository
       .accessibleBy(this.authService.ability, "create")
@@ -152,9 +162,22 @@ export class NotificationChannelController {
   async updateNotificationChannel(
     @Param("id", new ParseUUIDPipe()) id: string,
     @Body() { data }: NotificationChannelPatchInput
-  ): Promise<Result<NotificationChannelOutputResponse, NotFoundException>> {
-    const notificationChannel = await this.notificationChannelRepository.accessibleBy(this.authService.ability, "update").updateById(id, data);
-    return this.toResponse(notificationChannel);
+  ): Promise<Result<NotificationChannelOutputResponse, NotFoundException | BadRequestException>> {
+    const repository = this.notificationChannelRepository.accessibleBy(this.authService.ability, "update");
+
+    if (data.config && data.config.addresses.length > MAX_NOTIFICATION_CHANNEL_ADDRESSES) {
+      const notificationChannel = await repository.findById(id);
+
+      if (!notificationChannel) {
+        return this.toResponse(undefined);
+      }
+
+      if (addsAddresses(notificationChannel.config.addresses, data.config.addresses)) {
+        return Err(new BadRequestException(TOO_MANY_ADDRESSES_MESSAGE));
+      }
+    }
+
+    return this.toResponse(await repository.updateById(id, data));
   }
 
   @Delete(":id")
@@ -183,4 +206,10 @@ export class NotificationChannelController {
   private toResponse(notificationChannel: RepoNotificationChannelOutput | undefined): Result<NotificationChannelOutputResponse, NotFoundException> {
     return notificationChannel ? Ok({ data: notificationChannel }) : Err(new NotFoundException("Notification channel not found"));
   }
+}
+
+function addsAddresses(currentAddresses: string[], nextAddresses: string[]): boolean {
+  const current = new Set(currentAddresses.map(address => address.toLowerCase()));
+
+  return nextAddresses.some(address => !current.has(address.toLowerCase()));
 }

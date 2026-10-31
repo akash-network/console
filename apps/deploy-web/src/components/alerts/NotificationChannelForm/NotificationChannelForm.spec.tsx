@@ -69,6 +69,59 @@ describe(NotificationChannelForm.name, () => {
     });
   });
 
+  it("submits as many addresses as the limit", async () => {
+    const { onSubmit } = setup();
+
+    await userEvent.type(screen.getByLabelText("Name"), "Ops team");
+    await userEvent.click(screen.getByLabelText("Emails"));
+    await userEvent.paste(emails(10).join(", "));
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await vi.waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith({ name: "Ops team", emails: emails(10) });
+    });
+  });
+
+  it("refuses more addresses than the limit", async () => {
+    const { onSubmit } = setup();
+
+    await userEvent.type(screen.getByLabelText("Name"), "Ops team");
+    await userEvent.click(screen.getByLabelText("Emails"));
+    await userEvent.paste(emails(11).join(", "));
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByText("A channel can have at most 10 addresses")).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("lets a channel saved over the limit keep its addresses", async () => {
+    const { onSubmit } = setup({ initialValues: { name: "Ops team", emails: emails(12) } });
+
+    await userEvent.type(screen.getByLabelText("Name"), "!");
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await vi.waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith({ name: "Ops team!", emails: emails(12) });
+    });
+  });
+
+  it("refuses a new address on a channel saved over the limit", async () => {
+    const { onSubmit } = setup({ initialValues: { name: "Ops team", emails: emails(12) } });
+
+    await userEvent.click(screen.getByLabelText("Emails"));
+    await userEvent.paste(", new@acme.dev");
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByText("A channel can have at most 10 addresses")).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("shows the address limit", () => {
+    setup();
+
+    expect(screen.getByText("Separate up to 10 addresses with commas.")).toBeInTheDocument();
+  });
+
   it("doesn't submit a form it is rendered inside", async () => {
     const onOuterSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
     const { onSubmit } = setup({ initialValues: { name: "Ops team", emails: ["ops@acme.dev"] }, onOuterSubmit });
@@ -125,3 +178,7 @@ describe(NotificationChannelForm.name, () => {
     return { onSubmit, onCancel };
   }
 });
+
+function emails(count: number): string[] {
+  return Array.from({ length: count }, (_, index) => `member${index}@acme.dev`);
+}
