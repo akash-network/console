@@ -108,7 +108,7 @@ describe(FirstPurchaseBonusService.name, () => {
       const result = await service.getEligibleBonusAmount(transaction, 10000);
 
       expect(result).toEqual({ bonusCents: 0, window: null });
-      expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus).toHaveBeenCalledWith(transaction.userId);
+      expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus).toHaveBeenCalledWith(transaction.userId, { excludeTransactionId: transaction.id });
     });
 
     it("checks the purchases of the team a transaction was paid for", async () => {
@@ -235,7 +235,7 @@ describe(FirstPurchaseBonusService.name, () => {
       const eligibility = await service.evaluate({ userId: "user-1" }, "user-1", INSIDE_WINDOW);
 
       expect(eligibility).toEqual({ eligible: false, endsAt: null, window: null });
-      expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus).toHaveBeenCalledWith("user-1");
+      expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus).toHaveBeenCalledWith("user-1", { excludeTransactionId: undefined });
     });
 
     it("answers not eligible to a person who received the bonus, even for an account that never paid", async () => {
@@ -356,7 +356,7 @@ describe(FirstPurchaseBonusService.name, () => {
         { userId: transaction.userId },
         { excludeId: transaction.id }
       );
-      expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus).toHaveBeenCalledWith(transaction.userId);
+      expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus).toHaveBeenCalledWith(transaction.userId, { excludeTransactionId: transaction.id });
     });
 
     it("opens the window for a first card payment filed under the person's personal organization", async () => {
@@ -474,7 +474,7 @@ describe(FirstPurchaseBonusService.name, () => {
       await service.isEligible({ organizationId: "org-1" }, "user-1");
 
       expect(stripeTransactionRepository.findEarliestCompletedPaidTransaction).toHaveBeenCalledWith({ organizationId: "org-1" }, expect.anything());
-      expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus).toHaveBeenCalledWith("user-1");
+      expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus).toHaveBeenCalledWith("user-1", { excludeTransactionId: undefined });
     });
 
     it("answers at the given time", async () => {

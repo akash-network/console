@@ -16,6 +16,8 @@ export const PaymentCredits = pgTable("payment_credits", {
   address: varchar("address", { length: 255 }).notNull(),
   /** Cents credited, first-purchase bonus included. */
   amount: integer("amount").notNull(),
+  /** Counts as a received first-purchase bonus even while the settlement that granted it is not committed. */
+  bonusAmount: integer("bonus_amount").notNull().default(0),
   txHash: varchar("tx_hash", { length: 64 }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
 });

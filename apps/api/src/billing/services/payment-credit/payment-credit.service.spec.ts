@@ -29,7 +29,8 @@ describe(PaymentCreditService.name, () => {
       expect(paymentCreditRepository.createPending).toHaveBeenCalledWith({
         transactionId: credit.transactionId,
         address: credit.wallet.address,
-        amount: credit.amountCents
+        amount: credit.amountCents,
+        bonusAmount: credit.bonusCents
       });
       expect(managedUserWalletService.authorizeDeploymentSpendingOnly).toHaveBeenCalledWith(managedSignerService, {
         address: credit.wallet.address,
@@ -142,6 +143,7 @@ describe(PaymentCreditService.name, () => {
         expect(logger.error).toHaveBeenCalledWith({
           event: "PAYMENT_CREDIT_UNDECIDED",
           transactionId: credit.transactionId,
+          address: pending.address,
           txHash: pending.txHash,
           pendingSince: pending.createdAt
         });
@@ -234,7 +236,8 @@ describe(PaymentCreditService.name, () => {
     const credit = {
       transactionId: faker.string.uuid(),
       wallet: { id: faker.number.int({ min: 1, max: 100_000 }), address: createAkashAddress() },
-      amountCents: faker.number.int({ min: 100, max: 100_000 })
+      amountCents: faker.number.int({ min: 100, max: 100_000 }),
+      bonusCents: faker.number.int({ min: 1, max: 100 })
     };
 
     const service = new PaymentCreditService(

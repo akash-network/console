@@ -22,7 +22,9 @@ type CreditOutcome = "landed" | "not_landed" | "undecided";
 export interface PaymentCredit {
   transactionId: string;
   wallet: { id: number; address: string };
+  /** The first-purchase bonus included. */
   amountCents: number;
+  bonusCents: number;
 }
 
 /** Raises a wallet's deployment allowance by a settled payment once, however often its settlement is retried. */
@@ -42,14 +44,14 @@ export class PaymentCreditService {
     this.logger = createLogger({ context: PaymentCreditService.name });
   }
 
-  async creditOnce({ transactionId, wallet, amountCents }: PaymentCredit): Promise<void> {
+  async creditOnce({ transactionId, wallet, amountCents, bonusCents }: PaymentCredit): Promise<void> {
     if (await this.#hasLanded(transactionId)) {
       this.logger.info({ event: "PAYMENT_CREDIT_ALREADY_LANDED", transactionId });
       return;
     }
 
     const limit = (await this.balancesService.retrieveDeploymentLimit(wallet)) + amountCents * 10000;
-    await this.paymentCreditRepository.createPending({ transactionId, address: wallet.address, amount: amountCents });
+    await this.paymentCreditRepository.createPending({ transactionId, address: wallet.address, amount: amountCents, bonusAmount: bonusCents });
 
     const tx = await this.#grant(transactionId, wallet, limit);
 
@@ -95,7 +97,7 @@ export class PaymentCreditService {
     }
 
     if (outcome === "undecided") {
-      this.logger.error({ event: "PAYMENT_CREDIT_UNDECIDED", transactionId, txHash: credit.txHash, pendingSince: credit.createdAt });
+      this.logger.error({ event: "PAYMENT_CREDIT_UNDECIDED", transactionId, address: credit.address, txHash: credit.txHash, pendingSince: credit.createdAt });
       throw createError(503, "The payment's credit may still be landing, so it is not granted again until its outcome is known", {
         errorCode: PAYMENT_CREDIT_UNDECIDED_ERROR_CODE
       });

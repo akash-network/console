@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { StripeTransactionRepository } from "@src/billing/repositories";
+import { type StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import { PaymentCreditRepository } from "@src/billing/repositories/payment-credit/payment-credit.repository";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
@@ -60,6 +60,20 @@ describe(PaymentCreditService.name, () => {
       expect(fakes.grant).toHaveBeenCalledTimes(1);
       expect(chain.limit).toBe(initialLimit + (paidCents + bonusCents) * 10000 - spent);
     });
+
+    it("grants the first-purchase bonus once when the person pays again before the redelivery", async () => {
+      const { chain, fakes, settle, findCredit, createPurchase, settlePurchase } = await setup();
+      fakes.refreshUserWalletLimits.mockRejectedValueOnce(new Error("rest unavailable"));
+
+      await expect(settle()).rejects.toThrow();
+      const secondPurchase = await createPurchase();
+      await settlePurchase(secondPurchase);
+      await settle();
+
+      expect(chain.limit).toBe(initialLimit + (paidCents + bonusCents + paidCents) * 10000);
+      expect(await findCredit()).toMatchObject({ status: "landed", bonusAmount: bonusCents });
+      expect(await container.resolve(StripeTransactionRepository).findById(secondPurchase.id)).toMatchObject({ status: "succeeded", bonusAmount: 0 });
+    });
   });
 
   describe("when the signer cannot tell whether the grant landed", () => {
@@ -94,14 +108,15 @@ describe(PaymentCreditService.name, () => {
 
   async function setup() {
     const { user } = await seedUserWithWallet({ activatedAt: new Date() });
-    const transaction = await container.resolve(StripeTransactionRepository).create({
-      userId: user.id,
-      type: "payment_intent",
-      status: "pending",
-      amount: paidCents,
-      currency: "usd"
-    });
-    const stripePaymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+    const createPurchase = () =>
+      container.resolve(StripeTransactionRepository).create({
+        userId: user.id,
+        type: "payment_intent",
+        status: "pending",
+        amount: paidCents,
+        currency: "usd"
+      });
+    const transaction = await createPurchase();
     const chain = { limit: initialLimit };
     const balancesService = container.resolve(BalancesService);
     const managedUserWalletService = container.resolve(ManagedUserWalletService);
@@ -118,22 +133,23 @@ describe(PaymentCreditService.name, () => {
       findTx: vi.spyOn(container.resolve(TxPresenceService), "findTx").mockResolvedValue(null)
     };
 
-    const settle = () =>
+    const settlePurchase = (purchase: StripeTransactionOutput) =>
       container.resolve(StripeTransactionService).settleSucceededTransaction({
-        transactionId: transaction.id,
+        transactionId: purchase.id,
         chargeId: undefined,
         paymentMethodType: "card",
         cardBrand: undefined,
         cardLast4: undefined,
         receiptUrl: undefined,
-        stripePaymentIntentId,
+        stripePaymentIntentId: `pi_${faker.string.alphanumeric(24)}`,
         paymentAmount: paidCents,
         customerUserId: user.id,
         eventDescription: "payment_intent redelivered",
         isAutoRecharge: false
       });
+    const settle = () => settlePurchase(transaction);
     const findCredit = () => container.resolve(PaymentCreditRepository).findByTransactionId(transaction.id);
 
-    return { chain, fakes, transaction, settle, findCredit };
+    return { chain, fakes, transaction, settle, findCredit, createPurchase, settlePurchase };
   }
 });

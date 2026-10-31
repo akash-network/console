@@ -103,7 +103,8 @@ describe(RefillService.name, () => {
       expect(paymentCreditService.creditOnce).toHaveBeenCalledWith({
         transactionId: payment.transactionId,
         wallet: { id: existingWallet.id, address: existingWallet.address },
-        amountCents: amountUsd
+        amountCents: amountUsd,
+        bonusCents: 0
       });
       expect(managedUserWalletService.authorizeSpending).toHaveBeenCalledWith(managedSignerService, {
         address: existingWallet.address,
@@ -142,6 +143,16 @@ describe(RefillService.name, () => {
       await expect(service.topUpWallet(amountUsd, { userId }, { payment })).rejects.toBe(creditError);
 
       expect(balancesService.refreshUserWalletLimits).not.toHaveBeenCalled();
+    });
+
+    it("records the first-purchase bonus the payment carries on its credit", async () => {
+      const { service, userWalletRepository, paymentCreditService, walletInitializerService } = setup();
+      walletInitializerService.ensureWallet.mockResolvedValue(createInitializedUserWallet({ userId }));
+      userWalletRepository.claimActivation.mockResolvedValue(undefined);
+
+      await service.topUpWallet(amountUsd, { userId }, { payment: { ...payment, bonusAmountCents: 10 } });
+
+      expect(paymentCreditService.creditOnce).toHaveBeenCalledWith(expect.objectContaining({ amountCents: amountUsd, bonusCents: 10 }));
     });
 
     it("holds the wallet row before touching the chain, so a concurrent abuse wipe waits for the settlement", async () => {

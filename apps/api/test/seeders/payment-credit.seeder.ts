@@ -10,6 +10,7 @@ export function createPaymentCredit(overrides: Partial<PaymentCreditOutput> = {}
     status: "pending",
     address: createAkashAddress(),
     amount: faker.number.int({ min: 100, max: 100_000 }),
+    bonusAmount: 0,
     txHash: faker.string.hexadecimal({ length: 64, prefix: "" }).toUpperCase(),
     createdAt: new Date(),
     ...overrides

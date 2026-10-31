@@ -94,7 +94,12 @@ export class RefillService {
     const { userId } = payer;
     const userWallet = await this.lockActivatedWallet(payer);
 
-    await this.#grantCreditAndFees({ id: userWallet.id, address: userWallet.address! }, amountUsd, options.payment.transactionId);
+    await this.#grantCreditAndFees({
+      transactionId: options.payment.transactionId,
+      wallet: { id: userWallet.id, address: userWallet.address! },
+      amountCents: amountUsd,
+      bonusCents: options.payment.bonusAmountCents ?? 0
+    });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: options.endTrial ?? true });
     await this.clearAbuseLockOnPayment(userWallet, userId);
@@ -117,12 +122,12 @@ export class RefillService {
   }
 
   /** Waits for both grants before failing, so the settlement never rolls back while its credit is still being granted. */
-  async #grantCreditAndFees(wallet: PaymentCredit["wallet"], amountCents: number, transactionId: string): Promise<void> {
+  async #grantCreditAndFees(credit: PaymentCredit): Promise<void> {
     const outcomes = await Promise.allSettled([
-      this.paymentCreditService.creditOnce({ transactionId, wallet, amountCents }),
+      this.paymentCreditService.creditOnce(credit),
       this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
-        address: wallet.address,
-        derivationIndex: wallet.id,
+        address: credit.wallet.address,
+        derivationIndex: credit.wallet.id,
         limits: { fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT }
       })
     ]);

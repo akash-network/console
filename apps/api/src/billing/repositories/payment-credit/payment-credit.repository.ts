@@ -22,7 +22,7 @@ export class PaymentCreditRepository {
     return credit;
   }
 
-  async createPending(input: Pick<PaymentCreditInput, "transactionId" | "address" | "amount">): Promise<void> {
+  async createPending(input: Pick<PaymentCreditInput, "transactionId" | "address" | "amount" | "bonusAmount">): Promise<void> {
     await this.pg.insert(this.table).values({ ...input, status: "pending" });
   }
 

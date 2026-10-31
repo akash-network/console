@@ -4,6 +4,7 @@ CREATE TABLE "payment_credits" (
 	"status" "payment_credit_status" DEFAULT 'pending' NOT NULL,
 	"address" varchar(255) NOT NULL,
 	"amount" integer NOT NULL,
+	"bonus_amount" integer DEFAULT 0 NOT NULL,
 	"tx_hash" varchar(64),
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );

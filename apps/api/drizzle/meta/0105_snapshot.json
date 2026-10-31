@@ -1,5 +1,5 @@
 {
-  "id": "c6e7fa33-8b22-410e-94e9-2010fe109476",
+  "id": "25d08e8f-1ca0-4f5e-bf1e-6b2e0ad8e7fc",
   "prevId": "db7c6b75-bb8a-49d3-bbd9-f8910f77a823",
   "version": "7",
   "dialect": "postgresql",
@@ -1295,6 +1295,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "bonus_amount": {
+          "name": "bonus_amount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "tx_hash": {
           "name": "tx_hash",

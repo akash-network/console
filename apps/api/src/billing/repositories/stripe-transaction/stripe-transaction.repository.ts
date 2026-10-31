@@ -3,7 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { singleton } from "tsyringe";
 
 import { type BillingOwner, ownedBy } from "@src/billing/lib/billing-owner/billing-owner";
-import { ONE_FIRST_PURCHASE_BONUS_PER_USER_INDEX } from "@src/billing/model-schemas";
+import { ONE_FIRST_PURCHASE_BONUS_PER_USER_INDEX, PaymentCredits } from "@src/billing/model-schemas";
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { getPostgresError } from "@src/core/repositories/base.repository";
 import { OrgScopedRepository } from "@src/core/repositories/org-scoped.repository";
@@ -286,12 +286,14 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     }
   }
 
-  /** Reads every organization and every status, so a bonus counts against the person who received it wherever they paid, refunded or not. */
-  async hasReceivedFirstPurchaseBonus(userId: string): Promise<boolean> {
+  /** Reads every organization and every status, so a bonus counts against the person who received it wherever they paid, refunded or not, from the moment its credit is granted. */
+  async hasReceivedFirstPurchaseBonus(userId: string, options?: { excludeTransactionId?: string }): Promise<boolean> {
+    const creditedBonus = and(gt(PaymentCredits.bonusAmount, 0), options?.excludeTransactionId ? ne(this.table.id, options.excludeTransactionId) : undefined);
     const [item] = await this.cursor
       .select({ id: this.table.id })
       .from(this.table)
-      .where(this.unscoped("per-person-billing-limits").whereAccessibleBy(and(eq(this.table.userId, userId), gt(this.table.bonusAmount, 0))))
+      .leftJoin(PaymentCredits, eq(PaymentCredits.transactionId, this.table.id))
+      .where(this.unscoped("per-person-billing-limits").whereAccessibleBy(and(eq(this.table.userId, userId), or(gt(this.table.bonusAmount, 0), creditedBonus))))
       .limit(1);
 
     return !!item;
