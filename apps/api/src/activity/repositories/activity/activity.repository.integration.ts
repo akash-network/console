@@ -3,12 +3,13 @@ import { container } from "tsyringe";
 import { describe, expect, it } from "vitest";
 
 import { deploymentCloseDedupeKeyOf } from "@src/activity/lib/dedupe-key/dedupe-key";
-import type { ActivityInitiator, ActivityStatus, ActivityType, AlertActivityType } from "@src/activity/model-schemas";
+import type { ActivityInitiator, ActivityMeta, ActivityStatus, ActivityType, AlertActivityType } from "@src/activity/model-schemas";
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
-import { ActivityRepository, isDedupeKeyTaken, isUnknownUser, type PendingActivitySummary } from "./activity.repository";
+import { type ActivityFeed, ActivityRepository, isDedupeKeyTaken, isUnknownUser, type PendingActivitySummary } from "./activity.repository";
 
-import { seedOrganization } from "@test/seeders/db/organization.seeder";
+import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { seedOrganization, seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
 
 describe(ActivityRepository.name, () => {
   const OWNER = "akash1personal";
@@ -78,6 +79,82 @@ describe(ActivityRepository.name, () => {
         .findPage({ limit: 10, feed: { organizationId: personal.id, organizationType: "personal" } });
 
       expect(page.map(activity => activity.id)).toEqual([unfiled.id, inPersonal.id]);
+    });
+
+    it("lists only what concerns the deployments of the given projects in a feed narrowed to them", async () => {
+      const { repository, createUser, seedProjectFeed } = setup();
+      const owner = await createUser();
+      const { feed, aboutProject } = await seedProjectFeed(owner.id);
+
+      const page = await repository.accessibleBy(owner.ability, "read").findPage({ limit: 10, feed });
+
+      expect(page.map(activity => activity.id)).toEqual([aboutProject.id]);
+    });
+
+    it("lists in a personal feed narrowed to a project only what was filed in the personal organization about that project's deployments", async () => {
+      const { repository, createUser, seed } = setup();
+      const owner = await createUser();
+      const personal = await seedOrganization({ type: "personal", createdByUserId: owner.id });
+      const project = await seedProject({ organizationId: personal.id });
+      const deployment = await seedDeploymentSetting({ userId: owner.id, organizationId: personal.id, projectId: project.id });
+      const filed = await seed(owner.id, { organizationId: personal.id, meta: { dseq: deployment.dseq } });
+      await seed(owner.id, { meta: { dseq: deployment.dseq } });
+
+      const page = await repository
+        .accessibleBy(owner.ability, "read")
+        .findPage({ limit: 10, feed: { organizationId: personal.id, organizationType: "personal", projectIds: [project.id] } });
+
+      expect(page.map(activity => activity.id)).toEqual([filed.id]);
+    });
+
+    it("leaves out an activity of another organization whose deployment shares its dseq with one of the given projects", async () => {
+      const { repository, createUser, seedProjectFeed, seed } = setup();
+      const owner = await createUser();
+      const { feed, aboutProject } = await seedProjectFeed(owner.id);
+      const otherTeam = await seedOrganization({ type: "team" });
+      await seed(owner.id, { organizationId: otherTeam.id, meta: aboutProject.meta });
+
+      const page = await repository
+        .accessibleBy(owner.ability, "read")
+        .findPage({ limit: 10, feed: { organizationId: otherTeam.id, organizationType: "team", projectIds: feed.projectIds } });
+
+      expect(page).toEqual([]);
+    });
+
+    it("lists nothing in a feed narrowed to no project", async () => {
+      const { repository, createUser, seedProjectFeed } = setup();
+      const owner = await createUser();
+      const { feed } = await seedProjectFeed(owner.id);
+
+      const page = await repository.accessibleBy(owner.ability, "read").findPage({ limit: 10, feed: { ...feed, projectIds: [] } });
+
+      expect(page).toEqual([]);
+    });
+  });
+
+  describe("findByIdListedIn", () => {
+    it("finds any of the owner's activities without a feed, and none of anyone else's", async () => {
+      const { repository, createUser, seedFeeds, seed } = setup();
+      const owner = await createUser();
+      const stranger = await createUser();
+      const { inTeam } = await seedFeeds(owner.id);
+      const strangers = await seed(stranger.id);
+      const scoped = repository.accessibleBy(owner.ability, "read");
+
+      expect(await scoped.findByIdListedIn(inTeam.id)).toMatchObject({ id: inTeam.id, organizationId: inTeam.organizationId });
+      expect(await scoped.findByIdListedIn(strangers.id)).toBeUndefined();
+    });
+
+    it("finds only an activity the feed it is given lists", async () => {
+      const { repository, createUser, seedFeeds, seedProjectFeed } = setup();
+      const owner = await createUser();
+      const { personal, inTeam } = await seedFeeds(owner.id);
+      const { feed, aboutProject, aboutOtherProject } = await seedProjectFeed(owner.id);
+      const scoped = repository.accessibleBy(owner.ability, "read");
+
+      expect(await scoped.findByIdListedIn(aboutProject.id, feed)).toMatchObject({ id: aboutProject.id });
+      expect(await scoped.findByIdListedIn(aboutOtherProject.id, feed)).toBeUndefined();
+      expect(await scoped.findByIdListedIn(inTeam.id, { organizationId: personal.id, organizationType: "personal" })).toBeUndefined();
     });
   });
 
@@ -158,6 +235,20 @@ describe(ActivityRepository.name, () => {
       expect((await repository.findById(inTeam.id))?.seenAt).not.toBeNull();
       expect((await repository.findById(inPersonal.id))?.seenAt).toBeNull();
       expect((await repository.findById(unfiled.id))?.seenAt).toBeNull();
+    });
+
+    it("marks seen and counts only what concerns the deployments of the projects a feed is narrowed to", async () => {
+      const { repository, createUser, seedProjectFeed } = setup();
+      const owner = await createUser();
+      const { feed, aboutProject, aboutOtherProject, walletAlert } = await seedProjectFeed(owner.id);
+
+      expect(await repository.accessibleBy(owner.ability, "read").countUnseen(feed)).toBe(1);
+
+      await repository.accessibleBy(owner.ability, "update").markSeen({ upTo: new Date().toISOString() }, feed);
+
+      expect((await repository.findById(aboutProject.id))?.seenAt).not.toBeNull();
+      expect((await repository.findById(aboutOtherProject.id))?.seenAt).toBeNull();
+      expect((await repository.findById(walletAlert.id))?.seenAt).toBeNull();
     });
   });
 
@@ -511,12 +602,30 @@ describe(ActivityRepository.name, () => {
         initiator?: ActivityInitiator;
         createdAt?: Date;
         seenAt?: Date;
-        meta?: { dseq: string };
+        meta?: ActivityMeta;
         dedupeKey?: string;
         organizationId?: string;
       } = {}
     ) {
       return await repository.create({ userId, type: "deployment_close", status: "succeeded", meta: { dseq: faker.string.numeric(6) }, ...overrides });
+    }
+
+    async function seedProjectFeed(userId: string) {
+      const { organization: team, project } = await seedOrganizationWithOwner();
+      const otherProject = await seedProject({ organizationId: team.id });
+      const inProject = await seedDeploymentSetting({ userId, organizationId: team.id, projectId: project.id });
+      const inOtherProject = await seedDeploymentSetting({ userId, organizationId: team.id, projectId: otherProject.id });
+      const aboutProject = await seed(userId, { organizationId: team.id, meta: { dseq: inProject.dseq } });
+      const aboutOtherProject = await seed(userId, { organizationId: team.id, meta: { dseq: inOtherProject.dseq } });
+      const walletAlert = await seed(userId, {
+        organizationId: team.id,
+        type: "wallet_balance_alert",
+        status: "info",
+        meta: { summary: "Wallet balance is low" }
+      });
+      const feed: ActivityFeed = { organizationId: team.id, organizationType: "team", projectIds: [project.id] };
+
+      return { feed, aboutProject, aboutOtherProject, walletAlert };
     }
 
     async function seedFeeds(userId: string) {
@@ -529,7 +638,7 @@ describe(ActivityRepository.name, () => {
       return { team, personal, inTeam, inPersonal, unfiled };
     }
 
-    return { repository, createUser, seed, seedFeeds };
+    return { repository, createUser, seed, seedFeeds, seedProjectFeed };
   }
 
   function alertOf(userId: string, { type, dedupeKey, dseq }: { type: AlertActivityType; dedupeKey: string; dseq?: string }) {
