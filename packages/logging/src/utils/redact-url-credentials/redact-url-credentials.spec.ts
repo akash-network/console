@@ -28,4 +28,16 @@ describe(redactUrlCredentials.name, () => {
   it("leaves a path that only looks like a credential untouched", () => {
     expect(redactUrlCredentials("https://api.test/v1/api-keys/token")).toBe("https://api.test/v1/api-keys/token");
   });
+
+  it("leaves a path segment that looks like a parameter untouched", () => {
+    expect(redactUrlCredentials("/v1/files/token=1")).toBe("/v1/files/token=1");
+  });
+
+  it("keeps a parameter that has no value", () => {
+    expect(redactUrlCredentials("/v1/api-keys?tokens&limit=10")).toBe("/v1/api-keys?tokens&limit=10");
+  });
+
+  it("reads a later question mark as part of the parameter name", () => {
+    expect(redactUrlCredentials("/callback?redirect?token=value-1&page=2")).toBe("/callback?redirect?token=REDACTED&page=2");
+  });
 });
