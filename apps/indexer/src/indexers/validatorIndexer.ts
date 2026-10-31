@@ -8,6 +8,7 @@ import type { Transaction as DbTransaction } from "sequelize";
 import type { IGenesis, IGenesisValidator, IGentxCreateValidator } from "@src/chain/genesisTypes";
 import { sequelize } from "@src/db/dbConnection";
 import { pubkeyToRawAddress } from "@src/shared/utils/addresses";
+import { toStorableText, toStorableVarchar } from "@src/shared/utils/chain-string";
 import * as benchmark from "../shared/utils/benchmark";
 import { Indexer } from "./indexer";
 
@@ -105,11 +106,11 @@ export class ValidatorIndexer extends Indexer {
       accountAddress: accountAddress,
       hexAddress: toHex(pubkeyToRawAddress(decodedMessage.pubkey?.typeUrl ?? "", decodedMessage.pubkey?.value.slice(2) ?? new Uint8Array())).toUpperCase(),
       createdMsgId: msg?.id,
-      moniker: decodedMessage.description?.moniker,
-      identity: decodedMessage.description?.identity,
-      website: decodedMessage.description?.website,
-      description: decodedMessage.description?.details,
-      securityContact: decodedMessage.description?.securityContact,
+      moniker: toStorableVarchar(decodedMessage.description?.moniker),
+      identity: toStorableVarchar(decodedMessage.description?.identity),
+      website: toStorableVarchar(decodedMessage.description?.website),
+      description: toStorableText(decodedMessage.description?.details),
+      securityContact: toStorableVarchar(decodedMessage.description?.securityContact),
       rate: this.convertCommissionRate(decodedMessage.commission?.rate),
       maxRate: this.convertCommissionRate(decodedMessage.commission?.maxRate),
       maxChangeRate: this.convertCommissionRate(decodedMessage.commission?.maxChangeRate),
@@ -139,19 +140,19 @@ export class ValidatorIndexer extends Indexer {
 
     if (decodedMessage.description) {
       if (decodedMessage.description.moniker !== "[do-not-modify]") {
-        validator.moniker = decodedMessage.description?.moniker ?? "";
+        validator.moniker = toStorableVarchar(decodedMessage.description.moniker ?? "");
       }
       if (decodedMessage.description.identity !== "[do-not-modify]") {
-        validator.identity = decodedMessage.description?.identity;
+        validator.identity = toStorableVarchar(decodedMessage.description.identity);
       }
       if (decodedMessage.description.website !== "[do-not-modify]") {
-        validator.website = decodedMessage.description.website;
+        validator.website = toStorableVarchar(decodedMessage.description.website);
       }
       if (decodedMessage.description.details !== "[do-not-modify]") {
-        validator.description = decodedMessage.description?.details;
+        validator.description = toStorableText(decodedMessage.description.details);
       }
       if (decodedMessage.description.securityContact !== "[do-not-modify]") {
-        validator.securityContact = decodedMessage.description?.securityContact;
+        validator.securityContact = toStorableVarchar(decodedMessage.description.securityContact);
       }
     }
 
