@@ -10,6 +10,7 @@ import { FeatureFlags, type FeatureFlagValue } from "@src/core/services/feature-
 import { type CacheConfig, cacheControlMiddleware } from "@src/middlewares/cacheControlMiddleware/cacheControlMiddleware";
 import { contentTypeMiddleware } from "@src/middlewares/contentTypeMiddleware/contentTypeMiddleware";
 import { requireFeatureFlag } from "@src/middlewares/feature-flag-gate/feature-flag-gate.middleware";
+import { requireAuthentication } from "@src/middlewares/require-authentication/require-authentication.middleware";
 
 export interface ExtendedRouteConfig<R extends RouteConfig> {
   /**
@@ -38,6 +39,7 @@ export const UNDOCUMENTED_REQUEST_FIELDS = new Map<string, readonly string[]>();
 
 export function createRoute<
   R extends Omit<RouteConfig, "security"> & {
+    /** Any non-empty requirement answers 401 to callers that are not signed in, before validation or the handler runs. */
     security: Required<RouteConfig>["security"];
     cache?: CacheConfig;
     bodyLimit?: Parameters<typeof bodyLimit>[0];
@@ -66,6 +68,10 @@ export function createRoute<
 
   if (featureFlag) {
     middlewares.push(requireFeatureFlag(featureFlag));
+  }
+
+  if (openApiConfig.security.length > 0) {
+    middlewares.push(requireAuthentication);
   }
 
   if (routeConfig.method !== "get" && routeConfig.method !== "head") {

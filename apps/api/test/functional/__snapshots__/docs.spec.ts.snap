@@ -5447,14 +5447,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/certificates": {
       "post": {
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationIdHeader",
-          },
-          {
-            "$ref": "#/components/parameters/ProjectIdHeader",
-          },
-        ],
         "responses": {
           "400": {
             "content": {
@@ -5475,14 +5467,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "This endpoint has been removed. mTLS certificates are no longer required as identity is now verified via API key.",
           },
         },
-        "security": [
-          {
-            "BearerAuth": [],
-          },
-          {
-            "ApiKeyAuth": [],
-          },
-        ],
+        "security": [],
         "summary": "Create certificate",
         "tags": [
           "Certificate",
@@ -25054,6 +25039,14 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/send-verification-email": {
       "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -25086,7 +25079,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Returns a created wallet",
           },
         },
-        "security": [],
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
         "summary": "Resends a verification email",
         "tags": [
           "Users",

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { AuthController } from "@src/auth/controllers/auth/auth.controller";
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
-import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
+import { SECURITY_BEARER } from "@src/core/services/openapi-docs/openapi-security";
 
 export const sendVerificationEmailRouter = new OpenApiHonoHandler();
 
@@ -21,7 +21,7 @@ const route = createRoute({
   path: "/v1/send-verification-email",
   summary: "Resends a verification email",
   tags: ["Users"],
-  security: SECURITY_NONE,
+  security: SECURITY_BEARER,
   request: {
     body: {
       required: true,
