@@ -49,17 +49,50 @@ describe("getValidInternalReturnToUrl", () => {
     });
   });
 
+  describe("paths that resolve to another host", () => {
+    const { window: mockWindow } = setup("https://console.akash.network");
+
+    it.each([
+      "/\t/evil.com",
+      "/\n/evil.com",
+      "/\r/evil.com",
+      "%2F%09%2Fevil.com",
+      "/%09/evil.com",
+      "/\\evil.com",
+      "/.//evil.com",
+      "/..//evil.com",
+      "/./\\evil.com",
+      "https://console.akash.network//evil.com/path"
+    ])("returns '/' for %j", returnTo => {
+      expect(getValidInternalReturnToUrl(returnTo, mockWindow)).toBe("/");
+    });
+  });
+
+  describe("paths that stay on the same host", () => {
+    it("drops the whitespace the URL parser ignores", () => {
+      expect(getValidInternalReturnToUrl("/\tdashboard")).toBe("/dashboard");
+    });
+
+    it("resolves dot segments", () => {
+      expect(getValidInternalReturnToUrl("/settings/../dashboard")).toBe("/dashboard");
+    });
+  });
+
   describe("same-origin URLs", () => {
     const { window: mockWindow } = setup("https://console.akash.network");
 
-    it("returns the full URL for same-origin absolute URL", () => {
-      expect(getValidInternalReturnToUrl("https://console.akash.network/dashboard", mockWindow)).toBe("https://console.akash.network/dashboard");
+    it("returns the path of a same-origin absolute URL", () => {
+      expect(getValidInternalReturnToUrl("https://console.akash.network/dashboard", mockWindow)).toBe("/dashboard");
     });
 
-    it("returns the full URL with path and query", () => {
-      expect(getValidInternalReturnToUrl("https://console.akash.network/dashboard?tab=settings", mockWindow)).toBe(
-        "https://console.akash.network/dashboard?tab=settings"
-      );
+    it("returns the path and query of a same-origin absolute URL", () => {
+      expect(getValidInternalReturnToUrl("https://console.akash.network/dashboard?tab=settings", mockWindow)).toBe("/dashboard?tab=settings");
+    });
+
+    it("returns the path of a same-origin absolute URL served over http", () => {
+      const { window: httpWindow } = setup("http://localhost:3000");
+
+      expect(getValidInternalReturnToUrl("http://localhost:3000/dashboard", httpWindow)).toBe("/dashboard");
     });
 
     it("returns '/' for different origin", () => {
@@ -76,7 +109,7 @@ describe("getValidInternalReturnToUrl", () => {
 
     it("handles encoded same-origin URLs", () => {
       const encoded = encodeURIComponent("https://console.akash.network/dashboard");
-      expect(getValidInternalReturnToUrl(encoded, mockWindow)).toBe("https://console.akash.network/dashboard");
+      expect(getValidInternalReturnToUrl(encoded, mockWindow)).toBe("/dashboard");
     });
   });
 
@@ -147,16 +180,14 @@ describe("getValidInternalReturnToUrl", () => {
   describe("edge cases", () => {
     it("handles URLs with ports correctly", () => {
       const { window: mockWindowWithPort } = setup("https://console.akash.network:443");
-      expect(getValidInternalReturnToUrl("https://console.akash.network:443/dashboard", mockWindowWithPort)).toBe("https://console.akash.network/dashboard");
+      expect(getValidInternalReturnToUrl("https://console.akash.network:443/dashboard", mockWindowWithPort)).toBe("/dashboard");
       const { window: mockWindowWithoutPort } = setup("https://console.akash.network");
-      expect(getValidInternalReturnToUrl("https://console.akash.network/dashboard", mockWindowWithoutPort)).toBe("https://console.akash.network/dashboard");
+      expect(getValidInternalReturnToUrl("https://console.akash.network/dashboard", mockWindowWithoutPort)).toBe("/dashboard");
     });
 
     it("handles subdomain correctly", () => {
       const { window: mockWindowSubdomain } = setup("https://app.console.akash.network");
-      expect(getValidInternalReturnToUrl("https://app.console.akash.network/dashboard", mockWindowSubdomain)).toBe(
-        "https://app.console.akash.network/dashboard"
-      );
+      expect(getValidInternalReturnToUrl("https://app.console.akash.network/dashboard", mockWindowSubdomain)).toBe("/dashboard");
       expect(getValidInternalReturnToUrl("https://console.akash.network/dashboard", mockWindowSubdomain)).toBe("/");
     });
 
