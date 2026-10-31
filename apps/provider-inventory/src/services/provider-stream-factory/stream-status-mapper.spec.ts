@@ -15,6 +15,8 @@ import { describe, expect, it } from "vitest";
 
 import { mapProviderStatusToClusterState, parseQuantity } from "./stream-status-mapper";
 
+const HUGE_QUANTITIES = ["1e16000000", "1e-16000000", `0.${"0".repeat(10_000)}1`, `${"1".repeat(10_000)}Ki`];
+
 describe(parseQuantity.name, () => {
   describe("empty / unparseable input", () => {
     it("returns 0n when the quantity is undefined", () => {
@@ -116,6 +118,45 @@ describe(parseQuantity.name, () => {
     it("truncates a negative exponent toward zero", () => {
       expect(parseQuantity({ string: "5e-3" })).toBe(0n);
     });
+
+    it("accepts exponents up to 30 in either direction", () => {
+      expect(parseQuantity({ string: "1e30" })).toBe(10n ** 30n);
+      expect(parseQuantity({ string: `${"9".repeat(34)}e-30` })).toBe(9999n);
+    });
+  });
+
+  describe("out-of-range input", () => {
+    it("returns 0n when the exponent is above 30", () => {
+      expect(parseQuantity({ string: "1e31" })).toBe(0n);
+    });
+
+    it("returns 0n when the exponent is below -30", () => {
+      expect(parseQuantity({ string: `${"9".repeat(34)}e-31` })).toBe(0n);
+    });
+
+    it("parses a quantity of 64 characters", () => {
+      expect(parseQuantity({ string: "1".repeat(64) })).toBe(BigInt("1".repeat(64)));
+    });
+
+    it("returns 0n when the quantity is longer than 64 characters", () => {
+      expect(parseQuantity({ string: "1".repeat(65) })).toBe(0n);
+    });
+
+    it("returns 0n for huge exponents and very long mantissas", () => {
+      expect(HUGE_QUANTITIES.map(string => parseQuantity({ string }))).toEqual([0n, 0n, 0n, 0n]);
+    });
+
+    it("rejects huge exponents and very long mantissas without scaling them", () => {
+      const fastestRunMs = Math.min(...Array.from({ length: 5 }, () => measureParseTimeMs(HUGE_QUANTITIES)));
+
+      expect(fastestRunMs).toBeLessThan(50);
+    });
+
+    function measureParseTimeMs(quantities: string[]) {
+      const startedAt = performance.now();
+      quantities.forEach(string => parseQuantity({ string }));
+      return performance.now() - startedAt;
+    }
   });
 
   describe("signed values", () => {

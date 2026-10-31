@@ -15,16 +15,22 @@ interface Quantity {
 
 const BINARY_POW2: Record<string, number> = { Ki: 10, Mi: 20, Gi: 30, Ti: 40, Pi: 50, Ei: 60 };
 const DECIMAL_POW10: Record<string, number> = { n: -9, u: -6, m: -3, "": 0, k: 3, M: 6, G: 9, T: 12, P: 15, E: 18 };
+/** Kubernetes caps quantities at 2^63-1, so a longer string or a larger exponent is never a valid quantity. */
+const MAX_QUANTITY_LENGTH = 64;
+const MAX_ABS_EXPONENT = 30;
 
 export function parseQuantity(q: Quantity | undefined, multiplier: bigint = 1n): bigint {
   const raw = q?.string?.trim();
-  if (!raw) return 0n;
+  if (!raw || raw.length > MAX_QUANTITY_LENGTH) return 0n;
 
   const binary = /^(-?\d+(?:\.\d+)?)([KMGTPE]i)$/.exec(raw);
   if (binary) return scaleByPow2(binary[1], BINARY_POW2[binary[2]], multiplier);
 
   const exponent = /^(-?\d+(?:\.\d+)?)[eE](-?\d+)$/.exec(raw);
-  if (exponent) return scaleByPow10(exponent[1], Number(exponent[2]), multiplier);
+  if (exponent) {
+    const pow10 = Number(exponent[2]);
+    return Math.abs(pow10) > MAX_ABS_EXPONENT ? 0n : scaleByPow10(exponent[1], pow10, multiplier);
+  }
 
   const decimal = /^(-?\d+(?:\.\d+)?)([numkMGTPE]?)$/.exec(raw);
   if (decimal) return scaleByPow10(decimal[1], DECIMAL_POW10[decimal[2]], multiplier);
