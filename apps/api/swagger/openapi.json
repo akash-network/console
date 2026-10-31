@@ -3810,7 +3810,11 @@
         "tags": [
           "Users"
         ],
-        "security": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -3839,10 +3843,18 @@
         },
         "responses": {
           "200": {
-            "description": "Returns a created wallet",
+            "description": "Sends a verification email to the signed-in user",
             "content": {}
           }
-        }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
       }
     },
     "/v1/send-verification-code": {
@@ -15280,14 +15292,7 @@
         "tags": [
           "Certificate"
         ],
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
+        "security": [],
         "responses": {
           "400": {
             "description": "This endpoint has been removed. mTLS certificates are no longer required as identity is now verified via API key.",
@@ -15307,15 +15312,7 @@
               }
             }
           }
-        },
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationIdHeader"
-          },
-          {
-            "$ref": "#/components/parameters/ProjectIdHeader"
-          }
-        ]
+        }
       }
     },
     "/v1/balances": {
