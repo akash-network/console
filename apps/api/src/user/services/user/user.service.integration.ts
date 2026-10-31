@@ -507,7 +507,8 @@ describe(UserService.name, () => {
       analyticsService,
       createLogger,
       mock<NotificationService>({
-        createDefaultChannel: input?.createDefaultNotificationChannel ?? (() => Promise.resolve())
+        createDefaultChannel: input?.createDefaultNotificationChannel ?? (() => Promise.resolve()),
+        confirmAccountEmail: () => Promise.resolve()
       }),
       mock<EmailVerificationCodeService>({
         sendCode: vi.fn().mockResolvedValue({ codeSentAt: new Date().toISOString() })

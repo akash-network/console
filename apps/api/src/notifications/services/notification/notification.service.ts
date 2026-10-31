@@ -2,6 +2,7 @@ import { extractApiErrorCode } from "@akashnetwork/openapi-sdk";
 import { ExponentialBackoff, handleAll, retry, type RetryPolicy } from "cockatiel";
 import { inject, singleton } from "tsyringe";
 
+import { VerifiedEmailService } from "@src/auth/services/verified-email/verified-email.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { accountEmailHeaders, NOTIFICATIONS_IDENTITY_HEADERS } from "@src/notifications/lib/identity-headers/identity-headers";
@@ -29,6 +30,7 @@ export class NotificationService {
     private readonly userRepository: UserRepository,
     private readonly organizationRepository: OrganizationRepository,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
+    private readonly verifiedEmailService: VerifiedEmailService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.#logger = createLogger({ context: "NotificationService" });
@@ -69,7 +71,7 @@ export class NotificationService {
         if (extractApiErrorCode(error) !== "NOTIFICATION_CHANNEL_NOT_FOUND") throw error;
 
         await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email, user.timezone), {
-          headers: { ...headers, ...accountEmailHeaders(user) }
+          headers: { ...headers, ...(await this.#accountEmailHeaders(user, "cached")) }
         });
         await send();
       });
@@ -78,9 +80,17 @@ export class NotificationService {
     }
   }
 
-  /** Also confirms the user's email on their channels once it is verified, so it runs again after verification. */
   async createDefaultChannel(user: UserInput): Promise<void> {
-    const headers = { ...(await this.#userIdentityHeaders(user.id)), ...accountEmailHeaders(user) };
+    await this.#createDefaultChannel(user, "cached");
+  }
+
+  /** Confirms the user's email on their channels once Auth0 reports it verified, reading Auth0 afresh because the cached read can predate the verification. */
+  async confirmAccountEmail(user: UserInput): Promise<void> {
+    await this.#createDefaultChannel(user, "fresh");
+  }
+
+  async #createDefaultChannel(user: UserInput, verification: Verification): Promise<void> {
+    const headers = { ...(await this.#userIdentityHeaders(user.id)), ...(await this.#accountEmailHeaders(user, verification)) };
     await this.#retryPolicy.execute(async () => {
       try {
         await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email!, user.timezone), { headers });
@@ -135,11 +145,11 @@ export class NotificationService {
     const deploymentHeaders = await this.#deploymentIdentityHeaders(input);
     const channelId =
       deploymentHeaders[NOTIFICATIONS_IDENTITY_HEADERS.organizationType] === "team"
-        ? await this.#getOrCreateTeamChannelId(deploymentHeaders, { email: user.email, emailVerified: user.emailVerified })
+        ? await this.#getOrCreateTeamChannelId(deploymentHeaders, { id: input.userId, userId: user.userId, email: user.email })
         : await this.getOrCreateNotificationChannelId(deploymentHeaders, {
             id: input.userId,
+            userId: user.userId,
             email: user.email,
-            emailVerified: user.emailVerified,
             timezone: user.timezone
           });
     if (!channelId) {
@@ -167,7 +177,7 @@ export class NotificationService {
   }
 
   /** Notifies whoever deployed, through a channel of the deployment's organization, until teams choose their deployment alert recipients; re-lists after creating so concurrent leases converge on the oldest channel. */
-  async #getOrCreateTeamChannelId(deploymentHeaders: Record<string, string>, user: { email: string; emailVerified?: boolean | null }): Promise<string> {
+  async #getOrCreateTeamChannelId(deploymentHeaders: Record<string, string>, user: UserInput & { email: string }): Promise<string> {
     const channels = await this.getNotificationChannels(deploymentHeaders);
     const existingChannelId = preferredChannelId(channels?.data);
 
@@ -178,7 +188,7 @@ export class NotificationService {
     const { data: created } = await this.#retryPolicy.execute(async () =>
       this.notificationsApi.v1.createNotificationChannel(
         { data: { name: TEAM_DEPLOYMENT_ALERTS_CHANNEL_NAME, type: "email", config: { addresses: [user.email] }, isDefault: false } },
-        { headers: { ...deploymentHeaders, ...accountEmailHeaders(user) } }
+        { headers: { ...deploymentHeaders, ...(await this.#accountEmailHeaders(user, "cached")) } }
       )
     );
     const channelsAfterCreate = await this.getNotificationChannels(deploymentHeaders);
@@ -206,6 +216,28 @@ export class NotificationService {
         { headers: { ...headers, [NOTIFICATIONS_IDENTITY_HEADERS.ownerAddress]: input.walletAddress } }
       )
     );
+  }
+
+  /** Treats an Auth0 lookup that fails as unverified, which leaves the email waiting until a later default channel request confirms it. */
+  async #accountEmailHeaders(user: UserInput, verification: Verification): Promise<Record<string, string>> {
+    const verifiedEmail = await this.#verifiedEmailOf(user, verification).catch(error => {
+      this.#logger.warn({ event: "ACCOUNT_EMAIL_VERIFICATION_LOOKUP_FAILED", userId: user.id, error });
+      return null;
+    });
+
+    return accountEmailHeaders({ email: user.email, verifiedEmail });
+  }
+
+  async #verifiedEmailOf(user: UserInput, verification: Verification): Promise<string | null> {
+    const auth0UserId = user.userId ?? (await this.userRepository.findById(user.id))?.userId;
+
+    if (!auth0UserId) {
+      return null;
+    }
+
+    return verification === "fresh"
+      ? await this.verifiedEmailService.getVerifiedEmail(auth0UserId)
+      : await this.verifiedEmailService.getRecentVerifiedEmail(auth0UserId);
   }
 
   /** Attributes what the user writes outside a request to their personal organization, which keeps transactional emails on their own default channel. */
@@ -249,10 +281,13 @@ function defaultChannelInput(email: string, timezone: string | null | undefined)
   return { data: { name: "Default", type: "email" as const, config: { addresses: [email] }, ...(timezone && { timezone }) } };
 }
 
+type Verification = "cached" | "fresh";
+
 interface UserInput {
   id: string;
+  /** The user's Auth0 id, looked up from `id` when missing. */
+  userId?: string | null;
   email?: string | null;
-  emailVerified?: boolean | null;
   timezone?: string | null;
 }
 

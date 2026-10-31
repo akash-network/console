@@ -2,6 +2,7 @@ import { ApiError } from "@akashnetwork/openapi-sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type DeepMockProxy, mock, mockDeep, type MockProxy } from "vitest-mock-extended";
 
+import type { VerifiedEmailService } from "@src/auth/services/verified-email/verified-email.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
@@ -90,6 +91,64 @@ describe(NotificationService.name, () => {
           "x-user-email-verified": "false"
         }
       });
+    });
+  });
+
+  describe("account email", () => {
+    it("names the email Auth0 reports verified, looking up the Auth0 id of a user given without one", async () => {
+      const { service, api, userRepository, verifiedEmailService } = setup();
+      userRepository.findById.calledWith("user-1").mockResolvedValue({ id: "user-1", userId: "auth0|user-1" } as UserOutput);
+      verifiedEmailService.getRecentVerifiedEmail.calledWith("auth0|user-1").mockResolvedValue("user@example.com");
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createDefaultChannel({ id: "user-1", email: "user@example.com" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(expect.anything(), {
+        headers: { "x-user-id": "user-1", "x-user-email": "user@example.com", "x-user-email-verified": "true" }
+      });
+      expect(verifiedEmailService.getVerifiedEmail).not.toHaveBeenCalled();
+    });
+
+    it("asks Auth0 nothing and names the account email as unverified for a user without an Auth0 id", async () => {
+      const { service, api, userRepository, verifiedEmailService, logger } = setup();
+      userRepository.findById.mockResolvedValue(undefined);
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createDefaultChannel({ id: "user-1", email: "user@example.com" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(expect.anything(), {
+        headers: { "x-user-id": "user-1", "x-user-email": "user@example.com", "x-user-email-verified": "false" }
+      });
+      expect(verifiedEmailService.getRecentVerifiedEmail).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("reads Auth0 afresh when confirming the account email", async () => {
+      const { service, api, verifiedEmailService } = setup();
+      verifiedEmailService.getVerifiedEmail.calledWith("auth0|user-1").mockResolvedValue("user@example.com");
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.confirmAccountEmail({ id: "user-1", userId: "auth0|user-1", email: "user@example.com" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(
+        { data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] } } },
+        { headers: { "x-user-id": "user-1", "x-user-email": "user@example.com", "x-user-email-verified": "true" } }
+      );
+      expect(verifiedEmailService.getRecentVerifiedEmail).not.toHaveBeenCalled();
+    });
+
+    it("names the account email as unverified when Auth0 cannot be read", async () => {
+      const { service, api, verifiedEmailService, logger } = setup();
+      const error = new Error("Auth0 unavailable");
+      verifiedEmailService.getRecentVerifiedEmail.mockRejectedValue(error);
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createDefaultChannel({ id: "user-1", userId: "auth0|user-1", email: "user@example.com" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(expect.anything(), {
+        headers: { "x-user-id": "user-1", "x-user-email": "user@example.com", "x-user-email-verified": "false" }
+      });
+      expect(logger.warn).toHaveBeenCalledWith({ event: "ACCOUNT_EMAIL_VERIFICATION_LOOKUP_FAILED", userId: "user-1", error });
     });
   });
 
@@ -517,8 +576,9 @@ describe(NotificationService.name, () => {
     });
 
     it("names the deployer's verified email when opening a channel for them", async () => {
-      const { service, api, userRepository, deploymentSettingRepository } = setup();
-      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com", emailVerified: true } as UserOutput);
+      const { service, api, userRepository, deploymentSettingRepository, verifiedEmailService } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", userId: "auth0|user-1", email: "user@example.com" } as UserOutput);
+      verifiedEmailService.getRecentVerifiedEmail.calledWith("auth0|user-1").mockResolvedValue("user@example.com");
       deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", organizationType: "team", projectId: null });
       api.v1.listNotificationChannels.mockResolvedValue({ data: [] } as never);
       api.v1.createNotificationChannel.mockResolvedValue({ data: { id: "team-channel" } } as never);
@@ -531,8 +591,9 @@ describe(NotificationService.name, () => {
     });
 
     it("names the deployer's verified email when opening their missing default channel", async () => {
-      const { service, api, userRepository, deploymentSettingRepository } = setup();
-      userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com", emailVerified: true } as UserOutput);
+      const { service, api, userRepository, deploymentSettingRepository, verifiedEmailService } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", userId: "auth0|user-1", email: "user@example.com" } as UserOutput);
+      verifiedEmailService.getRecentVerifiedEmail.calledWith("auth0|user-1").mockResolvedValue("user@example.com");
       deploymentSettingRepository.findTenancy.mockResolvedValue(undefined);
       api.v1.listNotificationChannels.mockResolvedValueOnce({ data: [] } as never).mockResolvedValueOnce({ data: [{ id: "default-channel" }] } as never);
       api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
@@ -740,8 +801,17 @@ describe(NotificationService.name, () => {
     const logger = overrides?.logger ?? mock<ReturnType<CreateLogger>>();
     const organizationRepository = mock<OrganizationRepository>();
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
-    const service = new NotificationService(api, apiInternal, userRepository, organizationRepository, deploymentSettingRepository, () => logger);
+    const verifiedEmailService = mock<VerifiedEmailService>();
+    const service = new NotificationService(
+      api,
+      apiInternal,
+      userRepository,
+      organizationRepository,
+      deploymentSettingRepository,
+      verifiedEmailService,
+      () => logger
+    );
 
-    return { service, api, apiInternal, userRepository, organizationRepository, deploymentSettingRepository, logger };
+    return { service, api, apiInternal, userRepository, organizationRepository, deploymentSettingRepository, verifiedEmailService, logger };
   }
 });

@@ -450,8 +450,8 @@ describe(UserService.name, () => {
 
       expect(notificationService.createDefaultChannel).toHaveBeenCalledWith({
         id: user.id,
+        userId: user.userId,
         email: user.email,
-        emailVerified: user.emailVerified,
         timezone: "Europe/Paris"
       });
     });
@@ -572,7 +572,10 @@ describe(UserService.name, () => {
     const analyticsService = mock<AnalyticsService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
-    const notificationService = mock<NotificationService>({ createDefaultChannel: vi.fn().mockResolvedValue(undefined) });
+    const notificationService = mock<NotificationService>({
+      createDefaultChannel: vi.fn().mockResolvedValue(undefined),
+      confirmAccountEmail: vi.fn().mockResolvedValue(undefined)
+    });
     const emailVerificationCodeService = mock<EmailVerificationCodeService>({
       sendCode: vi.fn().mockResolvedValue({ codeSentAt: new Date().toISOString() })
     });

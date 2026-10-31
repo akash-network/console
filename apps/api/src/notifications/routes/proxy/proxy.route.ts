@@ -4,6 +4,7 @@ import pick from "lodash/pick";
 import { container } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { VerifiedEmailService } from "@src/auth/services/verified-email/verified-email.service";
 import { UserWalletRepository } from "@src/billing/repositories";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
@@ -29,6 +30,7 @@ export interface ProxyDependencies {
   userWalletRepository: UserWalletRepository;
   deploymentSettingRepository: DeploymentSettingRepository;
   executionContextService: ExecutionContextService;
+  verifiedEmailService: VerifiedEmailService;
   config: NotificationsConfig;
   fetchFn: typeof fetch;
 }
@@ -42,8 +44,10 @@ const CHANNEL_FIELDS_SHOWN_TO_PROJECT_BOUND_KEYS = ["id", "name", "type"];
 
 type ChannelResponseBody = { data: Record<string, unknown> | Array<Record<string, unknown>> };
 
+const ADDRESS_WRITING_METHODS = ["POST", "PATCH"];
+
 export const createProxy =
-  ({ authService, userWalletRepository, deploymentSettingRepository, executionContextService, config, fetchFn }: ProxyDependencies) =>
+  ({ authService, userWalletRepository, deploymentSettingRepository, executionContextService, verifiedEmailService, config, fetchFn }: ProxyDependencies) =>
   async (c: AppContext) => {
     const { req } = c;
     const clientHeaders = Object.fromEntries([...req.raw.headers.entries()].map(([k, v]) => [k.toLowerCase(), v]));
@@ -58,7 +62,12 @@ export const createProxy =
 
     const userId = authService.currentUser.id;
     headers[NOTIFICATIONS_IDENTITY_HEADERS.userId] = userId;
-    Object.assign(headers, accountEmailHeaders(authService.currentUser));
+
+    if (subject === "NotificationChannel" && ADDRESS_WRITING_METHODS.includes(req.method)) {
+      const { email, userId: auth0UserId } = authService.currentUser;
+      const verifiedEmail = auth0UserId ? await verifiedEmailService.getVerifiedEmail(auth0UserId) : null;
+      Object.assign(headers, accountEmailHeaders({ email, verifiedEmail }));
+    }
 
     const userWallet = await userWalletRepository.findOneUsedBy(userId);
 
@@ -175,6 +184,7 @@ const proxyRoute = createProxy({
   userWalletRepository: container.resolve(UserWalletRepository),
   deploymentSettingRepository: container.resolve(DeploymentSettingRepository),
   executionContextService: container.resolve(ExecutionContextService),
+  verifiedEmailService: container.resolve(VerifiedEmailService),
   config: container.resolve(NOTIFICATIONS_CONFIG),
   fetchFn: fetch
 });

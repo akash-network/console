@@ -39,22 +39,22 @@ describe(stripIdentityHeaders.name, () => {
 });
 
 describe(accountEmailHeaders.name, () => {
-  it("names the account email and whether it is verified", () => {
-    expect(accountEmailHeaders({ email: "owner@example.com", emailVerified: true })).toEqual({
+  it("names the email Auth0 reports verified as the verified account email", () => {
+    expect(accountEmailHeaders({ email: "other@example.com", verifiedEmail: "owner@example.com" })).toEqual({
       "x-user-email": "owner@example.com",
       "x-user-email-verified": "true"
     });
   });
 
-  it("names an account email of unknown verification as unverified", () => {
-    expect(accountEmailHeaders({ email: "owner@example.com", emailVerified: null })).toEqual({
+  it("names the account email as unverified while Auth0 reports no verified email", () => {
+    expect(accountEmailHeaders({ email: "owner@example.com", verifiedEmail: null })).toEqual({
       "x-user-email": "owner@example.com",
       "x-user-email-verified": "false"
     });
   });
 
   it("names nothing for an account without an email", () => {
-    expect(accountEmailHeaders({ email: null, emailVerified: true })).toEqual({});
+    expect(accountEmailHeaders({ email: null, verifiedEmail: null })).toEqual({});
   });
 });
 

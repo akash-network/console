@@ -127,13 +127,28 @@ describe(EmailVerificationCodeService.name, () => {
       const code = "123456";
       const user = createUser({ userId: "auth0|123", emailVerified: false });
       const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0 });
-      const { service, emailVerificationCodeRepository, userRepository, notificationService } = setup();
+      const { service, emailVerificationCodeRepository, userRepository, auth0Service, notificationService } = setup();
       userRepository.findById.mockResolvedValue(user);
       emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
 
       await service.verifyCode(user.id, code);
 
-      expect(notificationService.createDefaultChannel).toHaveBeenCalledWith({ ...user, emailVerified: true });
+      expect(notificationService.confirmAccountEmail).toHaveBeenCalledWith(user);
+      expect(auth0Service.markEmailVerified.mock.invocationCallOrder[0]).toBeLessThan(notificationService.confirmAccountEmail.mock.invocationCallOrder[0]);
+    });
+
+    it("leaves the notification channels alone when Auth0 cannot mark the email verified", async () => {
+      const code = "123456";
+      const user = createUser({ userId: "auth0|123" });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0 });
+      const { service, emailVerificationCodeRepository, userRepository, auth0Service, notificationService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      auth0Service.markEmailVerified.mockRejectedValue(new Error("Auth0 unavailable"));
+
+      await expect(service.verifyCode(user.id, code)).rejects.toThrow("Auth0 unavailable");
+
+      expect(notificationService.confirmAccountEmail).not.toHaveBeenCalled();
     });
 
     it("verifies the email even when its notification channels cannot be updated", async () => {
@@ -144,7 +159,7 @@ describe(EmailVerificationCodeService.name, () => {
       const { service, emailVerificationCodeRepository, userRepository, auth0Service, notificationService, logger } = setup();
       userRepository.findById.mockResolvedValue(user);
       emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
-      notificationService.createDefaultChannel.mockRejectedValue(error);
+      notificationService.confirmAccountEmail.mockRejectedValue(error);
 
       await service.verifyCode(user.id, code);
 
@@ -266,7 +281,7 @@ describe(EmailVerificationCodeService.name, () => {
   function setup() {
     const emailVerificationCodeRepository = mock<EmailVerificationCodeRepository>();
     const auth0Service = mock<Auth0Service>();
-    const notificationService = mock<NotificationService>({ createDefaultChannel: vi.fn().mockResolvedValue(undefined) });
+    const notificationService = mock<NotificationService>({ confirmAccountEmail: vi.fn().mockResolvedValue(undefined) });
     const userRepository = mock<UserRepository>();
     const trialActivationJobService = mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) });
     const logger = mock<ReturnType<CreateLogger>>();
