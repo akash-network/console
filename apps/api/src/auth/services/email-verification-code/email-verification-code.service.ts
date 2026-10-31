@@ -82,6 +82,9 @@ export class EmailVerificationCodeService {
     await this.trialActivationJobService.schedule(userInternalId).catch(error => {
       this.logger.error({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", userId: userInternalId, error });
     });
+    await this.notificationService.createDefaultChannel({ ...user, emailVerified: true }).catch(error => {
+      this.logger.error({ event: "FAILED_TO_CONFIRM_ACCOUNT_EMAIL_ON_CHANNELS", userId: userInternalId, error });
+    });
 
     try {
       await this.auth0Service.markEmailVerified(user.userId);

@@ -1,10 +1,9 @@
 import { generateMock } from "@anatine/zod-mock";
 import { faker } from "@faker-js/faker";
-import type { INestApplication } from "@nestjs/common";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
-import { Ok } from "ts-results";
+import { Err, Ok } from "ts-results";
 import { describe, expect, it, onTestFinished } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 
@@ -17,38 +16,51 @@ import {
   type DefaultChannelOwner,
   NotificationChannelRepository
 } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
-import {
-  MAX_NOTIFICATION_CHANNEL_ADDRESSES,
-  NotificationChannelController,
-  notificationChannelCreateInputSchema,
-  notificationChannelOutputSchema,
-  notificationChannelPatchInputSchema
-} from "./notification-channel.controller";
+import { type AccountEmail, AddressConfirmationService } from "@src/modules/notifications/services/address-confirmation/address-confirmation.service";
+import { MAX_NOTIFICATION_CHANNEL_ADDRESSES, NotificationChannelController, notificationChannelOutputSchema } from "./notification-channel.controller";
 
 import { MockProvider } from "@test/mocks/provider.mock";
 
 describe(NotificationChannelController.name, () => {
   describe("createNotificationChannel", () => {
-    it("should call notificationChannelRepository.create() and return the created notification channel", async () => {
-      const { controller, notificationChannelRepository, userId, organizationId } = await setup();
-      const input = generateMock(notificationChannelCreateInputSchema);
-      const output = { ...generateMock(notificationChannelOutputSchema), organizationId: null };
-
+    it("creates the channel with the requester's verified email confirmed and every other address waiting for confirmation", async () => {
+      const { controller, notificationChannelRepository, addressConfirmationService, userId, organizationId } = await setup({
+        accountEmail: { address: "Owner@Example.com", isVerified: true }
+      });
+      const output = channelWith(faker.string.uuid(), ["owner@example.com"]);
       notificationChannelRepository.create.mockResolvedValue(output);
 
-      const result = await controller.createNotificationChannel({ data: input });
+      const result = await controller.createNotificationChannel({
+        data: { name: "Ops", type: "email", config: { addresses: ["owner@example.com", "Teammate@Example.com"] } }
+      });
 
       expect(notificationChannelRepository.create).toHaveBeenCalledWith({
-        ...input,
+        name: "Ops",
+        type: "email",
+        config: { addresses: ["owner@example.com"] },
+        isDefault: false,
         userId,
         organizationId
       });
-      expect(result).toEqual(Ok({ data: output }));
+      expect(addressConfirmationService.requestConfirmations).toHaveBeenCalledWith(output, ["teammate@example.com"], {
+        userId,
+        accountEmail: { address: "Owner@Example.com", isVerified: true }
+      });
+      expect(result).toEqual(Ok({ data: { ...output, pendingAddresses: ["teammate@example.com"] } }));
+    });
+
+    it("keeps the default flag it is given", async () => {
+      const { controller, notificationChannelRepository } = await setup();
+      notificationChannelRepository.create.mockResolvedValue(channelWith(faker.string.uuid(), []));
+
+      await controller.createNotificationChannel({ data: { name: "Ops", type: "email", config: { addresses: [] }, isDefault: true } });
+
+      expect(notificationChannelRepository.create).toHaveBeenCalledWith(expect.objectContaining({ isDefault: true }));
     });
 
     it("creates a channel with as many addresses as the limit", async () => {
       const { app, notificationChannelRepository } = await setup();
-      notificationChannelRepository.create.mockResolvedValue({ ...generateMock(notificationChannelOutputSchema), organizationId: null });
+      notificationChannelRepository.create.mockResolvedValue(channelWith(faker.string.uuid(), []));
 
       const res = await request(app.getHttpServer())
         .post("/v1/notification-channels")
@@ -74,34 +86,60 @@ describe(NotificationChannelController.name, () => {
   });
 
   describe("updateNotificationChannel", () => {
-    it("should call notificationChannelRepository.updateById() and return the updated notification channel", async () => {
-      const { controller, notificationChannelRepository } = await setup();
+    it("renames a channel without reading or touching its addresses", async () => {
+      const { controller, notificationChannelRepository, addressConfirmationService } = await setup();
       const id = faker.string.uuid();
-      const input = generateMock(notificationChannelPatchInputSchema);
-      const output = { ...generateMock(notificationChannelOutputSchema), organizationId: null };
-
+      const output = channelWith(id, ["ops@example.com"]);
       notificationChannelRepository.updateById.mockResolvedValue(output);
 
-      const result = await controller.updateNotificationChannel(id, { data: input });
+      const result = await controller.updateNotificationChannel(id, { data: { name: "Renamed" } });
 
-      expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, input);
-      expect(result).toEqual(Ok({ data: output }));
+      expect(notificationChannelRepository.findById).not.toHaveBeenCalled();
+      expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, { name: "Renamed" });
+      expect(addressConfirmationService.requestConfirmations).not.toHaveBeenCalled();
+      expect(result).toEqual(Ok({ data: { ...output, pendingAddresses: [] } }));
     });
 
-    it("should return an error if notification channel is not found", async () => {
-      const { controller, notificationChannelRepository } = await setup();
+    it("keeps confirmed addresses, holds new ones for confirmation, and forgets pending ones it drops", async () => {
+      const { controller, notificationChannelRepository, addressConfirmationService, userId } = await setup({
+        pendingAddresses: ["dropped@example.com", "waiting@example.com"]
+      });
       const id = faker.string.uuid();
-      const input = generateMock(notificationChannelPatchInputSchema);
+      const updated = channelWith(id, ["kept@example.com"]);
+      notificationChannelRepository.findById.mockResolvedValue(channelWith(id, ["kept@example.com", "removed@example.com"]));
+      notificationChannelRepository.updateById.mockResolvedValue(updated);
 
+      const result = await controller.updateNotificationChannel(id, {
+        data: { config: { addresses: ["Kept@Example.com", "waiting@example.com", "new@example.com"] } }
+      });
+
+      expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, { config: { addresses: ["Kept@Example.com"] } });
+      expect(addressConfirmationService.forget).toHaveBeenCalledWith(id, ["dropped@example.com"]);
+      expect(addressConfirmationService.requestConfirmations).toHaveBeenCalledWith(updated, ["new@example.com"], { userId, accountEmail: null });
+      expect(result).toEqual(Ok({ data: { ...updated, pendingAddresses: ["waiting@example.com", "new@example.com"] } }));
+    });
+
+    it("answers 404 without updating a channel whose addresses it cannot find", async () => {
+      const { controller, notificationChannelRepository, addressConfirmationService } = await setup();
+      notificationChannelRepository.findById.mockResolvedValue(undefined);
+
+      const result = await controller.updateNotificationChannel(faker.string.uuid(), { data: { config: { addresses: ["ops@example.com"] } } });
+
+      expect(result).toMatchObject({ err: true, val: expect.objectContaining({ message: "Notification channel not found" }) });
+      expect(notificationChannelRepository.updateById).not.toHaveBeenCalled();
+      expect(addressConfirmationService.requestConfirmations).not.toHaveBeenCalled();
+    });
+
+    it("answers 404 without asking for confirmations when the channel is gone by the time it updates", async () => {
+      const { controller, notificationChannelRepository, addressConfirmationService } = await setup();
+      const id = faker.string.uuid();
+      notificationChannelRepository.findById.mockResolvedValue(channelWith(id, []));
       notificationChannelRepository.updateById.mockResolvedValue(undefined);
 
-      await expect(controller.updateNotificationChannel(id, { data: input })).resolves.toMatchObject({
-        err: true,
-        val: expect.objectContaining({
-          message: "Notification channel not found"
-        })
-      });
-      expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, input);
+      const result = await controller.updateNotificationChannel(id, { data: { config: { addresses: ["ops@example.com"] } } });
+
+      expect(result).toMatchObject({ err: true, val: expect.objectContaining({ message: "Notification channel not found" }) });
+      expect(addressConfirmationService.requestConfirmations).not.toHaveBeenCalled();
     });
 
     it("answers 400 without updating the notification channel when the id is not a uuid", async () => {
@@ -144,23 +182,23 @@ describe(NotificationChannelController.name, () => {
       }
     );
 
-    it("updates a channel to as many addresses as the limit without reading it first", async () => {
+    it("updates a channel to as many addresses as the limit", async () => {
       const { controller, notificationChannelRepository } = await setup();
       const id = faker.string.uuid();
-      const data = { config: { addresses: emails(MAX_NOTIFICATION_CHANNEL_ADDRESSES) } };
-      notificationChannelRepository.updateById.mockResolvedValue({ ...generateMock(notificationChannelOutputSchema), organizationId: null });
+      const addresses = emails(MAX_NOTIFICATION_CHANNEL_ADDRESSES);
+      notificationChannelRepository.findById.mockResolvedValue(channelWith(id, addresses.slice(1)));
+      notificationChannelRepository.updateById.mockResolvedValue(channelWith(id, addresses.slice(1)));
 
-      await controller.updateNotificationChannel(id, { data });
+      const result = await controller.updateNotificationChannel(id, { data: { config: { addresses } } });
 
-      expect(notificationChannelRepository.findById).not.toHaveBeenCalled();
-      expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, data);
+      expect(result.ok).toBe(true);
     });
 
-    it("answers 400 without updating a channel when the update adds an address past the limit", async () => {
-      const { app, notificationChannelRepository } = await setup();
+    it("answers 400 without updating a channel when the update adds an address past the limit, counting the pending ones", async () => {
+      const { app, notificationChannelRepository } = await setup({ pendingAddresses: ["member9@example.com"] });
       const id = faker.string.uuid();
       const addresses = emails(MAX_NOTIFICATION_CHANNEL_ADDRESSES);
-      notificationChannelRepository.findById.mockResolvedValue(channelWith(id, addresses));
+      notificationChannelRepository.findById.mockResolvedValue(channelWith(id, addresses.slice(0, 9)));
 
       const res = await request(app.getHttpServer())
         .patch(`/v1/notification-channels/${id}`)
@@ -184,17 +222,52 @@ describe(NotificationChannelController.name, () => {
       expect(result.ok).toBe(true);
       expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, data);
     });
+  });
 
-    it("answers 404 without updating when a channel to update past the limit does not exist", async () => {
-      const { app, notificationChannelRepository } = await setup();
+  describe("createNotificationChannelConfirmationEmail", () => {
+    it("emails a new confirmation link to an address waiting on the channel", async () => {
+      const { app, notificationChannelRepository, addressConfirmationService, userId } = await setup();
+      const channel = channelWith(faker.string.uuid(), []);
+      notificationChannelRepository.findById.mockResolvedValue(channel);
+      addressConfirmationService.resend.mockResolvedValue(Ok(undefined));
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/notification-channels/${channel.id}/confirmation-emails`)
+        .send({ data: { address: "teammate@example.com" } });
+
+      expect(res.status).toBe(204);
+      expect(notificationChannelRepository.accessibleBy).toHaveBeenCalledWith(undefined, "update");
+      expect(addressConfirmationService.resend).toHaveBeenCalledWith(channel, "teammate@example.com", { userId, accountEmail: null });
+    });
+
+    it.each([
+      { error: "RATE_LIMITED" as const, status: 429, message: "Too many confirmation emails were sent. Try again tomorrow." },
+      { error: "NOT_PENDING" as const, status: 404, message: "The address doesn't wait for confirmation on this channel" }
+    ])("answers $status when the resend is refused as $error", async ({ error, status, message }) => {
+      const { app, notificationChannelRepository, addressConfirmationService } = await setup();
+      const channel = channelWith(faker.string.uuid(), []);
+      notificationChannelRepository.findById.mockResolvedValue(channel);
+      addressConfirmationService.resend.mockResolvedValue(Err(error));
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/notification-channels/${channel.id}/confirmation-emails`)
+        .send({ data: { address: "teammate@example.com" } });
+
+      expect(res.status).toBe(status);
+      expect(res.body.message).toBe(message);
+    });
+
+    it("answers 404 without emailing for a channel the caller cannot update", async () => {
+      const { app, notificationChannelRepository, addressConfirmationService } = await setup();
       notificationChannelRepository.findById.mockResolvedValue(undefined);
 
       const res = await request(app.getHttpServer())
-        .patch(`/v1/notification-channels/${faker.string.uuid()}`)
-        .send({ data: { config: { addresses: emails(MAX_NOTIFICATION_CHANNEL_ADDRESSES + 1) } } });
+        .post(`/v1/notification-channels/${faker.string.uuid()}/confirmation-emails`)
+        .send({ data: { address: "teammate@example.com" } });
 
       expect(res.status).toBe(404);
-      expect(notificationChannelRepository.updateById).not.toHaveBeenCalled();
+      expect(res.body.message).toBe("Notification channel not found");
+      expect(addressConfirmationService.resend).not.toHaveBeenCalled();
     });
   });
 
@@ -209,7 +282,7 @@ describe(NotificationChannelController.name, () => {
       const result = await controller.getNotificationChannel(id);
 
       expect(notificationChannelRepository.findById).toHaveBeenCalledWith(id);
-      expect(result).toEqual(Ok({ data: output }));
+      expect(result).toEqual(Ok({ data: { ...output, pendingAddresses: [] } }));
     });
 
     it("should return an error if notification channel is not found", async () => {
@@ -262,7 +335,7 @@ describe(NotificationChannelController.name, () => {
 
       expect(notificationChannelRepository.accessibleBy).toHaveBeenCalledWith(undefined, "delete");
       expect(notificationChannelRepository.deleteSafelyById).toHaveBeenCalledWith(id);
-      expect(result).toEqual(Ok({ data: output }));
+      expect(result).toEqual(Ok({ data: { ...output, pendingAddresses: [] } }));
     });
 
     it("answers not found without counting its alerts or deleting it when the caller cannot delete the notification channel", async () => {
@@ -341,13 +414,33 @@ describe(NotificationChannelController.name, () => {
   });
 
   describe("createDefaultNotificationChannel", () => {
-    it("creates the default channel of the request's owner, stamped with its organization", async () => {
-      const { controller, notificationChannelRepository, userId, organizationId, defaultChannelOwner } = await setup();
-      const { isDefault, ...input } = generateMock(notificationChannelCreateInputSchema);
+    it("creates the default channel of the request's owner, stamped with its organization, with its addresses waiting for confirmation", async () => {
+      const { controller, notificationChannelRepository, addressConfirmationService, userId, organizationId, defaultChannelOwner } = await setup();
+      const created = channelWith(faker.string.uuid(), []);
+      notificationChannelRepository.createDefaultChannel.mockResolvedValue(created);
 
-      await controller.createDefaultNotificationChannel({ data: input });
+      await controller.createDefaultNotificationChannel({ data: { name: "Default", type: "email", config: { addresses: ["Owner@Example.com"] } } });
 
-      expect(notificationChannelRepository.createDefaultChannel).toHaveBeenCalledWith({ ...input, userId, organizationId }, defaultChannelOwner);
+      expect(notificationChannelRepository.createDefaultChannel).toHaveBeenCalledWith(
+        { name: "Default", type: "email", config: { addresses: [] }, userId, organizationId },
+        defaultChannelOwner
+      );
+      expect(addressConfirmationService.requestConfirmations).toHaveBeenCalledWith(created, ["owner@example.com"], { userId, accountEmail: null });
+    });
+
+    it("confirms the requester's verified email on their channels, whether or not it creates the default one", async () => {
+      const accountEmail = { address: "owner@example.com", isVerified: true };
+      const { controller, notificationChannelRepository, addressConfirmationService, userId } = await setup({ accountEmail });
+      notificationChannelRepository.createDefaultChannel.mockResolvedValue(undefined);
+
+      await controller.createDefaultNotificationChannel({ data: { name: "Default", type: "email", config: { addresses: ["owner@example.com"] } } });
+
+      expect(notificationChannelRepository.createDefaultChannel).toHaveBeenCalledWith(
+        expect.objectContaining({ config: { addresses: ["owner@example.com"] } }),
+        expect.anything()
+      );
+      expect(addressConfirmationService.requestConfirmations).not.toHaveBeenCalled();
+      expect(addressConfirmationService.confirmVerifiedEmail).toHaveBeenCalledWith(userId, accountEmail);
     });
 
     it("answers 400 without creating a default channel with more addresses than the limit", async () => {
@@ -372,29 +465,25 @@ describe(NotificationChannelController.name, () => {
       expect(notificationChannelRepository.paginate).not.toHaveBeenCalled();
     });
 
-    it("lists channels with the page and limit it is given", async () => {
-      const { app, notificationChannelRepository } = await setup();
+    it("lists channels with the page and limit it is given, each with the addresses waiting for confirmation on it", async () => {
+      const { app, notificationChannelRepository } = await setup({ pendingAddresses: ["teammate@example.com"] });
+      const channel = channelWith(faker.string.uuid(), ["owner@example.com"]);
       notificationChannelRepository.paginate.mockResolvedValue({
-        data: [],
-        pagination: { page: 2, limit: 10, total: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: true }
+        data: [channel],
+        pagination: { page: 2, limit: 10, total: 11, totalPages: 2, hasNextPage: false, hasPreviousPage: true }
       });
 
       const res = await request(app.getHttpServer()).get("/v1/notification-channels?page=2&limit=10");
 
       expect(res.status).toBe(200);
       expect(notificationChannelRepository.paginate).toHaveBeenCalledWith({ page: 2, limit: 10 });
+      expect(res.body.data).toEqual([
+        expect.objectContaining({ id: channel.id, config: { addresses: ["owner@example.com"] }, pendingAddresses: ["teammate@example.com"] })
+      ]);
     });
   });
 
-  async function setup(): Promise<{
-    controller: NotificationChannelController;
-    app: INestApplication;
-    notificationChannelRepository: MockProxy<NotificationChannelRepository>;
-    alertRepository: MockProxy<AlertRepository>;
-    userId: string;
-    organizationId: string;
-    defaultChannelOwner: DefaultChannelOwner;
-  }> {
+  async function setup(input: { accountEmail?: AccountEmail; pendingAddresses?: string[] } = {}) {
     const userId = faker.string.uuid();
     const organizationId = faker.string.uuid();
     const defaultChannelOwner: DefaultChannelOwner = { kind: "user", userId, organizationId };
@@ -406,17 +495,21 @@ describe(NotificationChannelController.name, () => {
           useValue: {
             userId,
             organizationId,
-            defaultChannelOwner
+            defaultChannelOwner,
+            accountEmail: input.accountEmail ?? null
           }
         },
         MockProvider(NotificationChannelRepository),
         MockProvider(AlertRepository),
+        MockProvider(AddressConfirmationService),
         MockProvider(LoggerService)
       ]
     }).compile();
 
     const notificationChannelRepository = module.get<MockProxy<NotificationChannelRepository>>(NotificationChannelRepository);
     notificationChannelRepository.accessibleBy.mockReturnValue(notificationChannelRepository);
+    const addressConfirmationService = module.get<MockProxy<AddressConfirmationService>>(AddressConfirmationService);
+    addressConfirmationService.pendingAddressesOf.mockImplementation(async ids => new Map(ids.map(id => [id, input.pendingAddresses ?? []])));
 
     const app = module.createNestApplication();
     app.enableVersioning();
@@ -430,6 +523,7 @@ describe(NotificationChannelController.name, () => {
       app,
       notificationChannelRepository,
       alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
+      addressConfirmationService,
       userId,
       organizationId,
       defaultChannelOwner
@@ -442,5 +536,7 @@ function emails(count: number): string[] {
 }
 
 function channelWith(id: string, addresses: string[]) {
-  return { ...generateMock(notificationChannelOutputSchema), id, organizationId: null, config: { addresses } };
+  const { pendingAddresses, ...channel } = generateMock(notificationChannelOutputSchema);
+
+  return { ...channel, id, organizationId: null, config: { addresses } };
 }

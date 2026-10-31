@@ -448,7 +448,12 @@ describe(UserService.name, () => {
 
       await service.updateUserDetails(user.id, { timezone: "Europe/Paris" });
 
-      expect(notificationService.createDefaultChannel).toHaveBeenCalledWith({ id: user.id, email: user.email, timezone: "Europe/Paris" });
+      expect(notificationService.createDefaultChannel).toHaveBeenCalledWith({
+        id: user.id,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        timezone: "Europe/Paris"
+      });
     });
 
     it("keeps the picked timezone when the alert emails cannot be moved to it", async () => {

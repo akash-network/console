@@ -2,7 +2,7 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
 import type { OrganizationContext } from "@src/organization/types/organization-context";
-import { NOTIFICATIONS_IDENTITY_HEADERS, organizationIdentityHeaders, stripIdentityHeaders } from "./identity-headers";
+import { accountEmailHeaders, NOTIFICATIONS_IDENTITY_HEADERS, organizationIdentityHeaders, stripIdentityHeaders } from "./identity-headers";
 
 import { createProjectsScope } from "@test/seeders/organization-context.seeder";
 
@@ -21,7 +21,7 @@ describe(stripIdentityHeaders.name, () => {
     expect(forwarded).toEqual({});
   });
 
-  it("reserves the user, organization and project headers", () => {
+  it("reserves the user, account email, organization and project headers", () => {
     expect(Object.values(NOTIFICATIONS_IDENTITY_HEADERS)).toEqual(
       expect.arrayContaining([
         "x-user-id",
@@ -30,9 +30,31 @@ describe(stripIdentityHeaders.name, () => {
         "x-organization-type",
         "x-organization-role",
         "x-project-scope",
-        "x-project-id"
+        "x-project-id",
+        "x-user-email",
+        "x-user-email-verified"
       ])
     );
+  });
+});
+
+describe(accountEmailHeaders.name, () => {
+  it("names the account email and whether it is verified", () => {
+    expect(accountEmailHeaders({ email: "owner@example.com", emailVerified: true })).toEqual({
+      "x-user-email": "owner@example.com",
+      "x-user-email-verified": "true"
+    });
+  });
+
+  it("names an account email of unknown verification as unverified", () => {
+    expect(accountEmailHeaders({ email: "owner@example.com", emailVerified: null })).toEqual({
+      "x-user-email": "owner@example.com",
+      "x-user-email-verified": "false"
+    });
+  });
+
+  it("names nothing for an account without an email", () => {
+    expect(accountEmailHeaders({ email: null, emailVerified: true })).toEqual({});
   });
 });
 

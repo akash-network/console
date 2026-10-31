@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
-import { NOTIFICATIONS_IDENTITY_HEADERS } from "@src/notifications/lib/identity-headers/identity-headers";
+import { accountEmailHeaders, NOTIFICATIONS_IDENTITY_HEADERS } from "@src/notifications/lib/identity-headers/identity-headers";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { UserRepository } from "@src/user/repositories";
 import type { NotificationsApiClient, NotificationsInternalApiClient, NotificationsInternalOperationDefs } from "../../providers/notifications-api.provider";
@@ -68,7 +68,9 @@ export class NotificationService {
       await send().catch(async error => {
         if (extractApiErrorCode(error) !== "NOTIFICATION_CHANNEL_NOT_FOUND") throw error;
 
-        await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email, user.timezone), { headers });
+        await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email, user.timezone), {
+          headers: { ...headers, ...accountEmailHeaders(user) }
+        });
         await send();
       });
     } catch (error) {
@@ -76,8 +78,9 @@ export class NotificationService {
     }
   }
 
+  /** Also confirms the user's email on their channels once it is verified, so it runs again after verification. */
   async createDefaultChannel(user: UserInput): Promise<void> {
-    const headers = await this.#userIdentityHeaders(user.id);
+    const headers = { ...(await this.#userIdentityHeaders(user.id)), ...accountEmailHeaders(user) };
     await this.#retryPolicy.execute(async () => {
       try {
         await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email!, user.timezone), { headers });
@@ -85,6 +88,20 @@ export class NotificationService {
         throw new Error("Failed to create default notification channel", { cause: error });
       }
     });
+  }
+
+  /** Answers false for a link that confirms nothing, so the caller can tell it apart from a failure. */
+  async confirmAddress(token: string): Promise<boolean> {
+    try {
+      await this.notificationsInternalApi.v1.confirmAddress({ token });
+      return true;
+    } catch (error) {
+      if (extractApiErrorCode(error) === "INVALID_CONFIRMATION_LINK") {
+        return false;
+      }
+
+      throw error;
+    }
   }
 
   /** The personal organization tells the notifications service which of the user's rows to purge: those of team organizations stay with them. */
@@ -118,8 +135,13 @@ export class NotificationService {
     const deploymentHeaders = await this.#deploymentIdentityHeaders(input);
     const channelId =
       deploymentHeaders[NOTIFICATIONS_IDENTITY_HEADERS.organizationType] === "team"
-        ? await this.#getOrCreateTeamChannelId(deploymentHeaders, user.email)
-        : await this.getOrCreateNotificationChannelId(deploymentHeaders, { id: input.userId, email: user.email, timezone: user.timezone });
+        ? await this.#getOrCreateTeamChannelId(deploymentHeaders, { email: user.email, emailVerified: user.emailVerified })
+        : await this.getOrCreateNotificationChannelId(deploymentHeaders, {
+            id: input.userId,
+            email: user.email,
+            emailVerified: user.emailVerified,
+            timezone: user.timezone
+          });
     if (!channelId) {
       this.#logger.warn({ event: "SKIP_AUTO_ENABLE_ALERT", reason: "No channel found after creation", userId: input.userId });
       return;
@@ -145,7 +167,7 @@ export class NotificationService {
   }
 
   /** Notifies whoever deployed, through a channel of the deployment's organization, until teams choose their deployment alert recipients; re-lists after creating so concurrent leases converge on the oldest channel. */
-  async #getOrCreateTeamChannelId(deploymentHeaders: Record<string, string>, email: string): Promise<string> {
+  async #getOrCreateTeamChannelId(deploymentHeaders: Record<string, string>, user: { email: string; emailVerified?: boolean | null }): Promise<string> {
     const channels = await this.getNotificationChannels(deploymentHeaders);
     const existingChannelId = preferredChannelId(channels?.data);
 
@@ -155,8 +177,8 @@ export class NotificationService {
 
     const { data: created } = await this.#retryPolicy.execute(async () =>
       this.notificationsApi.v1.createNotificationChannel(
-        { data: { name: TEAM_DEPLOYMENT_ALERTS_CHANNEL_NAME, type: "email", config: { addresses: [email] }, isDefault: false } },
-        { headers: deploymentHeaders }
+        { data: { name: TEAM_DEPLOYMENT_ALERTS_CHANNEL_NAME, type: "email", config: { addresses: [user.email] }, isDefault: false } },
+        { headers: { ...deploymentHeaders, ...accountEmailHeaders(user) } }
       )
     );
     const channelsAfterCreate = await this.getNotificationChannels(deploymentHeaders);
@@ -230,6 +252,7 @@ function defaultChannelInput(email: string, timezone: string | null | undefined)
 interface UserInput {
   id: string;
   email?: string | null;
+  emailVerified?: boolean | null;
   timezone?: string | null;
 }
 

@@ -9,7 +9,9 @@ export const schema = z.object({
   CONSOLE_API_INTERNAL_TOKEN: unsetWhenEmpty(z.string()),
   /** Kept short because the emails queued behind an alert wait while its feed entry is written. */
   CONSOLE_API_TIMEOUT_MS: z.number({ coerce: true }).int().positive().optional().default(2000),
-  PROMOTIONAL_EMAIL_POSTAL_ADDRESS: unsetWhenEmpty(z.string())
+  PROMOTIONAL_EMAIL_POSTAL_ADDRESS: unsetWhenEmpty(z.string()),
+  /** The same Console web URL alert emails link to, required wherever channel addresses are confirmed. */
+  CONSOLE_WEB_URL: unsetWhenEmpty(z.string())
 });
 
 export type NotificationEnvConfig = z.infer<typeof schema>;

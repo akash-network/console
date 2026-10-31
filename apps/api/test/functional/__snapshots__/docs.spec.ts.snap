@@ -16911,6 +16911,53 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/notification-address-confirmations": {
+      "post": {
+        "operationId": "createNotificationAddressConfirmation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "properties": {
+                      "token": {
+                        "description": "The token of the confirmation link emailed to an address added to a notification channel",
+                        "maxLength": 256,
+                        "minLength": 1,
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "token",
+                    ],
+                    "type": "object",
+                  },
+                },
+                "required": [
+                  "data",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+        "responses": {
+          "204": {
+            "description": "The address receives the channel's alerts from now on",
+          },
+          "400": {
+            "description": "The confirmation link is invalid or was already used",
+          },
+        },
+        "security": [],
+        "summary": "Confirm an address added to a notification channel through the link emailed to it, without signing in",
+        "tags": [
+          "Notifications",
+        ],
+      },
+    },
     "/v1/organization-activities": {
       "get": {
         "operationId": "listOrganizationActivities",

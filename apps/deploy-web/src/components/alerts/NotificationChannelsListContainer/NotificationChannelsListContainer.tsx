@@ -5,10 +5,11 @@ import React from "react";
 import { useEffect } from "react";
 import { useCallback, useState } from "react";
 import type { components } from "@akashnetwork/console-api-types/notifications";
-import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
+import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useNotificator } from "@src/hooks/useNotificator";
+import { SKIP_REPORTING_REFUSED_INPUT } from "@src/services/query-error-policy/query-error-policy";
 
 type NotificationChannel = components["schemas"]["NotificationChannelOutput"]["data"];
 export type NotificationChannelsOutput = components["schemas"]["NotificationChannelListOutput"]["data"];
@@ -23,6 +24,8 @@ export type ChildrenProps = {
   isFetched: boolean;
   removingIds: Set<NotificationChannel["id"]>;
   onRemove: (id: NotificationChannel["id"]) => Promise<RemoveNotificationChannelResult>;
+  onResendConfirmation: (id: NotificationChannel["id"], address: string) => Promise<void>;
+  isResendingConfirmation: boolean;
   onPaginationChange: (state: { page: number; limit: number }) => void;
   isError: boolean;
   refetch: () => void;
@@ -35,6 +38,10 @@ type NotificationChannelsListContainerProps = {
 
 const CHANNEL_IN_USE_ERROR = "Cannot delete notification channel with alerts";
 
+function isTooManyRequestsError(error: unknown): boolean {
+  return isApiError(error) && error.status === 429;
+}
+
 export const NotificationChannelsListContainer: FC<NotificationChannelsListContainerProps> = ({ onFetched, children }) => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -42,6 +49,7 @@ export const NotificationChannelsListContainer: FC<NotificationChannelsListConta
   const { api } = useServices();
   const { data, isError, isLoading, isFetched, refetch } = api.v1.listNotificationChannels.useQuery({ page, limit });
   const mutation = api.v1.deleteNotificationChannel.useMutation();
+  const confirmationEmailMutation = api.v1.createNotificationChannelConfirmationEmail.useMutation({ meta: SKIP_REPORTING_REFUSED_INPUT });
   const notificator = useNotificator();
 
   const remove = useCallback(
@@ -80,6 +88,21 @@ export const NotificationChannelsListContainer: FC<NotificationChannelsListConta
     [mutation, data?.data.length, page, refetch, notificator]
   );
 
+  const resendConfirmation = useCallback(
+    async (id: NotificationChannel["id"], address: string) => {
+      try {
+        await confirmationEmailMutation.mutateAsync({ id, data: { address } });
+        notificator.success(`Confirmation email sent to ${address}`, { dataTestId: "notification-channel-confirmation-sent-notification" });
+      } catch (error) {
+        notificator.error(
+          isTooManyRequestsError(error) ? "Too many confirmation emails were sent today. Try again tomorrow." : "Failed to send the confirmation email",
+          { dataTestId: "notification-channel-confirmation-error-notification" }
+        );
+      }
+    },
+    [confirmationEmailMutation, notificator]
+  );
+
   useEffect(() => {
     if (onFetched && isFetched && data?.data) {
       onFetched(data.data);
@@ -103,6 +126,8 @@ export const NotificationChannelsListContainer: FC<NotificationChannelsListConta
         data: data?.data || [],
         onPaginationChange: changePage,
         onRemove: remove,
+        onResendConfirmation: resendConfirmation,
+        isResendingConfirmation: confirmationEmailMutation.isPending,
         refetch,
         removingIds,
         isLoading,

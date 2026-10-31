@@ -63,6 +63,14 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    createNotificationChannelConfirmationEmail: {
+      path: "/v1/notification-channels/{id}/confirmation-emails",
+      method: "post",
+      operationId: "createNotificationChannelConfirmationEmail",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
+    },
     upsertDeploymentAlert: {
       path: "/v1/deployment-alerts/{dseq}",
       method: "post",

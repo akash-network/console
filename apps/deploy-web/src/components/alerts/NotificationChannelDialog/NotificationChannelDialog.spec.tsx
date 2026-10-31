@@ -54,6 +54,13 @@ describe(NotificationChannelDialog.name, () => {
     expect(onEdit).toHaveBeenCalledWith({ name: "Ops", emails: ["ops@acme.dev"] });
   });
 
+  it("lists the addresses waiting for confirmation in the form after the confirmed ones", () => {
+    const channel = buildNotificationChannel({ config: { addresses: ["ops@acme.dev"] }, pendingAddresses: ["oncall@acme.dev"] });
+    const { NotificationChannelForm } = setup({ notificationChannel: channel });
+
+    expect(NotificationChannelForm.mock.lastCall![0].initialValues?.emails).toEqual(["ops@acme.dev", "oncall@acme.dev"]);
+  });
+
   it("closes when the form is cancelled", () => {
     const { NotificationChannelForm, onClose } = setup({});
 

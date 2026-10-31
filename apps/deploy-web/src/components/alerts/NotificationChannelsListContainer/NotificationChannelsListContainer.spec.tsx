@@ -61,6 +61,31 @@ describe("NotificationChannelsListContainer", () => {
     expect(screen.queryByTestId("notification-channel-remove-error-notification")).not.toBeInTheDocument();
   });
 
+  it("emails a new confirmation link to an address waiting on a channel and says so", async () => {
+    const { mockData, mockFetch, child } = await setup();
+    mockFetch.mockResolvedValue(new Response(null, { status: 204 }));
+
+    await act(() => child.onResendConfirmation(mockData.data[0].id, "oncall@acme.dev"));
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining(`/v1/notification-channels/${mockData.data[0].id}/confirmation-emails`),
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ data: { address: "oncall@acme.dev" } }) })
+    );
+    expect(await screen.findByText("Confirmation email sent to oncall@acme.dev")).toBeInTheDocument();
+  });
+
+  it.each([
+    { status: 429, message: "Too many confirmation emails were sent today. Try again tomorrow." },
+    { status: 500, message: "Failed to send the confirmation email" }
+  ])("explains a refused resend answered with $status", async ({ status, message }) => {
+    const { mockData, mockFetch, child } = await setup();
+    mockFetch.mockResolvedValue(jsonResponse({ statusCode: status, message: "refused" }, status));
+
+    await act(() => child.onResendConfirmation(mockData.data[0].id, "oncall@acme.dev"));
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+  });
+
   it("handles pagination correctly", async () => {
     const { mockFetch, child } = await setup();
     await act(() => child.onPaginationChange({ page: child.pagination.page + 1, limit: child.pagination.limit }));

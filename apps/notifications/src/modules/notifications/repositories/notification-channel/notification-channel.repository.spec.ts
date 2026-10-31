@@ -3,7 +3,7 @@ import { faker } from "@faker-js/faker";
 import { ConfigModule } from "@nestjs/config";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { createHash } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -41,6 +41,19 @@ describe(NotificationChannelRepository.name, () => {
       await Promise.all([repository.createDefaultChannel(channelInput({ userId }), owner), repository.createDefaultChannel(channelInput({ userId }), owner)]);
 
       expect(await liveDefaultsOf(repository, { userId })).toHaveLength(1);
+    });
+
+    it("returns the default it creates and nothing when one already exists", async () => {
+      const { repository } = await setup();
+      const userId = faker.string.uuid();
+      const owner: DefaultChannelOwner = { kind: "user", userId, organizationId: null };
+      const channel = channelInput({ userId });
+
+      const created = await repository.createDefaultChannel(channel, owner);
+      const existing = await repository.createDefaultChannel(channelInput({ userId }), owner);
+
+      expect(created).toEqual({ ...channel, isDefault: true });
+      expect(existing).toBeUndefined();
     });
 
     it("creates a default notification channel if there is deleted one", async () => {
@@ -351,6 +364,40 @@ describe(NotificationChannelRepository.name, () => {
       expect(await addressesOf(module, otherOrganization.id)).toEqual([departed]);
       expect(await addressesOf(module, unattributed.id)).toEqual([departed]);
       expect(await addressesOf(module, deleted.id)).toEqual([departed]);
+    });
+
+    it("drops the departed address from the addresses waiting for confirmation on the organization's channels", async () => {
+      const { module, repository } = await setup();
+      const organizationId = faker.string.uuid();
+      const departed = faker.internet.email().toLowerCase();
+      const teammate = faker.internet.email().toLowerCase();
+      const channel = await repository.create(channelInput({ organizationId, addresses: [faker.internet.email()] }));
+      const otherOrganization = await repository.create(channelInput({ organizationId: faker.string.uuid(), addresses: [faker.internet.email()] }));
+      const db = module.get<NodePgDatabase<typeof schema>>(DRIZZLE_PROVIDER_TOKEN);
+      await db.insert(schema.NotificationChannelPendingAddress).values(
+        [
+          { notificationChannelId: channel.id, address: departed },
+          { notificationChannelId: channel.id, address: teammate },
+          { notificationChannelId: otherOrganization.id, address: departed }
+        ].map(pending => ({ ...pending, tokenHash: faker.string.hexadecimal({ length: 64, prefix: "" }) }))
+      );
+
+      await repository.releaseAddressInOrganization({ organizationId, addressSha256: sha256Of(departed), fallbackAddresses: [] });
+
+      const pendingAddresses = await db
+        .select({
+          notificationChannelId: schema.NotificationChannelPendingAddress.notificationChannelId,
+          address: schema.NotificationChannelPendingAddress.address
+        })
+        .from(schema.NotificationChannelPendingAddress)
+        .where(inArray(schema.NotificationChannelPendingAddress.notificationChannelId, [channel.id, otherOrganization.id]));
+      expect(pendingAddresses).toEqual(
+        expect.arrayContaining([
+          { notificationChannelId: channel.id, address: teammate },
+          { notificationChannelId: otherOrganization.id, address: departed }
+        ])
+      );
+      expect(pendingAddresses).toHaveLength(2);
     });
 
     function sha256Of(address: string) {

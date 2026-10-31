@@ -74,7 +74,9 @@ describe("createProxy", () => {
         "x-organization-id": faker.string.uuid(),
         "x-organization-role": "owner",
         "x-project-scope": "all",
-        "x-project-id": faker.string.uuid()
+        "x-project-id": faker.string.uuid(),
+        "x-user-email": faker.internet.email(),
+        "x-user-email-verified": "true"
       }
     });
 
@@ -86,6 +88,16 @@ describe("createProxy", () => {
         headers: { "x-custom": expect.any(String), "x-user-id": userId, "x-owner-address": owner }
       })
     );
+  });
+
+  it("mints the caller's account email and whether it is verified", async () => {
+    const { handler, context, fetchMock } = setupProxyTest({ method: "GET", currentUser: { email: "owner@example.com", emailVerified: true } });
+
+    await handler(context);
+
+    const headers = forwardedHeaders(fetchMock);
+    expect(headers["x-user-email"]).toBe("owner@example.com");
+    expect(headers["x-user-email-verified"]).toBe("true");
   });
 
   it("mints only the organization to stamp while legacy rules apply", async () => {
@@ -449,6 +461,7 @@ describe("createProxy", () => {
     body?: unknown;
     apiKey?: ApiKeyOutput;
     upstream?: Response;
+    currentUser?: { email?: string | null; emailVerified?: boolean };
   };
 
   function setupProxyTest(options: SetupOptions = {}) {
@@ -459,7 +472,7 @@ describe("createProxy", () => {
     const userId = faker.string.uuid();
 
     const authService = mock<AuthService>({
-      currentUser: { id: userId },
+      currentUser: { id: userId, email: null, emailVerified: false, ...options.currentUser },
       throwUnlessCan: vi.fn().mockReturnValue(undefined)
     });
     const owner = createAkashAddress();

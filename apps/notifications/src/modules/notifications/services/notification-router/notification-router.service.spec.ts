@@ -5,6 +5,7 @@ import { Test } from "@nestjs/testing";
 import { describe, expect, it } from "vitest";
 import type { MockProxy } from "vitest-mock-extended";
 
+import { LoggerService } from "@src/common/services/logger/logger.service";
 import { NotificationCommandDto } from "@src/modules/notifications/dto/NotificationCommand.dto";
 import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 import { ActivityFeedService } from "../activity-feed/activity-feed.service";
@@ -102,6 +103,44 @@ describe(NotificationRouterService.name, () => {
       expect(activityFeedService.addToFeed).not.toHaveBeenCalled();
     });
 
+    it("sends no email for a channel whose addresses all wait for confirmation, and still files its alert in the feed", async () => {
+      const { service, emailSenderService, notificationChannelRepository, activityFeedService, loggerService } = await setup();
+      const notificationCommand = createAlertCommand({
+        type: "wallet_balance_alert",
+        alertId: faker.string.uuid(),
+        userId: faker.string.uuid(),
+        organizationId: null,
+        projectId: null,
+        dedupeKey: "wallet_balance_alert.1"
+      });
+      notificationChannelRepository.findById.mockResolvedValue(
+        generateNotificationChannel({ id: notificationCommand.notificationChannelId, type: "email", config: { addresses: [] } })
+      );
+
+      const result = await service.send(notificationCommand);
+
+      expect(result.ok).toBe(true);
+      expect(emailSenderService.send).not.toHaveBeenCalled();
+      expect(loggerService.info).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "EMAIL_SKIPPED", notificationChannelId: notificationCommand.notificationChannelId })
+      );
+      expect(activityFeedService.addToFeed).toHaveBeenCalled();
+    });
+
+    it("answers an error without emailing for a channel type it cannot send to", async () => {
+      const { service, emailSenderService, notificationChannelRepository } = await setup();
+      const notificationCommand = createAlertCommand();
+      notificationChannelRepository.findById.mockResolvedValue({
+        ...generateNotificationChannel({ id: notificationCommand.notificationChannelId }),
+        type: "sms" as "email"
+      });
+
+      const result = await service.send(notificationCommand);
+
+      expect(result.err && result.val.code).toBe("UNSUPPORTED_NOTIFICATION_CHANNEL_TYPE");
+      expect(emailSenderService.send).not.toHaveBeenCalled();
+    });
+
     it("adds nothing to the activity feed when the email could not be sent", async () => {
       const { service, emailSenderService, notificationChannelRepository, activityFeedService } = await setup();
       const error = new Error("Novu is unavailable");
@@ -135,14 +174,21 @@ describe(NotificationRouterService.name, () => {
 
   async function setup() {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [NotificationRouterService, MockProvider(EmailSenderService), MockProvider(NotificationChannelRepository), MockProvider(ActivityFeedService)]
+      providers: [
+        NotificationRouterService,
+        MockProvider(EmailSenderService),
+        MockProvider(NotificationChannelRepository),
+        MockProvider(ActivityFeedService),
+        MockProvider(LoggerService)
+      ]
     }).compile();
 
     return {
       service: module.get<NotificationRouterService>(NotificationRouterService),
       emailSenderService: module.get<MockProxy<EmailSenderService>>(EmailSenderService),
       notificationChannelRepository: module.get<MockProxy<NotificationChannelRepository>>(NotificationChannelRepository),
-      activityFeedService: module.get<MockProxy<ActivityFeedService>>(ActivityFeedService)
+      activityFeedService: module.get<MockProxy<ActivityFeedService>>(ActivityFeedService),
+      loggerService: module.get<MockProxy<LoggerService>>(LoggerService)
     };
   }
 });

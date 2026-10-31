@@ -200,6 +200,20 @@ describe(EmailSenderService.name, () => {
       });
     });
 
+    it("says in the footer why the address receives an email that names its own reason", async () => {
+      const { service, novu } = await setup();
+
+      await service.send({
+        addresses: [faker.internet.email()],
+        subject: faker.lorem.sentence(),
+        content: faker.lorem.paragraph(),
+        userId: faker.string.uuid(),
+        receivingReason: "this address was added to a notification channel"
+      });
+
+      expect(novu.trigger.mock.calls[0][0].payload?.content).toContain("You're receiving this because this address was added to a notification channel.");
+    });
+
     it("sends no unsubscribe headers nor unsubscribe footer for an email without unsubscribe links", async () => {
       const { service, novu } = await setup({ postalAddress: "1 Market St, San Francisco, CA 94105" });
       const addresses = [faker.internet.email()];

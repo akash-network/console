@@ -25276,6 +25276,53 @@
         ]
       }
     },
+    "/v1/notification-address-confirmations": {
+      "post": {
+        "operationId": "createNotificationAddressConfirmation",
+        "summary": "Confirm an address added to a notification channel through the link emailed to it, without signing in",
+        "tags": [
+          "Notifications"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "token": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "description": "The token of the confirmation link emailed to an address added to a notification channel"
+                      }
+                    },
+                    "required": [
+                      "token"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "The address receives the channel's alerts from now on"
+          },
+          "400": {
+            "description": "The confirmation link is invalid or was already used"
+          }
+        }
+      }
+    },
     "/v1/activities": {
       "get": {
         "operationId": "listActivities",
@@ -31696,7 +31743,7 @@
         },
         "responses": {
           "204": {
-            "description": "Creates the default notification channel only if it doesn't exist, and otherwise updates its timezone when one is given."
+            "description": "Creates the default notification channel only if it doesn't exist, and otherwise updates its timezone when one is given. Either way, confirms the requester's verified email wherever it waits on their channels."
           },
           "400": {
             "description": "Validation error responded when some request parameters are invalid",
@@ -32012,6 +32059,113 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/NotFoundErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error, should probably be reported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "NotificationChannel"
+        ]
+      }
+    },
+    "/v1/notification-channels/{id}/confirmation-emails": {
+      "post": {
+        "operationId": "createNotificationChannelConfirmationEmail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationChannelConfirmationEmailInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Emails a new confirmation link to an address that waits for confirmation on the channel"
+          },
+          "400": {
+            "description": "Validation error responded when some request parameters are invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error responded when the user is not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error responded when the user is not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForbiddenErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Returns 404 if the channel is not found or the address doesn't wait for confirmation on it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Returns 429 once the daily limit of confirmation emails is reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TooManyRequestsErrorResponse"
                 }
               }
             }
@@ -36287,7 +36441,9 @@
                 "type": "object",
                 "properties": {
                   "addresses": {
+                    "description": "Addresses other than the requester's verified email wait for confirmation before they receive alerts",
                     "type": "array",
+                    "maxItems": 10,
                     "items": {
                       "type": "string",
                       "format": "email"
@@ -36329,6 +36485,7 @@
                 ]
               },
               "config": {
+                "description": "The confirmed addresses, which receive the channel's alerts",
                 "type": "object",
                 "properties": {
                   "addresses": {
@@ -36345,6 +36502,13 @@
               },
               "isDefault": {
                 "type": "boolean"
+              },
+              "pendingAddresses": {
+                "description": "Addresses on the channel that receive no alerts until they are confirmed through the link emailed to them",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               },
               "id": {
                 "type": "string",
@@ -36367,6 +36531,7 @@
               "type",
               "config",
               "isDefault",
+              "pendingAddresses",
               "id",
               "userId",
               "timezone",
@@ -36398,7 +36563,9 @@
                 "type": "object",
                 "properties": {
                   "addresses": {
+                    "description": "Addresses other than the requester's verified email wait for confirmation before they receive alerts",
                     "type": "array",
+                    "maxItems": 10,
                     "items": {
                       "type": "string",
                       "format": "email"
@@ -36460,6 +36627,7 @@
                   ]
                 },
                 "config": {
+                  "description": "The confirmed addresses, which receive the channel's alerts",
                   "type": "object",
                   "properties": {
                     "addresses": {
@@ -36476,6 +36644,13 @@
                 },
                 "isDefault": {
                   "type": "boolean"
+                },
+                "pendingAddresses": {
+                  "description": "Addresses on the channel that receive no alerts until they are confirmed through the link emailed to them",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 "id": {
                   "type": "string",
@@ -36498,6 +36673,7 @@
                 "type",
                 "config",
                 "isDefault",
+                "pendingAddresses",
                 "id",
                 "userId",
                 "timezone",
@@ -36569,6 +36745,7 @@
                 ]
               },
               "config": {
+                "description": "Replaces both the confirmed and the pending addresses; addresses new to the channel wait for confirmation",
                 "type": "object",
                 "properties": {
                   "addresses": {
@@ -36588,6 +36765,44 @@
         },
         "required": [
           "data"
+        ]
+      },
+      "NotificationChannelConfirmationEmailInput": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "address": {
+                "description": "An address on the channel that waits for confirmation",
+                "type": "string",
+                "format": "email"
+              }
+            },
+            "required": [
+              "address"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "TooManyRequestsErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "minimum": 429,
+            "maximum": 429
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "statusCode",
+          "message"
         ]
       },
       "DeploymentAlertCreateInput": {

@@ -5,7 +5,8 @@ import { Request } from "express";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import type { DefaultChannelOwner } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
-import { reachesUnattributedRows, readRequestIdentity, type RequestIdentity } from "./request-identity";
+import type { AccountEmail } from "@src/modules/notifications/services/address-confirmation/address-confirmation.service";
+import { reachesUnattributedRows, readAccountEmail, readRequestIdentity, type RequestIdentity } from "./request-identity";
 
 declare module "express" {
   export interface Request {
@@ -31,6 +32,10 @@ export class AuthService {
 
   get reachesUnattributedRows(): boolean {
     return reachesUnattributedRows(this.#identity);
+  }
+
+  get accountEmail(): AccountEmail | null {
+    return readAccountEmail(this.request.headers);
   }
 
   /** A team organization has one default whoever asks; a personal one keeps its owner's default, unattributed included. */

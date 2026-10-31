@@ -32,6 +32,8 @@ export type NotificationChannelsListViewProps = {
   isLoading: boolean;
   removingIds: Set<NotificationChannel["id"]>;
   onRemove: (id: NotificationChannel["id"]) => Promise<RemoveNotificationChannelResult>;
+  onResendConfirmation: (id: NotificationChannel["id"], address: string) => Promise<void>;
+  isResendingConfirmation: boolean;
   onPaginationChange: (state: { page: number; limit: number }) => void;
   isError: boolean;
   dependencies?: typeof DEPENDENCIES;
@@ -44,6 +46,8 @@ export const NotificationChannelsListView: FC<NotificationChannelsListViewProps>
   isLoading,
   removingIds,
   onRemove,
+  onResendConfirmation,
+  isResendingConfirmation,
   isError,
   dependencies: d = DEPENDENCIES
 }) => {
@@ -124,6 +128,24 @@ export const NotificationChannelsListView: FC<NotificationChannelsListViewProps>
                       {channel.config.addresses.map(address => (
                         <span key={address} className="block truncate" title={address}>
                           {address}
+                        </span>
+                      ))}
+                      {channel.pendingAddresses.map(address => (
+                        <span key={address} className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-muted-foreground" title={address}>
+                            {address}
+                          </span>
+                          <span className="shrink-0 text-xs text-muted-foreground">Pending confirmation</span>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="h-auto shrink-0 p-0 text-xs"
+                            disabled={isResendingConfirmation}
+                            aria-label={`Resend the confirmation email to ${address}`}
+                            onClick={() => onResendConfirmation(channel.id, address)}
+                          >
+                            Resend
+                          </Button>
                         </span>
                       ))}
                     </span>

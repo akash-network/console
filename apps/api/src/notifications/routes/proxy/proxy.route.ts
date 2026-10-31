@@ -12,7 +12,12 @@ import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-fl
 import type { AppContext } from "@src/core/types/app-context";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { NotificationsConfig } from "@src/notifications/config/env.config";
-import { NOTIFICATIONS_IDENTITY_HEADERS, organizationIdentityHeaders, stripIdentityHeaders } from "@src/notifications/lib/identity-headers/identity-headers";
+import {
+  accountEmailHeaders,
+  NOTIFICATIONS_IDENTITY_HEADERS,
+  organizationIdentityHeaders,
+  stripIdentityHeaders
+} from "@src/notifications/lib/identity-headers/identity-headers";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { isProjectInScope, readableProjectIdsOf, writableProjectIdsOf } from "@src/organization/lib/project-scope/project-scope";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
@@ -53,6 +58,7 @@ export const createProxy =
 
     const userId = authService.currentUser.id;
     headers[NOTIFICATIONS_IDENTITY_HEADERS.userId] = userId;
+    Object.assign(headers, accountEmailHeaders(authService.currentUser));
 
     const userWallet = await userWalletRepository.findOneUsedBy(userId);
 

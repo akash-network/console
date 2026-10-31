@@ -279,6 +279,14 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    createNotificationAddressConfirmation: {
+      path: "/v1/notification-address-confirmations",
+      method: "post",
+      operationId: "createNotificationAddressConfirmation",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
     listActivities: {
       path: "/v1/activities",
       method: "get",
@@ -615,6 +623,14 @@ export const operations = {
       pathParams: ["id"],
       queryParams: [],
       hasBody: false
+    },
+    createNotificationChannelConfirmationEmail: {
+      path: "/v1/notification-channels/{id}/confirmation-emails",
+      method: "post",
+      operationId: "createNotificationChannelConfirmationEmail",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
     },
     upsertDeploymentAlert: {
       path: "/v1/deployment-alerts/{dseq}",
