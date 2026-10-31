@@ -1,7 +1,7 @@
 import { MsgAccountDeposit, MsgCreateCertificate, Scope } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
-import { LeaseHttpService } from "@akashnetwork/http-sdk";
+import { DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Trace, withSpan } from "@akashnetwork/instrumentation";
 import { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
@@ -105,6 +105,7 @@ export class ManagedSignerService {
     private readonly txManagerService: TxManagerService,
     private readonly domainEvents: DomainEventsService,
     private readonly leaseHttpService: LeaseHttpService,
+    private readonly deploymentHttpService: DeploymentHttpService,
     private readonly walletReloadJobService: WalletReloadJobService,
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly trialActivationJobService: TrialActivationJobService,
@@ -515,7 +516,7 @@ export class ManagedSignerService {
       }
 
       const [feeAllowance, deploymentAllowance] = await Promise.all([
-        this.ensureFeeGrants(userWallet),
+        this.ensureFeeGrants(userWallet, messages),
         !hasDeploymentMessage ? Promise.resolve(userWallet.deploymentAllowance) : this.balancesService.retrieveDeploymentLimit(userWallet)
       ]);
 
@@ -648,7 +649,11 @@ export class ManagedSignerService {
     }
   }
 
-  async ensureFeeGrants(wallet: Pick<UserWalletOutput, "id" | "address" | "isTrialing" | "createdAt" | "activatedAt">): Promise<number> {
+  /** Refills only a wallet the scheduled refill would also top up, except for a batch that just closes deployments, so every wallet can still close what it runs. */
+  async ensureFeeGrants(
+    wallet: Pick<UserWalletOutput, "id" | "address" | "isTrialing" | "createdAt" | "activatedAt">,
+    messages: EncodeObject[] = []
+  ): Promise<number> {
     return withSpan("ManagedSignerService.ensureFeeGrants", async () => {
       let feeAllowance = await this.balancesService.retrieveAndCalcFeeLimit(wallet);
       const needsRefill = feeAllowance < this.billingConfigService.get("FEE_ALLOWANCE_REFILL_THRESHOLD");
@@ -657,13 +662,31 @@ export class ManagedSignerService {
       span?.setAttribute("balance.feeAllowance", feeAllowance);
       span?.setAttribute("balance.needsRefill", needsRefill);
 
-      if (needsRefill) {
+      if (needsRefill && (await this.#mayRefillFees(wallet, messages))) {
         await this.managedUserWalletService.refillWalletFees(this, wallet);
         feeAllowance = await this.balancesService.retrieveAndCalcFeeLimit(wallet);
       }
 
       return feeAllowance;
     });
+  }
+
+  async #mayRefillFees(wallet: Pick<UserWalletOutput, "id" | "address">, messages: EncodeObject[]): Promise<boolean> {
+    const trialExpirationDays = this.billingConfigService.get("TRIAL_ALLOWANCE_EXPIRATION_DAYS");
+
+    return (
+      (await this.userWalletRepository.isEligibleForFeeRefill(wallet.id, { trialExpirationDays })) || (await this.#closesOnlyOpenDeployments(wallet, messages))
+    );
+  }
+
+  /** Each message must close a different deployment still open on chain, so the batch lands and the refill it earned cannot be earned again. */
+  async #closesOnlyOpenDeployments(wallet: Pick<UserWalletOutput, "address">, messages: EncodeObject[]): Promise<boolean> {
+    const dseqs = new Set(this.#findDeploymentDseqs(messages, ".MsgCloseDeployment").map(String));
+    if (!dseqs.size || dseqs.size !== messages.length) return false;
+
+    const deployments = await Promise.all([...dseqs].map(dseq => this.deploymentHttpService.findByOwnerAndDseq(wallet.address!, dseq)));
+
+    return deployments.every(deployment => "deployment" in deployment && deployment.deployment.state === "active");
   }
 
   private decodeMessages(messages: StringifiedEncodeObject[]): EncodeObject[] {
