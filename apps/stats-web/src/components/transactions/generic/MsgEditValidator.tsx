@@ -3,6 +3,7 @@ import { AddressLink } from "../../AddressLink";
 import { AKTLabel } from "../../AKTLabel";
 import { LabelValue } from "../../LabelValue";
 
+import { toValidatorWebsiteUrl } from "@/lib/validatorWebsiteUrl/validatorWebsiteUrl";
 import type { TransactionMessage } from "@/types";
 
 type TxMessageProps = {
@@ -10,6 +11,9 @@ type TxMessageProps = {
 };
 
 export const MsgEditValidator: React.FunctionComponent<TxMessageProps> = ({ message }) => {
+  const website = message?.data?.description?.website;
+  const websiteUrl = toValidatorWebsiteUrl(website);
+
   // ###################
   // TODO missing commissionRate, minSelfDelegation + validator moniker
   // ###################
@@ -22,12 +26,12 @@ export const MsgEditValidator: React.FunctionComponent<TxMessageProps> = ({ mess
       <LabelValue
         label="Website"
         value={
-          message?.data?.description?.website && message?.data?.description?.website !== "[do-not-modify]" ? (
-            <a href={message?.data?.description?.website} target="_blank">
-              {message?.data?.description?.website}
+          websiteUrl ? (
+            <a href={websiteUrl} target="_blank">
+              {website}
             </a>
           ) : (
-            <>{message?.data?.description?.website}</>
+            <>{website}</>
           )
         }
       />
