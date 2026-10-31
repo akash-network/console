@@ -326,6 +326,15 @@ describe(LeaseRepository.name, () => {
       expect(lastPage).toEqual({ rows: [expect.anything()], hasNextPage: false });
       expect(count).not.toHaveBeenCalled();
     });
+
+    it("reads the page a pagination key points to", async () => {
+      const { repository } = setup();
+      const deployment = await seedDeploymentWithLeases(3);
+
+      const page = await repository.findLeasesWithPagination({ owner: deployment.owner, key: "2", limit: 2, countTotal: false });
+
+      expect(page).toEqual({ rows: [expect.anything()], hasNextPage: false });
+    });
   });
 
   function setup() {
