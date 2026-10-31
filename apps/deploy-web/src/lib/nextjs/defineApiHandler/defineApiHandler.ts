@@ -12,6 +12,7 @@ import { createRequestExecutionContext, requestExecutionContext } from "../reque
 export const REQ_SERVICES_KEY = Symbol("REQ_SERVICES_KEY");
 export type NextApiRequestWithServices = NextApiRequest & { [REQ_SERVICES_KEY]: typeof services };
 
+/** A handler's unhandled error is reported here through the shared serializer instead of reaching Next.js, which prints the raw error object. */
 export function defineApiHandler<TResponse, TSchema extends z.ZodSchema<any> | undefined>(
   options: ApiHandlerOptions<TResponse, TSchema>
 ): NextApiHandler<TResponse> {
@@ -62,7 +63,12 @@ export function defineApiHandler<TResponse, TSchema extends z.ZodSchema<any> | u
         context.body = validatedContext.data.body ?? context.body;
       }
 
-      return await requestExecutionContext.run(createRequestExecutionContext(req), async () => await options.handler(context));
+      try {
+        return await requestExecutionContext.run(createRequestExecutionContext(req), async () => await options.handler(context));
+      } catch (error) {
+        requestServices.errorHandler.reportError({ error, tags: { event: "API_HANDLER_ERROR" } });
+        if (!res.headersSent) res.status(500).end("Internal Server Error");
+      }
     }) satisfies NextApiHandler<TResponse>,
     options.route
   );
