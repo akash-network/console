@@ -7,7 +7,8 @@ services:
       target: production
       args:
         WORKSPACE: apps/api
-        GITHUB_PAT: ${GITHUB_PAT}
+      secrets:
+        - github_pat
 
   tx-signer:
     image: ${TX_SIGNER_REPO:-console-tx-signer}:${TX_SIGNER_TAG:-latest}
@@ -95,5 +96,7 @@ services:
         DEPLOYMENT_ENV: ${DEPLOYMENT_ENV}
 
 secrets:
+  github_pat:
+    environment: GITHUB_PAT
   sentry_auth_token:
     environment: SENTRY_AUTH_TOKEN
