@@ -23773,8 +23773,9 @@
                         "report"
                       ]
                     },
+                    "maxItems": 16,
                     "default": [],
-                    "description": "Per-GPU attestation reports; empty for CPU-only platforms"
+                    "description": "Per-GPU attestation reports, at most 16, one per device_index; empty for CPU-only platforms"
                   }
                 },
                 "required": [

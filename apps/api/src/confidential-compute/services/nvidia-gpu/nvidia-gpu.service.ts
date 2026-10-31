@@ -2,6 +2,7 @@ import type { HttpClient } from "@akashnetwork/http-sdk";
 import type { JwtPayload } from "jsonwebtoken";
 import { inject, singleton } from "tsyringe";
 
+import { Memoize } from "@src/caching/helpers";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { GpuReportVerdict } from "../../http-schemas/attestation.schema";
 import type { ConfidentialComputeConfig } from "../../providers/config.provider";
@@ -65,7 +66,7 @@ export class NvidiaGpuService {
       return this.#verdict(input.deviceIndex, "unverifiable", "NVIDIA NRAS returned an unrecognized response (no attestation token)");
     }
 
-    const jwks = await this.#getJwks();
+    const jwks = await this.getJwks();
 
     let payload: JwtPayload;
     try {
@@ -113,8 +114,10 @@ export class NvidiaGpuService {
   }
 
   // The JWKS lives on the NRAS host by default; an absolute URL overrides the client baseURL.
-  #getJwks(): Promise<Jwks> {
-    return this.httpClient.get<Jwks>(this.config.NVIDIA_NRAS_JWKS_URL).then(response => response.data);
+  @Memoize({ ttlInSeconds: 60 * 60 })
+  async getJwks(): Promise<Jwks> {
+    const response = await this.httpClient.get<Jwks>(this.config.NVIDIA_NRAS_JWKS_URL);
+    return response.data;
   }
 
   /** Returns the human-readable reason from a JWKS-verified NRAS per-device error token, or undefined if none. */

@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { cacheEngine } from "@src/caching/helpers";
 import type { CreateLogger } from "@src/core";
 import { envSchema } from "../../config/env.config";
 import type { Jwks } from "../jwt-verify";
@@ -173,6 +174,40 @@ describe(NvidiaGpuService.name, () => {
 
       expect(verdict).toMatchObject({ status: "invalid", checks: { nonceMatch: false } });
     });
+
+    it("fetches NVIDIA's JWKS once when verifying several GPUs", async () => {
+      const { token, jwks } = await signEat({ "x-nvidia-overall-att-result": true, eat_nonce: gpuNonceHex() });
+      const { service, httpClient } = setup({ eat: token, jwks });
+
+      const verdicts = await Promise.all([0, 1, 2].map(deviceIndex => service.verify({ deviceIndex, report: gpuReport(), nonce: nonce64() })));
+      await service.verify({ deviceIndex: 3, report: gpuReport(), nonce: nonce64() });
+
+      expect(verdicts.map(verdict => verdict.status)).toEqual(["valid", "valid", "valid"]);
+      expect(httpClient.post).toHaveBeenCalledTimes(4);
+      expect(httpClient.get).toHaveBeenCalledTimes(1);
+      expect(httpClient.get).toHaveBeenCalledWith(envSchema.parse({}).NVIDIA_NRAS_JWKS_URL);
+    });
+
+    it("keeps reusing the fetched JWKS for an hour and refreshes it after that", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        const { token, jwks } = await signEat({ "x-nvidia-overall-att-result": true, eat_nonce: gpuNonceHex() });
+        const { service, httpClient } = setup({ eat: token, jwks });
+        const startedAt = Date.now();
+
+        await service.verify({ deviceIndex: 0, report: gpuReport(), nonce: nonce64() });
+        vi.setSystemTime(startedAt + 59 * 60 * 1000);
+        await service.verify({ deviceIndex: 0, report: gpuReport(), nonce: nonce64() });
+        const fetchesWithinTheHour = httpClient.get.mock.calls.length;
+        vi.setSystemTime(startedAt + 61 * 60 * 1000);
+        await service.verify({ deviceIndex: 0, report: gpuReport(), nonce: nonce64() });
+
+        expect(fetchesWithinTheHour).toBe(1);
+        expect(httpClient.get).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   it("creates the logger with the service context", () => {
@@ -182,6 +217,7 @@ describe(NvidiaGpuService.name, () => {
   });
 
   function setup(input: { eat?: string; jwks?: Jwks; data?: unknown }) {
+    cacheEngine.clearAllKeyInCache();
     const httpClient = mock<HttpClient>();
     if (input.data !== undefined) httpClient.post.mockResolvedValue({ data: input.data });
     else if (input.eat) httpClient.post.mockResolvedValue({ data: input.eat });

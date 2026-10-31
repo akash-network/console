@@ -5519,7 +5519,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   },
                   "gpu_reports": {
                     "default": [],
-                    "description": "Per-GPU attestation reports; empty for CPU-only platforms",
+                    "description": "Per-GPU attestation reports, at most 16, one per device_index; empty for CPU-only platforms",
                     "items": {
                       "properties": {
                         "device_index": {
@@ -5540,6 +5540,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                       ],
                       "type": "object",
                     },
+                    "maxItems": 16,
                     "type": "array",
                   },
                   "nonce": {
