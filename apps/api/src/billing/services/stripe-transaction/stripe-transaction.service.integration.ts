@@ -22,7 +22,7 @@ import type { FeatureFlagsService } from "@src/core/services/feature-flags/featu
 import type { TimerService } from "@src/core/services/timer/timer.service";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
-import { AUTO_RECHARGE_METADATA_KEY, StripeTransactionService } from "./stripe-transaction.service";
+import { AUTO_RECHARGE_METADATA_KEY, REFUND_BEFORE_CREDIT_ERROR_CODE, StripeTransactionService } from "./stripe-transaction.service";
 
 import { generateDatabaseStripeTransaction } from "@test/seeders/database-stripe-transaction.seeder";
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
@@ -1410,8 +1410,56 @@ describe(StripeTransactionService.name, () => {
 
       await service.refundCharge(createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 5000, refunded: true }));
 
+      expect(stripeTransactionRepository.findByPaymentIntentId).not.toHaveBeenCalled();
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { case: "no payment holds its intent", payment: undefined },
+      { case: "its payment was credited under another charge", payment: generateDatabaseStripeTransaction({ status: "succeeded" }) },
+      { case: "its payment was already refunded", payment: generateDatabaseStripeTransaction({ status: "refunded" }) }
+    ])("acknowledges a refund of an unknown charge when $case", async ({ payment }) => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(undefined);
+      stripeTransactionRepository.findByPaymentIntentId.mockResolvedValue(payment);
+
+      await service.refundCharge(
+        createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 5000, refunded: true, payment_intent: "pi_123" })
+      );
+
+      expect(stripeTransactionRepository.findByPaymentIntentId).toHaveBeenCalledWith("pi_123");
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+
+    it("refuses a refund that arrives before its payment is credited, then takes the credit back once it is", async () => {
+      const { service, persistedTransactions, settlePersisted, userRepository, refillService } = setup({ persistTransactions: true });
+      const person = await seedUser();
+      const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+      const chargeId = `ch_${faker.string.alphanumeric(24)}`;
+      const purchase = await persistedTransactions.create({
+        userId: person.id,
+        type: "payment_intent",
+        status: "requires_action",
+        amount: 2000,
+        stripePaymentIntentId: paymentIntentId
+      });
+      userRepository.findOneBy.mockResolvedValue(person);
+      const refund = createChargeRefundedEvent({ id: chargeId, customer: "cus_123", amount_refunded: 2000, refunded: true, payment_intent: paymentIntentId });
+
+      await expect(service.refundCharge(refund)).rejects.toMatchObject({ status: 409, errorCode: REFUND_BEFORE_CREDIT_ERROR_CODE });
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+
+      await settlePersisted(purchase, { stripePaymentIntentId: paymentIntentId, chargeId });
+      await service.refundCharge(refund);
+
+      expect(refillService.reduceWalletBalance).toHaveBeenCalledWith(2000, expect.objectContaining({ userId: person.id }), {
+        currency: "usd",
+        transactionId: purchase.id
+      });
+      expect(await persistedTransactions.findById(purchase.id)).toMatchObject({ status: "refunded", amountRefunded: 2000 });
     });
 
     it("returns early when transaction is not in succeeded state", async () => {
@@ -1579,15 +1627,15 @@ describe(StripeTransactionService.name, () => {
       () => logger
     );
 
-    async function settlePersisted(purchase: StripeTransactionOutput) {
+    async function settlePersisted(purchase: StripeTransactionOutput, ids: { stripePaymentIntentId?: string; chargeId?: string } = {}) {
       return await service.settleSucceededTransaction({
         transactionId: purchase.id,
-        chargeId: `ch_${faker.string.alphanumeric(24)}`,
+        chargeId: ids.chargeId ?? `ch_${faker.string.alphanumeric(24)}`,
         paymentMethodType: "card",
         cardBrand: "visa",
         cardLast4: "4242",
         receiptUrl: undefined,
-        stripePaymentIntentId: `pi_${faker.string.alphanumeric(24)}`,
+        stripePaymentIntentId: ids.stripePaymentIntentId ?? `pi_${faker.string.alphanumeric(24)}`,
         paymentAmount: purchase.amount,
         customerUserId: undefined,
         eventDescription: `payment_intent for ${purchase.id}`,
@@ -1648,7 +1696,13 @@ describe(StripeTransactionService.name, () => {
     } as Stripe.PaymentIntentCanceledEvent;
   }
 
-  function createChargeRefundedEvent(params: { id: string; customer: string | null; amount_refunded: number; refunded: boolean }): Stripe.ChargeRefundedEvent {
+  function createChargeRefundedEvent(params: {
+    id: string;
+    customer: string | null;
+    amount_refunded: number;
+    refunded: boolean;
+    payment_intent?: string | null;
+  }): Stripe.ChargeRefundedEvent {
     return {
       id: "evt_123",
       type: "charge.refunded",
@@ -1657,7 +1711,8 @@ describe(StripeTransactionService.name, () => {
           id: params.id,
           customer: params.customer,
           amount_refunded: params.amount_refunded,
-          refunded: params.refunded
+          refunded: params.refunded,
+          payment_intent: params.payment_intent ?? null
         } as Stripe.Charge
       }
     } as Stripe.ChargeRefundedEvent;
