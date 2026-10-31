@@ -6,7 +6,9 @@ import { isSentryEnvelopeUpload } from "../isSentryEnvelopeUpload/isSentryEnvelo
 export function initServerSentry(input: { runtime: string | undefined; httpModule?: SentryHttpModule }, sentry: typeof Sentry = Sentry) {
   const options = {
     dsn: process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN,
-    enabled: process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true"
+    enabled: process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true",
+    beforeSend: withoutRequestCredentials,
+    beforeSendTransaction: withoutRequestCredentials
   };
 
   if (input.runtime !== "nodejs") {
@@ -20,4 +22,14 @@ export function initServerSentry(input: { runtime: string | undefined; httpModul
     transportOptions: { httpModule: input.httpModule },
     integrations: [sentry.nativeNodeFetchIntegration({ ignoreOutgoingRequests: isSentryEnvelopeUpload })]
   });
+}
+
+/** Sentry attaches the request of a failing API route to its event, and its body, cookies and authorization must stay on the server. */
+function withoutRequestCredentials<T extends Sentry.Event>(event: T): T {
+  if (!event.request) return event;
+
+  const { data, cookies, headers, ...request } = event.request;
+  const { cookie, authorization, ...safeHeaders } = headers ?? {};
+
+  return { ...event, request: { ...request, headers: safeHeaders } };
 }
