@@ -1417,8 +1417,11 @@ describe(StripeTransactionService.name, () => {
 
     it.each([
       { case: "no payment holds its intent", payment: undefined },
-      { case: "its payment was credited under another charge", payment: generateDatabaseStripeTransaction({ status: "succeeded" }) },
-      { case: "its payment was already refunded", payment: generateDatabaseStripeTransaction({ status: "refunded" }) }
+      {
+        case: "its payment was credited under another charge",
+        payment: generateDatabaseStripeTransaction({ status: "succeeded", stripeChargeId: "ch_other" })
+      },
+      { case: "its payment was already refunded", payment: generateDatabaseStripeTransaction({ status: "refunded", stripeChargeId: "ch_other" }) }
     ])("acknowledges a refund of an unknown charge when $case", async ({ payment }) => {
       const { service, userRepository, stripeTransactionRepository, refillService } = setup();
       const mockUser = createTestUser();
@@ -1431,6 +1434,21 @@ describe(StripeTransactionService.name, () => {
       );
 
       expect(stripeTransactionRepository.findByPaymentIntentId).toHaveBeenCalledWith("pi_123");
+      expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
+    });
+
+    it("refuses a refund whose payment was credited under the same charge after the refund looked it up", async () => {
+      const { service, userRepository, stripeTransactionRepository, refillService } = setup();
+      const mockUser = createTestUser();
+      userRepository.findOneBy.mockResolvedValue(mockUser);
+      stripeTransactionRepository.findOneByAndLock.mockResolvedValue(undefined);
+      stripeTransactionRepository.findByPaymentIntentId.mockResolvedValue(generateDatabaseStripeTransaction({ status: "succeeded", stripeChargeId: "ch_123" }));
+
+      await expect(
+        service.refundCharge(
+          createChargeRefundedEvent({ id: "ch_123", customer: mockUser.stripeCustomerId!, amount_refunded: 5000, refunded: true, payment_intent: "pi_123" })
+        )
+      ).rejects.toMatchObject({ status: 409, errorCode: REFUND_BEFORE_CREDIT_ERROR_CODE });
       expect(refillService.reduceWalletBalance).not.toHaveBeenCalled();
     });
 

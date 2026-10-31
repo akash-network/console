@@ -1007,11 +1007,11 @@ export class StripeTransactionService {
     });
   }
 
-  /** Only a credited payment records its charge, so a refund that finds its payment still uncredited is refused for Stripe to deliver again once the credit can be taken back. */
+  /** Only a credited payment records its charge, so a refund that finds its payment uncredited, or credited under this charge since the read above, is refused for Stripe to deliver again. */
   async #assertRefundedPaymentNotAwaitingCredit({ chargeId, paymentIntentId }: { chargeId: string; paymentIntentId?: string }): Promise<void> {
     const payment = paymentIntentId && (await this.stripeTransactionRepository.findByPaymentIntentId(paymentIntentId));
 
-    if (!payment || SETTLED_TRANSACTION_STATUSES.has(payment.status)) return;
+    if (!payment || (SETTLED_TRANSACTION_STATUSES.has(payment.status) && payment.stripeChargeId !== chargeId)) return;
 
     this.loggerService.warn({ event: "CHARGE_REFUNDED_BEFORE_CREDIT", chargeId, transactionId: payment.id, transactionStatus: payment.status });
     throw createError(409, "The refunded payment is not credited yet, so its refund is applied once it is", { errorCode: REFUND_BEFORE_CREDIT_ERROR_CODE });
