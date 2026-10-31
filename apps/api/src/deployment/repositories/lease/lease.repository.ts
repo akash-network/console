@@ -238,7 +238,7 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
    * @returns The page of lease rows, with the total count when `countTotal` is set and whether a next page exists otherwise
    */
   async findLeasesWithPagination(params: DatabaseLeaseListParams): Promise<LeasePage> {
-    const { skip = 0, limit = 100, owner, dseq, gseq, oseq, provider, state, reverse = false, countTotal = true } = params;
+    const { skip = 0, limit = 100, key, owner, dseq, gseq, oseq, provider, state, reverse = false, countTotal = true } = params;
 
     const whereConditions: WhereOptions = {};
 
@@ -267,7 +267,7 @@ export class LeaseRepository implements DrainingDeploymentLeaseSource {
 
     const query: FindOptions = {
       where: whereConditions,
-      offset: skip,
+      offset: key ? parseInt(key, 10) || 0 : skip,
       order: reverse ? [["createdHeight", "DESC"]] : [["createdHeight", "ASC"]],
       include: [
         {
