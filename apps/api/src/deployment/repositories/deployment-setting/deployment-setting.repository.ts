@@ -488,26 +488,29 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
     return new Map(rows.map(row => [row.id, { readings: row.detectedGpus ?? [], offers: row.offeredGpus ?? [] }]));
   }
 
-  /** Newest first, one entry per driver version reported by at least `minOwners` deployment owners, with the UTC day it was last read. */
+  /** One entry per driver version, each reporter counted once for the version it read last, most widely reported first, with the UTC day it was last read. */
   async findRecentNvidiaDrivers({
     provider,
     since,
     limit,
-    minOwners
+    minReporters
   }: {
     provider: string;
     since: Date;
     limit: number;
-    minOwners: number;
+    minReporters: number;
   }): Promise<RecentNvidiaDriver[]> {
-    const lastDetectedAt = sql`max((reading->>'detectedAt')::timestamptz)`;
-
-    return await this.cursor
-      .select({
-        driverVersion: sql<string>`reading->>'driverVersion'`,
-        lastSeenDate: sql<string>`to_char(${lastDetectedAt} at time zone 'UTC', 'YYYY-MM-DD')`
+    const detectedAt = sql`(reading->>'detectedAt')::timestamptz`;
+    const latestReadings = this.cursor
+      .selectDistinctOn([this.table.userId], {
+        walletId: sql<number>`${UserWallets.id}`.as("wallet_id"),
+        driverVersion: sql<string>`reading->>'driverVersion'`.as("driver_version"),
+        detectedAt: sql<string>`${detectedAt}`.as("detected_at")
       })
-      .from(sql`${this.table}, jsonb_array_elements(${this.table.detectedGpus}) as reading`)
+      .from(this.table)
+      .leftJoin(TeamOrganizations, isFiledInTeam)
+      .innerJoin(UserWallets, eq(UserWallets.id, ownerWalletId))
+      .crossJoinLateral(sql`jsonb_array_elements(${this.table.detectedGpus}) as reading`)
       .where(
         this.unscoped("gpu-driver-statistics").whereAccessibleBy(
           and(
@@ -515,13 +518,27 @@ export class DeploymentSettingRepository extends OrgScopedRepository<Table, Depl
             sql`reading->>'provider' = ${provider}`,
             sql`reading->>'source' = ${NVIDIA_PROBE_SOURCE}`,
             sql`reading->>'driverVersion' ~ ${NVIDIA_DRIVER_VERSION.source}`,
-            sql`(reading->>'detectedAt')::timestamptz >= ${since.toISOString()}::timestamptz`
+            sql`${detectedAt} >= ${since.toISOString()}::timestamptz`,
+            isNotNull(this.table.userId),
+            eq(UserWallets.isTrialing, false),
+            isNull(UserWallets.abuseLockedAt)
           )
         )
       )
-      .groupBy(sql`reading->>'driverVersion'`)
-      .having(sql`count(distinct ${this.table.userId}) >= ${minOwners}`)
-      .orderBy(desc(lastDetectedAt))
+      .orderBy(this.table.userId, desc(detectedAt))
+      .as("latest_driver_readings");
+    const reportingWallets = sql`count(distinct ${latestReadings.walletId})`;
+    const lastDetectedAt = sql`max(${latestReadings.detectedAt})`;
+
+    return await this.cursor
+      .select({
+        driverVersion: latestReadings.driverVersion,
+        lastSeenDate: sql<string>`to_char(${lastDetectedAt} at time zone 'UTC', 'YYYY-MM-DD')`
+      })
+      .from(latestReadings)
+      .groupBy(latestReadings.driverVersion)
+      .having(sql`${reportingWallets} >= ${minReporters}`)
+      .orderBy(desc(reportingWallets), desc(lastDetectedAt))
       .limit(limit);
   }
 

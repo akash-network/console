@@ -4137,7 +4137,7 @@ export interface paths {
                */
               cpuArchAgreement: "match" | "mismatch" | "unknown";
               /**
-               * @description Up to 5 NVIDIA driver versions Console confirmed on GPU leases it runs on this provider over the last 30 days, most recently read first. Empty when none has been confirmed.
+               * @description Up to 5 NVIDIA driver versions reported by workloads running on this provider over the last 30 days, most widely reported first. Console does not verify them. Empty when there is none to list.
                * @example [
                *       {
                *         "driverVersion": "550.54.15",
@@ -4151,7 +4151,7 @@ export interface paths {
                 /** @description The newest CUDA version whose minimum Linux driver this driver meets, per NVIDIA's published driver requirements. Null when it meets none of them. */
                 cudaVersion: string | null;
                 /**
-                 * @description The UTC day this driver was last read.
+                 * @description The UTC day a workload last reported this driver.
                  * @example 2026-09-21
                  */
                 lastSeenDate: string;
