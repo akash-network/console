@@ -71,6 +71,15 @@ export class DeploymentDepositRepository extends OrgScopedRepository<Table, Depl
     return rows.length;
   }
 
+  async findPendingByTxHash(txHash: string): Promise<DeploymentDepositOutput[]> {
+    const rows = await this.cursor
+      .select()
+      .from(this.table)
+      .where(this.whereInOrganization(and(eq(this.table.txHash, txHash), eq(this.table.status, "pending"))));
+
+    return this.toOutputList(rows);
+  }
+
   async findPendingByIds(ids: string[]): Promise<DeploymentDepositOutput[]> {
     if (!ids.length) return [];
 

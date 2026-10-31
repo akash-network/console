@@ -13,8 +13,8 @@ export const createTransaction = async (input: Partial<CreationAttributes<Transa
     gasWanted: input.gasWanted || faker.number.int({ min: 0, max: 10000000 }),
     fee: input.fee || faker.string.numeric({ length: 5 }),
     memo: input.memo || faker.word.noun(),
-    isProcessed: input.isProcessed || faker.datatype.boolean(),
-    hasProcessingError: input.hasProcessingError || faker.datatype.boolean(),
+    isProcessed: input.isProcessed ?? faker.datatype.boolean(),
+    hasProcessingError: input.hasProcessingError ?? faker.datatype.boolean(),
     log: input.log || faker.lorem.sentence()
   });
 };

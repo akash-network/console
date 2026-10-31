@@ -29,13 +29,15 @@ const INDEX_LAG_RETRY_DELAY_IN_MIN = 10;
 
 type IndexCheck = { depositIds: string[]; indexLagRetries?: number };
 
+type HashCheck = { txHash: string; indexLagRetries?: number };
+
 /** Settles the ledger rows of a deposit the signer left undecided: by its hash when the signer gave one, else by the chain index. */
 export class ReconcileDeploymentDeposit implements Job {
   static readonly [JOB_NAME] = "ReconcileDeploymentDeposit";
   readonly name = ReconcileDeploymentDeposit[JOB_NAME];
   readonly version = 1;
 
-  constructor(public readonly data: { txHash: string } | IndexCheck) {}
+  constructor(public readonly data: HashCheck | IndexCheck) {}
 }
 
 @singleton()
@@ -63,29 +65,59 @@ export class ReconcileDeploymentDepositHandler implements JobHandler<ReconcileDe
     return [];
   }
 
-  /** Absence is asked again while retries remain, since a pooled endpoint can lag; the last attempt runs long past the signer's TTL, so absence there voids the rows. */
+  /** Absence is asked again while retries remain, since a pooled endpoint can lag; on the last attempt the chain index decides once it has passed the deposits' window. */
   async handle(payload: JobPayload<ReconcileDeploymentDeposit>, job?: JobMeta): Promise<void> {
     const isLastAttempt = !job || job.retryCount >= job.retryLimit;
 
     if ("txHash" in payload) {
-      await this.#reconcileByHash(payload.txHash, isLastAttempt);
+      await this.#reconcileByHash(payload, isLastAttempt);
       return;
     }
 
     await this.#reconcileByIndex(payload, isLastAttempt);
   }
 
-  async #reconcileByHash(txHash: string, isLastAttempt: boolean): Promise<void> {
+  async #reconcileByHash({ txHash, indexLagRetries = 0 }: HashCheck, isLastAttempt: boolean): Promise<void> {
     const tx = await this.txPresenceService.findTx(txHash);
 
     if (!tx && !isLastAttempt) {
       throw new Error(`Deposit transaction ${txHash} is not visible on chain yet`);
     }
 
-    const status = tx?.code === COSMOS_TX_CODE_OK ? "confirmed" : "void";
+    const result = tx ? { isSucceeded: tx.code === COSMOS_TX_CODE_OK } : await this.deploymentSpendRepository.findTxResult(txHash);
+
+    if (!result && (await this.#waitForIndexToPassHash(txHash, indexLagRetries))) return;
+
+    const status = result?.isSucceeded ? "confirmed" : "void";
     const settledCount = await this.deploymentDepositRepository.settlePendingByTxHash(txHash, status);
 
-    this.logger.info({ event: "DEPLOYMENT_DEPOSIT_RECONCILED", txHash, status, settledCount, isSeen: !!tx });
+    this.logger.info({ event: "DEPLOYMENT_DEPOSIT_RECONCILED", txHash, status, settledCount, isSeen: !!result });
+  }
+
+  /** The pooled endpoint can miss a landed tx on every attempt, so its absence voids the rows only once the chain index has passed their window without it. */
+  async #waitForIndexToPassHash(txHash: string, indexLagRetries: number): Promise<boolean> {
+    const pending = await this.deploymentDepositRepository.findPendingByTxHash(txHash);
+
+    if (!(await this.#isIndexBehind(pending)) || indexLagRetries >= MAX_INDEX_LAG_RETRIES) return false;
+
+    try {
+      await this.jobQueueService.enqueue(new ReconcileDeploymentDeposit({ txHash, indexLagRetries: indexLagRetries + 1 }), {
+        singletonKey: `${ReconcileDeploymentDeposit[JOB_NAME]}.${txHash}.${indexLagRetries + 1}`,
+        startAfter: addMinutes(new Date(), INDEX_LAG_RETRY_DELAY_IN_MIN).toISOString()
+      });
+    } catch (error) {
+      this.logger.error({ event: "DEPLOYMENT_DEPOSIT_INDEX_WAIT_FAILED", txHash, indexLagRetries, error });
+      return false;
+    }
+
+    this.logger.warn({ event: "DEPLOYMENT_DEPOSIT_INDEX_BEHIND", txHash, indexLagRetries: indexLagRetries + 1 });
+    return true;
+  }
+
+  async #isIndexBehind(deposits: DeploymentDepositOutput[]): Promise<boolean> {
+    const latestBlockTime = await this.deploymentSpendRepository.findLatestBlockTime();
+
+    return deposits.some(deposit => !latestBlockTime || latestBlockTime < this.#landingWindowOf(deposit).until);
   }
 
   /** Rows are matched one at a time, so the chain deposit one row claims is no longer there for the next; a row holding a hash is left to its check by that hash. */
