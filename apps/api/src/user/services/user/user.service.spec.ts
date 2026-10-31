@@ -6,6 +6,7 @@ import { mock } from "vitest-mock-extended";
 import { ACCOUNT_UNAVAILABLE_ERROR_CODE, ACCOUNT_UNAVAILABLE_MESSAGE } from "@src/auth/lib/account-unavailable/account-unavailable";
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
+import type { VerifiedEmailService } from "@src/auth/services/verified-email/verified-email.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
@@ -26,7 +27,36 @@ import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 describe(UserService.name, () => {
   describe("registerUser", () => {
+    it.each([true, false])("stores the address Auth0 holds for the user and whether Auth0 verified it (%s)", async emailVerified => {
+      const signInEmail = { email: faker.internet.email(), emailVerified };
+      const user = createUser(signInEmail);
+      const input = createRegisterInput();
+      const { service, userRepository, verifiedEmailService } = setup({ signInEmail });
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+
+      await service.registerUser(input);
+
+      expect(verifiedEmailService.getEmail).toHaveBeenCalledWith(input.userId);
+      expect(userRepository.upsertOnExternalIdConflict).toHaveBeenCalledWith(expect.objectContaining({ userId: input.userId, ...signInEmail }));
+    });
+
+    it("refuses a user Auth0 holds no address for, without storing anything", async () => {
+      const { service, userRepository } = setup({ signInEmail: null });
+
+      await expect(service.registerUser(createRegisterInput())).rejects.toMatchObject({ status: 400, message: "The account has no email address" });
+      expect(userRepository.upsertOnExternalIdConflict).not.toHaveBeenCalled();
+    });
+
     describe("when the email domain is blocked", () => {
+      it("checks the domain of the address Auth0 holds for the user", async () => {
+        const signInEmail = { email: faker.internet.email(), emailVerified: true };
+        const { service, userRepository, blockedEmailDomainService } = setup({ signInEmail });
+        blockedEmailDomainService.isBlockedEmail.mockImplementation(async email => email === signInEmail.email);
+        userRepository.findByUserId.mockResolvedValue(undefined);
+
+        await expect(service.registerUser(createRegisterInput())).rejects.toMatchObject({ status: 403 });
+      });
+
       it("refuses an account that does not exist yet", async () => {
         const { service, userRepository, blockedEmailDomainService } = setup();
         blockedEmailDomainService.isBlockedEmail.mockResolvedValue(true);
@@ -48,7 +78,7 @@ describe(UserService.name, () => {
         userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
         notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
-        const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
+        const result = await service.registerUser(createRegisterInput());
 
         expect(result.id).toBe(user.id);
       });
@@ -60,46 +90,52 @@ describe(UserService.name, () => {
       userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
-      await service.registerUser(createRegisterInput({ emailVerified: true }));
+      await service.registerUser(createRegisterInput());
 
       expect(userRepository.findByUserId).not.toHaveBeenCalled();
     });
 
-    it("sends verification code when email is not verified", async () => {
+    it("sends verification code when Auth0 has not verified the address", async () => {
       const user = createUser({ emailVerified: false, email: "test@example.com" });
-      const { service, emailVerificationCodeService, userRepository, notificationService } = setup();
+      const { service, emailVerificationCodeService, userRepository, notificationService } = setup({
+        signInEmail: { email: user.email!, emailVerified: false }
+      });
 
       userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
       emailVerificationCodeService.sendCode.mockResolvedValue({ codeSentAt: new Date().toISOString() });
 
-      await service.registerUser(createRegisterInput({ emailVerified: false }));
+      await service.registerUser(createRegisterInput());
 
       expect(emailVerificationCodeService.sendCode).toHaveBeenCalledWith(user.id);
     });
 
-    it("does not send verification code when email is already verified", async () => {
+    it("does not send verification code when Auth0 has verified the address", async () => {
       const user = createUser({ emailVerified: true, email: "test@example.com" });
-      const { service, emailVerificationCodeService, userRepository, notificationService } = setup();
+      const { service, emailVerificationCodeService, userRepository, notificationService } = setup({
+        signInEmail: { email: user.email!, emailVerified: true }
+      });
 
       userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
-      await service.registerUser(createRegisterInput({ emailVerified: true }));
+      await service.registerUser(createRegisterInput());
 
       expect(emailVerificationCodeService.sendCode).not.toHaveBeenCalled();
     });
 
     it("logs error but does not throw when verification code send fails", async () => {
       const user = createUser({ emailVerified: false, email: "test@example.com" });
-      const { service, emailVerificationCodeService, userRepository, notificationService, logger } = setup();
+      const { service, emailVerificationCodeService, userRepository, notificationService, logger } = setup({
+        signInEmail: { email: user.email!, emailVerified: false }
+      });
       const sendError = new Error("Send failed");
 
       userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
       emailVerificationCodeService.sendCode.mockRejectedValue(sendError);
 
-      const result = await service.registerUser(createRegisterInput({ emailVerified: false }));
+      const result = await service.registerUser(createRegisterInput());
 
       expect(result.id).toBe(user.id);
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FAILED_TO_SEND_INITIAL_VERIFICATION_CODE", id: user.id, error: sendError }));
@@ -112,7 +148,7 @@ describe(UserService.name, () => {
       userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
-      const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
+      const result = await service.registerUser(createRegisterInput());
 
       expect(result.isNewUser).toBe(true);
     });
@@ -124,7 +160,7 @@ describe(UserService.name, () => {
       userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
-      const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
+      const result = await service.registerUser(createRegisterInput());
 
       expect(result.isNewUser).toBe(false);
     });
@@ -136,7 +172,7 @@ describe(UserService.name, () => {
       userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
-      await service.registerUser(createRegisterInput({ emailVerified: true }));
+      await service.registerUser(createRegisterInput());
 
       expect(walletInitializerService.ensureWallet).toHaveBeenCalledWith(user.id);
     });
@@ -148,7 +184,7 @@ describe(UserService.name, () => {
       userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
-      await service.registerUser(createRegisterInput({ emailVerified: true }));
+      await service.registerUser(createRegisterInput());
 
       expect(dataKeyService.ensureDataKey).toHaveBeenCalledWith({ userId: user.id });
     });
@@ -162,7 +198,7 @@ describe(UserService.name, () => {
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
       dataKeyService.ensureDataKey.mockRejectedValue(dataKeyError);
 
-      const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
+      const result = await service.registerUser(createRegisterInput());
 
       expect(result.id).toBe(user.id);
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FAILED_TO_ENSURE_USER_DATA_KEY", id: user.id, error: dataKeyError }));
@@ -177,7 +213,7 @@ describe(UserService.name, () => {
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
       walletInitializerService.ensureWallet.mockRejectedValue(walletError);
 
-      const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
+      const result = await service.registerUser(createRegisterInput());
 
       expect(result.id).toBe(user.id);
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "FAILED_TO_ENSURE_USER_WALLET", id: user.id, error: walletError }));
@@ -203,7 +239,7 @@ describe(UserService.name, () => {
       });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
-      await service.registerUser(createRegisterInput({ emailVerified: true }));
+      await service.registerUser(createRegisterInput());
 
       expect(order).toEqual(["begin", "upsert", "organization", "commit"]);
       expect(personalOrganizationService.ensureForUser).toHaveBeenCalledWith(user);
@@ -227,7 +263,7 @@ describe(UserService.name, () => {
       userRepository.upsertOnExternalIdConflict.mockRejectedValueOnce(createUsernameTakenError()).mockResolvedValueOnce({ user, wasInserted: true });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
-      await service.registerUser(createRegisterInput({ wantedUsername: "taken", emailVerified: true }));
+      await service.registerUser(createRegisterInput({ wantedUsername: "taken" }));
 
       expect(txService.transaction).toHaveBeenCalledTimes(2);
       expect(userRepository.upsertOnExternalIdConflict.mock.calls.map(([input]) => input.username)).toEqual(["taken", expect.stringMatching(/^taken\d{4}$/)]);
@@ -240,7 +276,7 @@ describe(UserService.name, () => {
       userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
 
-      await service.registerUser(createRegisterInput({ emailVerified: true }));
+      await service.registerUser(createRegisterInput());
 
       expect(personalOrganizationService.adoptUserRows).toHaveBeenCalledWith(user, organization);
       expect(walletInitializerService.ensureWallet.mock.invocationCallOrder[0]).toBeLessThan(
@@ -256,7 +292,7 @@ describe(UserService.name, () => {
       notificationService.createDefaultChannel.mockResolvedValue(undefined);
       personalOrganizationService.adoptUserRows.mockRejectedValue(adoptionError);
 
-      const result = await service.registerUser(createRegisterInput({ emailVerified: true }));
+      const result = await service.registerUser(createRegisterInput());
 
       expect(result.id).toBe(user.id);
       expect(logger.error).toHaveBeenCalledWith(
@@ -270,7 +306,7 @@ describe(UserService.name, () => {
         userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
         userRepository.updateBy.mockImplementation(vi.fn().mockResolvedValue({ ...user, timezone: "Europe/Paris" }));
 
-        const result = await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Europe/Paris" }));
+        const result = await service.registerUser(createRegisterInput({ timezone: "Europe/Paris" }));
 
         expect(userRepository.updateBy).toHaveBeenCalledWith({ id: user.id, timezonePickedAt: null }, { timezone: "Europe/Paris" }, { returning: true });
         expect(result.timezone).toBe("Europe/Paris");
@@ -282,7 +318,7 @@ describe(UserService.name, () => {
         userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
         userRepository.updateBy.mockImplementation(vi.fn().mockResolvedValue({ ...user, timezone: "Europe/Paris" }));
 
-        await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Europe/Paris" }));
+        await service.registerUser(createRegisterInput({ timezone: "Europe/Paris" }));
 
         expect(notificationService.createDefaultChannel).toHaveBeenCalledWith(expect.objectContaining({ id: user.id, timezone: "Europe/Paris" }));
       });
@@ -292,7 +328,7 @@ describe(UserService.name, () => {
         const { service, userRepository, notificationService } = setup();
         userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
 
-        await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Asia/Tokyo" }));
+        await service.registerUser(createRegisterInput({ timezone: "Asia/Tokyo" }));
 
         expect(notificationService.createDefaultChannel).toHaveBeenCalledWith(expect.objectContaining({ id: user.id, timezone: "Europe/Paris" }));
       });
@@ -302,7 +338,7 @@ describe(UserService.name, () => {
         const { service, userRepository } = setup();
         userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
 
-        await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Etc/UTC" }));
+        await service.registerUser(createRegisterInput({ timezone: "Etc/UTC" }));
 
         expect(userRepository.updateBy).toHaveBeenCalledWith({ id: user.id, timezonePickedAt: null }, { timezone: "UTC" }, { returning: true });
       });
@@ -313,7 +349,7 @@ describe(UserService.name, () => {
         userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
         userRepository.updateBy.mockImplementation(vi.fn().mockResolvedValue({ ...user, timezone: "Asia/Tokyo" }));
 
-        const result = await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Asia/Tokyo" }));
+        const result = await service.registerUser(createRegisterInput({ timezone: "Asia/Tokyo" }));
 
         expect(userRepository.updateBy).toHaveBeenCalledWith({ id: user.id, timezonePickedAt: null }, { timezone: "Asia/Tokyo" }, { returning: true });
         expect(result.timezone).toBe("Asia/Tokyo");
@@ -324,7 +360,7 @@ describe(UserService.name, () => {
         const { service, userRepository } = setup();
         userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
 
-        const result = await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Asia/Tokyo" }));
+        const result = await service.registerUser(createRegisterInput({ timezone: "Asia/Tokyo" }));
 
         expect(userRepository.updateBy).not.toHaveBeenCalled();
         expect(result.timezone).toBe("Europe/Paris");
@@ -335,7 +371,7 @@ describe(UserService.name, () => {
         const { service, userRepository } = setup();
         userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
 
-        await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Europe/Paris" }));
+        await service.registerUser(createRegisterInput({ timezone: "Europe/Paris" }));
 
         expect(userRepository.updateBy).not.toHaveBeenCalled();
       });
@@ -345,7 +381,7 @@ describe(UserService.name, () => {
         const { service, userRepository } = setup();
         userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
 
-        const result = await service.registerUser(createRegisterInput({ emailVerified: true, timezone }));
+        const result = await service.registerUser(createRegisterInput({ timezone }));
 
         expect(userRepository.updateBy).not.toHaveBeenCalled();
         expect(result.timezone).toBe("Europe/Paris");
@@ -357,7 +393,7 @@ describe(UserService.name, () => {
         userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: false });
         userRepository.updateBy.mockImplementation(vi.fn().mockResolvedValue(undefined));
 
-        const result = await service.registerUser(createRegisterInput({ emailVerified: true, timezone: "Europe/Paris" }));
+        const result = await service.registerUser(createRegisterInput({ timezone: "Europe/Paris" }));
 
         expect(result.timezone).toBeNull();
       });
@@ -527,14 +563,16 @@ describe(UserService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: UserService.name });
   });
 
-  function setup() {
+  function setup(input: { signInEmail?: { email: string; emailVerified: boolean } | null } = {}) {
     const userRepository = mock<UserRepository>();
     const analyticsService = mock<AnalyticsService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const notificationService = mock<NotificationService>({ createDefaultChannel: vi.fn().mockResolvedValue(undefined) });
     const auth0Service = mock<Auth0Service>();
-    const emailVerificationCodeService = mock<EmailVerificationCodeService>();
+    const emailVerificationCodeService = mock<EmailVerificationCodeService>({
+      sendCode: vi.fn().mockResolvedValue({ codeSentAt: new Date().toISOString() })
+    });
     const walletInitializerService = mock<WalletInitializerService>({
       ensureWallet: vi.fn().mockResolvedValue(createUserWallet())
     });
@@ -547,6 +585,9 @@ describe(UserService.name, () => {
       adoptUserRows: vi.fn().mockResolvedValue(createAdoptedRowCounts())
     });
     const txService = mock<TxService>({ transaction: vi.fn(cb => cb()) });
+    const verifiedEmailService = mock<VerifiedEmailService>({
+      getEmail: vi.fn().mockResolvedValue(input.signInEmail === undefined ? { email: faker.internet.email(), emailVerified: true } : input.signInEmail)
+    });
 
     const service = new UserService(
       userRepository,
@@ -560,7 +601,8 @@ describe(UserService.name, () => {
       dataKeyService,
       blockedEmailDomainService,
       personalOrganizationService,
-      txService
+      txService,
+      verifiedEmailService
     );
 
     return {
@@ -577,6 +619,7 @@ describe(UserService.name, () => {
       dataKeyService,
       personalOrganizationService,
       txService,
+      verifiedEmailService,
       organization
     };
   }
@@ -596,8 +639,6 @@ describe(UserService.name, () => {
     return {
       userId: faker.string.uuid(),
       wantedUsername: faker.internet.userName(),
-      email: faker.internet.email(),
-      emailVerified: false,
       subscribedToNewsletter: false,
       ip: faker.internet.ip(),
       userAgent: faker.internet.userAgent(),

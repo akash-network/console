@@ -24754,12 +24754,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "application/json": {
               "schema": {
                 "properties": {
-                  "email": {
-                    "type": "string",
-                  },
-                  "emailVerified": {
-                    "type": "boolean",
-                  },
                   "subscribedToNewsletter": {
                     "type": "boolean",
                   },
@@ -24774,8 +24768,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 },
                 "required": [
                   "wantedUsername",
-                  "email",
-                  "emailVerified",
                 ],
                 "type": "object",
               },
