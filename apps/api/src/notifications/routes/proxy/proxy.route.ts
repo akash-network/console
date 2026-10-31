@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import assert from "http-assert";
+import pick from "lodash/pick";
 import { container } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
@@ -30,6 +31,11 @@ export interface ProxyDependencies {
 const DEPLOYMENT_ALERTS_PATH = /^\/v1\/deployment-alerts\/([^/]+)$/;
 
 const ALERTS_PATH = "/v1/alerts";
+
+/** A project-bound key sees what attaching its project's alerts to a channel takes, never where the channel delivers. */
+const CHANNEL_FIELDS_SHOWN_TO_PROJECT_BOUND_KEYS = ["id", "name", "type"];
+
+type ChannelResponseBody = { data: Record<string, unknown> | Array<Record<string, unknown>> };
 
 export const createProxy =
   ({ authService, userWalletRepository, deploymentSettingRepository, executionContextService, config, fetchFn }: ProxyDependencies) =>
@@ -77,12 +83,31 @@ export const createProxy =
       headers["content-type"] = "application/json";
     }
 
-    return fetchFn(targetUrl, {
+    const response = await fetchFn(targetUrl, {
       method: req.method,
       headers,
       body
     });
+    const isChannelReadByProjectBoundKey =
+      subject === "NotificationChannel" && req.method === "GET" && !!executionContextService.get("CURRENT_API_KEY")?.projectId;
+
+    return isChannelReadByProjectBoundKey ? await withoutChannelRecipients(response) : response;
   };
+
+async function withoutChannelRecipients(response: Response): Promise<Response> {
+  if (!response.ok) {
+    return response;
+  }
+
+  const { data, ...rest } = (await response.json()) as ChannelResponseBody;
+  const shownData = Array.isArray(data) ? data.map(shownChannelFields) : shownChannelFields(data);
+
+  return Response.json({ ...rest, data: shownData }, { status: response.status });
+}
+
+function shownChannelFields(channel: Record<string, unknown>): Record<string, unknown> {
+  return pick(channel, CHANNEL_FIELDS_SHOWN_TO_PROJECT_BOUND_KEYS);
+}
 
 /** The deployment a request names, through the deployment alerts path, the alerts dseq filter or a new alert's params. */
 function targetedDseq(method: string, url: URL, body: string | undefined): string | undefined {
