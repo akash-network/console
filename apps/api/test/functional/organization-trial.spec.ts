@@ -1,14 +1,17 @@
 import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import type { Registry } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
+import type { GetUsers200ResponseOneOfInner } from "auth0";
 import { and, eq } from "drizzle-orm";
 import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { AuthService } from "@src/auth/services/auth.service";
+import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
 import type { WalletListOutputResponse } from "@src/billing/http-schemas/wallet.schema";
@@ -235,6 +238,9 @@ describe("Organization trial", () => {
     const token = faker.string.alphanumeric(40);
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async header =>
       header.replace(/^Bearer +/i, "") === token ? externalUserId : null
+    );
+    vi.spyOn(container.resolve(Auth0Service), "getUser").mockImplementation(async userId =>
+      userId === externalUserId ? mock<GetUsers200ResponseOneOfInner>({ user_id: userId, email: user.email!, email_verified: true }) : null
     );
     enableOrganizationsFor([user.id]);
 

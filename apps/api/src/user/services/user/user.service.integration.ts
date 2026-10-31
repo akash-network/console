@@ -7,6 +7,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import type { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
+import { VerifiedEmailService } from "@src/auth/services/verified-email/verified-email.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
@@ -56,13 +57,12 @@ describe(UserService.name, () => {
 
     it("registers a new user", async () => {
       const createDefaultNotificationChannel = vi.fn(() => Promise.resolve());
-      const { service, analyticsService, logger } = setup({ createDefaultNotificationChannel });
+      const signInEmail = { email: faker.internet.email(), emailVerified: faker.datatype.boolean() };
+      const { service, analyticsService, logger } = setup({ createDefaultNotificationChannel, signInEmail });
 
       const input: RegisterUserInput = {
         userId: faker.string.uuid(),
         wantedUsername: `test-user-${Date.now()}`,
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
         subscribedToNewsletter: faker.datatype.boolean(),
         ip: faker.internet.ipv4(),
         userAgent: faker.string.alphanumeric(32),
@@ -73,8 +73,8 @@ describe(UserService.name, () => {
       expect(user).toMatchObject({
         id: expect.any(String),
         userId: input.userId,
-        email: input.email,
-        emailVerified: input.emailVerified,
+        email: signInEmail.email,
+        emailVerified: signInEmail.emailVerified,
         subscribedToNewsletter: input.subscribedToNewsletter,
         username: input.wantedUsername
       });
@@ -106,16 +106,14 @@ describe(UserService.name, () => {
       const input: RegisterUserInput = {
         userId: faker.string.uuid(),
         wantedUsername: conflictingUsername,
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
         subscribedToNewsletter: faker.datatype.boolean(),
         ip: faker.internet.ipv4(),
         userAgent: faker.string.alphanumeric(32),
         fingerprint: faker.string.alphanumeric(16)
       };
       const newUsers = await Promise.all([
-        service.registerUser({ ...input, email: faker.internet.email(), userId: faker.string.uuid() }),
-        service.registerUser({ ...input, email: faker.internet.email(), userId: faker.string.uuid() })
+        service.registerUser({ ...input, userId: faker.string.uuid() }),
+        service.registerUser({ ...input, userId: faker.string.uuid() })
       ]);
 
       expect(newUsers.map(u => u.id)).not.toContain(existingUser.id);
@@ -126,20 +124,18 @@ describe(UserService.name, () => {
     });
 
     it("updates user if registering existing user", async () => {
-      const { service } = setup();
-
       const existingUser = await container.resolve(UserRepository).create({
         userId: faker.string.uuid(),
         email: faker.internet.email(),
         emailVerified: false,
         subscribedToNewsletter: false
       });
+      const signInEmail = { email: `new_email_${existingUser.email}`, emailVerified: true };
+      const { service } = setup({ signInEmail });
 
       const input: RegisterUserInput = {
         userId: existingUser.userId!,
         wantedUsername: faker.internet.userName(),
-        email: `new_email_${existingUser.email}`,
-        emailVerified: true,
         subscribedToNewsletter: true,
         ip: faker.internet.ipv4(),
         userAgent: faker.string.alphanumeric(32),
@@ -151,10 +147,22 @@ describe(UserService.name, () => {
       expect(newUser).toMatchObject({
         id: existingUser.id,
         userId: existingUser.userId!,
-        email: input.email,
-        emailVerified: input.emailVerified,
+        ...signInEmail,
         subscribedToNewsletter: input.subscribedToNewsletter
       });
+    });
+
+    it("downgrades a stored verification Auth0 no longer reports for the user", async () => {
+      const existingUser = await container.resolve(UserRepository).create({
+        userId: faker.string.uuid(),
+        email: faker.internet.email(),
+        emailVerified: true
+      });
+      const { service, userRepository } = setup({ signInEmail: { email: existingUser.email!, emailVerified: false } });
+
+      await service.registerUser(createRegisterInput({ userId: existingUser.userId! }));
+
+      expect(await userRepository.findById(existingUser.id)).toMatchObject({ email: existingUser.email, emailVerified: false });
     });
 
     it("creates exactly one data key for the registered user", async () => {
@@ -181,8 +189,6 @@ describe(UserService.name, () => {
       const input: RegisterUserInput = {
         userId: faker.string.uuid(),
         wantedUsername: `test-user-${Date.now()}`,
-        email: faker.internet.email(),
-        emailVerified: faker.datatype.boolean(),
         subscribedToNewsletter: faker.datatype.boolean(),
         ip: faker.internet.ipv4(),
         userAgent: faker.string.alphanumeric(32),
@@ -497,8 +503,6 @@ describe(UserService.name, () => {
     return {
       userId: faker.string.uuid(),
       wantedUsername: `test-user-${faker.string.uuid()}`,
-      email: faker.internet.email(),
-      emailVerified: faker.datatype.boolean(),
       subscribedToNewsletter: faker.datatype.boolean(),
       ip: faker.internet.ipv4(),
       userAgent: faker.string.alphanumeric(32),
@@ -513,11 +517,20 @@ describe(UserService.name, () => {
     ensureForUser?: PersonalOrganizationService["ensureForUser"];
     renameToUsername?: PersonalOrganizationService["renameToUsername"];
     isBlockedEmail?: boolean;
+    signInEmail?: { email: string; emailVerified: boolean };
   }) {
     const analyticsService = mock<AnalyticsService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger: CreateLogger = () => logger;
-    const auth0Service = mock<Auth0Service>();
+    const auth0Service = mock<Auth0Service>({
+      getUser: vi.fn(async (userId: string) =>
+        mock<GetUsers200ResponseOneOfInner>({
+          user_id: userId,
+          email: input?.signInEmail?.email ?? faker.internet.email(),
+          email_verified: input?.signInEmail?.emailVerified ?? faker.datatype.boolean()
+        })
+      )
+    });
     const walletInitializerService = mock<WalletInitializerService>({
       ensureWallet: vi.fn().mockResolvedValue(createUserWallet())
     });
@@ -552,7 +565,8 @@ describe(UserService.name, () => {
       input?.ensureDataKey ? mock<DataKeyService>({ ensureDataKey: input.ensureDataKey }) : dataKeyService,
       mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(input?.isBlockedEmail ?? false) }),
       personalOrganizationService,
-      container.resolve(TxService)
+      container.resolve(TxService),
+      new VerifiedEmailService(auth0Service)
     );
 
     return {
