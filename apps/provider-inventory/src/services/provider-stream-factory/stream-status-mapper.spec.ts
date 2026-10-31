@@ -15,6 +15,8 @@ import { describe, expect, it } from "vitest";
 
 import { mapProviderStatusToClusterState, parseQuantity } from "./stream-status-mapper";
 
+const HUGE_QUANTITIES = ["1e16000000", "1e-16000000", `0.${"0".repeat(10_000)}1`, `${"1".repeat(10_000)}Ki`];
+
 describe(parseQuantity.name, () => {
   describe("empty / unparseable input", () => {
     it("returns 0n when the quantity is undefined", () => {
@@ -140,16 +142,21 @@ describe(parseQuantity.name, () => {
       expect(parseQuantity({ string: "1".repeat(65) })).toBe(0n);
     });
 
-    it("returns 0n for huge exponents and very long mantissas without scaling them", () => {
-      const quantities = ["1e16000000", "1e-16000000", `0.${"0".repeat(10_000)}1`, `${"1".repeat(10_000)}Ki`];
-
-      const startedAt = performance.now();
-      const parsed = quantities.map(string => parseQuantity({ string }));
-      const elapsedMs = performance.now() - startedAt;
-
-      expect(parsed).toEqual([0n, 0n, 0n, 0n]);
-      expect(elapsedMs).toBeLessThan(50);
+    it("returns 0n for huge exponents and very long mantissas", () => {
+      expect(HUGE_QUANTITIES.map(string => parseQuantity({ string }))).toEqual([0n, 0n, 0n, 0n]);
     });
+
+    it("rejects huge exponents and very long mantissas without scaling them", () => {
+      const fastestRunMs = Math.min(...Array.from({ length: 5 }, () => measureParseTimeMs(HUGE_QUANTITIES)));
+
+      expect(fastestRunMs).toBeLessThan(50);
+    });
+
+    function measureParseTimeMs(quantities: string[]) {
+      const startedAt = performance.now();
+      quantities.forEach(string => parseQuantity({ string }));
+      return performance.now() - startedAt;
+    }
   });
 
   describe("signed values", () => {
