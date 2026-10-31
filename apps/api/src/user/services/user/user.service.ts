@@ -4,7 +4,6 @@ import randomInt from "lodash/random";
 import { inject, singleton } from "tsyringe";
 
 import { ACCOUNT_UNAVAILABLE_ERROR_CODE, ACCOUNT_UNAVAILABLE_MESSAGE } from "@src/auth/lib/account-unavailable/account-unavailable";
-import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
@@ -29,7 +28,6 @@ export class UserService {
     private readonly analyticsService: AnalyticsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger,
     private readonly notificationService: NotificationService,
-    private readonly auth0: Auth0Service,
     private readonly emailVerificationCodeService: EmailVerificationCodeService,
     private readonly walletInitializer: WalletInitializerService,
     private readonly trialActivationJobService: TrialActivationJobService,
@@ -197,33 +195,6 @@ export class UserService {
 
       throw error;
     }
-  }
-
-  async syncEmailVerified({ email }: { email: string }): Promise<UserOutput> {
-    const auth0User = await this.auth0.getUserByEmail(email);
-    assert(auth0User, 404);
-
-    const user = await this.userRepository.updateBy(
-      {
-        email
-      },
-      {
-        emailVerified: auth0User.email_verified
-      },
-      {
-        returning: true
-      }
-    );
-
-    assert(user, 404);
-
-    if (user.emailVerified) {
-      await this.trialActivationJobService.schedule(user.id).catch(error => {
-        this.logger.error({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", id: user.id, error });
-      });
-    }
-
-    return user;
   }
 
   async getUserByUsername(username: string): Promise<Pick<UserOutput, "username" | "bio"> | null> {
