@@ -18,6 +18,7 @@ import type { AppEnv } from "./core/types/app-context";
 import { healthzRouter } from "./healthz/routes/healthz.router";
 import { clientInfoMiddleware } from "./middlewares/clientInfoMiddleware";
 import { requirePrivateToken } from "./middlewares/privateMiddleware";
+import { redactSpanUrlCredentials } from "./middlewares/redact-span-url/redact-span-url.middleware";
 import { notificationsApiProxy } from "./notifications/routes/proxy/proxy.route";
 import { apiRouter } from "./routers/apiRouter";
 import { dashboardRouter } from "./routers/dashboardRouter";
@@ -32,6 +33,7 @@ import { CORE_CONFIG, migratePG } from "./core";
 
 const appHono = new Hono<AppEnv>();
 appHono.use("*", otel());
+appHono.use("*", redactSpanUrlCredentials);
 appHono.use(
   "/*",
   cors({
