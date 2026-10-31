@@ -111,8 +111,7 @@ jobs:
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
       should_run: ${{ !contains(fromJSON(steps.associated_pr.outputs.labels), 'ignore-static-analyses') }}
-      pr_head_ref: ${{ steps.associated_pr.outputs.head_ref }}
-      pr_head_repo: ${{ steps.associated_pr.outputs.head_repo }}
+      sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -166,8 +165,7 @@ jobs:
       snyk-token: ${{ secrets.SNYK_TOKEN }}
     with:
       path: apps/${{ matrix.workspace }}
-      pr_head_ref: ${{ needs.setup-static-analyses.outputs.pr_head_ref }}
-      pr_head_repo: ${{ needs.setup-static-analyses.outputs.pr_head_repo }}
+      sha: ${{ needs.setup-static-analyses.outputs.sha }}
 
   apps-deps-scan:
     needs: [create-check-run]
@@ -209,6 +207,7 @@ jobs:
         uses: ./.github/actions/poll-check-status
         with:
           name: "Socket Security: Pull Request Alerts"
+          app_id: 156372 # socket-security
           sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
           retry_delay: 10000
           max_retries: 60
@@ -280,6 +279,7 @@ jobs:
         uses: ./.github/actions/poll-check-status
         with:
           name: "CodeQL"
+          app_id: 57789 # github-advanced-security
           sha: ${{ env.PARENT_WORKFLOW_HEAD_SHA }}
           max_retries: 10
           # Code scanning re-evaluates the check as each language's upload lands and reads neutral in between.
