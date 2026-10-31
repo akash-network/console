@@ -7,7 +7,7 @@ import { cacheEngine } from "@src/caching/helpers";
 import type { ProviderConfigGpusType } from "@src/types/gpu";
 import type { GpuRepository } from "../repositories/gpu.repository";
 import { GpuFormattingService } from "./gpu-formatting/gpu-formatting.service";
-import { GpuService } from "./gpu.service";
+import { GPU_BREAKDOWN_CACHE_ENTRIES, GpuService } from "./gpu.service";
 
 describe(GpuService.name, () => {
   describe("getGpuModels", () => {
@@ -53,6 +53,28 @@ describe(GpuService.name, () => {
       await service.getGpuBreakdown({ ...window, vendor: "nvidia" });
 
       expect(gpuRepository.getGpuBreakdown).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the first breakdown cached while the cache holds no more than its entry limit", async () => {
+      const { service, gpuRepository } = setup();
+      gpuRepository.getGpuBreakdown.mockResolvedValue([]);
+      const models = Array.from({ length: GPU_BREAKDOWN_CACHE_ENTRIES }, (_, index) => `model-${index}`);
+
+      for (const model of models) await service.getGpuBreakdown({ ...window, model });
+      await service.getGpuBreakdown({ ...window, model: models[0] });
+
+      expect(gpuRepository.getGpuBreakdown).toHaveBeenCalledTimes(GPU_BREAKDOWN_CACHE_ENTRIES);
+    });
+
+    it("evicts the oldest breakdown once more distinct queries than the entry limit are cached", async () => {
+      const { service, gpuRepository } = setup();
+      gpuRepository.getGpuBreakdown.mockResolvedValue([]);
+      const models = Array.from({ length: GPU_BREAKDOWN_CACHE_ENTRIES + 1 }, (_, index) => `model-${index}`);
+
+      for (const model of models) await service.getGpuBreakdown({ ...window, model });
+      await service.getGpuBreakdown({ ...window, model: models[0] });
+
+      expect(gpuRepository.getGpuBreakdown).toHaveBeenCalledTimes(GPU_BREAKDOWN_CACHE_ENTRIES + 2);
     });
 
     it("distinguishes filter values that contain '#' characters", async () => {
