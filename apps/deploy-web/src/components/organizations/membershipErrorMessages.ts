@@ -6,6 +6,7 @@ import {
   INVITATION_DECLINED_ERROR_CODE,
   INVITATION_EMAIL_LIMIT_REACHED_ERROR_CODE,
   INVITATION_EXPIRED_ERROR_CODE,
+  INVITATION_INVITER_LOST_ACCESS_ERROR_CODE,
   INVITATION_LIMIT_REACHED_ERROR_CODE,
   INVITATION_REVOKED_ERROR_CODE,
   LAST_OWNER_ERROR_CODE,
@@ -25,6 +26,7 @@ const MEMBERSHIP_ERROR_MESSAGES = new Map<string, string>([
   [INVITATION_REVOKED_ERROR_CODE, "This invitation was revoked."],
   [INVITATION_DECLINED_ERROR_CODE, "This invitation was declined."],
   [INVITATION_ALREADY_ACCEPTED_ERROR_CODE, "This invitation has already been accepted."],
+  [INVITATION_INVITER_LOST_ACCESS_ERROR_CODE, "This invitation is no longer valid. Ask an owner or admin of the team to send you a new one."],
   [SESSION_REQUIRED_ERROR_CODE, "Sign in again to accept this invitation."]
 ]);
 

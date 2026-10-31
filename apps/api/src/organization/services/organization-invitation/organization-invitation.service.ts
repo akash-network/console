@@ -107,7 +107,7 @@ export class OrganizationInvitationService {
       const renewed: OrganizationInvitationOutput[] = [];
 
       for (const invitation of expired) {
-        renewed.push(await this.#renew(invitation.id));
+        renewed.push(await this.#renew(invitation.id, senderId));
       }
 
       const invited = [...created, ...renewed];
@@ -127,7 +127,7 @@ export class OrganizationInvitationService {
       const senderId = this.authService.currentUser.id;
       const invitation = await this.#findPendingInvitation(context, id);
       await this.emailLimiter.assertWithinLimits({ organizationId: context.organizationId, senderId, emails: [invitation.email] });
-      await this.#sendEmails([await this.#renew(id)], senderId);
+      await this.#sendEmails([await this.#renew(id, senderId)], senderId);
     });
 
     const [invitation] = await this.#repositoryFor("read").findPendingWithInviters(context.organizationId, { ids: [id] });
@@ -143,7 +143,7 @@ export class OrganizationInvitationService {
     const token = createInvitationToken();
     const updated = await this.#repositoryFor("update").updateBy(
       { id, status: "pending" },
-      { tokenHash: hashInvitationToken(token), ...(hasExpired(invitation) && { expiresAt: newExpiry() }) },
+      { tokenHash: hashInvitationToken(token), invitedByUserId: this.authService.currentUser.id, ...(hasExpired(invitation) && { expiresAt: newExpiry() }) },
       { returning: true }
     );
     assert(updated, 404, "Organization invitation not found");
@@ -165,10 +165,10 @@ export class OrganizationInvitationService {
     return invitation;
   }
 
-  async #renew(id: OrganizationInvitationOutput["id"]): Promise<OrganizationInvitationOutput> {
+  async #renew(id: OrganizationInvitationOutput["id"], senderId: string): Promise<OrganizationInvitationOutput> {
     const renewed = await this.#repositoryFor("update").updateBy(
       { id, status: "pending" },
-      { tokenHash: unissuedTokenHash(), expiresAt: newExpiry() },
+      { tokenHash: unissuedTokenHash(), expiresAt: newExpiry(), invitedByUserId: senderId },
       { returning: true }
     );
     assert(renewed, 404, "Organization invitation not found");

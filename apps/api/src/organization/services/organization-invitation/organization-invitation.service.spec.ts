@@ -112,7 +112,7 @@ describe(OrganizationInvitationService.name, () => {
       );
     });
 
-    it("renews and emails again an address's expired invitation, keeping its role", async () => {
+    it("renews and emails again an address's expired invitation as the sender's, keeping its role", async () => {
       vi.useFakeTimers({ now: new Date("2026-10-09T12:00:00Z") });
       const expired = createOrganizationInvitationWithInviter({ email: "jane@example.com", role: "viewer", expiresAt: new Date("2026-10-01T00:00:00Z") });
       const renewed = createOrganizationInvitation({ id: expired.id, email: "jane@example.com" });
@@ -123,7 +123,7 @@ describe(OrganizationInvitationService.name, () => {
 
       expect(repositories.update.updateBy).toHaveBeenCalledWith(
         { id: expired.id, status: "pending" },
-        { tokenHash: expect.stringMatching(/^[0-9a-f]{64}$/), expiresAt: new Date("2026-10-16T12:00:00Z") },
+        { tokenHash: expect.stringMatching(/^[0-9a-f]{64}$/), expiresAt: new Date("2026-10-16T12:00:00Z"), invitedByUserId: caller.id },
         { returning: true }
       );
       expect(emailLimiter.assertWithinLimits).toHaveBeenCalledWith({
@@ -446,12 +446,12 @@ describe(OrganizationInvitationService.name, () => {
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
-    it("renews the token and the expiry of the invitation and emails it again", async () => {
+    it("renews the token and the expiry of the invitation as the caller's and emails it again", async () => {
       vi.useFakeTimers({ now: new Date("2026-10-09T12:00:00Z") });
       const invitation = createOrganizationInvitation();
       const renewed = createOrganizationInvitation({ id: invitation.id });
       const listed = createOrganizationInvitationWithInviter({ id: invitation.id });
-      const { service, context, ability, invitationRepository, repositories, jobQueueService, organizationActivityService } = setup({
+      const { service, context, caller, ability, invitationRepository, repositories, jobQueueService, organizationActivityService } = setup({
         invitation,
         updated: renewed
       });
@@ -464,7 +464,7 @@ describe(OrganizationInvitationService.name, () => {
       expect(invitationRepository.accessibleBy).toHaveBeenCalledWith(ability, "update");
       expect(repositories.update.updateBy).toHaveBeenCalledWith(
         { id: invitation.id, status: "pending" },
-        { tokenHash: expect.stringMatching(/^[0-9a-f]{64}$/), expiresAt: addDays(new Date("2026-10-09T12:00:00Z"), 7) },
+        { tokenHash: expect.stringMatching(/^[0-9a-f]{64}$/), expiresAt: addDays(new Date("2026-10-09T12:00:00Z"), 7), invitedByUserId: caller.id },
         { returning: true }
       );
       expect(repositories.update.updateBy.mock.calls[0][1].tokenHash).not.toBe(invitation.tokenHash);
@@ -511,9 +511,12 @@ describe(OrganizationInvitationService.name, () => {
   });
 
   describe("createInvitationLink", () => {
-    it("issues a new token and links to it while storing only its hash", async () => {
+    it("issues a new token as the caller's and links to it while storing only its hash", async () => {
       const invitation = createOrganizationInvitation();
-      const { service, ability, invitationRepository, repositories, jobQueueService, organizationActivityService } = setup({ invitation, updated: invitation });
+      const { service, caller, ability, invitationRepository, repositories, jobQueueService, organizationActivityService } = setup({
+        invitation,
+        updated: invitation
+      });
 
       const url = await service.createInvitationLink(invitation.id);
 
@@ -522,7 +525,7 @@ describe(OrganizationInvitationService.name, () => {
       expect(invitationRepository.accessibleBy).toHaveBeenCalledWith(ability, "update");
       expect(repositories.update.updateBy).toHaveBeenCalledWith(
         { id: invitation.id, status: "pending" },
-        { tokenHash: hashInvitationToken(token) },
+        { tokenHash: hashInvitationToken(token), invitedByUserId: caller.id },
         { returning: true }
       );
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
@@ -532,13 +535,13 @@ describe(OrganizationInvitationService.name, () => {
     it("gives an expired invitation a new expiry along with the new token", async () => {
       vi.useFakeTimers({ now: new Date("2026-10-09T12:00:00Z") });
       const invitation = createOrganizationInvitation({ expiresAt: new Date("2026-10-01T00:00:00Z") });
-      const { service, repositories } = setup({ invitation, updated: invitation });
+      const { service, caller, repositories } = setup({ invitation, updated: invitation });
 
       await service.createInvitationLink(invitation.id);
 
       expect(repositories.update.updateBy).toHaveBeenCalledWith(
         { id: invitation.id, status: "pending" },
-        { tokenHash: expect.stringMatching(/^[0-9a-f]{64}$/), expiresAt: new Date("2026-10-16T12:00:00Z") },
+        { tokenHash: expect.stringMatching(/^[0-9a-f]{64}$/), expiresAt: new Date("2026-10-16T12:00:00Z"), invitedByUserId: caller.id },
         { returning: true }
       );
     });
