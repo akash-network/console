@@ -15,8 +15,8 @@ const logger = new LoggerService({ name: "middleware" });
 
 const networkRpcAndApiUrls = netConfig.getSupportedNetworks().flatMap(network => [netConfig.getBaseRpcUrl(network), netConfig.getBaseAPIUrl(network)]);
 
-/** A service worker script served as a redirect fails registration outright, so the maintenance redirect has to let the PWA assets through. */
-const PWA_ASSET_PATHNAME = /^\/(sw\.js|workbox-[^/]+\.js|manifest\.json)$/;
+/** Browsers re-check the service worker script for updates and a redirect fails that check, so the maintenance redirect has to let it through. */
+const PWA_ASSET_PATHNAME = /^\/(sw\.js|manifest\.json)$/;
 
 /** Kubernetes probes hit this path, so a maintenance 307 here would get the pod restarted. */
 const HEALTHCHECK_PATHNAME = "/api/healthz";
