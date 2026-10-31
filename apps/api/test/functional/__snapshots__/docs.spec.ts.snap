@@ -6099,10 +6099,217 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "data": {
                     "properties": {
                       "leases": {
-                        "additionalProperties": {
-                          "nullable": true,
-                        },
-                        "type": "object",
+                        "oneOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "access": {
+                                "enum": [
+                                  "full",
+                                ],
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "access",
+                            ],
+                            "type": "object",
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "access": {
+                                "enum": [
+                                  "scoped",
+                                ],
+                                "type": "string",
+                              },
+                              "scope": {
+                                "items": {
+                                  "enum": [
+                                    "send-manifest",
+                                    "get-manifest",
+                                    "logs",
+                                    "shell",
+                                    "events",
+                                    "status",
+                                    "restart",
+                                    "hostname-migrate",
+                                    "ip-migrate",
+                                    "attestation",
+                                  ],
+                                  "type": "string",
+                                },
+                                "minItems": 1,
+                                "type": "array",
+                              },
+                            },
+                            "required": [
+                              "access",
+                              "scope",
+                            ],
+                            "type": "object",
+                          },
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "access": {
+                                "enum": [
+                                  "granular",
+                                ],
+                                "type": "string",
+                              },
+                              "permissions": {
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "access": {
+                                          "enum": [
+                                            "full",
+                                          ],
+                                          "type": "string",
+                                        },
+                                        "provider": {
+                                          "pattern": "^akash1[a-z0-9]{38}$",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "provider",
+                                        "access",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "access": {
+                                          "enum": [
+                                            "scoped",
+                                          ],
+                                          "type": "string",
+                                        },
+                                        "provider": {
+                                          "pattern": "^akash1[a-z0-9]{38}$",
+                                          "type": "string",
+                                        },
+                                        "scope": {
+                                          "items": {
+                                            "enum": [
+                                              "send-manifest",
+                                              "get-manifest",
+                                              "logs",
+                                              "shell",
+                                              "events",
+                                              "status",
+                                              "restart",
+                                              "hostname-migrate",
+                                              "ip-migrate",
+                                              "attestation",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "minItems": 1,
+                                          "type": "array",
+                                        },
+                                      },
+                                      "required": [
+                                        "provider",
+                                        "access",
+                                        "scope",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "access": {
+                                          "enum": [
+                                            "granular",
+                                          ],
+                                          "type": "string",
+                                        },
+                                        "deployments": {
+                                          "items": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "dseq": {
+                                                "minimum": 1,
+                                                "type": "integer",
+                                              },
+                                              "gseq": {
+                                                "minimum": 0,
+                                                "type": "integer",
+                                              },
+                                              "oseq": {
+                                                "minimum": 0,
+                                                "type": "integer",
+                                              },
+                                              "scope": {
+                                                "items": {
+                                                  "enum": [
+                                                    "send-manifest",
+                                                    "get-manifest",
+                                                    "logs",
+                                                    "shell",
+                                                    "events",
+                                                    "status",
+                                                    "restart",
+                                                    "hostname-migrate",
+                                                    "ip-migrate",
+                                                    "attestation",
+                                                  ],
+                                                  "type": "string",
+                                                },
+                                                "minItems": 1,
+                                                "type": "array",
+                                              },
+                                              "services": {
+                                                "items": {
+                                                  "minLength": 1,
+                                                  "type": "string",
+                                                },
+                                                "minItems": 1,
+                                                "type": "array",
+                                              },
+                                            },
+                                            "required": [
+                                              "dseq",
+                                              "scope",
+                                              "services",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "minItems": 1,
+                                          "type": "array",
+                                        },
+                                        "provider": {
+                                          "pattern": "^akash1[a-z0-9]{38}$",
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "provider",
+                                        "access",
+                                        "deployments",
+                                      ],
+                                      "type": "object",
+                                    },
+                                  ],
+                                },
+                                "minItems": 1,
+                                "type": "array",
+                              },
+                            },
+                            "required": [
+                              "access",
+                              "permissions",
+                            ],
+                            "type": "object",
+                          },
+                        ],
                       },
                       "ttl": {
                         "exclusiveMinimum": true,

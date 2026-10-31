@@ -1,3 +1,4 @@
+import type { JwtTokenAccessScope } from "@akashnetwork/chain-sdk";
 import { faker } from "@faker-js/faker";
 import createError from "http-errors";
 import { Ok } from "ts-results";
@@ -66,7 +67,7 @@ describe(JwtTokenController.name, () => {
         expect(signerService.assertDeploymentsInProjectScope).toHaveBeenCalledWith(wallet, ["1", "2"], "update");
       });
 
-      it.each([{ scope: ["status"] }, { scope: ["logs", "events"] }, { scope: ["status", "events", "logs"] }])(
+      it.each<{ scope: JwtTokenAccessScope[] }>([{ scope: ["status"] }, { scope: ["logs", "events"] }, { scope: ["status", "events", "logs"] }])(
         "grants a token that only reads $scope once the caller may read the deployments, with a wallet they may only read",
         async ({ scope }) => {
           const user = createUser();
@@ -89,13 +90,12 @@ describe(JwtTokenController.name, () => {
         }
       );
 
-      it.each([
+      it.each<{ scope: JwtTokenAccessScope[] }>([
         { scope: ["shell"] },
         { scope: ["send-manifest"] },
         { scope: ["restart"] },
         { scope: ["get-manifest"] },
-        { scope: ["logs", "shell"] },
-        { scope: "logs" }
+        { scope: ["logs", "shell"] }
       ])("checks a token granting $scope against the projects the caller may manage, with a wallet they may sign with", async ({ scope }) => {
         const user = createUser();
         const { controller, authService, userWalletRepository, providerJwtTokenService, signerService, jwtToken, wallet } = setup({
@@ -129,8 +129,8 @@ describe(JwtTokenController.name, () => {
           leases: {
             access: "granular",
             permissions: [
-              { provider: "akash1provider", access: "granular", deployments: [{ dseq: 1, scope: ["logs"] }] },
-              { provider: "akash1other", access: "granular", deployments: [{ dseq: 2, scope: ["shell"] }] }
+              { provider: "akash1provider", access: "granular", deployments: [{ dseq: 1, scope: ["logs"], services: ["web"] }] },
+              { provider: "akash1other", access: "granular", deployments: [{ dseq: 2, scope: ["shell"], services: ["web"] }] }
             ]
           }
         });
@@ -169,7 +169,7 @@ describe(JwtTokenController.name, () => {
         expect(providerJwtTokenService.generateJwtToken).not.toHaveBeenCalled();
       });
 
-      it.each([
+      it.each<{ name: string; leases: CreateJwtTokenRequest["leases"] }>([
         { name: "full access", leases: { access: "full" } },
         { name: "access scoped across every lease", leases: { access: "scoped", scope: ["logs"] } },
         { name: "full access to a provider", leases: { access: "granular", permissions: [{ provider: "akash1provider", access: "full" }] } },
@@ -205,12 +205,12 @@ describe(JwtTokenController.name, () => {
         expect(providerJwtTokenService.generateJwtToken).not.toHaveBeenCalled();
       });
 
-      function granularPayload(deployments: { dseq: number }[], scope: unknown = ["logs"]): CreateJwtTokenRequest {
+      function granularPayload(deployments: { dseq: number }[], scope: JwtTokenAccessScope[] = ["logs"]): CreateJwtTokenRequest {
         return {
           ttl: 3600,
           leases: {
             access: "granular",
-            permissions: [{ provider: "akash1provider", access: "granular", deployments: deployments.map(({ dseq }) => ({ dseq, scope })) }]
+            permissions: [{ provider: "akash1provider", access: "granular", deployments: deployments.map(({ dseq }) => ({ dseq, scope, services: ["web"] })) }]
           }
         };
       }
@@ -344,7 +344,7 @@ describe(JwtTokenController.name, () => {
     return {
       ttl: faker.number.int({ min: 3600, max: 86400 }),
       leases: {
-        access: "full",
+        access: "scoped",
         scope: ["send-manifest", "get-manifest"]
       }
     };

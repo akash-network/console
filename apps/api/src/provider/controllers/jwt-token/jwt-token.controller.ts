@@ -1,4 +1,4 @@
-import { JwtTokenAccessScope, JwtTokenPayload } from "@akashnetwork/chain-sdk";
+import { JwtTokenAccessScope } from "@akashnetwork/chain-sdk";
 import createError, { BadRequest, HttpError, Unauthorized } from "http-errors";
 import { Err, Result } from "ts-results";
 import { singleton } from "tsyringe";
@@ -56,7 +56,7 @@ export class JwtTokenController {
 
     const result = await this.providerJwtTokenService.generateJwtToken({
       walletId: wallet.id,
-      leases: payload.leases as JwtTokenPayload["leases"],
+      leases: payload.leases,
       ttl: payload.ttl
     });
 
