@@ -94,7 +94,11 @@ describe(NotificationService.name, () => {
       organizationRepository.findPersonalByUserId.mockResolvedValue(personalOrganization);
       apiInternal.v1.createNotification.mockResolvedValue({} as never);
 
-      await service.createNotification({ notificationId: "n-1", payload: { summary: "s", description: "d" }, user: { id: "user-1" } });
+      await service.createNotification({
+        notificationId: "n-1",
+        payload: { summary: "s", description: "d" },
+        user: { id: "user-1", email: "user@example.com" }
+      });
 
       expect(organizationRepository.findPersonalByUserId).toHaveBeenCalledWith("user-1");
       expect(apiInternal.v1.createNotification).toHaveBeenCalledWith(expect.anything(), {
@@ -102,7 +106,7 @@ describe(NotificationService.name, () => {
       });
     });
 
-    it("sends notification via the internal client", async () => {
+    it("sends the notification to the user's own email alone through the internal client", async () => {
       vi.useFakeTimers();
       const { service, apiInternal } = setup();
 
@@ -120,10 +124,22 @@ describe(NotificationService.name, () => {
       expect(apiInternal.v1.createNotification).toHaveBeenCalledWith(
         {
           notificationId: input.notificationId,
-          payload: input.payload
+          payload: input.payload,
+          recipient: "user@example.com"
         },
         { headers: { "x-user-id": input.user.id } }
       );
+    });
+
+    it("sends nothing to a user without an email address", async () => {
+      const { service, api, apiInternal } = setup();
+
+      await expect(
+        service.createNotification({ notificationId: "n-1", payload: { summary: "s", description: "d" }, user: { id: "user-1", email: null } })
+      ).rejects.toThrow("Failed to create notification: the user has no email address");
+
+      expect(apiInternal.v1.createNotification).not.toHaveBeenCalled();
+      expect(api.v1.createDefaultNotificationChannel).not.toHaveBeenCalled();
     });
 
     it("creates default channel and retries when channel not found and user has email", async () => {
@@ -172,33 +188,12 @@ describe(NotificationService.name, () => {
       expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledTimes(1);
     });
 
-    it("does not create default channel when user has no email and rejects after exhausting retries", async () => {
+    it("fails after retries without opening a channel if notification service is not available", async () => {
       vi.useFakeTimers();
       const { service, api, apiInternal } = setup();
 
       const input: CreateNotificationInput = {
-        user: { id: "user-1", email: null },
-        notificationId: "notif-1",
-        payload: { summary: "s", description: "d" }
-      };
-
-      const channelMissing = new ApiError(400, { code: "NOTIFICATION_CHANNEL_NOT_FOUND" }, "POST /internal/v1/jobs/notification → 400");
-      apiInternal.v1.createNotification.mockRejectedValue(channelMissing);
-
-      const [result] = await Promise.allSettled([service.createNotification(input), vi.runAllTimersAsync()]);
-
-      expect(result.status).toBe("rejected");
-      expect((result as PromiseRejectedResult).reason.cause).toBe(channelMissing);
-      expect(api.v1.createDefaultNotificationChannel).not.toHaveBeenCalled();
-      expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(5);
-    });
-
-    it("fails after retries if notification service is not available", async () => {
-      vi.useFakeTimers();
-      const { service, apiInternal } = setup();
-
-      const input: CreateNotificationInput = {
-        user: { id: "user-1", email: null },
+        user: { id: "user-1", email: "user@example.com" },
         notificationId: "notif-1",
         payload: { summary: "s", description: "d" }
       };
@@ -211,6 +206,7 @@ describe(NotificationService.name, () => {
       expect(result.status).toBe("rejected");
       expect((result as PromiseRejectedResult).reason.cause).toBe(error);
       expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(5);
+      expect(api.v1.createDefaultNotificationChannel).not.toHaveBeenCalled();
     });
   });
 
@@ -222,7 +218,7 @@ describe(NotificationService.name, () => {
     };
     const channelMissing = new ApiError(400, { code: "NOTIFICATION_CHANNEL_NOT_FOUND" }, "POST /internal/v1/jobs/notification → 400");
 
-    it("sends the notification once on behalf of the user", async () => {
+    it("sends the notification once on behalf of the user, to their own email alone", async () => {
       const { service, apiInternal } = setup();
       apiInternal.v1.createNotification.mockResolvedValue(undefined as never);
 
@@ -230,7 +226,7 @@ describe(NotificationService.name, () => {
 
       expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(1);
       expect(apiInternal.v1.createNotification).toHaveBeenCalledWith(
-        { notificationId: "n-1", payload: { summary: "s", description: "d" } },
+        { notificationId: "n-1", payload: { summary: "s", description: "d" }, recipient: "user@example.com" },
         { headers: { "x-user-id": "user-1" } }
       );
     });
@@ -271,7 +267,7 @@ describe(NotificationService.name, () => {
         { headers: { "x-user-id": "user-1" } }
       );
       expect(apiInternal.v1.createNotification).toHaveBeenCalledWith(
-        { notificationId: "n-1", payload: { summary: "s", description: "d" } },
+        { notificationId: "n-1", payload: { summary: "s", description: "d" }, recipient: "user@example.com" },
         { headers: { "x-user-id": "user-1" } }
       );
     });
@@ -299,11 +295,13 @@ describe(NotificationService.name, () => {
       expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledTimes(1);
     });
 
-    it("does not open a channel for a user without an email", async () => {
+    it("sends nothing and opens no channel for a user without an email address", async () => {
       const { service, api, apiInternal } = setup();
-      apiInternal.v1.createNotification.mockRejectedValue(channelMissing);
 
-      await expect(service.createNotificationOnce({ ...input, user: { id: "user-1", email: null } })).rejects.toMatchObject({ cause: channelMissing });
+      await expect(service.createNotificationOnce({ ...input, user: { id: "user-1", email: null } })).rejects.toThrow(
+        "Failed to create notification: the user has no email address"
+      );
+      expect(apiInternal.v1.createNotification).not.toHaveBeenCalled();
       expect(api.v1.createDefaultNotificationChannel).not.toHaveBeenCalled();
     });
   });
@@ -433,7 +431,9 @@ describe(NotificationService.name, () => {
       userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com", timezone: "Asia/Tokyo" } as UserOutput);
       deploymentSettingRepository.findTenancy.mockResolvedValue(undefined);
       organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1", type: "personal" }));
-      api.v1.listNotificationChannels.mockResolvedValueOnce({ data: [] } as never).mockResolvedValueOnce({ data: [{ id: "default-channel", isDefault: true }] } as never);
+      api.v1.listNotificationChannels
+        .mockResolvedValueOnce({ data: [] } as never)
+        .mockResolvedValueOnce({ data: [{ id: "default-channel", isDefault: true }] } as never);
       api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });

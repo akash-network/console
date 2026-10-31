@@ -41,8 +41,7 @@ export class PromotionalNotificationService {
       unsubscribe: {
         url: `${this.deploymentConfig.get("DEPLOY_WEB_BASE_URL")}/unsubscribe?token=${token}`,
         oneClickUrl: `${this.coreConfig.get("SERVER_ORIGIN")}/v1/product-update-unsubscriptions?token=${token}`
-      },
-      recipient: user.email
+      }
     });
 
     return "sent";

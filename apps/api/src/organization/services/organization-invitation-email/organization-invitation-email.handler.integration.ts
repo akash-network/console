@@ -24,7 +24,7 @@ const jobWorkers = useJobWorkers(() => [container.resolve(OrganizationInvitation
 
 type SentNotification = {
   userId: string | undefined;
-  body: { notificationId: string; payload: { summary: string; description: string; actions: { label: string; url: string }[] } };
+  body: { notificationId: string; payload: { summary: string; description: string; actions: { label: string; url: string }[] }; recipient?: string };
 };
 
 describe(OrganizationInvitationEmailHandler.name, () => {
@@ -52,7 +52,8 @@ describe(OrganizationInvitationEmailHandler.name, () => {
             summary: `Join ${organization.name} on Akash Console`,
             description: expect.stringContaining(`${inviter.username} invited you to join`),
             actions: [{ label: "Accept invitation", url: expect.stringMatching(new RegExp(`^${deployWebBaseUrl}/invitations#token=[A-Za-z0-9_-]{43}$`)) }]
-          }
+          },
+          recipient: invitation.email
         }
       }
     ]);
