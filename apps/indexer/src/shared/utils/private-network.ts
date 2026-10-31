@@ -54,11 +54,11 @@ export function createForbidPrivateNetworkLookup(baseLookup: BaseLookup = dns.lo
 }
 
 /** A dial to an IP literal never consults its lookup, so the host is checked through the lookup before anything is dialed. */
-export function assertPublicHost(url: string, lookup: NetworkLookup = createForbidPrivateNetworkLookup()): Promise<void> {
+export async function assertPublicHost(url: string, lookup: NetworkLookup = createForbidPrivateNetworkLookup()): Promise<void> {
   const { hostname } = new URL(url);
   const host = hostname.startsWith("[") ? hostname.slice(1, -1) : hostname;
 
-  return new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     lookup(host, { all: true }, err => (err ? reject(err) : resolve()));
   });
 }

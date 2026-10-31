@@ -90,6 +90,12 @@ describe("private-network", () => {
       await expect(assertPublicHost("http://169.254.169.254/latest")).rejects.toMatchObject({ code: "EFORBIDDEN" });
     });
 
+    it("rejects rather than throws for a URL it cannot parse", async () => {
+      const result = assertPublicHost("not a url");
+
+      await expect(result).rejects.toThrow(TypeError);
+    });
+
     it("accepts a public IPv4 literal", async () => {
       await expect(assertPublicHost("https://203.0.113.10:8443")).resolves.toBeUndefined();
     });
