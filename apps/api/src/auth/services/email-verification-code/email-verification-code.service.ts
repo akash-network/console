@@ -73,12 +73,10 @@ export class EmailVerificationCodeService {
     assert(user.userId, 400, "User has no Auth0 ID");
     assert(record, 400, "No active verification code. Please request a new one.");
     assert(new Date(record.expiresAt) > new Date(), 400, "Verification code expired. Please request a new one.");
-    assert(record.attempts < MAX_ATTEMPTS, 429, "Too many attempts. Please request a new code.");
 
-    if (record.code !== hashCode(code)) {
-      await this.emailVerificationCodeRepository.incrementAttempts(record.id);
-      assert(false, 400, "Invalid verification code");
-    }
+    const attempt = await this.emailVerificationCodeRepository.claimAttempt(record.id, MAX_ATTEMPTS);
+    assert(attempt, 429, "Too many attempts. Please request a new code.");
+    assert(attempt.code === hashCode(code), 400, "Invalid verification code");
 
     await this.userRepository.updateById(userInternalId, { emailVerified: true });
     await this.trialActivationJobService.schedule(userInternalId).catch(error => {
