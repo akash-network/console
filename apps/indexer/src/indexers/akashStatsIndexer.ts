@@ -30,6 +30,7 @@ import type { Transaction as DbTransaction, WhereOptions } from "sequelize";
 import { Op } from "sequelize";
 
 import { accountSettle } from "@src/shared/utils/akashPaymentSettle";
+import { toStorableVarchar } from "@src/shared/utils/chain-string";
 import { getAmountFromCoin } from "@src/shared/utils/coin";
 import { decodeMsg, uint8arrayToString } from "@src/shared/utils/protobuf";
 import * as benchmark from "../shared/utils/benchmark";
@@ -1175,10 +1176,10 @@ export class AkashStatsIndexer extends Indexer {
     await Provider.create(
       {
         owner: decodedMessage.owner,
-        hostUri: decodedMessage.hostUri,
+        hostUri: toStorableVarchar(decodedMessage.hostUri),
         createdHeight: height,
-        email: decodedMessage.info?.email,
-        website: decodedMessage.info?.website
+        email: toStorableVarchar(decodedMessage.info?.email),
+        website: toStorableVarchar(decodedMessage.info?.website)
       },
       { transaction: blockGroupTransaction }
     );
@@ -1187,7 +1188,7 @@ export class AkashStatsIndexer extends Indexer {
       decodedMessage.attributes.map(attribute => ({
         provider: decodedMessage.owner,
         key: attribute.key,
-        value: attribute.value
+        value: toStorableVarchar(attribute.value)
       })),
       { transaction: blockGroupTransaction }
     );
@@ -1202,10 +1203,10 @@ export class AkashStatsIndexer extends Indexer {
   ) {
     await Provider.update(
       {
-        hostUri: decodedMessage.hostUri,
+        hostUri: toStorableVarchar(decodedMessage.hostUri),
         updatedHeight: height,
-        email: decodedMessage.info?.email,
-        website: decodedMessage.info?.website
+        email: toStorableVarchar(decodedMessage.info?.email),
+        website: toStorableVarchar(decodedMessage.info?.website)
       },
       {
         where: {
@@ -1225,7 +1226,7 @@ export class AkashStatsIndexer extends Indexer {
       decodedMessage.attributes.map(attribute => ({
         provider: decodedMessage.owner,
         key: attribute.key,
-        value: attribute.value
+        value: toStorableVarchar(attribute.value)
       })),
       { transaction: blockGroupTransaction }
     );
@@ -1262,11 +1263,13 @@ export class AkashStatsIndexer extends Indexer {
     }
 
     for (const attribute of decodedMessage.attributes) {
+      const key = toStorableVarchar(attribute.key);
+      const value = toStorableVarchar(attribute.value);
       const existingAttributeSignature = await ProviderAttributeSignature.findOne({
         where: {
           provider: decodedMessage.owner,
           auditor: decodedMessage.auditor,
-          key: attribute.key
+          key
         },
         transaction: blockGroupTransaction
       });
@@ -1274,7 +1277,7 @@ export class AkashStatsIndexer extends Indexer {
       if (existingAttributeSignature) {
         await existingAttributeSignature.update(
           {
-            value: attribute.value
+            value
           },
           { transaction: blockGroupTransaction }
         );
@@ -1283,8 +1286,8 @@ export class AkashStatsIndexer extends Indexer {
           {
             provider: decodedMessage.owner,
             auditor: decodedMessage.auditor,
-            key: attribute.key,
-            value: attribute.value
+            key,
+            value
           },
           { transaction: blockGroupTransaction }
         );
@@ -1306,7 +1309,7 @@ export class AkashStatsIndexer extends Indexer {
         where: {
           provider: decodedMessage.owner,
           auditor: decodedMessage.auditor,
-          key: { [Op.in]: decodedMessage.keys }
+          key: { [Op.in]: decodedMessage.keys.map(key => toStorableVarchar(key)) }
         },
         transaction: blockGroupTransaction
       });
