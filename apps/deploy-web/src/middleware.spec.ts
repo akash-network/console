@@ -139,12 +139,19 @@ describe("middleware", () => {
     expect(response.headers.get("location")).toBe("http://localhost/");
   });
 
-  it("keeps a same-origin absolute return url with a protocol-relative path on the request origin", () => {
-    const { response } = setup({ path: "/maintenance?return=http%3A%2F%2Flocalhost%2F%2Fevil.example%2Fphish" });
+  it.each(["/.//evil.example/phish", "/..//evil.example/phish", "/./\\evil.example/phish", "http://localhost//evil.example/phish"])(
+    "sends a return url of %s to the home page when leaving the maintenance page",
+    returnUrl => {
+      const { response } = setup({ path: `/maintenance?return=${encodeURIComponent(returnUrl)}` });
 
-    const location = new URL(response.headers.get("location") ?? "");
-    expect(location.host).toBe("localhost");
-    expect(location.hostname).not.toBe("evil.example");
+      expect(response.headers.get("location")).toBe("http://localhost/");
+    }
+  );
+
+  it("sends a return url it cannot decode to the home page when leaving the maintenance page", () => {
+    const { response } = setup({ path: "/maintenance?return=%25E0%25A4%25A" });
+
+    expect(response.headers.get("location")).toBe("http://localhost/");
   });
 
   function setup(input: { path: string; sentryDsn?: string; violationReportDraw?: number }) {
