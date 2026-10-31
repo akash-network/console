@@ -12751,7 +12751,8 @@
                         "provider"
                       ]
                     },
-                    "minItems": 1
+                    "minItems": 1,
+                    "maxItems": 20
                   }
                 },
                 "required": [
