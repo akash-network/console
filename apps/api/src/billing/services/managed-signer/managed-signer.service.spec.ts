@@ -643,7 +643,7 @@ describe(ManagedSignerService.name, () => {
         publish: vi.fn().mockResolvedValue("job-id")
       });
 
-      await service.executeDerivedDecodedTxByUserId("user-123", [leaseMessageFor(1), leaseMessageFor(1)]);
+      await service.executeDerivedDecodedTxByUserId("user-123", [leaseMessageFor(1), leaseMessageFor(1, { gseq: 2, provider: "akash1other" })]);
 
       expect(publishedDataOf(domainEvents, TrialDeploymentLeaseCreated).map(({ dseq }) => dseq)).toEqual(["1"]);
     });
@@ -2483,10 +2483,10 @@ describe(ManagedSignerService.name, () => {
     };
   }
 
-  function leaseMessageFor(dseq: number): EncodeObject {
+  function leaseMessageFor(dseq: number, bid: { gseq?: number; provider?: string } = {}): EncodeObject {
     return {
       typeUrl: MsgCreateLease.$type,
-      value: MsgCreateLease.fromPartial({ bidId: { dseq, owner: "akash1test", gseq: 1, oseq: 1, provider: "akash1test" } })
+      value: MsgCreateLease.fromPartial({ bidId: { dseq, owner: "akash1test", gseq: 1, oseq: 1, provider: "akash1test", ...bid } })
     };
   }
 
