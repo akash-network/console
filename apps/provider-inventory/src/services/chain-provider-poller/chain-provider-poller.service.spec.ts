@@ -141,7 +141,7 @@ describe(ChainProviderPollerService.name, () => {
       expect(batch.map(provider => provider.owner)).toEqual(["akash1aaa", "akash1bbb"]);
     });
 
-    it("logs the owner and key of each attribute it cleans", async () => {
+    it("logs the owner, the auditor of a signed attribute, and the key of each attribute it cleans", async () => {
       const { service, getAllProvidersAttributes, getProviders, logger } = setup();
       getAllProvidersAttributes.mockResolvedValueOnce(
         auditResponse([mock<AuditRecord>({ owner: "akash1bbb", auditor: "akash1auditor", attributes: [{ key: "tier", value: "gpu\0" }] })], new Uint8Array(0))
@@ -152,7 +152,7 @@ describe(ChainProviderPollerService.name, () => {
 
       await Array.fromAsync(service.poll());
 
-      expect(logger.warn).toHaveBeenCalledWith({ event: "PROVIDER_ATTRIBUTE_CLEANED", owner: "akash1bbb", key: "tier" });
+      expect(logger.warn).toHaveBeenCalledWith({ event: "PROVIDER_ATTRIBUTE_CLEANED", owner: "akash1bbb", auditor: "akash1auditor", key: "tier" });
       expect(logger.warn).toHaveBeenCalledWith({ event: "PROVIDER_ATTRIBUTE_CLEANED", owner: "akash1aaa", key: "region" });
     });
 

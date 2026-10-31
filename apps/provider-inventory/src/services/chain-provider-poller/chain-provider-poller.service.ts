@@ -38,7 +38,11 @@ export class ChainProviderPollerService {
     for await (const records of auditPages) {
       for (const record of records) {
         const existing = signedByOwner.get(record.owner);
-        const attributes = this.#toStorableAttributes(record.owner, record.attributes).map(a => ({ key: a.key, value: a.value, auditor: record.auditor }));
+        const attributes = this.#toStorableAttributes({ owner: record.owner, auditor: record.auditor }, record.attributes).map(a => ({
+          key: a.key,
+          value: a.value,
+          auditor: record.auditor
+        }));
         if (existing) {
           existing.attributes.push(...attributes);
           existing.auditors.add(record.auditor);
@@ -70,7 +74,7 @@ export class ChainProviderPollerService {
           validProviders.push({
             owner: provider.owner,
             hostUri: provider.hostUri,
-            selfAttributes: this.#toStorableAttributes(provider.owner, provider.attributes),
+            selfAttributes: this.#toStorableAttributes({ owner: provider.owner }, provider.attributes),
             signedAttributes: signedByOwner.get(provider.owner)?.attributes ?? [],
             auditedBy: signedByOwner.get(provider.owner)?.auditors ? Array.from(signedByOwner.get(provider.owner)!.auditors) : []
           });
@@ -88,13 +92,13 @@ export class ChainProviderPollerService {
   }
 
   /** Any account can sign attributes for any provider and the chain checks no value, so one unstorable value would otherwise fail the page of providers it is stored with. */
-  #toStorableAttributes<T extends SelfAttribute>(owner: string, attributes: T[]): T[] {
+  #toStorableAttributes<T extends SelfAttribute>(signer: { owner: string; auditor?: string }, attributes: T[]): T[] {
     return attributes.map(attribute => {
       const key = toStorableChainString(attribute.key);
       const value = toStorableChainString(attribute.value);
 
       if (key !== attribute.key || value !== attribute.value) {
-        this.#logger.warn({ event: "PROVIDER_ATTRIBUTE_CLEANED", owner, key });
+        this.#logger.warn({ event: "PROVIDER_ATTRIBUTE_CLEANED", ...signer, key });
       }
 
       return { ...attribute, key, value };
