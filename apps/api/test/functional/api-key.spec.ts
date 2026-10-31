@@ -201,6 +201,27 @@ describe("API Keys", () => {
       expect(response.status).toBe(401);
     });
 
+    it("refuses a request authenticated with an API key and creates no key", async () => {
+      const { user, apiKeyGenerator } = await setup();
+      const callerKey = apiKeyGenerator.generateApiKey();
+      await apiKeyRepository.create({
+        userId: user.id,
+        hashedKey: apiKeyGenerator.hashApiKeySha256(callerKey),
+        keyFormat: apiKeyGenerator.obfuscateApiKey(callerKey),
+        name: "Caller key"
+      });
+
+      const response = await app.request("/v1/api-keys", {
+        method: "POST",
+        headers: { "x-api-key": callerKey, "content-type": "application/json" },
+        body: JSON.stringify({ data: { name: "Test key" } })
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "session_required" });
+      expect((await apiKeyRepository.find({ userId: user.id })).map(({ name }) => name)).toEqual(["Caller key"]);
+    });
+
     it("creates API key and returns full key once", async () => {
       const { token } = await setup();
       const futureDate = addDays(new Date(), 90);

@@ -1,5 +1,6 @@
 [
   "src/app/providers/jobs.provider.spec.ts",
+  "src/auth/controllers/api-key/api-key.controller.spec.ts",
   "src/auth/controllers/auth/auth.controller.spec.ts",
   "src/auth/services/api-key/api-key-generator.service.spec.ts",
   "src/auth/services/auth.interceptor.spec.ts",
