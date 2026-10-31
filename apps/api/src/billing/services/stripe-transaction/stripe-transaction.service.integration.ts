@@ -29,6 +29,7 @@ import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder"
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganization } from "@test/seeders/organization.seeder";
 import { createTestUser } from "@test/seeders/user-test.seeder";
+import { waitForLockWait } from "@test/services/lock-wait";
 
 /**
  * These cover the webhook-facing settlement/refund methods, which route through `@WithTransaction`
@@ -1553,6 +1554,7 @@ describe(StripeTransactionService.name, () => {
       const settling = settlePersisted(purchase, { stripePaymentIntentId: paymentIntentId, chargeId });
       await vi.waitFor(() => expect(refillService.topUpWallet).toHaveBeenCalled());
       const failing = service.failPaymentIntent(createPaymentIntentFailedEvent({ id: paymentIntentId, metadata: { internal_transaction_id: purchase.id } }));
+      await waitForLockWait('update "stripe_transactions"%');
       grant.resolve(toppedUpWallet);
       await Promise.all([settling, failing]);
 
