@@ -185,13 +185,12 @@ describe("ability rules", () => {
 
       const rules = legacyRules(user);
 
-      expect(rules).toHaveLength(17);
+      expect(rules).toHaveLength(16);
       expect(rules).toEqual(
         expect.arrayContaining([
           { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: user.id } },
           { action: "manage", subject: "WalletSetting", conditions: { userId: user.id } },
           { action: "read", subject: "User", conditions: { id: user.id } },
-          { action: "verify-email", subject: "User", conditions: { email: user.email } },
           { action: ["create", "read", "delete"], subject: "StripePayment" },
           { action: "manage", subject: "PaymentMethod", conditions: { userId: user.id } },
           { action: "create", subject: "VerificationEmail", conditions: { id: user.id } },
@@ -213,16 +212,7 @@ describe("ability rules", () => {
       const rules = legacyRules(createUser({ userId: null }));
 
       expect(rules.map(({ subject }) => subject)).not.toContain("Template");
-      expect(rules).toHaveLength(16);
-    });
-
-    it("keeps a user without an email from verifying the email of other users without one", () => {
-      const user = createUser({ email: null });
-
-      const ability = createMongoAbility(legacyRules(user));
-
-      expect(ability.can("verify-email", subject("User", { email: null }))).toBe(false);
-      expect(ability.can("verify-email", subject("User", { email: "" }))).toBe(true);
+      expect(rules).toHaveLength(15);
     });
 
     it("grants nothing to a user without an id", () => {
@@ -436,7 +426,7 @@ describe("ability rules", () => {
 
       const userKeyedRules = legacyRules(user).filter(rule => userKeyedSubjects.includes(rule.subject as string));
 
-      expect(userKeyedRules).toHaveLength(8);
+      expect(userKeyedRules).toHaveLength(7);
       expect(organizationRules(user, context)).toEqual(expect.arrayContaining(userKeyedRules));
     });
 
