@@ -191,7 +191,10 @@ jobs:
                 const verdict = github.rest.actions
                   .getWorkflowRun({ owner, repo, run_id: Number(check.external_id) })
                   .then(({ data: run }) => run.path === ".github/workflows/all-ci-unsafe.yml" && run.event === "workflow_run" && run.display_title.includes(sha))
-                  .catch(() => false);
+                  .catch(() => {
+                    scanRunVerdicts.delete(check.external_id);
+                    return false;
+                  });
                 scanRunVerdicts.set(check.external_id, verdict);
               }
               return scanRunVerdicts.get(check.external_id);
