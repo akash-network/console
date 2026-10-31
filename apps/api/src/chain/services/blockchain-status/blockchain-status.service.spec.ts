@@ -5,7 +5,7 @@ import type { BlockHttpService } from "@src/chain/services/block-http/block-http
 import type { CreateLogger } from "@src/core";
 import { BlockchainStatusService } from "./blockchain-status.service";
 
-describe.concurrent(BlockchainStatusService.name, () => {
+describe(BlockchainStatusService.name, () => {
   it("reports the chain reachable at its latest height", async () => {
     const { service } = setup({ height: 1_234_567 });
 

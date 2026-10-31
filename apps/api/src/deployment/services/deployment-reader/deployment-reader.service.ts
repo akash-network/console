@@ -223,8 +223,10 @@ export class DeploymentReaderService {
     const pages = await Promise.all(
       states.map(state => this.getLeaseList({ owner: wallet.address, dseq: query.dseq, provider: query.provider, state, pagination: { limit: query.limit } }))
     );
+    const leases = pages.flatMap(page => page.leases.map(({ lease }) => lease));
+    const reachableDseqs = new Set(await this.signerService.filterDeploymentsInProjectScope(wallet, [...new Set(leases.map(({ id }) => id.dseq))], "read"));
 
-    return pages.flatMap(page => page.leases.map(({ lease }) => lease));
+    return leases.filter(({ id }) => reachableDseqs.has(id.dseq));
   }
 
   async #findOnChain(owner: string, dseq: string) {

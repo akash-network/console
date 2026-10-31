@@ -56,7 +56,7 @@ export class WalletController {
   @Protected([{ action: "read", subject: "UserWallet" }])
   async getWalletBalances(): Promise<WalletBalancesResponse> {
     const wallet = await this.walletReaderService.getReadableWalletByUserId(this.authService.currentUser.id);
-    return { data: await this.walletChainReaderService.getBalances(wallet.address) };
+    return { data: await this.walletChainReaderService.getBalances(wallet) };
   }
 
   @Protected([{ action: "read", subject: "UserWallet" }])

@@ -351,17 +351,26 @@ describe(DeploymentReaderService.name, () => {
     it("answers not found without reading leases when the caller's projects do not reach the filtered deployment", async () => {
       const { service, signerService, leaseHttpService, wallet } = setup({ inProjectScope: false });
 
-      await expect(service.listLeasesByUserId(wallet.userId, { dseq: "12345", limit: 1000 })).rejects.toMatchObject({ status: 404 });
+      await expect(service.listLeasesByUserId(wallet.userId, { dseq: "12345", limit: 1000 })).rejects.toMatchObject({
+        status: 404,
+        message: "Deployment not found"
+      });
 
       expect(signerService.isDeploymentInProjectScope).toHaveBeenCalledWith(wallet, "12345", "read");
       expect(leaseHttpService.list).not.toHaveBeenCalled();
     });
 
-    it("lists every lease of the wallet without a project check when no deployment is filtered", async () => {
-      const { service, signerService, wallet } = setup({ inProjectScope: false });
+    it("keeps only the leases of deployments the caller's projects reach when no deployment is filtered", async () => {
+      const wallet = createInitializedUserWallet();
+      const reachable = createLeaseApiResponse({ owner: wallet.address, dseq: "111" });
+      const unreachable = createLeaseApiResponse({ owner: wallet.address, dseq: "222" });
+      const secondOfReachable = createLeaseApiResponse({ owner: wallet.address, dseq: "111" });
+      const { service, signerService } = setup({ wallet, leases: [reachable, unreachable, secondOfReachable], reachableDseqs: ["111"] });
 
-      await service.listLeasesByUserId(wallet.userId, { limit: 1 });
+      const result = await service.listLeasesByUserId(wallet.userId, { limit: 10 });
 
+      expect(result).toEqual([reachable.lease, secondOfReachable.lease]);
+      expect(signerService.filterDeploymentsInProjectScope).toHaveBeenCalledWith(wallet, ["111", "222"], "read");
       expect(signerService.isDeploymentInProjectScope).not.toHaveBeenCalled();
     });
 
@@ -1278,6 +1287,7 @@ describe(DeploymentReaderService.name, () => {
     input: {
       wallet?: PersonalWallet;
       inProjectScope?: boolean;
+      reachableDseqs?: string[];
       fallbackDeploymentInfo?: ReturnType<typeof createDeploymentInfoSeed>;
       fallbackDeploymentList?: ReturnType<typeof createDeploymentListResponseSeed>;
       fallbackLeases?: ReturnType<typeof createLeaseApiResponse>[];
@@ -1387,7 +1397,10 @@ describe(DeploymentReaderService.name, () => {
         : vi.fn().mockResolvedValue(input.archived ?? { deployments: [], total: 0, hasMore: false })
     });
     const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
-    const signerService = mock<ManagedSignerService>({ isDeploymentInProjectScope: vi.fn().mockResolvedValue(input.inProjectScope ?? true) });
+    const signerService = mock<ManagedSignerService>({
+      isDeploymentInProjectScope: vi.fn().mockResolvedValue(input.inProjectScope ?? true),
+      filterDeploymentsInProjectScope: vi.fn(async (_wallet, dseqs) => input.reachableDseqs ?? [...dseqs])
+    });
 
     const service = new DeploymentReaderService(
       mocks.providerService,

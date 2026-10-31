@@ -78,7 +78,7 @@ describe("WalletController", () => {
 
       expect(result).toEqual({ data: balances });
       expect(container.resolve(WalletReaderService).getReadableWalletByUserId).toHaveBeenCalledWith(user.id);
-      expect(container.resolve(WalletChainReaderService).getBalances).toHaveBeenCalledWith(wallet.address);
+      expect(container.resolve(WalletChainReaderService).getBalances).toHaveBeenCalledWith(wallet);
     });
   });
 
