@@ -206,8 +206,8 @@ export class ManagedSignerService {
     const filingProjectId = options?.suppliedByCaller ? await this.#filingProjectOf(messages) : options?.filingProjectId;
 
     const actingUserId = userWallet.userId ?? options?.actingUserId;
-    const createLeaseMessage: { typeUrl: string; value: MsgCreateLease } | undefined = messages.find(message => message.typeUrl.endsWith(".MsgCreateLease"));
-    const isFirstLease = !!userWallet.isTrialing && !!createLeaseMessage && !(await this.leaseHttpService.hasLeases(userWallet.address!));
+    const leasedDseqs = leasedDseqsOf(messages);
+    const isFirstLease = !!userWallet.isTrialing && leasedDseqs.length > 0 && !(await this.leaseHttpService.hasLeases(userWallet.address!));
 
     let tx: Awaited<ReturnType<ManagedSignerService["executeDerivedTx"]>>;
 
@@ -225,10 +225,7 @@ export class ManagedSignerService {
 
     await this.#recordClosedDeployments(userWallet, messages, actingUserId, options?.consoleClose);
 
-    if (createLeaseMessage) {
-      await this.#followUpLease(userWallet, { dseq: createLeaseMessage.value.bidId!.dseq.toString(), isFirstLease, actingUserId });
-    }
-
+    await this.#followUpLeases(userWallet, { dseqs: leasedDseqs, isFirstLease, actingUserId });
     await this.followUpLandedTx(userWallet, messages, { actingUserId, filingProjectId });
     await this.#scheduleCreditsLowCheckOnClose(userWallet, messages);
 
@@ -249,7 +246,7 @@ export class ManagedSignerService {
   async followUpLandedLeases(userWallet: UserWalletOutput, leases: LeasePlacement[], actingUserId: string): Promise<void> {
     const isFirstLease = !!userWallet.isTrialing && (await this.#holdsNoLeaseBut(userWallet.address!, leases));
 
-    await this.#followUpLease(userWallet, { dseq: leases[0].dseq, isFirstLease, actingUserId });
+    await this.#followUpLeases(userWallet, { dseqs: [...new Set(leases.map(lease => lease.dseq))], isFirstLease, actingUserId });
     await this.#refreshWalletLimits(userWallet);
   }
 
@@ -258,6 +255,16 @@ export class ManagedSignerService {
     const { leases: held, pagination } = await this.leaseHttpService.list({ owner, pagination: { limit: leases.length + 1 } });
 
     return !pagination.next_key && held.every(({ lease }) => leases.some(placement => isLeaseOn(lease.id, placement)));
+  }
+
+  /** Only the first deployment carries the first lease flag, because the message it sends goes out once per wallet and its queue does not deduplicate it. */
+  async #followUpLeases(
+    userWallet: UserWalletOutput,
+    { dseqs, isFirstLease, actingUserId }: { dseqs: string[]; isFirstLease: boolean; actingUserId: string | undefined }
+  ): Promise<void> {
+    for (const [index, dseq] of dseqs.entries()) {
+      await this.#followUpLease(userWallet, { dseq, isFirstLease: isFirstLease && index === 0, actingUserId });
+    }
   }
 
   /** Runs again whenever a retry finds its lease already landed, so whatever it starts must take effect once however often it runs. */
@@ -723,6 +730,13 @@ function isSignedBy({ address }: UserWalletOutput, message: EncodeObject): boole
 
 function ownerOfDeploymentEscrow(value: MessageValue): string | undefined {
   return typeof value?.id?.xid === "string" ? value.id.xid.split("/")[0] : undefined;
+}
+
+/** A deployment leased to several providers or for several groups is still followed up once. */
+function leasedDseqsOf(messages: EncodeObject[]): string[] {
+  const leaseMessages = messages.filter((message): message is { typeUrl: string; value: MsgCreateLease } => message.typeUrl.endsWith(".MsgCreateLease"));
+
+  return [...new Set(leaseMessages.map(message => message.value.bidId!.dseq.toString()))];
 }
 
 function existingDeploymentDseqsOf(messages: EncodeObject[]): string[] {
