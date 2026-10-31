@@ -33,6 +33,16 @@ describe("CreateJwtTokenRequestSchema", () => {
     { name: "actions given as a string", leases: { access: "scoped", scope: "logs" } },
     { name: "no action", leases: { access: "scoped", scope: [] } },
     { name: "no provider", leases: { access: "granular", permissions: [] } },
+    {
+      name: "a provider named twice",
+      leases: {
+        access: "granular",
+        permissions: [
+          { provider, access: "full" },
+          { provider, access: "scoped", scope: ["logs"] }
+        ]
+      }
+    },
     { name: "a provider that is not an address", leases: { access: "granular", permissions: [{ provider: "akash1provider", access: "full" }] } },
     {
       name: "a deployment list on a scoped provider",

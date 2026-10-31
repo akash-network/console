@@ -40,7 +40,15 @@ const LeasePermissionSchema = z.discriminatedUnion("access", [
 const LeasesSchema = z.discriminatedUnion("access", [
   z.object({ access: z.literal("full") }).strict(),
   z.object({ access: z.literal("scoped"), scope: AccessScopeSchema }).strict(),
-  z.object({ access: z.literal("granular"), permissions: z.array(LeasePermissionSchema).min(1) }).strict()
+  z
+    .object({
+      access: z.literal("granular"),
+      permissions: z
+        .array(LeasePermissionSchema)
+        .min(1)
+        .refine(permissions => hasNoDuplicates(permissions.map(({ provider }) => provider)), "must not repeat a provider")
+    })
+    .strict()
 ]) satisfies z.ZodType<JwtTokenPayload["leases"]>;
 
 export const CreateJwtTokenRequestSchema = z.object({
