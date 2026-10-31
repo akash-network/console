@@ -5,7 +5,7 @@
 /apps/*/src/ @akash-network/console
 /packages/*/src/ @akash-network/console
 /config @akash-network/console
-/.claude/ @akash-network/console
+**/.claude/ @akash-network/console
 CLAUDE.md @akash-network/console
 AGENTS.md @akash-network/console
 

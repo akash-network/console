@@ -85,7 +85,7 @@ jobs:
             });
             const filenames = files.map(f => f.filename);
 
-            const agentConfigFile = /(^|\/)(CLAUDE|AGENTS)\.md$|^\.claude\//;
+            const agentConfigFile = /(^|\/)(CLAUDE|AGENTS)\.md$|(^|\/)\.claude\//;
             if (filenames.some(f => agentConfigFile.test(f))) {
               core.info("Skipping: PR changes agent instructions or configuration");
               return;
