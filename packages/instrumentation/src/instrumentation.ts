@@ -8,6 +8,7 @@ import { envDetector, hostDetector, processDetector } from "@opentelemetry/resou
 import { NodeSDK } from "@opentelemetry/sdk-node";
 
 import { requestSampler } from "./sampler/request-sampler";
+import { redactIncomingUrlCredentials } from "./util/redact-incoming-url/redact-incoming-url";
 
 export const sdk = new NodeSDK({
   sampler: requestSampler,
@@ -16,7 +17,8 @@ export const sdk = new NodeSDK({
       monitoringPrecision: 10 // this is actually a resolution option for nodejs perf_hooks not a reporting option
     }),
     new HttpInstrumentation({
-      ignoreIncomingRequestHook: req => !!req.url?.includes("/healthz/")
+      ignoreIncomingRequestHook: req => !!req.url?.includes("/healthz/"),
+      startIncomingSpanHook: redactIncomingUrlCredentials
     }),
     new PgInstrumentation(),
     new PinoInstrumentation({
