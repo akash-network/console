@@ -8,6 +8,7 @@ import { type StripeTransactionType, type UserWalletOutput, UserWalletRepository
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
+import { type PaymentCredit, PaymentCreditService } from "@src/billing/services/payment-credit/payment-credit.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
@@ -23,6 +24,9 @@ export interface PaymentAnalyticsContext {
   /** First-purchase bonus included in the topped-up amount, in cents. */
   bonusAmountCents?: number;
 }
+
+/** The payment a top-up credits; its transaction keys the credit, so a retried settlement never grants it twice. */
+export type CreditedPayment = PaymentAnalyticsContext & { transactionId: string };
 
 /** Who a credit or a debit is for: the member who acted, if their account still exists, and the organization that paid. */
 export interface WalletPayer {
@@ -48,6 +52,7 @@ export class RefillService {
     private readonly managedUserWalletService: ManagedUserWalletService,
     private readonly managedSignerService: ManagedSignerService,
     private readonly balancesService: BalancesService,
+    private readonly paymentCreditService: PaymentCreditService,
     private readonly walletInitializerService: WalletInitializerService,
     private readonly analyticsService: AnalyticsService,
     private readonly organizationRepository: OrganizationRepository,
@@ -82,20 +87,18 @@ export class RefillService {
    * Top up the wallet with the given amount in USD
    * @param amountUsd - The amount in USD *cents* to top up the wallet with (e.g. 10000 = $100)
    * @param payer - The member who paid and the organization paying, read off the transaction
-   * @param options.payment - Payment context attached to the `balance_top_up` analytics event
+   * @param options.payment - The payment credited, whose remaining context is attached to the `balance_top_up` analytics event
    * @returns The credited wallet's identifiers, so the caller can fund its draining deployments after the credit commits.
    */
-  async topUpWallet(amountUsd: number, payer: WalletPayer, options: { endTrial?: boolean; payment?: PaymentAnalyticsContext } = {}): Promise<ToppedUpWallet> {
+  async topUpWallet(amountUsd: number, payer: WalletPayer, options: { endTrial?: boolean; payment: CreditedPayment }): Promise<ToppedUpWallet> {
     const { userId } = payer;
     const userWallet = await this.lockActivatedWallet(payer);
-    const currentLimit = await this.balancesService.retrieveDeploymentLimit(userWallet);
 
-    const nextLimit = currentLimit + amountUsd * 10000;
-    const limits = { deployment: nextLimit, fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT };
-    await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
-      address: userWallet.address!,
-      derivationIndex: userWallet.id,
-      limits
+    await this.#grantCreditAndFees({
+      transactionId: options.payment.transactionId,
+      wallet: { id: userWallet.id, address: userWallet.address! },
+      amountCents: amountUsd,
+      bonusCents: options.payment.bonusAmountCents ?? 0
     });
 
     await this.balancesService.refreshUserWalletLimits(userWallet, { endTrial: options.endTrial ?? true });
@@ -104,18 +107,33 @@ export class RefillService {
     this.#trackFor(userId, "balance_top_up", {
       amount_cents: amountUsd,
       amount_usd: amountUsd / 100,
-      currency: options.payment?.currency,
-      card_brand: options.payment?.cardBrand,
-      payment_method_type: options.payment?.paymentMethodType,
-      transaction_id: options.payment?.transactionId,
-      source: options.payment?.source,
-      auto_recharge: options.payment?.isAutoRecharge,
-      bonus_amount_cents: options.payment?.bonusAmountCents,
+      currency: options.payment.currency,
+      card_brand: options.payment.cardBrand,
+      payment_method_type: options.payment.paymentMethodType,
+      transaction_id: options.payment.transactionId,
+      source: options.payment.source,
+      auto_recharge: options.payment.isAutoRecharge,
+      bonus_amount_cents: options.payment.bonusAmountCents,
       ...this.#organizationPropertiesOf(payer)
     });
-    this.logger.debug({ event: "WALLET_TOP_UP", userWallet, limits });
+    this.logger.debug({ event: "WALLET_TOP_UP", userWallet, amountUsd });
 
     return { walletId: userWallet.id, address: userWallet.address! };
+  }
+
+  /** Waits for both grants before failing, so the settlement never rolls back while its credit is still being granted. */
+  async #grantCreditAndFees(credit: PaymentCredit): Promise<void> {
+    const outcomes = await Promise.allSettled([
+      this.paymentCreditService.creditOnce(credit),
+      this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
+        address: credit.wallet.address,
+        derivationIndex: credit.wallet.id,
+        limits: { fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT }
+      })
+    ]);
+    const failure = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+
+    if (failure) throw failure.reason;
   }
 
   /**
@@ -159,7 +177,7 @@ export class RefillService {
     this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
   }
 
-  /** A failed clear is logged instead of thrown: authorizeSpending has already raised the on-chain allowance, so rolling the settlement back would let a webhook retry credit the same charge twice. */
+  /** A failed clear is logged instead of thrown, so a lock that cannot be cleared never holds back the settlement of a payment already credited on chain. */
   private async clearAbuseLockOnPayment(userWallet: UserWalletOutput, userId: string | null) {
     try {
       if (!(await this.userWalletRepository.clearAbuseLock(userWallet.id))) return;
