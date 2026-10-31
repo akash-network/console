@@ -65,29 +65,39 @@ export class ReconcileDeploymentDepositHandler implements JobHandler<ReconcileDe
     return [];
   }
 
-  /** Absence is asked again while retries remain, since a pooled endpoint can lag; on the last attempt the chain index decides once it has passed the deposits' window. */
+  /** Absence is asked again while retries remain, since a pooled endpoint can lag; after that, and in a check re-queued for the index, the chain index decides once it has passed the deposits' window. */
   async handle(payload: JobPayload<ReconcileDeploymentDeposit>, job?: JobMeta): Promise<void> {
-    const isLastAttempt = !job || job.retryCount >= job.retryLimit;
+    const isAbsenceFinal = !job || job.retryCount >= job.retryLimit || !!payload.indexLagRetries;
 
     if ("txHash" in payload) {
-      await this.#reconcileByHash(payload, isLastAttempt);
+      await this.#reconcileByHash(payload, isAbsenceFinal);
       return;
     }
 
-    await this.#reconcileByIndex(payload, isLastAttempt);
+    await this.#reconcileByIndex(payload, isAbsenceFinal);
   }
 
-  async #reconcileByHash({ txHash, indexLagRetries = 0 }: HashCheck, isLastAttempt: boolean): Promise<void> {
+  async #reconcileByHash({ txHash, indexLagRetries = 0 }: HashCheck, isAbsenceFinal: boolean): Promise<void> {
     const tx = await this.txPresenceService.findTx(txHash);
 
-    if (!tx && !isLastAttempt) {
+    if (tx) {
+      await this.#settleByHash(txHash, { isSucceeded: tx.code === COSMOS_TX_CODE_OK });
+      return;
+    }
+
+    if (!isAbsenceFinal) {
       throw new Error(`Deposit transaction ${txHash} is not visible on chain yet`);
     }
 
-    const result = tx ? { isSucceeded: tx.code === COSMOS_TX_CODE_OK } : await this.deploymentSpendRepository.findTxResult(txHash);
+    const latestBlockTime = await this.deploymentSpendRepository.findLatestBlockTime();
+    const result = await this.deploymentSpendRepository.findTxResult(txHash);
 
-    if (!result && (await this.#waitForIndexToPassHash(txHash, indexLagRetries))) return;
+    if (!result && (await this.#waitForIndexToPassHash(txHash, latestBlockTime, indexLagRetries))) return;
 
+    await this.#settleByHash(txHash, result);
+  }
+
+  async #settleByHash(txHash: string, result: { isSucceeded: boolean } | undefined): Promise<void> {
     const status = result?.isSucceeded ? "confirmed" : "void";
     const settledCount = await this.deploymentDepositRepository.settlePendingByTxHash(txHash, status);
 
@@ -95,9 +105,8 @@ export class ReconcileDeploymentDepositHandler implements JobHandler<ReconcileDe
   }
 
   /** The pooled endpoint can miss a landed tx on every attempt, so its absence voids the rows only once the chain index has passed their window without it. */
-  async #waitForIndexToPassHash(txHash: string, indexLagRetries: number): Promise<boolean> {
+  async #waitForIndexToPassHash(txHash: string, latestBlockTime: Date | undefined, indexLagRetries: number): Promise<boolean> {
     const pending = await this.deploymentDepositRepository.findPendingByTxHash(txHash);
-    const latestBlockTime = await this.deploymentSpendRepository.findLatestBlockTime();
 
     if (!this.#isIndexBehind(pending, latestBlockTime) || indexLagRetries >= MAX_INDEX_LAG_RETRIES) return false;
 
@@ -115,12 +124,14 @@ export class ReconcileDeploymentDepositHandler implements JobHandler<ReconcileDe
     return true;
   }
 
+  /** The tip must be read before the lookup it judges, since the index stores a block with its transactions, so a tip past the window means that lookup saw them all. */
   #isIndexBehind(deposits: DeploymentDepositOutput[], latestBlockTime: Date | undefined): boolean {
     return deposits.some(deposit => !latestBlockTime || latestBlockTime < this.#landingWindowOf(deposit).until);
   }
 
   /** Rows are matched one at a time, so the chain deposit one row claims is no longer there for the next; a row holding a hash is left to its check by that hash. */
-  async #reconcileByIndex({ depositIds, indexLagRetries = 0 }: IndexCheck, isLastAttempt: boolean): Promise<void> {
+  async #reconcileByIndex({ depositIds, indexLagRetries = 0 }: IndexCheck, isAbsenceFinal: boolean): Promise<void> {
+    const latestBlockTime = await this.deploymentSpendRepository.findLatestBlockTime();
     const unseen: DeploymentDepositOutput[] = [];
 
     for (const deposit of await this.deploymentDepositRepository.findPendingByIds(depositIds)) {
@@ -133,17 +144,16 @@ export class ReconcileDeploymentDepositHandler implements JobHandler<ReconcileDe
       return;
     }
 
-    if (!isLastAttempt) {
+    if (!isAbsenceFinal) {
       throw new Error(`Deposits ${unseen.map(({ id }) => id).join(", ")} are not in the chain index yet`);
     }
 
-    await this.#voidUnlessIndexBehind(unseen, indexLagRetries);
+    await this.#voidUnlessIndexBehind(unseen, latestBlockTime, indexLagRetries);
   }
 
   /** A row the chain index has not reached yet waits for it a bounded number of times, so a landed deposit is not voided by index lag. */
-  async #voidUnlessIndexBehind(unseen: DeploymentDepositOutput[], indexLagRetries: number): Promise<void> {
+  async #voidUnlessIndexBehind(unseen: DeploymentDepositOutput[], latestBlockTime: Date | undefined, indexLagRetries: number): Promise<void> {
     const depositIds = unseen.map(({ id }) => id);
-    const latestBlockTime = await this.deploymentSpendRepository.findLatestBlockTime();
     const isIndexBehind = this.#isIndexBehind(unseen, latestBlockTime);
 
     if (isIndexBehind && indexLagRetries < MAX_INDEX_LAG_RETRIES && (await this.#waitForIndex(depositIds, indexLagRetries + 1))) {

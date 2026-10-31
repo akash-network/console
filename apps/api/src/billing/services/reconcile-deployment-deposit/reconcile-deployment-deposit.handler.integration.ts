@@ -103,6 +103,30 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
 
       expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "void" });
     });
+
+    it("confirms a deposit whose transaction the index stores right after the check reads the index tip", async () => {
+      const { txHash, pending, handler, answerChainWith } = await setupHash();
+      answerChainWith(null);
+      await indexTip(secondsAfter(pending.createdAt, 30));
+      catchUpIndexRightAfterTipRead(async () => {
+        await indexTx(txHash, { hasProcessingError: false, at: secondsAfter(pending.createdAt, 20) });
+        await indexTip(secondsAfter(pending.createdAt, 600));
+      });
+
+      await handler.handle({ txHash, version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "confirmed", txHash });
+    });
+
+    it("settles a check re-queued for the index on its first attempt, run the way a worker runs it", async () => {
+      const { txHash, pending, answerChainWith, runJob } = await setupHash();
+      answerChainWith(null);
+      await indexTx(txHash, { hasProcessingError: false, at: secondsAfter(pending.createdAt, 20) });
+
+      await runJob({ indexLagRetries: 1 });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "confirmed", txHash });
+    });
   });
 
   describe("for deposits the signer gave no hash for", () => {
@@ -260,7 +284,52 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
 
       expect(await findDeploymentDeposit(topUp.id)).toMatchObject({ status: "void" });
     });
+
+    it("confirms a top-up the index stores right after the check reads the index tip", async () => {
+      const { organization, owner, recordedAt, handler } = await setupIndex();
+      const topUp = await seedPending({ organizationId: organization.id, owner, kind: "top_up", createdAt: recordedAt });
+      const deployment = await indexCreate({ owner, dseq: topUp.dseq, at: secondsAfter(recordedAt, -86_400) });
+      await indexTip(secondsAfter(recordedAt, 30));
+      const indexedTxHash = catchUpIndexRightAfterTipRead(async () => {
+        const txHash = await indexTopUp({ deploymentId: deployment.id, amount: topUp.amount, at: secondsAfter(recordedAt, 5) });
+        await indexTip(secondsAfter(recordedAt, 600));
+        return txHash;
+      });
+
+      await handler.handle({ depositIds: [topUp.id], version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
+
+      expect(await findDeploymentDeposit(topUp.id)).toMatchObject({ status: "confirmed", txHash: await indexedTxHash });
+    });
+
+    it("voids an unseen deposit in a check re-queued for the index on its first attempt, run the way a worker runs it", async () => {
+      const { organization, owner, recordedAt } = await setupIndex();
+      const topUp = await seedPending({ organizationId: organization.id, owner, kind: "top_up", createdAt: recordedAt });
+      await indexTip(secondsAfter(recordedAt, 600));
+
+      const { enqueue, startWorkers } = await jobWorkers();
+      const singletonKey = `${ReconcileDeploymentDeposit[JOB_NAME]}.${topUp.id}.1`;
+      await enqueue(new ReconcileDeploymentDeposit({ depositIds: [topUp.id], indexLagRetries: 1 }), { singletonKey });
+      await startWorkers();
+      await expectJobCompleted(ReconcileDeploymentDeposit[JOB_NAME], { singletonKey });
+
+      expect(await findDeploymentDeposit(topUp.id)).toMatchObject({ status: "void" });
+    });
   });
+
+  function catchUpIndexRightAfterTipRead<T>(catchUp: () => Promise<T>): Promise<T> {
+    const repository = container.resolve(DeploymentSpendRepository);
+    const findLatestBlockTime = repository.findLatestBlockTime.bind(repository);
+    const { promise, resolve } = Promise.withResolvers<T>();
+
+    vi.spyOn(repository, "findLatestBlockTime").mockImplementationOnce(async () => {
+      const latestBlockTime = await findLatestBlockTime();
+      resolve(await catchUp());
+
+      return latestBlockTime;
+    });
+
+    return promise;
+  }
 
   function letChainReadsOverlap() {
     const repository = container.resolve(DeploymentSpendRepository);
@@ -343,10 +412,10 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
     const answerChainWith = (answer: { code: number } | null) =>
       vi.spyOn(container.resolve(TxPresenceService), "findTx").mockResolvedValue(answer && { hash: txHash, code: answer.code, height: 100, rawLog: "" });
 
-    const runJob = async () => {
+    const runJob = async (check: { indexLagRetries?: number } = {}) => {
       const { enqueue, startWorkers } = await jobWorkers();
       const singletonKey = `${ReconcileDeploymentDeposit[JOB_NAME]}.${txHash}`;
-      await enqueue(new ReconcileDeploymentDeposit({ txHash }), { singletonKey });
+      await enqueue(new ReconcileDeploymentDeposit({ txHash, ...check }), { singletonKey });
       await startWorkers();
       await expectJobCompleted(ReconcileDeploymentDeposit[JOB_NAME], { singletonKey });
     };
