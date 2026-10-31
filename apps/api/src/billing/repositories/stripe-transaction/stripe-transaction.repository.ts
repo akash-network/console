@@ -28,9 +28,10 @@ export const TRIAL_PRESERVING_TRANSACTION_TYPES: Set<StripeTransactionType> = ne
 
 /**
  * Statuses written by Stripe webhooks once money has actually moved (wallet credited, then possibly
- * clawed back). Rows in these statuses must never be rewritten by the payment-intent request path:
- * the webhook's `status !== "succeeded"` guard is what makes crediting exactly-once. `failed` and
- * `canceled` intentionally stay updatable so a retried attempt can resume them.
+ * clawed back). Rows in these statuses must never be rewritten by the payment-intent request path
+ * or by a failure or cancel event: the webhook's `status !== "succeeded"` guard is what makes
+ * crediting exactly-once. `failed` and `canceled` intentionally stay updatable so a retried attempt
+ * can resume them.
  */
 export const SETTLED_TRANSACTION_STATUSES: Set<StripeTransactionStatus> = new Set(["succeeded", "refunded"]);
 
@@ -145,11 +146,15 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return item ? this.toOutput(item) : undefined;
   }
 
-  async updateByPaymentIntentId(paymentIntentId: string, update: Partial<StripeTransactionInput>): Promise<StripeTransactionOutput | undefined> {
-    const existing = await this.findByPaymentIntentId(paymentIntentId);
-    if (!existing) return undefined;
+  /** Like updateByIdUnlessSettled, so a failure or cancel reported late for an earlier attempt never rewrites a payment already credited. */
+  async updateByPaymentIntentIdUnlessSettled(paymentIntentId: string, update: Partial<StripeTransactionInput>): Promise<StripeTransactionOutput | undefined> {
+    const [item] = await this.updateWhere(
+      this.whereAccessibleBy(and(eq(this.table.stripePaymentIntentId, paymentIntentId), notInArray(this.table.status, [...SETTLED_TRANSACTION_STATUSES]))),
+      update,
+      { returning: true }
+    );
 
-    return this.updateById(existing.id, update, { returning: true });
+    return item ? this.toOutput(item) : undefined;
   }
 
   /**
