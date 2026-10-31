@@ -166,7 +166,6 @@ export function enabledRules(rules: AbilityRule[], featureFlags: Pick<FeatureFla
 function userKeyedRules(user: RuleUser): AbilityRule[] {
   return [
     { action: "read", subject: "User", conditions: { id: user.id } },
-    { action: "verify-email", subject: "User", conditions: { email: user.email ?? "" } },
     { action: "create", subject: "VerificationEmail", conditions: { id: user.id } },
     { action: "read", subject: "LeaseGpu", conditions: { userId: user.id } },
     { action: "create", subject: "HardwareRequest", conditions: { userId: user.id } },
