@@ -12,13 +12,9 @@ on:
         description: "The path to the workspace to validate"
         required: true
         type: string
-      pr_head_ref:
-        description: "PR head branch ref (optional, defaults to github.event.pull_request.head.ref)"
-        required: false
-        type: string
-      pr_head_repo:
-        description: "PR head repository full name (optional, defaults to github.event.pull_request.head.repo.full_name)"
-        required: false
+      sha:
+        description: "The commit to scan"
+        required: true
         type: string
     secrets:
       gh-token:
@@ -36,16 +32,31 @@ jobs:
   validate-unsafe:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout UNTRUSTED fork
+      - name: Checkout trusted ignore rules
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          ref: ${{ inputs.pr_head_ref || github.event.pull_request.head.ref }}
-          repository: ${{ inputs.pr_head_repo || github.event.pull_request.head.repo.full_name }}
+          sparse-checkout: .dcignore
+          sparse-checkout-cone-mode: false
+          path: ./trusted
+      - name: Checkout UNTRUSTED commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.sha }}
           path: ./untrusted-user-fork
       - name: Copy .dcignore
         shell: bash
-        run: cp ./untrusted-user-fork/.dcignore ./untrusted-user-fork/${{ inputs.path }}/.dcignore
+        env:
+          APP_PATH: ${{ inputs.path }}
+        run: | # shell
+          checkout_dir=$(realpath ./untrusted-user-fork)
+          app_dir=$(realpath "./untrusted-user-fork/$APP_PATH")
+          if [[ "$app_dir" != "$checkout_dir/"* ]]; then
+            echo "::error::$APP_PATH resolves outside the checked out commit"
+            exit 1
+          fi
+          cp --remove-destination ./trusted/.dcignore "$app_dir/.dcignore"
       - name: Test code for security issues
         uses: snyk/actions/node@4a528b5c534bb771b6e3772656a8e0e9dc902f8b
         env:

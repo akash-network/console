@@ -8,6 +8,10 @@ inputs:
   sha:
     description: 'SHA to check the status on (defaults to the workflow run head SHA)'
     required: false
+  app_id:
+    description: 'ID of the GitHub App that publishes the check run; check runs from any other app are ignored'
+    required: false
+    default: ""
   expected_conclusions:
     description: 'Expected conclusions of the check (e.g., success, failure or "success;neutral"). If not provided, any completed status is accepted.'
     required: false
@@ -36,6 +40,7 @@ runs:
       env:
         CHECK_NAME: ${{ inputs.name }}
         CHECK_SHA: ${{ inputs.sha || github.sha }}
+        CHECK_APP_ID: ${{ inputs.app_id }}
         CHECK_TYPE: ${{ inputs.check_type }}
         SLEEP_TIMEOUT: ${{ inputs.retry_delay }}
         MAX_RETRIES: ${{ inputs.max_retries }}
@@ -92,9 +97,11 @@ runs:
           }
 
           async function getCheckRun() {
+            const appId = process.env.CHECK_APP_ID;
             const { data } = await github.rest.checks.listForRef({
               ...checksParams,
-              check_name: checkName
+              check_name: checkName,
+              ...(appId && { app_id: Number(appId) })
             });
 
             // A run cancelled by a newer one for the same commit leaves its check run in progress for good.

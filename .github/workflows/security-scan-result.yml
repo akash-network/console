@@ -61,8 +61,6 @@ jobs:
 
       - name: Decide whether to run scan
         id: decide
-        env:
-          PR_NUMBER: ${{ steps.associated_pr.outputs.number }}
         run: | # shell
           # A cancelled CI run is superseded by a newer one whose own scan reports this commit's verdict;
           # reporting here as well would race that scan for the same check name on the same commit.
@@ -70,15 +68,6 @@ jobs:
             echo "run_scan=false" >> "$GITHUB_OUTPUT"
             echo "report_check=false" >> "$GITHUB_OUTPUT"
             echo "skip_reason=Upstream CI was cancelled, so the superseding CI run reports instead" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Nothing to scan without a PR to read files and labels from, but the check is still reported:
-          # withholding it leaves a required check pending forever on a commit that is a PR head after all.
-          if [[ "${PARENT_WORKFLOW_EVENT}" == "pull_request" && "${PR_NUMBER}" == "" ]]; then
-            echo "run_scan=false" >> "$GITHUB_OUTPUT"
-            echo "report_check=true" >> "$GITHUB_OUTPUT"
-            echo "skip_reason=PR head changed because of rebase/force push and associated PR cannot be found" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -195,9 +184,29 @@ jobs:
             const waitMs = Number(process.env.WAIT_MINUTES) * 60_000;
             const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+            const scanRunVerdicts = new Map();
+            const isFromSecurityScan = async check => {
+              if (!/^\d+$/.test(check.external_id ?? "")) return false;
+              if (!scanRunVerdicts.has(check.external_id)) {
+                const verdict = github.rest.actions
+                  .getWorkflowRun({ owner, repo, run_id: Number(check.external_id) })
+                  .then(({ data: run }) => run.path === ".github/workflows/all-ci-unsafe.yml" && run.event === "workflow_run" && run.display_title.includes(sha))
+                  .catch(() => {
+                    scanRunVerdicts.delete(check.external_id);
+                    return false;
+                  });
+                scanRunVerdicts.set(check.external_id, verdict);
+              }
+              return scanRunVerdicts.get(check.external_id);
+            };
+
             const newestAnalysis = async () => {
               const { data } = await github.rest.checks.listForRef({ owner, repo, ref: sha, check_name: "security-analysis", filter: "all", per_page: 100 });
-              return data.check_runs.reduce((newest, run) => (!newest || run.id > newest.id ? run : newest), null);
+              const newestFirst = [...data.check_runs].sort((a, b) => b.id - a.id);
+              for (const check of newestFirst) {
+                if (await isFromSecurityScan(check)) return check;
+              }
+              return null;
             };
 
             const waitForAnalysis = async newerThan => {
@@ -215,7 +224,7 @@ jobs:
 
             const findScanRun = async check => {
               if (check?.external_id) return Number(check.external_id);
-              const { data } = await github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: "all-ci-unsafe.yml", per_page: 100 });
+              const { data } = await github.rest.actions.listWorkflowRuns({ owner, repo, workflow_id: "all-ci-unsafe.yml", event: "workflow_run", per_page: 100 });
               return data.workflow_runs.find(run => run.display_title.includes(sha))?.id ?? null;
             };
 
