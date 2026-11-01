@@ -260,6 +260,15 @@ export class NotificationChannelRepository {
     });
   }
 
+  async deleteAllOfOrganization(organizationId: string, tx: NodePgDatabase<typeof schema> = this.db): Promise<number> {
+    const deleted = await tx
+      .delete(schema.NotificationChannel)
+      .where(eq(schema.NotificationChannel.organizationId, organizationId))
+      .returning({ id: schema.NotificationChannel.id });
+
+    return deleted.length;
+  }
+
   /** Leaves the channels the user created for team organizations to those organizations. */
   async deletePersonalByUserId(userId: string, personalOrganizationId: string | null, tx: NodePgDatabase<typeof schema> = this.db): Promise<number> {
     const deleted = await tx

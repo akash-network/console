@@ -20,6 +20,14 @@ export const operations = {
       queryParams: [],
       hasBody: true
     },
+    purgeOrganization: {
+      path: "/internal/v1/organizations/{organizationId}/purge",
+      method: "post",
+      operationId: "purgeOrganization",
+      pathParams: ["organizationId"],
+      queryParams: [],
+      hasBody: false
+    },
     moveDeploymentAlertsToProject: {
       path: "/internal/v1/organizations/{organizationId}/deployment-alerts/{dseq}/project",
       method: "put",

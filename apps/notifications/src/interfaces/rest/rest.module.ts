@@ -20,6 +20,7 @@ import { LocalHttpLoggerMiddleware } from "./interceptors/http-logger/http-logge
 import { HttpResultInterceptor } from "./interceptors/http-result/http-result.interceptor";
 import { AccountPurgeService } from "./services/account-purge/account-purge.service";
 import { AuthService } from "./services/auth/auth.service";
+import { OrganizationPurgeService } from "./services/organization-purge/organization-purge.service";
 
 @Module({
   imports: [CommonModule, AlertModule, NotificationsModule, BrokerModule, ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true })],
@@ -28,6 +29,7 @@ import { AuthService } from "./services/auth/auth.service";
     { provide: APP_INTERCEPTOR, useClass: HttpResultInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuthInterceptor },
     AccountPurgeService,
+    OrganizationPurgeService,
     AuthService
   ],
   controllers: [

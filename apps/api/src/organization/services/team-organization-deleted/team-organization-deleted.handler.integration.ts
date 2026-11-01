@@ -24,8 +24,8 @@ describe(TeamOrganizationDeletedHandler.name, () => {
     nock.cleanAll();
   });
 
-  it("detaches the team's saved cards and emails every member with an email, the owner who deleted it included", async () => {
-    const { team, owner, billingMember, customerId, answerNotifications, run } = await setup();
+  it("detaches the team's saved cards, deletes its alerts and emails every member with an email, the owner who deleted it included", async () => {
+    const { team, owner, billingMember, customerId, answerNotifications, purgedOrganizationIds, run } = await setup();
     const listed = nock(STRIPE_API)
       .get("/v1/payment_methods")
       .query({ customer: customerId, limit: "100" })
@@ -48,6 +48,7 @@ describe(TeamOrganizationDeletedHandler.name, () => {
 
     expect(listed.isDone()).toBe(true);
     expect(detached.isDone()).toBe(true);
+    expect(purgedOrganizationIds).toEqual([team.id]);
     expect(notifications).toHaveLength(2);
     expect(notifications).toEqual(
       expect.arrayContaining(
@@ -77,14 +78,40 @@ describe(TeamOrganizationDeletedHandler.name, () => {
   });
 
   it("completes without detaching or emailing anything for a team that is not deleted", async () => {
-    const { owner, answerNotifications, run } = await setup();
+    const { owner, answerNotifications, purgedOrganizationIds, run } = await setup();
     const team = await seedOrganization({ stripeCustomerId: `cus_${faker.string.alphanumeric(14)}` });
     await seedOrganizationMember({ organizationId: team.id, userId: owner.id, role: "owner" });
     const notifications = answerNotifications();
 
     await run({ organizationId: team.id, deletedByUserId: owner.id });
 
+    expect(purgedOrganizationIds).toEqual([]);
     expect(notifications).toEqual([]);
+  });
+
+  it("retries a failed alert deletion before telling anyone, then tells each member once", async () => {
+    const { team, owner, answerNotifications, startCleanup, takePurgesDown } = await setup();
+    nock(STRIPE_API).persist().get("/v1/payment_methods").query(true).reply(200, { object: "list", data: [], has_more: false });
+    const purges = takePurgesDown();
+    const notifications = answerNotifications();
+    const selector = { data: { organizationId: team.id } };
+
+    await startCleanup({ organizationId: team.id, deletedByUserId: owner.id });
+    await vi.waitFor(
+      async () => {
+        const [row] = await findJobRows(CLEANUP_JOB, selector);
+        expect(row.state).toBe("retry");
+      },
+      { timeout: 20_000, interval: 250 }
+    );
+    expect(notifications).toEqual([]);
+
+    purges.isUp = true;
+    await makeJobDue(CLEANUP_JOB, selector);
+    await expectJobCompleted(CLEANUP_JOB, selector);
+
+    expect(purges.organizationIds).toEqual([team.id]);
+    expect(notifications).toHaveLength(2);
   });
 
   it("retries a failed card removal before telling anyone, then tells each member once", async () => {
@@ -126,6 +153,20 @@ describe(TeamOrganizationDeletedHandler.name, () => {
     await seedOrganizationMember({ organizationId: team.id, userId: owner.id, role: "owner" });
     await seedOrganizationMember({ organizationId: team.id, userId: billingMember.id, role: "billing" });
     await seedOrganizationMember({ organizationId: team.id, userId: memberWithoutEmail.id, role: "viewer" });
+    const purges = { isUp: true, organizationIds: [] as string[] };
+    nock(notificationsBaseUrl)
+      .persist()
+      .post(/^\/internal\/v1\/organizations\/[^/]+\/purge$/)
+      .reply(uri => {
+        if (!purges.isUp) return [503];
+        purges.organizationIds.push(uri.split("/")[4]);
+        return [204];
+      });
+
+    function takePurgesDown() {
+      purges.isUp = false;
+      return purges;
+    }
 
     function answerNotifications() {
       const sent: SentNotification[] = [];
@@ -150,6 +191,6 @@ describe(TeamOrganizationDeletedHandler.name, () => {
       await expectJobCompleted(CLEANUP_JOB, { data: { organizationId: data.organizationId } });
     }
 
-    return { team, owner, billingMember, customerId, answerNotifications, startCleanup, run };
+    return { team, owner, billingMember, customerId, answerNotifications, purgedOrganizationIds: purges.organizationIds, takePurgesDown, startCleanup, run };
   }
 });

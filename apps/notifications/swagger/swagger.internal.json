@@ -81,6 +81,29 @@
         ]
       }
     },
+    "/internal/v1/organizations/{organizationId}/purge": {
+      "post": {
+        "operationId": "purgeOrganization",
+        "parameters": [
+          {
+            "name": "organizationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deletes a deleted organization's alerts and notification channels"
+          }
+        },
+        "tags": [
+          "Internal/Organization"
+        ]
+      }
+    },
     "/internal/v1/organizations/{organizationId}/deployment-alerts/{dseq}/project": {
       "put": {
         "operationId": "moveDeploymentAlertsToProject",
