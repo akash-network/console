@@ -1,5 +1,4 @@
 import { LoggerService } from "@akashnetwork/logging";
-import { netConfig } from "@akashnetwork/net";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -13,8 +12,6 @@ import {
 import { toSameOriginPath } from "./utils/toSameOriginPath/toSameOriginPath";
 
 const logger = new LoggerService({ name: "middleware" });
-
-const networkRpcAndApiUrls = netConfig.getSupportedNetworks().flatMap(network => [netConfig.getBaseRpcUrl(network), netConfig.getBaseAPIUrl(network)]);
 
 /** Browsers re-check the service worker script for updates and a redirect fails that check, so the maintenance redirect has to let it through. */
 const PWA_ASSET_PATHNAME = /^\/(sw\.js|manifest\.json)$/;
@@ -32,7 +29,6 @@ export function middleware(request: NextRequest) {
     unleashFrontendApiUrl: process.env.NEXT_PUBLIC_UNLEASH_FRONTEND_API_URL,
     sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     templatesUrl: process.env.NEXT_PUBLIC_BASE_TEMPLATES_URL,
-    networkRpcAndApiUrls,
     reportViolations: isSampledForViolationReports(),
     scriptNonce: generateScriptNonce()
   };

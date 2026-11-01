@@ -4,12 +4,12 @@ import { useAtom } from "jotai";
 import { UACT_DENOM } from "@src/config/denom.config";
 import { useWallet } from "@src/context/WalletProvider";
 import { useBalances } from "@src/queries/useBalancesQuery";
-import { useBlock } from "@src/queries/useBlocksQuery";
 import { useSpendRateQuery } from "@src/queries/useSpendRateQuery";
 import walletStore from "@src/store/walletStore";
 import type { Balances } from "@src/types";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import { getLiveEscrowBalance, uaktToAKT } from "@src/utils/priceUtils";
+import { useLatestBlockHeight } from "./useLatestBlockHeight/useLatestBlockHeight";
 import type { PricingContext } from "./usePricing/usePricing";
 import { usePricing } from "./usePricing/usePricing";
 
@@ -59,18 +59,14 @@ export function computeWalletBalance(
     (acc, d) =>
       acc +
       getLiveEscrowBalance({
-        settledBalance: d.escrowAccount.state.funds.reduce((fundAcc, fund) => fundAcc + udenomToUsd(fund.amount, fund.denom), 0),
+        settledBalance: d.escrow.funds.reduce((fundAcc, fund) => fundAcc + udenomToUsd(fund.amount, fund.denom), 0),
         pricePerBlock: liveEscrow?.perBlockUsdByDseq.get(d.dseq) ?? 0,
-        settledAt: Number(d.escrowAccount.state.settled_at),
+        settledAt: d.escrow.settledAt,
         latestBlockHeight: liveEscrow?.latestBlockHeight
       }),
     0
   );
-  const { deploymentGrants } = balances;
-  const totalDeploymentGrantsUSD = deploymentGrants.reduce(
-    (sum, grant) => sum + grant.authorization.spend_limits.reduce((grantSum, spendLimit) => grantSum + udenomToUsd(spendLimit.amount, spendLimit.denom), 0),
-    0
-  );
+  const totalDeploymentGrantsUSD = balances.deploymentGrants.reduce((sum, grant) => sum + udenomToUsd(grant.amount, grant.denom), 0);
 
   return {
     totalUsd: aktUsdValue + totalUsdcValue + udenomToUsd(balances.balanceUACT, UACT_DENOM) + totalDeploymentEscrowUSD + totalDeploymentGrantsUSD,
@@ -114,7 +110,7 @@ export const useWalletBalance = (): WalletBalanceReturnType => {
   };
 };
 
-export const LIVE_ESCROW_DEPENDENCIES = { useSpendRateQuery, useBlock };
+export const LIVE_ESCROW_DEPENDENCIES = { useSpendRateQuery, useLatestBlockHeight };
 
 /**
  * Both queries are gated on the wallet actually holding an escrow, so an account with nothing running pays
@@ -127,13 +123,13 @@ export function useLiveEscrow(
 ): LiveEscrowInput {
   const hasActiveDeployments = !!balances?.activeDeployments.length;
   const { data: perBlockUsdByDseq } = d.useSpendRateQuery({ enabled: !!address && hasActiveDeployments });
-  const { data: latestBlock } = d.useBlock("latest", { refetchInterval: 30000, enabled: hasActiveDeployments });
+  const latestBlockHeight = d.useLatestBlockHeight({ enabled: hasActiveDeployments });
 
   return useMemo(
     () => ({
-      latestBlockHeight: latestBlock ? Number(latestBlock.block.header.height) : undefined,
+      latestBlockHeight,
       perBlockUsdByDseq: perBlockUsdByDseq ?? new Map()
     }),
-    [perBlockUsdByDseq, latestBlock]
+    [perBlockUsdByDseq, latestBlockHeight]
   );
 }

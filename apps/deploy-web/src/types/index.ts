@@ -6,7 +6,6 @@ export * from "./sdlBuilder";
 export * from "./billing";
 export * from "./templates";
 export * from "./providerAttributes";
-export * from "./balances";
 export * from "./errors";
 
 export type PaginatedResults<T> = {

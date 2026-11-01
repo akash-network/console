@@ -5,11 +5,11 @@ import { useServices } from "@src/context/ServicesProvider";
 import { QueryKeys } from "./queryKeys";
 
 export function useFeeAllowanceExistenceQuery(address: string, options: Omit<UseQueryOptions<boolean>, "queryKey" | "queryFn"> = {}) {
-  const { authzHttpService } = useServices();
+  const { api } = useServices();
 
   return useQuery({
     queryKey: QueryKeys.getFeeAllowanceExistenceKey(address),
-    queryFn: async () => (await authzHttpService.getValidFeeAllowancesForGrantee(address)).length > 0,
+    queryFn: async () => (await api.v1.listFeeAllowances.queryOptions().queryFn()).data.length > 0,
     ...options
   });
 }

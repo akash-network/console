@@ -1,6 +1,5 @@
-import type { ExactDepositDeploymentGrant } from "@akashnetwork/http-sdk";
+import type { paths } from "@akashnetwork/console-api-types";
 
-import type { DeploymentDto } from "./deployment";
 import type { TransactionDetail } from "./transaction";
 import type { IValidatorAddess } from "./validator";
 
@@ -38,6 +37,10 @@ export interface AssetDetail {
   amount: number;
 }
 
+type WalletBalances = paths["/v1/wallet-balances"]["get"]["responses"][200]["content"]["application/json"]["data"];
+
+export type EscrowedDeploymentBalance = WalletBalances["activeDeployments"][number];
+
 export interface Balances {
   balanceUAKT: number;
   balanceUUSDC: number;
@@ -48,6 +51,6 @@ export interface Balances {
   deploymentGrantsUAKT: number;
   deploymentGrantsUUSDC: number;
   deploymentGrantsUACT: number;
-  activeDeployments: DeploymentDto[];
-  deploymentGrants: ExactDepositDeploymentGrant[];
+  activeDeployments: EscrowedDeploymentBalance[];
+  deploymentGrants: WalletBalances["deploymentGrants"];
 }

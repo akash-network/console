@@ -1,25 +1,8 @@
-import type { AxiosInstance } from "axios";
-
 import { services } from "@src/services/app-di-container/browser-di-container";
 import networkStore from "@src/store/networkStore";
-import type { DeploymentStatus } from "@src/types/deployment";
 import { appendSearchParams } from "./urlUtils";
 
 export class ApiUrlService {
-  static deploymentList(apiEndpoint: string, address: string, state?: DeploymentStatus, reverse?: boolean) {
-    let url = `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/list?filters.owner=${address}${state ? `&filters.state=${state}` : ""}`;
-    if (reverse) url += "&pagination.reverse=true";
-    return url;
-  }
-  static deploymentDetail(apiEndpoint: string, address: string, dseq: string) {
-    return `${apiEndpoint}/akash/deployment/${networkStore.deploymentVersion}/deployments/info?id.owner=${address}&id.dseq=${dseq}`;
-  }
-  static leaseList(apiEndpoint: string, address: string, dseq: string, state?: string) {
-    return `${apiEndpoint}/akash/market/${networkStore.marketVersion}/leases/list?filters.owner=${address}${dseq ? "&filters.dseq=" + dseq : ""}${state ? "&filters.state=" + state : ""}`;
-  }
-  static providers(apiEndpoint: string) {
-    return `${apiEndpoint}/akash/provider/${networkStore.providerVersion}/providers`;
-  }
   static providerSearch() {
     return `${this.baseApiUrl}/v1/provider-search`;
   }
@@ -31,24 +14,6 @@ export class ApiUrlService {
   }
   static providerRegions() {
     return `${this.baseApiUrl}/v1/provider-regions`;
-  }
-  static block(apiEndpoint: string, id: string) {
-    return `${apiEndpoint}/cosmos/base/tendermint/v1beta1/blocks/${id}`;
-  }
-  static balance(apiEndpoint: string, address: string) {
-    return `${apiEndpoint}/cosmos/bank/v1beta1/balances/${address}`;
-  }
-  static rewards(apiEndpoint: string, address: string) {
-    return `${apiEndpoint}/cosmos/distribution/v1beta1/delegators/${address}/rewards`;
-  }
-  static redelegations(apiEndpoint: string, address: string) {
-    return `${apiEndpoint}/cosmos/staking/v1beta1/delegators/${address}/redelegations`;
-  }
-  static delegations(apiEndpoint: string, address: string) {
-    return `${apiEndpoint}/cosmos/staking/v1beta1/delegations/${address}`;
-  }
-  static unbonding(apiEndpoint: string, address: string) {
-    return `${apiEndpoint}/cosmos/staking/v1beta1/delegators/${address}/unbonding_delegations`;
   }
   static dashboardData() {
     return `${this.baseApiUrl}/v1/dashboard-data`;
@@ -86,9 +51,6 @@ export class ApiUrlService {
   static providerGraphData(snapshot: string) {
     return `${this.baseApiUrl}/v1/provider-graph-data/${snapshot}`;
   }
-  static blocks(limit: number) {
-    return `${this.baseApiUrl}/v1/blocks${appendSearchParams({ limit })}`;
-  }
   static providerActiveLeasesGraph(providerAddress: string) {
     return `${this.baseApiUrl}/v1/providers/${providerAddress}/active-leases-graph-data`;
   }
@@ -107,49 +69,8 @@ export class ApiUrlService {
   static trialProviders() {
     return `${this.baseApiUrl}/v1/trial-providers`;
   }
-  static bmeParams(apiEndpoint: string) {
-    return `${apiEndpoint}/akash/bme/v1/params`;
-  }
 
   static get baseApiUrl() {
     return services.apiUrlService.getBaseApiUrlFor(networkStore.selectedNetworkId);
   }
-}
-
-/**
- * TODO: implement proper pagination on clients
- * Issue: https://github.com/akash-network/console/milestone/7
- */
-export async function loadWithPagination<T>(baseUrl: string, dataKey: string, limit: number, httpClient: AxiosInstance) {
-  let items: T[] = [];
-  let nextKey: string | null = null;
-  // let callCount = 1;
-  // let totalCount = null;
-
-  do {
-    const _hasQueryParam = hasQueryParam(baseUrl);
-    let queryUrl = `${baseUrl}${_hasQueryParam ? "&" : "?"}pagination.limit=${limit}&pagination.count_total=true`;
-    if (nextKey) {
-      queryUrl += "&pagination.key=" + encodeURIComponent(nextKey);
-    }
-    // console.log(`Querying ${dataKey} [${callCount}] from : ${queryUrl}`);
-    const response = await httpClient.get(queryUrl);
-    const data = response.data;
-
-    // if (!nextKey) {
-    //   totalCount = data.pagination.total;
-    // }
-
-    items = items.concat(data[dataKey]);
-    nextKey = data.pagination.next_key;
-    // callCount++;
-
-    // console.log(`Got ${items.length} of ${totalCount}`);
-  } while (nextKey);
-
-  return items.filter(item => item) as T;
-}
-
-function hasQueryParam(url: string) {
-  return /[?&]/gm.test(url);
 }

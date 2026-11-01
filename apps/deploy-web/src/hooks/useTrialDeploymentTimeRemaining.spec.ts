@@ -1,29 +1,16 @@
-import type { UseQueryResult } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
-import { mockFn } from "vitest-mock-extended";
 
+import type { DEPENDENCIES } from "./useTrialDeploymentTimeRemaining";
 import { useTrialDeploymentTimeRemaining } from "./useTrialDeploymentTimeRemaining";
 
 import { renderHook } from "@testing-library/react";
-
-interface BlockResponse {
-  block: {
-    header: {
-      height: string;
-    };
-  };
-}
 
 describe("useTrialTimeRemaining", () => {
   const mockDate = new Date("2024-01-01T12:00:00Z");
 
   it("should return default values when no data is available", () => {
     const { result } = setup({
-      useBlockReturn: {
-        data: undefined,
-        isLoading: false,
-        error: null
-      },
+      latestBlockHeight: undefined,
       createdHeight: 1000,
       trialDurationHours: 24,
       averageBlockTime: 6
@@ -36,17 +23,7 @@ describe("useTrialTimeRemaining", () => {
 
   it("should calculate time remaining for active trial", () => {
     const { result } = setup({
-      useBlockReturn: {
-        data: {
-          block: {
-            header: {
-              height: "1100"
-            }
-          }
-        },
-        isLoading: false,
-        error: null
-      },
+      latestBlockHeight: 1100,
       createdHeight: 1000,
       trialDurationHours: 24,
       averageBlockTime: 6
@@ -65,17 +42,7 @@ describe("useTrialTimeRemaining", () => {
     const currentHeight = 1000 + totalTrialBlocks + 100; // Past trial end
 
     const { result } = setup({
-      useBlockReturn: {
-        data: {
-          block: {
-            header: {
-              height: currentHeight.toString()
-            }
-          }
-        },
-        isLoading: false,
-        error: null
-      },
+      latestBlockHeight: currentHeight,
       createdHeight: 1000,
       trialDurationHours,
       averageBlockTime
@@ -93,17 +60,7 @@ describe("useTrialTimeRemaining", () => {
     const currentHeight = 1000 + totalTrialBlocks; // Exactly at trial end
 
     const { result } = setup({
-      useBlockReturn: {
-        data: {
-          block: {
-            header: {
-              height: currentHeight.toString()
-            }
-          }
-        },
-        isLoading: false,
-        error: null
-      },
+      latestBlockHeight: currentHeight,
       createdHeight: 1000,
       trialDurationHours,
       averageBlockTime
@@ -116,17 +73,7 @@ describe("useTrialTimeRemaining", () => {
 
   it("should handle different block times correctly", () => {
     const { result } = setup({
-      useBlockReturn: {
-        data: {
-          block: {
-            header: {
-              height: "1100"
-            }
-          }
-        },
-        isLoading: false,
-        error: null
-      },
+      latestBlockHeight: 1100,
       createdHeight: 1000,
       trialDurationHours: 12,
       averageBlockTime: 12 // 12 seconds per block
@@ -139,17 +86,7 @@ describe("useTrialTimeRemaining", () => {
 
   it("should handle very short trial durations", () => {
     const { result } = setup({
-      useBlockReturn: {
-        data: {
-          block: {
-            header: {
-              height: "1001"
-            }
-          }
-        },
-        isLoading: false,
-        error: null
-      },
+      latestBlockHeight: 1001,
       createdHeight: 1000,
       trialDurationHours: 1, // 1 hour trial
       averageBlockTime: 6
@@ -162,17 +99,7 @@ describe("useTrialTimeRemaining", () => {
 
   it("should handle decimal block times", () => {
     const { result } = setup({
-      useBlockReturn: {
-        data: {
-          block: {
-            header: {
-              height: "1100"
-            }
-          }
-        },
-        isLoading: false,
-        error: null
-      },
+      latestBlockHeight: 1100,
       createdHeight: 1000,
       trialDurationHours: 24,
       averageBlockTime: 5.5 // 5.5 seconds per block
@@ -185,17 +112,7 @@ describe("useTrialTimeRemaining", () => {
 
   it("should return calculating text when createdHeight is not provided", () => {
     const { result } = setup({
-      useBlockReturn: {
-        data: {
-          block: {
-            header: {
-              height: "1100"
-            }
-          }
-        },
-        isLoading: false,
-        error: null
-      },
+      latestBlockHeight: 1100,
       createdHeight: undefined
     });
 
@@ -206,17 +123,7 @@ describe("useTrialTimeRemaining", () => {
 
   it("should return calculating text when trialDurationHours is not provided", () => {
     const { result } = setup({
-      useBlockReturn: {
-        data: {
-          block: {
-            header: {
-              height: "1100"
-            }
-          }
-        },
-        isLoading: false,
-        error: null
-      },
+      latestBlockHeight: 1100,
       createdHeight: 1000,
       trialDurationHours: undefined
     });
@@ -238,28 +145,20 @@ describe("useTrialTimeRemaining", () => {
     }
   }
 
-  function setup(input: {
-    useBlockReturn: Partial<UseQueryResult<BlockResponse, Error>>;
-    createdHeight?: number;
-    trialDurationHours?: number;
-    averageBlockTime?: number;
-  }) {
+  function setup(input: { latestBlockHeight: number | undefined; createdHeight?: number; trialDurationHours?: number; averageBlockTime?: number }) {
     return withTimers(() => {
-      const mockUseBlock = mockFn<() => UseQueryResult<BlockResponse, Error>>();
-      mockUseBlock.mockImplementation(() => input.useBlockReturn as UseQueryResult<BlockResponse, Error>);
+      const useLatestBlockHeight = vi.fn<typeof DEPENDENCIES.useLatestBlockHeight>(() => input.latestBlockHeight);
 
       const { result } = renderHook(() =>
         useTrialDeploymentTimeRemaining({
           createdHeight: input.createdHeight,
           trialDurationHours: input.trialDurationHours,
           averageBlockTime: input.averageBlockTime,
-          dependencies: {
-            useBlock: mockUseBlock
-          }
+          dependencies: { useLatestBlockHeight }
         })
       );
 
-      return { result, mockUseBlock };
+      return { result, useLatestBlockHeight };
     });
   }
 });

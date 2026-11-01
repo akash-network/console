@@ -3,7 +3,6 @@ export class QueryKeys {
   static getUsageDataKey = (address: string, startDate?: string, endDate?: string) => ["USAGE_DATA", address, startDate, endDate];
   static getUsageStatsDataKey = (address: string, startDate?: string, endDate?: string) => ["USAGE_STATS_DATA", address, startDate, endDate];
   static getDashboardDataKey = () => ["DASHBOARD_DATA"];
-  static getBlocksKey = (limit: number) => ["BLOCKS", limit];
   static getTransactionsKey = (limit: number) => ["TRANSACTIONS", limit];
   static getAddressTransactionsKey = (address: string, skip: number, limit: number) => ["ADDRESS_TRANSACTIONS", address, skip, limit];
   static getAddressDeploymentsKey = (address: string, skip: number, limit: number, reverseSorting: boolean, filters: { [key: string]: string }) => [
@@ -44,12 +43,10 @@ export class QueryKeys {
   static getProviderStatusKey = (providerUri: string) => ["PROVIDER_STATUS", providerUri];
   static getFirstReachableProviderKey = (placementKey: string) => ["FIRST_REACHABLE_PROVIDER", placementKey];
   static getProviderActiveLeasesGraph = (providerAddress: string) => ["PROVIDER_ACTIVE_LEASES_GRAPH", providerAddress];
-  static getBlockKey = (id: string) => ["BLOCK", id];
   static getBalancesKey = (address?: string) => (address ? ["BALANCES", address] : []);
   static getFeeAllowanceExistenceKey = (address: string) => ["FEE_ALLOWANCE_EXISTENCE", address];
   static getTemplatesKey = () => ["TEMPLATES"];
   static getProviderAttributesSchema = () => ["PROVIDER_ATTRIBUTES_SCHEMA"];
-  static getBmeParamsKey = () => ["BME_PARAMS"];
   static getGpuModelsKey = () => ["GPU_MODELS"];
   static getProviderGpusKey = (providerAddress: string) => ["PROVIDER_GPUS", providerAddress];
   static getLandTopologyKey = () => ["LAND_TOPOLOGY"];

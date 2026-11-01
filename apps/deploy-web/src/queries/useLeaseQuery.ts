@@ -1,7 +1,7 @@
-import { isHttpError, type LeaseListParams } from "@akashnetwork/http-sdk";
+import type { paths } from "@akashnetwork/console-api-types";
+import { isHttpError } from "@akashnetwork/http-sdk";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AxiosInstance } from "axios";
 import groupBy from "lodash/groupBy";
 import mapValues from "lodash/mapValues";
 import uniq from "lodash/uniq";
@@ -18,7 +18,6 @@ import {
 } from "@src/services/query-error-policy/query-error-policy";
 import type { DeploymentDto, LeaseDto, RpcLease } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
-import { ApiUrlService, loadWithPagination } from "@src/utils/apiUtils";
 import { omitAttestationSidecar } from "@src/utils/confidentialCompute";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
 import { isLeaseLive } from "@src/utils/leaseUtils";
@@ -33,16 +32,11 @@ function closedDeploymentLeaseListStaleTime(state: string | undefined, leases: L
   return Infinity;
 }
 
-// Leases
-async function getDeploymentLeases(chainApiHttpClient: AxiosInstance, address: string, deployment: Pick<DeploymentDto, "dseq" | "groups">) {
-  if (!address) {
-    return null;
-  }
+type ListLeasesInput = NonNullable<paths["/v1/leases"]["get"]["parameters"]["query"]>;
+type ListedLease = paths["/v1/leases"]["get"]["responses"][200]["content"]["application/json"]["data"][number];
 
-  const response = await loadWithPagination<RpcLease[]>(ApiUrlService.leaseList("", address, deployment?.dseq), "leases", 1000, chainApiHttpClient);
-  const leases = response.map(l => leaseToDto(l, deployment));
-
-  return leases;
+function toLeaseDtos(leases: ListedLease[], deployment?: Pick<DeploymentDto, "groups">): LeaseDto[] {
+  return leases.map(lease => leaseToDto({ lease: lease as RpcLease["lease"] }, deployment as Pick<DeploymentDto, "groups">));
 }
 
 export function useDeploymentLeaseList(
@@ -50,15 +44,16 @@ export function useDeploymentLeaseList(
   deployment: (Pick<DeploymentDto, "dseq" | "groups"> & Partial<Pick<DeploymentDto, "state">>) | null | undefined,
   options: Omit<UseQueryOptions<LeaseDto[] | null>, "queryKey" | "queryFn"> = {}
 ) {
-  const { chainApiHttpClient } = useServices();
+  const { api } = useServices();
   const queryClient = useQueryClient();
 
   const queryKey = QueryKeys.getLeasesKey(address, deployment?.dseq || "");
   const query = useQuery({
     queryKey,
     queryFn: async () => {
-      if (!deployment) return null;
-      return getDeploymentLeases(chainApiHttpClient, address, deployment);
+      if (!address || !deployment) return null;
+      const { data } = await api.v1.listLeases.queryOptions({ dseq: deployment.dseq }).queryFn();
+      return toLeaseDtos(data, deployment);
     },
     staleTime: query => closedDeploymentLeaseListStaleTime(deployment?.state, query.state.data),
     ...options
@@ -70,48 +65,40 @@ export function useDeploymentLeaseList(
   };
 }
 
-export type LeaseListState = NonNullable<LeaseListParams["state"]>;
+export type LeaseListState = NonNullable<ListLeasesInput["state"]>[number];
 
 type LeaseStateFilter = LeaseListState | readonly LeaseListState[];
 
-async function getAllLeases(chainApiHttpClient: AxiosInstance, address: string, deployment?: any, state?: LeaseStateFilter) {
-  if (!address) {
-    return null;
-  }
-
-  const states = state == null ? [undefined] : Array.isArray(state) ? state : [state];
-  const pages = await Promise.all(
-    states.map(s => loadWithPagination<RpcLease[]>(ApiUrlService.leaseList("", address, deployment?.dseq, s), "leases", 1000, chainApiHttpClient))
-  );
-
-  return pages.flat().map(l => leaseToDto(l, deployment));
-}
-
 export function useAllLeases(address: string, options: { state?: LeaseStateFilter } & Omit<UseQueryOptions<LeaseDto[] | null>, "queryKey" | "queryFn"> = {}) {
-  const { chainApiHttpClient } = useServices();
+  const { api } = useServices();
   const { state, ...queryOptions } = options;
 
   return useQuery({
     queryKey: QueryKeys.getAllLeasesKey(address, state),
-    queryFn: () => getAllLeases(chainApiHttpClient, address, undefined, state),
+    queryFn: async () => {
+      if (!address) return null;
+      const states = state === undefined ? undefined : typeof state === "string" ? [state] : [...state];
+      const { data } = await api.v1.listLeases.queryOptions({ state: states }).queryFn();
+      return toLeaseDtos(data);
+    },
     ...queryOptions
   });
 }
 
 /**
- * Answers "has this address ever had a lease?" with the SDK's single limit-1 request, unlike
- * `useAllLeases` which pages through the address's full lease history. Boot gates
+ * Answers "has this address ever had a lease?" with a single limit-1 request, unlike
+ * `useAllLeases` which reads the address's full lease history. Boot gates
  * (`RequireOnboarding`, `useOnboardingChrome`) only need this boolean, so they can
  * unblock without paying for the full paginated fetch. A `true` answer never goes stale
  * (a lease cannot un-exist); while `false`, default staleness keeps refetching on focus
  * so a first deploy made outside this tab is still picked up.
  */
 export function useLeaseExistenceQuery(address: string, options: Omit<UseQueryOptions<boolean>, "queryKey" | "queryFn"> = {}) {
-  const { leaseHttpService } = useServices();
+  const { api } = useServices();
 
   return useQuery({
     queryKey: QueryKeys.getLeaseExistenceKey(address),
-    queryFn: () => leaseHttpService.hasLeases(address),
+    queryFn: async () => (await api.v1.listLeases.queryOptions({ limit: 1 }).queryFn()).data.length > 0,
     staleTime: query => (query.state.data ? Infinity : 0),
     ...options
   });

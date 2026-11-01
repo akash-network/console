@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { secondsInMinute } from "date-fns/constants";
 
-import { useBlock } from "@src/queries/useBlocksQuery";
+import { useLatestBlockHeight } from "@src/hooks/useLatestBlockHeight/useLatestBlockHeight";
 import { BID_POLL_INTERVAL, useListBids } from "@src/queries/useListBids";
 import { averageBlockTime } from "@src/utils/priceUtils";
 
@@ -12,10 +12,7 @@ import { averageBlockTime } from "@src/utils/priceUtils";
  */
 const QUOTE_WINDOW_SECONDS = 5 * secondsInMinute + 20;
 
-/** Refetch cadence for the latest block height that anchors the countdown (matches useRealTimeLeft/useTrialDeploymentTimeRemaining). */
-const BLOCK_REFETCH_INTERVAL = 30_000;
-
-export const DEPENDENCIES = { useListBids, useBlock };
+export const DEPENDENCIES = { useListBids, useLatestBlockHeight };
 
 /** A `listBids` result entry. */
 type BidEntry = NonNullable<ReturnType<typeof useListBids>["data"]>["data"][number];
@@ -44,16 +41,15 @@ export interface QuoteExpiry {
  */
 export function useQuoteExpiry({ dseq, enabled }: Input, dependencies: typeof DEPENDENCIES = DEPENDENCIES): QuoteExpiry | null {
   const bidsQuery = dependencies.useListBids(dseq, { enabled, refetchInterval: BID_POLL_INTERVAL });
-  const { data: latestBlock } = dependencies.useBlock("latest", { enabled, refetchInterval: BLOCK_REFETCH_INTERVAL });
+  const currentHeight = dependencies.useLatestBlockHeight({ enabled });
 
   const bids = bidsQuery.data?.data;
   const { earliestBidHeight, allBidsClosed } = useLatchedQuoteWindow(dseq, earliestCreatedHeight(bids), hasBidsButNoneOpen(bids));
-  const currentHeight = latestBlock?.block?.header?.height;
 
   const expiresAt = useMemo(
     function computeExpiresAt() {
-      if (earliestBidHeight === null || currentHeight == null) return null;
-      const secondsElapsed = (Number(currentHeight) - earliestBidHeight) * averageBlockTime;
+      if (earliestBidHeight === null || currentHeight === undefined) return null;
+      const secondsElapsed = (currentHeight - earliestBidHeight) * averageBlockTime;
       return Date.now() + (QUOTE_WINDOW_SECONDS - secondsElapsed) * 1000;
     },
     [earliestBidHeight, currentHeight]

@@ -1,15 +1,14 @@
 import add from "date-fns/add";
 
-import { useBlock } from "@src/queries/useBlocksQuery";
+import { useLatestBlockHeight } from "@src/hooks/useLatestBlockHeight/useLatestBlockHeight";
 import { averageBlockTime, getLiveEscrowBalance } from "@src/utils/priceUtils";
 
-export function useRealTimeLeft(pricePerBlock: number, balance: number, settledAt: number, createdAt: number) {
-  const { data: latestBlock } = useBlock("latest", {
-    refetchInterval: 30000
-  });
-  if (!latestBlock) return;
+export const DEPENDENCIES = { useLatestBlockHeight };
 
-  const latestBlockHeight = Number(latestBlock.block.header.height);
+export function useRealTimeLeft(pricePerBlock: number, balance: number, settledAt: number, createdAt: number, d: typeof DEPENDENCIES = DEPENDENCIES) {
+  const latestBlockHeight = d.useLatestBlockHeight();
+  if (latestBlockHeight === undefined) return;
+
   const blocksPassed = Math.abs(settledAt - latestBlockHeight);
   const blocksSinceCreation = Math.abs(createdAt - latestBlockHeight);
 

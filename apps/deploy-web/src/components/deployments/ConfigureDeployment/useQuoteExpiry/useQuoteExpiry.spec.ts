@@ -19,6 +19,12 @@ describe("useQuoteExpiry", () => {
     expect(result.current).toBeNull();
   });
 
+  it("reads the latest block only while enabled", () => {
+    const { useLatestBlockHeight } = setup({ enabled: false, bids: [{ height: 1000 }], currentHeight: 1010 });
+
+    expect(useLatestBlockHeight).toHaveBeenCalledWith({ enabled: false });
+  });
+
   it("returns null before any bid exists", () => {
     const { result } = setup({ enabled: true, bids: [], currentHeight: 1010 });
     expect(result.current).toBeNull();
@@ -105,16 +111,15 @@ describe("useQuoteExpiry", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     const renders: Array<ReturnType<typeof useQuoteExpiry>> = [];
+    const useLatestBlockHeight = vi.fn<typeof DEPENDENCIES.useLatestBlockHeight>();
     const rendered = renderHook(
       (props: SetupInput) => {
         const bids = props.bids?.map(bid => mock<BidEntry>({ bid: mock<BidEntry["bid"]>({ created_at: String(bid.height), state: bid.state ?? "open" }) }));
         const bidsData = props.bids === null ? undefined : mock<NonNullable<ListBidsResult["data"]>>({ data: bids });
+        useLatestBlockHeight.mockReturnValue(props.currentHeight ?? undefined);
         const dependencies: typeof DEPENDENCIES = {
           useListBids: () => mock<ListBidsResult>({ data: bidsData }),
-          useBlock: () =>
-            mock<ReturnType<typeof DEPENDENCIES.useBlock>>({
-              data: props.currentHeight === null ? undefined : { block: { header: { height: props.currentHeight } } }
-            })
+          useLatestBlockHeight
         };
         const value = useQuoteExpiry({ dseq: props.dseq ?? "any-dseq", enabled: props.enabled }, dependencies);
         renders.push(value);
@@ -122,7 +127,7 @@ describe("useQuoteExpiry", () => {
       },
       { initialProps: input }
     );
-    return { ...rendered, renders };
+    return { ...rendered, renders, useLatestBlockHeight };
   }
 });
 

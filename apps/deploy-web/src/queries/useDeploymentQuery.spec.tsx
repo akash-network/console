@@ -1,26 +1,34 @@
+import { createProxy } from "@akashnetwork/react-query-proxy";
 import { describe, expect, it, vi } from "vitest";
-import { mock } from "vitest-mock-extended";
 
-import type { FallbackableHttpClient } from "@src/services/createFallbackableHttpClient/createFallbackableHttpClient";
-import { setupQuery } from "../../tests/unit/query-client";
+import { deploymentToDto } from "@src/utils/deploymentDetailUtils";
 import { QueryKeys } from "./queryKeys";
-import { useDeploymentList } from "./useDeploymentQuery";
+import { useDeploymentDetail } from "./useDeploymentQuery";
+
+import { buildRpcDeployment } from "@tests/seeders/deployment";
+import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
+
+type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
 
 describe("useDeploymentQuery", () => {
-  describe(useDeploymentList.name, () => {
-    it("requests the full state list newest-first so search matches browse order", async () => {
-      const chainApiHttpClient = mock<FallbackableHttpClient>();
-      chainApiHttpClient.get.mockResolvedValue({
-        data: { deployments: [], pagination: { next_key: null, total: "0" } }
-      });
-
-      const { result } = setupQuery(() => useDeploymentList("test-address", undefined, "active"), {
-        services: { chainApiHttpClient: () => chainApiHttpClient }
-      });
+  describe(useDeploymentDetail.name, () => {
+    it("reads the deployment from the API and maps it like a chain deployment", async () => {
+      const deployment = buildRpcDeployment({ deployment: { id: { dseq: "1234" } } });
+      const { result, getDeploymentInfo } = setup({ deployment });
 
       await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-      expect(chainApiHttpClient.get.mock.calls[0][0]).toContain("pagination.reverse=true");
+      expect(getDeploymentInfo).toHaveBeenCalledWith({ dseq: "1234" });
+      expect(result.current.data).toEqual(deploymentToDto(deployment));
+    });
+
+    it("answers no deployment without a wallet address", async () => {
+      const { result, getDeploymentInfo } = setup({ address: "" });
+
+      await vi.waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      expect(result.current.data).toBeNull();
+      expect(getDeploymentInfo).not.toHaveBeenCalled();
     });
   });
 
@@ -30,4 +38,15 @@ describe("useDeploymentQuery", () => {
       expect(QueryKeys.getDeploymentListKey("akash1abc")).toEqual(["DEPLOYMENT_LIST", "akash1abc"]);
     });
   });
+
+  function setup(input: { address?: string; deployment?: ReturnType<typeof buildRpcDeployment> }) {
+    const getDeploymentInfo = vi.fn().mockResolvedValue({ data: input.deployment ?? buildRpcDeployment() });
+    const api = createProxy({ v1: { getDeploymentInfo } }) as unknown as ApiService;
+
+    const { result } = setupQuery(() => useDeploymentDetail(input.address ?? "akash1owner", "1234"), {
+      services: { api: () => api }
+    });
+
+    return { result, getDeploymentInfo };
+  }
 });

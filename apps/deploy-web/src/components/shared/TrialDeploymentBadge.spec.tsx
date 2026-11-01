@@ -7,14 +7,6 @@ import { DEPENDENCIES as TRIAL_BADGE_DEPENDENCIES, TrialDeploymentBadge } from "
 import { render, screen } from "@testing-library/react";
 import { ComponentMock } from "@tests/unit/mocks";
 
-interface BlockResponse {
-  block: {
-    header: {
-      height: string;
-    };
-  };
-}
-
 describe("TrialDeploymentBadge", () => {
   it("renders trial badge with correct text", () => {
     setup({ blockHeight: 10001440 });
@@ -142,21 +134,13 @@ describe("TrialDeploymentBadge", () => {
         isExpired: boolean;
         timeRemainingText: string | null;
         timeLeft: Date | null;
-        latestBlock: BlockResponse;
       }
     >();
 
     mockUseTrialTimeRemaining.mockReturnValue({
       isExpired: input.blockHeight > 10001440, // Simple logic for expired state
       timeRemainingText: input.blockHeight > 10001440 ? "Trial expired" : "in 24 hours",
-      timeLeft: input.blockHeight > 10001440 ? null : new Date(Date.now() + 24 * 60 * 60 * 1000),
-      latestBlock: {
-        block: {
-          header: {
-            height: input.blockHeight.toString()
-          }
-        }
-      }
+      timeLeft: input.blockHeight > 10001440 ? null : new Date(Date.now() + 24 * 60 * 60 * 1000)
     });
 
     const props = {

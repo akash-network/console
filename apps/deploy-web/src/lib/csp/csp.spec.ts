@@ -93,15 +93,12 @@ describe("csp", () => {
       const { connectSrc } = setup({
         amplitudeProxyUrl: "https://console-proxy.akash.network/collect",
         unleashFrontendApiUrl: "https://features-edge.akash.network/api/frontend",
-        sentryDsn: "https://key@o877251.ingest.sentry.io/4504",
-        networkRpcAndApiUrls: ["https://rpc.akt.dev/rpc", "https://api.akashnet.net:443"]
+        sentryDsn: "https://key@o877251.ingest.sentry.io/4504"
       });
 
       expect(connectSrc).toContain("https://console-proxy.akash.network");
       expect(connectSrc).toContain("https://features-edge.akash.network");
       expect(connectSrc).toContain("https://o877251.ingest.sentry.io");
-      expect(connectSrc).toContain("https://rpc.akt.dev");
-      expect(connectSrc).toContain("https://api.akashnet.net");
     });
 
     it("adds a websocket origin for the provider proxy", () => {
