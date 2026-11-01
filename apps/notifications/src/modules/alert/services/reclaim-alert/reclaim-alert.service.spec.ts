@@ -20,18 +20,25 @@ import { generateGeneralAlert } from "@test/seeders/general-alert.seeder";
 describe(ReclaimAlertService.name, () => {
   describe("alertFor", () => {
     it("skips when no deployment-closed alert exists for the owner and dseq", async () => {
-      const { service, alertRepository, onMessage } = await setup();
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(undefined);
+      const { service, alertRepository, loggerService, onMessage } = await setup();
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([]);
+      const event = generateReclaimEvent();
 
-      await service.alertFor(generateReclaimEvent(), onMessage);
+      await service.alertFor(event, onMessage);
 
       expect(alertRepository.claimNotification).not.toHaveBeenCalled();
       expect(onMessage).not.toHaveBeenCalled();
+      expect(loggerService.debug).toHaveBeenCalledWith({
+        event: "RECLAIM_ALERT_SKIPPED",
+        reason: "NO_DEPLOYMENT_CLOSED_ALERT",
+        owner: event.owner,
+        dseq: event.dseq
+      });
     });
 
     it("skips when the deployment-closed alert is disabled (opted out)", async () => {
       const { service, alertRepository, onMessage } = await setup();
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(generateGeneralAlert({ type: "CHAIN_EVENT", enabled: false }));
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([generateGeneralAlert({ type: "CHAIN_EVENT", enabled: false })]);
 
       await service.alertFor(generateReclaimEvent(), onMessage);
 
@@ -41,7 +48,7 @@ describe(ReclaimAlertService.name, () => {
 
     it("skips when the reclaim notification was already claimed", async () => {
       const { service, alertRepository, onMessage } = await setup();
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true }));
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true })]);
       alertRepository.claimNotification.mockResolvedValue(undefined);
 
       await service.alertFor(generateReclaimEvent(), onMessage);
@@ -52,7 +59,7 @@ describe(ReclaimAlertService.name, () => {
     it("claims then sends exactly one notification to the alert's channel", async () => {
       const { service, alertRepository, onMessage } = await setup();
       const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
       alertRepository.claimNotification.mockResolvedValue(alert);
 
       await service.alertFor(generateReclaimEvent({ dseq: "12345" }), onMessage);
@@ -71,10 +78,38 @@ describe(ReclaimAlertService.name, () => {
       );
     });
 
+    it("notifies the deployment's enabled alert when another alert for the same deployment is switched off", async () => {
+      const { service, alertRepository, onMessage } = await setup();
+      const switchedOffAlert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: false });
+      const enabledAlert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([switchedOffAlert, enabledAlert]);
+      alertRepository.claimNotification.mockResolvedValue(enabledAlert);
+
+      await service.alertFor(generateReclaimEvent(), onMessage);
+
+      expect(alertRepository.claimNotification).toHaveBeenCalledTimes(1);
+      expect(alertRepository.claimNotification).toHaveBeenCalledWith(enabledAlert.id, "reclaimNotifiedAt");
+      expect(onMessage).toHaveBeenCalledTimes(1);
+      expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ notificationChannelId: enabledAlert.notificationChannelId }));
+    });
+
+    it("notifies every enabled alert for the deployment that was not notified yet, each through its own channel", async () => {
+      const { service, alertRepository, onMessage } = await setup();
+      const notifiedAlert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      const first = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      const second = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([notifiedAlert, first, second]);
+      alertRepository.claimNotification.mockResolvedValueOnce(undefined).mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+
+      await service.alertFor(generateReclaimEvent(), onMessage);
+
+      expect(onMessage.mock.calls.map(([message]) => message.notificationChannelId)).toEqual([first.notificationChannelId, second.notificationChannelId]);
+    });
+
     it("adds the notice to the feed once per claimed alert, linked to the deployment, leaving its email as it was", async () => {
       const { service, alertRepository, onMessage } = await setup();
       const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
       alertRepository.claimNotification.mockResolvedValue(alert);
       const provider = mockAkashAddress();
 
@@ -97,7 +132,7 @@ describe(ReclaimAlertService.name, () => {
     it("files the notice of a team deployment under the user who set its alert, in the alert's organization and project", async () => {
       const { service, alertRepository, onMessage } = await setup();
       const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true, organizationId: faker.string.uuid(), projectId: faker.string.uuid() });
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
       alertRepository.claimNotification.mockResolvedValue(alert);
 
       await service.alertFor(generateReclaimEvent({ dseq: "12345" }), onMessage);
@@ -113,7 +148,7 @@ describe(ReclaimAlertService.name, () => {
       const { service, alertRepository, onMessage } = await setup();
       const first = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
       const second = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValueOnce([first]).mockResolvedValueOnce([second]);
       alertRepository.claimNotification.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
 
       await service.alertFor(generateReclaimEvent({ dseq: "12345" }), onMessage);
@@ -128,7 +163,7 @@ describe(ReclaimAlertService.name, () => {
     it("includes the provider, reason, deadline and deep link in the message", async () => {
       const { service, alertRepository, onMessage } = await setup();
       const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
       alertRepository.claimNotification.mockResolvedValue(alert);
       const provider = mockAkashAddress();
 
@@ -147,7 +182,7 @@ describe(ReclaimAlertService.name, () => {
     it("names the deployment by its name, escaped in the description, and links to it in the alert's organization", async () => {
       const { service, alertRepository, deploymentNameClient, onMessage, consoleWebUrl } = await setup();
       const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true, organizationId: faker.string.uuid() });
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
       alertRepository.claimNotification.mockResolvedValue(alert);
       deploymentNameClient.findName.mockResolvedValue("<b>Tom & Jerry</b>");
       const event = generateReclaimEvent({ dseq: "12345" });
@@ -168,7 +203,7 @@ describe(ReclaimAlertService.name, () => {
 
     it("skips an opted-out alert without looking the deployment up", async () => {
       const { service, alertRepository, deploymentNameClient, onMessage } = await setup();
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(generateGeneralAlert({ type: "CHAIN_EVENT", enabled: false }));
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([generateGeneralAlert({ type: "CHAIN_EVENT", enabled: false })]);
 
       await service.alertFor(generateReclaimEvent(), onMessage);
 
@@ -179,7 +214,7 @@ describe(ReclaimAlertService.name, () => {
     it("shows the deadline in the timezone of the channel the alert emails, naming the zone", async () => {
       const { service, alertRepository, onMessage } = await setup();
       const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
       alertRepository.claimNotification.mockResolvedValue(alert);
       alertRepository.findNotificationChannelTimezone.mockResolvedValue("Asia/Tokyo");
 
@@ -192,7 +227,7 @@ describe(ReclaimAlertService.name, () => {
     it("shows the deadline in UTC when the channel the alert emails has no timezone", async () => {
       const { service, alertRepository, onMessage } = await setup();
       const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
       alertRepository.claimNotification.mockResolvedValue(alert);
       alertRepository.findNotificationChannelTimezone.mockResolvedValue(null);
 
@@ -204,13 +239,31 @@ describe(ReclaimAlertService.name, () => {
     it("leaves the alert unclaimed for a redelivery when the channel's timezone cannot be read", async () => {
       const { service, alertRepository, onMessage } = await setup();
       const alert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
-      alertRepository.findDeploymentClosedAlertByOwnerAndDseq.mockResolvedValue(alert);
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([alert]);
       alertRepository.findNotificationChannelTimezone.mockRejectedValue(new Error("connection reset"));
 
       await expect(service.alertFor(generateReclaimEvent(), onMessage)).rejects.toThrow("connection reset");
 
       expect(alertRepository.claimNotification).not.toHaveBeenCalled();
       expect(onMessage).not.toHaveBeenCalled();
+    });
+
+    it("still notifies the deployment's other alerts when one fails, then rejects so the event is redelivered", async () => {
+      const { service, alertRepository, loggerService, onMessage } = await setup();
+      const failingAlert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      const healthyAlert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      const error = new Error("connection reset");
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([failingAlert, healthyAlert]);
+      alertRepository.findNotificationChannelTimezone.mockRejectedValueOnce(error).mockResolvedValue(null);
+      alertRepository.claimNotification.mockResolvedValue(healthyAlert);
+
+      await expect(service.alertFor(generateReclaimEvent(), onMessage)).rejects.toBe(error);
+
+      expect(alertRepository.claimNotification).toHaveBeenCalledTimes(1);
+      expect(alertRepository.claimNotification).toHaveBeenCalledWith(healthyAlert.id, "reclaimNotifiedAt");
+      expect(onMessage).toHaveBeenCalledTimes(1);
+      expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ notificationChannelId: healthyAlert.notificationChannelId }));
+      expect(loggerService.error).toHaveBeenCalledWith({ event: "RECLAIM_ALERT_FAILED", alertId: failingAlert.id, error });
     });
   });
 
@@ -242,6 +295,7 @@ describe(ReclaimAlertService.name, () => {
     return {
       service: module.get<ReclaimAlertService>(ReclaimAlertService),
       alertRepository: module.get<MockProxy<AlertRepository>>(AlertRepository),
+      loggerService: module.get<MockProxy<LoggerService>>(LoggerService),
       deploymentNameClient,
       consoleWebUrl: module.get<ConfigService<AlertConfig>>(ConfigService).getOrThrow("alert.CONSOLE_WEB_URL"),
       onMessage: vi.fn()

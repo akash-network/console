@@ -2,7 +2,8 @@ import { Injectable } from "@nestjs/common";
 import escape from "lodash/escape";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
-import { type AlertOutput, AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import { attemptEach } from "@src/lib/attempt-each/attempt-each";
+import { type AlertOutput, AlertRepository, type GeneralAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 import type { AlertMessagePayload } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { alertNotifiedLog } from "@src/modules/alert/services/alert-notified-log";
 import { type DeploymentReference, DeploymentReferenceService } from "@src/modules/alert/services/deployment-reference/deployment-reference.service";
@@ -30,13 +31,21 @@ export class ReclaimAlertService {
   }
 
   async alertFor(event: ReclaimAlertEvent, onMessage: MessageCallback): Promise<void> {
-    const alert = await this.alertRepository.findDeploymentClosedAlertByOwnerAndDseq(event.owner, event.dseq);
+    const alerts = await this.alertRepository.findDeploymentClosedAlertsByOwnerAndDseq(event.owner, event.dseq);
 
-    if (!alert) {
+    if (!alerts.length) {
       this.loggerService.debug({ event: "RECLAIM_ALERT_SKIPPED", reason: "NO_DEPLOYMENT_CLOSED_ALERT", owner: event.owner, dseq: event.dseq });
       return;
     }
 
+    await attemptEach(
+      alerts,
+      alert => this.#notifyThrough(alert, event, onMessage),
+      (alert, error) => this.loggerService.error({ event: "RECLAIM_ALERT_FAILED", alertId: alert.id, error })
+    );
+  }
+
+  async #notifyThrough(alert: GeneralAlertOutput, event: ReclaimAlertEvent, onMessage: MessageCallback): Promise<void> {
     if (!alert.enabled) {
       this.loggerService.debug({ event: "RECLAIM_ALERT_SKIPPED", reason: "OPTED_OUT", alertId: alert.id });
       return;

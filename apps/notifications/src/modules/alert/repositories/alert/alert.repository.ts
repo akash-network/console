@@ -188,15 +188,16 @@ export class AlertRepository {
   }
 
   /**
-   * Finds the deployment-closed CHAIN_EVENT alert for a specific owner AND dseq.
+   * Finds every deployment-closed CHAIN_EVENT alert for a specific owner AND dseq.
    *
    * dseq is per-owner (not globally unique) and the owner is stored in the alert's
-   * `conditions.value[]` (not `params`), so both must be matched. This runs in a
-   * background/system context with no CASL ability scope, so it is intentionally
+   * `conditions.value[]` (not `params`), so both must be matched. Any user may hold an
+   * alert naming another owner's deployment, so each match decides only for itself. This
+   * runs in a background/system context with no CASL ability scope, so it is intentionally
    * not filtered by `whereAccessibleBy`.
    */
-  async findDeploymentClosedAlertByOwnerAndDseq(owner: string, dseq: string): Promise<GeneralAlertOutput | undefined> {
-    const alert = await this.db.query.Alert.findFirst({
+  async findDeploymentClosedAlertsByOwnerAndDseq(owner: string, dseq: string): Promise<GeneralAlertOutput[]> {
+    const alerts = await this.db.query.Alert.findMany({
       where: and(
         eq(schema.Alert.type, "CHAIN_EVENT"),
         // Containment (`@>`) rather than `->>` extraction so the GIN `jsonb_path_ops`
@@ -206,7 +207,7 @@ export class AlertRepository {
       )
     });
 
-    return alert && this.toOutput(alert as InternalAlertOutput & { type: "CHAIN_EVENT" });
+    return alerts.map(alert => this.toOutput(alert as InternalAlertOutput & { type: "CHAIN_EVENT" }));
   }
 
   /** Matches the owner as well as the dseq, because a dseq names a deployment only within the wallet that created it; an alert naming no owner stays put. */

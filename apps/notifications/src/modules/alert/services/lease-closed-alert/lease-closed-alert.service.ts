@@ -3,6 +3,7 @@ import { Injectable } from "@nestjs/common";
 import escape from "lodash/escape";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
+import { attemptEach } from "@src/lib/attempt-each/attempt-each";
 import type { GeneralAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import type { AlertMessagePayload } from "@src/modules/alert/services/alert-message/alert-message.service";
@@ -36,13 +37,21 @@ export class LeaseClosedAlertService {
       return;
     }
 
-    const alert = await this.alertRepository.findDeploymentClosedAlertByOwnerAndDseq(event.owner, event.dseq);
+    const alerts = await this.alertRepository.findDeploymentClosedAlertsByOwnerAndDseq(event.owner, event.dseq);
 
-    if (!alert) {
+    if (!alerts.length) {
       this.loggerService.debug({ event: "LEASE_CLOSED_ALERT_SKIPPED", reason: "NO_DEPLOYMENT_CLOSED_ALERT", owner: event.owner, dseq: event.dseq });
       return;
     }
 
+    await attemptEach(
+      alerts,
+      alert => this.#notifyThrough(alert, event, reason, onMessage),
+      (alert, error) => this.loggerService.error({ event: "LEASE_CLOSED_ALERT_FAILED", alertId: alert.id, error })
+    );
+  }
+
+  async #notifyThrough(alert: GeneralAlertOutput, event: LeaseClosedAlertEvent, reason: LeaseClosedReason, onMessage: MessageCallback): Promise<void> {
     if (this.isOptedOut(alert)) {
       this.loggerService.debug({ event: "LEASE_CLOSED_ALERT_SKIPPED", reason: "OPTED_OUT", alertId: alert.id });
       return;
