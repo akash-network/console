@@ -127,6 +127,26 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
 
       expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "confirmed", txHash });
     });
+
+    it("settles a check re-queued for the index by the index when the chain endpoint fails, run the way a worker runs it", async () => {
+      const { txHash, pending, failChainLookup, runJob } = await setupHash();
+      failChainLookup();
+      await indexTx(txHash, { hasProcessingError: false, at: secondsAfter(pending.createdAt, 20) });
+
+      await runJob({ indexLagRetries: 1 });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "confirmed", txHash });
+    });
+
+    it("lets a failing chain endpoint fail the attempt while retries remain", async () => {
+      const { txHash, pending, handler, failChainLookup } = await setupHash();
+      failChainLookup();
+      await indexTx(txHash, { hasProcessingError: false, at: secondsAfter(pending.createdAt, 20) });
+
+      await expect(handler.handle({ txHash, version: 1 }, { id: faker.string.uuid(), ...RETRIES_LEFT })).rejects.toThrow("chain endpoint unavailable");
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "pending" });
+    });
   });
 
   describe("for deposits the signer gave no hash for", () => {
@@ -412,6 +432,8 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
     const answerChainWith = (answer: { code: number } | null) =>
       vi.spyOn(container.resolve(TxPresenceService), "findTx").mockResolvedValue(answer && { hash: txHash, code: answer.code, height: 100, rawLog: "" });
 
+    const failChainLookup = () => vi.spyOn(container.resolve(TxPresenceService), "findTx").mockRejectedValue(new Error("chain endpoint unavailable"));
+
     const runJob = async (check: { indexLagRetries?: number } = {}) => {
       const { enqueue, startWorkers } = await jobWorkers();
       const singletonKey = `${ReconcileDeploymentDeposit[JOB_NAME]}.${txHash}`;
@@ -420,6 +442,6 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
       await expectJobCompleted(ReconcileDeploymentDeposit[JOB_NAME], { singletonKey });
     };
 
-    return { txHash, pending, alreadyVoid, otherTransaction, handler, answerChainWith, runJob };
+    return { txHash, pending, alreadyVoid, otherTransaction, handler, answerChainWith, failChainLookup, runJob };
   }
 });

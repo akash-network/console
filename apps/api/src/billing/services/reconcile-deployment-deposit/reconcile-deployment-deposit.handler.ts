@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { type DeploymentDepositOutput, DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
 import { DeploymentSpendRepository, type LandingWindow } from "@src/billing/repositories/deployment-spend/deployment-spend.repository";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { TxPresenceService } from "@src/chain/services/tx-presence/tx-presence.service";
+import { type LandedTx, TxPresenceService } from "@src/chain/services/tx-presence/tx-presence.service";
 import {
   type CreateLogger,
   type Job,
@@ -78,7 +78,7 @@ export class ReconcileDeploymentDepositHandler implements JobHandler<ReconcileDe
   }
 
   async #reconcileByHash({ txHash, indexLagRetries = 0 }: HashCheck, isAbsenceFinal: boolean): Promise<void> {
-    const tx = await this.txPresenceService.findTx(txHash);
+    const tx = await this.#findTxOnChain(txHash, isAbsenceFinal);
 
     if (tx) {
       await this.#settleByHash(txHash, { isSucceeded: tx.code === COSMOS_TX_CODE_OK });
@@ -95,6 +95,18 @@ export class ReconcileDeploymentDepositHandler implements JobHandler<ReconcileDe
     if (!result && (await this.#waitForIndexToPassHash(txHash, latestBlockTime, indexLagRetries))) return;
 
     await this.#settleByHash(txHash, result);
+  }
+
+  /** Once absence is final the chain index decides, so a failing endpoint then counts as not seeing the tx rather than leaving the rows pending for good. */
+  async #findTxOnChain(txHash: string, isAbsenceFinal: boolean): Promise<LandedTx | null> {
+    try {
+      return await this.txPresenceService.findTx(txHash);
+    } catch (error) {
+      if (!isAbsenceFinal) throw error;
+
+      this.logger.warn({ event: "DEPLOYMENT_DEPOSIT_TX_LOOKUP_FAILED", txHash, error });
+      return null;
+    }
   }
 
   async #settleByHash(txHash: string, result: { isSucceeded: boolean } | undefined): Promise<void> {
