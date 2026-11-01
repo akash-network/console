@@ -52,6 +52,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/internal/v1/organizations/{organizationId}/purge": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["purgeOrganization"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/internal/v1/organizations/{organizationId}/deployment-alerts/{dseq}/project": {
     parameters: {
       query?: never;
@@ -187,6 +203,26 @@ export interface operations {
     };
     responses: {
       /** @description Stops the organization's notification channels from emailing a member who left it */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  purgeOrganization: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organizationId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deletes a deleted organization's alerts and notification channels */
       204: {
         headers: {
           [name: string]: unknown;

@@ -24,7 +24,7 @@ export const TEAM_ORGANIZATION_DELETED_RETRY_OPTIONS = {
   retryDelayMax: 60 * 60
 } satisfies EnqueueOptions;
 
-type CleanupStep = "stripe" | "notifications";
+type CleanupStep = "stripe" | "alerts" | "notifications";
 
 @singleton()
 export class TeamOrganizationDeletedHandler implements JobHandler<TeamOrganizationDeleted> {
@@ -46,7 +46,7 @@ export class TeamOrganizationDeletedHandler implements JobHandler<TeamOrganizati
     return [];
   }
 
-  /** Emails go out only once the cards are gone, so a retry after a Stripe failure never emails a member twice. */
+  /** Emails go out only once the cards and the team's alerts are gone, so a retry after an earlier step fails never emails a member twice. */
   async handle({ organizationId, deletedByUserId }: JobPayload<TeamOrganizationDeleted>): Promise<void> {
     const organization = await this.organizationRepository.findById(organizationId);
 
@@ -57,6 +57,7 @@ export class TeamOrganizationDeletedHandler implements JobHandler<TeamOrganizati
 
     const { stripeCustomerId } = organization;
     if (stripeCustomerId) await this.#runStep(organizationId, "stripe", () => this.customerService.detachPaymentMethods(stripeCustomerId));
+    await this.#runStep(organizationId, "alerts", () => this.notificationService.purgeOrganizationAlerts(organizationId));
     await this.#runStep(organizationId, "notifications", () => this.#notifyMembers(organization, deletedByUserId));
 
     this.#logger.info({ event: "TEAM_ORGANIZATION_DELETION_CLEANUP_COMPLETED", organizationId });

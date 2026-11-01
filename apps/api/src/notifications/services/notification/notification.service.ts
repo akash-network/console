@@ -103,6 +103,11 @@ export class NotificationService {
     await this.notificationsInternalApi.v1.releaseDepartedMember({ organizationId, data });
   }
 
+  /** Leaves retrying to the job that calls it. */
+  async purgeOrganizationAlerts(organizationId: string): Promise<void> {
+    await this.notificationsInternalApi.v1.purgeOrganization({ organizationId });
+  }
+
   async autoEnableDeploymentAlert(input: AutoEnableDeploymentAlertInput): Promise<void> {
     const user = await this.userRepository.findById(input.userId);
     if (!user?.email) {

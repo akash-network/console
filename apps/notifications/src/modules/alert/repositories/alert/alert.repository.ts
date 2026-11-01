@@ -279,6 +279,21 @@ export class AlertRepository {
     return deleted.length;
   }
 
+  /** Also takes every alert that notifies one of the organization's channels, since those channels go with it. */
+  async deleteAllOfOrganization(organizationId: string, tx: NodePgDatabase<typeof schema> = this.db): Promise<number> {
+    const { Alert } = schema;
+    const organizationChannels = tx
+      .select({ id: NotificationChannel.id })
+      .from(NotificationChannel)
+      .where(eq(NotificationChannel.organizationId, organizationId));
+    const deleted = await tx
+      .delete(Alert)
+      .where(or(eq(Alert.organizationId, organizationId), inArray(Alert.notificationChannelId, organizationChannels)))
+      .returning({ id: Alert.id });
+
+    return deleted.length;
+  }
+
   async findNotificationChannelTimezone(notificationChannelId: string): Promise<string | null> {
     const [channel] = await this.db
       .select({ timezone: NotificationChannel.timezone })

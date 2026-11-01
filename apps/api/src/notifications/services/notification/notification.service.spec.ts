@@ -388,6 +388,17 @@ describe(NotificationService.name, () => {
     });
   });
 
+  describe("purgeOrganizationAlerts", () => {
+    it("asks the notifications service to delete the organization's alerts and channels", async () => {
+      const { service, apiInternal } = setup();
+      apiInternal.v1.purgeOrganization.mockResolvedValueOnce(undefined as never);
+
+      await service.purgeOrganizationAlerts("organization-1");
+
+      expect(apiInternal.v1.purgeOrganization).toHaveBeenCalledWith({ organizationId: "organization-1" });
+    });
+  });
+
   describe("autoEnableDeploymentAlert", () => {
     it("files the alert into the organization and project of the deployment", async () => {
       const { service, api, userRepository, deploymentSettingRepository } = setup();
@@ -433,7 +444,9 @@ describe(NotificationService.name, () => {
       userRepository.findById.mockResolvedValue({ id: "user-1", email: "user@example.com", timezone: "Asia/Tokyo" } as UserOutput);
       deploymentSettingRepository.findTenancy.mockResolvedValue(undefined);
       organizationRepository.findPersonalByUserId.mockResolvedValue(mock<OrganizationOutput>({ id: "personal-organization-1", type: "personal" }));
-      api.v1.listNotificationChannels.mockResolvedValueOnce({ data: [] } as never).mockResolvedValueOnce({ data: [{ id: "default-channel", isDefault: true }] } as never);
+      api.v1.listNotificationChannels
+        .mockResolvedValueOnce({ data: [] } as never)
+        .mockResolvedValueOnce({ data: [{ id: "default-channel", isDefault: true }] } as never);
       api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
 
       await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });

@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { Unprotected } from "@src/interfaces/rest/interceptors/auth/auth.interceptor";
+import { OrganizationPurgeService } from "@src/interfaces/rest/services/organization-purge/organization-purge.service";
 import { NotificationChannelRepository } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 
 class DepartedMemberInput extends createZodDto(
@@ -27,6 +28,7 @@ class DepartedMemberInput extends createZodDto(
 export class InternalOrganizationController {
   constructor(
     private readonly notificationChannelRepository: NotificationChannelRepository,
+    private readonly organizationPurgeService: OrganizationPurgeService,
     private readonly loggerService: LoggerService
   ) {
     this.loggerService.setContext(InternalOrganizationController.name);
@@ -40,5 +42,14 @@ export class InternalOrganizationController {
     const channelsReleased = await this.notificationChannelRepository.releaseAddressInOrganization({ organizationId, ...data });
 
     this.loggerService.log({ event: "DEPARTED_MEMBER_RELEASED_FROM_CHANNELS", organizationId, channelsReleased });
+  }
+
+  @Post(":organizationId/purge")
+  @HttpCode(204)
+  @ApiNoContentResponse({ description: "Deletes a deleted organization's alerts and notification channels" })
+  async purgeOrganization(@Param("organizationId", new ParseUUIDPipe()) organizationId: string): Promise<void> {
+    const { alertsDeleted, channelsDeleted } = await this.organizationPurgeService.purge(organizationId);
+
+    this.loggerService.log({ event: "ORGANIZATION_PURGE_COMPLETED", organizationId, alertsDeleted, channelsDeleted });
   }
 }
