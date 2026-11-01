@@ -136,12 +136,21 @@ function deploymentFilingRules(user: RuleUser): AbilityRule[] {
   return [{ action: "create", subject: "DeploymentSetting", conditions: { userId: { $nin: [user.id] } }, inverted: true }];
 }
 
+/** Notification channels serve the whole organization, so a project-bound key reads them to attach its project's alerts but changes none. */
+const SUBJECTS_ONLY_READ_BY_PROJECT_BOUND_KEYS: readonly string[] = ["NotificationChannel"];
+
 function withoutOrganizationLevelSubjects(rules: AbilityRule[]): AbilityRule[] {
   return rules.flatMap(rule => {
-    const subjects = [rule.subject].flat().filter(subjectType => !ORGANIZATION_LEVEL_SUBJECTS.includes(subjectType as string));
+    const subjects = [rule.subject].flat().filter(subjectType => isKeptByProjectBoundKey(rule, subjectType as string));
 
     return subjects.length ? [{ ...rule, subject: subjects }] : [];
   });
+}
+
+function isKeptByProjectBoundKey({ action }: AbilityRule, subjectType: string): boolean {
+  if (ORGANIZATION_LEVEL_SUBJECTS.includes(subjectType)) return false;
+
+  return action === "read" || !SUBJECTS_ONLY_READ_BY_PROJECT_BOUND_KEYS.includes(subjectType);
 }
 
 /** Activity outside any project, such as members joining, stays out of a project-bound key's reach like the members themselves. */

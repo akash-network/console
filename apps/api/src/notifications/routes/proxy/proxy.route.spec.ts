@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import type { AuthService } from "@src/auth/services/auth.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
@@ -12,6 +13,7 @@ import { createProxy } from "@src/notifications/routes/proxy/proxy.route";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 
 import { createAkashAddress } from "@test/seeders";
+import { createApiKey } from "@test/seeders/api-key.seeder";
 import { createProjectsScope } from "@test/seeders/organization-context.seeder";
 
 describe("createProxy", () => {
@@ -314,6 +316,91 @@ describe("createProxy", () => {
     }
   });
 
+  describe("when a key bound to a project reads notification channels", () => {
+    it("answers each listed channel with its id, name and type only, keeping the pagination", async () => {
+      const [first, second] = [createChannel(), createChannel()];
+      const pagination = { page: 1, limit: 10, total: 2, totalPages: 1, hasNextPage: false, hasPreviousPage: false };
+      const { handler, context } = setupProxyTest({
+        method: "GET",
+        apiKey: createApiKey({ projectId: faker.string.uuid() }),
+        upstream: Response.json({ data: [first, second], pagination })
+      });
+
+      const result = await handler(context);
+
+      expect(result.status).toBe(200);
+      expect(await result.json()).toEqual({ data: [channelSummaryOf(first), channelSummaryOf(second)], pagination });
+    });
+
+    it("answers the channel it reads by id with its id, name and type only", async () => {
+      const channel = createChannel();
+      const { handler, context } = setupProxyTest({
+        method: "GET",
+        path: `/v1/notification-channels/${channel.id}`,
+        apiKey: createApiKey({ projectId: faker.string.uuid() }),
+        upstream: Response.json({ data: channel })
+      });
+
+      const result = await handler(context);
+
+      expect(await result.json()).toEqual({ data: channelSummaryOf(channel) });
+    });
+
+    it("passes an error answer through unchanged", async () => {
+      const { handler, context } = setupProxyTest({
+        method: "GET",
+        path: `/v1/notification-channels/${faker.string.uuid()}`,
+        apiKey: createApiKey({ projectId: faker.string.uuid() }),
+        upstream: Response.json({ message: "Notification channel not found" }, { status: 404 })
+      });
+
+      const result = await handler(context);
+
+      expect(result.status).toBe(404);
+      expect(await result.json()).toEqual({ message: "Notification channel not found" });
+    });
+
+    it("passes a HEAD answer through unchanged", async () => {
+      const { handler, context } = setupProxyTest({
+        method: "HEAD",
+        path: "/v1/notification-channels",
+        apiKey: createApiKey({ projectId: faker.string.uuid() }),
+        upstream: new Response(null, { status: 200 })
+      });
+
+      const result = await handler(context);
+
+      expect(result.status).toBe(200);
+      expect(result.body).toBeNull();
+    });
+
+    it("passes the alerts it reads through unchanged", async () => {
+      const alerts = { data: [{ id: faker.string.uuid(), notificationChannelId: faker.string.uuid(), config: { threshold: 1 } }] };
+      const { handler, context } = setupProxyTest({
+        method: "GET",
+        path: "/v1/alerts",
+        apiKey: createApiKey({ projectId: faker.string.uuid() }),
+        upstream: Response.json(alerts)
+      });
+
+      const result = await handler(context);
+
+      expect(await result.json()).toEqual(alerts);
+    });
+  });
+
+  it.each([
+    { caller: "a signed-in session", apiKey: undefined },
+    { caller: "a key bound to no project", apiKey: createApiKey({ projectId: null }) }
+  ])("answers $caller every field of the listed channels", async ({ apiKey }) => {
+    const listed = { data: [createChannel()] };
+    const { handler, context } = setupProxyTest({ method: "GET", apiKey, upstream: Response.json(listed) });
+
+    const result = await handler(context);
+
+    expect(await result.json()).toEqual(listed);
+  });
+
   it("looks up no project without an organization context", async () => {
     const { handler, context, deploymentSettingRepository } = setupProxyTest({ path: "/v1/deployment-alerts/1234" });
 
@@ -321,6 +408,22 @@ describe("createProxy", () => {
 
     expect(deploymentSettingRepository.findProjectIdsInOrganizationByDseqs).not.toHaveBeenCalled();
   });
+
+  function createChannel() {
+    return {
+      id: faker.string.uuid(),
+      userId: faker.string.uuid(),
+      name: faker.word.words(2),
+      type: "email",
+      config: { addresses: [faker.internet.email()] },
+      isDefault: false,
+      timezone: null
+    };
+  }
+
+  function channelSummaryOf({ id, name, type }: ReturnType<typeof createChannel>) {
+    return { id, name, type };
+  }
 
   function forwardedHeaders(fetchMock: ReturnType<typeof vi.fn>): Record<string, string> {
     return fetchMock.mock.calls[0][1].headers;
@@ -344,6 +447,8 @@ describe("createProxy", () => {
     organizationContext?: OrganizationContext;
     filedProjectId?: string | null;
     body?: unknown;
+    apiKey?: ApiKeyOutput;
+    upstream?: Response;
   };
 
   function setupProxyTest(options: SetupOptions = {}) {
@@ -371,10 +476,11 @@ describe("createProxy", () => {
       NOTIFICATIONS_API_BASE_URL: "https://proxy.example"
     };
 
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: method === "GET" ? 204 : 200 }));
+    const fetchMock = vi.fn().mockResolvedValue(options.upstream ?? new Response(null, { status: method === "GET" ? 204 : 200 }));
 
     const executionContextService = mock<ExecutionContextService>();
     executionContextService.get.calledWith("ORGANIZATION_CONTEXT").mockReturnValue(options.organizationContext);
+    executionContextService.get.calledWith("CURRENT_API_KEY").mockReturnValue(options.apiKey);
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.findProjectIdsInOrganizationByDseqs.mockResolvedValue(
       options.filedProjectId === undefined ? new Map() : new Map([["1234", options.filedProjectId]])

@@ -501,7 +501,7 @@ describe("ability rules", () => {
           DeploymentSetting: MANAGE,
           Template: MANAGE,
           Alert: MANAGE,
-          NotificationChannel: MANAGE
+          NotificationChannel: READ
         });
         expect(pick(outside, ["Project", ...PROJECT_RESOURCES])).toEqual({
           Project: NONE,
@@ -510,6 +510,19 @@ describe("ability rules", () => {
           Alert: NONE,
           NotificationChannel: NONE
         });
+      });
+
+      it.each([
+        { role: "owner", channelActions: READ },
+        { role: "admin", channelActions: READ },
+        { role: "member", channelActions: READ },
+        { role: "viewer", channelActions: READ },
+        { role: "billing", channelActions: NONE }
+      ] as const)("lets a $role key read notification channels as its role does but change none", ({ role, channelActions }) => {
+        const projectId = faker.string.uuid();
+        const { ability } = setup({ role, projectScope: createProjectsScope([projectId]), apiKeyProjectId: projectId });
+
+        expect(ACTIONS.filter(action => ability.can(action, "NotificationChannel"))).toEqual(channelActions);
       });
 
       it.each(["owner", "admin", "member"] as const)("keeps a %s key from filing a deployment setting under a teammate", role => {
