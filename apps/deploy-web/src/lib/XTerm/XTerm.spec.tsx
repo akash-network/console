@@ -85,6 +85,12 @@ describe(readTerminalOutput.name, () => {
 });
 
 describe("XTerm", () => {
+  it("masks the terminal text in session replays", () => {
+    const { container } = setup();
+
+    expect(container.firstChild).toHaveClass("amp-mask");
+  });
+
   it("exposes terminal output through the ref", () => {
     const { customRef } = setup({ bufferLines: [{ text: "hello" }, { text: "world" }] });
 
