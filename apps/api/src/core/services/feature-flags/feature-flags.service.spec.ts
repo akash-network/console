@@ -162,6 +162,44 @@ describe(FeatureFlagsService.name, () => {
     });
   });
 
+  describe("isEnabledForSubject", () => {
+    it("evaluates the flag for the subject alone, leaving out the current user and the session cookie", async () => {
+      const client = createUnleashMockClient({ isEnabledFeatureFlag: vi.fn(() => false) });
+      const config = { DEPLOYMENT_ENV: "production", NETWORK: "mainnet" } as const;
+      const service = await setup({ config, createClient: () => client, currentUser: { id: "job-user" }, unleashSessionId: "caller-session" });
+
+      service.isEnabledForSubject(FeatureFlags.BLOCKED_EMAIL_DOMAIN_ENFORCEMENT, "example.com");
+
+      expect(client.isEnabled).toHaveBeenCalledWith(FeatureFlags.BLOCKED_EMAIL_DOMAIN_ENFORCEMENT, {
+        currentTime: expect.any(Date),
+        userId: "example.com",
+        sessionId: undefined,
+        environment: config.DEPLOYMENT_ENV,
+        properties: {
+          chainNetwork: config.NETWORK
+        }
+      });
+    });
+
+    it.each([true, false])("answers what Unleash decides for the subject (%s)", async isEnabled => {
+      const service = await setup({ createClient: () => createUnleashMockClient({ isEnabledFeatureFlag: () => isEnabled }) });
+
+      expect(service.isEnabledForSubject(FeatureFlags.TRIAL_FINGERPRINT_CHECK, "user-id")).toBe(isEnabled);
+    });
+
+    it("returns true without a client when FEATURE_FLAGS_ENABLE_ALL is true", async () => {
+      const service = await setup({ config: { FEATURE_FLAGS_ENABLE_ALL: true }, skipInitialization: true });
+
+      expect(service.isEnabledForSubject(FeatureFlags.TRIAL_FINGERPRINT_CHECK, "user-id")).toBe(true);
+    });
+
+    it("throws when the service was not initialized", async () => {
+      const service = await setup({ skipInitialization: true });
+
+      expect(() => service.isEnabledForSubject(FeatureFlags.TRIAL_FINGERPRINT_CHECK, "user-id")).toThrow(/was not initialized/);
+    });
+  });
+
   async function setup(input: {
     config?: Partial<CoreConfig>;
     createClient?: (config: UnleashConfig) => Unleash;

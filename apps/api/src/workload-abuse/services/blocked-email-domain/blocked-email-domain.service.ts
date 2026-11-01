@@ -54,7 +54,7 @@ export class BlockedEmailDomainService {
 
   async #isBlocked(domain: string | null): Promise<boolean> {
     if (!domain) return false;
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.BLOCKED_EMAIL_DOMAIN_ENFORCEMENT)) return false;
+    if (!this.featureFlagsService.isEnabledForSubject(FeatureFlags.BLOCKED_EMAIL_DOMAIN_ENFORCEMENT, domain)) return false;
 
     const cached = this.#verdicts.get(domain);
     if (cached !== undefined) return cached;

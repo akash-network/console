@@ -9,6 +9,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { TrialStarted } from "@src/billing/events/trial-started";
 import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-token/provider-jwt-token.service";
@@ -41,6 +42,30 @@ describe(WalletInitializerService.name, () => {
       const di = setup({ user, isProduction: true, hasDuplicateFingerprint: true });
 
       await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)).rejects.toThrow(/Unable to start trial/i);
+    });
+
+    it("decides the duplicate fingerprint check for the user whose trial is starting", async () => {
+      const user = createUser({ emailVerified: true, lastFingerprint: "fp" });
+      const di = setup({ user, isProduction: true, hasDuplicateFingerprint: true });
+
+      await expect(di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id)).rejects.toThrow(/Unable to start trial/i);
+      expect(di.resolve(FeatureFlagsService).isEnabledForSubject).toHaveBeenCalledWith(FeatureFlags.TRIAL_FINGERPRINT_CHECK, user.id);
+    });
+
+    it("starts the trial despite a duplicate fingerprint when the check is off for the user", async () => {
+      const user = createUser({ emailVerified: true, lastFingerprint: "fp" });
+      const activatedWallet = createUserWallet({ userId: user.id, activatedAt: new Date() });
+      const di = setup({
+        user,
+        isProduction: true,
+        hasDuplicateFingerprint: true,
+        isFingerprintCheckEnabled: false,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: activatedWallet, isNew: false })
+      });
+
+      const result = await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
+
+      expect(result.address).toBe(activatedWallet.address);
     });
 
     it("throws 400 when the email domain is blocked", async () => {
@@ -341,6 +366,7 @@ describe(WalletInitializerService.name, () => {
     user?: UserOutput;
     isProduction?: boolean;
     hasDuplicateFingerprint?: boolean;
+    isFingerprintCheckEnabled?: boolean;
     isBlockedEmailDomain?: boolean;
   }) {
     const di = container.createChildContainer();
@@ -386,7 +412,7 @@ describe(WalletInitializerService.name, () => {
     di.registerInstance(
       FeatureFlagsService,
       mock<FeatureFlagsService>({
-        isEnabled: vi.fn(() => true)
+        isEnabledForSubject: vi.fn(() => input?.isFingerprintCheckEnabled ?? true)
       })
     );
     di.registerInstance(

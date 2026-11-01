@@ -30,15 +30,25 @@ export class FeatureFlagsService implements Disposable, AppInitializer {
   isEnabled(featureFlag: FeatureFlagValue, context: { userId?: string } = {}): boolean {
     if (this.configService.get("FEATURE_FLAGS_ENABLE_ALL")) return true;
 
-    assert(this.client, "Feature flags service was not initialized. Call initialize() method first.");
+    return this.#evaluate(featureFlag, {
+      userId: context.userId ?? this.executionContext.get("CURRENT_USER")?.id,
+      sessionId: this.extractSessionId()
+    });
+  }
 
-    const currentUser = this.executionContext.get("CURRENT_USER");
-    const sessionId = this.extractSessionId();
+  /** Leaves out the caller's session and the ambient user, so a policy flag reads the same for its subject on every path, background jobs included. */
+  isEnabledForSubject(featureFlag: FeatureFlagValue, subjectId: string): boolean {
+    if (this.configService.get("FEATURE_FLAGS_ENABLE_ALL")) return true;
+
+    return this.#evaluate(featureFlag, { userId: subjectId, sessionId: undefined });
+  }
+
+  #evaluate(featureFlag: FeatureFlagValue, stickiness: { userId: string | undefined; sessionId: string | undefined }): boolean {
+    assert(this.client, "Feature flags service was not initialized. Call initialize() method first.");
 
     return this.client.isEnabled(featureFlag, {
       currentTime: new Date(),
-      userId: context.userId ?? currentUser?.id,
-      sessionId,
+      ...stickiness,
       environment: this.configService.get("DEPLOYMENT_ENV"),
       properties: {
         chainNetwork: this.configService.get("NETWORK")
