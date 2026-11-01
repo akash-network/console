@@ -35,7 +35,7 @@ describe(UserController.name, () => {
       const email = faker.internet.email();
       userService.registerUser.mockResolvedValue({ ...createUser({ userId, email }), userId, username: faker.internet.userName(), email, isNewUser: true });
 
-      await controller.registerUser({ wantedUsername: faker.internet.userName(), email, emailVerified: true });
+      await controller.registerUser({ wantedUsername: faker.internet.userName() });
 
       expect(userAuthTokenService.getValidUserId).toHaveBeenCalledWith(authorization);
       expect(userService.registerUser).toHaveBeenCalledWith(expect.objectContaining({ userId }));
@@ -45,9 +45,7 @@ describe(UserController.name, () => {
       const { controller, userAuthTokenService } = setup({});
       userAuthTokenService.getValidUserId.mockResolvedValue(null);
 
-      await expect(
-        controller.registerUser({ wantedUsername: faker.internet.userName(), email: faker.internet.email(), emailVerified: true })
-      ).rejects.toMatchObject({
+      await expect(controller.registerUser({ wantedUsername: faker.internet.userName() })).rejects.toMatchObject({
         status: 401
       });
 
@@ -58,9 +56,7 @@ describe(UserController.name, () => {
       const { controller, userAuthTokenService, userService } = setup({ authorization: `Bearer ${faker.string.alphanumeric(40)}` });
       userAuthTokenService.getValidUserId.mockResolvedValue(null);
 
-      await expect(
-        controller.registerUser({ wantedUsername: faker.internet.userName(), email: faker.internet.email(), emailVerified: true })
-      ).rejects.toMatchObject({
+      await expect(controller.registerUser({ wantedUsername: faker.internet.userName() })).rejects.toMatchObject({
         status: 401
       });
 

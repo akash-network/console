@@ -6,6 +6,7 @@ import { inject, singleton } from "tsyringe";
 import { ACCOUNT_UNAVAILABLE_ERROR_CODE, ACCOUNT_UNAVAILABLE_MESSAGE } from "@src/auth/lib/account-unavailable/account-unavailable";
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
+import { VerifiedEmailService } from "@src/auth/services/verified-email/verified-email.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
@@ -36,7 +37,8 @@ export class UserService {
     private readonly dataKeyService: DataKeyService,
     private readonly blockedEmailDomainService: BlockedEmailDomainService,
     private readonly personalOrganizationService: PersonalOrganizationService,
-    private readonly txService: TxService
+    private readonly txService: TxService,
+    private readonly verifiedEmailService: VerifiedEmailService
   ) {
     this.logger = createLogger({ context: UserService.name });
   }
@@ -56,12 +58,15 @@ export class UserService {
     timezone: string | null;
     isNewUser: boolean;
   }> {
-    await this.assertDomainNotBlockedForNewUser(data);
+    const signInEmail = await this.verifiedEmailService.getEmail(data.userId);
+    assert(signInEmail, 400, "The account has no email address");
+
+    await this.assertDomainNotBlockedForNewUser({ userId: data.userId, email: signInEmail.email });
 
     const userDetails = {
       userId: data.userId,
-      email: data.email,
-      emailVerified: data.emailVerified,
+      email: signInEmail.email,
+      emailVerified: signInEmail.emailVerified,
       subscribedToNewsletter: data.subscribedToNewsletter,
       lastIp: data.ip,
       lastUserAgent: data.userAgent,
@@ -103,7 +108,7 @@ export class UserService {
       this.logger.error({ event: "FAILED_TO_CREATE_DEFAULT_NOTIFICATION_CHANNEL", id: user.id, error: result.error });
     }
 
-    if (!data.emailVerified && user.email) {
+    if (!signInEmail.emailVerified) {
       await this.emailVerificationCodeService.sendCode(user.id).catch(error => {
         this.logger.error({ event: "FAILED_TO_SEND_INITIAL_VERIFICATION_CODE", id: user.id, error });
       });
@@ -146,7 +151,7 @@ export class UserService {
    * unconditionally would ban an established user whose domain was blocked for somebody else's abuse —
    * and the Auth0 callback swallows this error, so they would get a session with no account behind it.
    */
-  private async assertDomainNotBlockedForNewUser(data: RegisterUserInput): Promise<void> {
+  private async assertDomainNotBlockedForNewUser(data: { userId: string; email: string }): Promise<void> {
     if (!(await this.blockedEmailDomainService.isBlockedEmail(data.email))) return;
     if (await this.userRepository.findByUserId(data.userId)) return;
 
@@ -325,8 +330,6 @@ type UpdateUserInput = Partial<{
 export interface RegisterUserInput {
   userId: string;
   wantedUsername: string;
-  email: string;
-  emailVerified: boolean;
   subscribedToNewsletter: boolean;
   timezone?: string;
   ip: string;

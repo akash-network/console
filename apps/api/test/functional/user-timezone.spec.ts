@@ -1,7 +1,10 @@
 import { faker } from "@faker-js/faker";
+import type { GetUsers200ResponseOneOfInner } from "auth0";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
+import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { app } from "@src/rest-app";
@@ -116,6 +119,9 @@ describe("User timezone", () => {
     const token = faker.string.alphanumeric(40);
     const headers = { authorization: `Bearer ${token}` };
 
+    vi.spyOn(container.resolve(Auth0Service), "getUser").mockImplementation(async userId =>
+      userId === externalUserId ? mock<GetUsers200ResponseOneOfInner>({ user_id: userId, email, email_verified: true }) : null
+    );
     vi.spyOn(userAuthTokenService, "getValidUserId").mockImplementation(async header => (header.replace(/^Bearer +/i, "") === token ? externalUserId : null));
     vi.spyOn(container.resolve(NotificationService), "createDefaultChannel").mockResolvedValue(undefined);
 
@@ -123,7 +129,7 @@ describe("User timezone", () => {
       app.request("/v1/register-user", {
         method: "POST",
         headers: { ...headers, "content-type": "application/json" },
-        body: JSON.stringify({ wantedUsername: `user-${faker.string.alphanumeric(12)}`, email, emailVerified: true, subscribedToNewsletter: false, ...body })
+        body: JSON.stringify({ wantedUsername: `user-${faker.string.alphanumeric(12)}`, subscribedToNewsletter: false, ...body })
       });
 
     return { headers, register };

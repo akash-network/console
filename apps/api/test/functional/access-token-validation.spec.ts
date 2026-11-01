@@ -52,7 +52,7 @@ describe("Access token validation", () => {
     return app.request("/v1/register-user", {
       method: "POST",
       headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ wantedUsername: `user-${faker.string.alphanumeric(12)}`, email: faker.internet.email().toLowerCase(), emailVerified: true })
+      body: JSON.stringify({ wantedUsername: `user-${faker.string.alphanumeric(12)}` })
     });
   }
 });

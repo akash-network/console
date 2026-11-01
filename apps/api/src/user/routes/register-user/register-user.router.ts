@@ -9,8 +9,6 @@ import { UserSchema } from "@src/user/schemas/user.schema";
 
 const registerUserInputSchema = z.object({
   wantedUsername: z.string(),
-  email: z.string(),
-  emailVerified: z.boolean(),
   subscribedToNewsletter: z.boolean().optional(),
   timezone: z.string().optional().openapi({
     description: "The browser's IANA timezone, kept on the account until the user picks one in their profile. A value that names no zone is ignored.",

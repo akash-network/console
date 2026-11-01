@@ -1,11 +1,14 @@
 import { faker } from "@faker-js/faker";
+import type { GetUsers200ResponseOneOfInner } from "auth0";
 import type { Hono } from "hono";
 import { decode } from "jsonwebtoken";
 import { container } from "tsyringe";
 import { vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { AuthService } from "@src/auth/services/auth.service";
+import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { WalletInitializerService } from "@src/billing/services";
 import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
@@ -14,6 +17,8 @@ import { NotificationService } from "@src/notifications/services/notification/no
 import { type UserOutput, UserRepository } from "@src/user/repositories";
 
 export class WalletTestingService<T extends Hono<any>> {
+  readonly #auth0Users = new Map<string, GetUsers200ResponseOneOfInner>();
+
   constructor(private readonly app: T) {}
 
   async createUserAndWallet() {
@@ -113,6 +118,11 @@ export class WalletTestingService<T extends Hono<any>> {
 
     const decoded = decode(access_token) as { sub: string; email: string; nickname: string; email_verified: boolean };
 
+    this.#auth0Users.set(
+      decoded.sub,
+      mock<GetUsers200ResponseOneOfInner>({ user_id: decoded.sub, email: decoded.email, email_verified: decoded.email_verified })
+    );
+    vi.spyOn(container.resolve(Auth0Service), "getUser").mockImplementation(async userId => this.#auth0Users.get(userId) ?? null);
     vi.spyOn(container.resolve(NotificationService), "createDefaultChannel").mockResolvedValue(undefined);
     const userResponse = await this.app.request(`/v1/register-user`, {
       method: "POST",
@@ -122,8 +132,6 @@ export class WalletTestingService<T extends Hono<any>> {
       }),
       body: JSON.stringify({
         wantedUsername: decoded.nickname,
-        email: decoded.email,
-        emailVerified: decoded.email_verified,
         subscribedToNewsletter: false
       })
     });

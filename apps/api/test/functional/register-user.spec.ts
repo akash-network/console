@@ -1,9 +1,14 @@
 import { faker } from "@faker-js/faker";
+import type { GetUsers200ResponseOneOfInner } from "auth0";
 import { container } from "tsyringe";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
+import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
+import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { personalOrganizationSlug } from "@src/organization/lib/personal-organization/personal-organization";
@@ -11,12 +16,14 @@ import { OrganizationRepository } from "@src/organization/repositories/organizat
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
 import { app } from "@src/rest-app";
+import { UserRepository } from "@src/user/repositories/user/user.repository";
+import { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
 
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 
 interface RegisteredUserBody {
-  data: { id: string; username: string };
+  data: { id: string; username: string; email: string; emailVerified: boolean };
   isNewUser: boolean;
 }
 
@@ -26,6 +33,8 @@ describe("User registration", () => {
   const projectRepository = container.resolve(ProjectRepository);
   const userWalletRepository = container.resolve(UserWalletRepository);
   const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
+  const userRepository = container.resolve(UserRepository);
+  const blockedEmailDomainRepository = container.resolve(BlockedEmailDomainRepository);
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -58,6 +67,30 @@ describe("User registration", () => {
         expect.objectContaining({ name: "default-project", slug: "default-project", isDefault: true })
       ]);
       expect(await userWalletRepository.findOneByUserId(body.data.id)).toMatchObject({ organizationId: organization?.id });
+    });
+
+    it("stores the address Auth0 holds for the caller and its verification, whatever the request sends", async () => {
+      const auth0Email = faker.internet.email().toLowerCase();
+      const { register } = setup({ auth0User: { email: auth0Email, emailVerified: false } });
+
+      const response = await register({ email: faker.internet.email().toLowerCase(), emailVerified: true });
+      const body = (await response.json()) as RegisteredUserBody;
+
+      expect(response.status).toBe(200);
+      expect(body.data).toMatchObject({ email: auth0Email, emailVerified: false });
+      expect(await userRepository.findById(body.data.id)).toMatchObject({ email: auth0Email, emailVerified: false });
+    });
+
+    it("refuses a new account when the address Auth0 holds for the caller is on a blocked domain", async () => {
+      const blockedDomain = `${faker.string.alphanumeric(16).toLowerCase()}.com`;
+      await blockedEmailDomainRepository.create({ domain: blockedDomain, status: "blocked", source: "manual" });
+      const { register, externalUserId } = setup({ auth0User: { email: `someone@${blockedDomain}`, emailVerified: true } });
+      vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag === FeatureFlags.BLOCKED_EMAIL_DOMAIN_ENFORCEMENT);
+
+      const response = await register({ email: faker.internet.email().toLowerCase() });
+
+      expect(response.status).toBe(403);
+      expect(await userRepository.findByUserId(externalUserId)).toBeUndefined();
     });
 
     it("creates nothing new when the same user registers again", async () => {
@@ -105,22 +138,28 @@ describe("User registration", () => {
     });
   });
 
-  function setup(input: { externalUserId?: string } = {}) {
+  function setup(input: { externalUserId?: string; auth0User?: { email: string; emailVerified: boolean } } = {}) {
     const externalUserId = input.externalUserId ?? faker.string.uuid();
     const token = faker.string.alphanumeric(40);
     const wantedUsername = `user-${faker.string.alphanumeric(12)}`;
-    const email = faker.internet.email().toLowerCase();
+    const auth0User = input.auth0User ?? { email: faker.internet.email().toLowerCase(), emailVerified: true };
 
     vi.spyOn(container.resolve(UserAuthTokenService), "getValidUserId").mockImplementation(async header =>
       header.replace(/^Bearer +/i, "") === token ? externalUserId : null
     );
+    vi.spyOn(container.resolve(Auth0Service), "getUser").mockImplementation(async userId =>
+      userId === externalUserId
+        ? mock<GetUsers200ResponseOneOfInner>({ user_id: userId, email: auth0User.email, email_verified: auth0User.emailVerified })
+        : null
+    );
     vi.spyOn(container.resolve(NotificationService), "createDefaultChannel").mockResolvedValue(undefined);
+    vi.spyOn(container.resolve(NotificationService), "createNotification").mockResolvedValue(undefined);
 
-    const register = () =>
+    const register = (body: { email?: string; emailVerified?: boolean } = {}) =>
       app.request("/v1/register-user", {
         method: "POST",
         headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({ wantedUsername, email, emailVerified: true, subscribedToNewsletter: false })
+        body: JSON.stringify({ wantedUsername, email: auth0User.email, emailVerified: auth0User.emailVerified, subscribedToNewsletter: false, ...body })
       });
 
     return { externalUserId, wantedUsername, register };
