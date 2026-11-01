@@ -494,6 +494,20 @@ describe(OrganizationMemberService.name, () => {
       expect(repositories.delete.deleteById).toHaveBeenCalledWith(coOwner.id);
     });
 
+    it.each(["admin", "owner"] as const)("refuses to let a caller with role %s remove their own membership, which only leaving ends", async role => {
+      const coOwner = createOrganizationMember({ role: "owner" });
+      const { service, caller, repositories, departedMemberAlertsService } = setup({ callerIsOwner: role === "owner", otherOwners: [coOwner] });
+      const ownMembership = createOrganizationMember({ role, userId: caller.id });
+      repositories.read.findById.mockResolvedValue(ownMembership);
+
+      await expect(service.removeMember(ownMembership.id)).rejects.toMatchObject({
+        status: 400,
+        message: "Leave the organization to end your own membership"
+      });
+      expect(repositories.delete.deleteById).not.toHaveBeenCalled();
+      expect(departedMemberAlertsService.stopTeamAlertsTo).not.toHaveBeenCalled();
+    });
+
     it("refuses to remove the last owner", async () => {
       const { service, repositories, owners, departedMemberAlertsService } = setup({ callerIsOwner: true });
       repositories.read.findById.mockResolvedValue(owners[0]);

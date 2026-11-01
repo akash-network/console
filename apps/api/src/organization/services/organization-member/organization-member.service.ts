@@ -106,6 +106,7 @@ export class OrganizationMemberService {
         await this.assertAnotherOwnerRemains(organizationId, member.userId);
       }
 
+      assert(member.userId !== this.authService.currentUser.id, 400, "Leave the organization to end your own membership");
       await this.#endMembership(this.#repositoryFor("delete"), member, organizationId);
     });
   }
