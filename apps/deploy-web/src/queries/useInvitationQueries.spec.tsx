@@ -40,7 +40,7 @@ describe("useInvitationQueries", () => {
   });
 
   describe(useAcceptInvitationMutation.name, () => {
-    it("adds the joined organization to the cached memberships and refreshes the preview and the received invitations", async () => {
+    it("adds the joined organization to the cached memberships and refreshes the received invitations but not the preview", async () => {
       const { result, acceptInvitation, queryClient } = setup({ useHook: () => useAcceptInvitationMutation() });
       queryClient.setQueryData(ORGANIZATIONS_QUERY_KEY, { data: [PERSONAL] });
 
@@ -48,7 +48,7 @@ describe("useInvitationQueries", () => {
 
       expect(acceptInvitation).toHaveBeenCalledWith({ data: { token: TOKEN, confirmEmailMismatch: true } });
       expect(readCachedOrganizations(queryClient)).toEqual([PERSONAL, JOINED]);
-      expect(queryClient.getQueryState(PREVIEW_KEY)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(PREVIEW_KEY)?.isInvalidated).toBe(false);
       expect(queryClient.getQueryState(RECEIVED_KEY)?.isInvalidated).toBe(true);
       expect(queryClient.getQueryState(ORGANIZATIONS_QUERY_KEY)?.isInvalidated).toBe(false);
     });
