@@ -104,7 +104,7 @@ export class NotificationService {
   }
 
   /** Leaves retrying to the job that calls it. */
-  async purgeOrganizationAlerts(organizationId: string): Promise<void> {
+  async purgeOrganizationData(organizationId: string): Promise<void> {
     await this.notificationsInternalApi.v1.purgeOrganization({ organizationId });
   }
 

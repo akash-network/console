@@ -75,6 +75,20 @@ describe("Organization purge (internal)", () => {
     ).toEqual([]);
   });
 
+  it("answers 204 again when the same organization is purged a second time", async () => {
+    const { app, db, organizationId } = await setup();
+    await db
+      .insert(NotificationChannel)
+      .values([generateNotificationChannel({ organizationId, isDefault: false })])
+      .returning();
+
+    const first = await request(app.getHttpServer()).post(`/internal/v1/organizations/${organizationId}/purge`);
+    const second = await request(app.getHttpServer()).post(`/internal/v1/organizations/${organizationId}/purge`);
+
+    expect(first.status).toBe(204);
+    expect(second.status).toBe(204);
+  });
+
   it("refuses an organization id that is not a uuid", async () => {
     const { app } = await setup();
 

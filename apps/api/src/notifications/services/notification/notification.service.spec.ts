@@ -388,12 +388,12 @@ describe(NotificationService.name, () => {
     });
   });
 
-  describe("purgeOrganizationAlerts", () => {
+  describe("purgeOrganizationData", () => {
     it("asks the notifications service to delete the organization's alerts and channels", async () => {
       const { service, apiInternal } = setup();
       apiInternal.v1.purgeOrganization.mockResolvedValueOnce(undefined as never);
 
-      await service.purgeOrganizationAlerts("organization-1");
+      await service.purgeOrganizationData("organization-1");
 
       expect(apiInternal.v1.purgeOrganization).toHaveBeenCalledWith({ organizationId: "organization-1" });
     });
