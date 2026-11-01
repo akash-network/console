@@ -276,6 +276,44 @@ describe("defineApiHandler", () => {
     });
   });
 
+  it("refuses a write another origin sends before looking up the session", async () => {
+    const handler = vi.fn();
+    const getSession = vi.fn(async () => null);
+    const logger = mock<LoggerService>();
+    const res = mock<NextApiResponse>({ status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() });
+
+    await setup({
+      context: {
+        req: createRequest({ method: "POST", url: "/api/test", headers: { "sec-fetch-site": "cross-site", origin: "https://other.example" } }),
+        res,
+        services: { getSession, logger }
+      },
+      handler
+    });
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ message: "Forbidden" });
+    expect(handler).not.toHaveBeenCalled();
+    expect(getSession).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith({
+      event: "CROSS_ORIGIN_WRITE_REFUSED",
+      url: "/api/test",
+      origin: "https://other.example",
+      fetchSite: "cross-site"
+    });
+  });
+
+  it("runs a write the console's own page sends", async () => {
+    const handler = vi.fn();
+
+    await setup({
+      context: { req: createRequest({ method: "POST", headers: { "sec-fetch-site": "same-origin" } }) },
+      handler
+    });
+
+    expect(handler).toHaveBeenCalled();
+  });
+
   function setup(input: {
     route?: string;
     schema?: z.ZodSchema<any>;
@@ -306,14 +344,13 @@ describe("defineApiHandler", () => {
   }
 
   function createRequest(input?: Partial<NextApiRequest>) {
-    return mock<NextApiRequest>({
-      headers: {
-        "content-type": "application/json",
-        "x-forwarded-host": "localhost",
-        "x-forwarded-for": "127.0.0.1",
-        "x-forwarded-proto": "http"
-      },
-      ...input
-    });
+    const req = mock<NextApiRequest>(input);
+    req.headers = input?.headers ?? {
+      "content-type": "application/json",
+      "x-forwarded-host": "localhost",
+      "x-forwarded-for": "127.0.0.1",
+      "x-forwarded-proto": "http"
+    };
+    return req;
   }
 });

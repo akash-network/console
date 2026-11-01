@@ -13,6 +13,9 @@ const HEADERS_TO_SKIP = new Set([
   "proxy-authorization"
 ]);
 
+/** The console calls the proxy from its own origin only, so the upstream's CORS grants are not passed on. */
+const CORS_RESPONSE_HEADER_PREFIX = "access-control-";
+
 export async function proxyRequest(req: NextApiRequest, res: NextApiResponse, options: ProxyOptions) {
   const abortController = new AbortController();
   const onClose = () => abortController.abort(new Error("client disconnected"));
@@ -101,7 +104,7 @@ function filterResponseHeaders(headers: Headers) {
 
   for (const [k, v] of headers.entries()) {
     const lowKey = k.toLowerCase();
-    if (HEADERS_TO_SKIP.has(lowKey) || lowKey === "set-cookie") continue;
+    if (HEADERS_TO_SKIP.has(lowKey) || lowKey === "set-cookie" || lowKey.startsWith(CORS_RESPONSE_HEADER_PREFIX)) continue;
     result[k] = v;
   }
 

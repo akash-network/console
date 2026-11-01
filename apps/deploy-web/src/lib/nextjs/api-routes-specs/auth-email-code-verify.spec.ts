@@ -117,8 +117,20 @@ describe("POST /api/auth/email-code-verify", () => {
     expect(res.json).toHaveBeenCalledWith(expect.not.objectContaining({ cause: expect.anything() }));
   });
 
+  it("refuses a sign-in another site posts before checking the code", async () => {
+    const { res, sessionService, setSession } = await callHandler({
+      body: { email: "user@example.com", code: "123456", captchaToken: "tok" },
+      headers: { "sec-fetch-site": "cross-site", origin: "https://other.example" }
+    });
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(sessionService.verifyEmailCode).not.toHaveBeenCalled();
+    expect(setSession).not.toHaveBeenCalled();
+  });
+
   async function callHandler(input: {
     body: object;
+    headers?: Record<string, string>;
     verifyResult?: Awaited<ReturnType<SessionService["verifyEmailCode"]>>;
     createLocalUserError?: Error;
     isNewUser?: boolean;
@@ -158,7 +170,7 @@ describe("POST /api/auth/email-code-verify", () => {
       body: input.body,
       [REQ_SERVICES_KEY]: requestServices
     });
-    req.headers = {};
+    req.headers = input.headers ?? {};
     req.query = {};
     req.cookies = input.cookies ?? {};
 

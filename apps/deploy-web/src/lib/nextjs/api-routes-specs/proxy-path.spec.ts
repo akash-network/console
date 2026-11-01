@@ -84,6 +84,17 @@ describe("proxy [...path] handler", () => {
     expect(getUpstreamHeaders(upstreamFetch).has("x-organization-id")).toBe(false);
   });
 
+  it("refuses a write another site sends without calling the API", async () => {
+    const { proxyRequest, upstreamFetch, res } = await setup({
+      session: { accessToken: "valid-token", user: { id: "u1" } } as Session,
+      headers: { "sec-fetch-site": "same-site", origin: "https://stats.akash.network" }
+    });
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(proxyRequest).not.toHaveBeenCalled();
+    expect(upstreamFetch).not.toHaveBeenCalled();
+  });
+
   function getForwardedHeaders(proxyRequest: Mock): Record<string, string> {
     return proxyRequest.mock.calls[0]![2].headers as Record<string, string>;
   }
@@ -109,7 +120,7 @@ describe("proxy [...path] handler", () => {
       socket: mock<Socket>({ remoteAddress: "127.0.0.1" })
     });
     req.headers = input.headers ?? {};
-    const res = mock<NextApiResponse>();
+    const res = mock<NextApiResponse>({ status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() });
 
     req[REQ_SERVICES_KEY] = {
       ...services,

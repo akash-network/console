@@ -276,6 +276,25 @@ describe(proxyRequest.name, () => {
       });
     });
 
+    it("does not pass on the upstream's CORS headers", async () => {
+      const { res } = await setup({
+        fetchResponse: {
+          status: 200,
+          headers: new Headers({
+            "content-type": "application/json",
+            "access-control-allow-origin": "https://stats.akash.network",
+            "access-control-allow-credentials": "true",
+            "Access-Control-Expose-Headers": "x-request-id"
+          }),
+          body: null
+        }
+      });
+
+      expect(res.writeHead).toHaveBeenCalledWith(200, {
+        "content-type": "application/json"
+      });
+    });
+
     it("preserves multiple Set-Cookie headers as an array", async () => {
       const responseHeaders = new Headers();
       responseHeaders.append("set-cookie", "session=abc; Path=/; HttpOnly");
