@@ -2,16 +2,18 @@ import { generateMock } from "@anatine/zod-mock";
 import { faker } from "@faker-js/faker";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import request from "supertest";
 import { Err, Ok } from "ts-results";
 import { describe, expect, it, onTestFinished } from "vitest";
-import type { MockProxy } from "vitest-mock-extended";
+import { mock, type MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
 import { HttpResultInterceptor } from "@src/interfaces/rest/interceptors/http-result/http-result.interceptor";
 import { AuthService } from "@src/interfaces/rest/services/auth/auth.service";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
+import type * as schema from "@src/modules/notifications/model-schemas";
 import {
   type DefaultChannelOwner,
   NotificationChannelRepository
@@ -96,12 +98,12 @@ describe(NotificationChannelController.name, () => {
 
       expect(notificationChannelRepository.findById).not.toHaveBeenCalled();
       expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, { name: "Renamed" });
-      expect(addressConfirmationService.requestConfirmations).not.toHaveBeenCalled();
+      expect(addressConfirmationService.holdForConfirmation).not.toHaveBeenCalled();
       expect(result).toEqual(Ok({ data: { ...output, pendingAddresses: [] } }));
     });
 
-    it("keeps confirmed addresses, holds new ones for confirmation, and forgets pending ones it drops", async () => {
-      const { controller, notificationChannelRepository, addressConfirmationService, userId } = await setup({
+    it("keeps confirmed addresses, holds new ones for confirmation, and forgets pending ones it drops, all under the channel's lock", async () => {
+      const { controller, notificationChannelRepository, addressConfirmationService, userId, tx } = await setup({
         pendingAddresses: ["dropped@example.com", "waiting@example.com"]
       });
       const id = faker.string.uuid();
@@ -113,9 +115,15 @@ describe(NotificationChannelController.name, () => {
         data: { config: { addresses: ["Kept@Example.com", "waiting@example.com", "new@example.com"] } }
       });
 
-      expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, { config: { addresses: ["Kept@Example.com"] } });
-      expect(addressConfirmationService.forget).toHaveBeenCalledWith(id, ["dropped@example.com"]);
-      expect(addressConfirmationService.requestConfirmations).toHaveBeenCalledWith(updated, ["new@example.com"], { userId, accountEmail: null });
+      expect(notificationChannelRepository.updateLocked).toHaveBeenCalledWith(id, expect.any(Function));
+      expect(addressConfirmationService.pendingAddressesOf).toHaveBeenCalledWith([id], tx);
+      expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, { config: { addresses: ["Kept@Example.com"] } }, tx);
+      expect(addressConfirmationService.forget).toHaveBeenCalledWith(id, ["dropped@example.com"], tx);
+      expect(addressConfirmationService.holdForConfirmation).toHaveBeenCalledWith(id, ["new@example.com"], tx);
+      expect(addressConfirmationService.emailConfirmations).toHaveBeenCalledWith(updated, [{ address: "new@example.com", token: "token-new@example.com" }], {
+        userId,
+        accountEmail: null
+      });
       expect(result).toEqual(Ok({ data: { ...updated, pendingAddresses: ["waiting@example.com", "new@example.com"] } }));
     });
 
@@ -127,7 +135,7 @@ describe(NotificationChannelController.name, () => {
 
       expect(result).toMatchObject({ err: true, val: expect.objectContaining({ message: "Notification channel not found" }) });
       expect(notificationChannelRepository.updateById).not.toHaveBeenCalled();
-      expect(addressConfirmationService.requestConfirmations).not.toHaveBeenCalled();
+      expect(addressConfirmationService.emailConfirmations).not.toHaveBeenCalled();
     });
 
     it("answers 404 without asking for confirmations when the channel is gone by the time it updates", async () => {
@@ -139,7 +147,9 @@ describe(NotificationChannelController.name, () => {
       const result = await controller.updateNotificationChannel(id, { data: { config: { addresses: ["ops@example.com"] } } });
 
       expect(result).toMatchObject({ err: true, val: expect.objectContaining({ message: "Notification channel not found" }) });
-      expect(addressConfirmationService.requestConfirmations).not.toHaveBeenCalled();
+      expect(addressConfirmationService.forget).not.toHaveBeenCalled();
+      expect(addressConfirmationService.holdForConfirmation).not.toHaveBeenCalled();
+      expect(addressConfirmationService.emailConfirmations).not.toHaveBeenCalled();
     });
 
     it("answers 400 without updating the notification channel when the id is not a uuid", async () => {
@@ -210,7 +220,7 @@ describe(NotificationChannelController.name, () => {
     });
 
     it("lets a channel already over the limit keep or drop its addresses, whatever their case", async () => {
-      const { controller, notificationChannelRepository } = await setup();
+      const { controller, notificationChannelRepository, tx } = await setup();
       const id = faker.string.uuid();
       const addresses = emails(MAX_NOTIFICATION_CHANNEL_ADDRESSES + 2);
       const data = { name: "Renamed", config: { addresses: addresses.slice(1).map(address => address.toUpperCase()) } };
@@ -220,7 +230,23 @@ describe(NotificationChannelController.name, () => {
       const result = await controller.updateNotificationChannel(id, { data });
 
       expect(result.ok).toBe(true);
-      expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, data);
+      expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, data, tx);
+    });
+
+    it("counts an address listed in two spellings once against the limit and stores it once", async () => {
+      const { controller, notificationChannelRepository, addressConfirmationService, tx } = await setup();
+      const id = faker.string.uuid();
+      const addresses = emails(MAX_NOTIFICATION_CHANNEL_ADDRESSES - 1);
+      notificationChannelRepository.findById.mockResolvedValue(channelWith(id, addresses));
+      notificationChannelRepository.updateById.mockResolvedValue(channelWith(id, addresses));
+
+      const result = await controller.updateNotificationChannel(id, {
+        data: { config: { addresses: [...addresses, addresses[0].toUpperCase(), "new@example.com", "NEW@example.com"] } }
+      });
+
+      expect(result.ok).toBe(true);
+      expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, { config: { addresses } }, tx);
+      expect(addressConfirmationService.holdForConfirmation).toHaveBeenCalledWith(id, ["new@example.com"], tx);
     });
   });
 
@@ -510,6 +536,15 @@ describe(NotificationChannelController.name, () => {
     notificationChannelRepository.accessibleBy.mockReturnValue(notificationChannelRepository);
     const addressConfirmationService = module.get<MockProxy<AddressConfirmationService>>(AddressConfirmationService);
     addressConfirmationService.pendingAddressesOf.mockImplementation(async ids => new Map(ids.map(id => [id, input.pendingAddresses ?? []])));
+    addressConfirmationService.holdForConfirmation.mockImplementation(async (_, addresses) =>
+      addresses.map(address => ({ address, token: `token-${address}` }))
+    );
+    const tx = mock<NodePgDatabase<typeof schema>>();
+    notificationChannelRepository.updateLocked.mockImplementation(async (id, change) => {
+      const channel = await notificationChannelRepository.findById(id);
+
+      return channel && (await change(channel, tx));
+    });
 
     const app = module.createNestApplication();
     app.enableVersioning();
@@ -526,7 +561,8 @@ describe(NotificationChannelController.name, () => {
       addressConfirmationService,
       userId,
       organizationId,
-      defaultChannelOwner
+      defaultChannelOwner,
+      tx
     };
   }
 });

@@ -8,10 +8,14 @@ import { describe, expect, it, vi } from "vitest";
 import { mock, type MockProxy } from "vitest-mock-extended";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
+import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
 import { notificationChannelCreateInputSchema } from "@src/interfaces/rest/controllers/notification-channel/notification-channel.controller";
 import { HttpExceptionFilter } from "@src/interfaces/rest/filters/http-exception/http-exception.filter";
 import RestModule from "@src/interfaces/rest/rest.module";
 import { NotificationChannelOutput } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
+import { AddressConfirmationService } from "@src/modules/notifications/services/address-confirmation/address-confirmation.service";
+
+import { untilAQueryWaitsOnALock } from "@test/services/lock-waits";
 
 type NotificationChannelMeta = Pick<NotificationChannelOutput, "id" | "userId">;
 
@@ -133,6 +137,43 @@ describe("Contact Points CRUD", () => {
     expect(novu.trigger).not.toHaveBeenCalled();
     expect(beforeRes.body.data).toEqual([expect.objectContaining({ config: { addresses: [] }, pendingAddresses: [accountEmail] })]);
     expect(afterRes.body.data).toEqual([expect.objectContaining({ config: { addresses: [accountEmail] }, pendingAddresses: [] })]);
+
+    await app.close();
+  });
+
+  it("keeps an address confirmed while an update of the channel's addresses was in flight", async () => {
+    const { app, novu } = await setup();
+    const server = app.getHttpServer();
+    const userId = faker.string.uuid();
+    const accountEmail = faker.internet.email().toLowerCase();
+    const teammate = faker.internet.email().toLowerCase();
+    const createRes = await request(server)
+      .post("/v1/notification-channels")
+      .set(accountHeaders(userId, accountEmail))
+      .send({ data: { name: "Ops", type: "email", config: { addresses: [accountEmail, teammate] } } });
+    const token = confirmationTokenEmailedTo(novu, teammate);
+    const addressConfirmationService = app.get(AddressConfirmationService);
+    const readPendingAddresses = addressConfirmationService.pendingAddressesOf.bind(addressConfirmationService);
+    let confirmation: Promise<request.Response> | undefined;
+    vi.spyOn(addressConfirmationService, "pendingAddressesOf").mockImplementationOnce(async (channelIds, tx) => {
+      confirmation = request(server)
+        .post("/internal/v1/address-confirmations")
+        .send({ token })
+        .then(response => response);
+      await untilAQueryWaitsOnALock(app.get(DRIZZLE_PROVIDER_TOKEN));
+      return readPendingAddresses(channelIds, tx);
+    });
+
+    const updateRes = await request(server)
+      .patch(`/v1/notification-channels/${createRes.body.data.id}`)
+      .set(accountHeaders(userId, accountEmail))
+      .send({ data: { name: "Renamed", config: { addresses: [accountEmail, teammate] } } });
+    const confirmRes = await confirmation;
+    const getRes = await request(server).get(`/v1/notification-channels/${createRes.body.data.id}`).set("x-user-id", userId);
+
+    expect(updateRes.status).toBe(200);
+    expect(confirmRes?.status).toBe(204);
+    expect(getRes.body.data).toMatchObject({ name: "Renamed", config: { addresses: [accountEmail, teammate] }, pendingAddresses: [] });
 
     await app.close();
   });

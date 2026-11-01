@@ -2,6 +2,7 @@ import { faker } from "@faker-js/faker";
 import { ConfigModule } from "@nestjs/config";
 import type { TestingModule } from "@nestjs/testing";
 import { Test } from "@nestjs/testing";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { DRIZZLE_PROVIDER_TOKEN } from "@src/infrastructure/db/config/db.config";
@@ -11,6 +12,7 @@ import { NotificationChannelRepository } from "../notification-channel/notificat
 import { PendingAddressRepository } from "./pending-address.repository";
 
 import { generateNotificationChannel } from "@test/seeders/notification-channel.seeder";
+import { untilAQueryWaitsOnALock } from "@test/services/lock-waits";
 import { TestDatabaseService } from "@test/services/test-database.service";
 
 describe(PendingAddressRepository.name, () => {
@@ -88,6 +90,58 @@ describe(PendingAddressRepository.name, () => {
       await channelRepository.deleteSafelyById(channel.id);
 
       expect(await repository.confirmByTokenHash(hashes[1])).toBe(false);
+    });
+  });
+
+  describe("confirming while the channel's addresses are being changed", () => {
+    it("waits for the change and adds the address to the addresses it leaves", async () => {
+      const { repository, channelRepository, hashes, db } = await setup();
+      const channel = await seedChannel(channelRepository, ["owner@example.com"]);
+      await repository.upsert([{ notificationChannelId: channel.id, address: "teammate@example.com", tokenHash: hashes[0] }]);
+      let confirmation: Promise<boolean> | undefined;
+
+      await channelRepository.updateLocked(channel.id, async (_, tx) => {
+        confirmation = repository.confirmByTokenHash(hashes[0]);
+        await untilAQueryWaitsOnALock(db);
+        await channelRepository.updateById(channel.id, { config: { addresses: ["ops@example.com"] } }, tx);
+      });
+
+      expect(await confirmation).toBe(true);
+      expect((await channelRepository.findById(channel.id))?.config.addresses).toEqual(["ops@example.com", "teammate@example.com"]);
+      expect(await repository.findByChannelIds([channel.id])).toEqual([]);
+    });
+
+    it("confirms nothing when the change drops the address it waited on", async () => {
+      const { repository, channelRepository, hashes, db } = await setup();
+      const channel = await seedChannel(channelRepository, ["owner@example.com"]);
+      await repository.upsert([{ notificationChannelId: channel.id, address: "teammate@example.com", tokenHash: hashes[0] }]);
+      let confirmation: Promise<boolean> | undefined;
+
+      await channelRepository.updateLocked(channel.id, async (_, tx) => {
+        confirmation = repository.confirmByTokenHash(hashes[0]);
+        await untilAQueryWaitsOnALock(db);
+        await repository.deleteFromChannel(channel.id, ["teammate@example.com"], tx);
+      });
+
+      expect(await confirmation).toBe(false);
+      expect((await channelRepository.findById(channel.id))?.config.addresses).toEqual(["owner@example.com"]);
+    });
+
+    it("waits for the change before confirming a verified email on the user's channels", async () => {
+      const { repository, channelRepository, hashes, db } = await setup();
+      const userId = faker.string.uuid();
+      const channel = await seedChannel(channelRepository, ["ops@example.com"], userId);
+      await repository.upsert([{ notificationChannelId: channel.id, address: "owner@example.com", tokenHash: hashes[0] }]);
+      let confirmation: Promise<number> | undefined;
+
+      await channelRepository.updateLocked(channel.id, async (_, tx) => {
+        confirmation = repository.confirmOnChannelsOf(userId, "owner@example.com");
+        await untilAQueryWaitsOnALock(db);
+        await channelRepository.updateById(channel.id, { config: { addresses: ["oncall@example.com"] } }, tx);
+      });
+
+      expect(await confirmation).toBe(1);
+      expect((await channelRepository.findById(channel.id))?.config.addresses).toEqual(["oncall@example.com", "owner@example.com"]);
     });
   });
 
@@ -177,6 +231,7 @@ describe(PendingAddressRepository.name, () => {
     return {
       repository: testModule.get(PendingAddressRepository),
       channelRepository: testModule.get(NotificationChannelRepository),
+      db: testModule.get<NodePgDatabase<typeof schema>>(DRIZZLE_PROVIDER_TOKEN),
       hashes: Array.from({ length: 5 }, () => faker.string.hexadecimal({ length: 64, prefix: "" }))
     };
   }

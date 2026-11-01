@@ -199,6 +199,48 @@ describe(NotificationChannelRepository.name, () => {
     });
   });
 
+  describe("updateLocked", () => {
+    it("runs the change on the locked channel and keeps what it writes", async () => {
+      const { repository } = await setup();
+      const channel = await repository.create(channelInput({ addresses: ["ops@example.com"] }));
+
+      const result = await repository.updateLocked(channel.id, async (locked, tx) => {
+        await repository.updateById(channel.id, { name: "Renamed" }, tx);
+        return locked.config.addresses;
+      });
+
+      expect(result).toEqual(["ops@example.com"]);
+      expect((await repository.findById(channel.id))?.name).toBe("Renamed");
+    });
+
+    it("rolls back what the change wrote when it fails", async () => {
+      const { repository } = await setup();
+      const channel = await repository.create(channelInput({}));
+
+      await expect(
+        repository.updateLocked(channel.id, async (_, tx) => {
+          await repository.updateById(channel.id, { name: "Renamed" }, tx);
+          throw new Error("change failed");
+        })
+      ).rejects.toThrow("change failed");
+      expect((await repository.findById(channel.id))?.name).toBe(channel.name);
+    });
+
+    it("runs no change for a deleted channel", async () => {
+      const { repository } = await setup();
+      const channel = await repository.create(channelInput({}));
+      await repository.deleteSafelyById(channel.id);
+      let isChanged = false;
+
+      const result = await repository.updateLocked(channel.id, async () => {
+        isChanged = true;
+      });
+
+      expect(result).toBeUndefined();
+      expect(isChanged).toBe(false);
+    });
+  });
+
   describe("findAttachableById", () => {
     it("returns a channel of the alert's organization", async () => {
       const { repository } = await setup();

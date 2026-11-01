@@ -32,6 +32,7 @@ import {
 import {
   AddressConfirmationService,
   type ConfirmationRequester,
+  distinctAddresses,
   normalizeAddress,
   splitAddresses
 } from "@src/modules/notifications/services/address-confirmation/address-confirmation.service";
@@ -219,38 +220,49 @@ export class NotificationChannelController {
       return this.#toResponse(await repository.updateById(id, data));
     }
 
-    const notificationChannel = await repository.findById(id);
-
-    if (!notificationChannel) {
-      return this.#toResponse(undefined);
-    }
-
-    const pendingAddresses = (await this.addressConfirmationService.pendingAddressesOf([id])).get(id) ?? [];
-    const currentAddresses = [...notificationChannel.config.addresses, ...pendingAddresses];
-
-    if (data.config.addresses.length > MAX_NOTIFICATION_CHANNEL_ADDRESSES && addsAddresses(currentAddresses, data.config.addresses)) {
-      return Err(new BadRequestException(TOO_MANY_ADDRESSES_MESSAGE));
-    }
-
     const requester = this.#requester();
-    const addresses = splitAddresses(data.config.addresses, { confirmed: notificationChannel.config.addresses, accountEmail: requester.accountEmail });
-    const updatedChannel = await repository.updateById(id, { ...data, config: { addresses: addresses.confirmed } });
+    const config = data.config;
+    const replacement = await repository.updateLocked(id, async (notificationChannel, tx) => {
+      const pendingAddresses = (await this.addressConfirmationService.pendingAddressesOf([id], tx)).get(id) ?? [];
+      const currentAddresses = [...notificationChannel.config.addresses, ...pendingAddresses];
 
-    if (!updatedChannel) {
+      if (distinctAddresses(config.addresses).length > MAX_NOTIFICATION_CHANNEL_ADDRESSES && addsAddresses(currentAddresses, config.addresses)) {
+        return Err(new BadRequestException(TOO_MANY_ADDRESSES_MESSAGE));
+      }
+
+      const addresses = splitAddresses(config.addresses, { confirmed: notificationChannel.config.addresses, accountEmail: requester.accountEmail });
+      const updatedChannel = await repository.updateById(id, { ...data, config: { addresses: addresses.confirmed } }, tx);
+
+      if (!updatedChannel) {
+        return undefined;
+      }
+
+      await this.addressConfirmationService.forget(
+        id,
+        pendingAddresses.filter(address => !addresses.pending.includes(address)),
+        tx
+      );
+      const confirmations = await this.addressConfirmationService.holdForConfirmation(
+        id,
+        addresses.pending.filter(address => !pendingAddresses.includes(address)),
+        tx
+      );
+
+      return Ok({ channel: updatedChannel, pendingAddresses: addresses.pending, confirmations });
+    });
+
+    if (!replacement) {
       return this.#toResponse(undefined);
     }
 
-    await this.addressConfirmationService.forget(
-      id,
-      pendingAddresses.filter(address => !addresses.pending.includes(address))
-    );
-    await this.addressConfirmationService.requestConfirmations(
-      updatedChannel,
-      addresses.pending.filter(address => !pendingAddresses.includes(address)),
-      requester
-    );
+    if (replacement.err) {
+      return replacement;
+    }
 
-    return Ok({ data: { ...updatedChannel, pendingAddresses: addresses.pending } });
+    const { channel, pendingAddresses, confirmations } = replacement.val;
+    await this.addressConfirmationService.emailConfirmations(channel, confirmations, requester);
+
+    return Ok({ data: { ...channel, pendingAddresses } });
   }
 
   @Post(":id/confirmation-emails")

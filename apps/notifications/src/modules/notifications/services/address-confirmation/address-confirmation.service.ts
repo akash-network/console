@@ -1,11 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { createHash, randomBytes } from "node:crypto";
 import { Err, Ok, Result } from "ts-results";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
 import { Namespaced } from "@src/lib/types/namespaced-config.type";
 import { NotificationEnvConfig } from "@src/modules/notifications/config/env.config";
+import * as schema from "@src/modules/notifications/model-schemas";
 import { PendingAddressRepository } from "@src/modules/notifications/repositories/pending-address/pending-address.repository";
 import { EmailSenderService } from "../email-sender/email-sender.service";
 
@@ -39,8 +41,25 @@ interface ConfirmableChannel {
 
 export type ResendConfirmationError = "NOT_PENDING" | "RATE_LIMITED";
 
+export interface PendingConfirmation {
+  address: string;
+  token: string;
+}
+
 export function normalizeAddress(address: string): string {
   return address.trim().toLowerCase();
+}
+
+export function distinctAddresses(addresses: string[]): string[] {
+  const seen = new Set<string>();
+
+  return addresses.filter(address => {
+    const normalized = normalizeAddress(address);
+    const isFirst = !seen.has(normalized);
+    seen.add(normalized);
+
+    return isFirst;
+  });
 }
 
 /** Addresses already confirmed on the channel stay confirmed, and so does the requester's own verified email; every other address waits for confirmation. */
@@ -51,10 +70,12 @@ export function splitAddresses(requested: string[], { confirmed, accountEmail }:
     trusted.add(normalizeAddress(accountEmail.address));
   }
 
-  const kept = requested.filter(address => trusted.has(normalizeAddress(address)));
-  const pending = requested.map(normalizeAddress).filter(address => !trusted.has(address));
+  const distinct = distinctAddresses(requested);
 
-  return { confirmed: kept, pending: Array.from(new Set(pending)) };
+  return {
+    confirmed: distinct.filter(address => trusted.has(normalizeAddress(address))),
+    pending: distinct.map(normalizeAddress).filter(address => !trusted.has(address))
+  };
 }
 
 @Injectable()
@@ -68,24 +89,34 @@ export class AddressConfirmationService {
     this.loggerService.setContext(AddressConfirmationService.name);
   }
 
-  async pendingAddressesOf(channelIds: string[]): Promise<Map<string, string[]>> {
+  async pendingAddressesOf(channelIds: string[], tx?: NodePgDatabase<typeof schema>): Promise<Map<string, string[]>> {
     const pendingAddresses = new Map<string, string[]>(channelIds.map(id => [id, []]));
 
-    for (const { notificationChannelId, address } of await this.pendingAddressRepository.findByChannelIds(channelIds)) {
+    for (const { notificationChannelId, address } of await this.pendingAddressRepository.findByChannelIds(channelIds, tx)) {
       pendingAddresses.get(notificationChannelId)?.push(address);
     }
 
     return pendingAddresses;
   }
 
-  /** The requester's own unverified email waits without an email, since verifying the account confirms it. */
   async requestConfirmations(channel: ConfirmableChannel, addresses: string[], requester: ConfirmationRequester): Promise<void> {
+    await this.emailConfirmations(channel, await this.holdForConfirmation(channel.id, addresses), requester);
+  }
+
+  /** Stores the addresses as pending with fresh tokens and returns the confirmations to email once the change that holds them commits. */
+  async holdForConfirmation(channelId: string, addresses: string[], tx?: NodePgDatabase<typeof schema>): Promise<PendingConfirmation[]> {
     const confirmations = addresses.map(address => ({ address, token: randomBytes(32).toString("base64url") }));
 
     await this.pendingAddressRepository.upsert(
-      confirmations.map(({ address, token }) => ({ notificationChannelId: channel.id, address, tokenHash: hashToken(token) }))
+      confirmations.map(({ address, token }) => ({ notificationChannelId: channelId, address, tokenHash: hashToken(token) })),
+      tx
     );
 
+    return confirmations;
+  }
+
+  /** The requester's own unverified email waits without an email, since verifying the account confirms it. */
+  async emailConfirmations(channel: ConfirmableChannel, confirmations: PendingConfirmation[], requester: ConfirmationRequester): Promise<void> {
     const accountAddress = requester.accountEmail && normalizeAddress(requester.accountEmail.address);
 
     for (const confirmation of confirmations.filter(({ address }) => address !== accountAddress)) {
@@ -95,8 +126,8 @@ export class AddressConfirmationService {
     }
   }
 
-  async forget(channelId: string, addresses: string[]): Promise<void> {
-    await this.pendingAddressRepository.deleteFromChannel(channelId, addresses);
+  async forget(channelId: string, addresses: string[], tx?: NodePgDatabase<typeof schema>): Promise<void> {
+    await this.pendingAddressRepository.deleteFromChannel(channelId, addresses, tx);
   }
 
   async resend(channel: ConfirmableChannel, address: string, requester: ConfirmationRequester): Promise<Result<void, ResendConfirmationError>> {

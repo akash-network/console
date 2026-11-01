@@ -18,8 +18,6 @@ export interface PendingAddressOutput {
   address: string;
 }
 
-type Transaction = Parameters<Parameters<NodePgDatabase<typeof schema>["transaction"]>[0]>[0];
-
 @Injectable()
 export class PendingAddressRepository {
   constructor(
@@ -27,10 +25,10 @@ export class PendingAddressRepository {
     private readonly db: NodePgDatabase<typeof schema>
   ) {}
 
-  async findByChannelIds(notificationChannelIds: string[]): Promise<PendingAddressOutput[]> {
+  async findByChannelIds(notificationChannelIds: string[], tx: NodePgDatabase<typeof schema> = this.db): Promise<PendingAddressOutput[]> {
     if (!notificationChannelIds.length) return [];
 
-    return await this.db
+    return await tx
       .select({
         notificationChannelId: schema.NotificationChannelPendingAddress.notificationChannelId,
         address: schema.NotificationChannelPendingAddress.address
@@ -40,10 +38,10 @@ export class PendingAddressRepository {
       .orderBy(schema.NotificationChannelPendingAddress.createdAt, schema.NotificationChannelPendingAddress.address);
   }
 
-  async upsert(pendingAddresses: PendingAddressInput[]): Promise<void> {
+  async upsert(pendingAddresses: PendingAddressInput[], tx: NodePgDatabase<typeof schema> = this.db): Promise<void> {
     if (!pendingAddresses.length) return;
 
-    await this.db
+    await tx
       .insert(schema.NotificationChannelPendingAddress)
       .values(pendingAddresses)
       .onConflictDoUpdate({
@@ -62,15 +60,22 @@ export class PendingAddressRepository {
     return updated.length > 0;
   }
 
-  async deleteFromChannel(notificationChannelId: string, addresses: string[]): Promise<void> {
+  async deleteFromChannel(notificationChannelId: string, addresses: string[], tx: NodePgDatabase<typeof schema> = this.db): Promise<void> {
     if (!addresses.length) return;
 
-    await this.db.delete(schema.NotificationChannelPendingAddress).where(this.#pendingOn(notificationChannelId, addresses));
+    await tx.delete(schema.NotificationChannelPendingAddress).where(this.#pendingOn(notificationChannelId, addresses));
   }
 
   /** The address joins its channel's addresses in the same transaction that forgets the token, so a link confirms once. */
   async confirmByTokenHash(tokenHash: string): Promise<boolean> {
     return await this.db.transaction(async tx => {
+      const [pending] = await tx
+        .select({ notificationChannelId: schema.NotificationChannelPendingAddress.notificationChannelId })
+        .from(schema.NotificationChannelPendingAddress)
+        .where(eq(schema.NotificationChannelPendingAddress.tokenHash, tokenHash));
+
+      if (!pending || !(await this.#lockLiveChannels(tx, [pending.notificationChannelId])).length) return false;
+
       const [confirmed] = await tx
         .delete(schema.NotificationChannelPendingAddress)
         .where(eq(schema.NotificationChannelPendingAddress.tokenHash, tokenHash))
@@ -86,16 +91,24 @@ export class PendingAddressRepository {
   /** Confirms the address wherever it waits on a live channel the user created, for a user who has just verified it as their own. */
   async confirmOnChannelsOf(userId: string, address: string): Promise<number> {
     return await this.db.transaction(async tx => {
-      const channelsOfUser = tx
-        .select({ id: schema.NotificationChannel.id })
-        .from(schema.NotificationChannel)
-        .where(and(eq(schema.NotificationChannel.userId, userId), isNull(schema.NotificationChannel.deletedAt)));
+      const waitingOn = await tx
+        .select({ notificationChannelId: schema.NotificationChannelPendingAddress.notificationChannelId })
+        .from(schema.NotificationChannelPendingAddress)
+        .innerJoin(schema.NotificationChannel, eq(schema.NotificationChannel.id, schema.NotificationChannelPendingAddress.notificationChannelId))
+        .where(and(eq(schema.NotificationChannelPendingAddress.address, address), eq(schema.NotificationChannel.userId, userId)));
+      const lockedChannelIds = await this.#lockLiveChannels(
+        tx,
+        waitingOn.map(({ notificationChannelId }) => notificationChannelId)
+      );
+
+      if (!lockedChannelIds.length) return 0;
+
       const confirmed = await tx
         .delete(schema.NotificationChannelPendingAddress)
         .where(
           and(
             eq(schema.NotificationChannelPendingAddress.address, address),
-            inArray(schema.NotificationChannelPendingAddress.notificationChannelId, channelsOfUser)
+            inArray(schema.NotificationChannelPendingAddress.notificationChannelId, lockedChannelIds)
           )
         )
         .returning({ notificationChannelId: schema.NotificationChannelPendingAddress.notificationChannelId });
@@ -129,7 +142,21 @@ export class PendingAddressRepository {
     );
   }
 
-  async #addToChannel(tx: Transaction, { notificationChannelId, address }: PendingAddressOutput): Promise<boolean> {
+  /** Locks in id order, the order every writer of channel addresses follows, so two of them never wait on each other. */
+  async #lockLiveChannels(tx: NodePgDatabase<typeof schema>, channelIds: string[]): Promise<string[]> {
+    if (!channelIds.length) return [];
+
+    const channels = await tx
+      .select({ id: schema.NotificationChannel.id })
+      .from(schema.NotificationChannel)
+      .where(and(inArray(schema.NotificationChannel.id, channelIds), isNull(schema.NotificationChannel.deletedAt)))
+      .orderBy(schema.NotificationChannel.id)
+      .for("update");
+
+    return channels.map(({ id }) => id);
+  }
+
+  async #addToChannel(tx: NodePgDatabase<typeof schema>, { notificationChannelId, address }: PendingAddressOutput): Promise<boolean> {
     const [channel] = await tx
       .select({ config: schema.NotificationChannel.config })
       .from(schema.NotificationChannel)

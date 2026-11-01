@@ -204,8 +204,25 @@ export class NotificationChannelRepository {
     return this.toOutput(result);
   }
 
-  async updateById(id: string, input: Partial<NotificationChannelInput>): Promise<NotificationChannelOutput | undefined> {
-    const [notificationChannel] = await this.db
+  /** Runs the change with the channel row locked, the lock every writer of its addresses takes first, so no confirmation lands between the change's reads and its writes. */
+  async updateLocked<T>(id: string, change: (channel: NotificationChannelOutput, tx: NodePgDatabase<typeof schema>) => Promise<T>): Promise<T | undefined> {
+    return await this.db.transaction(async tx => {
+      const [notificationChannel] = await tx
+        .select()
+        .from(schema.NotificationChannel)
+        .where(this.nonDeleted(this.whereAccessibleBy(eq(schema.NotificationChannel.id, id))))
+        .for("update");
+
+      return notificationChannel && (await change(this.toOutput(notificationChannel), tx));
+    });
+  }
+
+  async updateById(
+    id: string,
+    input: Partial<NotificationChannelInput>,
+    tx: NodePgDatabase<typeof schema> = this.db
+  ): Promise<NotificationChannelOutput | undefined> {
+    const [notificationChannel] = await tx
       .update(schema.NotificationChannel)
       .set(this.toInput(input))
       .where(this.nonDeleted(this.whereAccessibleBy(eq(schema.NotificationChannel.id, id))))
@@ -240,6 +257,7 @@ export class NotificationChannelRepository {
         .select({ id: schema.NotificationChannel.id, config: schema.NotificationChannel.config })
         .from(schema.NotificationChannel)
         .where(this.nonDeleted(eq(schema.NotificationChannel.organizationId, organizationId)))
+        .orderBy(schema.NotificationChannel.id)
         .for("update");
       const isStillHere = (address: string) => sha256OfAddress(address) !== addressSha256;
       const remainingFallbackAddresses = fallbackAddresses.filter(isStillHere);

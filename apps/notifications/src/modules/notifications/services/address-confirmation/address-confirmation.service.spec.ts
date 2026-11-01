@@ -1,14 +1,17 @@
 import { faker } from "@faker-js/faker";
 import type { ConfigService } from "@nestjs/config";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { LoggerService } from "@src/common/services/logger/logger.service";
+import type * as schema from "@src/modules/notifications/model-schemas";
 import type { PendingAddressRepository } from "@src/modules/notifications/repositories/pending-address/pending-address.repository";
 import type { EmailSenderService } from "../email-sender/email-sender.service";
 import {
   AddressConfirmationService,
+  distinctAddresses,
   MAX_CONFIRMATION_EMAILS_PER_ADDRESS_PER_DAY,
   MAX_CONFIRMATION_EMAILS_PER_USER_PER_DAY,
   splitAddresses
@@ -22,6 +25,12 @@ describe(AddressConfirmationService.name, () => {
       const result = splitAddresses(["Ops@Example.com", " New@Example.com", "new@example.com"], { confirmed: ["ops@example.com"], accountEmail: null });
 
       expect(result).toEqual({ confirmed: ["Ops@Example.com"], pending: ["new@example.com"] });
+    });
+
+    it("keeps a confirmed address listed in two spellings once, in the first spelling", () => {
+      const result = splitAddresses(["Teammate@Example.com", "teammate@example.com"], { confirmed: ["teammate@example.com"], accountEmail: null });
+
+      expect(result).toEqual({ confirmed: ["Teammate@Example.com"], pending: [] });
     });
 
     it("confirms the requester's own email at once when it is verified", () => {
@@ -40,6 +49,12 @@ describe(AddressConfirmationService.name, () => {
     });
   });
 
+  describe("distinctAddresses", () => {
+    it("keeps the first spelling of each address, whatever its case or surrounding spaces", () => {
+      expect(distinctAddresses(["Ops@Example.com", "ops@example.com ", "new@example.com", "OPS@EXAMPLE.COM"])).toEqual(["Ops@Example.com", "new@example.com"]);
+    });
+  });
+
   describe("pendingAddressesOf", () => {
     it("groups the pending addresses by channel, with none for a channel that has none", async () => {
       const { service, pendingAddressRepository } = setup();
@@ -50,13 +65,40 @@ describe(AddressConfirmationService.name, () => {
 
       const result = await service.pendingAddressesOf(["channel-1", "channel-2"]);
 
-      expect(pendingAddressRepository.findByChannelIds).toHaveBeenCalledWith(["channel-1", "channel-2"]);
+      expect(pendingAddressRepository.findByChannelIds).toHaveBeenCalledWith(["channel-1", "channel-2"], undefined);
       expect(result).toEqual(
         new Map([
           ["channel-1", ["a@example.com", "b@example.com"]],
           ["channel-2", []]
         ])
       );
+    });
+
+    it("reads the pending addresses within the transaction it is given", async () => {
+      const { service, pendingAddressRepository } = setup();
+      const tx = mock<NodePgDatabase<typeof schema>>();
+      pendingAddressRepository.findByChannelIds.mockResolvedValue([]);
+
+      await service.pendingAddressesOf(["channel-1"], tx);
+
+      expect(pendingAddressRepository.findByChannelIds).toHaveBeenCalledWith(["channel-1"], tx);
+    });
+  });
+
+  describe("holdForConfirmation", () => {
+    it("stores each address under the hash of a fresh token within the transaction it is given and emails nothing", async () => {
+      const { service, pendingAddressRepository, emailSenderService, channel } = setup();
+      const tx = mock<NodePgDatabase<typeof schema>>();
+
+      const confirmations = await service.holdForConfirmation(channel.id, ["a@example.com", "b@example.com"], tx);
+
+      expect(confirmations.map(({ address }) => address)).toEqual(["a@example.com", "b@example.com"]);
+      expect(new Set(confirmations.map(({ token }) => token)).size).toBe(2);
+      expect(pendingAddressRepository.upsert).toHaveBeenCalledWith(
+        confirmations.map(({ address, token }) => ({ notificationChannelId: channel.id, address, tokenHash: sha256(token) })),
+        tx
+      );
+      expect(emailSenderService.send).not.toHaveBeenCalled();
     });
   });
 
@@ -91,7 +133,7 @@ describe(AddressConfirmationService.name, () => {
 
       await service.requestConfirmations(channel, ["owner@example.com"], requester);
 
-      expect(pendingAddressRepository.upsert).toHaveBeenCalledWith([expect.objectContaining({ address: "owner@example.com" })]);
+      expect(pendingAddressRepository.upsert).toHaveBeenCalledWith([expect.objectContaining({ address: "owner@example.com" })], undefined);
       expect(emailSenderService.send).not.toHaveBeenCalled();
     });
 
@@ -175,7 +217,16 @@ describe(AddressConfirmationService.name, () => {
 
       await service.forget("channel-1", ["a@example.com"]);
 
-      expect(pendingAddressRepository.deleteFromChannel).toHaveBeenCalledWith("channel-1", ["a@example.com"]);
+      expect(pendingAddressRepository.deleteFromChannel).toHaveBeenCalledWith("channel-1", ["a@example.com"], undefined);
+    });
+
+    it("drops them within the transaction it is given", async () => {
+      const { service, pendingAddressRepository } = setup();
+      const tx = mock<NodePgDatabase<typeof schema>>();
+
+      await service.forget("channel-1", ["a@example.com"], tx);
+
+      expect(pendingAddressRepository.deleteFromChannel).toHaveBeenCalledWith("channel-1", ["a@example.com"], tx);
     });
   });
 
