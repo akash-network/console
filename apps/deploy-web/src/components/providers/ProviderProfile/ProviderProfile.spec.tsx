@@ -138,7 +138,7 @@ describe("ProviderProfile", () => {
     expect(dependencies.RawAttributesCard.mock.calls[0][0]).toMatchObject({ attributes: model.provider.attributes });
   });
 
-  it("passes the GPU drivers seen on Console leases to the inventory", () => {
+  it("passes the GPU drivers workloads reported to the inventory", () => {
     const gpuDrivers = [{ driverVersion: "550.54.15", cudaVersion: "12.4", lastSeenDate: "2026-09-21" }];
     const { dependencies } = setup({ provider: { gpuDrivers } });
 

@@ -80,12 +80,12 @@ export const GpuInventoryCard: FC<Props> = ({ models, isLoading, isProviderOffli
             </tbody>
           </table>
           <div className="flex flex-wrap items-center gap-2 border-t px-3.5 py-2.5">
-            <span className="text-[11px] text-muted-foreground">Drivers seen on Console leases</span>
-            {drivers.length === 0 && <span className="font-mono text-[11px] text-muted-foreground">None read yet</span>}
+            <span className="text-[11px] text-muted-foreground">Drivers reported by workloads, not verified</span>
+            {drivers.length === 0 && <span className="font-mono text-[11px] text-muted-foreground">None reported yet</span>}
             {drivers.map(driver => (
               <span
                 key={driver.driverVersion}
-                title={`Last seen ${driver.lastSeenDate}`}
+                title={`Last reported ${driver.lastSeenDate}`}
                 className="rounded-full border bg-muted px-2 py-0.5 font-mono text-[10.5px] text-foreground"
               >
                 {driver.cudaVersion ? `${driver.driverVersion} · CUDA ${driver.cudaVersion}` : driver.driverVersion}

@@ -1,6 +1,5 @@
 import type { ProviderSnapshot } from "@akashnetwork/database/dbSchemas/akash";
 import { Provider, ProviderAttribute, ProviderAttributeSignature } from "@akashnetwork/database/dbSchemas/akash";
-import { faker } from "@faker-js/faker";
 import subDays from "date-fns/subDays";
 import map from "lodash/map";
 import nock from "nock";
@@ -13,7 +12,6 @@ import { AUDITOR, TRIAL_ATTRIBUTE } from "@src/deployment/config/provider.config
 import type { ProviderListResponse, ProviderLocationsResponse, ProviderResponse, ProviderSearchResponse } from "@src/provider/http-schemas/provider.schema";
 import { PROVIDER_CONFIG } from "@src/provider/providers/config.provider";
 import { app, initDb } from "@src/rest-app";
-import { UserRepository } from "@src/user/repositories";
 
 import {
   createAkashAddress,
@@ -29,6 +27,7 @@ import {
   createProviderSnapshotNodeGpu
 } from "@test/seeders";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createLeaseGpuReading } from "@test/seeders/lease-gpu-reading.seeder";
 
 describe("Providers", () => {
@@ -364,7 +363,7 @@ describe("Providers", () => {
       expect(data.cpuArchAgreement).toBe("unknown");
     });
 
-    it("lists the nvidia drivers its gpu leases reported across owners, with the cuda version each supports", async () => {
+    it("lists the nvidia drivers enough independent workloads reported, most widely reported first, with the cuda version each supports", async () => {
       const provider = await createProvider();
       const newestReadAt = subDays(new Date(), 1);
       const lastReadAt = subDays(new Date(), 2);
@@ -372,33 +371,19 @@ describe("Providers", () => {
       nock("https://developer.download.nvidia.com")
         .get("/compute/cuda/repos/ubuntu2404/x86_64/")
         .reply(200, "<a href='cuda-compat-13-5_620.10.01-1ubuntu1_amd64.deb'>cuda-compat-13-5_620.10.01-1ubuntu1_amd64.deb</a>");
-      const [owner, otherOwner] = await Promise.all([createOwner(), createOwner()]);
-      await seedDeploymentSetting({
-        userId: owner.id,
-        detectedGpus: [
-          createLeaseGpuReading({ provider: provider.owner, service: "web", driverVersion: "550.54.15", detectedAt: lastReadAt.toISOString() }),
-          createLeaseGpuReading({ provider: provider.owner, service: "worker", driverVersion: "535.183.01", detectedAt: firstReadAt.toISOString() }),
-          createLeaseGpuReading({ provider: provider.owner, service: "trainer", driverVersion: "570.86.15", detectedAt: lastReadAt.toISOString() }),
-          createLeaseGpuReading({ provider: provider.owner, service: "inference", driverVersion: "620.10.01", detectedAt: newestReadAt.toISOString() })
-        ]
-      });
-      await seedDeploymentSetting({
-        userId: otherOwner.id,
-        detectedGpus: [
-          createLeaseGpuReading({ provider: provider.owner, service: "web", driverVersion: "550.54.15", detectedAt: firstReadAt.toISOString() }),
-          createLeaseGpuReading({ provider: provider.owner, service: "worker", driverVersion: "535.183.01", detectedAt: firstReadAt.toISOString() }),
-          createLeaseGpuReading({ provider: provider.owner, service: "inference", driverVersion: "620.10.01", detectedAt: newestReadAt.toISOString() })
-        ]
-      });
+      await Promise.all([
+        seedDriverReports({ provider: provider.owner, driverVersion: "550.54.15", readAt: lastReadAt, reporterCount: 4 }),
+        seedDriverReports({ provider: provider.owner, driverVersion: "620.10.01", readAt: newestReadAt, reporterCount: 3 }),
+        seedDriverReports({ provider: provider.owner, driverVersion: "535.183.01", readAt: firstReadAt, reporterCount: 2 })
+      ]);
 
       const response = await app.request(`/v1/providers/${provider.owner}`);
 
       const data = (await response.json()) as ProviderResponse;
       expect(response.status).toBe(200);
       expect(data.gpuDrivers).toEqual([
-        { driverVersion: "620.10.01", cudaVersion: "13.5", lastSeenDate: newestReadAt.toISOString().slice(0, 10) },
         { driverVersion: "550.54.15", cudaVersion: "12.4", lastSeenDate: lastReadAt.toISOString().slice(0, 10) },
-        { driverVersion: "535.183.01", cudaVersion: "12.2", lastSeenDate: firstReadAt.toISOString().slice(0, 10) }
+        { driverVersion: "620.10.01", cudaVersion: "13.5", lastSeenDate: newestReadAt.toISOString().slice(0, 10) }
       ]);
     });
 
@@ -447,8 +432,16 @@ describe("Providers", () => {
       expect(data.gpuDrivers).toEqual([]);
     });
 
-    function createOwner() {
-      return container.resolve(UserRepository).create({ userId: faker.string.uuid() });
+    async function seedDriverReports(input: { provider: string; driverVersion: string; readAt: Date; reporterCount: number }) {
+      await Promise.all(
+        Array.from({ length: input.reporterCount }, async () => {
+          const { user } = await seedUserWithWallet();
+          await seedDeploymentSetting({
+            userId: user.id,
+            detectedGpus: [createLeaseGpuReading({ provider: input.provider, driverVersion: input.driverVersion, detectedAt: input.readAt.toISOString() })]
+          });
+        })
+      );
     }
 
     function inventoryUrl() {

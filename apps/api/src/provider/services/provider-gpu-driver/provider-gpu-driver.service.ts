@@ -12,7 +12,7 @@ const DRIVER_LOOKBACK_DAYS = 30;
 
 const MAX_LISTED_DRIVERS = 5;
 
-const MIN_REPORTING_OWNERS = 2;
+const MIN_INDEPENDENT_REPORTERS = 3;
 
 @singleton()
 export class ProviderGpuDriverService {
@@ -42,7 +42,7 @@ export class ProviderGpuDriverService {
         provider,
         since: subDays(new Date(), DRIVER_LOOKBACK_DAYS),
         limit: MAX_LISTED_DRIVERS,
-        minOwners: MIN_REPORTING_OWNERS
+        minReporters: MIN_INDEPENDENT_REPORTERS
       });
     } catch (error) {
       this.#logger.warn({ event: "PROVIDER_GPU_DRIVERS_READ_FAILED", provider, error });

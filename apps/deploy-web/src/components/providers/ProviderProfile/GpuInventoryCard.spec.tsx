@@ -49,7 +49,7 @@ describe("GpuInventoryCard", () => {
     expect(screen.getByText("lots")).toBeInTheDocument();
   });
 
-  it("shows the drivers seen on Console leases with the CUDA version each supports", () => {
+  it("shows the drivers workloads reported as unverified, with the CUDA version each supports", () => {
     setup({
       models: [{ vendor: "nvidia", model: "h100", ram: "80Gi", interface: "SXM5", total: 8, free: 8 }],
       drivers: [
@@ -58,15 +58,16 @@ describe("GpuInventoryCard", () => {
       ]
     });
 
-    expect(screen.getByText("550.54.15 · CUDA 12.4")).toHaveAttribute("title", "Last seen 2026-09-21");
+    expect(screen.getByText("Drivers reported by workloads, not verified")).toBeInTheDocument();
+    expect(screen.getByText("550.54.15 · CUDA 12.4")).toHaveAttribute("title", "Last reported 2026-09-21");
     expect(screen.getByText("470.10.01")).toBeInTheDocument();
-    expect(screen.queryByText("None read yet")).not.toBeInTheDocument();
+    expect(screen.queryByText("None reported yet")).not.toBeInTheDocument();
   });
 
-  it("says when no driver has been read yet", () => {
+  it("says when no workload has reported a driver yet", () => {
     setup({ models: [{ vendor: "nvidia", model: "h100", ram: "80Gi", interface: "SXM5", total: 8, free: 8 }], drivers: [] });
 
-    expect(screen.getByText("None read yet")).toBeInTheDocument();
+    expect(screen.getByText("None reported yet")).toBeInTheDocument();
   });
 
   it("says a provider without GPUs is a CPU provider and what it has free", () => {
