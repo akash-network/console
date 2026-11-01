@@ -2,7 +2,9 @@ import { type MongoAbility, subject } from "@casl/ability";
 import { faker } from "@faker-js/faker";
 import type { Span, Tracer } from "@opentelemetry/api";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { AxiosError, AxiosHeaders } from "axios";
 import { DrizzleQueryError } from "drizzle-orm";
+import createError from "http-errors";
 import type { JobWithMetadata, PgBoss, QueueResult, WorkWithMetadataHandler } from "pg-boss";
 import type { Sql } from "postgres";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
@@ -657,13 +659,13 @@ describe(JobQueueService.name, () => {
       const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
 
       expect(result.status).toBe("rejected");
-      expect((result as PromiseRejectedResult).reason).toBe(error);
+      expect((result as PromiseRejectedResult).reason).toMatchObject({ name: "Error", message: "Job processing failed", stack: error.stack });
       expect(logger.error).toHaveBeenCalledWith({
         event: "JOB_FAILED",
         jobId: job.id,
         queue: "test",
         isFinalAttempt: false,
-        error: (result as PromiseRejectedResult).reason
+        error
       });
       expect(handleFn).toHaveBeenCalledTimes(1);
       expect(handleFn).toHaveBeenCalledWith({ message: "Job 1", userId: "user-1" }, { id: job.id, retryCount: 2, retryLimit: 5 });
@@ -776,15 +778,98 @@ describe(JobQueueService.name, () => {
       expect(thrown.stack).toBeUndefined();
     });
 
-    it("rethrows an error whose cause is null as it is", async () => {
-      const error = new Error("insert failed", { cause: null });
+    it("drops a cause that is not an error", async () => {
+      const error = new Error("insert failed", { cause: { headers: { "x-api-key": "signer-key" } } });
       const { service, pgBoss } = setup();
       deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
 
       await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
       const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
 
-      expect((result as PromiseRejectedResult).reason).toBe(error);
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown.message).toBe("insert failed");
+      expect(thrown).not.toHaveProperty("cause");
+    });
+
+    it("rethrows a failed request's error without the request's headers or body, so pg-boss stores neither", async () => {
+      const requestError = failedSignerRequest();
+      const error = new Error("signer failed", { cause: requestError });
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown.message).toBe("signer failed");
+      expect(thrown.cause).toEqual(expect.objectContaining({ name: "AxiosError", message: requestError.message, code: "ERR_BAD_RESPONSE", status: 503 }));
+      expect(JSON.stringify(thrown.cause, Object.getOwnPropertyNames(thrown.cause))).not.toMatch(/signer-key|sealed-secret/);
+    });
+
+    it("keeps the status and the original error of an http error without the original's request", async () => {
+      const error = createError(400, "insufficient funds", { originalError: new Error("signer failed", { cause: failedSignerRequest() }) });
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error & { status: number; originalError: Error };
+      expect(thrown).toMatchObject({ name: "BadRequestError", message: "insufficient funds", status: 400 });
+      expect(thrown.originalError.message).toBe("signer failed");
+      expect(thrown.originalError.cause).toEqual(expect.objectContaining({ code: "ERR_BAD_RESPONSE" }));
+      expect(thrown.originalError.cause).not.toHaveProperty("config");
+    });
+
+    it("drops an original error that is not an error", async () => {
+      const error = Object.assign(new Error("insufficient funds"), { originalError: { config: { headers: { "x-api-key": "signer-key" } } } });
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect((result as PromiseRejectedResult).reason).not.toHaveProperty("originalError");
+    });
+
+    it("keeps a numeric code and drops one that is not a string or a number", async () => {
+      const error = Object.assign(new Error("chain refused"), { code: 5, status: { reason: "refused" } });
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown).toHaveProperty("code", 5);
+      expect(thrown).not.toHaveProperty("status");
+    });
+
+    it("strips NUL bytes out of a string code", async () => {
+      const error = Object.assign(new Error("insert failed"), { code: "22P05\u0000" });
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      expect((result as PromiseRejectedResult).reason).toHaveProperty("code", "22P05 ");
+    });
+
+    it("stores an error whose cause and original error point back at it only once", async () => {
+      const error = new Error("loop") as Error & { originalError?: Error };
+      error.cause = error;
+      error.originalError = error;
+      const { service, pgBoss } = setup();
+      deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
+
+      await service.registerHandlers([new TestHandler(vi.fn().mockRejectedValue(error))]);
+      const [result] = await Promise.allSettled([service.startWorkers({ concurrency: 1 })]);
+
+      const thrown = (result as PromiseRejectedResult).reason as Error;
+      expect(thrown.message).toBe("loop");
+      expect(thrown).not.toHaveProperty("cause");
+      expect(thrown).not.toHaveProperty("originalError");
     });
 
     it("rethrows a non-Error rejection as it is", async () => {
@@ -811,7 +896,7 @@ describe(JobQueueService.name, () => {
       expect(thrown.params).toBeUndefined();
     });
 
-    it("rewrites the error when a NUL byte sits only in its cause", async () => {
+    it("strips the NUL bytes out of its cause", async () => {
       const error = new Error("insert failed", { cause: new Error("params: \u0000") });
       const { service, pgBoss } = setup();
       deliverOneJob(pgBoss, { message: "Job 1", userId: "user-1" });
@@ -822,7 +907,7 @@ describe(JobQueueService.name, () => {
       const thrown = (result as PromiseRejectedResult).reason as Error;
       expect(thrown).not.toBe(error);
       expect(thrown.message).toBe("insert failed");
-      expect(thrown.cause).toBeUndefined();
+      expect((thrown.cause as Error).message).toBe("params:  ");
     });
 
     it("strips the NUL bytes out of a rejected string", async () => {
@@ -1152,6 +1237,18 @@ describe(JobQueueService.name, () => {
       detail: "Failing row contains (42, sealed-token)"
     });
     return new DrizzleQueryError(DEPLOYMENT_INSERT, [42, "sealed-token"], driverError);
+  }
+
+  function failedSignerRequest() {
+    const config = {
+      url: "https://tx-signer.test/v1/tx",
+      method: "post",
+      headers: new AxiosHeaders({ "x-api-key": "signer-key" }),
+      data: '{"manifest":"sealed-secret"}'
+    };
+    const response = { status: 503, statusText: "Service Unavailable", headers: {}, config, data: { message: "bad status on response: 503" } };
+
+    return new AxiosError("Request failed with status code 503", "ERR_BAD_RESPONSE", config, {}, response);
   }
 
   function deliverOneJob(pgBoss: PgBoss, data: Record<string, unknown>) {

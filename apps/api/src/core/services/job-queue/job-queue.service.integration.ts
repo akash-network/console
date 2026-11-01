@@ -1,4 +1,5 @@
 import { LoggerService } from "@akashnetwork/logging";
+import { AxiosError, AxiosHeaders } from "axios";
 import { addMinutes, addSeconds, secondsToMilliseconds } from "date-fns";
 import { sql } from "drizzle-orm";
 import { PgBoss, type Queue as PgBossQueue } from "pg-boss";
@@ -48,6 +49,7 @@ type QueueRow = {
 
 type JobRow = {
   state: string;
+  output: unknown;
   retry_limit: number;
   retry_backoff: boolean;
   retry_delay: number;
@@ -137,6 +139,38 @@ describe(JobQueueService.name, () => {
     const gap = new Date(retrying.start_after).getTime() - Date.now();
     expect(gap).toBeGreaterThan(secondsToMilliseconds(RETRY_DELAY_IN_SECONDS) * 0.8);
     expect(gap).toBeLessThanOrEqual(secondsToMilliseconds(RETRY_DELAY_IN_SECONDS * 2));
+  });
+
+  it("records a failed request's error on the job without the request's headers or body", async () => {
+    const requestConfig = { headers: new AxiosHeaders({ "x-api-key": "signer-key" }), data: '{"manifest":"sealed-secret"}' };
+    const requestError = new AxiosError(
+      "Request failed with status code 503",
+      "ERR_BAD_RESPONSE",
+      requestConfig,
+      {},
+      {
+        status: 503,
+        statusText: "Service Unavailable",
+        headers: {},
+        config: requestConfig,
+        data: {}
+      }
+    );
+    const { jobQueue, handler, enqueue, findJob } = await setup({
+      queueName: "failed-request",
+      handle: vi.fn().mockRejectedValue(new Error("signer failed", { cause: requestError }))
+    });
+    await jobQueue.registerHandlers([handler]);
+    await enqueue();
+
+    await jobQueue.startWorkers({ concurrency: 1, pollingIntervalSeconds: 0.5 });
+
+    const { output } = await waitForJobState(findJob, "retry");
+    expect(output).toMatchObject({
+      message: "signer failed",
+      cause: { message: "Request failed with status code 503", code: "ERR_BAD_RESPONSE", status: 503 }
+    });
+    expect(JSON.stringify(output)).not.toMatch(/signer-key|sealed-secret/);
   });
 
   it("cancels a job that is waiting on a retry", async () => {
@@ -378,7 +412,7 @@ describe(JobQueueService.name, () => {
 
     const findJobs = async () => {
       const rows = await db.execute<JobRow>(
-        sql`select state, retry_limit, retry_backoff, retry_delay, retry_delay_max, start_after::text
+        sql`select state, output, retry_limit, retry_backoff, retry_delay, retry_delay_max, start_after::text
             from ${backgroundJobsSchema()}.job where name = ${queueName} order by created_on`
       );
 
