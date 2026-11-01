@@ -1,6 +1,7 @@
+import { Lease } from "@akashnetwork/database/dbSchemas/akash";
 import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { CHAIN_DB } from "@src/chain";
 import { LeaseRepository } from "./lease.repository";
@@ -301,6 +302,41 @@ describe(LeaseRepository.name, () => {
     });
   });
 
+  describe("findLeasesWithPagination", () => {
+    it("returns the page with the total of the owner's leases when a total is requested", async () => {
+      const { repository } = setup();
+      const deployment = await seedDeploymentWithLeases(3);
+
+      const page = await repository.findLeasesWithPagination({ owner: deployment.owner, limit: 2, countTotal: true });
+
+      expect(page.rows).toHaveLength(2);
+      expect(page).toMatchObject({ total: 3 });
+    });
+
+    it("tells whether a next page exists without counting the owner's leases when no total is requested", async () => {
+      const { repository } = setup();
+      const deployment = await seedDeploymentWithLeases(3);
+      const count = vi.spyOn(Lease, "count");
+      onTestFinished(() => count.mockRestore());
+
+      const firstPage = await repository.findLeasesWithPagination({ owner: deployment.owner, limit: 2, countTotal: false });
+      const lastPage = await repository.findLeasesWithPagination({ owner: deployment.owner, skip: 2, limit: 2, countTotal: false });
+
+      expect(firstPage).toEqual({ rows: [expect.anything(), expect.anything()], hasNextPage: true });
+      expect(lastPage).toEqual({ rows: [expect.anything()], hasNextPage: false });
+      expect(count).not.toHaveBeenCalled();
+    });
+
+    it("reads the page a pagination key points to", async () => {
+      const { repository } = setup();
+      const deployment = await seedDeploymentWithLeases(3);
+
+      const page = await repository.findLeasesWithPagination({ owner: deployment.owner, key: "2", limit: 2, countTotal: false });
+
+      expect(page).toEqual({ rows: [expect.anything()], hasNextPage: false });
+    });
+  });
+
   function setup() {
     return { repository: container.resolve(LeaseRepository) };
   }
@@ -314,6 +350,14 @@ async function seedProvider() {
 async function seedDeployment(input: { owner?: string; dseq?: string } = {}) {
   const deployment = await createDeployment({ owner: input.owner ?? createAkashAddress(), dseq: input.dseq ?? faker.string.numeric(10) });
   return { id: deployment.id, owner: deployment.owner, dseq: deployment.dseq };
+}
+
+async function seedDeploymentWithLeases(leaseCount: number) {
+  const [provider, deployment] = await Promise.all([seedProvider(), seedDeployment()]);
+  for (let gseq = 1; gseq <= leaseCount; gseq++) {
+    await seedLease(deployment, { providerAddress: provider, gseq });
+  }
+  return deployment;
 }
 
 async function seedLease(

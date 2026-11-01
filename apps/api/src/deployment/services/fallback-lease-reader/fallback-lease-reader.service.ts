@@ -22,26 +22,26 @@ export class FallbackLeaseReaderService {
   }
 
   public async list(params: DatabaseLeaseListParams): Promise<FallbackLeaseListResponse> {
-    const { skip = 0, limit = 100, key, countTotal = true } = params;
+    const { skip = 0, limit = 100, key } = params;
 
     if (params.state && !INDEXED_LEASE_STATES.includes(params.state)) {
       return { leases: [], pagination: { next_key: null, total: "0" } };
     }
 
-    const { count: total, rows: leases } = await this.leaseRepository.findLeasesWithPagination(params);
+    const page = await this.leaseRepository.findLeasesWithPagination(params);
 
-    const transformedLeases = (leases || []).map(lease => this.transformLease(lease));
+    const transformedLeases = page.rows.map(lease => this.transformLease(lease));
 
     // Calculate next_key similar to HTTP service
     const offset = key ? parseInt(key, 10) || 0 : skip;
-    const hasMore = offset + limit < total;
+    const hasMore = "total" in page ? offset + limit < page.total : page.hasNextPage;
     const nextKey = hasMore ? (offset + limit).toString() : null;
 
     return {
       leases: transformedLeases,
       pagination: {
         next_key: nextKey,
-        total: countTotal ? total.toString() : "0"
+        total: "total" in page ? page.total.toString() : "0"
       }
     };
   }

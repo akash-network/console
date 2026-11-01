@@ -267,6 +267,39 @@ describe("Lease Fallback API", () => {
       expect(resultWithoutCount.pagination.total).toBe("0");
     });
 
+    it("reports whether a next page exists when count_total is not set", async () => {
+      const { owners } = await setup();
+
+      const firstPage = await makeRequest({ owner: owners[0], limit: 2 });
+      const lastPage = await makeRequest({ owner: owners[0], skip: 2, limit: 2 });
+
+      expect(firstPage.leases).toHaveLength(2);
+      expect(firstPage.pagination).toEqual({ next_key: "2", total: "0" });
+      expect(lastPage.leases).toHaveLength(1);
+      expect(lastPage.pagination).toEqual({ next_key: null, total: "0" });
+    });
+
+    it("pages through the leases by the next_key it returns", async () => {
+      const { owners } = await setup();
+
+      const firstPage = await makeRequest({ owner: owners[0], limit: 2 });
+      const lastPage = await makeRequest({ owner: owners[0], key: firstPage.pagination.next_key!, limit: 2 });
+
+      expect(lastPage.leases).toHaveLength(1);
+      expect(lastPage.leases[0].lease.id).not.toEqual(firstPage.leases[0].lease.id);
+      expect(lastPage.leases[0].lease.id).not.toEqual(firstPage.leases[1].lease.id);
+      expect(lastPage.pagination.next_key).toBeNull();
+    });
+
+    it("reports the total and the next page when count_total is set", async () => {
+      const { owners } = await setup();
+
+      const result = await makeRequest({ owner: owners[0], limit: 2, countTotal: true });
+
+      expect(result.leases).toHaveLength(2);
+      expect(result.pagination).toEqual({ next_key: "2", total: "3" });
+    });
+
     it("should handle multiple filters together", async () => {
       const { owners, providers } = await setup();
 
