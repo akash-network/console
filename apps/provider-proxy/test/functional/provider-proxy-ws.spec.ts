@@ -228,6 +228,22 @@ describe("Provider proxy ws", () => {
     expect(await waitForMessage(ws)).toEqual(providerMessage("replied: test2"));
   });
 
+  it("sends no upgrade request to a provider whose certificate is not on chain", async () => {
+    const providerAddress = generateBech32();
+    const certPair = await createX509CertPair({ commonName: providerAddress });
+    const chainServer = await startChainApiServer([]);
+    const onConnection = vi.fn();
+    const { providerUrl } = await startProviderServer({ certPair, websocketServer: { enable: true, onConnection } });
+    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const ws = new WebSocket(`${proxyServerUrl}/ws`);
+    await new Promise(resolve => ws.once("open", resolve));
+
+    ws.send(JSON.stringify(ourMessage("hello", providerUrl, { providerAddress })));
+
+    expect(await waitForMessage(ws)).toEqual(providerMessage("", { closed: true, code: 1008, reason: "invalidCertificate.unknownCertificate" }));
+    expect(onConnection).not.toHaveBeenCalled();
+  });
+
   it("does not connect to a provider socket on a host other than the one the provider registered", async () => {
     const providerAddress = generateBech32();
     const certPair = await createX509CertPair({ commonName: providerAddress });
