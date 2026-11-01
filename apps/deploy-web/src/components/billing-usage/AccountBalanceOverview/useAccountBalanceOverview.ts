@@ -6,12 +6,12 @@ import { useAutoReloadMode } from "@src/components/billing-usage/useAutoReloadMo
 import { useCurrentSpendRate } from "@src/components/billing-usage/useCurrentSpendRate";
 import { useWallet } from "@src/context/WalletProvider";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
+import { useLatestBlockHeight } from "@src/hooks/useLatestBlockHeight/useLatestBlockHeight";
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import type { LiveEscrowInput } from "@src/hooks/useWalletBalance";
 import { computeWalletBalance } from "@src/hooks/useWalletBalance";
 import { useWalletSettingsQuery } from "@src/queries";
 import { useBalances } from "@src/queries/useBalancesQuery";
-import { useBlock } from "@src/queries/useBlocksQuery";
 import { getLiveEscrowBalance, getTimeLeft, perBlockToHourly } from "@src/utils/priceUtils";
 
 export const DEPENDENCIES = {
@@ -20,7 +20,7 @@ export const DEPENDENCIES = {
   useAutoReloadMode,
   useBalances,
   useCurrentSpendRate,
-  useBlock,
+  useLatestBlockHeight,
   useWalletSettingsQuery,
   useDeploymentNames
 };
@@ -45,28 +45,27 @@ export type AccountBalanceOverview = {
   /** The auto-top-up trigger balance to mark on the bar, or null when no marker should render (prediction mode, auto-reload off, or unset). */
   autoReloadThreshold: number | null;
   isLoading: boolean;
-  /** True when balances can't be loaded: the query errored out or the chain API fallback disabled it. */
+  /** True when the balances query failed with nothing cached to show instead. */
   isError: boolean;
 };
 
 export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): AccountBalanceOverview {
   const { address } = d.useWallet();
   const { price, udenomToUsd } = d.usePricing();
-  const { data: balances, isError: isBalancesError, fetchStatus: balancesFetchStatus } = d.useBalances(address);
+  const { data: balances, isError: isBalancesError } = d.useBalances(address);
   const spendRate = d.useCurrentSpendRate();
   const hasActiveDeployments = !!balances?.activeDeployments.length;
-  /** Gated on the wallet holding an escrow: an account with nothing running shouldn't poll the chain every 30 seconds. */
-  const { data: latestBlock } = d.useBlock("latest", { refetchInterval: 30000, enabled: hasActiveDeployments });
+  const latestBlockHeight = d.useLatestBlockHeight({ enabled: hasActiveDeployments });
   const { data: walletSettings } = d.useWalletSettingsQuery();
   const { getDeploymentName } = d.useDeploymentNames(balances?.activeDeployments.map(deployment => deployment.dseq) ?? []);
   const { showsThresholdRule } = d.useAutoReloadMode();
 
   const liveEscrow = useMemo<LiveEscrowInput>(
     () => ({
-      latestBlockHeight: latestBlock ? Number(latestBlock.block.header.height) : undefined,
+      latestBlockHeight,
       perBlockUsdByDseq: spendRate.perBlockUsdByDseq
     }),
-    [spendRate.perBlockUsdByDseq, latestBlock]
+    [spendRate.perBlockUsdByDseq, latestBlockHeight]
   );
 
   /** Not gated on the AKT market price: managed wallets hold ACT/USDC (1:1 USD), and blocking on market data would strand the card on its skeleton during an outage. */
@@ -85,9 +84,9 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
           dseq: deployment.dseq,
           name: getDeploymentName(deployment.dseq) ?? `Deployment ${deployment.dseq}`,
           escrowUsd: getLiveEscrowBalance({
-            settledBalance: deployment.escrowAccount.state.funds.reduce((sum, fund) => sum + udenomToUsd(fund.amount, fund.denom), 0),
+            settledBalance: deployment.escrow.funds.reduce((sum, fund) => sum + udenomToUsd(fund.amount, fund.denom), 0),
             pricePerBlock,
-            settledAt: Number(deployment.escrowAccount.state.settled_at),
+            settledAt: deployment.escrow.settledAt,
             latestBlockHeight: liveEscrow.latestBlockHeight
           }),
           perHourUsd: perBlockToHourly(pricePerBlock)
@@ -101,7 +100,7 @@ export function useAccountBalanceOverview({ dependencies: d = DEPENDENCIES }: { 
   const available = Math.max(0, totalUsd - escrow);
   const lastsUntil = spendRate.perBlockUsd > 0 ? getTimeLeft(spendRate.perBlockUsd, totalUsd) : null;
   const autoReloadEnabled = (walletSettings?.autoReloadEnabled ?? false) && !walletSettings?.autoReloadPausedAt;
-  const isBalanceUnavailable = !balances && (isBalancesError || (!!address && balancesFetchStatus === "idle"));
+  const isBalanceUnavailable = !balances && isBalancesError;
   const autoReloadThreshold = showsThresholdRule && autoReloadEnabled ? walletSettings?.autoReloadThreshold ?? null : null;
 
   return {

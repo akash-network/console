@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import type { TemplateOutput } from "@akashnetwork/http-sdk";
+import { ApiError } from "@akashnetwork/openapi-sdk";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -110,11 +111,18 @@ describe("DeploymentDetail", () => {
   });
 
   it("shows a not-found message when the deployment does not exist", () => {
-    const error = Object.assign(new Error("Deployment not found"), { response: { data: { message: "Deployment not found" } } });
+    const error = new ApiError(404, { message: "Deployment not found" }, "GET /v1/deployments/1786440078202/info → 404");
     setup({ deployment: null, error });
 
     expect(screen.getByText(/this deployment does not exist/i)).toBeInTheDocument();
     expect(screen.queryByTestId("deployment-detail-skeleton")).not.toBeInTheDocument();
+  });
+
+  it("does not claim the deployment is missing when the read fails for another reason", () => {
+    const error = new ApiError(500, { message: "Deployment could not be read, please retry" }, "GET /v1/deployments/1786440078202/info → 500");
+    setup({ deployment: null, error });
+
+    expect(screen.queryByText(/this deployment does not exist/i)).not.toBeInTheDocument();
   });
 
   it("renders the page skeleton while the deployment loads", () => {

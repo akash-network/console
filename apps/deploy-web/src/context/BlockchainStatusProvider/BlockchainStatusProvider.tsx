@@ -4,16 +4,27 @@ import React, { useEffect, useState } from "react";
 import { ApiUrlService } from "@src/utils/apiUtils";
 import { useRootContainer } from "../ServicesProvider/RootContainerProvider";
 
+/** A height the status endpoint reported and when it arrived, so readers can extrapolate the current height without asking for it. */
+export type ObservedBlockHeight = {
+  height: number;
+  observedAt: number;
+};
+
 type ContextType = {
   isBlockchainDown: boolean;
-  setIsBlockchainDown: (isBlockchainDown: boolean) => void;
+  latestBlock: ObservedBlockHeight | null;
 };
 
 export type BlockchainStatusContextType = ContextType;
 
+type BlockchainStatusResponse = {
+  isBlockchainReachable: boolean;
+  latestBlockHeight?: number | null;
+};
+
 export const BlockchainStatusContext = React.createContext<ContextType>({
   isBlockchainDown: false,
-  setIsBlockchainDown: () => {}
+  latestBlock: null
 });
 
 // Match stats-web's useTopBanner polling cadence
@@ -40,7 +51,7 @@ type Props = {
  */
 export const BlockchainStatusProvider: React.FC<Props> = ({ children, dependencies: d = DEPENDENCIES }) => {
   const { publicConsoleApiHttpClient } = d.useRootContainer();
-  const [isBlockchainDown, setIsBlockchainDown] = useState(false);
+  const [status, setStatus] = useState<ContextType>({ isBlockchainDown: false, latestBlock: null });
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -48,12 +59,17 @@ export const BlockchainStatusProvider: React.FC<Props> = ({ children, dependenci
 
     const pingBlockchainStatus = async () => {
       try {
-        const { data } = await publicConsoleApiHttpClient.get<{ isBlockchainReachable: boolean }>(ApiUrlService.blockchainStatus(), {
+        const { data } = await publicConsoleApiHttpClient.get<BlockchainStatusResponse>(ApiUrlService.blockchainStatus(), {
           timeout: BLOCKCHAIN_STATUS_REQUEST_TIMEOUT_MS
         });
-        if (!isCancelled) setIsBlockchainDown(!data.isBlockchainReachable);
+        if (!isCancelled) {
+          setStatus(previous => ({
+            isBlockchainDown: !data.isBlockchainReachable,
+            latestBlock: data.latestBlockHeight == null ? previous.latestBlock : { height: data.latestBlockHeight, observedAt: Date.now() }
+          }));
+        }
       } catch {
-        if (!isCancelled) setIsBlockchainDown(true);
+        if (!isCancelled) setStatus(previous => ({ ...previous, isBlockchainDown: true }));
       } finally {
         if (!isCancelled) timeoutId = setTimeout(pingBlockchainStatus, BLOCKCHAIN_STATUS_POLL_INTERVAL_MS);
       }
@@ -67,9 +83,7 @@ export const BlockchainStatusProvider: React.FC<Props> = ({ children, dependenci
     };
   }, [publicConsoleApiHttpClient]);
 
-  const value = React.useMemo(() => ({ isBlockchainDown, setIsBlockchainDown }), [isBlockchainDown]);
-
-  return <BlockchainStatusContext.Provider value={value}>{children}</BlockchainStatusContext.Provider>;
+  return <BlockchainStatusContext.Provider value={status}>{children}</BlockchainStatusContext.Provider>;
 };
 
 export const useBlockchainStatus = (): BlockchainStatusContextType => {

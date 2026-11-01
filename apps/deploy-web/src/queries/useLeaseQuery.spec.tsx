@@ -1,4 +1,4 @@
-import type { LeaseHttpService } from "@akashnetwork/http-sdk";
+import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
@@ -6,13 +6,12 @@ import { mock } from "vitest-mock-extended";
 
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
 import type { UseProviderCredentialsResult } from "@src/hooks/useProviderCredentials/useProviderCredentials";
-import type { FallbackableHttpClient } from "@src/services/createFallbackableHttpClient/createFallbackableHttpClient";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import { isProviderUnavailableError } from "@src/services/query-error-policy/query-error-policy";
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
 import type { ApiProviderList } from "@src/types/provider";
 import { leaseToDto } from "@src/utils/deploymentDetailUtils";
-import { setupQuery } from "../../tests/unit/query-client";
+import { type RenderAppHookOptions, setupQuery } from "../../tests/unit/query-client";
 import { QueryKeys } from "./queryKeys";
 import {
   type LeaseServiceStatusResponse,
@@ -142,67 +141,40 @@ const mockLease: LeaseDto = {
   group: mockGroup
 };
 
+type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
+
+function createLeasesApi(leases: typeof mockLeases) {
+  const listLeases = vi.fn().mockResolvedValue({ data: leases.map(({ lease }) => lease) });
+  return { api: createProxy({ v1: { listLeases } }) as unknown as ApiService, listLeases };
+}
+
 describe("useLeaseQuery", () => {
   describe("useDeploymentLeaseList", () => {
     it("should return null when deployment is not provided", async () => {
-      const { result } = setupQuery(() => useDeploymentLeaseList("test-address", null), {
-        services: {
-          chainApiHttpClient: () => mock<FallbackableHttpClient>()
-        }
-      });
+      const { result, listLeases } = setup({ deployment: null });
 
       await vi.waitFor(() => {
-        expect(result.current.data).toBeNull();
+        expect(result.current.leases.data).toBeNull();
       });
+      expect(listLeases).not.toHaveBeenCalled();
     });
 
-    it("should fetch leases when deployment is provided", async () => {
-      const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: vi.fn().mockResolvedValue({
-          data: {
-            leases: mockLeases,
-            pagination: { next_key: null, total: mockLeases.length }
-          }
-        })
-      } as unknown as FallbackableHttpClient);
-      const { result } = setupQuery(() => useDeploymentLeaseList("test-address", mockDeployment), {
-        services: {
-          chainApiHttpClient: () => chainApiHttpClient
-        }
-      });
+    it("should fetch the deployment's leases when deployment is provided", async () => {
+      const { result, listLeases } = setup({});
 
       await vi.waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.leases.isSuccess).toBe(true);
       });
 
-      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining(`filters.dseq=${mockDeployment.dseq}`));
-      expect(result.current.data).toEqual([leaseToDto(mockLeases[0], mockDeployment)]);
+      expect(listLeases).toHaveBeenCalledWith({ dseq: mockDeployment.dseq });
+      expect(result.current.leases.data).toEqual([leaseToDto(mockLeases[0], mockDeployment)]);
     });
 
     it("should provide a remove function that clears the query", async () => {
-      const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: vi.fn().mockResolvedValue({
-          data: {
-            leases: mockLeases,
-            pagination: { next_key: null, total: mockLeases.length }
-          }
-        })
-      } as unknown as FallbackableHttpClient);
-      const { result } = setupQuery(
-        () => {
-          const deploymentList = useDeploymentLeaseList("test-address", mockDeployment);
-          const queryClient = useQueryClient();
-          return { deploymentList, queryClient };
-        },
-        {
-          services: {
-            chainApiHttpClient: () => chainApiHttpClient
-          }
-        }
-      );
+      const { result } = setup({});
 
       await vi.waitFor(() => {
-        expect(result.current.deploymentList.isSuccess).toBe(true);
+        expect(result.current.leases.isSuccess).toBe(true);
       });
 
       const queryKey = QueryKeys.getLeasesKey("test-address", mockDeployment.dseq);
@@ -211,7 +183,7 @@ describe("useLeaseQuery", () => {
       expect(queriesBefore).toHaveLength(1);
 
       act(() => {
-        result.current.deploymentList.remove();
+        result.current.leases.remove();
       });
 
       const queriesAfter = result.current.queryClient.getQueryCache().findAll({ queryKey });
@@ -219,7 +191,7 @@ describe("useLeaseQuery", () => {
     });
 
     it("keeps a closed deployment's lease list fresh after the first fetch", async () => {
-      const { result, chainApiHttpClient } = setup({ state: "closed", leases: mockClosedLeases });
+      const { result, listLeases } = setup({ state: "closed", leases: mockClosedLeases });
 
       await vi.waitFor(() => {
         expect(result.current.leases.isSuccess).toBe(true);
@@ -229,7 +201,7 @@ describe("useLeaseQuery", () => {
         queryKey: QueryKeys.getLeasesKey("test-address", mockDeployment.dseq)
       });
 
-      expect(chainApiHttpClient.get).toHaveBeenCalledTimes(1);
+      expect(listLeases).toHaveBeenCalledTimes(1);
       expect(query?.isStale()).toBe(false);
     });
 
@@ -253,203 +225,93 @@ describe("useLeaseQuery", () => {
           queries: { retry: false, refetchOnWindowFocus: false, refetchOnReconnect: false }
         }
       });
-      const chainApiHttpClient = mock<FallbackableHttpClient>();
-      chainApiHttpClient.get.mockResolvedValue({
-        data: {
-          leases: mockLeases,
-          pagination: { next_key: null, total: mockLeases.length }
-        }
-      });
+      const { api, listLeases } = createLeasesApi(mockLeases);
 
       const first = setupQuery(() => useDeploymentLeaseList("test-address", { ...mockDeployment, state: "active" }), {
-        services: {
-          chainApiHttpClient: () => chainApiHttpClient,
-          queryClient: () => queryClient
-        }
+        services: { api: () => api, queryClient: () => queryClient }
       });
 
       await vi.waitFor(() => {
         expect(first.result.current.isSuccess).toBe(true);
       });
-      expect(chainApiHttpClient.get).toHaveBeenCalledTimes(1);
+      expect(listLeases).toHaveBeenCalledTimes(1);
       first.unmount();
 
       const second = setupQuery(() => useDeploymentLeaseList("test-address", { ...mockDeployment, state: "closed" }), {
-        services: {
-          chainApiHttpClient: () => chainApiHttpClient,
-          queryClient: () => queryClient
-        }
+        services: { api: () => api, queryClient: () => queryClient }
       });
 
       await vi.waitFor(() => {
-        expect(chainApiHttpClient.get).toHaveBeenCalledTimes(2);
+        expect(listLeases).toHaveBeenCalledTimes(2);
       });
       second.unmount();
     });
 
-    function setup(input: { state?: string; leases?: typeof mockLeases }) {
-      const rpcLeases = input.leases ?? mockLeases;
-      const chainApiHttpClient = mock<FallbackableHttpClient>();
-      chainApiHttpClient.get.mockResolvedValue({
-        data: {
-          leases: rpcLeases,
-          pagination: { next_key: null, total: rpcLeases.length }
-        }
-      });
+    function setup(input: { state?: string; leases?: typeof mockLeases; deployment?: null }) {
+      const { api, listLeases } = createLeasesApi(input.leases ?? mockLeases);
       const { result } = setupQuery(
         () => {
-          const leases = useDeploymentLeaseList("test-address", { ...mockDeployment, state: input.state });
+          const leases = useDeploymentLeaseList("test-address", input.deployment === null ? null : { ...mockDeployment, state: input.state });
           const queryClient = useQueryClient();
           return { leases, queryClient };
         },
-        {
-          services: {
-            chainApiHttpClient: () => chainApiHttpClient
-          }
-        }
+        { services: { api: () => api } }
       );
 
-      return { result, chainApiHttpClient };
+      return { result, listLeases };
     }
   });
 
   describe("useAllLeases", () => {
     it("should return null when address is not provided", async () => {
-      const { result } = setupQuery(() => useAllLeases(""), {
-        services: {
-          chainApiHttpClient: () => mock<FallbackableHttpClient>()
-        }
-      });
+      const { result, listLeases } = setup({ address: "" });
 
       await vi.waitFor(() => {
-        expect(result.current.data).toBeNull();
+        expect(result.current.leases.data).toBeNull();
       });
+      expect(listLeases).not.toHaveBeenCalled();
     });
 
-    it("should fetch all leases when address is provided", async () => {
-      const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: vi.fn().mockResolvedValue({
-          data: {
-            leases: mockLeases,
-            pagination: { next_key: null, total: mockLeases.length }
-          }
-        })
-      } as unknown as FallbackableHttpClient);
-      const { result } = setupQuery(() => useAllLeases("test-address"), {
-        services: {
-          chainApiHttpClient: () => chainApiHttpClient
-        }
-      });
-
-      await vi.waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
-      });
-      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.stringContaining("filters.owner=test-address"));
-      expect(chainApiHttpClient.get).toHaveBeenCalledWith(expect.not.stringContaining("filters.state="));
-      expect(result.current.data).toEqual([leaseToDto(mockLeases[0], undefined as any)]);
-    });
-
-    it("requests only the given lease state when one is provided", async () => {
-      const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: vi.fn().mockResolvedValue({
-          data: {
-            leases: mockLeases,
-            pagination: { next_key: null, total: mockLeases.length }
-          }
-        })
-      } as unknown as FallbackableHttpClient);
-      const { result } = setupQuery(() => useAllLeases("test-address", { state: "active" }), {
-        services: {
-          chainApiHttpClient: () => chainApiHttpClient
-        }
-      });
-
-      await vi.waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
-      });
-      const requestedUrl = chainApiHttpClient.get.mock.calls[0][0] as string;
-      expect(requestedUrl).toContain("filters.owner=test-address");
-      expect(requestedUrl).toContain("filters.state=active");
-    });
-
-    it("should use the correct query key", async () => {
-      const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: vi.fn().mockResolvedValue({
-          data: {
-            leases: mockLeases,
-            pagination: { next_key: null, total: mockLeases.length }
-          }
-        })
-      } as unknown as FallbackableHttpClient);
-      const { result } = setupQuery(
-        () => {
-          const leases = useAllLeases("test-address");
-          const queryClient = useQueryClient();
-          return { leases, queryClient };
-        },
-        {
-          services: {
-            chainApiHttpClient: () => chainApiHttpClient
-          }
-        }
-      );
+    it("should fetch every lease of the wallet when no state is given", async () => {
+      const { result, listLeases } = setup({});
 
       await vi.waitFor(() => {
         expect(result.current.leases.isSuccess).toBe(true);
       });
-      const queryCache = result.current.queryClient.getQueryCache();
-      const queries = queryCache.findAll();
-      expect(queries[0].queryKey).toContain("ALL_LEASES");
-      expect(queries[0].queryKey).toContain("test-address");
-      expect(queries[0].queryKey).not.toContain("active");
+      expect(listLeases).toHaveBeenCalledWith({ state: undefined });
+      expect(result.current.leases.data).toEqual([leaseToDto(mockLeases[0], undefined as any)]);
     });
 
-    it("requests each given lease state when several are provided", async () => {
-      const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: vi.fn().mockResolvedValue({
-          data: {
-            leases: mockLeases,
-            pagination: { next_key: null, total: mockLeases.length }
-          }
-        })
-      } as unknown as FallbackableHttpClient);
-      const { result } = setupQuery(() => useAllLeases("test-address", { state: ["active", "reclaiming"] }), {
-        services: {
-          chainApiHttpClient: () => chainApiHttpClient
-        }
-      });
+    it("requests only the given lease state when one is provided", async () => {
+      const { result, listLeases } = setup({ state: "active" });
 
       await vi.waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.leases.isSuccess).toBe(true);
       });
-      const requestedUrls = chainApiHttpClient.get.mock.calls.map(call => call[0] as string);
-      expect(requestedUrls).toEqual(
-        expect.arrayContaining([expect.stringContaining("filters.state=active"), expect.stringContaining("filters.state=reclaiming")])
-      );
-      expect(requestedUrls).toHaveLength(2);
+      expect(listLeases).toHaveBeenCalledWith({ state: ["active"] });
+    });
+
+    it("requests each given lease state in one call when several are provided", async () => {
+      const { result, listLeases } = setup({ state: ["active", "reclaiming"] });
+
+      await vi.waitFor(() => {
+        expect(result.current.leases.isSuccess).toBe(true);
+      });
+      expect(listLeases).toHaveBeenCalledOnce();
+      expect(listLeases).toHaveBeenCalledWith({ state: ["active", "reclaiming"] });
+    });
+
+    it("should use the correct query key", async () => {
+      const { result } = setup({});
+
+      await vi.waitFor(() => {
+        expect(result.current.leases.isSuccess).toBe(true);
+      });
+      expect(result.current.queryClient.getQueryCache().findAll()[0].queryKey).toEqual(["ALL_LEASES", "test-address"]);
     });
 
     it("keys a state-filtered list separately from the unfiltered list", async () => {
-      const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: vi.fn().mockResolvedValue({
-          data: {
-            leases: mockLeases,
-            pagination: { next_key: null, total: mockLeases.length }
-          }
-        })
-      } as unknown as FallbackableHttpClient);
-      const { result } = setupQuery(
-        () => {
-          const leases = useAllLeases("test-address", { state: "active" });
-          const queryClient = useQueryClient();
-          return { leases, queryClient };
-        },
-        {
-          services: {
-            chainApiHttpClient: () => chainApiHttpClient
-          }
-        }
-      );
+      const { result } = setup({ state: "active" });
 
       await vi.waitFor(() => {
         expect(result.current.leases.isSuccess).toBe(true);
@@ -458,37 +320,32 @@ describe("useLeaseQuery", () => {
     });
 
     it("keys a multi-state list separately from a single-state list", async () => {
-      const chainApiHttpClient = mock<FallbackableHttpClient>({
-        get: vi.fn().mockResolvedValue({
-          data: {
-            leases: mockLeases,
-            pagination: { next_key: null, total: mockLeases.length }
-          }
-        })
-      } as unknown as FallbackableHttpClient);
-      const { result } = setupQuery(
-        () => {
-          const leases = useAllLeases("test-address", { state: ["active", "reclaiming"] });
-          const queryClient = useQueryClient();
-          return { leases, queryClient };
-        },
-        {
-          services: {
-            chainApiHttpClient: () => chainApiHttpClient
-          }
-        }
-      );
+      const { result } = setup({ state: ["active", "reclaiming"] });
 
       await vi.waitFor(() => {
         expect(result.current.leases.isSuccess).toBe(true);
       });
       expect(result.current.queryClient.getQueryCache().findAll()[0].queryKey).toEqual(["ALL_LEASES", "test-address", "active,reclaiming"]);
     });
+
+    function setup(input: { address?: string; state?: "active" | readonly ("active" | "reclaiming")[] }) {
+      const { api, listLeases } = createLeasesApi(mockLeases);
+      const { result } = setupQuery(
+        () => {
+          const leases = useAllLeases(input.address ?? "test-address", { state: input.state });
+          const queryClient = useQueryClient();
+          return { leases, queryClient };
+        },
+        { services: { api: () => api } }
+      );
+
+      return { result, listLeases };
+    }
   });
 
   describe("useLeaseExistenceQuery", () => {
-    it("returns true when the address has at least one lease", async () => {
-      const { result } = setupLeaseExistence({ hasLeases: true });
+    it("returns true when the wallet has at least one lease", async () => {
+      const { result } = setup({ leases: mockLeases });
 
       await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -496,8 +353,8 @@ describe("useLeaseQuery", () => {
       expect(result.current.data).toBe(true);
     });
 
-    it("returns false when the address has no leases", async () => {
-      const { result } = setupLeaseExistence({ hasLeases: false });
+    it("returns false when the wallet has no leases", async () => {
+      const { result } = setup({ leases: [] });
 
       await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
@@ -505,13 +362,13 @@ describe("useLeaseQuery", () => {
       expect(result.current.data).toBe(false);
     });
 
-    it("asks the lease service about the queried address", async () => {
-      const { result, leaseHttpService } = setupLeaseExistence({ hasLeases: true });
+    it("asks for a single lease rather than the wallet's whole history", async () => {
+      const { result, listLeases } = setup({ leases: mockLeases });
 
       await vi.waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
-      expect(leaseHttpService.hasLeases).toHaveBeenCalledWith("test-address");
+      expect(listLeases).toHaveBeenCalledWith({ limit: 1 });
     });
 
     it("keys under the all-leases prefix so deploy-success invalidation refreshes it", () => {
@@ -520,15 +377,12 @@ describe("useLeaseQuery", () => {
       expect(QueryKeys.getLeaseExistenceKey("test-address").slice(0, allLeasesKey.length)).toEqual(allLeasesKey);
     });
 
-    function setupLeaseExistence(input: { hasLeases: boolean }) {
-      const leaseHttpService = mock<LeaseHttpService>();
-      leaseHttpService.hasLeases.mockResolvedValue(input.hasLeases);
+    function setup(input: { leases: typeof mockLeases }) {
+      const { api, listLeases } = createLeasesApi(input.leases);
       const { result } = setupQuery(() => useLeaseExistenceQuery("test-address"), {
-        services: {
-          leaseHttpService: () => leaseHttpService
-        }
+        services: { api: () => api }
       });
-      return { result, leaseHttpService };
+      return { result, listLeases };
     }
   });
 

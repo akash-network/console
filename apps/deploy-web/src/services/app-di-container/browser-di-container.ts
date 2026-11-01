@@ -39,15 +39,6 @@ export const services = createChildContainer(rootContainer, {
   publicConsoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios()),
   providerLookup: () =>
     new ProviderLookupService(services.publicConsoleApiHttpClient, () => services.apiUrlService.getBaseApiUrlFor(services.networkStore.selectedNetworkId)),
-  fallbackChainApiHttpClient: () =>
-    services.applyAxiosInterceptors(services.createAxios(), {
-      request: [
-        config => {
-          config.baseURL = services.apiUrlService.getBaseApiUrlFor(services.networkStore.selectedNetworkId);
-          return config;
-        }
-      ]
-    }),
   authService: () => new AuthService(services.urlService, services.internalApiHttpClient),
   deploymentLocalStorage: () => new DeploymentStorageService(localStorage, services.networkStore),
   browserFavoriteProviders: () => new BrowserFavoriteProvidersService(localStorage, services.networkStore),

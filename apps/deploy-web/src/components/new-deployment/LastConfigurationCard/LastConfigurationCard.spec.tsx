@@ -41,7 +41,7 @@ describe(LastConfigurationCard.name, () => {
   it("reads the creation date from the block the deployment was created at", () => {
     const { useBlock } = setup({ deployment: { createdAt: 4242 } });
 
-    expect(useBlock).toHaveBeenCalledWith("4242");
+    expect(useBlock).toHaveBeenCalledWith(4242);
   });
 
   it("looks up the provider of the deployment's lease", () => {
@@ -184,7 +184,7 @@ services:
     const definition = { sdl: WEB_SDL, name: "acme-storefront", source: "api" as const, ...input.definition };
     const createdAt = "createdAt" in input ? input.createdAt : "2026-05-12T10:00:00Z";
     const blockQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useBlock>>(), {
-      data: createdAt ? { block: { header: { time: createdAt } } } : undefined
+      data: createdAt ? { datetime: createdAt } : undefined
     });
     const providersQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProvidersByAddresses>>(), { data: input.providers ?? [] });
     const useBlock = vi.fn(() => blockQuery);

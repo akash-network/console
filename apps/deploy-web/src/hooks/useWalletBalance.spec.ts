@@ -2,8 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { UACT_DENOM } from "@src/config/denom.config";
-import type { Balances } from "@src/types";
-import type { DeploymentDto } from "@src/types/deployment";
+import type { Balances, EscrowedDeploymentBalance } from "@src/types";
 import { udenomToDenom } from "@src/utils/mathHelpers";
 import type { LIVE_ESCROW_DEPENDENCIES, LiveEscrowInput } from "./useWalletBalance";
 import { computeWalletBalance, useLiveEscrow } from "./useWalletBalance";
@@ -48,6 +47,15 @@ describe(computeWalletBalance.name, () => {
     expect(balance.totalUsd).toBeCloseTo(13, 6);
   });
 
+  it("counts the deposit grants the wallet can spend at their USD value", () => {
+    const { balances, udenomToUsd } = setup({ fundsUact: 0, settledAt: 1000, grantsUact: 3_000_000 });
+
+    const balance = computeWalletBalance(balances, 0, udenomToUsd);
+
+    expect(balance.totalDeploymentGrantsUSD).toBeCloseTo(3, 6);
+    expect(balance.totalUsd).toBeCloseTo(3, 6);
+  });
+
   it("reports the settled escrow for a deployment with no live lease", () => {
     const { balances, udenomToUsd, liveEscrow } = setup({
       fundsUact: 10_000_000,
@@ -60,24 +68,14 @@ describe(computeWalletBalance.name, () => {
     expect(balance.totalDeploymentEscrowUSD).toBeCloseTo(10, 6);
   });
 
-  function setup(input: { fundsUact: number; balanceUact?: number; settledAt: number; latestBlockHeight?: number; perBlockUsd?: number }) {
+  function setup(input: { fundsUact: number; balanceUact?: number; grantsUact?: number; settledAt: number; latestBlockHeight?: number; perBlockUsd?: number }) {
     const dseq = "1";
     const balances = Object.assign(mock<Balances>(), {
       balanceUAKT: 0,
       balanceUUSDC: 0,
       balanceUACT: input.balanceUact ?? 0,
-      activeDeployments: [
-        mock<DeploymentDto>({
-          dseq,
-          escrowAccount: mock<DeploymentDto["escrowAccount"]>({
-            state: mock<DeploymentDto["escrowAccount"]["state"]>({
-              settled_at: String(input.settledAt),
-              funds: [{ denom: UACT_DENOM, amount: String(input.fundsUact) }]
-            })
-          })
-        })
-      ],
-      deploymentGrants: []
+      activeDeployments: [{ dseq, escrow: { settledAt: input.settledAt, funds: [{ denom: UACT_DENOM, amount: String(input.fundsUact) }] } }],
+      deploymentGrants: input.grantsUact ? [{ denom: UACT_DENOM, amount: String(input.grantsUact) }] : []
     });
 
     const liveEscrow: LiveEscrowInput = {
@@ -91,17 +89,17 @@ describe(computeWalletBalance.name, () => {
 
 describe(useLiveEscrow.name, () => {
   it("asks for neither the spend rate nor the latest block while the wallet holds no escrow", () => {
-    const { useSpendRateQuery, useBlock } = setup({ activeDseqs: [] });
+    const { useSpendRateQuery, useLatestBlockHeight } = setup({ activeDseqs: [] });
 
     expect(useSpendRateQuery).toHaveBeenCalledWith({ enabled: false });
-    expect(useBlock).toHaveBeenCalledWith("latest", expect.objectContaining({ enabled: false }));
+    expect(useLatestBlockHeight).toHaveBeenCalledWith({ enabled: false });
   });
 
   it("asks for the spend rate and the latest block once the wallet holds an escrow", () => {
-    const { useSpendRateQuery, useBlock } = setup({ activeDseqs: ["1"] });
+    const { useSpendRateQuery, useLatestBlockHeight } = setup({ activeDseqs: ["1"] });
 
     expect(useSpendRateQuery).toHaveBeenCalledWith({ enabled: true });
-    expect(useBlock).toHaveBeenCalledWith("latest", expect.objectContaining({ enabled: true }));
+    expect(useLatestBlockHeight).toHaveBeenCalledWith({ enabled: true });
   });
 
   it("waits for a wallet address before asking for the spend rate", () => {
@@ -126,7 +124,7 @@ describe(useLiveEscrow.name, () => {
 
   function setup(input: { activeDseqs: string[]; address?: string; perBlockUsdByDseq?: Record<string, number>; latestBlockHeight?: number }) {
     const balances = Object.assign(mock<Balances>(), {
-      activeDeployments: input.activeDseqs.map(dseq => mock<DeploymentDto>({ dseq }))
+      activeDeployments: input.activeDseqs.map(dseq => mock<EscrowedDeploymentBalance>({ dseq }))
     });
 
     const spendRateQuery = Object.assign(mock<ReturnType<typeof LIVE_ESCROW_DEPENDENCIES.useSpendRateQuery>>(), {
@@ -134,13 +132,10 @@ describe(useLiveEscrow.name, () => {
     });
     const useSpendRateQuery = vi.fn<typeof LIVE_ESCROW_DEPENDENCIES.useSpendRateQuery>(() => spendRateQuery);
 
-    const blockQuery = Object.assign(mock<ReturnType<typeof LIVE_ESCROW_DEPENDENCIES.useBlock>>(), {
-      data: input.latestBlockHeight === undefined ? undefined : { block: { header: { height: String(input.latestBlockHeight) } } }
-    });
-    const useBlock = vi.fn<typeof LIVE_ESCROW_DEPENDENCIES.useBlock>(() => blockQuery);
+    const useLatestBlockHeight = vi.fn<typeof LIVE_ESCROW_DEPENDENCIES.useLatestBlockHeight>(() => input.latestBlockHeight);
 
-    const hook = renderHook(() => useLiveEscrow(input.address ?? "akash1abc", balances, { useSpendRateQuery, useBlock }));
+    const hook = renderHook(() => useLiveEscrow(input.address ?? "akash1abc", balances, { useSpendRateQuery, useLatestBlockHeight }));
 
-    return { ...hook, useSpendRateQuery, useBlock };
+    return { ...hook, useSpendRateQuery, useLatestBlockHeight };
   }
 });

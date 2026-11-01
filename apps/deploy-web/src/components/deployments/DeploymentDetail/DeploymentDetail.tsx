@@ -1,6 +1,7 @@
 "use client";
 import type { FC } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { extractApiErrorMessage } from "@akashnetwork/openapi-sdk";
 import { Button, buttonVariants, Skeleton, Tabs, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { ArrowLeft, RefreshCw } from "lucide-react";
@@ -142,7 +143,7 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const deploymentManifest = definition.sdl || "";
   const isActive = deployment?.state === "active" && !!leases?.some(isLeaseLive);
   const isAwaitingLease = !!leases && deployment?.state === "active" && leases.length === 0 && !deployment.groups?.some(g => g.state === "paused");
-  const isDeploymentNotFound = !!deploymentError && (deploymentError as any).response?.data?.message?.includes("Deployment not found") && !isLoadingDeployment;
+  const isDeploymentNotFound = !!extractApiErrorMessage(deploymentError)?.includes("Deployment not found") && !isLoadingDeployment;
   const showsPageSkeleton = !isDeploymentNotFound && !deploymentError && !isLeasesError && (!deployment || !isLeasesLoaded);
   /** The placement cards read their services off the definition, so rendering them before it lands shows "0 services" and then corrects itself. */
   const showsPlacementsSkeleton = definition.source === "resolving";

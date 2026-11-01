@@ -29,12 +29,12 @@ export const LastConfigurationCard: FC<Props> = ({ deployment, definition, targe
   const actionId = useId();
   const nameId = useId();
   const detailsId = useId();
-  const { data: createdBlock } = d.useBlock(String(deployment.createdAt));
+  const { data: createdBlock } = d.useBlock(deployment.createdAt);
   const providerAddress = deployment.leases?.[0]?.provider;
   const { data: providers } = d.useProvidersByAddresses(providerAddress ? [providerAddress] : []);
   const provider = providers.find(candidate => candidate.owner === providerAddress);
   const name = definition.name || deployment.name || `Deployment #${deployment.dseq}`;
-  const createdAt: string | undefined = createdBlock?.block?.header?.time;
+  const createdAt: string | undefined = createdBlock?.datetime;
   const details = [createdAt && `Deployed ${format(new Date(createdAt), "MMM d, yyyy")}`, provider && providerDisplayName(provider)]
     .filter(Boolean)
     .join(" · ");

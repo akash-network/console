@@ -1,7 +1,7 @@
 import * as React from "react";
 import { formatDistanceToNow } from "date-fns";
 
-import { useBlock } from "@src/queries/useBlocksQuery";
+import { useLatestBlockHeight } from "@src/hooks/useLatestBlockHeight/useLatestBlockHeight";
 
 export interface TimeRemainingResult {
   timeLeft: Date | null;
@@ -17,7 +17,7 @@ export type UseTrialDeploymentTimeRemainingProps = {
 };
 
 export const DEPENDENCIES = {
-  useBlock
+  useLatestBlockHeight
 };
 
 /**
@@ -68,24 +68,21 @@ export function useTrialDeploymentTimeRemaining({
   averageBlockTime = 6,
   dependencies: d = DEPENDENCIES
 }: UseTrialDeploymentTimeRemainingProps) {
-  const { data: latestBlock } = d.useBlock("latest", {
-    refetchInterval: 30000
-  });
+  const latestBlockHeight = d.useLatestBlockHeight();
 
   const { timeLeft, isExpired } = React.useMemo(() => {
-    if (!latestBlock || !createdHeight || !trialDurationHours) {
+    if (latestBlockHeight === undefined || !createdHeight || !trialDurationHours) {
       return { timeLeft: null, isExpired: false };
     }
 
-    const currentHeight = latestBlock.block.header.height;
-    const result = calculateTrialTimeRemaining(createdHeight, currentHeight, trialDurationHours, averageBlockTime);
+    const result = calculateTrialTimeRemaining(createdHeight, latestBlockHeight, trialDurationHours, averageBlockTime);
     return { timeLeft: result.timeLeft, isExpired: result.isExpired };
-  }, [createdHeight, latestBlock, trialDurationHours, averageBlockTime]);
+  }, [createdHeight, latestBlockHeight, trialDurationHours, averageBlockTime]);
 
   const timeRemainingText = React.useMemo(() => {
     if (!createdHeight) return null;
     return formatTrialTimeRemaining(timeLeft, isExpired);
   }, [timeLeft, isExpired, createdHeight]);
 
-  return { timeLeft, isExpired, latestBlock, timeRemainingText };
+  return { timeLeft, isExpired, timeRemainingText };
 }

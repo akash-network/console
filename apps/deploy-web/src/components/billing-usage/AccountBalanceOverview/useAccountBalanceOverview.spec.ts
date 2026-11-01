@@ -145,13 +145,6 @@ describe(useAccountBalanceOverview.name, () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it("reports an error instead of loading forever when the chain API fallback disables the balances query", () => {
-    const { result } = setup({ balancesMissing: true, balancesIdle: true });
-
-    expect(result.current.isError).toBe(true);
-    expect(result.current.isLoading).toBe(false);
-  });
-
   it("keeps showing cached balances when a background refetch fails", () => {
     const { result } = setup({ totalUsd: 500, balancesError: true });
 
@@ -227,15 +220,15 @@ describe(useAccountBalanceOverview.name, () => {
   });
 
   it("skips the latest-block poll while the wallet has nothing deployed", () => {
-    const { useBlock } = setup({ totalUsd: 500, deployments: [] });
+    const { useLatestBlockHeight } = setup({ totalUsd: 500, deployments: [] });
 
-    expect(useBlock).toHaveBeenCalledWith("latest", expect.objectContaining({ enabled: false }));
+    expect(useLatestBlockHeight).toHaveBeenCalledWith({ enabled: false });
   });
 
   it("polls the latest block once the wallet holds an escrow", () => {
-    const { useBlock } = setup({ deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1000 }] });
+    const { useLatestBlockHeight } = setup({ deployments: [{ dseq: "1", fundsUsd: 100, settledAt: 1000 }] });
 
-    expect(useBlock).toHaveBeenCalledWith("latest", expect.objectContaining({ enabled: true }));
+    expect(useLatestBlockHeight).toHaveBeenCalledWith({ enabled: true });
   });
 
   it("asks the console for the names of the deployments the account holds escrow on", () => {
@@ -269,13 +262,12 @@ describe(useAccountBalanceOverview.name, () => {
     autoReloadMode?: "prediction" | "threshold";
     balancesMissing?: boolean;
     balancesError?: boolean;
-    balancesIdle?: boolean;
     priceUnavailable?: boolean;
   }) {
     const escrowedDeployments = input.deployments ?? (input.escrowUsd ? [{ dseq: "escrow", fundsUsd: input.escrowUsd }] : []);
     const activeDeployments = escrowedDeployments.map(deployment => ({
       dseq: deployment.dseq,
-      escrowAccount: { state: { settled_at: String(deployment.settledAt ?? ""), funds: [{ denom: UAKT_DENOM, amount: String(deployment.fundsUsd) }] } }
+      escrow: { settledAt: deployment.settledAt ?? 0, funds: [{ denom: UAKT_DENOM, amount: String(deployment.fundsUsd) }] }
     }));
     const escrowTotal = escrowedDeployments.reduce((sum, deployment) => sum + deployment.fundsUsd, 0);
 
@@ -313,18 +305,14 @@ describe(useAccountBalanceOverview.name, () => {
 
     const balancesQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useBalances>>(), {
       data: input.balancesMissing ? undefined : balances,
-      isError: input.balancesError ?? false,
-      fetchStatus: input.balancesIdle ? ("idle" as const) : ("fetching" as const)
+      isError: input.balancesError ?? false
     });
     const useBalances: typeof DEPENDENCIES.useBalances = () => balancesQuery;
 
     const spendRateQuery = Object.assign(mock<ReturnType<typeof SPEND_RATE_DEPENDENCIES.useSpendRateQuery>>(), { data: perBlockUsdByDseq });
     const useSpendRateQuery = vi.fn<typeof SPEND_RATE_DEPENDENCIES.useSpendRateQuery>(() => spendRateQuery);
 
-    const blockQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useBlock>>(), {
-      data: input.latestBlockHeight === undefined ? undefined : { block: { header: { height: String(input.latestBlockHeight) } } }
-    });
-    const useBlock = vi.fn<typeof DEPENDENCIES.useBlock>(() => blockQuery);
+    const useLatestBlockHeight = vi.fn<typeof DEPENDENCIES.useLatestBlockHeight>(() => input.latestBlockHeight);
 
     const walletSettingsQuery = Object.assign(mock<ReturnType<typeof DEPENDENCIES.useWalletSettingsQuery>>(), {
       data: Object.assign(mock<WalletSettings>(), {
@@ -347,11 +335,11 @@ describe(useAccountBalanceOverview.name, () => {
       useAutoReloadMode,
       useBalances,
       useCurrentSpendRate: () => useCurrentSpendRate({ dependencies: { useWallet, useSpendRateQuery } }),
-      useBlock,
+      useLatestBlockHeight,
       useWalletSettingsQuery,
       useDeploymentNames
     };
 
-    return { ...renderHook(() => useAccountBalanceOverview({ dependencies })), useSpendRateQuery, useBlock, useDeploymentNames };
+    return { ...renderHook(() => useAccountBalanceOverview({ dependencies })), useSpendRateQuery, useLatestBlockHeight, useDeploymentNames };
   }
 });
