@@ -25,10 +25,17 @@ function isNonce(value: string): boolean {
 export const TeePlatformSchema = z.enum(["snp", "tdx", "snp-gpu", "tdx-gpu"]);
 export type TeePlatform = z.infer<typeof TeePlatformSchema>;
 
+/** Evidence comes from one confidential VM on one node; HGX boards carry 8 GPUs, so 16 leaves headroom for larger chassis. */
+export const MAX_GPU_REPORTS = 16;
+
 const GpuReportSchema = z.object({
   device_index: z.number().int().nonnegative().openapi({ description: "GPU device index this report attests", example: 0 }),
   report: Base64String.openapi({ description: "Hardware-signed GPU attestation report (embeds the device cert chain), base64" })
 });
+
+function hasUniqueDeviceIndexes(reports: Array<{ device_index: number }>): boolean {
+  return new Set(reports.map(report => report.device_index)).size === reports.length;
+}
 
 export const VerifyAttestationRequestSchema = z
   .object({
@@ -44,7 +51,13 @@ export const VerifyAttestationRequestSchema = z
     // verdict, never a 400 that hides the other reports' verdicts.
     cert_chain: Base64String.optional().default("").openapi({ description: "CPU vendor cert chain, base64; may be empty (e.g. AMD VCEK fetched from KDS)" }),
     auxblob: Base64String.optional().default("").openapi({ description: "Platform auxiliary blob (e.g. TDX collateral), base64; may be empty" }),
-    gpu_reports: z.array(GpuReportSchema).optional().default([]).openapi({ description: "Per-GPU attestation reports; empty for CPU-only platforms" })
+    gpu_reports: z
+      .array(GpuReportSchema)
+      .max(MAX_GPU_REPORTS)
+      .refine(hasUniqueDeviceIndexes, { message: "each device_index may appear only once" })
+      .optional()
+      .default([])
+      .openapi({ description: `Per-GPU attestation reports, at most ${MAX_GPU_REPORTS}, one per device_index; empty for CPU-only platforms` })
   })
   // GPU reports are only verified on `*-gpu` platforms; allowing them on a CPU-only platform would silently drop
   // them and produce a misleading `overall` verdict, so reject the combination at the boundary.
