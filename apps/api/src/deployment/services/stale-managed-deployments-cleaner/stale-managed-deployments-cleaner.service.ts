@@ -133,15 +133,6 @@ export class StaleManagedDeploymentsCleanerService {
       error => screenErrors.push(error)
     );
     const orphansByOwner = groupByOwner(deployments ?? []);
-
-    if (options.dryRun) {
-      for (const [owner, orphans] of orphansByOwner) {
-        this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_WOULD_CLOSE", owner, dseqs: orphans.map(orphan => orphan.dseq) });
-      }
-
-      return { owners: orphansByOwner.size, failedOwners: 0, screenErrors };
-    }
-
     const walletsByAddress = new Map(wallets.map(wallet => [wallet.address, wallet]));
     let failedOwners = 0;
 
@@ -154,7 +145,7 @@ export class StaleManagedDeploymentsCleanerService {
               event: "DEPLOYMENT_CLEAN_UP_ERROR",
               context: StaleManagedDeploymentsCleanerService.name
             },
-            () => this.#closeDeploymentsWithoutActiveLease(walletsByAddress.get(owner)!, orphans),
+            () => this.#closeDeploymentsWithoutActiveLease(walletsByAddress.get(owner)!, orphans, options),
             () => failedOwners++
           );
         })
@@ -190,10 +181,15 @@ export class StaleManagedDeploymentsCleanerService {
   }
 
   /** Dropping a message and re-broadcasting is safe because both classified failures reject the tx whole: an estimate never lands, a non-zero code reverts. */
-  async #closeDeploymentsWithoutActiveLease(wallet: ManagedWalletRef, candidates: StaleDeploymentsOutput[]) {
+  async #closeDeploymentsWithoutActiveLease(wallet: ManagedWalletRef, candidates: StaleDeploymentsOutput[], { dryRun = false }: { dryRun?: boolean } = {}) {
     const deployments = await this.#withoutLiveLeaseOnChain(wallet, candidates);
 
     if (!deployments.length) {
+      return;
+    }
+
+    if (dryRun) {
+      this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_WOULD_CLOSE", owner: wallet.address, dseqs: deployments.map(deployment => deployment.dseq) });
       return;
     }
 

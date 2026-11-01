@@ -671,6 +671,36 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledTimes(1);
       expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(OWNER, "2");
     });
+
+    it("leaves the deployment out of a dry run's report too", async () => {
+      const { service, managedSignerService, logger } = setup({
+        staleDeployments: ["1", "2"],
+        liveLeasesOnChain: [{ dseq: "1", state: "active" }]
+      });
+
+      await service.cleanup({ concurrency: 1, dryRun: true });
+
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_WOULD_CLOSE", owner: OWNER, dseqs: ["2"] });
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    });
+
+    it("reports nothing on a dry run for an owner whose every orphan is leased on chain", async () => {
+      const { service, logger } = setup({ staleDeployments: ["1"], liveLeasesOnChain: [{ dseq: "1", state: "active" }] });
+
+      await service.cleanup({ concurrency: 1, dryRun: true });
+
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_WOULD_CLOSE" }));
+    });
+
+    it("counts an owner whose chain read fails on a dry run as failed and still finishes the run", async () => {
+      const { service, leaseHttpService, logger } = setup({ staleDeployments: ["1"] });
+      leaseHttpService.list.mockRejectedValue(new Error("node unreachable"));
+
+      const result = await service.cleanup({ concurrency: 1, dryRun: true });
+
+      expect(result.ok).toBe(true);
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_SWEEP_END", failedOwners: 1, dryRun: true }));
+    });
   });
 
   function buildUnsettleableAppError() {
