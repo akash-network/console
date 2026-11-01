@@ -42,14 +42,14 @@ export class NotificationService {
   }
 
   async createNotification(input: CreateNotificationInput): Promise<void> {
-    const { user, ...notification } = input;
+    const { user, notification } = addressedToAccount(input);
     let defaultChannelCreated = false;
     const headers = await this.#userIdentityHeaders(user.id);
     await this.#retryPolicy.execute(async () => {
       try {
         await this.notificationsInternalApi.v1.createNotification(notification, { headers });
       } catch (error) {
-        if (!defaultChannelCreated && extractApiErrorCode(error) === "NOTIFICATION_CHANNEL_NOT_FOUND" && user.email) {
+        if (!defaultChannelCreated && extractApiErrorCode(error) === "NOTIFICATION_CHANNEL_NOT_FOUND") {
           await this.createDefaultChannel(user);
           defaultChannelCreated = true;
         }
@@ -60,13 +60,13 @@ export class NotificationService {
 
   /** For callers that retry on their own: one attempt, plus one more right after opening a missing default channel. */
   async createNotificationOnce(input: CreateNotificationInput): Promise<void> {
-    const { user, ...notification } = input;
+    const { user, notification } = addressedToAccount(input);
     const headers = await this.#userIdentityHeaders(user.id);
     const send = () => this.notificationsInternalApi.v1.createNotification(notification, { headers });
 
     try {
       await send().catch(async error => {
-        if (extractApiErrorCode(error) !== "NOTIFICATION_CHANNEL_NOT_FOUND" || !user.email) throw error;
+        if (extractApiErrorCode(error) !== "NOTIFICATION_CHANNEL_NOT_FOUND") throw error;
 
         await this.notificationsApi.v1.createDefaultNotificationChannel(defaultChannelInput(user.email, user.timezone), { headers });
         await send();
@@ -207,6 +207,17 @@ export class NotificationService {
   }
 }
 
+/** The email goes to the account's own address alone, never to the other addresses on its alert channel. */
+function addressedToAccount({ user, ...notification }: CreateNotificationInput) {
+  const { email } = user;
+
+  if (!email) {
+    throw new Error("Failed to create notification: the user has no email address");
+  }
+
+  return { user: { ...user, email }, notification: { ...notification, recipient: email } };
+}
+
 function defaultChannelInput(email: string, timezone: string | null | undefined) {
   return { data: { name: "Default", type: "email" as const, config: { addresses: [email] }, ...(timezone && { timezone }) } };
 }
@@ -235,6 +246,9 @@ export interface MoveDeploymentAlertsInput {
   projectId: string;
 }
 
-export type CreateNotificationInput = NotificationsInternalOperationDefs["createNotification"]["requestBody"]["content"]["application/json"] & {
+export type CreateNotificationInput = Omit<
+  NotificationsInternalOperationDefs["createNotification"]["requestBody"]["content"]["application/json"],
+  "notificationChannelId" | "recipient"
+> & {
   user: UserInput;
 };

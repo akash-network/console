@@ -39,7 +39,8 @@ describe(HardwareRequestEmailHandler.name, () => {
           payload: {
             summary: "GPU request: 8× B200",
             description: expect.stringContaining(`<a href="mailto:${hardwareRequest.contactEmail}">`)
-          }
+          },
+          recipient: mailboxEmail
         }
       }
     ]);
