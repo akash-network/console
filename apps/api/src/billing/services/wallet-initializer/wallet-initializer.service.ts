@@ -43,7 +43,7 @@ export class WalletInitializerService {
 
   async #assertNoDuplicateFingerprint(user: UserOutput): Promise<void> {
     if (!this.stripeService.isProduction) return;
-    if (!this.featureFlagsService.isEnabled(FeatureFlags.TRIAL_FINGERPRINT_CHECK)) return;
+    if (!this.featureFlagsService.isEnabledForSubject(FeatureFlags.TRIAL_FINGERPRINT_CHECK, user.id)) return;
     if (!user.lastFingerprint) return;
 
     const usersWithSameFingerprint = await this.userRepository.findTrialUsersByFingerprint(user.lastFingerprint, user.id);

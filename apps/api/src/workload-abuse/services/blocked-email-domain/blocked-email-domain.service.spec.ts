@@ -59,12 +59,12 @@ describe(BlockedEmailDomainService.name, () => {
       expect(blockedEmailDomainRepository.findByDomain).not.toHaveBeenCalled();
     });
 
-    it("reads the enforcement flag", async () => {
+    it("decides the enforcement flag for the normalized domain being checked", async () => {
       const { service, featureFlagsService } = setup();
 
-      await service.isBlockedEmail("someone@unknown.com");
+      await service.isBlockedEmail("Someone@Unknown.COM");
 
-      expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.BLOCKED_EMAIL_DOMAIN_ENFORCEMENT);
+      expect(featureFlagsService.isEnabledForSubject).toHaveBeenCalledWith(FeatureFlags.BLOCKED_EMAIL_DOMAIN_ENFORCEMENT, "unknown.com");
     });
 
     it("answers a repeated lookup from the cache", async () => {
@@ -145,7 +145,7 @@ describe(BlockedEmailDomainService.name, () => {
   function setup(input?: { row?: ReturnType<typeof createBlockedEmailDomain>; isFlagEnabled?: boolean; lookupError?: Error; ttlSeconds?: number }) {
     const findByDomain = input?.lookupError ? vi.fn().mockRejectedValue(input.lookupError) : vi.fn().mockResolvedValue(input?.row);
     const blockedEmailDomainRepository = mock<BlockedEmailDomainRepository>({ findByDomain });
-    const featureFlagsService = mock<FeatureFlagsService>({ isEnabled: vi.fn().mockReturnValue(input?.isFlagEnabled ?? true) });
+    const featureFlagsService = mock<FeatureFlagsService>({ isEnabledForSubject: vi.fn().mockReturnValue(input?.isFlagEnabled ?? true) });
     const workloadAbuseConfigService = mockConfigService<WorkloadAbuseConfigService>({
       WORKLOAD_ABUSE_BLOCKED_DOMAIN_CACHE_TTL_SECONDS: input?.ttlSeconds ?? 60
     });
