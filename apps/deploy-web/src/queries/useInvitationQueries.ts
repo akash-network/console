@@ -13,7 +13,7 @@ export function useInvitationPreviewQuery(token: string | null | undefined) {
   );
 }
 
-/** The joined organization is added to the cached memberships so the caller can switch into it right away. */
+/** The joined organization is added to the cached memberships so the caller can switch into it right away, and only a refusal refreshes the preview, whose accepted status would unmount the caller before its success callback runs. */
 export function useAcceptInvitationMutation() {
   const { api } = useServices();
   const queryClient = useQueryClient();
@@ -21,11 +21,8 @@ export function useAcceptInvitationMutation() {
   return api.v1.acceptInvitation.useMutation({
     meta: SKIP_REPORTING_REFUSED_INPUT,
     onSuccess: ({ data: joined }) => addCachedOrganization(queryClient, joined),
-    onSettled: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: api.v1.previewInvitation.getKey() }),
-        queryClient.invalidateQueries({ queryKey: api.v1.listReceivedInvitations.getKey() })
-      ])
+    onError: () => queryClient.invalidateQueries({ queryKey: api.v1.previewInvitation.getKey() }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: api.v1.listReceivedInvitations.getKey() })
   });
 }
 
