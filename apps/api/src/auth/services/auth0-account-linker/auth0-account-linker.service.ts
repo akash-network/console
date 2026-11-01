@@ -51,7 +51,8 @@ export class Auth0AccountLinkerService {
 
   /**
    * Prompts for an email, lists every matching Auth0 user, and returns the one
-   * the operator picks. Re-prompts on no matches or an invalid selection. When
+   * the operator picks. Re-prompts on no matches, an invalid selection or an
+   * account whose email is not verified. When
    * `excludeUserId` is set, rejects picking that same user (a user cannot link
    * to itself).
    */
@@ -87,6 +88,11 @@ export class Auth0AccountLinkerService {
         continue;
       }
 
+      if (selected.email_verified !== true) {
+        this.prompt.writeLine("That account's email is not verified, so it cannot be linked. Ask the user to verify it first.");
+        continue;
+      }
+
       return selected;
     }
   }
@@ -119,10 +125,17 @@ export class Auth0AccountLinkerService {
     return user.identities?.find(identity => `${identity.provider}|${identity.user_id}` === user.user_id);
   }
 
-  /** Renders an account as `<connection> / <email> (<user_id>)` for list and summary output. */
+  /** Shows verification and activity because two accounts for one address otherwise read the same apart from their connection. */
   #describeAccount(user: GetUsers200ResponseOneOfInner): string {
     const connection = user.identities?.[0]?.connection ?? user.identities?.[0]?.provider ?? "unknown";
-    return `${connection} / ${user.email ?? "no-email"} (${user.user_id})`;
+    const verification = user.email_verified === true ? "email verified" : "email NOT verified";
+    const activity = `created ${this.#formatDate(user.created_at)}, last login ${this.#formatDate(user.last_login)}, ${user.logins_count ?? 0} logins`;
+
+    return `${connection} / ${user.email ?? "no-email"} (${user.user_id}), ${verification}, ${activity}`;
+  }
+
+  #formatDate(value: unknown): string {
+    return typeof value === "string" ? value : "unknown";
   }
 
   /** Prints the primary/secondary summary block shown before the confirmation prompt. */
