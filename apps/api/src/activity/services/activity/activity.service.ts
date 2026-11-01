@@ -202,8 +202,11 @@ export class ActivityService {
     return { activities, hasMore, nextCursor: hasMore ? encodeActivityCursor(activities[activities.length - 1]) : null };
   }
 
+  /** A signed-in session opens any of its user's activities, while an API key opens only those its feed lists. */
   async findById(id: string): Promise<ActivityOutput | undefined> {
-    return await this.activityRepository.accessibleBy(this.authService.ability, "read").findById(id);
+    const feed = this.executionContextService.get("CURRENT_API_KEY") ? this.#activeFeed : undefined;
+
+    return await this.activityRepository.accessibleBy(this.authService.ability, "read").findByIdListedIn(id, feed);
   }
 
   async countUnseen(): Promise<number> {
@@ -218,7 +221,11 @@ export class ActivityService {
   /** Narrowed only in organization mode, like every organization-scoped read, so a user on the legacy rules keeps their whole feed. */
   get #activeFeed(): ActivityFeed | undefined {
     const context = this.executionContextService.get("ORGANIZATION_CONTEXT");
+    if (context?.mode !== "organization") return undefined;
 
-    return context?.mode === "organization" ? context : undefined;
+    const keyProjectId = this.executionContextService.get("CURRENT_API_KEY")?.projectId;
+    if (!keyProjectId) return context;
+
+    return { ...context, projectIds: context.projectScope.kind === "projects" ? context.projectScope.projectIds : [keyProjectId] };
   }
 }
