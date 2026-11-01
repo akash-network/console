@@ -30,6 +30,7 @@ export const OrganizationInvitations = pgTable(
     tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
     status: organizationInvitationStatusEnum("status").notNull().default("pending"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    /** Whoever last issued its token, by sending it or making a link, and who must still be able to invite to its role for it to be accepted. */
     invitedByUserId: uuid("invited_by_user_id").references(() => Users.id, { onDelete: "set null" }),
     acceptedByUserId: uuid("accepted_by_user_id").references(() => Users.id, { onDelete: "set null" }),
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),

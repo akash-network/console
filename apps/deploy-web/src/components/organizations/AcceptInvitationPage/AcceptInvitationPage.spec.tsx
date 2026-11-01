@@ -271,7 +271,8 @@ describe(AcceptInvitationPage.name, () => {
     [410, "invitation_expired", "This invitation has expired."],
     [410, "invitation_revoked", "This invitation was revoked."],
     [410, "invitation_declined", "This invitation was declined."],
-    [409, "invitation_already_accepted", "This invitation has already been accepted."]
+    [409, "invitation_already_accepted", "This invitation has already been accepted."],
+    [410, "invitation_inviter_lost_access", "This invitation is no longer valid. Ask an owner or admin of the team to send you a new one."]
   ])("explains a %s %s refusal and forgets the token", async (status, code, message) => {
     const { user, acceptInvitation, confirm, enqueueSnackbar, forgetToken } = setup({});
     acceptInvitation.mockImplementation((input, options) => options?.onError?.(refusal(status, code), input, undefined));

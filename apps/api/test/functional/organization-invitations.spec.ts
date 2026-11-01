@@ -436,7 +436,7 @@ describe("Organization invitations", () => {
   });
 
   describe("POST /v1/organization-invitations/{id}/resend", () => {
-    it.each<OrganizationRole>(["owner", "admin"])("lets a caller with role %s renew the token and expiry and email it again", async role => {
+    it.each<OrganizationRole>(["owner", "admin"])("lets a caller with role %s renew the token and expiry as theirs and email it again", async role => {
       const { organization, owner, caller, request } = await setup({ callerRole: role });
       const invitation = await seedOrganizationInvitation({ organizationId: organization.id, invitedByUserId: owner.id, expiresAt: addDays(new Date(), -1) });
 
@@ -445,7 +445,7 @@ describe("Organization invitations", () => {
       expect(response.status).toBe(200);
       const stored = await invitationRepository.findById(invitation.id);
       expect(await response.json()).toEqual({
-        data: { ...toOutput({ ...invitation, expiresAt: stored!.expiresAt }), invitedBy: { id: owner.id, username: owner.username } }
+        data: { ...toOutput({ ...invitation, expiresAt: stored!.expiresAt }), invitedBy: { id: caller.id, username: caller.username } }
       });
       expect(stored!.tokenHash).not.toBe(invitation.tokenHash);
       expect(differenceInSeconds(stored!.expiresAt, addDays(new Date(), 7))).toBeGreaterThan(-60);
@@ -506,9 +506,9 @@ describe("Organization invitations", () => {
   });
 
   describe("POST /v1/organization-invitations/{id}/link", () => {
-    it.each<OrganizationRole>(["owner", "admin"])("lets a caller with role %s get a new link that replaces every earlier one", async role => {
-      const { organization, caller, request } = await setup({ callerRole: role });
-      const invitation = await seedOrganizationInvitation({ organizationId: organization.id });
+    it.each<OrganizationRole>(["owner", "admin"])("lets a caller with role %s get a new link of theirs that replaces every earlier one", async role => {
+      const { organization, owner, caller, request } = await setup({ callerRole: role });
+      const invitation = await seedOrganizationInvitation({ organizationId: organization.id, invitedByUserId: owner.id });
       const deployWebBaseUrl = container.resolve(DeploymentConfigService).get("DEPLOY_WEB_BASE_URL");
 
       const first = await request("POST", `/v1/organization-invitations/${invitation.id}/link`, { asUser: caller, organizationId: organization.id });
@@ -520,7 +520,8 @@ describe("Organization invitations", () => {
       expect(firstToken).not.toBe(secondToken);
       expect(await invitationRepository.findById(invitation.id)).toMatchObject({
         tokenHash: hashInvitationToken(secondToken),
-        expiresAt: invitation.expiresAt
+        expiresAt: invitation.expiresAt,
+        invitedByUserId: caller.id
       });
       expect(await findJobRows(EMAIL_JOB, { data: { invitationId: invitation.id } })).toEqual([]);
     });

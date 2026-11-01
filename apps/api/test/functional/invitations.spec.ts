@@ -175,6 +175,51 @@ describe("Invitations", () => {
       expect(await membershipsOf(invitee)).toEqual([]);
     });
 
+    it("lets the invitee join on the invitation of an admin who still belongs to the organization", async () => {
+      const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
+      const admin = await seedInvitee();
+      await seedOrganizationMember({ organizationId: organization.id, userId: admin.id, role: "admin" });
+      const invitee = await seedInvitee();
+      const { token } = await invite({ email: invitee.email!, role: "admin", invitedByUserId: admin.id });
+
+      const response = await request("/v1/invitations/accept", { asUser: invitee, body: { data: { token } } });
+
+      expect(response.status).toBe(200);
+      expect(await membershipsOf(invitee)).toEqual([expect.objectContaining({ role: "admin" })]);
+    });
+
+    it.each([
+      { case: "who no longer belongs to the organization", inviterRole: undefined, role: "admin" as const },
+      { case: "who is now a member", inviterRole: "member" as const, role: "admin" as const },
+      { case: "who is now an admin, to an owner invitation", inviterRole: "admin" as const, role: "owner" as const }
+    ])("refuses with 410 the invitation of an inviter $case and leaves it pending", async ({ inviterRole, role }) => {
+      const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
+      const inviter = await seedInvitee();
+      if (inviterRole) await seedOrganizationMember({ organizationId: organization.id, userId: inviter.id, role: inviterRole });
+      const invitee = await seedInvitee();
+      const { token, invitation } = await invite({ email: invitee.email!, role, invitedByUserId: inviter.id });
+
+      const response = await request("/v1/invitations/accept", { asUser: invitee, body: { data: { token } } });
+
+      expect(response.status).toBe(410);
+      expect(await response.json()).toMatchObject({ code: "invitation_inviter_lost_access" });
+      expect(await membershipsOf(invitee)).toEqual([]);
+      expect(await invitationOf(invitation.id)).toMatchObject({ status: "pending" });
+    });
+
+    it("refuses with 410 a link its maker kept after leaving the organization, even to the maker", async () => {
+      const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
+      const formerAdmin = await seedInvitee();
+      const { token } = await invite({ email: faker.internet.email().toLowerCase(), role: "admin", invitedByUserId: formerAdmin.id });
+
+      const response = await request("/v1/invitations/accept", { asUser: formerAdmin, body: { data: { token, confirmEmailMismatch: true } } });
+
+      expect(response.status).toBe(410);
+      expect(await response.json()).toMatchObject({ code: "invitation_inviter_lost_access" });
+      expect(await membershipsOf(formerAdmin)).toEqual([]);
+      expect(await countMembers(organization.id, "admin")).toBe(0);
+    });
+
     it("answers the organization again when the invitee accepts twice", async () => {
       const { organization, invite, seedInvitee, request, membershipsOf } = await setup({});
       const invitee = await seedInvitee();
