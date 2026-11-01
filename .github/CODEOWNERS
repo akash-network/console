@@ -5,6 +5,9 @@
 /apps/*/src/ @akash-network/console
 /packages/*/src/ @akash-network/console
 /config @akash-network/console
+**/.claude/ @akash-network/console
+CLAUDE.md @akash-network/console
+AGENTS.md @akash-network/console
 
 # Exclude test files from code ownership
 *.spec.ts
