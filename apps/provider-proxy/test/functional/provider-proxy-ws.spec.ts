@@ -495,6 +495,32 @@ describe("Provider proxy ws", () => {
     ]);
   });
 
+  it("connects to a provider that offers compression without negotiating it", async () => {
+    const providerAddress = generateBech32();
+    const certPair = await createX509CertPair({ commonName: providerAddress });
+    const chainServer = await startChainApiServer([certPair.cert]);
+    let negotiatedExtensions: string | undefined;
+    const { providerUrl } = await startProviderServer({
+      certPair,
+      websocketServer: {
+        enable: true,
+        perMessageDeflate: true,
+        onConnection: pws => {
+          negotiatedExtensions = pws.extensions;
+          pws.send("connected");
+        }
+      }
+    });
+    const proxyServerUrl = await startServer({ REST_API_NODE_URL: chainServer.url });
+    const ws = new WebSocket(`${proxyServerUrl}/ws`);
+    await new Promise(resolve => ws.once("open", resolve));
+
+    ws.send(JSON.stringify(ourMessage("hello", providerUrl, { providerAddress })));
+
+    expect(await waitForMessage(ws)).toEqual(providerMessage("connected"));
+    expect(negotiatedExtensions).toBe("");
+  });
+
   function withExpiredPayload(token: string, issuer: string): string {
     const [header, , signature] = token.split(".");
     const now = Math.floor(Date.now() / 1000);

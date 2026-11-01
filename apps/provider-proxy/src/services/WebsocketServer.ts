@@ -41,6 +41,9 @@ export const MAX_CLIENT_MESSAGE_BYTES = 1024 * 1024;
 /** Providers stream logs and shell output in small frames, so this is far above a real frame while bounding what one frame holds. */
 export const MAX_PROVIDER_MESSAGE_BYTES = 4 * 1024 * 1024;
 
+/** Without compression ws reads each provider frame synchronously, so it never resumes a provider socket that sendWithBackpressure paused. */
+const PROVIDER_SOCKET_OPTIONS = { maxPayload: MAX_PROVIDER_MESSAGE_BYTES, perMessageDeflate: false };
+
 const WS_ERRORS = {
   VIOLATED_POLICY: 1008
 };
@@ -319,7 +322,7 @@ export class WebsocketServer {
       return new WebSocket(url, {
         key: options.auth.keyPem,
         cert: options.auth.certPem,
-        maxPayload: MAX_PROVIDER_MESSAGE_BYTES,
+        ...PROVIDER_SOCKET_OPTIONS,
         agent: new ProviderCertificateAgent({
           // do not use TLS session resumption for websocket
           sessionTimeout: 0,
@@ -336,7 +339,7 @@ export class WebsocketServer {
 
     return new WebSocket(url, {
       headers,
-      maxPayload: MAX_PROVIDER_MESSAGE_BYTES,
+      ...PROVIDER_SOCKET_OPTIONS,
       agent: new ProviderCertificateAgent({
         // do not use TLS session resumption for websocket
         sessionTimeout: 0,
