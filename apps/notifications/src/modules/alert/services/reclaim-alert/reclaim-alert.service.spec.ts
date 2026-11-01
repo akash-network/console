@@ -247,6 +247,24 @@ describe(ReclaimAlertService.name, () => {
       expect(alertRepository.claimNotification).not.toHaveBeenCalled();
       expect(onMessage).not.toHaveBeenCalled();
     });
+
+    it("still notifies the deployment's other alerts when one fails, then rejects so the event is redelivered", async () => {
+      const { service, alertRepository, loggerService, onMessage } = await setup();
+      const failingAlert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      const healthyAlert = generateGeneralAlert({ type: "CHAIN_EVENT", enabled: true });
+      const error = new Error("connection reset");
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([failingAlert, healthyAlert]);
+      alertRepository.findNotificationChannelTimezone.mockRejectedValueOnce(error).mockResolvedValue(null);
+      alertRepository.claimNotification.mockResolvedValue(healthyAlert);
+
+      await expect(service.alertFor(generateReclaimEvent(), onMessage)).rejects.toBe(error);
+
+      expect(alertRepository.claimNotification).toHaveBeenCalledTimes(1);
+      expect(alertRepository.claimNotification).toHaveBeenCalledWith(healthyAlert.id, "reclaimNotifiedAt");
+      expect(onMessage).toHaveBeenCalledTimes(1);
+      expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ notificationChannelId: healthyAlert.notificationChannelId }));
+      expect(loggerService.error).toHaveBeenCalledWith({ event: "RECLAIM_ALERT_FAILED", alertId: failingAlert.id, error });
+    });
   });
 
   function generateReclaimEvent(overrides: Partial<ReclaimAlertEvent> = {}): ReclaimAlertEvent {

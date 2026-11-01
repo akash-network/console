@@ -3,6 +3,7 @@ import { Injectable } from "@nestjs/common";
 import escape from "lodash/escape";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
+import { attemptEach } from "@src/lib/attempt-each/attempt-each";
 import type { GeneralAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 import { AlertRepository } from "@src/modules/alert/repositories/alert/alert.repository";
 import type { AlertMessagePayload } from "@src/modules/alert/services/alert-message/alert-message.service";
@@ -43,9 +44,11 @@ export class LeaseClosedAlertService {
       return;
     }
 
-    for (const alert of alerts) {
-      await this.#notifyThrough(alert, event, reason, onMessage);
-    }
+    await attemptEach(
+      alerts,
+      alert => this.#notifyThrough(alert, event, reason, onMessage),
+      (alert, error) => this.loggerService.error({ event: "LEASE_CLOSED_ALERT_FAILED", alertId: alert.id, error })
+    );
   }
 
   async #notifyThrough(alert: GeneralAlertOutput, event: LeaseClosedAlertEvent, reason: LeaseClosedReason, onMessage: MessageCallback): Promise<void> {

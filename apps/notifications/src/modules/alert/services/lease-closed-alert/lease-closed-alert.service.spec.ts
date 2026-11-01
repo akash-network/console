@@ -123,6 +123,21 @@ describe(LeaseClosedAlertService.name, () => {
       expect(onMessage.mock.calls.map(([message]) => message.notificationChannelId)).toEqual([first.notificationChannelId, second.notificationChannelId]);
     });
 
+    it("still notifies the deployment's other alerts when one fails, then rejects so the event is redelivered", async () => {
+      const { service, alertRepository, loggerService, onMessage } = await setup();
+      const failingAlert = generateDeploymentClosedAlert();
+      const healthyAlert = generateDeploymentClosedAlert();
+      const error = new Error("connection reset");
+      alertRepository.findDeploymentClosedAlertsByOwnerAndDseq.mockResolvedValue([failingAlert, healthyAlert]);
+      alertRepository.claimNotification.mockRejectedValueOnce(error).mockResolvedValueOnce(healthyAlert);
+
+      await expect(service.alertFor(generateLeaseClosedEvent(), onMessage)).rejects.toBe(error);
+
+      expect(onMessage).toHaveBeenCalledTimes(1);
+      expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ notificationChannelId: healthyAlert.notificationChannelId }));
+      expect(loggerService.error).toHaveBeenCalledWith({ event: "LEASE_CLOSED_ALERT_FAILED", alertId: failingAlert.id, error });
+    });
+
     it("still notifies when the deployment closed in the same block and switched its alert off", async () => {
       const { service, alertRepository, onMessage } = await setup();
       const alert = generateDeploymentClosedAlert({ enabled: false, suppressedBySystem: true });

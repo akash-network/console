@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import escape from "lodash/escape";
 
 import { LoggerService } from "@src/common/services/logger/logger.service";
+import { attemptEach } from "@src/lib/attempt-each/attempt-each";
 import { type AlertOutput, AlertRepository, type GeneralAlertOutput } from "@src/modules/alert/repositories/alert/alert.repository";
 import type { AlertMessagePayload } from "@src/modules/alert/services/alert-message/alert-message.service";
 import { alertNotifiedLog } from "@src/modules/alert/services/alert-notified-log";
@@ -37,9 +38,11 @@ export class ReclaimAlertService {
       return;
     }
 
-    for (const alert of alerts) {
-      await this.#notifyThrough(alert, event, onMessage);
-    }
+    await attemptEach(
+      alerts,
+      alert => this.#notifyThrough(alert, event, onMessage),
+      (alert, error) => this.loggerService.error({ event: "RECLAIM_ALERT_FAILED", alertId: alert.id, error })
+    );
   }
 
   async #notifyThrough(alert: GeneralAlertOutput, event: ReclaimAlertEvent, onMessage: MessageCallback): Promise<void> {
