@@ -118,7 +118,11 @@ const deleteOrganizationMemberRoute = createRoute({
   },
   responses: {
     204: { description: "The member was removed" },
-    ...memberWriteErrorResponses
+    ...memberWriteErrorResponses,
+    400: {
+      description:
+        "The request is invalid, the member is the caller, who ends their own membership by leaving the organization, or the organization header names another organization than the API key's (`organization_mismatch`)"
+    }
   }
 });
 
