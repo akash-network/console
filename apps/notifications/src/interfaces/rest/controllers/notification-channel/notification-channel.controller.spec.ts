@@ -18,6 +18,7 @@ import {
   NotificationChannelRepository
 } from "@src/modules/notifications/repositories/notification-channel/notification-channel.repository";
 import {
+  MAX_NOTIFICATION_CHANNEL_ADDRESSES,
   NotificationChannelController,
   notificationChannelCreateInputSchema,
   notificationChannelOutputSchema,
@@ -43,6 +44,32 @@ describe(NotificationChannelController.name, () => {
         organizationId
       });
       expect(result).toEqual(Ok({ data: output }));
+    });
+
+    it("creates a channel with as many addresses as the limit", async () => {
+      const { app, notificationChannelRepository } = await setup();
+      notificationChannelRepository.create.mockResolvedValue({ ...generateMock(notificationChannelOutputSchema), organizationId: null });
+
+      const res = await request(app.getHttpServer())
+        .post("/v1/notification-channels")
+        .send({ data: { name: "Ops", type: "email", config: { addresses: emails(MAX_NOTIFICATION_CHANNEL_ADDRESSES) } } });
+
+      expect(res.status).toBe(201);
+      expect(notificationChannelRepository.create).toHaveBeenCalled();
+    });
+
+    it("answers 400 without creating a channel with more addresses than the limit", async () => {
+      const { app, notificationChannelRepository } = await setup();
+
+      const res = await request(app.getHttpServer())
+        .post("/v1/notification-channels")
+        .send({ data: { name: "Ops", type: "email", config: { addresses: emails(MAX_NOTIFICATION_CHANNEL_ADDRESSES + 1) } } });
+
+      expect(res.status).toBe(400);
+      expect(res.body.errors.issues).toContainEqual(
+        expect.objectContaining({ path: ["data", "config", "addresses"], message: "A notification channel can have at most 10 email addresses" })
+      );
+      expect(notificationChannelRepository.create).not.toHaveBeenCalled();
     });
   });
 
@@ -116,6 +143,59 @@ describe(NotificationChannelController.name, () => {
         expect(notificationChannelRepository.updateById).not.toHaveBeenCalled();
       }
     );
+
+    it("updates a channel to as many addresses as the limit without reading it first", async () => {
+      const { controller, notificationChannelRepository } = await setup();
+      const id = faker.string.uuid();
+      const data = { config: { addresses: emails(MAX_NOTIFICATION_CHANNEL_ADDRESSES) } };
+      notificationChannelRepository.updateById.mockResolvedValue({ ...generateMock(notificationChannelOutputSchema), organizationId: null });
+
+      await controller.updateNotificationChannel(id, { data });
+
+      expect(notificationChannelRepository.findById).not.toHaveBeenCalled();
+      expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, data);
+    });
+
+    it("answers 400 without updating a channel when the update adds an address past the limit", async () => {
+      const { app, notificationChannelRepository } = await setup();
+      const id = faker.string.uuid();
+      const addresses = emails(MAX_NOTIFICATION_CHANNEL_ADDRESSES);
+      notificationChannelRepository.findById.mockResolvedValue(channelWith(id, addresses));
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/notification-channels/${id}`)
+        .send({ data: { config: { addresses: [...addresses, "new@example.com"] } } });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("A notification channel can have at most 10 email addresses");
+      expect(notificationChannelRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("lets a channel already over the limit keep or drop its addresses, whatever their case", async () => {
+      const { controller, notificationChannelRepository } = await setup();
+      const id = faker.string.uuid();
+      const addresses = emails(MAX_NOTIFICATION_CHANNEL_ADDRESSES + 2);
+      const data = { name: "Renamed", config: { addresses: addresses.slice(1).map(address => address.toUpperCase()) } };
+      notificationChannelRepository.findById.mockResolvedValue(channelWith(id, addresses));
+      notificationChannelRepository.updateById.mockResolvedValue(channelWith(id, data.config.addresses));
+
+      const result = await controller.updateNotificationChannel(id, { data });
+
+      expect(result.ok).toBe(true);
+      expect(notificationChannelRepository.updateById).toHaveBeenCalledWith(id, data);
+    });
+
+    it("answers 404 without updating when a channel to update past the limit does not exist", async () => {
+      const { app, notificationChannelRepository } = await setup();
+      notificationChannelRepository.findById.mockResolvedValue(undefined);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/notification-channels/${faker.string.uuid()}`)
+        .send({ data: { config: { addresses: emails(MAX_NOTIFICATION_CHANNEL_ADDRESSES + 1) } } });
+
+      expect(res.status).toBe(404);
+      expect(notificationChannelRepository.updateById).not.toHaveBeenCalled();
+    });
   });
 
   describe("getNotificationChannel", () => {
@@ -269,6 +349,17 @@ describe(NotificationChannelController.name, () => {
 
       expect(notificationChannelRepository.createDefaultChannel).toHaveBeenCalledWith({ ...input, userId, organizationId }, defaultChannelOwner);
     });
+
+    it("answers 400 without creating a default channel with more addresses than the limit", async () => {
+      const { app, notificationChannelRepository } = await setup();
+
+      const res = await request(app.getHttpServer())
+        .post("/v1/notification-channels/default")
+        .send({ data: { name: "Default", type: "email", config: { addresses: emails(MAX_NOTIFICATION_CHANNEL_ADDRESSES + 1) } } });
+
+      expect(res.status).toBe(400);
+      expect(notificationChannelRepository.createDefaultChannel).not.toHaveBeenCalled();
+    });
   });
 
   describe("listNotificationChannels", () => {
@@ -345,3 +436,11 @@ describe(NotificationChannelController.name, () => {
     };
   }
 });
+
+function emails(count: number): string[] {
+  return Array.from({ length: count }, (_, index) => `member${index}@example.com`);
+}
+
+function channelWith(id: string, addresses: string[]) {
+  return { ...generateMock(notificationChannelOutputSchema), id, organizationId: null, config: { addresses } };
+}
