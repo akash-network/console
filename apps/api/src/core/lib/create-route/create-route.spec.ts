@@ -9,7 +9,7 @@ import { AuthService } from "../../../auth/services/auth.service";
 import type { FeatureFlagValue } from "../../services/feature-flags/feature-flags";
 import { FeatureFlags } from "../../services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "../../services/feature-flags/feature-flags.service";
-import { SECURITY_NONE } from "../../services/openapi-docs/openapi-security";
+import { SECURITY_BEARER, SECURITY_BEARER_OR_API_KEY, SECURITY_NONE } from "../../services/openapi-docs/openapi-security";
 import { createRoute, HIDDEN_ROUTES, stripHiddenOperations } from "./create-route";
 
 describe(createRoute.name, () => {
@@ -316,6 +316,79 @@ describe(createRoute.name, () => {
     });
   });
 
+  describe("when security declares a sign-in scheme", () => {
+    it("answers 401 to a caller who is not signed in before any other middleware of the route", async () => {
+      const { route, ctx, next } = setup({
+        method: "post",
+        path: "/test",
+        security: SECURITY_BEARER_OR_API_KEY,
+        request: {
+          body: {
+            content: {
+              "application/json": {
+                schema: { type: "object" as const }
+              }
+            }
+          }
+        }
+      });
+
+      const middlewares = route.middleware as MiddlewareHandler[];
+      expect(middlewares).toHaveLength(3);
+
+      await expect(middlewares[0](ctx, next)).rejects.toMatchObject({ status: 401 });
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("lets a signed-in caller through", async () => {
+      const { route, ctx, next } = setup({
+        method: "get",
+        path: "/test",
+        security: SECURITY_BEARER,
+        currentUser: { userId: "user-123" }
+      });
+
+      await (route.middleware as MiddlewareHandler[])[0](ctx, next);
+
+      expect(next).toHaveBeenCalled();
+    });
+
+    it("keeps the feature flag gate ahead of the sign-in gate", async () => {
+      const { route, ctx, next, notFound } = setup({
+        method: "get",
+        path: "/test",
+        security: SECURITY_BEARER,
+        featureFlag: FeatureFlags.ORGANIZATIONS,
+        featureFlagOn: false
+      });
+
+      const middlewares = route.middleware as MiddlewareHandler[];
+      expect(middlewares).toHaveLength(3);
+
+      await middlewares[0](ctx, next);
+
+      expect(notFound).toHaveBeenCalledOnce();
+      expect(next).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("when security is empty", () => {
+    it("adds no sign-in gate, so a caller who is not signed in reaches the route", async () => {
+      const { route, ctx, next } = setup({
+        method: "get",
+        path: "/test",
+        security: SECURITY_NONE
+      });
+
+      const middlewares = route.middleware as MiddlewareHandler[];
+      expect(middlewares).toHaveLength(1);
+
+      await middlewares[0](ctx, next);
+
+      expect(next).toHaveBeenCalled();
+    });
+  });
+
   describe("when hiddenInOpenApiDocs is true", () => {
     it("registers the explicit operationId (not the METHOD path) in HIDDEN_ROUTES so the served spec can strip it", () => {
       createRoute({
@@ -378,6 +451,7 @@ describe(createRoute.name, () => {
     currentUser?: { userId: string };
     featureFlag?: FeatureFlagValue;
     featureFlagOn?: boolean;
+    security?: typeof SECURITY_NONE;
   }) {
     const mockAuthService = mock<AuthService>({
       safeCurrentUser: input.currentUser
@@ -393,7 +467,7 @@ describe(createRoute.name, () => {
       path: input.path,
       summary: "Test",
       tags: ["Test"],
-      security: SECURITY_NONE,
+      security: input.security ?? SECURITY_NONE,
       cache: input.cache,
       bodyLimit: input.bodyLimit,
       additionalContentTypes: input.additionalContentTypes,
