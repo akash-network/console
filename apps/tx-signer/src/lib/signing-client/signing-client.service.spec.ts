@@ -1,8 +1,9 @@
 import { TxBody, TxRaw } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
+import { LoggerService } from "@akashnetwork/logging";
 import { sha256 } from "@cosmjs/crypto";
 import { toHex } from "@cosmjs/encoding";
 import type { EncodeObject } from "@cosmjs/proto-signing";
-import { BroadcastTxError, type IndexedTx } from "@cosmjs/stargate";
+import { type Block, BroadcastTxError, type IndexedTx } from "@cosmjs/stargate";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -229,7 +230,7 @@ describe(SigningClientService.name, () => {
   it("rejects with a not-included outcome once polling has outlasted the transaction TTL", async () => {
     vi.useFakeTimers();
     try {
-      // ceil(10_000ms TTL × 1.2 window / 2_000ms poll interval) = 6 retries, so 1 initial + 6 = 7 getTx polls before giving up.
+      // ceil(10_000ms TTL × 1.2 window / 2_000ms poll interval) = 6 retries, so 1 initial + 6 = 7 getTx polls, then one read once the chain is past the expiry.
       const { service, client } = setup({ ttlMs: 10_000 });
       client.broadcastTxSync.mockResolvedValue("broadcast-hash");
       client.getTx.mockResolvedValue(null);
@@ -240,7 +241,7 @@ describe(SigningClientService.name, () => {
 
       await expect(promise).rejects.toBeInstanceOf(TxNotIncludedError);
       await expect(promise).rejects.toMatchObject({ status: 502, data: { outcome: "not_included", txHash: "broadcast-hash" } });
-      expect(client.getTx).toHaveBeenCalledTimes(7);
+      expect(client.getTx).toHaveBeenCalledTimes(8);
       expect(client.broadcastTxSync).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
@@ -413,10 +414,123 @@ describe(SigningClientService.name, () => {
     return [{ typeUrl: "/test.MsgTest", value: { seed } }];
   }
 
+  describe("when the poll window ends without the transaction", () => {
+    it("returns a transaction the node shows once it has committed a block past the expiry", async () => {
+      vi.useFakeTimers();
+      try {
+        const { service, client } = setup({ ttlMs: 10_000 });
+        client.broadcastTxSync.mockResolvedValue("broadcast-hash");
+        client.getTx.mockImplementation(async hash => (client.getBlock.mock.calls.length > 0 ? mock<IndexedTx>({ hash, code: 0, height: 100 }) : null));
+
+        const promise = service.signAndBroadcast(createMessages(1));
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        await expect(promise).resolves.toMatchObject({ hash: "broadcast-hash", code: 0 });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("waits for the node to commit a block past the expiry before reporting the transaction not included", async () => {
+      vi.useFakeTimers();
+      try {
+        const { service, client } = setup({ ttlMs: 10_000 });
+        const expiresAt = new Date(Date.now() + 10_000);
+        client.broadcastTxSync.mockResolvedValue("broadcast-hash");
+        client.getTx.mockResolvedValue(null);
+        client.getBlock.mockResolvedValueOnce(blockAt(new Date(expiresAt.getTime() - 6_000))).mockResolvedValueOnce(blockAt(expiresAt));
+
+        const promise = service.signAndBroadcast(createMessages(1));
+        promise.catch(() => {});
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        await expect(promise).rejects.toBeInstanceOf(TxNotIncludedError);
+        expect(client.getBlock).toHaveBeenCalledTimes(3);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("reports an undecided outcome when the deadline comes before the node commits a block past the expiry", async () => {
+      vi.useFakeTimers();
+      try {
+        const { service, client } = setup({ ttlMs: 10_000, deadlineMs: 40_000 });
+        const expiresAt = new Date(Date.now() + 10_000);
+        client.broadcastTxSync.mockResolvedValue("broadcast-hash");
+        client.getTx.mockResolvedValue(null);
+        client.getBlock.mockResolvedValue(blockAt(expiresAt));
+        const logError = vi.spyOn(LoggerService.prototype, "error");
+
+        const promise = service.signAndBroadcast(createMessages(1));
+        promise.catch(() => {});
+        await vi.advanceTimersByTimeAsync(120_000);
+
+        await expect(promise).rejects.toBeInstanceOf(TxOutcomeUnknownError);
+        expect(client.getTx).toHaveBeenCalledTimes(7);
+        expect(client.getBlock).toHaveBeenCalledTimes(15);
+        expect(logError).toHaveBeenCalledWith({ event: "SIGN_AND_BROADCAST_TX_OUTCOME_UNKNOWN", txHash: "broadcast-hash", expiresAt });
+      } finally {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+      }
+    });
+
+    it("reports an undecided outcome when the node cannot say which block it has committed", async () => {
+      vi.useFakeTimers();
+      try {
+        const { service, client } = setup({ ttlMs: 10_000 });
+        client.broadcastTxSync.mockResolvedValue("broadcast-hash");
+        client.getTx.mockResolvedValue(null);
+        const unreadable = new Error("socket hang up");
+        client.getBlock.mockRejectedValue(unreadable);
+        const logError = vi.spyOn(LoggerService.prototype, "error");
+
+        const promise = service.signAndBroadcast(createMessages(1));
+        promise.catch(() => {});
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        await expect(promise).rejects.toBeInstanceOf(TxOutcomeUnknownError);
+        expect(logError).toHaveBeenCalledWith({ event: "SIGN_AND_BROADCAST_TX_OUTCOME_UNKNOWN", txHash: "broadcast-hash", error: unreadable });
+      } finally {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+      }
+    });
+
+    it("reports an undecided outcome for a transaction that carries no expiry", async () => {
+      vi.useFakeTimers();
+      try {
+        const { service, client } = setup({ ttlMs: 10_000 });
+        client.signUnordered.mockResolvedValue(
+          TxRaw.fromPartial({
+            bodyBytes: TxBody.encode(TxBody.fromPartial({ memo: "akash console" })).finish(),
+            authInfoBytes: new Uint8Array([2]),
+            signatures: [new Uint8Array([3])]
+          })
+        );
+        client.broadcastTxSync.mockResolvedValue("broadcast-hash");
+        client.getTx.mockResolvedValue(null);
+
+        const promise = service.signAndBroadcast(createMessages(1));
+        promise.catch(() => {});
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        await expect(promise).rejects.toBeInstanceOf(TxOutcomeUnknownError);
+        expect(client.getBlock).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   function signedTx(ttlMs = DEFAULT_TTL_MS) {
     const bodyBytes = TxBody.encode(TxBody.fromPartial({ memo: "akash console", unordered: true, timeoutTimestamp: new Date(Date.now() + ttlMs) })).finish();
 
     return TxRaw.fromPartial({ bodyBytes, authInfoBytes: new Uint8Array([2]), signatures: [new Uint8Array([3])] });
+  }
+
+  function blockAt(time: Date) {
+    return mock<Block>({ header: { time: time.toISOString() } });
   }
 
   function outOfGasTx(input: { gasUsed: bigint; gasWanted: bigint }) {
@@ -440,7 +554,8 @@ describe(SigningClientService.name, () => {
     const client = mock<SigningStargateWithUnorderedSupportClient>({
       signUnordered: vi.fn().mockImplementation(async () => signedTx(ttlMs)),
       broadcastTxSync: vi.fn(async (bytes: Uint8Array) => toHex(sha256(bytes))),
-      getTx: vi.fn(async (hash: string) => mock<IndexedTx>({ hash, code: 0, height: 100 }))
+      getTx: vi.fn(async (hash: string) => mock<IndexedTx>({ hash, code: 0, height: 100 })),
+      getBlock: vi.fn(async () => blockAt(new Date()))
     });
 
     const service = new SigningClientService(client, config);
