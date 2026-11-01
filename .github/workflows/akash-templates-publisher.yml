@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   build-and-deploy-templates:
-    runs-on: [self-hosted, akash]
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: .

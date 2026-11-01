@@ -11,7 +11,7 @@ permissions:
 jobs:
   create-branch:
     if: github.event.label.name == 'ready-for-dev'
-    runs-on: [self-hosted, akash]
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       issues: write
