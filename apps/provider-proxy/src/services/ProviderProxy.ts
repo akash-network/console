@@ -10,14 +10,20 @@ import type { NetworkLookup } from "../utils/createForbidPrivateNetworkLookup/cr
 import { toErrno } from "../utils/errno";
 import type { providerRequestSchema } from "../utils/schema";
 import { propagateTracingContext } from "../utils/telemetry";
-import type { CertificateValidator, CertValidationResultError } from "./CertificateValidator/CertificateValidator";
+import type { CertificateValidator } from "./CertificateValidator/CertificateValidator";
+import {
+  ProviderCertificateAgent,
+  type ProviderCertificateAgentOptions,
+  ProviderCertificateRejectedError,
+  type ProviderCertificateRejection
+} from "./ProviderCertificateAgent/ProviderCertificateAgent";
 import type { ProviderConnectionTracker } from "./ProviderConnectionTracker/ProviderConnectionTracker";
 
 export class ProviderProxy {
   /**
    * Cache agents in order to control TLS session resumption
    */
-  readonly #agentsCache = new LRUCache<string, https.Agent>({
+  readonly #agentsCache = new LRUCache<string, ProviderCertificateAgent>({
     max: 1_000_000
   });
   /** Destroying a shared agent aborts every concurrent dial to that provider with ECONNRESET, which must not count as the provider being unreachable. */
@@ -44,7 +50,7 @@ export class ProviderProxy {
       });
     }
 
-    return new Promise<ProxyConnectionResult>((resolve, reject) => {
+    return new Promise<ProxyConnectionResult>(resolve => {
       let proxyTermination: DialTermination | undefined;
       /** Node's timeout option measures socket inactivity, so a provider dribbling bytes can hold a dial open indefinitely; this bounds it by elapsed time instead. */
       let dialDeadline: NodeJS.Timeout | undefined;
@@ -53,68 +59,28 @@ export class ProviderProxy {
       const req = https.request(
         url,
         requestOptions,
-        propagateTracingContext(async (res: IncomingMessage) => {
+        propagateTracingContext((res: IncomingMessage) => {
           proxyTermination ??= "providerAnswered";
           stopDialDeadline();
 
-          try {
-            res.on(
-              "error",
-              propagateTracingContext(error => {
-                resolve({ ok: false, code: "connectionError", error });
-              })
-            );
+          res.on(
+            "error",
+            propagateTracingContext(error => {
+              resolve({ ok: false, code: "connectionError", error });
+            })
+          );
 
-            const socket = res.socket;
-            if (!socket || !(socket instanceof TLSSocket)) {
-              this.recordReachable(trackerKey);
-              res.destroy();
-              return resolve({ ok: false, code: "insecureConnection" });
-            }
+          this.recordReachable(trackerKey);
 
-            this.recordReachable(trackerKey);
-
-            if (socket.authorized) {
-              // CA validation is successful, so certificate is not self-signed
-              resolve({ ok: true, response: res });
-              return;
-            }
-
-            const serverCert = socket.getPeerX509Certificate();
-            // @see https://nodejs.org/api/tls.html#session-resumption
-            // for servers which support TLS session resumption, handshake phase is skipped for subsequent requests
-            // to improve performance and in this case certicate is not available because it is not requested.
-            // There is a way to disable session resumption but it will hurt performance.
-            // To disable either create a new `https.Agent` for every request or reduce session related options in it
-            // sessionTimeout & maxCachedSessions. In that case, we will do TLS handshake on every request and
-            // will receive certificate for every request
-            const didHandshake = !!serverCert;
-
-            if (didHandshake && options.providerAddress) {
-              res.pause();
-              const validationResult = await this.#certificateValidator.validate(serverCert, options.providerAddress);
-
-              if (validationResult.ok === false) {
-                // remove agent from cache to destroy TLS session to force TLS handshake on the next call
-                this.#agentsCache.delete(agentCacheKey);
-                resolve({ ok: false, code: "invalidCertificate", reason: validationResult.code });
-                req.off("error", reject);
-                res.destroy();
-                req.destroy();
-                if (requestOptions.agent) this.#tornDownAgents.add(requestOptions.agent);
-                requestOptions.agent?.destroy();
-                return;
-              }
-
-              res.resume();
-            }
-
-            resolve({ ok: true, response: res });
-          } catch (error) {
-            res.destroy(error as Error);
+          if (!(res.socket instanceof TLSSocket)) {
+            res.destroy();
+            return resolve({ ok: false, code: "insecureConnection" });
           }
+
+          resolve({ ok: true, response: res });
         })
       );
+      const terminationOnTimeout = (): DialTermination => (requestOptions.agent.isVerifying(req.socket) ? "verifyingCertificate" : "attemptTimedOut");
 
       if (options.signal) {
         options.signal.addEventListener(
@@ -130,7 +96,7 @@ export class ProviderProxy {
       if (options.timeout) {
         dialDeadline = setTimeout(
           propagateTracingContext(() => {
-            proxyTermination ??= "attemptTimedOut";
+            proxyTermination ??= terminationOnTimeout();
             req.destroy();
           }),
           options.timeout
@@ -141,7 +107,15 @@ export class ProviderProxy {
       req.on(
         "error",
         propagateTracingContext(error => {
-          const tornDownAgent = requestOptions.agent !== undefined && this.#tornDownAgents.has(requestOptions.agent);
+          if (error instanceof ProviderCertificateRejectedError) {
+            this.recordReachable(trackerKey);
+            if (error.code === "serverError") return resolve({ ok: false, code: "connectionError", error: error.cause });
+
+            this.#tearDownAgent(agentCacheKey, requestOptions.agent);
+            return resolve({ ok: false, code: "invalidCertificate", reason: error.code });
+          }
+
+          const tornDownAgent = this.#tornDownAgents.has(requestOptions.agent);
           const termination = proxyTermination ?? (tornDownAgent ? "agentTornDown" : undefined);
 
           if (this.recordDialFailure(trackerKey, error, termination)) {
@@ -154,7 +128,7 @@ export class ProviderProxy {
       req.on(
         "timeout",
         propagateTracingContext(() => {
-          proxyTermination ??= "attemptTimedOut";
+          proxyTermination ??= terminationOnTimeout();
           req.destroy();
         })
       );
@@ -197,7 +171,7 @@ export class ProviderProxy {
   }
 
   private getRequestOptions(options: ProxyConnectOptions) {
-    const requestOptions: Omit<RequestOptions, "agent" | "headers"> & { agent?: https.Agent; headers: OutgoingHttpHeaders; agentCacheKey: string } = {
+    const requestOptions: Omit<RequestOptions, "agent" | "headers"> & { headers: OutgoingHttpHeaders; agentCacheKey: string } = {
       method: options.method,
       headers: {
         "Content-Type": "application/json",
@@ -206,43 +180,52 @@ export class ProviderProxy {
       timeout: options.timeout,
       agentCacheKey: options.providerAddress
     };
-    const agentOptions: https.AgentOptions = {
+    const agentOptions: ProviderCertificateAgentOptions = {
       timeout: options.timeout,
       rejectUnauthorized: false,
-      lookup: this.#networkLookup
+      lookup: this.#networkLookup,
+      certificateValidator: this.#certificateValidator,
+      providerAddress: options.providerAddress
     };
 
     if (options.auth?.type === "mtls") {
       requestOptions.agentCacheKey += `:${createHash("sha256").update(`${options.auth.certPem}:${options.auth.keyPem}`).digest("hex")}`;
-      requestOptions.agent = this.getHttpsAgent(requestOptions.agentCacheKey, {
+      const agent = this.getHttpsAgent(requestOptions.agentCacheKey, {
         ...agentOptions,
         cert: options.auth.certPem,
         key: options.auth.keyPem,
         servername: "" // disable SNI for mtls authentication
       });
-    } else {
-      requestOptions.agent = this.getHttpsAgent(requestOptions.agentCacheKey, agentOptions);
-      if (options.auth) {
-        requestOptions.headers.Authorization = `Bearer ${options.auth.token}`;
-      }
+      return { ...requestOptions, agent };
     }
 
-    return requestOptions;
+    if (options.auth) {
+      requestOptions.headers.Authorization = `Bearer ${options.auth.token}`;
+    }
+
+    return { ...requestOptions, agent: this.getHttpsAgent(requestOptions.agentCacheKey, agentOptions) };
   }
 
-  private getHttpsAgent(key: string, options: https.AgentOptions): https.Agent {
+  private getHttpsAgent(key: string, options: ProviderCertificateAgentOptions): ProviderCertificateAgent {
     if (!this.#agentsCache.has(key)) {
-      const agent = new https.Agent(options);
+      const agent = new ProviderCertificateAgent(options);
       this.#agentsCache.set(key, agent);
       return agent;
     }
 
     return this.#agentsCache.get(key)!;
   }
+
+  /** A failed check drops the agent and every session it cached for that provider, so each later call starts with a full handshake that is checked again. */
+  #tearDownAgent(key: string, agent: ProviderCertificateAgent): void {
+    this.#agentsCache.delete(key);
+    this.#tornDownAgents.add(agent);
+    agent.destroy();
+  }
 }
 
-/** providerAnswered is recorded first so that anything killing the dial afterwards, a slow certificate validation timing out most of all, cannot be read back as the host having failed to answer. */
-type DialTermination = "providerAnswered" | "clientAborted" | "attemptTimedOut" | "agentTornDown";
+/** providerAnswered is recorded first so that anything killing the dial afterwards cannot be read back as the host having failed to answer, and verifyingCertificate does the same for a timeout that fires while the host's certificate is still being checked. */
+type DialTermination = "providerAnswered" | "clientAborted" | "attemptTimedOut" | "verifyingCertificate" | "agentTornDown";
 
 export interface ProxyConnectOptions {
   method: string;
@@ -263,6 +246,6 @@ interface ProxyConnectionResultSuccess {
 }
 
 type ProxyConnectionResultError =
-  | { ok: false; code: "invalidCertificate"; reason: CertValidationResultError["code"] }
+  | { ok: false; code: "invalidCertificate"; reason: ProviderCertificateRejection }
   | { ok: false; code: "insecureConnection" }
   | { ok: false; code: "connectionError"; error: unknown; shortCircuited?: true; repeatedFailure?: true };

@@ -196,6 +196,46 @@ describe("Provider HTTP proxy", () => {
     expect(body).toContain("unknownCertificate");
   });
 
+  it("sends neither the token nor the body to a provider whose certificate is not on chain", async () => {
+    const providerAddress = generateBech32();
+    const certPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });
+    const chainServer = await startChainApiServer([]);
+    const receivedByProvider = vi.fn();
+    const { providerUrl } = await startProviderServer({
+      certPair,
+      handlers: {
+        "/deployment/1/manifest"(req, res) {
+          receivedByProvider(req.headers);
+          res.end();
+        }
+      }
+    });
+    await startServer({ REST_API_NODE_URL: chainServer.url });
+    const wallet = await Secp256k1HdWallet.generate(24, { prefix: "akash" });
+    const token = await new JwtTokenManager(wallet).generateToken({
+      iss: (await wallet.getAccounts())[0].address,
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+      version: "v1",
+      leases: { access: "full" }
+    });
+
+    const response = await request("/", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "PUT",
+        url: `${providerUrl}/deployment/1/manifest`,
+        providerAddress,
+        body: JSON.stringify([{ name: "web" }]),
+        auth: { type: "jwt", token }
+      })
+    });
+
+    expect(response.status).toBe(495);
+    expect(await response.text()).toContain("unknownCertificate");
+    expect(receivedByProvider).not.toHaveBeenCalled();
+  });
+
   it("responds with 495 instead of hanging when chain never answers the certificate lookup", async () => {
     const providerAddress = generateBech32();
     const validCertPair = await createX509CertPair({ commonName: providerAddress, validFrom: new Date(Date.now() - ONE_HOUR) });

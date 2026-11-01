@@ -1,4 +1,3 @@
-import type { X509Certificate } from "node:crypto";
 import { EventEmitter } from "node:events";
 import type { ClientRequest, IncomingMessage } from "node:http";
 import https from "node:https";
@@ -7,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { CertificateValidator } from "./CertificateValidator/CertificateValidator";
+import { ProviderCertificateAgent, ProviderCertificateRejectedError } from "./ProviderCertificateAgent/ProviderCertificateAgent";
 import type { ProviderConnectionTracker } from "./ProviderConnectionTracker/ProviderConnectionTracker";
 import { ProviderProxy } from "./ProviderProxy";
 
@@ -182,17 +182,43 @@ describe(ProviderProxy.name, () => {
     expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
   });
 
+  it("answers insecureConnection when the response did not come over TLS", async () => {
+    const { proxy } = setup();
+    const response = Object.assign(new EventEmitter(), { socket: new EventEmitter(), destroy: vi.fn() });
+    vi.spyOn(https, "request").mockImplementation((_url, _options, callback) => {
+      setImmediate(() => (callback as ((res: IncomingMessage) => void) | undefined)?.(response as unknown as IncomingMessage));
+      return Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn() }) as unknown as ClientRequest;
+    });
+
+    const result = await proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "akash1provider" });
+
+    expect(result).toEqual({ ok: false, code: "insecureConnection" });
+    expect(response.destroy).toHaveBeenCalled();
+  });
+
+  it("sends a bearer token in the Authorization header", async () => {
+    const { proxy } = setup();
+    const request = stubDialFailure(Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }));
+
+    await proxy.connect("https://provider.example.com:8443/status", {
+      method: "GET",
+      providerAddress: "akash1provider",
+      auth: { type: "jwt", token: "token" }
+    });
+
+    expect((request.mock.calls[0][1] as https.RequestOptions).headers).toMatchObject({ Authorization: "Bearer token" });
+  });
+
   it("records nothing when its per-attempt timeout fires while the certificate is still being validated", async () => {
-    const { proxy, connectionTracker, certificateValidator } = setup();
-    certificateValidator.validate.mockReturnValue(new Promise<never>(() => {}));
-    const { request } = stubDialWithUnverifiedTlsResponse();
+    const { proxy, connectionTracker } = setup();
+    vi.spyOn(ProviderCertificateAgent.prototype, "isVerifying").mockReturnValue(true);
+    const request = stubDial();
 
     const pending = proxy.connect("https://provider.example.com:8443/status", {
       method: "GET",
       providerAddress: "akash1provider",
       timeout: 5_000
     });
-    await vi.waitFor(() => expect(connectionTracker.recordReachable).toHaveBeenCalled());
     request.emit("timeout");
     request.emit("error", Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }));
 
@@ -201,9 +227,66 @@ describe(ProviderProxy.name, () => {
     expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
   });
 
+  it("records nothing when its dial deadline passes while the certificate is still being validated", async () => {
+    vi.useFakeTimers();
+    const { proxy, connectionTracker } = setup();
+    vi.spyOn(ProviderCertificateAgent.prototype, "isVerifying").mockReturnValue(true);
+    const request = stubDial();
+
+    const pending = proxy.connect("https://provider.example.com:8443/status", {
+      method: "GET",
+      providerAddress: "akash1provider",
+      timeout: 15_000
+    });
+    await vi.advanceTimersByTimeAsync(15_000);
+    request.emit("error", Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }));
+
+    await expect(pending).resolves.toMatchObject({ ok: false, code: "connectionError" });
+    expect(request.destroy).toHaveBeenCalled();
+    expect(connectionTracker.recordUnresponsive).not.toHaveBeenCalled();
+  });
+
+  it("answers a connection error, not an invalid certificate, when the certificate check itself fails", async () => {
+    const { proxy, connectionTracker } = setup();
+    const destroyAgent = vi.spyOn(ProviderCertificateAgent.prototype, "destroy");
+    const failure = new Error("validator crashed");
+    stubDialFailure(new ProviderCertificateRejectedError("serverError", { cause: failure }));
+
+    const result = await proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "akash1provider" });
+
+    expect(result).toEqual({ ok: false, code: "connectionError", error: failure });
+    expect(connectionTracker.recordReachable).toHaveBeenCalledWith("akash1provider|https://provider.example.com:8443");
+    expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
+    expect(destroyAgent).not.toHaveBeenCalled();
+  });
+
+  it("answers with the reason when the provider's certificate is rejected before anything is sent, and counts the host as reachable", async () => {
+    const { proxy, connectionTracker } = setup();
+    stubDialFailure(new ProviderCertificateRejectedError("fingerprintMismatch"));
+
+    const result = await proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "akash1provider" });
+
+    expect(result).toEqual({ ok: false, code: "invalidCertificate", reason: "fingerprintMismatch" });
+    expect(connectionTracker.recordReachable).toHaveBeenCalledWith("akash1provider|https://provider.example.com:8443");
+    expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
+  });
+
+  it("dials the provider through a new agent after a certificate rejection", async () => {
+    const { proxy } = setup();
+    const destroyAgent = vi.spyOn(ProviderCertificateAgent.prototype, "destroy");
+    const request = stubDialFailure(new ProviderCertificateRejectedError("expired"));
+
+    await proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "akash1provider" });
+    await proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "akash1provider" });
+
+    const [firstAgent, secondAgent] = request.mock.calls.map(([, options]) => (options as https.RequestOptions).agent);
+    expect(firstAgent).toBeInstanceOf(ProviderCertificateAgent);
+    expect(secondAgent).not.toBe(firstAgent);
+    expect(destroyAgent.mock.contexts).toContain(firstAgent);
+  });
+
   it("records nothing for a dial killed by another request's certificate teardown", async () => {
-    const { proxy, connectionTracker, certificateValidator } = setup();
-    certificateValidator.validate.mockResolvedValue({ ok: false, code: "expired" });
+    const { proxy, connectionTracker } = setup();
     const { collateralRequest } = stubCertRejectedDialThenPendingDial();
 
     const rejected = proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "akash1provider" });
@@ -213,6 +296,16 @@ describe(ProviderProxy.name, () => {
 
     await expect(collateral).resolves.toMatchObject({ ok: false, code: "connectionError" });
     expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
+  });
+
+  it("builds the provider's agent to check its certificate against the provider's address", async () => {
+    const { proxy } = setup();
+    const request = stubDialFailure(Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }));
+
+    await proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "akash1provider", timeout: 5_000 });
+
+    const agent = (request.mock.calls[0][1] as https.RequestOptions).agent as ProviderCertificateAgent;
+    expect(agent.options).toMatchObject({ rejectUnauthorized: false, timeout: 5_000 });
   });
 
   it("abandons a dial the provider has not answered by its deadline", async () => {
@@ -286,15 +379,10 @@ describe(ProviderProxy.name, () => {
   function stubCertRejectedDialThenPendingDial() {
     const rejectedRequest = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn() });
     const collateralRequest = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn() });
-    const socket = Object.assign(Object.create(TLSSocket.prototype) as TLSSocket, {
-      authorized: false,
-      getPeerX509Certificate: vi.fn().mockReturnValue(mock<X509Certificate>())
-    });
-    const response = Object.assign(new EventEmitter(), { socket, destroy: vi.fn(), pause: vi.fn(), resume: vi.fn() });
     const requests = [rejectedRequest, collateralRequest];
-    vi.spyOn(https, "request").mockImplementation((_url, _options, callback) => {
+    vi.spyOn(https, "request").mockImplementation(() => {
       const request = requests.shift();
-      if (request === rejectedRequest) setImmediate(() => (callback as ((res: IncomingMessage) => void) | undefined)?.(response as unknown as IncomingMessage));
+      if (request === rejectedRequest) setImmediate(() => rejectedRequest.emit("error", new ProviderCertificateRejectedError("expired")));
       return request as unknown as ClientRequest;
     });
     return { collateralRequest };
@@ -317,23 +405,9 @@ describe(ProviderProxy.name, () => {
     return { request, response };
   }
 
-  function stubDialWithUnverifiedTlsResponse() {
-    const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn() });
-    const socket = Object.assign(Object.create(TLSSocket.prototype) as TLSSocket, {
-      authorized: false,
-      getPeerX509Certificate: vi.fn().mockReturnValue(mock<X509Certificate>())
-    });
-    const response = Object.assign(new EventEmitter(), { socket, destroy: vi.fn(), pause: vi.fn(), resume: vi.fn() });
-    vi.spyOn(https, "request").mockImplementation((_url, _options, callback) => {
-      setImmediate(() => (callback as ((res: IncomingMessage) => void) | undefined)?.(response as unknown as IncomingMessage));
-      return request as unknown as ClientRequest;
-    });
-    return { request, response };
-  }
-
   function stubDialFailure(error: Error) {
-    const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn() });
-    vi.spyOn(https, "request").mockImplementation(() => {
+    return vi.spyOn(https, "request").mockImplementation(() => {
+      const request = Object.assign(new EventEmitter(), { write: vi.fn(), end: vi.fn(), destroy: vi.fn() });
       setImmediate(() => request.emit("error", error));
       return request as unknown as ClientRequest;
     });
