@@ -53,6 +53,8 @@ const CARD_DECLINED_MESSAGE = "Payment method was declined. Please try a differe
 
 const PAYMENT_FAILED_MESSAGE = "Payment failed";
 
+export const REFUND_BEFORE_CREDIT_ERROR_CODE = "refund_before_credit";
+
 /** Without both, an issuer that wants 3DS leaves the intent stalled in requires_action instead of declining it. */
 const OFF_SESSION_CHARGE_OPTIONS = { off_session: true, error_on_requires_action: true } as const satisfies Pick<
   Stripe.PaymentIntentCreateParams,
@@ -881,6 +883,7 @@ export class StripeTransactionService {
 
     await this.applyRefund({
       chargeId: charge.id,
+      paymentIntentId: typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id,
       amountRefunded: charge.amount_refunded,
       fullyRefunded: charge.refunded,
       customerOwner
@@ -908,13 +911,20 @@ export class StripeTransactionService {
 
   /** Debits the wallet of the organization the transaction row names as payer, whoever refunds and wherever its buyer is now. */
   @WithTransaction()
-  async applyRefund(params: { chargeId: string; amountRefunded: number; fullyRefunded: boolean; customerOwner: StripeCustomerOwner }): Promise<void> {
+  async applyRefund(params: {
+    chargeId: string;
+    paymentIntentId?: string;
+    amountRefunded: number;
+    fullyRefunded: boolean;
+    customerOwner: StripeCustomerOwner;
+  }): Promise<void> {
     // Locked read: concurrent charge.refunded deliveries serialize here, so the loser
     // re-reads the committed amountRefunded/status and bails on the idempotency check
     // instead of double-debiting the wallet.
     const transaction = await this.stripeTransactionRepository.findOneByAndLock({ stripeChargeId: params.chargeId });
 
     if (!transaction) {
+      await this.#assertRefundedPaymentNotAwaitingCredit(params);
       this.loggerService.warn({ event: "CHARGE_REFUNDED_NO_TRANSACTION", chargeId: params.chargeId });
       return;
     }
@@ -996,6 +1006,16 @@ export class StripeTransactionService {
       isFullyRefunded,
       transactionId: transaction.id
     });
+  }
+
+  /** Only a credited payment records its charge, so a refund that finds its payment uncredited, or credited under this charge since the read above, is refused for Stripe to deliver again. */
+  async #assertRefundedPaymentNotAwaitingCredit({ chargeId, paymentIntentId }: { chargeId: string; paymentIntentId?: string }): Promise<void> {
+    const payment = paymentIntentId && (await this.stripeTransactionRepository.findByPaymentIntentId(paymentIntentId));
+
+    if (!payment || (SETTLED_TRANSACTION_STATUSES.has(payment.status) && payment.stripeChargeId !== chargeId)) return;
+
+    this.loggerService.warn({ event: "CHARGE_REFUNDED_BEFORE_CREDIT", chargeId, transactionId: payment.id, transactionStatus: payment.status });
+    throw createError(409, "The refunded payment is not credited yet, so its refund is applied once it is", { errorCode: REFUND_BEFORE_CREDIT_ERROR_CODE });
   }
 
   async recordCouponClaim(params: {
