@@ -246,6 +246,20 @@ describe(ProviderProxy.name, () => {
     expect(connectionTracker.recordUnresponsive).not.toHaveBeenCalled();
   });
 
+  it("answers a connection error, not an invalid certificate, when the certificate check itself fails", async () => {
+    const { proxy, connectionTracker } = setup();
+    const destroyAgent = vi.spyOn(ProviderCertificateAgent.prototype, "destroy");
+    const failure = new Error("validator crashed");
+    stubDialFailure(new ProviderCertificateRejectedError("serverError", { cause: failure }));
+
+    const result = await proxy.connect("https://provider.example.com:8443/status", { method: "GET", providerAddress: "akash1provider" });
+
+    expect(result).toEqual({ ok: false, code: "connectionError", error: failure });
+    expect(connectionTracker.recordReachable).toHaveBeenCalledWith("akash1provider|https://provider.example.com:8443");
+    expect(connectionTracker.recordUnreachable).not.toHaveBeenCalled();
+    expect(destroyAgent).not.toHaveBeenCalled();
+  });
+
   it("answers with the reason when the provider's certificate is rejected before anything is sent, and counts the host as reachable", async () => {
     const { proxy, connectionTracker } = setup();
     stubDialFailure(new ProviderCertificateRejectedError("fingerprintMismatch"));

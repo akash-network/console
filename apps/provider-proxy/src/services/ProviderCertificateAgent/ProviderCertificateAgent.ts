@@ -42,42 +42,49 @@ export class ProviderCertificateAgent extends https.Agent {
     const sessionKey = this.getName(options);
     const connectionOptions: https.RequestOptions & { session?: Buffer } = { ...options, session: this.#verifiedSessions.get(sessionKey) };
     const socket = super.createConnection(connectionOptions) as TLSSocket;
+    const rejection = new Promise<ProviderCertificateRejectedError | undefined>(resolve => socket.once("secureConnect", () => resolve(this.#verify(socket))));
     let latestSession: Buffer | undefined;
     let verified = false;
 
-    socket.cork();
+    holdWritesUntilVerified(socket, rejection);
     socket.on("session", session => {
       latestSession = session;
       if (verified) this.#verifiedSessions.set(sessionKey, session);
     });
-    socket.once("secureConnect", async () => {
-      verified = await this.#verify(socket);
+    void rejection.then(rejected => {
+      verified = !rejected;
       if (verified && latestSession) this.#verifiedSessions.set(sessionKey, latestSession);
     });
 
     return socket;
   }
 
-  async #verify(socket: TLSSocket): Promise<boolean> {
+  async #verify(socket: TLSSocket): Promise<ProviderCertificateRejectedError | undefined> {
     this.#verifying.add(socket);
 
     try {
       const result = await verifyProviderCertificate(socket, this.#certificateValidator, this.#providerAddress);
-
-      if (result.ok) {
-        socket.uncork();
-        return true;
-      }
-
-      socket.destroy(new ProviderCertificateRejectedError(result.code));
+      return result.ok ? undefined : rejectPeer(socket, new ProviderCertificateRejectedError(result.code));
     } catch (error) {
-      socket.destroy(new ProviderCertificateRejectedError("serverError", { cause: error }));
+      return rejectPeer(socket, new ProviderCertificateRejectedError("serverError", { cause: error }));
     } finally {
       this.#verifying.delete(socket);
     }
-
-    return false;
   }
+}
+
+/** Gates the socket's write path rather than corking it, because a request ended after its socket is assigned force-uncorks the socket. */
+function holdWritesUntilVerified(socket: TLSSocket, rejection: Promise<Error | undefined>): void {
+  const write = socket._write.bind(socket);
+  const writev = socket._writev!.bind(socket);
+
+  socket._write = (chunk, encoding, callback) => void rejection.then(rejected => (rejected ? callback(rejected) : write(chunk, encoding, callback)));
+  socket._writev = (chunks, callback) => void rejection.then(rejected => (rejected ? callback(rejected) : writev(chunks, callback)));
+}
+
+function rejectPeer(socket: TLSSocket, rejection: ProviderCertificateRejectedError): ProviderCertificateRejectedError {
+  socket.destroy(rejection);
+  return rejection;
 }
 
 /** Only sessions whose full handshake passed are offered for resumption, so a resumed session, which carries no certificate, is already verified. */

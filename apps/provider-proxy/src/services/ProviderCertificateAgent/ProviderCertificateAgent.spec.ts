@@ -1,8 +1,10 @@
 import type { X509Certificate } from "node:crypto";
+import { once } from "node:events";
 import https from "node:https";
 import type { AddressInfo } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
 import type { TLSSocket } from "node:tls";
+import tls from "node:tls";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -53,6 +55,66 @@ describe(ProviderCertificateAgent.name, () => {
     check.resolve({ ok: true });
     await expect(pending).resolves.toEqual({ status: 200 });
     expect(received).toHaveLength(1);
+  });
+
+  it("holds back a body written and ended after the socket is assigned until the certificate passes", async () => {
+    const { startSending, received, certificateValidator } = await setup();
+    const check = Promise.withResolvers<CertValidationResult>();
+    certificateValidator.validate.mockReturnValue(check.promise);
+
+    const { req, result } = startSending();
+    await vi.waitFor(() => expect(certificateValidator.validate).toHaveBeenCalled());
+    req.write("mani");
+    await delay(20);
+    req.end("fest");
+    await delay(50);
+
+    expect(received).toEqual([]);
+    check.resolve({ ok: true });
+    await expect(result).resolves.toEqual({ status: 200 });
+    expect(received).toEqual([{ authorization: "Bearer token", body: "manifest" }]);
+  });
+
+  it("sends nothing written after the socket is assigned to a peer whose certificate is rejected", async () => {
+    const { startSending, received, certificateValidator } = await setup();
+    const check = Promise.withResolvers<CertValidationResult>();
+    certificateValidator.validate.mockReturnValue(check.promise);
+
+    const { req, result } = startSending();
+    await vi.waitFor(() => expect(certificateValidator.validate).toHaveBeenCalled());
+    req.write("mani");
+    await delay(20);
+    req.end("fest");
+    await delay(50);
+    check.resolve({ ok: false, code: "expired" });
+
+    await expect(result).resolves.toMatchObject({ error: { code: "expired" } });
+    await delay(50);
+    expect(received).toEqual([]);
+  });
+
+  it("holds back a single direct write on the agent's socket until the certificate passes", async () => {
+    const { connectDirectly, rawReceived, certificateValidator } = await setup();
+    const check = Promise.withResolvers<CertValidationResult>();
+    certificateValidator.validate.mockReturnValue(check.promise);
+
+    connectDirectly().write("token");
+    await vi.waitFor(() => expect(certificateValidator.validate).toHaveBeenCalled());
+    await delay(50);
+
+    expect(rawReceived).toEqual([]);
+    check.resolve({ ok: true });
+    await vi.waitFor(() => expect(rawReceived).toEqual(["token"]));
+  });
+
+  it("closes the connection to a rejected peer even when nothing was written", async () => {
+    const { connectDirectly, certificateValidator } = await setup();
+    certificateValidator.validate.mockResolvedValue({ ok: false, code: "expired" });
+
+    const [error] = await once(connectDirectly(), "error");
+
+    expect(error).toBeInstanceOf(ProviderCertificateRejectedError);
+    expect(error).toMatchObject({ code: "expired" });
   });
 
   it("rejects the peer as a server error when the certificate check throws", async () => {
@@ -144,25 +206,41 @@ describe(ProviderCertificateAgent.name, () => {
       res.end("ok");
     });
     await new Promise<void>(resolve => server.listen(0, resolve));
+    const rawReceived: string[] = [];
+    const rawServer = tls.createServer({ key, cert: cert.toJSON() }, socket => socket.on("data", chunk => rawReceived.push(chunk.toString())));
+    await new Promise<void>(resolve => rawServer.listen(0, resolve));
     const certificateValidator = mock<CertificateValidator>();
     const agent = new ProviderCertificateAgent({ rejectUnauthorized: false, certificateValidator, providerAddress: "akash1provider" });
     onTestFinished(() => {
       agent.destroy();
       server.closeAllConnections();
       server.close();
+      rawServer.close();
     });
     const url = `https://localhost:${(server.address() as AddressInfo).port}/`;
-    const send = () =>
-      new Promise<{ status?: number; error?: Error }>(resolve => {
-        const req = https.request(url, { method: "POST", agent, headers: { Authorization: "Bearer token" } }, res => {
-          res.resume();
-          res.on("end", () => resolve({ status: res.statusCode }));
-        });
-        req.on("error", error => resolve({ error }));
-        req.end("manifest");
+    const startSending = () => {
+      const response = Promise.withResolvers<{ status?: number; error?: Error }>();
+      const req = https.request(url, { method: "POST", agent, headers: { Authorization: "Bearer token" } }, res => {
+        res.resume();
+        res.on("end", () => response.resolve({ status: res.statusCode }));
       });
+      req.on("error", error => response.resolve({ error }));
 
-    return { agent, send, received, certificateValidator };
+      return { req, result: response.promise };
+    };
+    const send = () => {
+      const { req, result } = startSending();
+      req.end("manifest");
+      return result;
+    };
+
+    const connectDirectly = () => {
+      const socket = agent.createConnection({ host: "localhost", port: (rawServer.address() as AddressInfo).port, rejectUnauthorized: false });
+      onTestFinished(() => void socket.destroy());
+      return socket;
+    };
+
+    return { agent, send, startSending, connectDirectly, received, rawReceived, certificateValidator };
   }
 });
 

@@ -109,6 +109,8 @@ export class ProviderProxy {
         propagateTracingContext(error => {
           if (error instanceof ProviderCertificateRejectedError) {
             this.recordReachable(trackerKey);
+            if (error.code === "serverError") return resolve({ ok: false, code: "connectionError", error: error.cause });
+
             this.#tearDownAgent(agentCacheKey, requestOptions.agent);
             return resolve({ ok: false, code: "invalidCertificate", reason: error.code });
           }
