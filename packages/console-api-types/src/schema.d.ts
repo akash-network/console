@@ -15164,7 +15164,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The request is invalid, or the organization header names another organization than the API key's (`organization_mismatch`) */
+      /** @description The request is invalid, the member is the caller, who ends their own membership by leaving the organization, or the organization header names another organization than the API key's (`organization_mismatch`) */
       400: {
         headers: {
           [name: string]: unknown;

@@ -492,6 +492,15 @@ describe("Organization members", () => {
       expect(await memberRepository.findById(membershipOf(owner).id)).toBeDefined();
     });
 
+    it("refuses to let an admin remove their own membership, which only leaving ends", async () => {
+      const { organization, caller, membershipOf, request } = await setup({ callerRole: "admin" });
+
+      const response = await request("DELETE", `/v1/organization-members/${membershipOf(caller).id}`, { asUser: caller, organizationId: organization.id });
+
+      expect(response.status).toBe(400);
+      expect(await memberRepository.findById(membershipOf(caller).id)).toMatchObject({ role: "admin" });
+    });
+
     it("refuses to remove the last owner", async () => {
       const { organization, owner, membershipOf, request } = await setup({ callerRole: "owner" });
 
