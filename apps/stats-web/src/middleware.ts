@@ -9,6 +9,7 @@ import {
   getContentSecurityPolicyReportHeaders,
   isSampledForViolationReports
 } from "./lib/csp/csp";
+import { toSameOriginPath } from "./lib/toSameOriginPath/toSameOriginPath";
 
 const { MAINTENANCE_MODE } = process.env;
 const logger = createLogger({ name: "middleware" });
@@ -71,11 +72,8 @@ function getReturnPath(request: NextRequest) {
   try {
     const returnParam = request.nextUrl.searchParams.get("return");
     const returnPath = returnParam ? decodeURIComponent(returnParam) : "/";
-    const requestUrl = new URL(request.url);
-    const returnUrl = new URL(returnPath, requestUrl);
-    const isSameOrigin = returnUrl.origin === requestUrl.origin;
 
-    return isSameOrigin ? `${returnUrl.pathname}${returnUrl.search}${returnUrl.hash}` : "/";
+    return toSameOriginPath(returnPath, request.url) ?? "/";
   } catch (error) {
     logger.error({ message: "Failed to get return path", error });
     return "/";

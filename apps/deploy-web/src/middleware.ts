@@ -10,6 +10,7 @@ import {
   getContentSecurityPolicyReportHeaders,
   isSampledForViolationReports
 } from "./lib/csp/csp";
+import { toSameOriginPath } from "./utils/toSameOriginPath/toSameOriginPath";
 
 const logger = new LoggerService({ name: "middleware" });
 
@@ -98,14 +99,8 @@ function getReturnPath(request: NextRequest) {
   try {
     const returnParam = request.nextUrl.searchParams.get("return");
     const returnPath = returnParam ? decodeURIComponent(returnParam) : "/";
-    const returnUrl = new URL(returnPath, requestUrl);
-    const isSameOrigin = returnUrl.origin === requestUrl.origin;
 
-    // Return the validated same-origin URL object rather than a pathname string.
-    // A same-origin absolute return (e.g. `http://host//evil.example/phish`) yields a
-    // pathname of `//evil.example/phish`; re-parsing that string against the request URL
-    // treats it as a protocol-relative URL and escapes to an external origin (CWE-601).
-    return isSameOrigin ? returnUrl : new URL("/", requestUrl);
+    return new URL(toSameOriginPath(returnPath, requestUrl.href) ?? "/", requestUrl);
   } catch (error) {
     logger.error({ message: "Failed to get return path", error });
     return new URL("/", requestUrl);

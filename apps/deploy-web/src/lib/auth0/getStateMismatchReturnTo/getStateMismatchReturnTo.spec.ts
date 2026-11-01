@@ -35,6 +35,14 @@ describe(getStateMismatchReturnTo.name, () => {
     expect(UrlReturnToStack.getReturnTo(loginUrl)).toBe(recovered);
   });
 
+  it("pops a callback return path that resolves to another host to the root path", () => {
+    const error = setup({ cookieState: encodeState("/terms-of-service"), callbackState: encodeState("/%09/evil.example") });
+
+    const loginUrl = UrlReturnToStack.createReturnable(getStateMismatchReturnTo(error) as string, "/login?error=provider_login_failed");
+
+    expect(UrlReturnToStack.getReturnTo(loginUrl)).toBe("/");
+  });
+
   it("returns the root path when the callback state cannot be decoded", () => {
     const error = setup({ cookieState: encodeState("/terms-of-service"), callbackState: "not base64\njson" });
 
