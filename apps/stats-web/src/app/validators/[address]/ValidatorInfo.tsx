@@ -6,7 +6,7 @@ import { User } from "lucide-react";
 
 import { AKTAmount } from "@/components/AKTAmount";
 import { LabelValue } from "@/components/LabelValue";
-import { isValidHttpUrl } from "@/lib/urlUtils";
+import { toValidatorWebsiteUrl } from "@/lib/validatorWebsiteUrl/validatorWebsiteUrl";
 import type { ValidatorDetail } from "@/types";
 
 interface IProps {
@@ -14,11 +14,8 @@ interface IProps {
 }
 
 export function ValidatorsInfo({ validator }: IProps) {
-  let website = validator.website?.trim();
-
-  if (website && !/^https?:\/\//i.test(website) && isValidHttpUrl("http://" + website)) {
-    website = "http://" + website;
-  }
+  const website = validator.website?.trim();
+  const websiteUrl = toValidatorWebsiteUrl(website);
 
   return (
     <Card>
@@ -48,9 +45,9 @@ export function ValidatorsInfo({ validator }: IProps) {
           value={
             website && (
               <>
-                {isValidHttpUrl(website) ? (
-                  <a href={website} target="_blank">
-                    {website}
+                {websiteUrl ? (
+                  <a href={websiteUrl} target="_blank">
+                    {websiteUrl}
                   </a>
                 ) : (
                   website

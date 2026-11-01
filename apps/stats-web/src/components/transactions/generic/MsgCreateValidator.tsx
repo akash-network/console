@@ -4,6 +4,7 @@ import { AKTAmount } from "../../AKTAmount";
 import { LabelValue } from "../../LabelValue";
 
 import { coinsToAmount } from "@/lib/mathHelpers";
+import { toValidatorWebsiteUrl } from "@/lib/validatorWebsiteUrl/validatorWebsiteUrl";
 import type { TransactionMessage } from "@/types";
 
 type TxMessageProps = {
@@ -11,6 +12,9 @@ type TxMessageProps = {
 };
 
 export const MsgCreateValidator: React.FunctionComponent<TxMessageProps> = ({ message }) => {
+  const website = message?.data?.description?.website;
+  const websiteUrl = toValidatorWebsiteUrl(website);
+
   // ###################
   // TODO minSelftDelegation as a coin + validator moniker
   // TODO commissions DecCoin
@@ -27,9 +31,13 @@ export const MsgCreateValidator: React.FunctionComponent<TxMessageProps> = ({ me
       <LabelValue
         label="Website"
         value={
-          <a href={message?.data?.description?.website} target="_blank">
-            {message?.data?.description?.website}
-          </a>
+          websiteUrl ? (
+            <a href={websiteUrl} target="_blank">
+              {website}
+            </a>
+          ) : (
+            website
+          )
         }
       />
       <LabelValue label="Identity" value={message?.data?.description?.identity} />
