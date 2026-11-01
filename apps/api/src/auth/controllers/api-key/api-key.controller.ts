@@ -10,6 +10,7 @@ import {
 } from "@src/auth/http-schemas/api-key.schema";
 import { ApiKeyService } from "@src/auth/services/api-key/api-key.service";
 import { Protected } from "@src/auth/services/auth.service";
+import type { AuthMethod } from "@src/core/types/app-context";
 
 @singleton()
 export class ApiKeyController {
@@ -29,7 +30,9 @@ export class ApiKeyController {
   }
 
   @Protected([{ action: "create", subject: "ApiKey" }])
-  async create(input: CreateApiKeyRequest["data"]): Promise<ApiKeyVisibleResponse> {
+  async create(input: CreateApiKeyRequest["data"], origin: { authMethod?: AuthMethod }): Promise<ApiKeyVisibleResponse> {
+    assert(origin.authMethod === "bearer", 403, "An API key can only be created from a signed-in Console session.", { errorCode: "session_required" });
+
     const apiKey = await this.apiKeyService.create(input);
     return { data: apiKey };
   }

@@ -3003,6 +3003,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
       "post": {
+        "description": "Requires a signed-in Console session. A request authenticated with an API key is refused.",
         "parameters": [
           {
             "$ref": "#/components/parameters/OrganizationIdHeader",
@@ -3123,6 +3124,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             },
             "description": "API key created successfully",
           },
+          "403": {
+            "description": "The request was not made from a signed-in session (\`session_required\`)",
+          },
           "404": {
             "description": "No project with this \`projectId\` in the caller's reach",
           },
@@ -3130,9 +3134,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "security": [
           {
             "BearerAuth": [],
-          },
-          {
-            "ApiKeyAuth": [],
           },
         ],
         "summary": "Create new API key",
