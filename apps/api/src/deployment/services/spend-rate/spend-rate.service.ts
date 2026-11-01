@@ -25,7 +25,7 @@ export class SpendRateService {
     const wallet = await this.walletReaderService.getReadableWalletByUserId(userId);
     const livePrices = await this.leaseRepository.sumLivePricesPerDeployment(wallet.address);
     const visible = new Set(
-      await this.#keepDeploymentsWithVisibleSpend(
+      await this.keepDeploymentsWithVisibleSpend(
         wallet,
         livePrices.map(({ dseq }) => dseq)
       )
@@ -42,14 +42,14 @@ export class SpendRateService {
     }
 
     const { weeklyCostUsd } = await this.drainingDeploymentService.calculateWeeklyCoverageForAddress(wallet.address, dseqs =>
-      this.#keepDeploymentsWithVisibleSpend(wallet, dseqs)
+      this.keepDeploymentsWithVisibleSpend(wallet, dseqs)
     );
 
     return weeklyCostUsd;
   }
 
   /** A billing member reaches no project yet reads the organization's whole spend, so that right is checked before the project filter. */
-  async #keepDeploymentsWithVisibleSpend(wallet: UserWalletOutput, dseqs: string[]): Promise<string[]> {
+  async keepDeploymentsWithVisibleSpend(wallet: UserWalletOutput, dseqs: string[]): Promise<string[]> {
     if (this.#readsOrganizationSpend()) {
       return dseqs;
     }

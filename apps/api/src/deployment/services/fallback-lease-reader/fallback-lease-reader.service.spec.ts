@@ -91,6 +91,27 @@ describe(FallbackLeaseReaderService.name, () => {
     });
   });
 
+  describe("list", () => {
+    it.each(["active", "closed"])("reads %s leases from the index", async state => {
+      const { service, leaseRepository } = setup();
+      const owner = createAkashAddress();
+      leaseRepository.findLeasesWithPagination.mockResolvedValue({ count: 0, rows: [] });
+
+      await service.list({ owner, state });
+
+      expect(leaseRepository.findLeasesWithPagination).toHaveBeenCalledWith({ owner, state });
+    });
+
+    it.each(["reclaiming", "insufficient_funds"])("answers no %s leases because the index cannot tell them apart", async state => {
+      const { service, leaseRepository } = setup();
+
+      const result = await service.list({ owner: createAkashAddress(), state });
+
+      expect(result).toEqual({ leases: [], pagination: { next_key: null, total: "0" } });
+      expect(leaseRepository.findLeasesWithPagination).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(input: { leases?: Lease[] } = {}) {
     const leaseRepository = mock<LeaseRepository>({ findByDeployments: vi.fn().mockResolvedValue(input.leases ?? []) });
     const coreConfig = mock<CoreConfig>({ NETWORK: "mainnet" });

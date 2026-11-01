@@ -172,6 +172,14 @@ export const operations = {
       queryParams: ["async"],
       hasBody: true
     },
+    getDeploymentInfo: {
+      path: "/v1/deployments/{dseq}/info",
+      method: "get",
+      operationId: "getDeploymentInfo",
+      pathParams: ["dseq"],
+      queryParams: [],
+      hasBody: false
+    },
     listDeploymentNames: {
       path: "/v1/deployment-names",
       method: "get",
@@ -231,9 +239,20 @@ export const operations = {
       hasBody: false
     },
     createLease: { path: "/v1/leases", method: "post", operationId: "createLease", pathParams: [], queryParams: ["async"], hasBody: true },
+    listLeases: {
+      path: "/v1/leases",
+      method: "get",
+      operationId: "listLeases",
+      pathParams: [],
+      queryParams: ["dseq", "provider", "state", "limit"],
+      hasBody: false
+    },
     listApiKeys: { path: "/v1/api-keys", method: "get", operationId: "listApiKeys", pathParams: [], queryParams: [], hasBody: false },
     listBids: { path: "/v1/bids", method: "get", operationId: "listBids", pathParams: [], queryParams: ["dseq"], hasBody: false },
+    getWalletBalances: { path: "/v1/wallet-balances", method: "get", operationId: "getWalletBalances", pathParams: [], queryParams: [], hasBody: false },
+    listFeeAllowances: { path: "/v1/fee-allowances", method: "get", operationId: "listFeeAllowances", pathParams: [], queryParams: [], hasBody: false },
     listProviders: { path: "/v1/providers", method: "get", operationId: "listProviders", pathParams: [], queryParams: ["scope", "addresses"], hasBody: false },
+    getBlock: { path: "/v1/blocks/{height}", method: "get", operationId: "getBlock", pathParams: ["height"], queryParams: [], hasBody: false },
     listGpuPrices: { path: "/v1/gpu-prices", method: "get", operationId: "listGpuPrices", pathParams: [], queryParams: [], hasBody: false },
     screenProviders: { path: "/v1/bid-screening", method: "post", operationId: "screenProviders", pathParams: [], queryParams: [], hasBody: true },
     listPlacementOptions: {

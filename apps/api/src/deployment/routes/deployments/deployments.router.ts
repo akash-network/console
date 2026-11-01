@@ -53,7 +53,8 @@ import {
   FallbackDeploymentInfoQuerySchema,
   FallbackDeploymentInfoResponseSchema,
   FallbackDeploymentListQuerySchema,
-  FallbackDeploymentListResponseSchema
+  FallbackDeploymentListResponseSchema,
+  GetDeploymentInfoResponseSchema
 } from "@src/deployment/http-schemas/deployment-rpc.schema";
 import {
   PROJECT_FORBIDDEN_DESCRIPTION,
@@ -98,6 +99,38 @@ deploymentsRouter.openapi(getRoute, async function routeGetDeployment(c) {
   const { dseq } = c.req.valid("param");
   const result = await container.resolve(DeploymentController).findByDseq(dseq);
   return c.json(result, 200);
+});
+
+const getInfoRoute = createRoute({
+  method: "get",
+  path: "/v1/deployments/{dseq}/info",
+  summary: "Get a deployment as the Akash Network holds it",
+  description:
+    "Reads the deployment with its groups and escrow account from the Akash Network, or from the console's index while the network cannot be reached. Unlike `GET /v1/deployments/{dseq}`, it asks no provider for lease statuses and returns no leases; list those with `GET /v1/leases?dseq=`.",
+  // eslint-disable-next-line akash/operation-id-format
+  operationId: "getDeploymentInfo",
+  tags: ["Deployments"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  request: {
+    params: GetDeploymentParamsSchema
+  },
+  responses: {
+    200: {
+      description: "Returns the deployment as the Akash Network holds it",
+      content: {
+        "application/json": {
+          schema: GetDeploymentInfoResponseSchema
+        }
+      }
+    },
+    404: {
+      description: "Deployment not found"
+    }
+  }
+});
+deploymentsRouter.openapi(getInfoRoute, async function routeGetDeploymentInfo(c) {
+  const { dseq } = c.req.valid("param");
+  return c.json(await container.resolve(DeploymentController).findInfoByDseq(dseq), 200);
 });
 
 const listNamesRoute = createRoute({

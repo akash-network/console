@@ -71,6 +71,7 @@ export type RestAkashLeaseListResponse = {
 export type LeaseListParams = {
   owner: string;
   dseq?: string;
+  provider?: string;
   state?: LeaseState;
   pagination?: {
     limit?: number;
@@ -81,12 +82,13 @@ export type LeaseListParams = {
 export class LeaseHttpService {
   constructor(private readonly httpClient: HttpClient) {}
 
-  public async list({ owner, dseq, state, pagination }: LeaseListParams): Promise<RestAkashLeaseListResponse> {
+  public async list({ owner, dseq, provider, state, pagination }: LeaseListParams): Promise<RestAkashLeaseListResponse> {
     return extractData(
       await this.httpClient.get<RestAkashLeaseListResponse>("/akash/market/v1beta5/leases/list", {
         params: {
           "filters.owner": owner,
           "filters.dseq": dseq,
+          "filters.provider": provider,
           "filters.state": state,
           "pagination.limit": pagination?.limit,
           "pagination.key": pagination?.key

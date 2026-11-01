@@ -7,7 +7,11 @@ import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/ope
 import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security";
 
 const blockchainStatusResponseSchema = z.object({
-  isBlockchainReachable: z.boolean().openapi({ description: "Whether the console can reach the Akash Network right now." })
+  isBlockchainReachable: z.boolean().openapi({ description: "Whether the console can reach the Akash Network right now." }),
+  latestBlockHeight: z
+    .number()
+    .nullable()
+    .openapi({ description: "Height of the latest block, up to one block behind the Akash Network. Null while the network is unreachable." })
 });
 
 const route = createRoute({

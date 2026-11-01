@@ -1,25 +1,31 @@
 import { inject, singleton } from "tsyringe";
 
+import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import { CHAIN_SDK, type ChainSDK } from "../../providers/chain-sdk.provider";
+
+export interface BlockchainStatus {
+  isBlockchainReachable: boolean;
+  latestBlockHeight: number | null;
+}
 
 @singleton()
 export class BlockchainStatusService {
-  readonly #chainSdk: ChainSDK;
+  readonly #blockHttpService: BlockHttpService;
   readonly #logger: ReturnType<CreateLogger>;
 
-  constructor(@inject(CHAIN_SDK) chainSdk: ChainSDK, @inject(LOGGER_FACTORY) createLogger: CreateLogger) {
+  constructor(blockHttpService: BlockHttpService, @inject(LOGGER_FACTORY) createLogger: CreateLogger) {
     this.#logger = createLogger({ context: BlockchainStatusService.name });
-    this.#chainSdk = chainSdk;
+    this.#blockHttpService = blockHttpService;
   }
 
-  async getStatus(): Promise<{ isBlockchainReachable: boolean }> {
+  /** Every browser tab polls this, so it reads the height shared with the rest of the API instead of asking the chain per request. */
+  async getStatus(): Promise<BlockchainStatus> {
     try {
-      await this.#chainSdk.cosmos.base.tendermint.v1beta1.getNodeInfo();
-      return { isBlockchainReachable: true };
+      const latestBlockHeight = await this.#blockHttpService.getCurrentHeight();
+      return { isBlockchainReachable: true, latestBlockHeight };
     } catch (error) {
       this.#logger.warn({ event: "BLOCKCHAIN_UNREACHABLE", error });
-      return { isBlockchainReachable: false };
+      return { isBlockchainReachable: false, latestBlockHeight: null };
     }
   }
 }

@@ -3,7 +3,7 @@ import assert from "http-assert";
 import { Lifecycle, scoped } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
-import type { GetBalancesResponseOutput } from "@src/billing/http-schemas/balance.schema";
+import type { FeeAllowancesResponse, GetBalancesResponseOutput, WalletBalancesResponse } from "@src/billing/http-schemas/balance.schema";
 import type { SignTxRequestInput, SignTxResponseOutput } from "@src/billing/http-schemas/tx.schema";
 import type { WalletListOutputResponse } from "@src/billing/http-schemas/wallet.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
@@ -13,6 +13,7 @@ import { BillingConfigService } from "@src/billing/services/billing-config/billi
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
+import { WalletChainReaderService } from "@src/billing/services/wallet-chain-reader/wallet-chain-reader.service";
 import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wallet-reader/wallet-reader.service";
 
 @scoped(Lifecycle.ResolutionScoped)
@@ -25,7 +26,8 @@ export class WalletController {
     private readonly authService: AuthService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly billingConfigService: BillingConfigService,
-    private readonly trialValidationService: TrialValidationService
+    private readonly trialValidationService: TrialValidationService,
+    private readonly walletChainReaderService: WalletChainReaderService
   ) {}
 
   @Protected([{ action: "read", subject: "UserWallet" }])
@@ -49,6 +51,18 @@ export class WalletController {
     }
 
     return this.balancesService.getFullBalanceMemoized(currentAddress);
+  }
+
+  @Protected([{ action: "read", subject: "UserWallet" }])
+  async getWalletBalances(): Promise<WalletBalancesResponse> {
+    const wallet = await this.walletReaderService.getReadableWalletByUserId(this.authService.currentUser.id);
+    return { data: await this.walletChainReaderService.getBalances(wallet) };
+  }
+
+  @Protected([{ action: "read", subject: "UserWallet" }])
+  async listFeeAllowances(): Promise<FeeAllowancesResponse> {
+    const wallet = await this.walletReaderService.getReadableWalletByUserId(this.authService.currentUser.id);
+    return { data: await this.walletChainReaderService.getFeeAllowances(wallet.address) };
   }
 
   @Protected([{ action: "sign", subject: "UserWallet" }])

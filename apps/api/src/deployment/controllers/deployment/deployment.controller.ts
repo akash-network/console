@@ -38,6 +38,7 @@ import {
   UpdateDeploymentRequest,
   UpdateDeploymentResponse
 } from "@src/deployment/http-schemas/deployment.schema";
+import type { GetDeploymentInfoResponse } from "@src/deployment/http-schemas/deployment-rpc.schema";
 import { DeploymentListService } from "@src/deployment/services/deployment-list/deployment-list.service";
 import { DeploymentReaderService } from "@src/deployment/services/deployment-reader/deployment-reader.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
@@ -61,6 +62,11 @@ export class DeploymentController {
   async findByDseq(dseq: string): Promise<GetDeploymentResponse> {
     const deployment = await this.deploymentReaderService.findByUserIdAndDseq(this.authService.currentUser.id, dseq);
     return { data: deployment };
+  }
+
+  @Protected([{ action: "read", subject: "UserWallet" }])
+  async findInfoByDseq(dseq: string): Promise<GetDeploymentInfoResponse> {
+    return { data: await this.deploymentReaderService.findInfoByUserIdAndDseq(this.authService.currentUser.id, dseq) };
   }
 
   @Protected([{ action: "read", subject: "UserWallet" }])
