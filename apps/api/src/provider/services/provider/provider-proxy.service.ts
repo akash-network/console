@@ -8,6 +8,9 @@ export interface ProviderIdentity {
   hostUri: string;
 }
 
+/** Provider version, lease status, status and manifest responses are a few KB, so this leaves wide room while bounding what one call holds. */
+export const MAX_PROVIDER_RESPONSE_BYTES = 4 * 1024 * 1024;
+
 export type ProviderAuth = {
   type: "jwt";
   token: string;
@@ -44,6 +47,7 @@ export class ProviderProxyService {
       },
       {
         maxRedirects: 0,
+        maxContentLength: MAX_PROVIDER_RESPONSE_BYTES,
         ...(timeout && {
           // this is total timeout for all attempts to communicate with the provider API, and it should be much higher than per attempt timeout
           timeout: timeout * 5

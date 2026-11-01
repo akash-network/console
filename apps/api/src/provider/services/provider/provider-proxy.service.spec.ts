@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { ProviderProxyPayload } from "./provider-proxy.service";
-import { ProviderProxyService } from "./provider-proxy.service";
+import { MAX_PROVIDER_RESPONSE_BYTES, ProviderProxyService } from "./provider-proxy.service";
 
 describe(ProviderProxyService.name, () => {
   describe("request", () => {
@@ -25,7 +25,7 @@ describe(ProviderProxyService.name, () => {
           url: options.providerIdentity.hostUri + url,
           providerAddress: options.providerIdentity.owner
         },
-        { maxRedirects: 0 }
+        { maxRedirects: 0, maxContentLength: MAX_PROVIDER_RESPONSE_BYTES }
       );
     });
 
@@ -56,7 +56,11 @@ describe(ProviderProxyService.name, () => {
 
       await service.request(url, options);
 
-      expect(httpClient.post).toHaveBeenCalledWith("/", expect.objectContaining({ timeout }), { maxRedirects: 0, timeout: 5 * timeout });
+      expect(httpClient.post).toHaveBeenCalledWith("/", expect.objectContaining({ timeout }), {
+        maxRedirects: 0,
+        maxContentLength: MAX_PROVIDER_RESPONSE_BYTES,
+        timeout: 5 * timeout
+      });
     });
 
     it("does not include timeout when not provided", async () => {
@@ -67,7 +71,7 @@ describe(ProviderProxyService.name, () => {
 
       const [, payload, config] = httpClient.post.mock.calls[0];
       expect(payload).toHaveProperty("timeout", undefined);
-      expect(config).toEqual({ maxRedirects: 0 });
+      expect(config).toEqual({ maxRedirects: 0, maxContentLength: MAX_PROVIDER_RESPONSE_BYTES });
     });
 
     it("refuses a redirect the provider answered with instead of following it", async () => {
@@ -85,7 +89,37 @@ describe(ProviderProxyService.name, () => {
       expect(internal.isDone()).toBe(false);
       nock.cleanAll();
     });
+
+    it("rejects a provider response larger than the size limit", async () => {
+      const { service, proxyUrl } = setupWithProxy();
+      nock(proxyUrl)
+        .post("/")
+        .reply(200, Buffer.alloc(MAX_PROVIDER_RESPONSE_BYTES + 1, "a"));
+
+      await expect(service.request("/status", { providerIdentity: { owner: "akash1provider", hostUri: "https://provider.test:8443" } })).rejects.toMatchObject({
+        code: "ERR_BAD_RESPONSE",
+        message: `maxContentLength size of ${MAX_PROVIDER_RESPONSE_BYTES} exceeded`
+      });
+      nock.cleanAll();
+    });
+
+    it("returns a provider response at the size limit", async () => {
+      const { service, proxyUrl } = setupWithProxy();
+      const body = "a".repeat(MAX_PROVIDER_RESPONSE_BYTES);
+      nock(proxyUrl).post("/").reply(200, body);
+
+      const result = await service.request("/status", { providerIdentity: { owner: "akash1provider", hostUri: "https://provider.test:8443" } });
+
+      expect(result).toBe(body);
+      nock.cleanAll();
+    });
   });
+
+  function setupWithProxy() {
+    const proxyUrl = "http://provider-proxy.test";
+    const service = new ProviderProxyService(createHttpClient({ baseURL: proxyUrl }));
+    return { service, proxyUrl };
+  }
 
   function setup(overrides?: Partial<ProviderProxyPayload>) {
     const httpClient = mock<HttpClient>();
