@@ -149,7 +149,7 @@ describe(FallbackLeaseReaderService.name, () => {
     it.each(["active", "closed"])("reads %s leases from the index", async state => {
       const { service, leaseRepository } = setup();
       const owner = createAkashAddress();
-      leaseRepository.findLeasesWithPagination.mockResolvedValue({ count: 0, rows: [] });
+      leaseRepository.findLeasesWithPagination.mockResolvedValue({ total: 0, rows: [] });
 
       await service.list({ owner, state });
 
