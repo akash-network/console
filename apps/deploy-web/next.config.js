@@ -3,46 +3,6 @@ const withBundleAnalyzer = require("@next/bundle-analyzer")({
   enabled: process.env.ANALYZE === "true"
 });
 const { version, repository } = require("./package.json");
-const isDev = process.env.NODE_ENV === "development";
-const defaultCache = require("next-pwa/cache");
-const withPWA = require("next-pwa")({
-  dest: "public",
-  disable: isDev,
-  /** AppBootstrap registers the worker instead, because next-pwa's own register call leaves a browser's refusal unhandled. */
-  register: false,
-  /**
-   * next-pwa registers a start-url route ahead of every other rule, handled by a plugin that rewrites an
-   * opaqueredirect into a fake empty 200 -- so the "/" -> "/login" redirect gets stored as a blank document and
-   * served back on the next visit. dynamicStartUrl drops that route; cacheStartUrl stops "/" being precached too.
-   */
-  cacheStartUrl: false,
-  dynamicStartUrl: false,
-  runtimeCaching: [
-    {
-      urlPattern: ({ url }) => {
-        const isSameOrigin = self.origin === url.origin; // eslint-disable-line no-undef
-        return !isSameOrigin;
-      },
-      handler: "NetworkOnly",
-      options: { cacheName: "third-party-network-only" }
-    },
-    /**
-     * Must precede defaultCache, whose catch-all "others" rule is a 24h NetworkFirst that also matches navigations:
-     * on a slow network its 10s timeout serves a day-old document whose /_next/static/<buildId> chunks 404 after a
-     * deploy, and only a hard reload escapes it. The app needs a live session and API to render anything useful, so
-     * an honest network error beats a stale shell.
-     */
-    {
-      urlPattern: ({ url, request }) => {
-        const isSameOrigin = self.origin === url.origin; // eslint-disable-line no-undef
-        return isSameOrigin && request.destination === "document";
-      },
-      handler: "NetworkOnly",
-      options: { cacheName: "html-network-only" }
-    },
-    ...defaultCache
-  ]
-});
 const { withSentryConfig } = require("@sentry/nextjs");
 const path = require("path");
 const CopyPlugin = require("copy-webpack-plugin");
@@ -305,4 +265,4 @@ const sentryWebpackPluginOptions = {
 
 // Make sure adding Sentry options is the last code to run before exporting, to
 // ensure that your source maps include changes from all other Webpack plugins
-module.exports = withBundleAnalyzer(withPWA(sentryWebpackPluginOptions.authToken ? withSentryConfig(nextConfig, sentryWebpackPluginOptions) : nextConfig));
+module.exports = withBundleAnalyzer(sentryWebpackPluginOptions.authToken ? withSentryConfig(nextConfig, sentryWebpackPluginOptions) : nextConfig);

@@ -3,11 +3,16 @@ import type { HttpClient } from "@akashnetwork/http-sdk";
 import { forgetInvitationToken } from "@src/lib/organization-invitation/invitation-token-storage";
 
 export class AuthService {
+  readonly #cacheStorage: CacheStorage | undefined;
+
   constructor(
     private readonly urlService: AuthUrlService,
     private readonly internalApiHttpClient: HttpClient,
-    private readonly location = window.location
-  ) {}
+    private readonly location = window.location,
+    cacheStorage: CacheStorage | undefined = globalThis.caches
+  ) {
+    this.#cacheStorage = cacheStorage;
+  }
 
   async loginViaOauth(options?: { returnTo?: string; connection?: string }): Promise<void> {
     const params = new URLSearchParams();
@@ -58,9 +63,19 @@ export class AuthService {
     });
   }
 
-  logout() {
+  async logout(): Promise<void> {
     forgetInvitationToken();
+    await this.#forgetCachedResponses();
     this.location.assign(this.urlService.logout());
+  }
+
+  /** Best effort, because a browser that refuses Cache Storage still has to finish signing out. */
+  async #forgetCachedResponses(): Promise<void> {
+    const cacheStorage = this.#cacheStorage;
+    if (!cacheStorage) return;
+
+    const cacheNames = await cacheStorage.keys().catch(() => []);
+    await Promise.allSettled(cacheNames.map(cacheName => cacheStorage.delete(cacheName)));
   }
 }
 

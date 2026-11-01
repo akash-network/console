@@ -57,15 +57,15 @@ describe(AuthService.name, () => {
   });
 
   describe("logout", () => {
-    it("redirects to the logout URL", () => {
+    it("redirects to the logout URL", async () => {
       const { service, location } = setup();
 
-      service.logout();
+      await service.logout();
 
       expect(location.assign).toHaveBeenCalledWith(mockLogoutUrl);
     });
 
-    it("forgets a pending invitation token before leaving", () => {
+    it("forgets a pending invitation token before leaving", async () => {
       const { service, location } = setup();
       window.sessionStorage.setItem(INVITATION_TOKEN_STORAGE_KEY, "token-1");
       let tokenAtRedirect: string | null = "unread";
@@ -73,13 +73,48 @@ describe(AuthService.name, () => {
         tokenAtRedirect = window.sessionStorage.getItem(INVITATION_TOKEN_STORAGE_KEY);
       });
 
-      service.logout();
+      await service.logout();
 
       expect(tokenAtRedirect).toBeNull();
     });
+
+    it("deletes every cached response before leaving", async () => {
+      const cacheStorage = mock<CacheStorage>({ keys: vi.fn().mockResolvedValue(["apis", "next-data"]), delete: vi.fn().mockResolvedValue(true) });
+      const { service, location } = setup({ cacheStorage });
+      let deletedAtRedirect: string[] = [];
+      location.assign.mockImplementation(() => {
+        deletedAtRedirect = cacheStorage.delete.mock.calls.map(([cacheName]) => cacheName);
+      });
+
+      await service.logout();
+
+      expect(deletedAtRedirect).toEqual(["apis", "next-data"]);
+    });
+
+    it("still leaves when the browser refuses to list its caches", async () => {
+      const cacheStorage = mock<CacheStorage>({ keys: vi.fn().mockRejectedValue(new DOMException("The operation is insecure.", "SecurityError")) });
+      const { service, location } = setup({ cacheStorage });
+
+      await service.logout();
+
+      expect(cacheStorage.delete).not.toHaveBeenCalled();
+      expect(location.assign).toHaveBeenCalledWith(mockLogoutUrl);
+    });
+
+    it("still leaves when a cache cannot be deleted", async () => {
+      const cacheStorage = mock<CacheStorage>({
+        keys: vi.fn().mockResolvedValue(["apis"]),
+        delete: vi.fn().mockRejectedValue(new DOMException("The operation is insecure.", "SecurityError"))
+      });
+      const { service, location } = setup({ cacheStorage });
+
+      await service.logout();
+
+      expect(location.assign).toHaveBeenCalledWith(mockLogoutUrl);
+    });
   });
 
-  function setup() {
+  function setup(input?: { cacheStorage?: CacheStorage }) {
     const httpClient = mock<HttpClient>({
       get: vi.fn().mockResolvedValue({ data: {} })
     } as unknown as HttpClient);
@@ -89,7 +124,7 @@ describe(AuthService.name, () => {
     });
     const location = mock<Location>();
 
-    const service = new AuthService(urlService, httpClient, location);
+    const service = new AuthService(urlService, httpClient, location, input?.cacheStorage);
 
     return {
       service,

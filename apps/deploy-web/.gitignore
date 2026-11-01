@@ -15,8 +15,7 @@
 # production
 /build
 
-# PWA
-/public/sw.js
+# Stale next-pwa build output
 /public/sw.js.map
 /public/workbox-*.js
 /public/workbox-*.js.map

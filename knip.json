@@ -41,7 +41,7 @@
       "drizzle": false
     },
     "apps/deploy-web": {
-      "entry": ["next.config.js", "postcss.config.js", "vitest.mutation.config.ts", "src/pages/**/*.tsx", "src/pages/**/*.ts", "src/stubs/empty.ts"],
+      "entry": ["next.config.js", "postcss.config.js", "vitest.mutation.config.ts", "src/pages/**/*.tsx", "src/pages/**/*.ts", "src/stubs/empty.ts", "public/sw.js"],
       "ignoreDependencies": [
         "sharp",
         "@nivo/core",
