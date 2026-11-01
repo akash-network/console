@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { PaymentCreditRepository } from "@src/billing/repositories/payment-credit/payment-credit.repository";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { TxService } from "@src/core/services/tx/tx.service";
@@ -10,6 +11,7 @@ import type { OrganizationContext } from "@src/organization/types/organization-c
 import { type UserOutput, UserRepository } from "@src/user/repositories";
 import { type StripeTransactionInput, StripeTransactionRepository } from "./stripe-transaction.repository";
 
+import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 
@@ -615,6 +617,31 @@ describe(StripeTransactionRepository.name, () => {
       const hasBonus = await inOrganization({ user, organizationId: otherTeam.id }, () => stripeTransactionRepository.hasReceivedFirstPurchaseBonus(user.id));
 
       expect(hasBonus).toBe(true);
+    });
+
+    it("counts a bonus credited on chain for a purchase whose settlement has not committed", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const purchase = await stripeTransactionRepository.create({ ...transactionInput(user.id), status: "pending", amount: 10000 });
+      await container
+        .resolve(PaymentCreditRepository)
+        .createPending({ transactionId: purchase.id, address: createAkashAddress(), amount: 11000, bonusAmount: 1000 });
+
+      await expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus(user.id)).resolves.toBe(true);
+    });
+
+    it("leaves out the bonus credited for the purchase being settled and credits that carried none", async () => {
+      const { stripeTransactionRepository, createTestUser } = setup();
+      const user = await createTestUser();
+      const [settling, unrewarded] = await Promise.all([
+        stripeTransactionRepository.create({ ...transactionInput(user.id), status: "pending" }),
+        stripeTransactionRepository.create({ ...transactionInput(user.id), status: "pending" })
+      ]);
+      const paymentCreditRepository = container.resolve(PaymentCreditRepository);
+      await paymentCreditRepository.createPending({ transactionId: settling.id, address: createAkashAddress(), amount: 11000, bonusAmount: 1000 });
+      await paymentCreditRepository.createPending({ transactionId: unrewarded.id, address: createAkashAddress(), amount: 5000, bonusAmount: 0 });
+
+      await expect(stripeTransactionRepository.hasReceivedFirstPurchaseBonus(user.id, { excludeTransactionId: settling.id })).resolves.toBe(false);
     });
   });
 

@@ -68,7 +68,9 @@ export class FirstPurchaseBonusService {
 
   /** A person who never received the bonus earns it on an account that never paid, or on their own account while one of its windows is open. */
   async evaluate(payingAccount: BillingOwner, userId: string, at: Date, options?: { excludeTransactionId?: string }): Promise<BonusEligibility> {
-    if (await this.stripeTransactionRepository.hasReceivedFirstPurchaseBonus(userId)) return { eligible: false, endsAt: null, window: null };
+    if (await this.stripeTransactionRepository.hasReceivedFirstPurchaseBonus(userId, { excludeTransactionId: options?.excludeTransactionId })) {
+      return { eligible: false, endsAt: null, window: null };
+    }
 
     const firstPayment = await this.stripeTransactionRepository.findEarliestCompletedPaidTransaction(payingAccount, {
       excludeId: options?.excludeTransactionId

@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -30,7 +31,11 @@ describe(RefillService.name, () => {
 
       const crediting = container
         .resolve(TxService)
-        .transaction(() => container.resolve(RefillService).topUpWallet(1000, { userId: owner.id, organizationId: team.id, team }));
+        .transaction(() =>
+          container
+            .resolve(RefillService)
+            .topUpWallet(1000, { userId: owner.id, organizationId: team.id, team }, { payment: { transactionId: faker.string.uuid() } })
+        );
       await waitForLockWait('select %from "user_wallets"%for update');
       deletion.release();
       await deletion.committed;
