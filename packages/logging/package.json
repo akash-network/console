@@ -13,6 +13,7 @@
     "./hono": "./src/hono.ts",
     "./sql": "./src/sql.ts",
     "./otel": "./src/otel.ts",
+    "./url": "./src/url.ts",
     "./package.json": "./package.json"
   },
   "main": "src/index.ts",

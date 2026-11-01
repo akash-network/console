@@ -1,5 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 
+import { redactUrlCredentials } from "../../utils/redact-url-credentials/redact-url-credentials";
 import type { LoggerService } from "../logger/logger.service";
 
 type HttpRequestLog = {
@@ -36,7 +37,7 @@ export class HttpLoggerInterceptor {
         const log: HttpRequestLog = {
           httpRequest: {
             requestMethod: c.req.method,
-            requestUrl: c.req.url,
+            requestUrl: redactUrlCredentials(c.req.url),
             status: c.res.status,
             referrer: c.req.raw.referrer,
             protocol: c.req.header("x-forwarded-proto"),

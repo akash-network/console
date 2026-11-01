@@ -51,6 +51,14 @@ describe(HttpLoggerInterceptor.name, () => {
     );
   });
 
+  it("logs the request url with the values of credential parameters replaced", async () => {
+    const { logger } = await setup({ status: 200, path: "/test?token=user-1.signature&page=2" });
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ httpRequest: expect.objectContaining({ requestUrl: "http://localhost/test?token=REDACTED&page=2" }) })
+    );
+  });
+
   it("includes duration in the log", async () => {
     const { logger } = await setup({ status: 200 });
 
@@ -75,7 +83,7 @@ describe(HttpLoggerInterceptor.name, () => {
     expect(logger.info.mock.calls[0][0]).not.toHaveProperty("authMethod");
   });
 
-  async function setup(input: { status: number; authMethod?: string }) {
+  async function setup(input: { status: number; authMethod?: string; path?: string }) {
     const logger = mock<LoggerService>();
 
     const interceptor = new HttpLoggerInterceptor(logger);
@@ -88,7 +96,7 @@ describe(HttpLoggerInterceptor.name, () => {
     });
     app.get("/test", c => c.text("ok", input.status as 200));
 
-    await app.request("/test");
+    await app.request(input.path ?? "/test");
 
     return { logger };
   }
