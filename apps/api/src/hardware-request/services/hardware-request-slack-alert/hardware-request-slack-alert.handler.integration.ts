@@ -1,3 +1,4 @@
+import { LoggerService } from "@akashnetwork/logging";
 import { faker } from "@faker-js/faker";
 import nock from "nock";
 import { container } from "tsyringe";
@@ -70,6 +71,28 @@ describe(HardwareRequestSlackAlertHandler.name, () => {
       },
       { timeout: 20_000, interval: 250 }
     );
+  });
+
+  it("records a rejected post on the job and in the failure log without the webhook address", async () => {
+    const logError = vi.spyOn(LoggerService.prototype, "error");
+    onTestFinished(() => logError.mockRestore());
+    const { hardwareRequest, enqueueAlertFor } = await setup({ slackStatus: 404 });
+
+    await enqueueAlertFor(hardwareRequest.id);
+
+    const row = await vi.waitFor(
+      async () => {
+        const [job] = await findJobRows(HardwareRequestSlackAlertJob[JOB_NAME], { data: { hardwareRequestId: hardwareRequest.id } });
+        expect(job?.state).toBe("retry");
+        return job;
+      },
+      { timeout: 20_000, interval: 250 }
+    );
+    expect(row.output).toMatchObject({ message: "Slack webhook answered 404: ok" });
+    expect(JSON.stringify(row.output)).not.toContain(SLACK_PATH);
+    const [jobFailed] = logError.mock.calls.map(([log]) => log as { event?: string; error?: object }).filter(log => log.event === "JOB_FAILED");
+    expect(jobFailed.error).toEqual(new Error("Slack webhook answered 404: ok"));
+    expect(jobFailed.error).not.toHaveProperty("config");
   });
 
   async function setup(input: { webhookUrl?: string; slackStatus?: number } = {}) {
