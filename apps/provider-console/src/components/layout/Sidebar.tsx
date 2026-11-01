@@ -109,7 +109,7 @@ export const Sidebar: React.FC<Props> = ({ isMobileOpen, handleDrawerToggle, isN
       routes: [
         {
           title: "Akash Network",
-          icon: props => <Image src="/images/akash-logo.svg" alt="Akash Logo" quality={100} width={20} height={20} {...props} />,
+          icon: props => <Image src="/images/akash-logo.svg" alt="Akash Logo" width={20} height={20} {...props} />,
           url: "https://akash.network",
           activeRoutes: [],
           target: "_blank"
