@@ -1,3 +1,4 @@
+import { LeaseHttpService, LIVE_LEASE_STATES } from "@akashnetwork/http-sdk";
 import type { EncodeObject } from "@cosmjs/proto-signing";
 import { secondsInMinute } from "date-fns/constants";
 import { chunk } from "lodash";
@@ -54,6 +55,7 @@ export class StaleManagedDeploymentsCleanerService {
     private readonly deploymentRepository: DeploymentRepository,
     private readonly blockRepository: BlockRepository,
     private readonly blockHttpService: BlockHttpService,
+    private readonly leaseHttpService: LeaseHttpService,
     private readonly rpcMessageService: RpcMessageService,
     private readonly managedSignerService: ManagedSignerService,
     @InjectBillingConfig() private readonly config: BillingConfig,
@@ -131,15 +133,6 @@ export class StaleManagedDeploymentsCleanerService {
       error => screenErrors.push(error)
     );
     const orphansByOwner = groupByOwner(deployments ?? []);
-
-    if (options.dryRun) {
-      for (const [owner, orphans] of orphansByOwner) {
-        this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_WOULD_CLOSE", owner, dseqs: orphans.map(orphan => orphan.dseq) });
-      }
-
-      return { owners: orphansByOwner.size, failedOwners: 0, screenErrors };
-    }
-
     const walletsByAddress = new Map(wallets.map(wallet => [wallet.address, wallet]));
     let failedOwners = 0;
 
@@ -152,7 +145,7 @@ export class StaleManagedDeploymentsCleanerService {
               event: "DEPLOYMENT_CLEAN_UP_ERROR",
               context: StaleManagedDeploymentsCleanerService.name
             },
-            () => this.#closeDeploymentsWithoutActiveLease(walletsByAddress.get(owner)!, orphans),
+            () => this.#closeDeploymentsWithoutActiveLease(walletsByAddress.get(owner)!, orphans, options),
             () => failedOwners++
           );
         })
@@ -188,8 +181,15 @@ export class StaleManagedDeploymentsCleanerService {
   }
 
   /** Dropping a message and re-broadcasting is safe because both classified failures reject the tx whole: an estimate never lands, a non-zero code reverts. */
-  async #closeDeploymentsWithoutActiveLease(wallet: ManagedWalletRef, deployments: StaleDeploymentsOutput[]) {
+  async #closeDeploymentsWithoutActiveLease(wallet: ManagedWalletRef, candidates: StaleDeploymentsOutput[], { dryRun = false }: { dryRun?: boolean } = {}) {
+    const deployments = await this.#withoutLiveLeaseOnChain(wallet, candidates);
+
     if (!deployments.length) {
+      return;
+    }
+
+    if (dryRun) {
+      this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_WOULD_CLOSE", owner: wallet.address, dseqs: deployments.map(deployment => deployment.dseq) });
       return;
     }
 
@@ -206,6 +206,27 @@ export class StaleManagedDeploymentsCleanerService {
     }
 
     this.logger.info({ event: "DEPLOYMENT_CLEAN_UP_SUCCESS", owner: wallet.address, alreadyClosedCount });
+  }
+
+  /** The indexer can trail the chain, and a trial create screens at age 0, so a lease the indexer has not recorded yet must not get a running deployment closed. */
+  async #withoutLiveLeaseOnChain(wallet: ManagedWalletRef, deployments: StaleDeploymentsOutput[]): Promise<StaleDeploymentsOutput[]> {
+    const unleased: StaleDeploymentsOutput[] = [];
+
+    for (const deployment of deployments) {
+      if (await this.#hasLiveLeaseOnChain(wallet.address, deployment.dseq)) {
+        this.logger.warn({ event: "DEPLOYMENT_CLEAN_UP_LEASED_ON_CHAIN", owner: wallet.address, dseq: deployment.dseq });
+      } else {
+        unleased.push(deployment);
+      }
+    }
+
+    return unleased;
+  }
+
+  async #hasLiveLeaseOnChain(owner: string, dseq: string): Promise<boolean> {
+    const responses = await Promise.all(LIVE_LEASE_STATES.map(state => this.leaseHttpService.list({ owner, dseq, state, pagination: { limit: 1 } })));
+
+    return responses.some(response => response.leases.length > 0);
   }
 
   /** Returns how many already-closed deployments it dropped, or undefined when the wallet is left for the next run. */

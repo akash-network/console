@@ -1,4 +1,4 @@
-import type { BalanceHttpService } from "@akashnetwork/http-sdk";
+import type { BalanceHttpService, LeaseHttpService, LeaseState, RpcLease } from "@akashnetwork/http-sdk";
 import type { IndexedTx } from "@cosmjs/stargate";
 import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
@@ -601,6 +601,108 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     });
   });
 
+  describe("when the chain holds a lease the indexer has not recorded yet", () => {
+    it("leaves alone a trial deployment with an active lease on chain and closes the rest", async () => {
+      const { service, rpcMessageService, managedSignerService, leaseHttpService, wallet } = setup({
+        staleDeployments: ["1", "2"],
+        liveLeasesOnChain: [{ dseq: "1", state: "active" }]
+      });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(leaseHttpService.list).toHaveBeenCalledWith({ owner: OWNER, dseq: "1", state: "active", pagination: { limit: 1 } });
+      expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledTimes(1);
+      expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(OWNER, "2");
+      expect(managedSignerService.executeDerivedTx).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves alone a deployment whose lease is in its reclamation grace period", async () => {
+      const { service, rpcMessageService, leaseHttpService, wallet } = setup({
+        staleDeployments: ["1", "2"],
+        liveLeasesOnChain: [{ dseq: "1", state: "reclaiming" }]
+      });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(leaseHttpService.list).toHaveBeenCalledWith({ owner: OWNER, dseq: "1", state: "reclaiming", pagination: { limit: 1 } });
+      expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledTimes(1);
+      expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(OWNER, "2");
+    });
+
+    it("logs each deployment it leaves alone", async () => {
+      const { service, logger, wallet } = setup({ staleDeployments: ["1"], liveLeasesOnChain: [{ dseq: "1", state: "active" }] });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(logger.warn).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_LEASED_ON_CHAIN", owner: OWNER, dseq: "1" });
+    });
+
+    it("does not broadcast when every orphan the indexer reports is leased on chain", async () => {
+      const { service, managedSignerService, systemCloseActivityService, wallet } = setup({
+        staleDeployments: ["1", "2"],
+        liveLeasesOnChain: [
+          { dseq: "1", state: "active" },
+          { dseq: "2", state: "active" }
+        ]
+      });
+
+      await service.cleanUpForWallet(wallet, 0);
+
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+      expect(systemCloseActivityService.record).not.toHaveBeenCalled();
+    });
+
+    it("closes nothing when the chain cannot be read", async () => {
+      const { service, managedSignerService, leaseHttpService, wallet } = setup({ staleDeployments: ["1"] });
+      leaseHttpService.list.mockRejectedValue(new Error("node unreachable"));
+
+      await expect(service.cleanUpForWallet(wallet, 0)).rejects.toThrow("node unreachable");
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    });
+
+    it("leaves the deployment alone in the periodic sweep too", async () => {
+      const { service, rpcMessageService } = setup({
+        staleDeployments: ["1", "2"],
+        liveLeasesOnChain: [{ dseq: "1", state: "active" }]
+      });
+
+      await service.cleanup({ concurrency: 1, dryRun: false });
+
+      expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledTimes(1);
+      expect(rpcMessageService.getCloseDeploymentMsg).toHaveBeenCalledWith(OWNER, "2");
+    });
+
+    it("leaves the deployment out of a dry run's report too", async () => {
+      const { service, managedSignerService, logger } = setup({
+        staleDeployments: ["1", "2"],
+        liveLeasesOnChain: [{ dseq: "1", state: "active" }]
+      });
+
+      await service.cleanup({ concurrency: 1, dryRun: true });
+
+      expect(logger.info).toHaveBeenCalledWith({ event: "DEPLOYMENT_CLEAN_UP_WOULD_CLOSE", owner: OWNER, dseqs: ["2"] });
+      expect(managedSignerService.executeDerivedTx).not.toHaveBeenCalled();
+    });
+
+    it("reports nothing on a dry run for an owner whose every orphan is leased on chain", async () => {
+      const { service, logger } = setup({ staleDeployments: ["1"], liveLeasesOnChain: [{ dseq: "1", state: "active" }] });
+
+      await service.cleanup({ concurrency: 1, dryRun: true });
+
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_WOULD_CLOSE" }));
+    });
+
+    it("counts an owner whose chain read fails on a dry run as failed and still finishes the run", async () => {
+      const { service, leaseHttpService, logger } = setup({ staleDeployments: ["1"] });
+      leaseHttpService.list.mockRejectedValue(new Error("node unreachable"));
+
+      const result = await service.cleanup({ concurrency: 1, dryRun: true });
+
+      expect(result.ok).toBe(true);
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "DEPLOYMENT_CLEAN_UP_SWEEP_END", failedOwners: 1, dryRun: true }));
+    });
+  });
+
   function buildUnsettleableAppError() {
     return createError(400, "Deployment escrow cannot be settled yet", { originalError: new Error(UNSETTLEABLE_PANIC) });
   }
@@ -644,6 +746,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     executeDerivedTx?: ManagedSignerService["executeDerivedTx"];
     leasesUnderway?: StaleDeployment[];
     matchesUnderway?: StaleDeployment[];
+    liveLeasesOnChain?: { dseq: string; state: LeaseState }[];
   }) {
     const wallet = createUserWallet({ id: 123, address: OWNER });
     const orphans = input?.orphans ?? (input?.staleDeployments ?? ["456"]).map(dseq => ({ owner: OWNER, dseq }));
@@ -675,6 +778,12 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
     const deploymentRepository = mock<DeploymentRepository>();
     const blockRepository = mock<BlockRepository>();
     const blockHttpService = mock<BlockHttpService>();
+    const leaseHttpService = mock<LeaseHttpService>();
+    const liveLeasesOnChain = input?.liveLeasesOnChain ?? [];
+    leaseHttpService.list.mockImplementation(async ({ dseq, state }) => ({
+      leases: liveLeasesOnChain.filter(lease => lease.dseq === dseq && lease.state === state).map(() => mock<RpcLease>()),
+      pagination: { next_key: null, total: "0" }
+    }));
     const rpcMessageService = mock<RpcMessageService>();
     const managedSignerService = mock<ManagedSignerService>({
       executeDerivedTx: input?.executeDerivedTx ?? vi.fn().mockResolvedValue(buildOkTx())
@@ -707,6 +816,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       deploymentRepository,
       blockRepository,
       blockHttpService,
+      leaseHttpService,
       rpcMessageService,
       managedSignerService,
       config,
@@ -726,6 +836,7 @@ describe(StaleManagedDeploymentsCleanerService.name, () => {
       deploymentRepository,
       blockRepository,
       blockHttpService,
+      leaseHttpService,
       rpcMessageService,
       managedSignerService,
       managedUserWalletService,
