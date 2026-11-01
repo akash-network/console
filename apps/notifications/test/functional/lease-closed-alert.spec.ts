@@ -56,6 +56,32 @@ describe("lease closed alerts", () => {
     }
   });
 
+  it("sends the lease closed notification to the owner's alert when another user's alert for the same deployment was already notified", async () => {
+    const { module, controller, brokerService, db } = await setup();
+
+    try {
+      const owner = mockAkashAddress();
+      const dseq = generateDseq();
+      const [otherUserChannel, ownerChannel] = await db
+        .insert(NotificationChannel)
+        .values([generateNotificationChannel({}), generateNotificationChannel({})])
+        .returning();
+      const otherUserAlert = generateClosedAlert({ owner, dseq, notificationChannelId: otherUserChannel.id });
+      await db.insert(schema.Alert).values({ ...otherUserAlert, params: { dseq, type: "DEPLOYMENT_CLOSED", reclaimNotifiedAt: new Date().toISOString() } });
+      await db.insert(schema.Alert).values(generateClosedAlert({ owner, dseq, notificationChannelId: ownerChannel.id }));
+
+      await controller.processLeaseClosed(generateLeaseClosedEvent({ owner, dseq }));
+
+      expect(brokerService.publish).toHaveBeenCalledTimes(1);
+      expect(brokerService.publish).toHaveBeenCalledWith(
+        eventKeyRegistry.createNotification,
+        expect.objectContaining({ notificationChannelId: ownerChannel.id })
+      );
+    } finally {
+      await module.close();
+    }
+  });
+
   it("still notifies when the deployment closed in the same block and its alert fired first", async () => {
     const { module, controller, brokerService, db } = await setup();
 

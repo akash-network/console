@@ -72,6 +72,38 @@ describe("lease reclaim alerts", () => {
     }
   });
 
+  it("sends the reclaim notification to the owner's alert when another user's alert for the same deployment is switched off", async () => {
+    const { module } = await setup();
+
+    try {
+      const controller = module.get(ChainEventsHandler);
+      const brokerService = module.get(BrokerService);
+      const db = module.get(DRIZZLE_PROVIDER_TOKEN);
+
+      const owner = mockAkashAddress();
+      const dseq = String(faker.number.int({ min: 1, max: 999999 }));
+
+      vi.spyOn(brokerService, "publish").mockResolvedValue(undefined);
+
+      const [otherUserChannel, ownerChannel] = await db
+        .insert(NotificationChannel)
+        .values([generateNotificationChannel({}), generateNotificationChannel({})])
+        .returning();
+      await db.insert(schema.Alert).values(generateClosedAlert({ owner, dseq, notificationChannelId: otherUserChannel.id, enabled: false }));
+      await db.insert(schema.Alert).values(generateClosedAlert({ owner, dseq, notificationChannelId: ownerChannel.id }));
+
+      await controller.processLeaseReclaimStarted(generateReclaimEvent({ owner, dseq }));
+
+      expect(brokerService.publish).toHaveBeenCalledTimes(1);
+      expect(brokerService.publish).toHaveBeenCalledWith(
+        eventKeyRegistry.createNotification,
+        expect.objectContaining({ notificationChannelId: ownerChannel.id })
+      );
+    } finally {
+      await module.close();
+    }
+  });
+
   it("shows the deadline in the timezone of the channel it emails, naming the zone", async () => {
     const { module } = await setup();
 

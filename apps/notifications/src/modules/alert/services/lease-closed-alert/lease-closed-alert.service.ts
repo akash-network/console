@@ -36,13 +36,19 @@ export class LeaseClosedAlertService {
       return;
     }
 
-    const alert = await this.alertRepository.findDeploymentClosedAlertByOwnerAndDseq(event.owner, event.dseq);
+    const alerts = await this.alertRepository.findDeploymentClosedAlertsByOwnerAndDseq(event.owner, event.dseq);
 
-    if (!alert) {
+    if (!alerts.length) {
       this.loggerService.debug({ event: "LEASE_CLOSED_ALERT_SKIPPED", reason: "NO_DEPLOYMENT_CLOSED_ALERT", owner: event.owner, dseq: event.dseq });
       return;
     }
 
+    for (const alert of alerts) {
+      await this.#notifyThrough(alert, event, reason, onMessage);
+    }
+  }
+
+  async #notifyThrough(alert: GeneralAlertOutput, event: LeaseClosedAlertEvent, reason: LeaseClosedReason, onMessage: MessageCallback): Promise<void> {
     if (this.isOptedOut(alert)) {
       this.loggerService.debug({ event: "LEASE_CLOSED_ALERT_SKIPPED", reason: "OPTED_OUT", alertId: alert.id });
       return;
