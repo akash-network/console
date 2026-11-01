@@ -72,17 +72,18 @@ describe("POST /api/auth/email-code-verify", () => {
     expect(res.setHeader).not.toHaveBeenCalledWith("Set-Cookie", expect.anything());
   });
 
-  it("does not set the session if createLocalUser throws", async () => {
+  it("reports the error and answers 500 without setting the session if createLocalUser throws", async () => {
     const session = Object.assign(new Session({ sub: "auth0|email|abc", email: "user@example.com" }), { accessToken: "at" });
-    const { res, setSession } = await callHandler({
+    const createLocalUserError = new Error("downstream failure");
+    const { res, setSession, errorHandler } = await callHandler({
       body: { email: "user@example.com", code: "123456", captchaToken: "tok" },
       verifyResult: Ok(session),
-      createLocalUserError: new Error("downstream failure"),
-      expectThrow: true
+      createLocalUserError
     });
 
     expect(setSession).not.toHaveBeenCalled();
-    expect(res.status).not.toHaveBeenCalledWith(204);
+    expect(errorHandler.reportError).toHaveBeenCalledWith(expect.objectContaining({ error: createLocalUserError }));
+    expect(res.status).toHaveBeenCalledWith(500);
   });
 
   it("returns 429 with Retry-After when rate_limited", async () => {
@@ -122,7 +123,6 @@ describe("POST /api/auth/email-code-verify", () => {
     createLocalUserError?: Error;
     isNewUser?: boolean;
     userSettings?: Awaited<ReturnType<SessionService["createLocalUser"]>>["userSettings"];
-    expectThrow?: boolean;
     cookies?: Record<string, string>;
   }) {
     const sessionService = mock<SessionService>();
@@ -163,18 +163,15 @@ describe("POST /api/auth/email-code-verify", () => {
     req.cookies = input.cookies ?? {};
 
     const res = mock<NextApiResponse>({
+      headersSent: false,
       status: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
       end: vi.fn().mockReturnThis(),
       setHeader: vi.fn().mockReturnThis()
     });
 
-    if (input.expectThrow) {
-      await expect(handler(req, res)).rejects.toThrow();
-    } else {
-      await handler(req, res);
-    }
+    await handler(req, res);
 
-    return { req, res, sessionService, setSession };
+    return { req, res, sessionService, setSession, errorHandler: requestServices.errorHandler };
   }
 });

@@ -200,6 +200,36 @@ describe("defineApiHandler", () => {
     expect(handler).toHaveBeenCalledWith(expect.objectContaining({ session: null }));
   });
 
+  it("reports an error the handler throws and answers 500 instead of letting it escape", async () => {
+    const errorHandler = mock<ErrorHandlerService>();
+    const error = new Error("upstream unavailable");
+    const res = mock<NextApiResponse>({ headersSent: false });
+    res.status.mockReturnValue(res);
+
+    await setup({
+      handler: vi.fn().mockRejectedValue(error),
+      context: { res, services: { errorHandler } }
+    });
+
+    expect(errorHandler.reportError).toHaveBeenCalledWith({ error, tags: { event: "API_HANDLER_ERROR" } });
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.end).toHaveBeenCalledWith("Internal Server Error");
+  });
+
+  it("reports an error the handler throws after it started answering without answering again", async () => {
+    const errorHandler = mock<ErrorHandlerService>();
+    const error = new Error("stream broke");
+    const res = mock<NextApiResponse>({ headersSent: true });
+
+    await setup({
+      handler: vi.fn().mockRejectedValue(error),
+      context: { res, services: { errorHandler } }
+    });
+
+    expect(errorHandler.reportError).toHaveBeenCalledWith({ error, tags: { event: "API_HANDLER_ERROR" } });
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   it("returns 400 error and logs warning when schema validation fails", async () => {
     const schema = z.object({
       query: z.object({
