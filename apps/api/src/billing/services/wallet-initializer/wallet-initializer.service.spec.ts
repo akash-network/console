@@ -54,18 +54,21 @@ describe(WalletInitializerService.name, () => {
 
     it("starts the trial despite a duplicate fingerprint when the check is off for the user", async () => {
       const user = createUser({ emailVerified: true, lastFingerprint: "fp" });
-      const activatedWallet = createUserWallet({ userId: user.id, activatedAt: new Date() });
+      const wallet = createUserWallet({ userId: user.id, activatedAt: null });
       const di = setup({
         user,
         isProduction: true,
         hasDuplicateFingerprint: true,
         isFingerprintCheckEnabled: false,
-        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet: activatedWallet, isNew: false })
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet, isNew: false }),
+        updateWalletById: vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }))
       });
+      const managedUserWalletService = di.resolve(ManagedUserWalletService) as MockProxy<ManagedUserWalletService>;
+      managedUserWalletService.createAndAuthorizeTrialSpending.mockResolvedValue(createChainWallet());
 
-      const result = await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
+      await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
 
-      expect(result.address).toBe(activatedWallet.address);
+      expect(managedUserWalletService.createAndAuthorizeTrialSpending).toHaveBeenCalledWith(di.resolve(ManagedSignerService), { addressIndex: wallet.id });
     });
 
     it("throws 400 when the email domain is blocked", async () => {
