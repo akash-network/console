@@ -130,6 +130,7 @@ describe(EmailVerificationCodeService.name, () => {
       const { service, emailVerificationCodeRepository, userRepository, auth0Service, notificationService } = setup();
       userRepository.findById.mockResolvedValue(user);
       emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
 
       await service.verifyCode(user.id, code);
 
@@ -144,6 +145,7 @@ describe(EmailVerificationCodeService.name, () => {
       const { service, emailVerificationCodeRepository, userRepository, auth0Service, notificationService } = setup();
       userRepository.findById.mockResolvedValue(user);
       emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
       auth0Service.markEmailVerified.mockRejectedValue(new Error("Auth0 unavailable"));
 
       await expect(service.verifyCode(user.id, code)).rejects.toThrow("Auth0 unavailable");
@@ -159,6 +161,7 @@ describe(EmailVerificationCodeService.name, () => {
       const { service, emailVerificationCodeRepository, userRepository, auth0Service, notificationService, logger } = setup();
       userRepository.findById.mockResolvedValue(user);
       emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
       notificationService.confirmAccountEmail.mockRejectedValue(error);
 
       await service.verifyCode(user.id, code);
