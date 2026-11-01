@@ -334,7 +334,10 @@ describe("Organization wallet", () => {
         body: JSON.stringify({
           data: {
             ttl: 7200,
-            leases: { access: "granular", permissions: [{ provider: createAkashAddress(), access: "granular", deployments: [{ dseq: 123, scope: ["logs"] }] }] }
+            leases: {
+              access: "granular",
+              permissions: [{ provider: createAkashAddress(), access: "granular", deployments: [{ dseq: 123, scope: ["logs"], services: ["web"] }] }]
+            }
           }
         }),
         headers: { "Content-Type": "application/json", authorization: `Bearer ${token}`, "x-organization-id": personal!.id, "x-project-id": project.id }
