@@ -18,6 +18,7 @@ const CLOSE_AFTER_DAYS = 14;
 const DEPLOY_WEB_BASE_URL = "https://console.akash.network";
 const OWNER = "akash1owner";
 const DSEQ = "1784768430632";
+const WALLET_ORGANIZATION_ID = "5f0c3e9a-3c1b-4f62-9a57-3f2d8c1e7b40";
 const DARK_PROVIDER = "akash1dark";
 const HEALTHY_PROVIDER = "akash1healthy";
 const DOWN_SINCE = "2026-07-24T00:00:00.000Z";
@@ -63,6 +64,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     expect(deploymentSettingRepository.claimProviderUnreachableNotification).toHaveBeenCalledWith({
       userId: "user-1",
       dseq: DSEQ,
+      organizationId: WALLET_ORGANIZATION_ID,
       downSinceMarker: DOWN_SINCE
     });
   });
@@ -179,6 +181,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     expect(deploymentSettingRepository.releaseProviderUnreachableClaim).toHaveBeenCalledWith({
       userId: "user-1",
       dseq: DSEQ,
+      organizationId: WALLET_ORGANIZATION_ID,
       downSinceMarker: DOWN_SINCE
     });
   });
@@ -221,7 +224,7 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
 
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findByAddresses.mockImplementation(async addresses =>
-      input.wallet === null ? [] : addresses.map(address => mock<UserWalletOutput>({ userId: "user-1", address }))
+      input.wallet === null ? [] : addresses.map(address => mock<UserWalletOutput>({ userId: "user-1", organizationId: WALLET_ORGANIZATION_ID, address }))
     );
 
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();

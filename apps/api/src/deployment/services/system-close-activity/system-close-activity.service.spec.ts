@@ -28,7 +28,7 @@ describe(SystemCloseActivityService.name, () => {
     await service.record({ wallet: teamWallet, dseq: "100", reason: "no_lease" });
 
     expect(deploymentSettingRepository.unscoped).toHaveBeenCalledWith("deployment-activity");
-    expect(deploymentSettingRepository.findOneOwnedByWallet).toHaveBeenCalledWith(teamWallet, "100");
+    expect(deploymentSettingRepository.findOneOfWallet).toHaveBeenCalledWith(teamWallet, "100");
   });
 
   it("records the close in a personal wallet's user's feed when Console holds no record of the deployment", async () => {
@@ -64,7 +64,7 @@ describe(SystemCloseActivityService.name, () => {
   it("logs a failed lookup as both writes failing instead of failing the close that already happened", async () => {
     const { service, activityService, deploymentSettingRepository, logger, teamWallet } = setup({ filedUnder: "member-1" });
     const error = new Error("connection terminated");
-    deploymentSettingRepository.findOneOwnedByWallet.mockRejectedValue(error);
+    deploymentSettingRepository.findOneOfWallet.mockRejectedValue(error);
 
     await expect(service.record({ wallet: teamWallet, dseq: "100", reason: "no_lease" })).resolves.toBeUndefined();
 
@@ -182,7 +182,7 @@ describe(SystemCloseActivityService.name, () => {
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.unscoped.mockReturnValue(deploymentSettingRepository);
     const setting = input.filedUnder === undefined ? undefined : mock<DeploymentSettingsOutput>({ id: faker.string.uuid(), userId: input.filedUnder });
-    deploymentSettingRepository.findOneOwnedByWallet.mockResolvedValue(setting);
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(setting);
     const activityService = mock<ActivityService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);

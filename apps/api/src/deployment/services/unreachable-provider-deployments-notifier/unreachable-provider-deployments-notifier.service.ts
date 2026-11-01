@@ -4,7 +4,7 @@ import { inject, singleton } from "tsyringe";
 import { isWalletInitialized, UserWalletRepository, type WalletInitialized } from "@src/billing/repositories";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import type { DryRunOptions } from "@src/core/types/console";
-import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
+import { DeploymentSettingRepository, type ProviderUnreachableClaim } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { type ActiveLeaseOnProvider, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import { type ProviderOutage, ProviderOutagesHttpService } from "@src/deployment/services/provider-outages-http/provider-outages-http.service";
@@ -162,7 +162,7 @@ export class UnreachableProviderDeploymentsNotifierService {
       return false;
     }
 
-    const claim = { userId: user.id, dseq: deployment.dseq, downSinceMarker: deployment.downSince };
+    const claim = { userId: user.id, dseq: deployment.dseq, organizationId: wallet.organizationId, downSinceMarker: deployment.downSince };
     const claimed = await this.deploymentSettingRepository.claimProviderUnreachableNotification(claim);
 
     if (!claimed) {
@@ -203,7 +203,7 @@ export class UnreachableProviderDeploymentsNotifierService {
   }
 
   /** A failed release is logged rather than thrown, because it would replace the send error the caller reports. */
-  async #releaseClaim(deployment: DarkDeployment, claim: { userId: string; dseq: string; downSinceMarker: string }): Promise<void> {
+  async #releaseClaim(deployment: DarkDeployment, claim: ProviderUnreachableClaim): Promise<void> {
     try {
       await this.deploymentSettingRepository.releaseProviderUnreachableClaim(claim);
     } catch (error) {

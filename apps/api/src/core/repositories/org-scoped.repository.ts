@@ -83,7 +83,7 @@ export abstract class OrgScopedRepository<
     return false;
   }
 
-  protected async attributeToOrganization<V extends object>(values: V): Promise<V> {
+  protected async attributeToOrganization<V extends object>(values: V): Promise<V & OrganizationAttributed> {
     const context = this.#organizationContext;
     const organizationId = (values as OrganizationAttributed).organizationId ?? context?.organizationId;
 

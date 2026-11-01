@@ -10,6 +10,7 @@ import { RecordLeaseGpuOffersHandler } from "./record-lease-gpu-offers.handler";
 
 import { createBid } from "@test/seeders/bid.seeder";
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
@@ -77,6 +78,15 @@ describe(RecordLeaseGpuOffersHandler.name, () => {
     await awaitRetrying(singletonKey);
   });
 
+  it("leaves the offers of a team deployment its user filed under the same dseq alone", async () => {
+    const { singletonKey, run, findOffers } = await setup({ filedInTeam: true });
+
+    await run();
+
+    await awaitRetrying(singletonKey);
+    await expect(findOffers()).resolves.toBeNull();
+  });
+
   it("declares no permissions, because a worker carries no user", () => {
     expect(container.resolve(RecordLeaseGpuOffersHandler).requiresPermission()).toEqual([]);
   });
@@ -91,12 +101,13 @@ describe(RecordLeaseGpuOffersHandler.name, () => {
     );
   }
 
-  async function setup(input: { gpuUnits?: string; noLiveLease?: boolean; withoutSetting?: boolean }) {
+  async function setup(input: { gpuUnits?: string; noLiveLease?: boolean; withoutSetting?: boolean; filedInTeam?: boolean }) {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
     const { user, wallet, address } = await seedUserWithWallet();
     const dseq = createDseq();
-    if (!input.withoutSetting) await seedDeploymentSetting({ userId: user.id, dseq, sdl: null });
+    const organizationId = input.filedInTeam ? await seedTeamOfMember(user.id) : null;
+    if (!input.withoutSetting) await seedDeploymentSetting({ userId: user.id, dseq, sdl: null, organizationId });
 
     const bid: Bid = createBid({ owner: address, dseq, gseq: 1, oseq: 1, provider: PROVIDER, bseq: 0 });
     bid.bid.resources_offer[0].resources.gpu = { units: { val: input.gpuUnits ?? "8" }, attributes: input.gpuUnits === "0" ? [] : [A100_SXM] };
@@ -134,3 +145,10 @@ describe(RecordLeaseGpuOffersHandler.name, () => {
     };
   }
 });
+
+async function seedTeamOfMember(userId: string) {
+  const { organization: team } = await seedOrganizationWithOwner();
+  await seedOrganizationMember({ organizationId: team.id, userId });
+
+  return team.id;
+}

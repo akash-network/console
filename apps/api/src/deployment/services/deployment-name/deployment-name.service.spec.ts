@@ -17,7 +17,7 @@ describe(DeploymentNameService.name, () => {
 
     expect(name).toBe("my-app");
     expect(userWalletRepository.findOneByAddress).toHaveBeenCalledWith(wallet.address);
-    expect(deploymentSettingRepository.findOneOwnedByWallet).toHaveBeenCalledWith(wallet, dseq);
+    expect(deploymentSettingRepository.findOneOfWallet).toHaveBeenCalledWith(wallet, dseq);
   });
 
   it("returns the name of a deployment on the reader's own wallet for an alert filed in an organization the wallet is not", async () => {
@@ -44,7 +44,7 @@ describe(DeploymentNameService.name, () => {
     const name = await service.findName({ owner: wallet.address, dseq, reader: { userId: faker.string.uuid(), organizationId: faker.string.uuid() } });
 
     expect(name).toBeNull();
-    expect(deploymentSettingRepository.findOneOwnedByWallet).not.toHaveBeenCalled();
+    expect(deploymentSettingRepository.findOneOfWallet).not.toHaveBeenCalled();
   });
 
   it("returns null for a deployment on another user's wallet", async () => {
@@ -79,16 +79,14 @@ describe(DeploymentNameService.name, () => {
     const { service, deploymentSettingRepository, dseq } = setup({ wallet: undefined, name: undefined });
 
     expect(await service.findName({ owner: "akash1unmanaged", dseq, reader: { userId: faker.string.uuid() } })).toBeNull();
-    expect(deploymentSettingRepository.findOneOwnedByWallet).not.toHaveBeenCalled();
+    expect(deploymentSettingRepository.findOneOfWallet).not.toHaveBeenCalled();
   });
 
   function setup(input: { wallet: UserWalletOutput | undefined; name: string | null | undefined }) {
     const userWalletRepository = mock<UserWalletRepository>();
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     userWalletRepository.findOneByAddress.mockResolvedValue(input.wallet);
-    deploymentSettingRepository.findOneOwnedByWallet.mockResolvedValue(
-      input.name === undefined ? undefined : mock<DeploymentSettingsOutput>({ name: input.name })
-    );
+    deploymentSettingRepository.findOneOfWallet.mockResolvedValue(input.name === undefined ? undefined : mock<DeploymentSettingsOutput>({ name: input.name }));
 
     const service = new DeploymentNameService(userWalletRepository, deploymentSettingRepository);
 

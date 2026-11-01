@@ -36,7 +36,7 @@ export class SystemCloseActivityService {
   }
 
   async #findDeployment({ wallet, dseq }: SystemClose): DeploymentLookup {
-    return await this.deploymentSettingRepository.unscoped("deployment-activity").findOneOwnedByWallet(wallet, dseq);
+    return await this.deploymentSettingRepository.unscoped("deployment-activity").findOneOfWallet(wallet, dseq);
   }
 
   async #recordActivity(close: SystemClose, deployment: DeploymentLookup): Promise<void> {

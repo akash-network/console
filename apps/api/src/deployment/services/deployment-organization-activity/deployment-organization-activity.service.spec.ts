@@ -30,7 +30,7 @@ describe(DeploymentOrganizationActivityService.name, () => {
       await service.recordCreated(key, faker.string.uuid());
 
       expect(deploymentSettingRepository.unscoped).toHaveBeenCalledWith("deployment-activity");
-      expect(unscopedRepository.findOneOwnedByWallet).toHaveBeenCalledWith(key.wallet, key.dseq);
+      expect(unscopedRepository.findOneOfWallet).toHaveBeenCalledWith(key.wallet, key.dseq);
     });
 
     it("files nothing for a deployment the console holds no row for", async () => {
@@ -86,7 +86,7 @@ describe(DeploymentOrganizationActivityService.name, () => {
     it("logs a failure to read the deployment rather than raising it", async () => {
       const { service, unscopedRepository, organizationActivityService, logger, key } = setup();
       const error = new Error("database unavailable");
-      unscopedRepository.findOneOwnedByWallet.mockRejectedValue(error);
+      unscopedRepository.findOneOfWallet.mockRejectedValue(error);
 
       await expect(service.recordClosed(key, { actorUserId: faker.string.uuid(), reason: null })).resolves.toBeUndefined();
 
@@ -189,7 +189,7 @@ describe(DeploymentOrganizationActivityService.name, () => {
       name: faker.word.noun()
     });
     const unscopedRepository = mock<DeploymentSettingRepository>();
-    unscopedRepository.findOneOwnedByWallet.mockResolvedValue(input?.deployment === null ? undefined : deployment);
+    unscopedRepository.findOneOfWallet.mockResolvedValue(input?.deployment === null ? undefined : deployment);
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.unscoped.mockReturnValue(unscopedRepository);
     const organizationActivityService = mock<OrganizationActivityService>();

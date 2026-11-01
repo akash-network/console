@@ -14,6 +14,7 @@ import { ProviderService } from "@src/provider/services/provider/provider.servic
 import { DetectLeaseGpusHandler } from "./detect-lease-gpus.handler";
 
 import { createDseq, seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
@@ -87,6 +88,16 @@ describe(DetectLeaseGpusHandler.name, () => {
     expect(queued.some(job => job.state === "created")).toBe(true);
   });
 
+  it("leaves the gpus of a team deployment its user filed under the same dseq alone", async () => {
+    const { enqueue, startWorkers, singletonKey, findReadings } = await setup({ filedInTeam: true });
+
+    await enqueue();
+    await startWorkers();
+
+    await expectJobCompleted(DetectLeaseGpus[JOB_NAME], { singletonKey, state: "completed" });
+    await expect(findReadings()).resolves.toBeNull();
+  });
+
   it("comes back for a service it could not read", async () => {
     const { enqueue, startWorkers, singletonKey } = await setup({ probeResult: { status: "idle_timeout" } });
 
@@ -128,13 +139,15 @@ describe(DetectLeaseGpusHandler.name, () => {
     enabled?: boolean;
     chainFails?: boolean;
     withoutSetting?: boolean;
+    filedInTeam?: boolean;
     probeResult?: Awaited<ReturnType<LeaseGpuProbeService["probe"]>>;
   }) {
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const deploymentSettingsTable = resolveTable("DeploymentSettings");
     const { user, wallet, address } = await seedUserWithWallet();
     const dseq = createDseq();
-    if (!input.withoutSetting) await seedDeploymentSetting({ userId: user.id, dseq, sdl: null });
+    const organizationId = input.filedInTeam ? await seedTeamOfMember(user.id) : null;
+    if (!input.withoutSetting) await seedDeploymentSetting({ userId: user.id, dseq, sdl: null, organizationId });
 
     const config = container.resolve(DeploymentConfigService);
     const readConfig = config.get.bind(config);
@@ -190,3 +203,10 @@ describe(DetectLeaseGpusHandler.name, () => {
     };
   }
 });
+
+async function seedTeamOfMember(userId: string) {
+  const { organization: team } = await seedOrganizationWithOwner();
+  await seedOrganizationMember({ organizationId: team.id, userId });
+
+  return team.id;
+}
