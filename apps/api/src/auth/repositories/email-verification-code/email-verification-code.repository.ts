@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -63,11 +63,15 @@ export class EmailVerificationCodeRepository extends BaseRepository<Table, Email
     await this.cursor.delete(this.table).where(eq(this.table.userId, userId));
   }
 
-  async incrementAttempts(id: string): Promise<void> {
-    await this.cursor
+  /** Checks the limit and counts the attempt in one statement, so concurrent attempts cannot share a count. */
+  async claimAttempt(id: string, maxAttempts: number): Promise<EmailVerificationCodeOutput | undefined> {
+    const [result] = await this.cursor
       .update(this.table)
       .set({ attempts: sql`${this.table.attempts} + 1` })
-      .where(eq(this.table.id, id));
+      .where(and(eq(this.table.id, id), lt(this.table.attempts, maxAttempts)))
+      .returning();
+
+    return result ? this.toOutput(result) : undefined;
   }
 
   protected toOutput(payload: EmailVerificationCodeDbOutput): EmailVerificationCodeOutput {
