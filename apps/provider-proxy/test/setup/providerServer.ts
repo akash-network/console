@@ -62,7 +62,7 @@ export function startProviderServer(options: ProviderServerOptions): Promise<Pro
     });
 
     if (options.websocketServer?.enable) {
-      const wss = new WebSocket.Server({ server });
+      const wss = new WebSocket.Server({ server, perMessageDeflate: options.websocketServer.perMessageDeflate ?? false });
       server.on("close", () => wss.close());
       if (options.websocketServer.onConnection) {
         wss.on("connection", options.websocketServer.onConnection);
@@ -82,6 +82,7 @@ export interface ProviderServerOptions {
   handlers?: RequestHandlers;
   websocketServer?: {
     enable: boolean;
+    perMessageDeflate?: boolean;
     onConnection?(ws: WebSocket, req: IncomingMessage): void;
   };
 }
