@@ -53,13 +53,99 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
       expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "pending" });
     });
 
-    it("voids the deposits once the last attempt still finds no transaction", async () => {
+    it("voids the deposits once the last attempt finds the transaction neither on chain nor in an index past their window", async () => {
       const { txHash, pending, handler, answerChainWith } = await setupHash();
       answerChainWith(null);
+      await indexTip(secondsAfter(pending.createdAt, 600));
 
       await handler.handle({ txHash, version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
 
       expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "void" });
+    });
+
+    it.each([
+      { outcome: "confirms", hasProcessingError: false, status: "confirmed" },
+      { outcome: "voids", hasProcessingError: true, status: "void" }
+    ])("$outcome the deposits by the chain index when the last attempt still finds no transaction", async ({ hasProcessingError, status }) => {
+      const { txHash, pending, handler, answerChainWith } = await setupHash();
+      answerChainWith(null);
+      await indexTx(txHash, { hasProcessingError, at: secondsAfter(pending.createdAt, 20) });
+
+      await handler.handle({ txHash, version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status, txHash });
+    });
+
+    it("waits for an index that has not reached the deposits' window, then voids them after the last wait", async () => {
+      const { txHash, pending, handler, answerChainWith } = await setupHash();
+      answerChainWith(null);
+      await indexTip(secondsAfter(pending.createdAt, 30));
+
+      await handler.handle({ txHash, version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "pending" });
+      expect(await findJobRows(ReconcileDeploymentDeposit[JOB_NAME], { singletonKey: `${ReconcileDeploymentDeposit[JOB_NAME]}.${txHash}.1` })).toEqual([
+        expect.objectContaining({ data: expect.objectContaining({ txHash, indexLagRetries: 1 }) })
+      ]);
+
+      await handler.handle({ txHash, indexLagRetries: 6, version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "void" });
+    });
+
+    it("voids the deposits when the wait for the index cannot be queued", async () => {
+      const { txHash, pending, handler, answerChainWith } = await setupHash();
+      answerChainWith(null);
+      await indexTip(secondsAfter(pending.createdAt, 30));
+      vi.spyOn(container.resolve(JobQueueService), "enqueue").mockRejectedValue(new Error("queue unavailable"));
+
+      await handler.handle({ txHash, version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "void" });
+    });
+
+    it("confirms a deposit whose transaction the index stores right after the check reads the index tip", async () => {
+      const { txHash, pending, handler, answerChainWith } = await setupHash();
+      answerChainWith(null);
+      await indexTip(secondsAfter(pending.createdAt, 30));
+      catchUpIndexRightAfterTipRead(async () => {
+        await indexTx(txHash, { hasProcessingError: false, at: secondsAfter(pending.createdAt, 20) });
+        await indexTip(secondsAfter(pending.createdAt, 600));
+      });
+
+      await handler.handle({ txHash, version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "confirmed", txHash });
+    });
+
+    it("settles a check re-queued for the index on its first attempt, run the way a worker runs it", async () => {
+      const { txHash, pending, answerChainWith, runJob } = await setupHash();
+      answerChainWith(null);
+      await indexTx(txHash, { hasProcessingError: false, at: secondsAfter(pending.createdAt, 20) });
+
+      await runJob({ indexLagRetries: 1 });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "confirmed", txHash });
+    });
+
+    it("settles a check re-queued for the index by the index when the chain endpoint fails, run the way a worker runs it", async () => {
+      const { txHash, pending, failChainLookup, runJob } = await setupHash();
+      failChainLookup();
+      await indexTx(txHash, { hasProcessingError: false, at: secondsAfter(pending.createdAt, 20) });
+
+      await runJob({ indexLagRetries: 1 });
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "confirmed", txHash });
+    });
+
+    it("lets a failing chain endpoint fail the attempt while retries remain", async () => {
+      const { txHash, pending, handler, failChainLookup } = await setupHash();
+      failChainLookup();
+      await indexTx(txHash, { hasProcessingError: false, at: secondsAfter(pending.createdAt, 20) });
+
+      await expect(handler.handle({ txHash, version: 1 }, { id: faker.string.uuid(), ...RETRIES_LEFT })).rejects.toThrow("chain endpoint unavailable");
+
+      expect(await findDeploymentDeposit(pending.id)).toMatchObject({ status: "pending" });
     });
   });
 
@@ -218,7 +304,52 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
 
       expect(await findDeploymentDeposit(topUp.id)).toMatchObject({ status: "void" });
     });
+
+    it("confirms a top-up the index stores right after the check reads the index tip", async () => {
+      const { organization, owner, recordedAt, handler } = await setupIndex();
+      const topUp = await seedPending({ organizationId: organization.id, owner, kind: "top_up", createdAt: recordedAt });
+      const deployment = await indexCreate({ owner, dseq: topUp.dseq, at: secondsAfter(recordedAt, -86_400) });
+      await indexTip(secondsAfter(recordedAt, 30));
+      const indexedTxHash = catchUpIndexRightAfterTipRead(async () => {
+        const txHash = await indexTopUp({ deploymentId: deployment.id, amount: topUp.amount, at: secondsAfter(recordedAt, 5) });
+        await indexTip(secondsAfter(recordedAt, 600));
+        return txHash;
+      });
+
+      await handler.handle({ depositIds: [topUp.id], version: 1 }, { id: faker.string.uuid(), ...LAST_ATTEMPT });
+
+      expect(await findDeploymentDeposit(topUp.id)).toMatchObject({ status: "confirmed", txHash: await indexedTxHash });
+    });
+
+    it("voids an unseen deposit in a check re-queued for the index on its first attempt, run the way a worker runs it", async () => {
+      const { organization, owner, recordedAt } = await setupIndex();
+      const topUp = await seedPending({ organizationId: organization.id, owner, kind: "top_up", createdAt: recordedAt });
+      await indexTip(secondsAfter(recordedAt, 600));
+
+      const { enqueue, startWorkers } = await jobWorkers();
+      const singletonKey = `${ReconcileDeploymentDeposit[JOB_NAME]}.${topUp.id}.1`;
+      await enqueue(new ReconcileDeploymentDeposit({ depositIds: [topUp.id], indexLagRetries: 1 }), { singletonKey });
+      await startWorkers();
+      await expectJobCompleted(ReconcileDeploymentDeposit[JOB_NAME], { singletonKey });
+
+      expect(await findDeploymentDeposit(topUp.id)).toMatchObject({ status: "void" });
+    });
   });
+
+  function catchUpIndexRightAfterTipRead<T>(catchUp: () => Promise<T>): Promise<T> {
+    const repository = container.resolve(DeploymentSpendRepository);
+    const findLatestBlockTime = repository.findLatestBlockTime.bind(repository);
+    const { promise, resolve } = Promise.withResolvers<T>();
+
+    vi.spyOn(repository, "findLatestBlockTime").mockImplementationOnce(async () => {
+      const latestBlockTime = await findLatestBlockTime();
+      resolve(await catchUp());
+
+      return latestBlockTime;
+    });
+
+    return promise;
+  }
 
   function letChainReadsOverlap() {
     const repository = container.resolve(DeploymentSpendRepository);
@@ -279,6 +410,13 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
     return hash;
   }
 
+  async function indexTx(hash: string, { hasProcessingError, at }: { hasProcessingError: boolean; at: Date }) {
+    container.resolve(CHAIN_DB);
+    const height = uniqueHeight();
+    await createAkashBlock({ height, datetime: at });
+    await createTransaction({ height, hash, hasProcessingError });
+  }
+
   function uniqueHeight() {
     return faker.number.int({ min: 50_000_000, max: 2_000_000_000 });
   }
@@ -294,14 +432,16 @@ describe(ReconcileDeploymentDepositHandler.name, () => {
     const answerChainWith = (answer: { code: number } | null) =>
       vi.spyOn(container.resolve(TxPresenceService), "findTx").mockResolvedValue(answer && { hash: txHash, code: answer.code, height: 100, rawLog: "" });
 
-    const runJob = async () => {
+    const failChainLookup = () => vi.spyOn(container.resolve(TxPresenceService), "findTx").mockRejectedValue(new Error("chain endpoint unavailable"));
+
+    const runJob = async (check: { indexLagRetries?: number } = {}) => {
       const { enqueue, startWorkers } = await jobWorkers();
       const singletonKey = `${ReconcileDeploymentDeposit[JOB_NAME]}.${txHash}`;
-      await enqueue(new ReconcileDeploymentDeposit({ txHash }), { singletonKey });
+      await enqueue(new ReconcileDeploymentDeposit({ txHash, ...check }), { singletonKey });
       await startWorkers();
       await expectJobCompleted(ReconcileDeploymentDeposit[JOB_NAME], { singletonKey });
     };
 
-    return { txHash, pending, alreadyVoid, otherTransaction, handler, answerChainWith, runJob };
+    return { txHash, pending, alreadyVoid, otherTransaction, handler, answerChainWith, failChainLookup, runJob };
   }
 });

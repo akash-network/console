@@ -226,6 +226,15 @@ export class DeploymentSpendRepository {
     return rows.map(({ txHash }) => txHash);
   }
 
+  async findTxResult(hash: string): Promise<{ isSucceeded: boolean } | undefined> {
+    const [row] = await this.#chainDb.query<{ hasProcessingError: boolean }>(
+      `/* deployment-deposit:indexed-tx */ SELECT "hasProcessingError" FROM transaction WHERE hash = :hash LIMIT 1`,
+      { type: QueryTypes.SELECT, replacements: { hash } }
+    );
+
+    return row ? { isSucceeded: !row.hasProcessingError } : undefined;
+  }
+
   async findLatestBlockTime(): Promise<Date | undefined> {
     const [row] = await this.#chainDb.query<{ datetime: Date }>(
       `/* deployment-deposit:latest-block */ SELECT datetime FROM block ORDER BY height DESC LIMIT 1`,
