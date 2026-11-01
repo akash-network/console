@@ -9,6 +9,9 @@ import { GPU_MODELS_HTTP_CLIENT } from "../providers/gpu-models-client.provider"
 import { GpuRepository } from "../repositories/gpu.repository";
 import { GpuFormattingService } from "./gpu-formatting/gpu-formatting.service";
 
+/** A one-year breakdown of every model takes about 2 MB of heap, and the cache charges each entry a flat 1 KiB, so its entry count is its only real bound. */
+export const GPU_BREAKDOWN_CACHE_ENTRIES = 50;
+
 @singleton()
 export class GpuService {
   constructor(
@@ -96,7 +99,7 @@ export class GpuService {
   }
 
   readonly getGpuBreakdown = memoizeAsync((query: GpuBreakdownQuery) => this.gpuRepository.getGpuBreakdown(query), {
-    cacheItemLimit: 500,
+    cacheItemLimit: GPU_BREAKDOWN_CACHE_ENTRIES,
     ttl: minutesToSeconds(5) * 1000,
     getCacheKey: query => JSON.stringify([query.vendor, query.model, query.startDate, query.endDate]),
     name: "GpuService#getGpuBreakdown"
