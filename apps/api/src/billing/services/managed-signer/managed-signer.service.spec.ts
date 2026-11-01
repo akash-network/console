@@ -1,7 +1,7 @@
 import { MsgAccountDeposit, MsgCreateCertificate, Scope } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
-import type { LeaseHttpService } from "@akashnetwork/http-sdk";
+import type { DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
 import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
@@ -40,6 +40,7 @@ import type { TxManagerService } from "../tx-manager/tx-manager.service";
 import { ManagedSignerService } from "./managed-signer.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
+import { createDeploymentInfoErrorSeed, createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createLeaseApiResponse } from "@test/seeders/lease-api-response.seeder";
 import { createOrganizationContext, createProjectsScope } from "@test/seeders/organization-context.seeder";
 import { createUser } from "@test/seeders/user.seeder";
@@ -2362,6 +2363,138 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
+  describe("ensureFeeGrants", () => {
+    it("returns the fee allowance without a refill while it has reached the refill threshold", async () => {
+      const wallet = createUserWallet();
+      const { service, managedUserWalletService, userWalletRepository } = setup({ retrieveAndCalcFeeLimit: vi.fn().mockResolvedValue(100_000) });
+
+      await expect(service.ensureFeeGrants(wallet, [certificateMessage()])).resolves.toBe(100_000);
+
+      expect(managedUserWalletService.refillWalletFees).not.toHaveBeenCalled();
+      expect(userWalletRepository.isEligibleForFeeRefill).not.toHaveBeenCalled();
+    });
+
+    it("refills a wallet the scheduled refill would also top up", async () => {
+      const wallet = createUserWallet();
+      const { service, managedUserWalletService, userWalletRepository, deploymentHttpService } = setup({
+        retrieveAndCalcFeeLimit: vi.fn().mockResolvedValueOnce(99_999).mockResolvedValueOnce(1_000_000)
+      });
+
+      await expect(service.ensureFeeGrants(wallet, [certificateMessage()])).resolves.toBe(1_000_000);
+
+      expect(userWalletRepository.isEligibleForFeeRefill).toHaveBeenCalledWith(wallet.id, { trialExpirationDays: 30 });
+      expect(managedUserWalletService.refillWalletFees).toHaveBeenCalledWith(service, wallet);
+      expect(deploymentHttpService.findByOwnerAndDseq).not.toHaveBeenCalled();
+    });
+
+    it("keeps the fee allowance of a wallet the scheduled refill would skip as it is", async () => {
+      const wallet = createUserWallet();
+      const { service, managedUserWalletService, deploymentHttpService } = setupForIneligibleWallet();
+
+      await expect(service.ensureFeeGrants(wallet, [certificateMessage()])).resolves.toBe(0);
+
+      expect(managedUserWalletService.refillWalletFees).not.toHaveBeenCalled();
+      expect(deploymentHttpService.findByOwnerAndDseq).not.toHaveBeenCalled();
+    });
+
+    it("keeps the fee allowance of a wallet the scheduled refill would skip when it sends no message", async () => {
+      const { service, managedUserWalletService } = setupForIneligibleWallet();
+
+      await expect(service.ensureFeeGrants(createUserWallet())).resolves.toBe(0);
+
+      expect(managedUserWalletService.refillWalletFees).not.toHaveBeenCalled();
+    });
+
+    it("refills a wallet the scheduled refill would skip when its batch only closes deployments still open on chain", async () => {
+      const wallet = createUserWallet();
+      const { service, managedUserWalletService, deploymentHttpService } = setupForIneligibleWallet({
+        retrieveAndCalcFeeLimit: vi.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(1_000_000)
+      });
+
+      await expect(service.ensureFeeGrants(wallet, [closeMessageFor(1), closeMessageFor(2)])).resolves.toBe(1_000_000);
+
+      expect(managedUserWalletService.refillWalletFees).toHaveBeenCalledWith(service, wallet);
+      expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledWith(wallet.address, "1");
+      expect(deploymentHttpService.findByOwnerAndDseq).toHaveBeenCalledWith(wallet.address, "2");
+    });
+
+    it("keeps the fee allowance of a wallet the scheduled refill would skip when one of its closes names a closed deployment", async () => {
+      const { service, managedUserWalletService } = setupForIneligibleWallet({
+        findDeploymentByOwnerAndDseq: vi
+          .fn()
+          .mockResolvedValueOnce(createDeploymentInfoSeed({ state: "active" }))
+          .mockResolvedValueOnce(createDeploymentInfoSeed({ state: "closed" }))
+      });
+
+      await expect(service.ensureFeeGrants(createUserWallet(), [closeMessageFor(1), closeMessageFor(2)])).resolves.toBe(0);
+
+      expect(managedUserWalletService.refillWalletFees).not.toHaveBeenCalled();
+    });
+
+    it("keeps the fee allowance of a wallet the scheduled refill would skip when one of its closes names a deployment the chain does not know", async () => {
+      const { service, managedUserWalletService } = setupForIneligibleWallet({
+        findDeploymentByOwnerAndDseq: vi.fn().mockResolvedValue(createDeploymentInfoErrorSeed())
+      });
+
+      await expect(service.ensureFeeGrants(createUserWallet(), [closeMessageFor(1)])).resolves.toBe(0);
+
+      expect(managedUserWalletService.refillWalletFees).not.toHaveBeenCalled();
+    });
+
+    it("keeps the fee allowance of a wallet the scheduled refill would skip when its batch closes the same deployment twice", async () => {
+      const { service, managedUserWalletService } = setupForIneligibleWallet();
+
+      await expect(service.ensureFeeGrants(createUserWallet(), [closeMessageFor(1), closeMessageFor(1)])).resolves.toBe(0);
+
+      expect(managedUserWalletService.refillWalletFees).not.toHaveBeenCalled();
+    });
+
+    it("keeps the fee allowance of a wallet the scheduled refill would skip when its batch carries more than closes", async () => {
+      const { service, managedUserWalletService, deploymentHttpService } = setupForIneligibleWallet();
+
+      await expect(service.ensureFeeGrants(createUserWallet(), [closeMessageFor(1), createDeploymentMessageFor(2)])).resolves.toBe(0);
+
+      expect(managedUserWalletService.refillWalletFees).not.toHaveBeenCalled();
+      expect(deploymentHttpService.findByOwnerAndDseq).not.toHaveBeenCalled();
+    });
+
+    it("refuses with a 402 a transaction from a wallet the scheduled refill would skip", async () => {
+      const wallet = createUserWallet({ userId: "user-123" });
+      const { service, managedUserWalletService, txManagerService } = setupForIneligibleWallet({ findOneUsedBy: vi.fn().mockResolvedValue(wallet) });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [certificateMessage()])).rejects.toMatchObject({
+        status: 402,
+        message: "Not enough funds to cover the fee for this request"
+      });
+
+      expect(managedUserWalletService.refillWalletFees).not.toHaveBeenCalled();
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
+    });
+
+    it("closes a deployment still open on chain for a wallet the scheduled refill would skip", async () => {
+      const wallet = createUserWallet({ userId: "user-123" });
+      const { service, managedUserWalletService, txManagerService } = setupForIneligibleWallet({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        retrieveAndCalcFeeLimit: vi.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(1_000_000),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" })
+      });
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [closeMessageFor(1)])).resolves.toMatchObject({ code: 0 });
+
+      expect(managedUserWalletService.refillWalletFees).toHaveBeenCalledWith(service, wallet);
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalled();
+    });
+  });
+
+  function setupForIneligibleWallet(input?: Parameters<typeof setup>[0]) {
+    return setup({
+      isEligibleForFeeRefill: vi.fn().mockResolvedValue(false),
+      retrieveAndCalcFeeLimit: vi.fn().mockResolvedValue(0),
+      findDeploymentByOwnerAndDseq: vi.fn().mockResolvedValue(createDeploymentInfoSeed({ state: "active" })),
+      ...input
+    });
+  }
+
   function setupForTeam(input?: { wallet?: WalletInitialized } & Parameters<typeof setup>[0]) {
     const wallet = input?.wallet ?? createOrganizationWallet({ feeAllowance: 100, deploymentAllowance: 100, activatedAt: new Date() });
     const mocks = setup({
@@ -2482,6 +2615,8 @@ describe(ManagedSignerService.name, () => {
     exposeSignerRefusal?: ChainErrorService["exposeSignerRefusal"];
     hasLeases?: LeaseHttpService["hasLeases"];
     listLeases?: LeaseHttpService["list"];
+    isEligibleForFeeRefill?: UserWalletRepository["isEligibleForFeeRefill"];
+    findDeploymentByOwnerAndDseq?: DeploymentHttpService["findByOwnerAndDseq"];
     scheduleImmediate?: WalletReloadJobService["scheduleImmediate"];
     markClosed?: DeploymentSettingRepository["markClosed"];
     findOneOfWallet?: DeploymentSettingRepository["findOneOfWallet"];
@@ -2494,7 +2629,8 @@ describe(ManagedSignerService.name, () => {
     const mocks = {
       userWalletRepository: mock<UserWalletRepository>({
         accessibleBy: vi.fn().mockReturnThis(),
-        findOneUsedBy: input?.findOneUsedBy ?? vi.fn()
+        findOneUsedBy: input?.findOneUsedBy ?? vi.fn(),
+        isEligibleForFeeRefill: input?.isEligibleForFeeRefill ?? vi.fn().mockResolvedValue(true)
       }),
       userRepository: mock<UserRepository>({
         findById: input?.findById ?? vi.fn()
@@ -2527,6 +2663,9 @@ describe(ManagedSignerService.name, () => {
       leaseHttpService: mock<LeaseHttpService>({
         hasLeases: input?.hasLeases ?? vi.fn(async () => false),
         list: input?.listLeases ?? vi.fn()
+      }),
+      deploymentHttpService: mock<DeploymentHttpService>({
+        findByOwnerAndDseq: input?.findDeploymentByOwnerAndDseq ?? vi.fn()
       }),
       walletReloadJobService: mock<WalletReloadJobService>({
         scheduleImmediate: input?.scheduleImmediate ?? vi.fn().mockResolvedValue(false)
@@ -2592,6 +2731,7 @@ describe(ManagedSignerService.name, () => {
       mocks.txManagerService,
       mocks.domainEvents,
       mocks.leaseHttpService,
+      mocks.deploymentHttpService,
       mocks.walletReloadJobService,
       mocks.managedUserWalletService,
       mocks.trialActivationJobService,

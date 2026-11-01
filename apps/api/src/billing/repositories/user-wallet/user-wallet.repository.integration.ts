@@ -268,6 +268,42 @@ describe(UserWalletRepository.name, () => {
     });
   });
 
+  describe("isEligibleForFeeRefill", () => {
+    it("accepts the wallets the scheduled refill tops up, whatever their fee allowance", async () => {
+      const { userWalletRepository, wallet: paying } = await setup();
+      const { wallet: inTrial } = await setup();
+      const { organization, user } = await seedOrganizationWithOwner();
+      const { wallet: team } = await userWalletRepository.getOrCreateForOrganization({ organizationId: organization.id, createdByUserId: user.id });
+      await userWalletRepository.updateById(paying.id, { activatedAt: subDays(new Date(), 90), feeAllowance: 5_000_000, isTrialing: false });
+      await userWalletRepository.updateById(inTrial.id, { activatedAt: subDays(new Date(), 29), isTrialing: true });
+      await userWalletRepository.updateById(team.id, { activatedAt: new Date() });
+
+      for (const { id } of [paying, inTrial, team]) {
+        await expect(userWalletRepository.isEligibleForFeeRefill(id, { trialExpirationDays: 30 })).resolves.toBe(true);
+      }
+    });
+
+    it("refuses the wallets the scheduled refill skips", async () => {
+      const { userWalletRepository, wallet: unactivated } = await setup();
+      const { wallet: locked } = await setup();
+      const { wallet: pastTrial } = await setup();
+      const { wallet: ownerless, user: deletedUser } = await setup();
+      const { organization, user } = await seedOrganizationWithOwner();
+      const { wallet: unfundedTeam } = await userWalletRepository.getOrCreateForOrganization({ organizationId: organization.id, createdByUserId: user.id });
+      await userWalletRepository.updateById(unactivated.id, { activatedAt: null, isTrialing: true });
+      await userWalletRepository.updateById(locked.id, { activatedAt: new Date(), isTrialing: true });
+      await userWalletRepository.lockForAbuse(locked.id, "workload_abuse");
+      await userWalletRepository.updateById(pastTrial.id, { activatedAt: subDays(new Date(), 31), isTrialing: true });
+      await userWalletRepository.updateById(ownerless.id, { activatedAt: new Date(), isTrialing: false });
+      await container.resolve(UserRepository).deleteById(deletedUser.id);
+      await userWalletRepository.updateById(unfundedTeam.id, { activatedAt: null });
+
+      for (const { id } of [unactivated, locked, pastTrial, ownerless, unfundedTeam]) {
+        await expect(userWalletRepository.isEligibleForFeeRefill(id, { trialExpirationDays: 30 })).resolves.toBe(false);
+      }
+    });
+  });
+
   describe("payingUserCount", () => {
     it("counts paying users, not team organizations' wallets", async () => {
       const { userWalletRepository, wallet } = await setup();

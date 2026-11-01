@@ -199,20 +199,32 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
   }
 
   async findDrainingWallets(thresholds: { fee: number; trialExpirationDays: number }) {
-    const trialWindowStart = subDays(new Date(), thresholds.trialExpirationDays);
-
     return this.toOutputList(
       await this.cursor.query.UserWallets.findMany({
         where: this.whereAccessibleBy(
-          and(
-            isNotNull(this.table.activatedAt),
-            isNull(this.table.abuseLockedAt),
-            lte(this.table.feeAllowance, thresholds.fee.toString()),
-            or(and(eq(this.table.isTrialing, true), gt(this.table.activatedAt, trialWindowStart)), eq(this.table.isTrialing, false)),
-            or(isNotNull(this.table.userId), isNotNull(this.table.organizationId))
-          )
+          and(this.#whereEligibleForFeeRefill(thresholds.trialExpirationDays), lte(this.table.feeAllowance, thresholds.fee.toString()))
         )
       })
+    );
+  }
+
+  async isEligibleForFeeRefill(id: UserWalletOutput["id"], { trialExpirationDays }: { trialExpirationDays: number }): Promise<boolean> {
+    const [eligible] = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(this.whereAccessibleBy(and(eq(this.table.id, id), this.#whereEligibleForFeeRefill(trialExpirationDays))));
+
+    return !!eligible;
+  }
+
+  #whereEligibleForFeeRefill(trialExpirationDays: number) {
+    const trialWindowStart = subDays(new Date(), trialExpirationDays);
+
+    return and(
+      isNotNull(this.table.activatedAt),
+      isNull(this.table.abuseLockedAt),
+      or(and(eq(this.table.isTrialing, true), gt(this.table.activatedAt, trialWindowStart)), eq(this.table.isTrialing, false)),
+      or(isNotNull(this.table.userId), isNotNull(this.table.organizationId))
     );
   }
 
