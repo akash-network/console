@@ -2,6 +2,9 @@ import { z } from "@hono/zod-openapi";
 
 import { AkashAddressSchema, DseqSchema } from "@src/utils/schema";
 
+/** A console-side bound on the work one request starts, since the chain does not limit placement groups per deployment. */
+export const MAX_LEASES_PER_REQUEST = 100;
+
 export const CreateLeaseRequestSchema = z.object({
   manifest: z.string().optional().openapi({
     description: "The manifest to send to the provider, in YAML format (deprecated)",
@@ -17,6 +20,7 @@ export const CreateLeaseRequestSchema = z.object({
       })
     )
     .min(1)
+    .max(MAX_LEASES_PER_REQUEST, `A request can create at most ${MAX_LEASES_PER_REQUEST} leases`)
 });
 
 export const CreateLeaseQuerySchema = z.object({
