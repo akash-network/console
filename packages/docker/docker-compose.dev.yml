@@ -240,6 +240,13 @@ services:
                     "aud": ["my-audience"],
                     "scope": "read write"
                   }
+                },
+                {
+                  "requestParam": "grant_type",
+                  "match": "*",
+                  "claims": {
+                    "aud": ["my-audience"]
+                  }
                 }
               ]
             }

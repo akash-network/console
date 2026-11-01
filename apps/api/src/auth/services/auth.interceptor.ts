@@ -75,7 +75,7 @@ export class AuthInterceptor implements HonoInterceptor {
         let userId: string | null | undefined;
         if (bearer) {
           try {
-            userId = await this.userAuthService.getValidUserId(bearer, c.env);
+            userId = await this.userAuthService.getValidUserId(bearer);
           } catch (error) {
             this.logger.warn({ event: "AUTH_TOKEN_VALIDATION_FAILED", error });
           }

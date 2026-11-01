@@ -23,8 +23,8 @@ export class UserController {
   }
 
   async registerUser(data: RegisterUserInput): Promise<RegisterUserResponse> {
-    const { req, env, var: httpVars } = this.httpContext;
-    const userId = await this.userAuthTokenService.getValidUserId(req.header("authorization") || "", env);
+    const { req, var: httpVars } = this.httpContext;
+    const userId = await this.userAuthTokenService.getValidUserId(req.header("authorization") || "");
     assert(userId, 401, "Invalid or expired token");
     const { isNewUser, ...user } = await this.userService.registerUser({
       userId,
