@@ -219,7 +219,7 @@ export class DeploymentReaderService {
       assert(await this.signerService.isDeploymentInProjectScope(wallet, query.dseq, "read"), 404, "Deployment not found");
     }
 
-    const states = query.state ?? [undefined];
+    const states = query.state ? [...new Set(query.state)] : [undefined];
     const pages = await Promise.all(
       states.map(state => this.getLeaseList({ owner: wallet.address, dseq: query.dseq, provider: query.provider, state, pagination: { limit: query.limit } }))
     );
@@ -719,7 +719,8 @@ export class DeploymentReaderService {
       return await this.leaseHttpService.list(params);
     } catch (error) {
       if (this.shouldFallbackToDatabase(error)) {
-        return await this.fallbackLeaseReaderService.list(params);
+        const { pagination, ...filters } = params;
+        return await this.fallbackLeaseReaderService.list({ ...filters, limit: pagination?.limit });
       }
 
       throw error;

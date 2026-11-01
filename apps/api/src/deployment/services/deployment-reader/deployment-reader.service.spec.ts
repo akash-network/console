@@ -348,6 +348,17 @@ describe(DeploymentReaderService.name, () => {
       expect(leaseHttpService.list).toHaveBeenCalledWith(expect.objectContaining({ state: "reclaiming" }));
     });
 
+    it("reads a repeated state once", async () => {
+      const wallet = createInitializedUserWallet();
+      const lease = createLeaseApiResponse({ owner: wallet.address, state: "active" });
+      const { service, leaseHttpService } = setup({ wallet, leases: [lease] });
+
+      const result = await service.listLeasesByUserId(wallet.userId, { state: ["active", "active"], limit: 1000 });
+
+      expect(result).toEqual([lease.lease]);
+      expect(leaseHttpService.list).toHaveBeenCalledTimes(1);
+    });
+
     it("answers not found without reading leases when the caller's projects do not reach the filtered deployment", async () => {
       const { service, signerService, leaseHttpService, wallet } = setup({ inProjectScope: false });
 
@@ -380,10 +391,10 @@ describe(DeploymentReaderService.name, () => {
       const { service, leaseHttpService, fallbackLeaseReaderService } = setup({ wallet, fallbackLeases: [fallbackLease] });
       leaseHttpService.list.mockRejectedValue(createNetworkError("ETIMEDOUT"));
 
-      const result = await service.listLeasesByUserId(wallet.userId, { limit: 1 });
+      const result = await service.listLeasesByUserId(wallet.userId, { limit: 5 });
 
       expect(result).toEqual([fallbackLease.lease]);
-      expect(fallbackLeaseReaderService.list).toHaveBeenCalledWith(expect.objectContaining({ owner: wallet.address }));
+      expect(fallbackLeaseReaderService.list).toHaveBeenCalledWith({ owner: wallet.address, limit: 5 });
     });
   });
 

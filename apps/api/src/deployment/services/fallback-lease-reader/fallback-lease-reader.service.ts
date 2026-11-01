@@ -7,6 +7,9 @@ import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { type FallbackLeaseListResponse } from "@src/deployment/http-schemas/lease-rpc.schema";
 import { DatabaseLeaseListParams, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 
+/** The index only records whether a lease closed, so it cannot tell which lease is reclaiming or ran out of funds. */
+const INDEXED_LEASE_STATES = ["active", "closed"];
+
 @singleton()
 export class FallbackLeaseReaderService {
   readonly #coreConfig: CoreConfig;
@@ -20,6 +23,10 @@ export class FallbackLeaseReaderService {
 
   public async list(params: DatabaseLeaseListParams): Promise<FallbackLeaseListResponse> {
     const { skip = 0, limit = 100, key, countTotal = true } = params;
+
+    if (params.state && !INDEXED_LEASE_STATES.includes(params.state)) {
+      return { leases: [], pagination: { next_key: null, total: "0" } };
+    }
 
     const { count: total, rows: leases } = await this.leaseRepository.findLeasesWithPagination(params);
 
