@@ -4,11 +4,12 @@ import { useAtomValue } from "jotai";
 import { usePathname } from "next/navigation";
 
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
+import { useUser } from "@src/hooks/useUser";
 import { seenWhatsNewReleasesAtom, whatsNewViewAtom } from "@src/store/whatsNewStore";
-import { ORGANIZATIONS_RELEASE_ID } from "../organizationsRelease";
+import { ORGANIZATIONS_RELEASE_ID, ORGANIZATIONS_RELEASED_AT } from "../organizationsRelease";
 import { useOpenWhatsNew } from "../useOpenWhatsNew";
 
-export const DEPENDENCIES = { usePathname, useActiveOrganization, useOpenWhatsNew };
+export const DEPENDENCIES = { usePathname, useActiveOrganization, useUser, useOpenWhatsNew };
 
 const ANNOUNCE_AFTER_MS = 1100;
 
@@ -17,16 +18,18 @@ const MID_TASK_PATH_PREFIXES = ["/new-deployment", "/invitations", "/onboarding"
 
 const OPEN_DIALOG_OR_MENU = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"]';
 
-/** Announces the release once, shortly after a page with the full navigation settles. */
+/** Announces the release once to accounts created before it, shortly after a page with the full navigation settles. */
 export function WhatsNewAutoOpen({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES }) {
   const pathname: string | null = d.usePathname();
   const { isLoading: isOrganizationLoading, isError: hasOrganizationFailedToLoad } = d.useActiveOrganization();
+  const { user } = d.useUser();
   const seenReleases = useAtomValue(seenWhatsNewReleasesAtom);
   const view = useAtomValue(whatsNewViewAtom);
   const openWhatsNew = d.useOpenWhatsNew();
   const isOnFreePage = pathname !== null && !MID_TASK_PATH_PREFIXES.some(prefix => pathname.startsWith(prefix));
   const isOrganizationKnown = !isOrganizationLoading && !hasOrganizationFailedToLoad;
-  const shouldAnnounce = isOrganizationKnown && isOnFreePage && !view && !seenReleases.includes(ORGANIZATIONS_RELEASE_ID);
+  const wasCreatedBeforeRelease = !!user?.createdAt && new Date(user.createdAt) < ORGANIZATIONS_RELEASED_AT;
+  const shouldAnnounce = isOrganizationKnown && wasCreatedBeforeRelease && isOnFreePage && !view && !seenReleases.includes(ORGANIZATIONS_RELEASE_ID);
 
   useEffect(
     function announceOnceThePageSettles() {

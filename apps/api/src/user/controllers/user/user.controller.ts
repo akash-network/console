@@ -6,7 +6,7 @@ import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { RegisterUserInput, RegisterUserResponse } from "@src/user/routes/register-user/register-user.router";
-import { UserSchema } from "@src/user/schemas/user.schema";
+import type { CurrentUserSchema } from "@src/user/schemas/user.schema";
 import { UserService } from "@src/user/services/user/user.service";
 
 @singleton()
@@ -39,11 +39,11 @@ export class UserController {
   }
 
   @Protected([{ action: "read", subject: "User" }])
-  async getCurrentUser(): Promise<{ data: UserSchema }> {
+  async getCurrentUser(): Promise<{ data: CurrentUserSchema }> {
     assert(this.authService.currentUser, 401);
     const { lastUsedOrganizationId, ...user } = this.authService.currentUser;
 
-    return { data: user as UserSchema };
+    return { data: user as CurrentUserSchema };
   }
 
   async getUserByUsername(username: string) {

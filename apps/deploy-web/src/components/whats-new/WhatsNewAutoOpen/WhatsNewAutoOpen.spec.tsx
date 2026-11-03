@@ -4,7 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { WhatsNewView } from "@src/store/whatsNewStore";
 import { seenWhatsNewReleasesAtom, whatsNewViewAtom } from "@src/store/whatsNewStore";
-import { ORGANIZATIONS_RELEASE_ID } from "../organizationsRelease";
+import { ORGANIZATIONS_RELEASE_ID, ORGANIZATIONS_RELEASED_AT } from "../organizationsRelease";
 import type { DEPENDENCIES } from "./WhatsNewAutoOpen";
 import { WhatsNewAutoOpen } from "./WhatsNewAutoOpen";
 
@@ -134,6 +134,46 @@ describe(WhatsNewAutoOpen.name, () => {
     });
   });
 
+  describe("when the account was created around the release", () => {
+    it("stays quiet for an account created after the release, which never knew Console without organizations", () => {
+      const { openWhatsNew } = setup({ accountCreatedAt: "2026-11-01T09:30:00Z" });
+
+      act(() => vi.advanceTimersByTime(5000));
+
+      expect(openWhatsNew).not.toHaveBeenCalled();
+    });
+
+    it("stays quiet for an account created the moment the release went out", () => {
+      const { openWhatsNew } = setup({ accountCreatedAt: ORGANIZATIONS_RELEASED_AT.toISOString() });
+
+      act(() => vi.advanceTimersByTime(5000));
+
+      expect(openWhatsNew).not.toHaveBeenCalled();
+    });
+
+    it("announces to an account created just before the release", () => {
+      const { openWhatsNew } = setup({ accountCreatedAt: new Date(ORGANIZATIONS_RELEASED_AT.getTime() - 1).toISOString() });
+
+      act(() => vi.advanceTimersByTime(1100));
+
+      expect(openWhatsNew).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+      ["the user is still loading", { isUserLoading: true }],
+      ["the profile has no creation date", { accountCreatedAt: null }]
+    ])("waits while %s, until the account's creation date is known", (_, unknownAccount) => {
+      const { openWhatsNew, rerenderWith } = setup(unknownAccount);
+
+      act(() => vi.advanceTimersByTime(5000));
+      expect(openWhatsNew).not.toHaveBeenCalled();
+
+      rerenderWith({ isUserLoading: false, accountCreatedAt: "2026-09-01T00:00:00Z" });
+      act(() => vi.advanceTimersByTime(1100));
+      expect(openWhatsNew).toHaveBeenCalledOnce();
+    });
+  });
+
   function setup(
     input: {
       seenReleases?: string[];
@@ -142,6 +182,8 @@ describe(WhatsNewAutoOpen.name, () => {
       isOrganizationLoading?: boolean;
       hasOrganizationFailedToLoad?: boolean;
       otherDialog?: OtherDialog;
+      accountCreatedAt?: string | null;
+      isUserLoading?: boolean;
     } = {}
   ) {
     vi.useFakeTimers();
@@ -151,11 +193,22 @@ describe(WhatsNewAutoOpen.name, () => {
     store.set(whatsNewViewAtom, input.view ?? null);
     const openWhatsNew = vi.fn<ReturnType<typeof DEPENDENCIES.useOpenWhatsNew>>();
 
-    type PageState = { isOrganizationLoading: boolean; hasOrganizationFailedToLoad: boolean; otherDialog: OtherDialog };
+    type PageState = {
+      isOrganizationLoading: boolean;
+      hasOrganizationFailedToLoad: boolean;
+      otherDialog: OtherDialog;
+      accountCreatedAt: string | null;
+      isUserLoading: boolean;
+    };
     const dependenciesFor = (state: PageState): typeof DEPENDENCIES => ({
       usePathname: () => (input.pathname === undefined ? "/deployments" : input.pathname) as string,
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ isLoading: state.isOrganizationLoading, isError: state.hasOrganizationFailedToLoad }),
+      useUser: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useUser>>({
+          user: state.isUserLoading ? undefined : { createdAt: state.accountCreatedAt },
+          isLoading: state.isUserLoading
+        }),
       useOpenWhatsNew: () => openWhatsNew
     });
     const renderWith = (state: PageState) => (
@@ -167,7 +220,9 @@ describe(WhatsNewAutoOpen.name, () => {
     const initialState = {
       isOrganizationLoading: input.isOrganizationLoading ?? false,
       hasOrganizationFailedToLoad: input.hasOrganizationFailedToLoad ?? false,
-      otherDialog: input.otherDialog ?? null
+      otherDialog: input.otherDialog ?? null,
+      accountCreatedAt: input.accountCreatedAt === undefined ? "2026-09-01T00:00:00Z" : input.accountCreatedAt,
+      isUserLoading: input.isUserLoading ?? false
     };
 
     const { rerender, unmount } = render(renderWith(initialState));

@@ -781,6 +781,8 @@ export interface paths {
                 productUpdatesUnsubscribedAt?: string | null;
                 /** @description IANA timezone the dates in the user's emails are shown in, UTC when unknown */
                 timezone?: string | null;
+                /** Format: date-time */
+                createdAt: string | null;
               };
             };
           };

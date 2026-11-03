@@ -18,6 +18,7 @@ export interface UserSettings {
   fairUsePolicyAcceptedAt?: string | null;
   productUpdatesUnsubscribedAt?: string | null;
   timezone?: string | null;
+  createdAt?: string | null;
 }
 
 export type CustomUserProfile = UserProfile & UserSettings;
