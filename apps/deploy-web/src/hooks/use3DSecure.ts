@@ -11,7 +11,7 @@ export interface ThreeDSecureData {
 
 interface Use3DSecureOptions {
   onSuccess?: () => void;
-  onError?: (error: string) => void;
+  onError?: (error: string, isDecline?: boolean) => void;
   showSuccessMessage?: boolean;
   showErrorMessage?: boolean;
 }
@@ -24,7 +24,7 @@ interface Use3DSecureReturn {
   start3DSecure: (data: ThreeDSecureData) => void;
   close3DSecure: () => void;
   handle3DSSuccess: () => Promise<void>;
-  handle3DSError: (error: string) => void;
+  handle3DSError: (error: string, isDecline?: boolean) => void;
 }
 
 export const use3DSecure = (options: Use3DSecureOptions = {}): Use3DSecureReturn => {
@@ -90,7 +90,7 @@ export const use3DSecure = (options: Use3DSecureOptions = {}): Use3DSecureReturn
   }, [threeDSData, validatePaymentMethodAfter3DS, onSuccess, onError, showSuccessMessage, showErrorMessage, enqueueSnackbar, close3DSecure]);
 
   const handle3DSError = useCallback(
-    (error: string) => {
+    (error: string, isDecline?: boolean) => {
       console.error("3D Secure authentication failed:", error);
 
       // Provide more specific error messages
@@ -107,7 +107,7 @@ export const use3DSecure = (options: Use3DSecureOptions = {}): Use3DSecureReturn
         enqueueSnackbar(errorMessage, { variant: "error" });
       }
 
-      onError?.(errorMessage);
+      onError?.(errorMessage, isDecline);
       close3DSecure();
     },
     [onError, showErrorMessage, enqueueSnackbar, close3DSecure]

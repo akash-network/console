@@ -8,7 +8,7 @@ import { ThreeDSecureModal } from "./ThreeDSecureModal";
 import { act, render, screen } from "@testing-library/react";
 
 interface AuthenticationResult {
-  error?: { message?: string };
+  error?: { message?: string; type?: string; code?: string };
   paymentIntent?: { status: string; id: string };
 }
 
@@ -75,12 +75,28 @@ describe(ThreeDSecureModal.name, () => {
   });
 
   it("surfaces the Stripe error message and reports it through onError", async () => {
-    const confirmPayment = vi.fn().mockResolvedValue({ error: { message: "Your card was declined." } });
+    const confirmPayment = vi.fn().mockResolvedValue({ error: { type: "card_error", message: "Your card was declined." } });
     const { onError } = setup({ confirmPayment });
 
     expect(await screen.findByText("Your card was declined.")).toBeInTheDocument();
     expect(screen.getByText("Authentication Failed")).toBeInTheDocument();
-    expect(onError).toHaveBeenCalledWith("Your card was declined.");
+    expect(onError).toHaveBeenCalledWith("Your card was declined.", true);
+  });
+
+  it("reports a failed authentication challenge as a decline", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ error: { type: "invalid_request_error", code: "payment_intent_authentication_failure", message: "Challenge failed." } });
+    const { onError } = setup({ confirmPayment });
+
+    expect(await screen.findByText("Challenge failed.")).toBeInTheDocument();
+    expect(onError).toHaveBeenCalledWith("Challenge failed.", true);
+  });
+
+  it("reports a Stripe error that is not about the card as a technical failure", async () => {
+    const confirmPayment = vi.fn().mockResolvedValue({ error: { type: "api_connection_error", code: "unexpected_state", message: "Lost connection." } });
+    const { onError } = setup({ confirmPayment });
+
+    expect(await screen.findByText("Lost connection.")).toBeInTheDocument();
+    expect(onError).toHaveBeenCalledWith("Lost connection.", false);
   });
 
   it("falls back to a generic message when the Stripe error has no message", async () => {
@@ -88,7 +104,7 @@ describe(ThreeDSecureModal.name, () => {
     const { onError } = setup({ confirmPayment });
 
     expect(await screen.findByText("Authentication failed")).toBeInTheDocument();
-    expect(onError).toHaveBeenCalledWith("Authentication failed");
+    expect(onError).toHaveBeenCalledWith("Authentication failed", false);
   });
 
   it("shows a declined message when the intent still requires a payment method", async () => {
@@ -96,7 +112,7 @@ describe(ThreeDSecureModal.name, () => {
     const { onError } = setup({ confirmPayment });
 
     expect(await screen.findByText("Your payment method was declined. Please try a different card.")).toBeInTheDocument();
-    expect(onError).toHaveBeenCalledWith("Your payment method was declined. Please try a different card.");
+    expect(onError).toHaveBeenCalledWith("Your payment method was declined. Please try a different card.", true);
   });
 
   it("reports an unexpected payment intent status", async () => {
@@ -104,7 +120,7 @@ describe(ThreeDSecureModal.name, () => {
     const { onError } = setup({ confirmPayment });
 
     expect(await screen.findByText("Authentication failed. Status: requires_action")).toBeInTheDocument();
-    expect(onError).toHaveBeenCalledWith("Authentication failed. Status: requires_action");
+    expect(onError).toHaveBeenCalledWith("Authentication failed. Status: requires_action", false);
   });
 
   it("labels the status as unknown when the payment intent status is empty", async () => {
@@ -112,7 +128,7 @@ describe(ThreeDSecureModal.name, () => {
     const { onError } = setup({ confirmPayment });
 
     expect(await screen.findByText("Authentication failed. Status: unknown")).toBeInTheDocument();
-    expect(onError).toHaveBeenCalledWith("Authentication failed. Status: unknown");
+    expect(onError).toHaveBeenCalledWith("Authentication failed. Status: unknown", false);
   });
 
   it("fails with a retry message when no payment intent is returned", async () => {
@@ -120,7 +136,7 @@ describe(ThreeDSecureModal.name, () => {
     const { onError } = setup({ confirmPayment });
 
     expect(await screen.findByText("Authentication failed. Please try again.")).toBeInTheDocument();
-    expect(onError).toHaveBeenCalledWith("Authentication failed. Please try again.");
+    expect(onError).toHaveBeenCalledWith("Authentication failed. Please try again.", false);
   });
 
   it("reports the thrown message when the confirmation rejects", async () => {
@@ -128,7 +144,7 @@ describe(ThreeDSecureModal.name, () => {
     const { onError } = setup({ confirmPayment });
 
     expect(await screen.findByText("Network down")).toBeInTheDocument();
-    expect(onError).toHaveBeenCalledWith("Network down");
+    expect(onError).toHaveBeenCalledWith("Network down", false);
   });
 
   it("reports a generic message when the confirmation rejects with a non-error value", async () => {
@@ -136,7 +152,7 @@ describe(ThreeDSecureModal.name, () => {
     const { onError } = setup({ confirmPayment });
 
     expect(await screen.findByText("Authentication failed due to an unexpected error")).toBeInTheDocument();
-    expect(onError).toHaveBeenCalledWith("Authentication failed due to an unexpected error");
+    expect(onError).toHaveBeenCalledWith("Authentication failed due to an unexpected error", false);
   });
 
   it("does not invoke onSuccess when unmounted during the success delay window", async () => {
@@ -202,7 +218,7 @@ describe(ThreeDSecureModal.name, () => {
     clientSecret?: string;
     paymentMethodId?: string;
     onSuccess?: () => void;
-    onError?: (error: string) => void;
+    onError?: (error: string, isDecline?: boolean) => void;
     confirmPayment?: (...args: unknown[]) => Promise<unknown>;
     stripeUnavailable?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;

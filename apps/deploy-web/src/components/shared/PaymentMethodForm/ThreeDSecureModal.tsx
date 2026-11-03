@@ -10,6 +10,8 @@ import { useServices } from "@src/context/ServicesProvider/ServicesProvider";
 const SUCCESS_DELAY = 1_500;
 const SUCCESSFUL_STATUSES = ["succeeded", "requires_capture", "processing"] as const;
 
+const AUTHENTICATION_FAILURE_CODE = "payment_intent_authentication_failure";
+
 export const DEPENDENCIES = {
   Elements,
   useServices,
@@ -23,7 +25,8 @@ interface ThreeDSecureModalProps {
   paymentIntentId?: string;
   paymentMethodId?: string;
   onSuccess: () => void;
-  onError: (error: string) => void;
+  /** `isDecline` is false for technical failures such as a lost connection, which say nothing about the payment method. */
+  onError: (error: string, isDecline?: boolean) => void;
   title?: string;
   description?: string;
   successMessage?: string;
@@ -48,6 +51,10 @@ interface PaymentIntent {
 interface AuthenticationResult {
   error?: StripeError;
   paymentIntent?: PaymentIntent;
+}
+
+function isDecline(error: StripeError): boolean {
+  return error.type === "card_error" || error.code === AUTHENTICATION_FAILURE_CODE;
 }
 
 const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClose">> = ({
@@ -90,10 +97,10 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
       }
       hasStartedAuthenticationRef.current = true;
 
-      function fail(message: string) {
+      function fail(message: string, isDecline = false) {
         setStatus("failed");
         setErrorMsg(message);
-        callbacksRef.current.onError(message);
+        callbacksRef.current.onError(message, isDecline);
       }
 
       function succeed() {
@@ -103,13 +110,13 @@ const ThreeDSecureForm: React.FC<Omit<ThreeDSecureModalProps, "isOpen" | "onClos
 
       function routeResult({ error, paymentIntent }: AuthenticationResult) {
         if (error) {
-          fail(error.message || "Authentication failed");
+          fail(error.message || "Authentication failed", isDecline(error));
         } else if (!paymentIntent) {
           fail("Authentication failed. Please try again.");
         } else if (SUCCESSFUL_STATUSES.includes(paymentIntent.status as (typeof SUCCESSFUL_STATUSES)[number])) {
           succeed();
         } else if (paymentIntent.status === "requires_payment_method") {
-          fail("Your payment method was declined. Please try a different card.");
+          fail("Your payment method was declined. Please try a different card.", true);
         } else {
           fail(`Authentication failed. Status: ${paymentIntent.status || "unknown"}`);
         }
