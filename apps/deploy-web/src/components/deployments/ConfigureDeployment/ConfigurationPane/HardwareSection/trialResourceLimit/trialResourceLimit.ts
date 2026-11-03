@@ -46,11 +46,25 @@ export function describeDeploymentSize(size: DeploymentSize): string {
   return `${roundDecimal(size.cpu)} vCPU and ${roundDecimal(size.memoryGi)} GiB of memory`;
 }
 
-/** Scales every service down by the same share so the deployment keeps its proportions; undefined when the minimum sizes still exceed the limit. */
+/** Shrinks what every service has above its minimum by the same share; undefined when the minimums alone exceed the limit. */
 export function fitServicesToTrialResourceLimit(services: ServiceType[], limit: TrialResourceLimit): ServiceType[] | undefined {
   const size = measureDeploymentSize(services);
-  const cpuShare = limit.maxCpu > 0 && size.cpu > limit.maxCpu ? limit.maxCpu / size.cpu : 1;
-  const memoryShare = limit.maxMemoryGi > 0 && size.memoryGi > limit.maxMemoryGi ? limit.maxMemoryGi / size.memoryGi : 1;
+  const cpuShare =
+    limit.maxCpu > 0 && size.cpu > limit.maxCpu
+      ? shareAboveMinimums(
+          services.map(service => ({ amount: service.profile.cpu, count: service.count })),
+          MIN_CPU,
+          limit.maxCpu
+        )
+      : 1;
+  const memoryShare =
+    limit.maxMemoryGi > 0 && size.memoryGi > limit.maxMemoryGi
+      ? shareAboveMinimums(
+          services.map(service => ({ amount: toMebibytes(service.profile), count: service.count })),
+          MIN_MEMORY_MI,
+          limit.maxMemoryGi * MI_PER_GI
+        )
+      : 1;
 
   const fittedServices = services.map(service => ({
     ...service,
@@ -60,14 +74,37 @@ export function fitServicesToTrialResourceLimit(services: ServiceType[], limit: 
   return exceedsTrialResourceLimit(measureDeploymentSize(fittedServices), limit) ? undefined : fittedServices;
 }
 
-function scaleCpu(cpu: number, share: number): number {
-  if (share === 1) return cpu;
-  return Math.max(MIN_CPU, Math.floor(roundDecimal(cpu * share * CPU_STEPS_PER_VCPU, SCALING_PRECISION)) / CPU_STEPS_PER_VCPU);
+type Allotment = { amount: number; count: number };
+
+/** Every replica keeps its minimum first, so services already at the minimum never push the rest over the cap. */
+function shareAboveMinimums(allotments: Allotment[], minimum: number, cap: number): number {
+  const reserved = sum(allotments.map(({ count }) => minimum * count));
+  const aboveMinimums = sum(allotments.map(({ amount, count }) => amountAbove(amount, minimum) * count));
+  return aboveMinimums > 0 ? Math.max(0, cap - reserved) / aboveMinimums : 0;
 }
 
-function scaleMemory({ ram, ramUnit }: ServiceType["profile"], share: number): Pick<ServiceType["profile"], "ram" | "ramUnit"> {
-  if (share === 1) return { ram, ramUnit };
-  const unitBytes = memoryUnits.find(unit => unit.suffix.toLowerCase() === ramUnit.toLowerCase())?.value ?? 0;
-  const mebibytes = Math.max(MIN_MEMORY_MI, Math.floor(roundDecimal((ram * unitBytes * share) / BYTES_PER_MI, SCALING_PRECISION)));
+function scaleCpu(cpu: number, share: number): number {
+  if (share === 1) return cpu;
+  const scaledCpu = MIN_CPU + amountAbove(cpu, MIN_CPU) * share;
+  return Math.max(MIN_CPU, Math.floor(roundDecimal(scaledCpu * CPU_STEPS_PER_VCPU, SCALING_PRECISION)) / CPU_STEPS_PER_VCPU);
+}
+
+function scaleMemory(profile: ServiceType["profile"], share: number): Pick<ServiceType["profile"], "ram" | "ramUnit"> {
+  if (share === 1) return { ram: profile.ram, ramUnit: profile.ramUnit };
+  const scaledMebibytes = MIN_MEMORY_MI + amountAbove(toMebibytes(profile), MIN_MEMORY_MI) * share;
+  const mebibytes = Math.max(MIN_MEMORY_MI, Math.floor(roundDecimal(scaledMebibytes, SCALING_PRECISION)));
   return mebibytes % MI_PER_GI === 0 ? { ram: mebibytes / MI_PER_GI, ramUnit: "Gi" } : { ram: mebibytes, ramUnit: "Mi" };
+}
+
+function toMebibytes({ ram, ramUnit }: ServiceType["profile"]): number {
+  const unitBytes = memoryUnits.find(unit => unit.suffix.toLowerCase() === ramUnit.toLowerCase())?.value ?? 0;
+  return (ram * unitBytes) / BYTES_PER_MI;
+}
+
+function amountAbove(amount: number, minimum: number): number {
+  return Math.max(0, amount - minimum);
+}
+
+function sum(values: number[]): number {
+  return values.reduce((total, value) => total + value, 0);
 }

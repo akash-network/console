@@ -187,8 +187,8 @@ describe(useRequestQuotes.name, () => {
     const OVERSIZED = {
       trialResourceLimit: { maxCpu: 4, maxMemoryGi: 16 },
       services: [
-        { count: 2, profile: { cpu: 4, ram: 16, ramUnit: "Gi" } },
-        { count: 1, profile: { cpu: 8, ram: 32768, ramUnit: "Mi" } }
+        { count: 1, profile: { cpu: 8, ram: 8, ramUnit: "Gi" } },
+        { count: 1, profile: { cpu: 0.1, ram: 512, ramUnit: "Mi" } }
       ]
     };
 
@@ -201,18 +201,48 @@ describe(useRequestQuotes.name, () => {
       act(() => fireEvent.click(screen.getByRole("button", { name: "Fit to free trial" })));
 
       expect(formValues().services.map((service: ServiceType) => service.profile)).toEqual([
-        expect.objectContaining({ cpu: 1, ram: 4, ramUnit: "Gi" }),
-        expect.objectContaining({ cpu: 2, ram: 8, ramUnit: "Gi" })
+        expect.objectContaining({ cpu: 3.9, ram: 8, ramUnit: "Gi" }),
+        expect.objectContaining({ cpu: 0.1, ram: 512, ramUnit: "Mi" })
       ]);
       expect(closeSnackbar).toHaveBeenCalledWith("size-block");
       expect(analyticsService.track).toHaveBeenCalledWith("configure_trial_size_fitted", { category: "deployments" });
       expect(enqueueSnackbar).toHaveBeenLastCalledWith(expect.anything(), { variant: "success" });
       render(enqueueSnackbar.mock.calls[1][0] as ReactNode);
-      expect(screen.getByText("This deployment now requests 4 vCPU and 16 GiB of memory.")).toBeInTheDocument();
+      expect(screen.getByText("This deployment now requests 4 vCPU and 8.5 GiB of memory.")).toBeInTheDocument();
 
       await submit();
 
       expect(requestQuotes).toHaveBeenCalledOnce();
+    });
+
+    it("fits the services as they are at the click, keeping edits made while the block was on screen", async () => {
+      const { submit, enqueueSnackbar, formValues, setFormValue } = setup({
+        trialResourceLimit: { maxCpu: 4, maxMemoryGi: 16 },
+        services: [{ count: 1, profile: { cpu: 16, ram: 4, ramUnit: "Gi" } }]
+      });
+      await submit();
+      render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+      setFormValue("services.0.profile.ram", 32768);
+      setFormValue("services.0.profile.ramUnit", "Mi");
+
+      act(() => fireEvent.click(screen.getByRole("button", { name: "Fit to free trial" })));
+
+      expect(formValues().services[0].profile).toEqual(expect.objectContaining({ cpu: 4, ram: 16, ramUnit: "Gi" }));
+    });
+
+    it("leaves services the user grew past any fit while the block was on screen as they are", async () => {
+      const { submit, enqueueSnackbar, formValues, setFormValue, analyticsService } = setup({
+        trialResourceLimit: { maxCpu: 1, maxMemoryGi: 16 },
+        services: [{ count: 1, profile: { cpu: 2, ram: 1, ramUnit: "Gi" } }]
+      });
+      await submit();
+      render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+      setFormValue("services.0.count", 20);
+
+      act(() => fireEvent.click(screen.getByRole("button", { name: "Fit to free trial" })));
+
+      expect(formValues().services[0].profile).toEqual(expect.objectContaining({ cpu: 2, ram: 1, ramUnit: "Gi" }));
+      expect(analyticsService.track).not.toHaveBeenCalledWith("configure_trial_size_fitted", expect.anything());
     });
 
     it("opens Add credits to deploy the size the user picked", async () => {
@@ -436,6 +466,7 @@ describe(useRequestQuotes.name, () => {
       closeSnackbar,
       openAddCredits,
       formValues: () => form!.getValues(),
+      setFormValue: (name: string, value: unknown) => act(() => form!.setValue(name, value)),
       analyticsService,
       generateSdl,
       countScreenedProviders,

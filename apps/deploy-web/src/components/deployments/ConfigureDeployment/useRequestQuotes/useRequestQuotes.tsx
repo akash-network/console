@@ -108,7 +108,10 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
     explainWhySubmitIsBlocked(messages, renderActions);
   }
 
-  function fitToTrial(fittedServices: ServiceType[]) {
+  /** Fits the services as they are at the click, since the user can edit them while the block stays on screen. */
+  function fitCurrentServicesToTrial(limit: TrialResourceLimit) {
+    const fittedServices = fitServicesToTrialResourceLimit(getValues().services, limit);
+    if (!fittedServices) return;
     fittedServices.forEach((service, index) => {
       setValue(`services.${index}.profile.cpu`, service.profile.cpu, FITTED_FIELD_OPTIONS);
       setValue(`services.${index}.profile.ram`, service.profile.ram, FITTED_FIELD_OPTIONS);
@@ -130,15 +133,15 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
   }
 
   function offerWaysPastTrialSizeLimit(services: ServiceType[], limit: TrialResourceLimit): RenderBlockActions {
-    const fittedServices = fitServicesToTrialResourceLimit(services, limit);
+    const canFit = !!fitServicesToTrialResourceLimit(services, limit);
     return dismiss => (
       <>
-        {fittedServices && (
+        {canFit && (
           <d.Button
             type="button"
             size="sm"
             onClick={() => {
-              fitToTrial(fittedServices);
+              fitCurrentServicesToTrial(limit);
               dismiss();
             }}
           >

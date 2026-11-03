@@ -88,7 +88,35 @@ describe("trialResourceLimit", () => {
       expect(profilesOf(fitted)).toEqual([{ cpu: 1.5, ram: 16, ramUnit: "Gi" }]);
     });
 
-    it("shrinks every service by the same share, counting each replica", () => {
+    it("keeps services already at their minimum there and shrinks the others into what is left", () => {
+      const sidecars = Array.from({ length: 5 }, () => serviceOf({ cpu: 0.1, ram: 1 }));
+
+      const fitted = fitServicesToTrialResourceLimit([serviceOf({ cpu: 8, ram: 1 }), ...sidecars], { maxCpu: 2, maxMemoryGi: 16 });
+
+      expect(fitted?.map(service => service.profile.cpu)).toEqual([1.5, 0.1, 0.1, 0.1, 0.1, 0.1]);
+    });
+
+    it("keeps the minimum for every replica of a service", () => {
+      const fitted = fitServicesToTrialResourceLimit([serviceOf({ cpu: 8, ram: 1 }), serviceOf({ cpu: 0.1, ram: 1, count: 5 })], { maxCpu: 2, maxMemoryGi: 16 });
+
+      expect(fitted?.map(service => service.profile.cpu)).toEqual([1.5, 0.1]);
+    });
+
+    it("fits a deployment whose minimums alone take the whole limit", () => {
+      const sidecars = Array.from({ length: 9 }, () => serviceOf({ cpu: 0.1, ram: 1 }));
+
+      const fitted = fitServicesToTrialResourceLimit([serviceOf({ cpu: 10, ram: 1 }), ...sidecars], { maxCpu: 1, maxMemoryGi: 16 });
+
+      expect(fitted?.map(service => service.profile.cpu)).toEqual(Array(10).fill(0.1));
+    });
+
+    it("gives up when every service is already at its minimum", () => {
+      const services = Array.from({ length: 11 }, () => serviceOf({ cpu: 0.1, ram: 1 }));
+
+      expect(fitServicesToTrialResourceLimit(services, { maxCpu: 1, maxMemoryGi: 16 })).toBeUndefined();
+    });
+
+    it("shrinks every service, counting each replica", () => {
       const fitted = fitServicesToTrialResourceLimit([serviceOf({ cpu: 2, ram: 8, count: 3 }), serviceOf({ cpu: 2, ram: 8 })], LIMIT);
 
       expect(profilesOf(fitted)).toEqual([
