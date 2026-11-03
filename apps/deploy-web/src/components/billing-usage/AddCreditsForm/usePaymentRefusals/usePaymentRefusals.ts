@@ -68,7 +68,7 @@ export function usePaymentRefusals(userId: string | undefined): PaymentRefusals 
 }
 
 function findPauseEnd(refusals: StoredRefusal[], now: number): number | null {
-  const recentRefusals = refusals.filter(refusal => now - refusal.refusedAt < REFUSAL_WINDOW_MS);
+  const recentRefusals = refusals.filter(refusal => now - refusal.refusedAt < REFUSAL_WINDOW_MS).sort((a, b) => a.refusedAt - b.refusedAt);
   if (recentRefusals.length < MAX_REFUSALS_PER_WINDOW) return null;
   return recentRefusals[recentRefusals.length - MAX_REFUSALS_PER_WINDOW].refusedAt + REFUSAL_WINDOW_MS;
 }

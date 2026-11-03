@@ -94,6 +94,19 @@ describe(usePaymentRefusals.name, () => {
     expect(result.current.pausedUntil).toBe(firstRefusedAt + REFUSAL_WINDOW_MS);
   });
 
+  it("ends the pause half an hour after the oldest refusal even when the clock stepped back between refusals", () => {
+    vi.useFakeTimers({ now: new Date("2026-11-02T10:20:00Z") });
+    const refusedAtMinutes = [15, 16, 17, 18, 5];
+    window.sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(refusedAtMinutes.map(minute => ({ userId: "user_1", paymentMethodId: "pm_link", refusedAt: Date.parse(`2026-11-02T10:${String(minute).padStart(2, "0")}:00Z`) })))
+    );
+
+    const { result } = setup();
+
+    expect(result.current.pausedUntil).toBe(Date.parse("2026-11-02T10:35:00Z"));
+  });
+
   it("does not pause for refusals spread over more than half an hour", () => {
     vi.useFakeTimers({ now: new Date("2026-11-02T10:00:00Z") });
     const { result } = setup();

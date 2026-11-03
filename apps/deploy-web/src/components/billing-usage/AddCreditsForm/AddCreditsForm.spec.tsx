@@ -1879,17 +1879,38 @@ describe(AddCreditsForm.name, () => {
       });
 
       await submitWithAmount("100");
-      await act(async () => threeDSecureOptions()?.onError?.("Authentication failed"));
+      await act(async () => threeDSecureOptions()?.onError?.("Authentication failed", true));
 
       expect(screen.getByRole("button", { name: /4242/ })).toHaveAttribute("aria-pressed", "true");
       expect(screen.getByRole("alert")).toHaveTextContent("Authentication failed");
 
       await submitWithAmount("100");
-      await act(async () => threeDSecureOptions()?.onError?.("Authentication failed"));
+      await act(async () => threeDSecureOptions()?.onError?.("Authentication failed", true));
 
       expect(screen.getByRole("button", { name: /add new payment method/i })).toHaveAttribute("aria-pressed", "true");
       expect(screen.getByRole("alert")).toHaveTextContent(BANK_REFUSED_MESSAGE);
       expect(reset).toHaveBeenCalledOnce();
+    });
+
+    it("keeps the saved card selected when its 3D Secure challenge fails for a technical reason", async () => {
+      const reset = vi.fn();
+      const { use3DSecure, threeDSecureOptions } = capture3DSecure();
+      setup({
+        status: "idle",
+        reset,
+        confirmPayment: vi.fn().mockResolvedValue({ requiresAction: true, clientSecret: "pi_secret", paymentIntentId: "pi_1" }),
+        paymentMethods: [paymentMethod({ id: "pm_saved", isDefault: true })],
+        dependencies: { use3DSecure }
+      });
+
+      await submitWithAmount("100");
+      await act(async () => threeDSecureOptions()?.onError?.("Lost connection.", false));
+      await submitWithAmount("100");
+      await act(async () => threeDSecureOptions()?.onError?.("Lost connection."));
+
+      expect(screen.getByRole("button", { name: /4242/ })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("alert")).toHaveTextContent("Lost connection.");
+      expect(reset).not.toHaveBeenCalled();
     });
 
     it("keeps the saved card selected when its charge fails without a decline", async () => {
@@ -2018,21 +2039,24 @@ describe(AddCreditsForm.name, () => {
       expect(addPaymentMethod).toHaveBeenCalledTimes(5);
     });
 
-    it("does not count a card form the user left incomplete as a refusal", async () => {
-      const addPaymentMethod = vi.fn().mockResolvedValue({ failure: { errorType: "validation_error", errorCode: "incomplete_number" } });
+    it("counts a card whose 3D Secure check failed during setup as a refusal", async () => {
+      const addPaymentMethod = vi.fn().mockResolvedValue({ failure: { errorType: "invalid_request_error", errorCode: "setup_intent_authentication_failure" } });
       const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
       setup({ status: "success", clientSecret: "seti_secret", dependencies: { AddCreditsNewPaymentMethodFields } });
 
-      for (let attempt = 0; attempt < 6; attempt++) {
+      for (let attempt = 0; attempt < 5; attempt++) {
         await submitWithAmount("100");
       }
 
-      expect(addPaymentMethod).toHaveBeenCalledTimes(6);
-      expect(screen.queryByText(PAUSE_MESSAGE)).not.toBeInTheDocument();
+      expect(screen.getByText(PAUSE_MESSAGE)).toBeInTheDocument();
     });
 
-    it("does not count a card form that was not ready as a refusal", async () => {
-      const addPaymentMethod = vi.fn().mockResolvedValue({ failure: { errorType: "form_not_ready" } });
+    it.each([
+      ["a card form the user left incomplete", { errorType: "validation_error", errorCode: "incomplete_number" }],
+      ["a card form that was not ready", { errorType: "form_not_ready" }],
+      ["a setup Stripe could no longer use", { errorType: "invalid_request_error", errorCode: "setup_intent_unexpected_state" }]
+    ])("does not count %s as a refusal", async (_, failure) => {
+      const addPaymentMethod = vi.fn().mockResolvedValue({ failure });
       const { Mock: AddCreditsNewPaymentMethodFields } = makePaymentMethodFieldsMock(addPaymentMethod);
       setup({ status: "success", clientSecret: "seti_secret", dependencies: { AddCreditsNewPaymentMethodFields } });
 

@@ -8,7 +8,7 @@ interface ThreeDSecurePopupProps {
   isOpen: boolean;
   onClose?: () => void;
   onSuccess: () => void;
-  onError: (error: string) => void;
+  onError: (error: string, isDecline?: boolean) => void;
   clientSecret: string;
   paymentIntentId?: string;
   paymentMethodId?: string;

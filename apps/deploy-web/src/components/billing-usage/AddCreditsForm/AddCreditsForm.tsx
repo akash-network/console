@@ -54,7 +54,9 @@ const NEW_CARD_REFUSALS_BEFORE_RESET = 2;
 /** A decline such as insufficient funds can clear before a retry, so it takes a second refusal of the same payment method in the session to move off it. */
 const CHARGE_DECLINES_BEFORE_RESET = 2;
 
-const VALIDATION_ERROR_TYPE = "validation_error";
+const CARD_ERROR_TYPE = "card_error";
+
+const SETUP_AUTHENTICATION_FAILURE_CODE = "setup_intent_authentication_failure";
 
 const MS_PER_MINUTE = 60_000;
 
@@ -406,11 +408,11 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
       trackThreeDSecureCompleted("succeeded");
       pollForPayment();
     },
-    onError: function onThreeDSecureError(message) {
+    onError: function onThreeDSecureError(message, isDecline) {
       const pending = threeDSecureChargeRef.current;
       trackThreeDSecureCompleted("failed");
       trackPaymentFailed(pending?.analytics ?? null, "three_d_secure");
-      if (pending) {
+      if (pending && isDecline) {
         failRefusedCharge(pending.paymentMethodId, message);
       } else {
         finalizeFailure(message);
@@ -812,9 +814,9 @@ function isBankRefusal(failure: PaymentMethodSetupFailure): boolean {
   return failure.errorCode === BANK_REFUSAL_CODE;
 }
 
-/** A payment form the user left incomplete fails as a validation error, which is not a refusal. */
+/** Only the card or its 3D Secure check refused; an incomplete form, a rate limit or a stale setup is not the payment method's fault. */
 function isRefusedByStripe(failure: PaymentMethodSetupFailure): boolean {
-  return !!failure.errorCode && failure.errorType !== VALIDATION_ERROR_TYPE;
+  return failure.errorType === CARD_ERROR_TYPE || failure.errorCode === SETUP_AUTHENTICATION_FAILURE_CODE;
 }
 
 function describePause(pausedUntil: number): string {
