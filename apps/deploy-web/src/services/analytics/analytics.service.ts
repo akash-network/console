@@ -138,6 +138,7 @@ export type AnalyticsEvent =
   | "configure_reset_confirmed"
   | "configure_choose_provider_clicked"
   | "configure_choose_provider_blocked"
+  | "configure_trial_size_fitted"
   | "configure_ssh_key_step_opened"
   | "configure_ssh_key_step_completed"
   | "configure_ssh_key_step_dismissed"
