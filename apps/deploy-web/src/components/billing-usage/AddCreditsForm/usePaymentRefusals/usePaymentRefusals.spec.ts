@@ -127,6 +127,22 @@ describe(usePaymentRefusals.name, () => {
     expect(result.current.pausedUntil).toBeNull();
   });
 
+  it("resumes payments when the pause ends even if the wall clock reads a little earlier than the timer", () => {
+    vi.useFakeTimers({ now: new Date("2026-11-02T10:00:00Z") });
+    const { result } = setup();
+    for (let refusal = 0; refusal < MAX_REFUSALS_PER_WINDOW; refusal++) {
+      act(() => {
+        result.current.record("pm_link");
+      });
+    }
+
+    act(() => vi.advanceTimersByTime(REFUSAL_WINDOW_MS - 1));
+    vi.setSystemTime(Date.now() - 5000);
+    act(() => vi.advanceTimersByTime(1));
+
+    expect(result.current.pausedUntil).toBeNull();
+  });
+
   it("forgets the user's refusals and pause once cleared, but keeps other users' refusals", () => {
     const other = setup({ userId: "user_other" });
     act(() => {

@@ -58,7 +58,7 @@ export function usePaymentRefusals(userId: string | undefined): PaymentRefusals 
   useEffect(
     function resumeOnceThePauseEnds() {
       if (pausedUntil === null) return;
-      const timeout = setTimeout(() => setNow(Date.now()), pausedUntil - Date.now());
+      const timeout = setTimeout(() => setNow(Math.max(Date.now(), pausedUntil)), pausedUntil - Date.now());
       return () => clearTimeout(timeout);
     },
     [pausedUntil]
