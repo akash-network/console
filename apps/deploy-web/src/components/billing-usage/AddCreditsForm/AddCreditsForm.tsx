@@ -38,6 +38,7 @@ import { useUser } from "@src/hooks/useUser";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { usePaymentMethodsQuery, usePaymentMutations, useRefreshPaymentMethods, useSetupIntentMutation } from "@src/queries";
 import { handleStripeError } from "@src/utils/stripeErrorHandler";
+import { usePaymentRefusals } from "./usePaymentRefusals/usePaymentRefusals";
 import { useTopUpAttemptKey } from "./useTopUpAttemptKey/useTopUpAttemptKey";
 import { waitForSettledTransaction } from "./waitForSettledTransaction/waitForSettledTransaction";
 
@@ -50,8 +51,12 @@ const BANK_REFUSAL_CODE = "card_declined";
 /** Stripe already reports a first decline inline, so the form only steps in once the bank refuses a new card twice in a row. */
 const NEW_CARD_REFUSALS_BEFORE_RESET = 2;
 
-/** A decline such as insufficient funds can clear before a retry, so it takes a second one on the same payment method to move off it. */
+/** A decline such as insufficient funds can clear before a retry, so it takes a second refusal of the same payment method in the session to move off it. */
 const CHARGE_DECLINES_BEFORE_RESET = 2;
+
+const VALIDATION_ERROR_TYPE = "validation_error";
+
+const MS_PER_MINUTE = 60_000;
 
 const BANK_REFUSED_MESSAGE = "Your bank refused this card. Try a different card or payment method.";
 
@@ -83,6 +88,7 @@ export const DEPENDENCIES = {
   use3DSecure,
   useUser,
   useTopUpAttemptKey,
+  usePaymentRefusals,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   getPaymentMethodDisplay,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -162,6 +168,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
     confirmPayment: { mutateAsync: confirmPayment }
   } = d.usePaymentMutations();
   const attempt = d.useTopUpAttemptKey();
+  const refusals = d.usePaymentRefusals(user?.id);
 
   const [amountInput, setAmountInput] = useState<AddCreditsAmountValue>(() => ({
     predefinedAmount: suggestedPresetAmountUsd(deploymentDailyCostUsd)?.toString(),
@@ -183,10 +190,9 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   /** Last payment-method type reported to analytics, so the payment element's frequent change events don't re-fire the same type. */
   const lastPaymentTypeRef = useRef<string | null>(null);
   const wasPollingRef = useRef<boolean>(false);
-  /** Analytics of the charge awaiting 3D Secure, read by the 3DS callbacks which fire outside the charge flow. */
-  const threeDSecureAnalyticsRef = useRef<PaymentAnalytics | null>(null);
+  /** The charge awaiting 3D Secure, read by the 3DS callbacks which fire outside the charge flow. */
+  const threeDSecureChargeRef = useRef<PendingCharge | null>(null);
   const consecutiveNewCardRefusalsRef = useRef(0);
-  const chargeDeclinesByPaymentMethodRef = useRef(new Map<string, number>());
   /** The payment element reloads with every new SetupIntent, so readiness is reported for the first load only. */
   const paymentFormReadyTrackedRef = useRef(false);
   /** Cleared by the ready callback itself, since the card form can report ready after the timeout is due but before a re-render clears it. */
@@ -201,6 +207,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   const isPaymentFormSlow = isNewCard && setupIntentStatus !== "error" && paymentFormLoad.status === "slow";
   const hasPaymentFormFailed = isNewCard && paymentFormLoad.status === "failed";
   const isBusy = isProcessing || isWalletOpen;
+  const isPaused = refusals.pausedUntil !== null;
   const pendingWallet = user?.id ? attempt.getWalletAttempt({ userId: user.id, amount }) : null;
   const pendingWalletId = pendingWallet?.paymentMethodId;
   const pendingWalletType = pendingWallet?.type;
@@ -217,14 +224,15 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   useEffect(
     function selectDefaultMethodOnce() {
       if (selectedMethodId !== undefined || isLoadingMethods) return;
+      const unrefusedMethods = paymentMethods?.filter(method => refusals.countFor(method.id) === 0);
       setSelectedMethodId(
-        paymentMethods?.find(method => method.type === "link")?.id ??
-          paymentMethods?.find(method => method.isDefault)?.id ??
-          paymentMethods?.[0]?.id ??
+        unrefusedMethods?.find(method => method.type === "link")?.id ??
+          unrefusedMethods?.find(method => method.isDefault)?.id ??
+          unrefusedMethods?.[0]?.id ??
           NEW_CARD
       );
     },
-    [selectedMethodId, isLoadingMethods, paymentMethods]
+    [selectedMethodId, isLoadingMethods, paymentMethods, refusals]
   );
 
   useEffect(
@@ -252,6 +260,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   }, [resetSetupIntent]);
 
   const recordNewCardSetup = (result: PaymentMethodSetupResult) => {
+    if ("failure" in result && isRefusedByStripe(result.failure)) refusals.record();
     const isRefused = "failure" in result && isBankRefusal(result.failure);
     consecutiveNewCardRefusalsRef.current = isRefused ? consecutiveNewCardRefusalsRef.current + 1 : 0;
     if (consecutiveNewCardRefusalsRef.current < NEW_CARD_REFUSALS_BEFORE_RESET) return;
@@ -271,7 +280,14 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
   };
 
   const purchase = async (wallet?: WalletPaymentSource) => {
-    if (!user?.id || amount < topUpMinAmountUsd || isProcessing || submittingRef.current || (wallet && attempt.getWalletAttempt({ userId: user.id, amount }))) {
+    if (
+      !user?.id ||
+      amount < topUpMinAmountUsd ||
+      isProcessing ||
+      isPaused ||
+      submittingRef.current ||
+      (wallet && attempt.getWalletAttempt({ userId: user.id, amount }))
+    ) {
       return;
     }
 
@@ -365,8 +381,24 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
     [refreshPaymentMethods]
   );
 
+  const moveOffRefusedMethod = useCallback(() => {
+    finalizeFailure(BANK_REFUSED_MESSAGE);
+    leadWithNewPaymentMethod();
+  }, [finalizeFailure, leadWithNewPaymentMethod]);
+
+  const failRefusedCharge = useCallback(
+    (paymentMethodId: string, message: string, userAction?: string | null) => {
+      if (refusals.record(paymentMethodId) >= CHARGE_DECLINES_BEFORE_RESET) {
+        moveOffRefusedMethod();
+      } else {
+        finalizeFailure(message, userAction);
+      }
+    },
+    [refusals, moveOffRefusedMethod, finalizeFailure]
+  );
+
   const trackThreeDSecureCompleted = (result: ThreeDSecureResult) => {
-    analyticsService.track("add_credits_3ds_completed", { category: "billing", ...threeDSecureAnalyticsRef.current, result });
+    analyticsService.track("add_credits_3ds_completed", { category: "billing", ...threeDSecureChargeRef.current?.analytics, result });
   };
 
   const threeDSecure = d.use3DSecure({
@@ -375,9 +407,14 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
       pollForPayment();
     },
     onError: function onThreeDSecureError(message) {
+      const pending = threeDSecureChargeRef.current;
       trackThreeDSecureCompleted("failed");
-      trackPaymentFailed(threeDSecureAnalyticsRef.current, "three_d_secure");
-      finalizeFailure(message);
+      trackPaymentFailed(pending?.analytics ?? null, "three_d_secure");
+      if (pending) {
+        failRefusedCharge(pending.paymentMethodId, message);
+      } else {
+        finalizeFailure(message);
+      }
     },
     showSuccessMessage: false,
     showErrorMessage: false
@@ -405,7 +442,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
         setCharge(current => current && { ...current, transactionId: chargeResult.transactionId });
 
         if (chargeResult.requiresAction && chargeResult.clientSecret && chargeResult.paymentIntentId) {
-          threeDSecureAnalyticsRef.current = pending.analytics;
+          threeDSecureChargeRef.current = pending;
           analyticsService.track("add_credits_3ds_required", { category: "billing", ...pending.analytics });
           threeDSecure.start3DSecure({
             clientSecret: chargeResult.clientSecret,
@@ -425,7 +462,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
         }
 
         trackPaymentFailed(pending.analytics, "charge_declined");
-        finalizeFailure("Payment failed. Please try again.");
+        failRefusedCharge(pending.paymentMethodId, "Payment failed. Please try again.");
       } catch (err) {
         const details = toPaymentFailureDetails(err);
         if (details.errorCode === PAYMENT_IN_PROGRESS_CODE) {
@@ -436,17 +473,18 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
         attempt.clearIfConcluded(err);
         trackPaymentFailed(pending.analytics, "charge_error", details);
 
-        const isDeclinedAgain =
-          details.httpStatus === 402 && countChargeDecline(chargeDeclinesByPaymentMethodRef.current, pending.paymentMethodId) >= CHARGE_DECLINES_BEFORE_RESET;
-
-        if (isBankRefusal(details) || isDeclinedAgain) {
-          finalizeFailure(BANK_REFUSED_MESSAGE);
-          leadWithNewPaymentMethod();
+        if (isBankRefusal(details)) {
+          refusals.record(pending.paymentMethodId);
+          moveOffRefusedMethod();
           return;
         }
 
         const stripeError = d.handleStripeError(err);
-        finalizeFailure(stripeError.message, stripeError.userAction);
+        if (details.httpStatus === 402) {
+          failRefusedCharge(pending.paymentMethodId, stripeError.message, stripeError.userAction);
+        } else {
+          finalizeFailure(stripeError.message, stripeError.userAction);
+        }
       }
     },
     [
@@ -456,7 +494,9 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
       pollForPayment,
       pollForAlreadyCreditedPayment,
       finalizeFailure,
-      leadWithNewPaymentMethod,
+      failRefusedCharge,
+      moveOffRefusedMethod,
+      refusals,
       trackPaymentFailed,
       analyticsService,
       attempt,
@@ -485,6 +525,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
 
       confirmedNewCardRef.current = null;
       attempt.clear();
+      refusals.clear();
       setCharge(null);
       analyticsService.track("add_credits_purchased", { category: "billing", ...charge.analytics });
       void queryClient.invalidateQueries({ queryKey: api.v1.getFirstPurchaseBonus.getKey() });
@@ -506,6 +547,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
       finalizeFailure,
       trackPaymentFailed,
       attempt,
+      refusals,
       onDone,
       stripe,
       analyticsService,
@@ -622,7 +664,7 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
 
           <d.AddCreditsWalletButton
             amount={amount}
-            disabled={isBusy || amount < topUpMinAmountUsd || isLoadingMethods || !!pendingWallet}
+            disabled={isBusy || isPaused || amount < topUpMinAmountUsd || isLoadingMethods || !!pendingWallet}
             onSubmit={purchase}
             onOpenChange={setIsWalletOpen}
           />
@@ -727,11 +769,17 @@ export function AddCreditsForm({ onDone, onProcessingChange, context, deployment
             </Alert>
           )}
 
+          {refusals.pausedUntil !== null && (
+            <Alert variant="destructive">
+              <AlertDescription>{describePause(refusals.pausedUntil)}</AlertDescription>
+            </Alert>
+          )}
+
           <LoadingButton
             type="submit"
             className="w-full"
             loading={isProcessing}
-            disabled={isBusy || amount < topUpMinAmountUsd || isLoadingMethods || (isNewCard && paymentFormLoad.status !== "ready")}
+            disabled={isBusy || isPaused || amount < topUpMinAmountUsd || isLoadingMethods || (isNewCard && paymentFormLoad.status !== "ready")}
           >
             {isPaymentFormLoading || isPaymentFormSlow ? "Loading card form…" : "Purchase Credits"}
           </LoadingButton>
@@ -764,10 +812,14 @@ function isBankRefusal(failure: PaymentMethodSetupFailure): boolean {
   return failure.errorCode === BANK_REFUSAL_CODE;
 }
 
-function countChargeDecline(declinesByPaymentMethod: Map<string, number>, paymentMethodId: string): number {
-  const declines = (declinesByPaymentMethod.get(paymentMethodId) ?? 0) + 1;
-  declinesByPaymentMethod.set(paymentMethodId, declines);
-  return declines;
+/** A payment form the user left incomplete fails as a validation error, which is not a refusal. */
+function isRefusedByStripe(failure: PaymentMethodSetupFailure): boolean {
+  return !!failure.errorCode && failure.errorType !== VALIDATION_ERROR_TYPE;
+}
+
+function describePause(pausedUntil: number): string {
+  const minutes = Math.max(1, Math.ceil((pausedUntil - Date.now()) / MS_PER_MINUTE));
+  return `Too many payments were refused in a short time. You can try again in ${minutes} ${minutes === 1 ? "minute" : "minutes"}.`;
 }
 
 function toPaymentFailureDetails(error: unknown): PaymentFailureDetails {
