@@ -204,12 +204,11 @@ describe(WhatsNewAutoOpen.name, () => {
       usePathname: () => (input.pathname === undefined ? "/deployments" : input.pathname) as string,
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({ isLoading: state.isOrganizationLoading, isError: state.hasOrganizationFailedToLoad }),
-      useUser: () => ({
-        user: state.isUserLoading ? undefined : { createdAt: state.accountCreatedAt },
-        isLoading: state.isUserLoading,
-        error: undefined,
-        checkSession: vi.fn()
-      }),
+      useUser: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useUser>>({
+          user: state.isUserLoading ? undefined : { createdAt: state.accountCreatedAt },
+          isLoading: state.isUserLoading
+        }),
       useOpenWhatsNew: () => openWhatsNew
     });
     const renderWith = (state: PageState) => (
