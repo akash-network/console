@@ -1,18 +1,19 @@
 import type { PropsWithChildren, ReactNode } from "react";
-import type { FieldErrors } from "react-hook-form";
+import type { FieldErrors, FieldValues, UseFormReturn } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
-import { Snackbar } from "@akashnetwork/ui/components";
+import { Button, Snackbar } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+import type { ServiceType } from "@src/types";
 import { resolveSdlSecrets } from "@src/utils/sdl/sdlSecrets";
 import type { TrialResourceLimit } from "../ConfigurationPane/HardwareSection/trialResourceLimit/trialResourceLimit";
 import type { DeploymentFlow, DeploymentFlowActions } from "../useDeploymentFlow/useDeploymentFlow";
 import type { DEPENDENCIES } from "./useRequestQuotes";
 import { useRequestQuotes } from "./useRequestQuotes";
 
-import { act, render, renderHook, screen } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 
 const GENERATED_SDL = 'version: "2.0" # generated';
 
@@ -166,7 +167,7 @@ describe(useRequestQuotes.name, () => {
     expect(screen.getByText("/services/web/params/tee: missing required property 'gpu'")).toBeInTheDocument();
   });
 
-  it("blocks a trial deployment over the trial's size cap and explains the cap", async () => {
+  it("blocks a trial deployment over the trial's size cap and says what it requests and what fits the trial", async () => {
     const { requestQuotes, submit, enqueueSnackbar } = setup({
       trialResourceLimit: { maxCpu: 4, maxMemoryGi: 16 },
       services: [{ count: 1, profile: { cpu: 16, ram: 64, ramUnit: "Gi" } }]
@@ -175,8 +176,125 @@ describe(useRequestQuotes.name, () => {
     await submit();
 
     expect(requestQuotes).not.toHaveBeenCalled();
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "error", persist: true });
     render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
-    expect(screen.getByText("Free trial deployments are limited to 4 vCPU and 16 GiB of memory. Add funds to deploy larger workloads.")).toBeInTheDocument();
+    expect(
+      screen.getByText("This deployment requests 16 vCPU and 64 GiB of memory. Free trial deployments are limited to 4 vCPU and 16 GiB of memory.")
+    ).toBeInTheDocument();
+  });
+
+  describe("when the trial's size cap blocks the deployment", () => {
+    const OVERSIZED = {
+      trialResourceLimit: { maxCpu: 4, maxMemoryGi: 16 },
+      services: [
+        { count: 1, profile: { cpu: 8, ram: 8, ramUnit: "Gi" } },
+        { count: 1, profile: { cpu: 0.1, ram: 512, ramUnit: "Mi" } }
+      ]
+    };
+
+    it("fits the deployment to the trial in one click, so the next click requests quotes", async () => {
+      const { submit, enqueueSnackbar, closeSnackbar, requestQuotes, analyticsService, formValues } = setup(OVERSIZED);
+      enqueueSnackbar.mockReturnValueOnce("size-block");
+      await submit();
+      render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+
+      act(() => fireEvent.click(screen.getByRole("button", { name: "Fit to free trial" })));
+
+      expect(formValues().services.map((service: ServiceType) => service.profile)).toEqual([
+        expect.objectContaining({ cpu: 3.9, ram: 8, ramUnit: "Gi" }),
+        expect.objectContaining({ cpu: 0.1, ram: 512, ramUnit: "Mi" })
+      ]);
+      expect(closeSnackbar).toHaveBeenCalledWith("size-block");
+      expect(analyticsService.track).toHaveBeenCalledWith("configure_trial_size_fitted", { category: "deployments" });
+      expect(enqueueSnackbar).toHaveBeenLastCalledWith(expect.anything(), { variant: "success" });
+      render(enqueueSnackbar.mock.calls[1][0] as ReactNode);
+      expect(screen.getByText("This deployment now requests 4 vCPU and 8.5 GiB of memory.")).toBeInTheDocument();
+
+      await submit();
+
+      expect(requestQuotes).toHaveBeenCalledOnce();
+    });
+
+    it("fits the services as they are at the click, keeping edits made while the block was on screen", async () => {
+      const { submit, enqueueSnackbar, formValues, setFormValue } = setup({
+        trialResourceLimit: { maxCpu: 4, maxMemoryGi: 16 },
+        services: [{ count: 1, profile: { cpu: 16, ram: 4, ramUnit: "Gi" } }]
+      });
+      await submit();
+      render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+      setFormValue("services.0.profile.ram", 32768);
+      setFormValue("services.0.profile.ramUnit", "Mi");
+
+      act(() => fireEvent.click(screen.getByRole("button", { name: "Fit to free trial" })));
+
+      expect(formValues().services[0].profile).toEqual(expect.objectContaining({ cpu: 4, ram: 16, ramUnit: "Gi" }));
+    });
+
+    it("leaves services the user grew past any fit while the block was on screen as they are", async () => {
+      const { submit, enqueueSnackbar, formValues, setFormValue, analyticsService } = setup({
+        trialResourceLimit: { maxCpu: 1, maxMemoryGi: 16 },
+        services: [{ count: 1, profile: { cpu: 2, ram: 1, ramUnit: "Gi" } }]
+      });
+      await submit();
+      render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+      setFormValue("services.0.count", 20);
+
+      act(() => fireEvent.click(screen.getByRole("button", { name: "Fit to free trial" })));
+
+      expect(formValues().services[0].profile).toEqual(expect.objectContaining({ cpu: 2, ram: 1, ramUnit: "Gi" }));
+      expect(analyticsService.track).not.toHaveBeenCalledWith("configure_trial_size_fitted", expect.anything());
+    });
+
+    it("opens Add credits to deploy the size the user picked", async () => {
+      const { submit, enqueueSnackbar, closeSnackbar, openAddCredits } = setup(OVERSIZED);
+      enqueueSnackbar.mockReturnValueOnce("size-block");
+      await submit();
+      render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+
+      fireEvent.click(screen.getByRole("button", { name: "Add credits" }));
+
+      expect(openAddCredits).toHaveBeenCalledWith({
+        initialTab: "purchase",
+        description: "Add credits to deploy larger workloads, along with longer runtimes and the full Console.",
+        context: "trial_size_limit",
+        suggestFirstDeployment: false
+      });
+      expect(closeSnackbar).toHaveBeenCalledWith("size-block");
+    });
+
+    it("offers only Add credits when the deployment can't shrink enough to fit", async () => {
+      const { submit, enqueueSnackbar } = setup({
+        trialResourceLimit: { maxCpu: 1, maxMemoryGi: 16 },
+        services: Array.from({ length: 11 }, () => ({ count: 1, profile: { cpu: 1, ram: 1, ramUnit: "Gi" } }))
+      });
+      await submit();
+
+      render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+
+      expect(screen.queryByRole("button", { name: "Fit to free trial" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Add credits" })).toBeInTheDocument();
+    });
+
+    it("keeps offering both while the deployment is blocked for another reason too", async () => {
+      const { submit, enqueueSnackbar } = setup({ ...OVERSIZED, validationErrors: ["/services/web: invalid"] });
+      await submit();
+
+      render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+
+      expect(screen.getByText("/services/web: invalid")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Fit to free trial" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Add credits" })).toBeInTheDocument();
+    });
+  });
+
+  it("lets a block that offers no way past it hide on its own", async () => {
+    const { submit, enqueueSnackbar } = setup({ validationErrors: ["/services/web: invalid"] });
+
+    await submit();
+
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "error" });
+    render(enqueueSnackbar.mock.calls[0][0] as ReactNode);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("lets a trial deployment within the trial's size cap request quotes", async () => {
@@ -274,7 +392,7 @@ describe(useRequestQuotes.name, () => {
       expect(screen.getAllByRole("listitem").map(item => item.textContent)).toEqual([
         "/services/web: invalid",
         "GPU access is not available on a free trial. Add funds to unlock GPU access.",
-        "Free trial deployments are limited to 4 vCPU and 16 GiB of memory. Add funds to deploy larger workloads."
+        "This deployment requests 16 vCPU and 64 GiB of memory. Free trial deployments are limited to 4 vCPU and 16 GiB of memory."
       ]);
     });
 
@@ -307,14 +425,18 @@ describe(useRequestQuotes.name, () => {
   }) {
     const requestQuotes = vi.fn();
     const flow = mock<DeploymentFlow>({ actions: mock<DeploymentFlowActions>({ requestQuotes }) });
-    const enqueueSnackbar = vi.fn();
+    const enqueueSnackbar = vi.fn<ReturnType<typeof DEPENDENCIES.useSnackbar>["enqueueSnackbar"]>();
+    const closeSnackbar = vi.fn<ReturnType<typeof DEPENDENCIES.useSnackbar>["closeSnackbar"]>();
+    const openAddCredits = vi.fn<ReturnType<typeof DEPENDENCIES.useAddCredits>>();
     const analyticsService = mock<AnalyticsService>();
     const generateSdl = vi.fn(() => GENERATED_SDL);
     const countScreenedProviders = vi.fn(() => input.screenedProviderCount);
     const countNotBiddingProviders = vi.fn(() => input.notBiddingProviderCount);
     const dependencies: typeof DEPENDENCIES = {
-      useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
+      useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar, closeSnackbar }),
+      useAddCredits: () => openAddCredits,
       Snackbar,
+      Button,
       generateSdl,
       validateGeneratedSdl: () => input.validationErrors ?? [],
       resolveSdlSecrets: input.resolveSdlSecrets ?? resolveSdlSecrets,
@@ -326,8 +448,9 @@ describe(useRequestQuotes.name, () => {
       useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService })
     };
     const services = (input.services ?? []).map(service => ({ count: 1, ...service, profile: { storage: [], ...service.profile } }));
+    let form: UseFormReturn | undefined;
     const Wrapper = ({ children }: PropsWithChildren) => {
-      const form = useForm({
+      form = useForm<FieldValues>({
         defaultValues: { placements: input.placements ?? [], services },
         resolver: input.rejectWith ? async () => ({ values: {}, errors: input.rejectWith as FieldErrors }) : undefined
       });
@@ -340,6 +463,10 @@ describe(useRequestQuotes.name, () => {
     return {
       requestQuotes,
       enqueueSnackbar,
+      closeSnackbar,
+      openAddCredits,
+      formValues: () => form!.getValues(),
+      setFormValue: (name: string, value: unknown) => act(() => form!.setValue(name, value)),
       analyticsService,
       generateSdl,
       countScreenedProviders,

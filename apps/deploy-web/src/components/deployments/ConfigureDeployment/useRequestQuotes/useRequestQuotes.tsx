@@ -1,18 +1,24 @@
+import type { ReactNode } from "react";
 import type { FieldErrors } from "react-hook-form";
 import { useFormContext } from "react-hook-form";
-import { Snackbar } from "@akashnetwork/ui/components";
+import { Button, Snackbar } from "@akashnetwork/ui/components";
+import type { SnackbarKey } from "notistack";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { useAddCredits } from "@src/hooks/useAddCredits";
 import { useCachedNotBiddingProviderCount, useCachedScreenedProviderCount } from "@src/queries/useScreenedProviders";
-import type { SdlBuilderFormValuesType } from "@src/types";
+import type { SdlBuilderFormValuesType, ServiceType } from "@src/types";
 import { hasTrialBlockedGpu } from "@src/utils/deploymentData/v1beta3";
 import { generateSdl } from "@src/utils/sdl/sdlGenerator";
 import { resolveSdlSecrets, unresolvedSecretMessage } from "@src/utils/sdl/sdlSecrets";
 import { validateGeneratedSdl } from "@src/utils/sdl/validateGeneratedSdl";
+import type { TrialResourceLimit } from "../ConfigurationPane/HardwareSection/trialResourceLimit/trialResourceLimit";
 import {
+  describeDeploymentSize,
   describeTrialResourceLimit,
   exceedsTrialResourceLimit,
+  fitServicesToTrialResourceLimit,
   measureDeploymentSize
 } from "../ConfigurationPane/HardwareSection/trialResourceLimit/trialResourceLimit";
 import { useTrialGate } from "../ConfigurationPane/HardwareSection/useTrialGate/useTrialGate";
@@ -23,7 +29,9 @@ import { listInvalidFieldMessages, listInvalidFieldPaths } from "./invalidFieldM
 
 export const DEPENDENCIES = {
   useSnackbar,
+  useAddCredits,
   Snackbar,
+  Button,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   generateSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -47,13 +55,21 @@ type Input = {
 /** Named for analytics, so a refused click can be told apart from one that never reached a deployment. */
 type SubmitBlockReason = "invalid_field" | "sdl_invalid" | "unresolved_secret" | "trial_gpu" | "trial_size_limit";
 
-type SubmitBlock = { reason: SubmitBlockReason; message: string };
+/** Offers a way past the block; `dismiss` closes the snackbar that offers it. */
+type RenderBlockActions = (dismiss: () => void) => ReactNode;
+
+type SubmitBlock = { reason: SubmitBlockReason; message: string; renderActions?: RenderBlockActions };
+
+const FITTED_FIELD_OPTIONS = { shouldDirty: true, shouldValidate: true } as const;
+
+const LARGER_DEPLOYMENTS_DESCRIPTION = "Add credits to deploy larger workloads, along with longer runtimes and the full Console.";
 
 /** Regenerates the SDL from the values the form just accepted, never a prop snapshot, so validation and creation act on the same spec. */
 export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const d = dependencies;
-  const { handleSubmit, getValues } = useFormContext<SdlBuilderFormValuesType>();
-  const { enqueueSnackbar } = d.useSnackbar();
+  const { handleSubmit, getValues, setValue } = useFormContext<SdlBuilderFormValuesType>();
+  const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
+  const openAddCredits = d.useAddCredits();
   const { analyticsService } = d.useServices();
   const { isRestricted } = d.useTrialGate();
   const trialResourceLimit = d.useTrialResourceLimit();
@@ -61,26 +77,90 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
   const countScreenedProviders = d.useCachedScreenedProviderCount();
   const countNotBiddingProviders = d.useCachedNotBiddingProviderCount();
 
-  function explainWhySubmitIsBlocked(reasons: string[]) {
-    enqueueSnackbar(
+  function explainWhySubmitIsBlocked(reasons: string[], renderActions?: RenderBlockActions) {
+    const snackbar: { key?: SnackbarKey } = {};
+    const dismiss = () => closeSnackbar(snackbar.key);
+    snackbar.key = enqueueSnackbar(
       <d.Snackbar
         title="Your deployment can't be submitted yet"
         subTitle={
-          <ul className="list-disc pl-4">
-            {reasons.map(reason => (
-              <li key={reason}>{reason}</li>
-            ))}
-          </ul>
+          <>
+            <ul className="list-disc pl-4">
+              {reasons.map(reason => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+            {renderActions && <div className="mt-3 flex flex-wrap gap-2">{renderActions(dismiss)}</div>}
+          </>
         }
         iconVariant="error"
       />,
-      { variant: "error" }
+      renderActions ? { variant: "error", persist: true } : { variant: "error" }
     );
   }
 
-  function refuseSubmit(reasons: SubmitBlockReason[], messages: string[], details: { invalidFields?: string[] } = {}) {
+  function refuseSubmit(
+    reasons: SubmitBlockReason[],
+    messages: string[],
+    { renderActions, ...details }: { invalidFields?: string[]; renderActions?: RenderBlockActions } = {}
+  ) {
     analyticsService.track("configure_choose_provider_blocked", { category: "deployments", reasons: [...new Set(reasons)], ...details });
-    explainWhySubmitIsBlocked(messages);
+    explainWhySubmitIsBlocked(messages, renderActions);
+  }
+
+  /** Fits the services as they are at the click, since the user can edit them while the block stays on screen. */
+  function fitCurrentServicesToTrial(limit: TrialResourceLimit) {
+    const fittedServices = fitServicesToTrialResourceLimit(getValues().services, limit);
+    if (!fittedServices) return;
+    fittedServices.forEach((service, index) => {
+      setValue(`services.${index}.profile.cpu`, service.profile.cpu, FITTED_FIELD_OPTIONS);
+      setValue(`services.${index}.profile.ram`, service.profile.ram, FITTED_FIELD_OPTIONS);
+      setValue(`services.${index}.profile.ramUnit`, service.profile.ramUnit, FITTED_FIELD_OPTIONS);
+    });
+    analyticsService.track("configure_trial_size_fitted", { category: "deployments" });
+    enqueueSnackbar(
+      <d.Snackbar
+        title="Resized to fit your free trial"
+        subTitle={`This deployment now requests ${describeDeploymentSize(measureDeploymentSize(fittedServices))}.`}
+        iconVariant="success"
+      />,
+      { variant: "success" }
+    );
+  }
+
+  function openAddCreditsForLargerDeployments() {
+    openAddCredits({ initialTab: "purchase", description: LARGER_DEPLOYMENTS_DESCRIPTION, context: "trial_size_limit", suggestFirstDeployment: false });
+  }
+
+  function offerWaysPastTrialSizeLimit(services: ServiceType[], limit: TrialResourceLimit): RenderBlockActions {
+    const canFit = !!fitServicesToTrialResourceLimit(services, limit);
+    return dismiss => (
+      <>
+        {canFit && (
+          <d.Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              fitCurrentServicesToTrial(limit);
+              dismiss();
+            }}
+          >
+            Fit to free trial
+          </d.Button>
+        )}
+        <d.Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            openAddCreditsForLargerDeployments();
+            dismiss();
+          }}
+        >
+          Add credits
+        </d.Button>
+      </>
+    );
   }
 
   function findTrialBlocks(values: SdlBuilderFormValuesType): SubmitBlock[] {
@@ -88,10 +168,12 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
     if (isRestricted && hasTrialBlockedGpu(values)) {
       blocks.push({ reason: "trial_gpu", message: "GPU access is not available on a free trial. Add funds to unlock GPU access." });
     }
-    if (trialResourceLimit && exceedsTrialResourceLimit(measureDeploymentSize(values.services), trialResourceLimit)) {
+    const size = measureDeploymentSize(values.services);
+    if (trialResourceLimit && exceedsTrialResourceLimit(size, trialResourceLimit)) {
       blocks.push({
         reason: "trial_size_limit",
-        message: `Free trial deployments are limited to ${describeTrialResourceLimit(trialResourceLimit)}. Add funds to deploy larger workloads.`
+        message: `This deployment requests ${describeDeploymentSize(size)}. Free trial deployments are limited to ${describeTrialResourceLimit(trialResourceLimit)}.`,
+        renderActions: offerWaysPastTrialSizeLimit(values.services, trialResourceLimit)
       });
     }
     return blocks;
@@ -109,7 +191,8 @@ export function useRequestQuotes({ flow, deploymentName, onInvalid }: Input, dep
       if (blocks.length > 0) {
         refuseSubmit(
           blocks.map(block => block.reason),
-          blocks.map(block => block.message)
+          blocks.map(block => block.message),
+          { renderActions: blocks.find(block => block.renderActions)?.renderActions }
         );
         return;
       }
