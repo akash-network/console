@@ -8,6 +8,9 @@ export type WhatsNewRelease = { id: string; name: string; slides: WhatsNewSlide[
 
 export const ORGANIZATIONS_RELEASE_ID = "orgs-projects-2026-10";
 
+/** Accounts created from this moment never used Console without organizations, so the release is no news to them. */
+export const ORGANIZATIONS_RELEASED_AT = new Date("2026-10-27T00:00:00Z");
+
 type Audience = {
   canManageProjects: boolean;
   showProjects: () => void;
