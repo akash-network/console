@@ -20,8 +20,14 @@ export const UserSchema = z.object({
 
 export type UserSchema = z.infer<typeof UserSchema>;
 
+export const CurrentUserSchema = UserSchema.extend({
+  createdAt: z.string().datetime().nullable()
+});
+
+export type CurrentUserSchema = z.infer<typeof CurrentUserSchema>;
+
 export const GetUserResponseOutputSchema = z.object({
-  data: UserSchema.openapi({})
+  data: CurrentUserSchema.openapi({})
 });
 
 export type GetUserResponseOutput = z.infer<typeof GetUserResponseOutputSchema>;

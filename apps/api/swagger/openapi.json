@@ -2843,6 +2843,11 @@
                           "type": "string",
                           "nullable": true,
                           "description": "IANA timezone the dates in the user's emails are shown in, UTC when unknown"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
                         }
                       },
                       "required": [
@@ -2851,7 +2856,8 @@
                         "username",
                         "email",
                         "emailVerified",
-                        "subscribedToNewsletter"
+                        "subscribedToNewsletter",
+                        "createdAt"
                       ]
                     }
                   },

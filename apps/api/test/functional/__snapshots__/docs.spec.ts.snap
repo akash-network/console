@@ -27310,6 +27310,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "string",
                         },
+                        "createdAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "email": {
                           "type": "string",
                         },
@@ -27372,6 +27377,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "email",
                         "emailVerified",
                         "subscribedToNewsletter",
+                        "createdAt",
                       ],
                       "type": "object",
                     },
