@@ -689,7 +689,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       /** Never adopted, so no close path here can reach it, even once superseded; the URL carries it so a reload finds it rather than creating another. */
       function handOverToApi(newDseq: string, activityId: string) {
         createInFlightRef.current = false;
-        recordOneClickDeploy(newDseq, oneClickDeployUrlOf(intentRef.current));
+        recordOneClickDeploy(newDseq, intentRef.current.templateId);
         holdActivityEvents(activityId, {
           succeeded: [{ event: "create_deployment", properties: createdEventOf(newDseq) }],
           failed: [{ event: "create_deployment_failed", properties: { category: "deployments", kind: "create", inBackground: true } }]
@@ -1201,11 +1201,6 @@ function createQueryFor(isOneClick: boolean): { async: "true"; autoLease?: "true
 
 function isOneClickDeploy(intent: DeploymentIntent, bidStrategy: BidStrategy): boolean {
   return intent.sdlStrategy === "default" && bidStrategy === "auto";
-}
-
-/** A fresh draft rather than the one this deploy ran from, since a draft opens the form instead of deploying on its own. */
-function oneClickDeployUrlOf(intent: DeploymentIntent): string {
-  return UrlService.configureDeployment({ templateId: intent.templateId, sdlStrategy: "default", bidStrategy: "auto" });
 }
 
 function shownOutcomeOf(error: unknown): "succeeded" | "failed" {

@@ -40,8 +40,8 @@ type Props = {
 };
 
 /**
- * The auto-deploy experience of the bid-screening view: when the configure intent is `sdl-strategy=default` +
- * `bid-strategy=auto`, the screen skips the manual form and drives the deployment automatically through the
+ * The auto-deploy experience of the bid-screening view: when a deploy button of the console opened the configure intent
+ * `sdl-strategy=default` + `bid-strategy=auto`, the screen skips the manual form and drives the deployment automatically through the
  * globe + phased progress panel (create deployment → matching providers → preparing), following the api through
  * the match and lease when it takes them on, then lands on the deployment. The base flow comes from the
  * `DeploymentFlowProvider` (shared with the manual branch), so this component only autopilots over it.
@@ -49,9 +49,9 @@ type Props = {
  * which the create mutation retries until activation lands.
  *
  * The created deployment's dseq is written into the URL by the underlying `useDeploymentFlow` state machine (the
- * phased flow autopilots over it), so a reload resumes the same deployment — picking up at matching, or at
- * preparing if a lease already exists — instead of creating a new one. Deploy-success navigation is likewise owned
- * by that flow's built-in redirect.
+ * phased flow autopilots over it), so a reload finds the same deployment instead of creating a new one. A reload
+ * never autopilots: it opens that deployment in the manual form, or on its page once a lease exists or is underway.
+ * Deploy-success navigation is likewise owned by that flow's built-in redirect.
  */
 export const AutoDeployFlow: FC<Props> = ({ templateName, sdl, resume, flow, dependencies: d = DEPENDENCIES }) => {
   const { publicConfig, analyticsService } = d.useServices();

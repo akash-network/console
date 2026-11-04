@@ -93,11 +93,12 @@ describe(GetStartedChecklist.name, () => {
   });
 
   it("deploys the first quick pick through the one-click configure flow and tracks it", async () => {
-    const { push, analyticsService } = setup();
+    const { push, markAutoDeployStart, analyticsService } = setup();
 
     await userEvent.click(screen.getByRole("button", { name: "Deploy Hello world" }));
 
     expect(analyticsService.track).toHaveBeenCalledWith("get_started_step_click", { category: "onboarding", step: "deploy", option: "hello-world" });
+    expect(markAutoDeployStart).toHaveBeenCalledWith("hello-world");
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: "hello-world", sdlStrategy: "default", bidStrategy: "auto" }));
   });
 
@@ -306,6 +307,7 @@ describe(GetStartedChecklist.name, () => {
     } = {}
   ) {
     const push = vi.fn();
+    const markAutoDeployStart = vi.fn();
     const dismiss = vi.fn();
     const markAgentSetupCopied = vi.fn();
     const createApiKey = vi.fn();
@@ -337,6 +339,7 @@ describe(GetStartedChecklist.name, () => {
       }),
       useOnboardingApiKey,
       useRouter: () => mock<AppRouterInstance>({ push }),
+      useMarkAutoDeployStart: () => markAutoDeployStart,
       useServices: () =>
         mock<ReturnType<typeof DEPENDENCIES.useServices>>({
           urlService: UrlService,
@@ -351,6 +354,6 @@ describe(GetStartedChecklist.name, () => {
 
     const { container } = render(<GetStartedChecklist dependencies={dependencies} />);
 
-    return { container, push, dismiss, markAgentSetupCopied, createApiKey, analyticsService, writeText, useOnboardingApiKey };
+    return { container, push, markAutoDeployStart, dismiss, markAgentSetupCopied, createApiKey, analyticsService, writeText, useOnboardingApiKey };
   }
 });

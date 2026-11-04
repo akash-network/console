@@ -163,7 +163,8 @@ describe(ConfigureDeployment.name, () => {
     const { AutoDeployFlow, ConfigureDeploymentForm, DeploymentFlowProvider } = setup({
       templateId: helloWorldTemplate.code,
       sdlStrategy: "default",
-      bidStrategy: "auto"
+      bidStrategy: "auto",
+      autoDeployStart: helloWorldTemplate.code
     });
 
     expect(ConfigureDeploymentForm).not.toHaveBeenCalled();
@@ -174,11 +175,74 @@ describe(ConfigureDeployment.name, () => {
     expect(AutoDeployFlow).toHaveBeenCalledWith(expect.objectContaining({ sdl: helloWorldTemplate.content, flow: expect.anything() }), expect.anything());
   });
 
+  it("opens the manual form with the template loaded when an auto-deploy link arrives without a console deploy button", () => {
+    const { AutoDeployFlow, ConfigureDeploymentForm, DeploymentFlowProvider } = setup({
+      templateId: helloWorldTemplate.code,
+      sdlStrategy: "default",
+      bidStrategy: "auto"
+    });
+
+    expect(AutoDeployFlow).not.toHaveBeenCalled();
+    expect(DeploymentFlowProvider).toHaveBeenCalledWith(
+      expect.objectContaining({ intent: expect.objectContaining({ sdlStrategy: "edit" }) }),
+      expect.anything()
+    );
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialSdl: helloWorldTemplate.content,
+        intent: expect.objectContaining({ templateId: helloWorldTemplate.code, sdlStrategy: "edit" })
+      }),
+      expect.anything()
+    );
+  });
+
+  it("opens the manual form when a console deploy button marked another template", () => {
+    const { AutoDeployFlow, ConfigureDeploymentForm } = setup({
+      templateId: helloWorldTemplate.code,
+      sdlStrategy: "default",
+      bidStrategy: "auto",
+      autoDeployStart: "tpl-1"
+    });
+
+    expect(AutoDeployFlow).not.toHaveBeenCalled();
+    expect(ConfigureDeploymentForm).toHaveBeenCalledWith(
+      expect.objectContaining({ intent: expect.objectContaining({ sdlStrategy: "edit" }) }),
+      expect.anything()
+    );
+  });
+
+  it("lets the resume guard re-send a leased deployment's manifest only for a console started deploy", () => {
+    const { ResumeDeploymentGuard } = setup({
+      templateId: helloWorldTemplate.code,
+      sdlStrategy: "default",
+      bidStrategy: "auto",
+      autoDeployStart: helloWorldTemplate.code
+    });
+
+    expect(ResumeDeploymentGuard).toHaveBeenCalledWith(expect.objectContaining({ canResume: true }), expect.anything());
+  });
+
+  it("sends a link naming an existing deployment through the resume guard without letting it re-send the manifest", () => {
+    const { ResumeDeploymentGuard, AutoDeployFlow } = setup({
+      templateId: helloWorldTemplate.code,
+      sdlStrategy: "default",
+      bidStrategy: "auto",
+      dseq: "123"
+    });
+
+    expect(ResumeDeploymentGuard).toHaveBeenCalledWith(
+      expect.objectContaining({ canResume: false, intent: expect.objectContaining({ dseq: "123", sdlStrategy: "edit" }) }),
+      expect.anything()
+    );
+    expect(AutoDeployFlow).not.toHaveBeenCalled();
+  });
+
   it("hands an auto-deploy intent to the manual form as an edit when its SDL references a secret", () => {
     const { AutoDeployFlow, ConfigureDeploymentForm, DeploymentFlowProvider } = setup({
       templateId: "tpl-1",
       sdlStrategy: "default",
       bidStrategy: "auto",
+      autoDeployStart: "tpl-1",
       template: { isLoading: false, isError: false, data: mock<TemplateOutput>({ deploy: SECRET_REFERENCE_SDL }) }
     });
 
@@ -197,7 +261,8 @@ describe(ConfigureDeployment.name, () => {
     const { AutoDeployFlow, ConfigureDeploymentForm } = setup({
       templateId: helloWorldTemplate.code,
       sdlStrategy: "default",
-      bidStrategy: "auto"
+      bidStrategy: "auto",
+      autoDeployStart: helloWorldTemplate.code
     });
 
     expect(ConfigureDeploymentForm).not.toHaveBeenCalled();
@@ -209,6 +274,7 @@ describe(ConfigureDeployment.name, () => {
       templateId: "tpl-1",
       sdlStrategy: "default",
       bidStrategy: "auto",
+      autoDeployStart: "tpl-1",
       persistedSdl: "restored: sdl"
     });
 
@@ -228,6 +294,7 @@ describe(ConfigureDeployment.name, () => {
       templateId: "tpl-1",
       sdlStrategy: "default",
       bidStrategy: "auto",
+      autoDeployStart: "tpl-1",
       template: { isLoading: true, isError: false }
     });
 
@@ -244,6 +311,7 @@ describe(ConfigureDeployment.name, () => {
       templateId: "tpl-1",
       sdlStrategy: "default",
       bidStrategy: "auto",
+      autoDeployStart: "tpl-1",
       template: { isLoading: false, isError: true }
     });
 
@@ -262,6 +330,7 @@ describe(ConfigureDeployment.name, () => {
       templateId: "tpl-1",
       sdlStrategy: "default",
       bidStrategy: "auto",
+      autoDeployStart: "tpl-1",
       template: { isLoading: false, isError: false, data: loaded }
     });
 
@@ -387,6 +456,7 @@ describe(ConfigureDeployment.name, () => {
     exampleImage?: boolean;
     resume?: ResumeResolution;
     dseq?: string;
+    autoDeployStart?: string;
   }) {
     const ConfigureDeploymentForm = vi.fn(() => <div data-testid="form-mock" />);
     const AutoDeployFlow = vi.fn(() => <div data-testid="auto-mock" />);
@@ -430,6 +500,7 @@ describe(ConfigureDeployment.name, () => {
       usePublicTemplate: usePublicTemplate as never,
       useUserTemplate: useUserTemplate as never,
       useConfigureDraft: useConfigureDraft as never,
+      useTakeAutoDeployStart: () => input.autoDeployStart ?? null,
       useSearchParams: () => params as unknown as ReadonlyURLSearchParams,
       useParams: (() => (input.dseq ? { dseq: [input.dseq] } : {})) as never,
       useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),

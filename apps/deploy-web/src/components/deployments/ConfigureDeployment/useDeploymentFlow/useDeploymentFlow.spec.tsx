@@ -4127,10 +4127,7 @@ describe(useDeploymentFlow.name, () => {
       act(() => acceptWithLease());
 
       expect(result.current).toMatchObject({ phase: "creating", dseq: null, autoLeasedDseq: "1000", isCreatingInBackground: true });
-      expect(recordOneClickDeploy).toHaveBeenCalledWith(
-        "1000",
-        UrlService.configureDeployment({ templateId: "hello-world", sdlStrategy: "default", bidStrategy: "auto" })
-      );
+      expect(recordOneClickDeploy).toHaveBeenCalledWith("1000", "hello-world");
       expect(holdActivityEvents).toHaveBeenCalledWith("activity-1", {
         succeeded: [
           { event: "create_deployment", properties: { category: "deployments", label: "Create deployment in wizard", dseq: "1000", secretCount: 0 } }
@@ -4226,7 +4223,7 @@ describe(useDeploymentFlow.name, () => {
 
       expect(createMutate).toHaveBeenCalledTimes(2);
       expect(closeMutate).not.toHaveBeenCalled();
-      expect(recordOneClickDeploy).toHaveBeenCalledWith("1000", expect.any(String));
+      expect(recordOneClickDeploy).toHaveBeenCalledWith("1000", "hello-world");
       expect(result.current.autoLeasedDseq).toBeNull();
     });
   });

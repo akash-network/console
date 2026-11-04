@@ -9,6 +9,7 @@ import { useSnackbar } from "notistack";
 
 import Layout from "@src/components/layout/Layout";
 import { DeployTargetGate } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
+import { useTakeAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
 import { usePublicTemplate, useTemplate } from "@src/queries/useTemplateQuery";
 import sdlStore from "@src/store/sdlStore";
 import type { TemplateCreation } from "@src/types";
@@ -33,6 +34,7 @@ export const DEPENDENCIES = {
   usePublicTemplate,
   useUserTemplate: useTemplate,
   useConfigureDraft,
+  useTakeAutoDeployStart,
   useSearchParams,
   useParams,
   useSnackbar,
@@ -62,6 +64,7 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const dseqSegment = Array.isArray(routeParams?.dseq) ? routeParams.dseq[0] : (routeParams?.dseq as string | undefined);
   const intent = parseDeploymentIntent({ dseqSegment, searchParams: new URLSearchParams(searchParams?.toString() ?? "") });
   const draft = d.useConfigureDraft(intent);
+  const autoDeployStart = d.useTakeAutoDeployStart();
   const templateId = intent.templateId;
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const hardcodedTemplate: TemplateCreation | undefined = templateId ? hardcodedTemplates.find(template => template.code === templateId) : undefined;
@@ -104,11 +107,13 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const needsSecretValues = useMemo(() => !!initialSdl && secretReferenceNamesIn(initialSdl).size > 0, [initialSdl]);
   /** Only the form saves a draft, and a template that failed with nothing to start from has handed the session to it, so neither returns to auto later. */
   const isEditedInForm = isDraftRestored || hasFallenBackToForm;
+  /** The URL alone never deploys: any arrival other than a console deploy button for this template, a reload included, opens the form. */
+  const isStartedByConsole = !!templateId && autoDeployStart === templateId;
   const resolvedIntent = useMemo<DeploymentIntent>(
     () => ({
       templateId: intent.templateId,
       userTemplateId: intent.userTemplateId,
-      sdlStrategy: needsSecretValues || isEditedInForm ? "edit" : intent.sdlStrategy,
+      sdlStrategy: needsSecretValues || isEditedInForm || !isStartedByConsole ? "edit" : intent.sdlStrategy,
       bidStrategy: intent.bidStrategy,
       dseq: intent.dseq,
       draftId: draft.draftId,
@@ -121,6 +126,7 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
       intent.sdlStrategy,
       needsSecretValues,
       isEditedInForm,
+      isStartedByConsole,
       intent.bidStrategy,
       intent.dseq,
       draft.draftId,
