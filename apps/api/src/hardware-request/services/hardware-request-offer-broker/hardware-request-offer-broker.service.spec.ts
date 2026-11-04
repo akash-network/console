@@ -230,13 +230,60 @@ describe(HardwareRequestOfferBrokerService.name, () => {
       });
     });
 
+    it("takes a request with offers back to sourcing under its row lock once no published offer is left", async () => {
+      const { service, hardwareRequestRepository, hardwareRequestOfferRepository, hardwareRequestBrokerService, hardwareRequest } = setup({
+        status: "published",
+        requestStatus: "offers",
+        publishedOffersLeft: 0
+      });
+
+      await service.withdraw(hardwareRequest.id, "offer-1", { actor: "Remington" });
+
+      expect(hardwareRequestRepository.unscoped).toHaveBeenCalledWith("gpu-request-broker");
+      expect(hardwareRequestRepository.findOneByAndLock).toHaveBeenCalledWith({ id: hardwareRequest.id });
+      expect(hardwareRequestOfferRepository.count).toHaveBeenCalledWith({ hardwareRequestId: hardwareRequest.id, status: "published" });
+      expect(hardwareRequestBrokerService.moveLockedToStatus).toHaveBeenCalledWith(hardwareRequest, { actor: "Remington", status: "sourcing" });
+    });
+
+    it("keeps a request with offers as it is while another published offer is left", async () => {
+      const { service, hardwareRequestBrokerService, hardwareRequest } = setup({ status: "published", requestStatus: "offers", publishedOffersLeft: 1 });
+
+      await service.withdraw(hardwareRequest.id, "offer-1", { actor: "Remington" });
+
+      expect(hardwareRequestBrokerService.moveLockedToStatus).not.toHaveBeenCalled();
+    });
+
+    it.each(["submitted", "in_review", "sourcing"] as const)("keeps a %s request as it is when its last offer is withdrawn", async requestStatus => {
+      const { service, hardwareRequestBrokerService, hardwareRequest } = setup({ status: "draft", requestStatus, publishedOffersLeft: 0 });
+
+      await service.withdraw(hardwareRequest.id, "offer-1", { actor: "Remington" });
+
+      expect(hardwareRequestBrokerService.moveLockedToStatus).not.toHaveBeenCalled();
+    });
+
     it("leaves an offer that is already withdrawn as it is", async () => {
-      const { service, hardwareRequestOfferRepository, hardwareRequestEventRepository, hardwareRequest } = setup({ status: "withdrawn" });
+      const { service, hardwareRequestOfferRepository, hardwareRequestEventRepository, hardwareRequestBrokerService, hardwareRequest } = setup({
+        status: "withdrawn",
+        requestStatus: "offers",
+        publishedOffersLeft: 0
+      });
 
       await service.withdraw(hardwareRequest.id, "offer-1", { actor: "Remington" });
 
       expect(hardwareRequestOfferRepository.updateById).not.toHaveBeenCalled();
       expect(hardwareRequestEventRepository.record).not.toHaveBeenCalled();
+      expect(hardwareRequestBrokerService.moveLockedToStatus).not.toHaveBeenCalled();
+    });
+
+    it("answers 404 for an unknown request", async () => {
+      const { service, hardwareRequestRepository, hardwareRequestOfferRepository } = setup();
+      hardwareRequestRepository.findOneByAndLock.mockResolvedValue(undefined);
+
+      await expect(service.withdraw("missing", "offer-1", { actor: "Remington" })).rejects.toMatchObject({
+        status: 404,
+        message: "Hardware request not found"
+      });
+      expect(hardwareRequestOfferRepository.updateById).not.toHaveBeenCalled();
     });
 
     it.each(["accepted", "declined", "closed"] as const)("answers 409 for a %s offer", async status => {
@@ -249,7 +296,7 @@ describe(HardwareRequestOfferBrokerService.name, () => {
     });
   });
 
-  function setup(input: { status?: HardwareRequestOfferStatus; expiresAt?: string; requestStatus?: HardwareRequestStatus } = {}) {
+  function setup(input: { status?: HardwareRequestOfferStatus; expiresAt?: string; requestStatus?: HardwareRequestStatus; publishedOffersLeft?: number } = {}) {
     const hardwareRequest = createHardwareRequest({ status: input.requestStatus ?? "sourcing" });
     const provider = createProviderWithAttributeSignatures(AUDITOR_ADDRESS);
     provider.uptime7d = 0.98;
@@ -280,6 +327,7 @@ describe(HardwareRequestOfferBrokerService.name, () => {
         expiresAt: input.expiresAt ?? new Date(Date.now() + 60_000).toISOString()
       })
     );
+    hardwareRequestOfferRepository.count.mockResolvedValue(input.publishedOffersLeft ?? 0);
     const providerRepository = mock<ProviderRepository>();
     providerRepository.getWithAttributesAndAuditors.mockResolvedValue([provider]);
     const auditorService = mock<AuditorService>();

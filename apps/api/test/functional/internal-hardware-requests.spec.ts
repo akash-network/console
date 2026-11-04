@@ -490,6 +490,35 @@ describe("Internal hardware requests", () => {
       expect(data).toMatchObject({ id: offer.id, status: "withdrawn" });
       expect((await getRequest(hardwareRequest.id)).events).toMatchObject([{ type: "offer_withdrawn", actor: "Remington", payload: { offerId: offer.id } }]);
     });
+
+    it("takes the request back to sourcing when its only published offer is withdrawn", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ status: "sourcing" });
+      const { data: offer } = await draftOffer(hardwareRequest.id);
+      await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${offer.id}/publish`, { actor: "Remington" });
+
+      const { status } = await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${offer.id}/withdraw`, { actor: "Remington" });
+
+      expect(status).toBe(200);
+      const withdrawnRequest = await getRequest(hardwareRequest.id);
+      expect(withdrawnRequest).toMatchObject({ status: "sourcing" });
+      expect(withdrawnRequest.events).toContainEqual(
+        expect.objectContaining({ type: "status_changed", actor: "Remington", payload: { from: "offers", to: "sourcing" } })
+      );
+    });
+
+    it("keeps the request with offers while another published offer is left", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ status: "sourcing" });
+      const { data: first } = await draftOffer(hardwareRequest.id);
+      const { data: second } = await draftOffer(hardwareRequest.id);
+      await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${first.id}/publish`, { actor: "Remington" });
+      await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${second.id}/publish`, { actor: "Remington" });
+
+      await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${first.id}/withdraw`, { actor: "Remington" });
+
+      expect(await getRequest(hardwareRequest.id)).toMatchObject({ status: "offers" });
+    });
   });
 
   describe("POST /internal/hardware-requests/{id}/notes", () => {
