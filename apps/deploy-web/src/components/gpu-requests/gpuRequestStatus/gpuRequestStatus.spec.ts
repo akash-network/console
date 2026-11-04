@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import type { HardwareRequestStatus } from "./gpuRequestStatus";
-import { describeEndState, describeRequestSummary, describeRequestTitle, describeStatusMessage, describeTracker } from "./gpuRequestStatus";
+import { describeEndState, describeRequestSummary, describeRequestTitle, describeStatusMessage, describeTracker, hasOffers } from "./gpuRequestStatus";
 
 import { buildHardwareRequest, buildHardwareRequestSpec } from "@tests/seeders/hardwareRequest";
 
 describe("gpuRequestStatus", () => {
+  describe(hasOffers.name, () => {
+    it.each(["offers", "accepted", "fulfilled"] as const)("shows offers on a %s request", status => {
+      expect(hasOffers(status)).toBe(true);
+    });
+
+    it.each(["submitted", "in_review", "sourcing", "withdrawn", "closed"] as const)("shows no offers on a %s request", status => {
+      expect(hasOffers(status)).toBe(false);
+    });
+  });
+
   describe(describeTracker.name, () => {
     it("marks the stages before the current one done and the rest upcoming", () => {
       expect(describeTracker("sourcing")).toEqual([

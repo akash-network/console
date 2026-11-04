@@ -2,10 +2,10 @@ import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
-import { useHardwareRequestsQuery, useWithdrawHardwareRequestMutation } from "./useHardwareRequestsQuery";
+import { useHardwareRequestOffersQuery, useHardwareRequestsQuery, useWithdrawHardwareRequestMutation } from "./useHardwareRequestsQuery";
 
 import { act, waitFor } from "@testing-library/react";
-import { buildHardwareRequest } from "@tests/seeders/hardwareRequest";
+import { buildGpuRequestOffer, buildHardwareRequest } from "@tests/seeders/hardwareRequest";
 import { type RenderAppHookOptions, setupQuery } from "@tests/unit/query-client";
 
 type ApiService = ReturnType<NonNullable<NonNullable<RenderAppHookOptions["services"]>["api"]>>;
@@ -32,6 +32,22 @@ describe(useHardwareRequestsQuery.name, () => {
 
     return { result, listHardwareRequests };
   }
+});
+
+describe(useHardwareRequestOffersQuery.name, () => {
+  it("unwraps the request's offers from the response envelope", async () => {
+    const offers = [buildGpuRequestOffer()];
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const listHardwareRequestOffers = vi.fn().mockResolvedValue({ data: offers });
+    const api = createProxy({ v1: { listHardwareRequestOffers } }) as unknown as ApiService;
+
+    const { result } = setupQuery(() => useHardwareRequestOffersQuery("request-1"), {
+      services: { api: () => api, queryClient: () => queryClient }
+    });
+
+    await waitFor(() => expect(result.current.data).toEqual(offers));
+    expect(listHardwareRequestOffers).toHaveBeenCalledWith({ id: "request-1" });
+  });
 });
 
 describe(useWithdrawHardwareRequestMutation.name, () => {
