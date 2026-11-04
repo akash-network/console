@@ -13,7 +13,7 @@ import { ApiKeyUsageGuide } from "@src/components/api-keys/ApiKeyUsageGuide/ApiK
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
 import { useServices } from "@src/context/ServicesProvider";
 
-const SECRET_SHOWN_ONCE = "Copy it now. It isn't shown again once you leave this page.";
+const SHOWN_ONCE_NOTICE = "Copy it now. It isn't shown again once you leave this page.";
 
 export const DEPENDENCIES = { useServices, useSnackbar, ApiKeyUsageGuide };
 
@@ -52,7 +52,7 @@ export function ApiKeySetup({ createdApiKey, isCreating, isLoadingTrialProject, 
           {secret && (
             <div className="flex flex-col gap-2">
               <ApiKeySecret secret={secret} onCopy={() => copyApiKeySecret(secret, enqueueSnackbar)} />
-              <p className="text-[12.5px] leading-[18px] text-muted-foreground">{SECRET_SHOWN_ONCE}</p>
+              <p className="text-[12.5px] leading-[18px] text-muted-foreground">{SHOWN_ONCE_NOTICE}</p>
             </div>
           )}
         </Card>
