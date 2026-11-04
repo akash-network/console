@@ -25,14 +25,13 @@ export const gpuRequestRoutingPolicySchema = z.object({
       monthlyValue: toggle.extend({ minUsd: z.number().nonnegative().default(5000) }).default({}),
       multiNode: toggle.extend({ minGpus: z.number().int().positive().default(8) }).default({}),
       interconnect: toggle.default({}),
-      longTermDataCenter: toggle
-        .extend({ minTermMonths: z.number().int().positive().default(6), gpuModels: z.array(z.string()).default(DATA_CENTER_GPU_MODELS) })
-        .default({}),
+      longTermDataCenter: toggle.extend({ minTermMonths: z.number().int().positive().default(6) }).default({}),
       couldGrow: toggle.default({}),
       wantsToTalk: toggle.default({})
     })
     .default({}),
   salesRequiresPaymentMethod: z.boolean().default(true),
+  dataCenterGpuModels: z.array(z.string()).default(DATA_CENTER_GPU_MODELS),
   referenceUsdPerGpuHour: z.record(z.string(), z.number().positive()).default(REFERENCE_USD_PER_GPU_HOUR)
 });
 
@@ -42,4 +41,8 @@ export const DEFAULT_GPU_REQUEST_ROUTING_POLICY: GpuRequestRoutingPolicy = gpuRe
 
 export function isSameGpuModel(left: string, right: string): boolean {
   return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
+export function isDataCenterGpu(model: string, policy: GpuRequestRoutingPolicy): boolean {
+  return policy.dataCenterGpuModels.some(dataCenterModel => isSameGpuModel(dataCenterModel, model));
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_GPU_REQUEST_ROUTING_POLICY, gpuRequestRoutingPolicySchema, isSameGpuModel } from "./gpu-request-routing-policy";
+import { DEFAULT_GPU_REQUEST_ROUTING_POLICY, gpuRequestRoutingPolicySchema, isDataCenterGpu, isSameGpuModel } from "./gpu-request-routing-policy";
 
 describe("GPU request routing policy", () => {
   it("defaults to the rules decided on November 3", () => {
@@ -9,15 +9,12 @@ describe("GPU request routing policy", () => {
         monthlyValue: { enabled: true, minUsd: 5000 },
         multiNode: { enabled: true, minGpus: 8 },
         interconnect: { enabled: true },
-        longTermDataCenter: {
-          enabled: true,
-          minTermMonths: 6,
-          gpuModels: ["B300", "B200", "H200", "H100", "A100", "L40S", "MI355X", "MI325X", "MI300X"]
-        },
+        longTermDataCenter: { enabled: true, minTermMonths: 6 },
         couldGrow: { enabled: true },
         wantsToTalk: { enabled: true }
       },
       salesRequiresPaymentMethod: true,
+      dataCenterGpuModels: ["B300", "B200", "H200", "H100", "A100", "L40S", "MI355X", "MI325X", "MI300X"],
       referenceUsdPerGpuHour: {
         B300: 6,
         B200: 5,
@@ -52,6 +49,19 @@ describe("GPU request routing policy", () => {
     { payload: { salesRules: { couldGrow: { enabled: "yes" } } } }
   ])("rejects $payload", ({ payload }) => {
     expect(gpuRequestRoutingPolicySchema.safeParse(payload).success).toBe(false);
+  });
+
+  describe(isDataCenterGpu.name, () => {
+    it.each([
+      { model: "h200", dataCenter: true },
+      { model: "RTX 5090", dataCenter: false }
+    ])("calls $model a data-center GPU: $dataCenter", ({ model, dataCenter }) => {
+      expect(isDataCenterGpu(model, DEFAULT_GPU_REQUEST_ROUTING_POLICY)).toBe(dataCenter);
+    });
+
+    it("reads the data-center list of the policy", () => {
+      expect(isDataCenterGpu("RTX 5090", gpuRequestRoutingPolicySchema.parse({ dataCenterGpuModels: ["RTX 5090"] }))).toBe(true);
+    });
   });
 
   describe(isSameGpuModel.name, () => {
