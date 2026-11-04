@@ -24,6 +24,7 @@ export function createHardwareRequest(overrides: Partial<HardwareRequestOutput> 
     laneReason: null,
     estimatedMonthlyUsd: null,
     owner: null,
+    firstRepliedAt: null,
     createdAt,
     updatedAt: createdAt,
     ...overrides
