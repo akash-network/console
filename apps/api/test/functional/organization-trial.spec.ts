@@ -1,13 +1,14 @@
-import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import type { Registry } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import type { GetUsers200ResponseOneOfInner } from "auth0";
 import { and, eq } from "drizzle-orm";
 import nock from "nock";
+import fs from "node:fs";
+import path from "node:path";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { AuthService } from "@src/auth/services/auth.service";
@@ -16,7 +17,7 @@ import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-au
 import { STANDARD_TOP_UP_MIN_AMOUNT_USD } from "@src/billing/config";
 import type { WalletListOutputResponse } from "@src/billing/http-schemas/wallet.schema";
 import { BILLING_CONFIG } from "@src/billing/providers";
-import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
+import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -30,10 +31,15 @@ import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-gran
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
+const SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
 describe("Organization trial", () => {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
+
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -95,12 +101,12 @@ describe("Organization trial", () => {
     });
   });
 
-  describe("POST /v1/tx", () => {
+  describe("POST /v1/deployments", () => {
     it("asks a team's API key for payment before the team is funded, and leaves its wallet without a trial", async () => {
       const { user, team, teamWallet } = await setupTeamMember({ teamRole: "owner" });
       const apiKey = await seedApiKey({ userId: user.id, organizationId: team.id });
 
-      const response = await signTx(user.id, teamWallet.address, { "x-api-key": apiKey });
+      const response = await createDeployment({ "x-api-key": apiKey });
 
       expect(response.status).toBe(402);
       expect(await response.json()).toMatchObject({ code: "insufficient_balance" });
@@ -110,19 +116,20 @@ describe("Organization trial", () => {
     });
 
     it("holds the personal trial to the trial's rules and a funded team to none of them", async () => {
-      const { user, wallet, authorization } = await setupTrialUser();
+      const { user, authorization } = await setupTrialUser();
       const { organization: team } = await seedOrganizationWithOwner();
       await seedOrganizationMember({ organizationId: team.id, userId: user.id, role: "admin" });
-      const teamWallet = await seedTeamWallet(team.id, { activatedAt: new Date() });
+      await seedTeamWallet(team.id, { activatedAt: new Date() });
       await container.resolve(UserRepository).updateById(user.id, { fairUsePolicyAcceptedAt: null });
       answerFundedChain();
+      priceAkt();
 
-      const inPersonal = await signTx(user.id, wallet.address, { authorization });
-      const inTeam = await signTx(user.id, teamWallet.address, { authorization, "x-organization-id": team.id });
+      const inPersonal = await createDeployment({ authorization });
+      const inTeam = await createDeployment({ authorization, "x-organization-id": team.id });
 
       expect(inPersonal.status).toBe(403);
       expect(await inPersonal.json()).toMatchObject({ code: "fair_use_policy_required" });
-      expect(inTeam.status).toBe(200);
+      expect(inTeam.status).toBe(201);
     });
   });
 
@@ -144,17 +151,10 @@ describe("Organization trial", () => {
     return ((await response.json()) as WalletListOutputResponse).data;
   }
 
-  async function signTx(userId: string, owner: string, headers: Record<string, string>) {
-    const message = {
-      typeUrl: `/${MsgCreateDeployment.$type}`,
-      value: MsgCreateDeployment.fromPartial({ id: { owner, dseq: faker.number.int({ min: 1, max: 1e9 }) } })
-    };
-
-    return await app.request("/v1/tx", {
+  async function createDeployment(headers: Record<string, string>) {
+    return await app.request("/v1/deployments", {
       method: "POST",
-      body: JSON.stringify({
-        data: { userId, messages: [{ typeUrl: message.typeUrl, value: Buffer.from(registry.encode(message)).toString("base64") }] }
-      }),
+      body: JSON.stringify({ data: { sdl: SDL } }),
       headers: { "Content-Type": "application/json", ...headers }
     });
   }
@@ -192,6 +192,12 @@ describe("Organization trial", () => {
       .reply(200, createFeeAllowanceResponse({ amount: "5000000" }))
       .get(/\/cosmos\/authz\/v1beta1\/grants\?.*/)
       .reply(200, createDeploymentGrantResponseSeed({ amount: "5000000", grantType: "/akash.escrow.v1.DepositAuthorization" }));
+  }
+
+  function priceAkt() {
+    vi.spyOn(container.resolve(DenomExchangeService), "getExchangeRateToUSD").mockResolvedValue(
+      mock<Awaited<ReturnType<DenomExchangeService["getExchangeRateToUSD"]>>>({ price: 2 })
+    );
   }
 
   function enableOrganizationsFor(userIds: string[]) {

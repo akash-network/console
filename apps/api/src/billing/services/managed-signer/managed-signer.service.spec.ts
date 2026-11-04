@@ -4,7 +4,7 @@ import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1be
 import type { DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import type { MongoAbility } from "@casl/ability";
 import { createMongoAbility } from "@casl/ability";
-import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
+import type { EncodeObject } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import createError from "http-errors";
 import { describe, expect, it, vi } from "vitest";
@@ -31,7 +31,6 @@ import type { ExecutionContextService } from "@src/core/services/execution-conte
 import type { FeatureFlagValue } from "@src/core/services/feature-flags/feature-flags";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentOrganizationActivityService } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
-import type { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { RecordDeploymentSetting } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserOutput, UserRepository } from "@src/user/repositories";
@@ -698,71 +697,23 @@ describe(ManagedSignerService.name, () => {
       expect(options).toEqual({ singletonKey: `recordDeploymentSetting.${wallet.userId}.123` });
     });
 
-    describe("for a create the caller supplied", () => {
-      it("records it into the project the request resolves to, resolved before signing", async () => {
-        const projectId = faker.string.uuid();
-        const resolveFilingProject = vi.fn().mockResolvedValue(projectId);
-        const { service, domainEvents, txManagerService, wallet } = setupForFiling({ resolveFilingProject });
-
-        await service.executeDecodedTxByUserWallet(wallet, [createMessageFor(123)], { suppliedByCaller: true });
-
-        const [event] = vi.mocked(domainEvents.publish).mock.calls.find(([published]) => published instanceof RecordDeploymentSetting)!;
-        expect(resolveFilingProject).toHaveBeenCalledWith();
-        expect(event.data).toEqual({ userId: wallet.userId, dseq: "123", organizationId: wallet.organizationId, projectId });
-        expect(resolveFilingProject.mock.invocationCallOrder[0]).toBeLessThan(txManagerService.signAndBroadcastWithDerivedWallet.mock.invocationCallOrder[0]);
-      });
-
-      it("refuses it before signing when no project the caller reaches can take it", async () => {
-        const refusal = createError(400, "Choose a project to deploy into", { errorCode: "project_required" });
-        const { service, domainEvents, txManagerService, wallet } = setupForFiling({ resolveFilingProject: vi.fn().mockRejectedValue(refusal) });
-
-        await expect(service.executeDecodedTxByUserWallet(wallet, [createMessageFor(123)], { suppliedByCaller: true })).rejects.toBe(refusal);
-
-        expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
-        expect(domainEvents.publish).not.toHaveBeenCalled();
-      });
-
-      it("records its deposit for the project the request resolves to", async () => {
-        const projectId = faker.string.uuid();
-        const { service, depositLedger, wallet } = setupForFiling({ resolveFilingProject: vi.fn().mockResolvedValue(projectId) });
-        const messages = [createMessageFor(123)];
-
-        await service.executeDecodedTxByUserWallet(wallet, messages, { suppliedByCaller: true });
-
-        expect(depositLedger.recordPending).toHaveBeenCalledWith(wallet.id, messages, { filingProjectId: projectId, actorUserId: wallet.userId });
-      });
-
-      it("resolves no project for a supplied transaction that creates no deployment", async () => {
-        const resolveFilingProject = vi.fn();
-        const { service, wallet } = setupForFiling({ resolveFilingProject });
-
-        await service.executeDecodedTxByUserWallet(wallet, [closeMessageFor(123)], { suppliedByCaller: true });
-
-        expect(resolveFilingProject).not.toHaveBeenCalled();
-      });
-    });
-
-    it("resolves no project for a create the console built, which the deployment API already filed", async () => {
-      const resolveFilingProject = vi.fn();
-      const { service, domainEvents, wallet } = setupForFiling({ resolveFilingProject });
+    it("records no project for a create the console built without one", async () => {
+      const { service, domainEvents, wallet } = setupForFiling();
 
       await service.executeDecodedTxByUserWallet(wallet, [createMessageFor(123)]);
 
       const [event] = vi.mocked(domainEvents.publish).mock.calls.find(([published]) => published instanceof RecordDeploymentSetting)!;
-      expect(resolveFilingProject).not.toHaveBeenCalled();
       expect(event.data).toEqual({ userId: wallet.userId, dseq: "123", organizationId: wallet.organizationId, projectId: undefined });
     });
 
     it("files a create the console built into the project it was accepted for, for the member it names", async () => {
       const projectId = faker.string.uuid();
-      const resolveFilingProject = vi.fn();
-      const { service, domainEvents, depositLedger, wallet } = setupForTeam({ resolveFilingProject });
+      const { service, domainEvents, depositLedger, wallet } = setupForTeam();
       const messages = [createDeploymentMessageFor(123)];
 
       await service.executeDecodedTxByUserWallet(wallet, messages, { actingUserId: "member-1", filingProjectId: projectId });
 
       const [event] = vi.mocked(domainEvents.publish).mock.calls.find(([published]) => published instanceof RecordDeploymentSetting)!;
-      expect(resolveFilingProject).not.toHaveBeenCalled();
       expect(event.data).toEqual({ userId: "member-1", dseq: "123", organizationId: wallet.organizationId, projectId });
       expect(depositLedger.recordPending).toHaveBeenCalledWith(wallet.id, messages, { filingProjectId: projectId, actorUserId: "member-1" });
     });
@@ -1080,21 +1031,6 @@ describe(ManagedSignerService.name, () => {
       expect(chainErrorService.toAppError).toHaveBeenCalledWith(chainError, messages);
     });
 
-    it("keeps a signer refusal of messages it built itself as the signer's own error", async () => {
-      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
-      const signerRefusal = new Error(
-        "Message /akash.market.v1beta5.MsgCreateLease may not be signed by this wallet: acts on behalf of akash1other, not akash1self"
-      );
-
-      const { service } = setup({
-        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
-        signAndBroadcastWithDerivedWallet: vi.fn().mockRejectedValue(signerRefusal),
-        exposeSignerRefusal: vi.fn().mockReturnValue(createError(403, signerRefusal.message))
-      });
-
-      await expect(service.executeDerivedDecodedTxByUserId("user-123", [leaseMessageFor(123)])).rejects.toBe(signerRefusal);
-    });
-
     it("uses current user when userId matches auth currentUser", async () => {
       const currentUser = createUser({ userId: "user-123" });
       const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
@@ -1269,6 +1205,196 @@ describe(ManagedSignerService.name, () => {
       await service.executeDerivedDecodedTxByUserId("user-123", messages);
 
       expect(anonymousValidateService.validateDeploymentResources).toHaveBeenCalledWith(messages, wallet);
+    });
+
+    it("executes transaction and calls scheduleImmediate when transaction contains MsgCreateDeployment", async () => {
+      const wallet = createUserWallet({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100
+      });
+      const user = createUser({ userId: "user-123" });
+      const deploymentMessage = {
+        typeUrl: `/${MsgCreateDeployment.$type}`,
+        value: { id: { dseq: "123", owner: wallet.address } }
+      };
+
+      const { service, walletReloadJobService } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
+
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" });
+    });
+
+    it("executes transaction and calls scheduleImmediate when transaction contains MsgAccountDeposit", async () => {
+      const wallet = createUserWallet({
+        userId: "user-123",
+        feeAllowance: 100
+      });
+      const user = createUser({ userId: "user-123" });
+      const depositMessage = {
+        typeUrl: `/${MsgAccountDeposit.$type}`,
+        value: { signer: wallet.address, id: { scope: Scope.deployment, xid: `${wallet.address}/1` } }
+      };
+
+      const { service, walletReloadJobService } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [depositMessage]);
+
+      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" });
+    });
+
+    it("executes transaction and does not call scheduleImmediate when transaction does not contain spending messages", async () => {
+      const wallet = createUserWallet({
+        userId: "user-123",
+        feeAllowance: 100,
+        deploymentAllowance: 100
+      });
+      const user = createUser({ userId: "user-123" });
+      const leaseMessage = {
+        typeUrl: MsgCreateLease.$type,
+        value: { bidId: { dseq: "123", owner: wallet.address } }
+      };
+
+      const { service, walletReloadJobService } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
+          code: 0,
+          hash: "tx-hash",
+          rawLog: "success"
+        }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [leaseMessage]);
+
+      expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
+    });
+
+    it("schedules a credits-low check when a successful transaction closes a deployment", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
+      const user = createUser({ userId: "user-123" });
+      const closeMessage = {
+        typeUrl: MsgCloseDeployment.$type,
+        value: { id: { dseq: "123", owner: wallet.address } }
+      };
+
+      const { service, walletReloadJobService } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [closeMessage]);
+
+      expect(walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff).toHaveBeenCalledWith({ walletId: wallet.id });
+      expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
+    });
+
+    it("does not schedule a credits-low check for a transaction without a close message", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100 });
+      const user = createUser({ userId: "user-123" });
+      const deploymentMessage = {
+        typeUrl: `/${MsgCreateDeployment.$type}`,
+        value: { id: { dseq: "123", owner: wallet.address } }
+      };
+
+      const { service, walletReloadJobService } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
+      });
+
+      await service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage]);
+
+      expect(walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff).not.toHaveBeenCalled();
+    });
+
+    it("returns the close result even when the credits-low schedule fails", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
+      const user = createUser({ userId: "user-123" });
+      const closeMessage = {
+        typeUrl: MsgCloseDeployment.$type,
+        value: { id: { dseq: "123", owner: wallet.address } }
+      };
+
+      const { service, walletReloadJobService, logger } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined)
+      });
+      walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff.mockRejectedValue(new Error("connection reset"));
+
+      const result = await service.executeDerivedDecodedTxByUserId("user-123", [closeMessage]);
+
+      expect(result.code).toBe(0);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_ON_CLOSE_SCHEDULE_FAILED", walletId: wallet.id }));
+    });
+
+    it("returns a landed transaction even when refreshing the wallet limits fails", async () => {
+      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
+      const user = createUser({ userId: "user-123" });
+      const closeMessage = {
+        typeUrl: MsgCloseDeployment.$type,
+        value: { id: { dseq: "123", owner: wallet.address } }
+      };
+      const error = new Error("fee allowance read timed out");
+
+      const { service, logger } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user),
+        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
+        refreshUserWalletLimits: vi.fn().mockRejectedValue(error)
+      });
+
+      const result = await service.executeDerivedDecodedTxByUserId("user-123", [closeMessage]);
+
+      expect(result).toEqual({ code: 0, hash: "tx-hash", transactionHash: "tx-hash", rawLog: "success" });
+      expect(logger.error).toHaveBeenCalledWith({ event: "WALLET_LIMITS_REFRESH_FAILED", walletId: wallet.id, error });
+    });
+
+    it("delegates spend-time activation to the guard and surfaces its retriable 409", async () => {
+      const wallet = createUserWallet({ userId: "user-123", activatedAt: null });
+      const user = createUser({ userId: "user-123" });
+      const deploymentMessage = {
+        typeUrl: `/${MsgCreateDeployment.$type}`,
+        value: { id: { dseq: "123", owner: wallet.address } }
+      };
+
+      const { service, trialActivationJobService, txManagerService } = setup({
+        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
+        findById: vi.fn().mockResolvedValue(user)
+      });
+      trialActivationJobService.assertActivated.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
+
+      await expect(service.executeDerivedDecodedTxByUserId("user-123", [deploymentMessage])).rejects.toMatchObject({
+        status: 409,
+        errorCode: "wallet_provisioning"
+      });
+      expect(trialActivationJobService.assertActivated).toHaveBeenCalledWith({ userId: "user-123", activatedAt: null });
+      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
     });
   });
 
@@ -1518,275 +1644,6 @@ describe(ManagedSignerService.name, () => {
     });
   });
 
-  describe("executeDerivedEncodedTxByUserId", () => {
-    it("executes transaction and calls scheduleImmediate when transaction contains MsgCreateDeployment", async () => {
-      const wallet = createUserWallet({
-        userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100
-      });
-      const user = createUser({ userId: "user-123" });
-      const deploymentMessage = {
-        typeUrl: `/${MsgCreateDeployment.$type}`,
-        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
-      };
-
-      const { service, walletReloadJobService } = setup({
-        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
-        findById: vi.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
-          code: 0,
-          hash: "tx-hash",
-          rawLog: "success"
-        }),
-        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
-        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
-      });
-
-      await service.executeDerivedEncodedTxByUserId("user-123", [deploymentMessage]);
-
-      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" });
-    });
-
-    it("executes transaction and calls scheduleImmediate when transaction contains MsgAccountDeposit", async () => {
-      const wallet = createUserWallet({
-        userId: "user-123",
-        feeAllowance: 100
-      });
-      const user = createUser({ userId: "user-123" });
-      const depositMessage = {
-        typeUrl: `/${MsgAccountDeposit.$type}`,
-        value: Buffer.from(JSON.stringify({ owner: wallet.address, amount: "1000" })).toString("base64")
-      };
-
-      const { service, walletReloadJobService } = setup({
-        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
-        findById: vi.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
-          code: 0,
-          hash: "tx-hash",
-          rawLog: "success"
-        }),
-        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
-        decode: vi.fn().mockReturnValue({ signer: wallet.address, id: { scope: Scope.deployment, xid: `${wallet.address}/1` } })
-      });
-
-      await service.executeDerivedEncodedTxByUserId("user-123", [depositMessage]);
-
-      expect(walletReloadJobService.scheduleImmediate).toHaveBeenCalledWith({ userId: "user-123" });
-    });
-
-    it("executes transaction and does not call scheduleImmediate when transaction does not contain spending messages", async () => {
-      const wallet = createUserWallet({
-        userId: "user-123",
-        feeAllowance: 100,
-        deploymentAllowance: 100
-      });
-      const user = createUser({ userId: "user-123" });
-      const leaseMessage = {
-        typeUrl: MsgCreateLease.$type,
-        value: Buffer.from(JSON.stringify({ bidId: { dseq: "123" } })).toString("base64")
-      };
-
-      const { service, walletReloadJobService } = setup({
-        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
-        findById: vi.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({
-          code: 0,
-          hash: "tx-hash",
-          rawLog: "success"
-        }),
-        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
-        decode: vi.fn().mockReturnValue({ bidId: { dseq: "123", owner: wallet.address } })
-      });
-
-      await service.executeDerivedEncodedTxByUserId("user-123", [leaseMessage]);
-
-      expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
-    });
-
-    it("schedules a credits-low check when a successful transaction closes a deployment", async () => {
-      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
-      const user = createUser({ userId: "user-123" });
-      const closeMessage = {
-        typeUrl: MsgCloseDeployment.$type,
-        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
-      };
-
-      const { service, walletReloadJobService } = setup({
-        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
-        findById: vi.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
-        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
-        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
-      });
-
-      await service.executeDerivedEncodedTxByUserId("user-123", [closeMessage]);
-
-      expect(walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff).toHaveBeenCalledWith({ walletId: wallet.id });
-      expect(walletReloadJobService.scheduleImmediate).not.toHaveBeenCalled();
-    });
-
-    it("does not schedule a credits-low check for a transaction without a close message", async () => {
-      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100, deploymentAllowance: 100 });
-      const user = createUser({ userId: "user-123" });
-      const deploymentMessage = {
-        typeUrl: `/${MsgCreateDeployment.$type}`,
-        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
-      };
-
-      const { service, walletReloadJobService } = setup({
-        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
-        findById: vi.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
-        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
-        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
-      });
-
-      await service.executeDerivedEncodedTxByUserId("user-123", [deploymentMessage]);
-
-      expect(walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff).not.toHaveBeenCalled();
-    });
-
-    it("returns the close result even when the credits-low schedule fails", async () => {
-      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
-      const user = createUser({ userId: "user-123" });
-      const closeMessage = {
-        typeUrl: MsgCloseDeployment.$type,
-        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
-      };
-
-      const { service, walletReloadJobService, logger } = setup({
-        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
-        findById: vi.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
-        refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
-        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
-      });
-      walletReloadJobService.scheduleCreditsLowCheckIfAutoReloadOff.mockRejectedValue(new Error("connection reset"));
-
-      const result = await service.executeDerivedEncodedTxByUserId("user-123", [closeMessage]);
-
-      expect(result.code).toBe(0);
-      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ event: "CREDITS_LOW_CHECK_ON_CLOSE_SCHEDULE_FAILED", walletId: wallet.id }));
-    });
-
-    it("returns a landed transaction even when refreshing the wallet limits fails", async () => {
-      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
-      const user = createUser({ userId: "user-123" });
-      const closeMessage = {
-        typeUrl: MsgCloseDeployment.$type,
-        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
-      };
-      const error = new Error("fee allowance read timed out");
-
-      const { service, logger } = setup({
-        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
-        findById: vi.fn().mockResolvedValue(user),
-        signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
-        refreshUserWalletLimits: vi.fn().mockRejectedValue(error),
-        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
-      });
-
-      const result = await service.executeDerivedEncodedTxByUserId("user-123", [closeMessage]);
-
-      expect(result).toEqual({ code: 0, hash: "tx-hash", transactionHash: "tx-hash", rawLog: "success" });
-      expect(logger.error).toHaveBeenCalledWith({ event: "WALLET_LIMITS_REFRESH_FAILED", walletId: wallet.id, error });
-    });
-
-    it("delegates spend-time activation to the guard and surfaces its retriable 409", async () => {
-      const wallet = createUserWallet({ userId: "user-123", activatedAt: null });
-      const user = createUser({ userId: "user-123" });
-      const deploymentMessage = {
-        typeUrl: `/${MsgCreateDeployment.$type}`,
-        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
-      };
-
-      const { service, trialActivationJobService, txManagerService } = setup({
-        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
-        findById: vi.fn().mockResolvedValue(user),
-        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
-      });
-      trialActivationJobService.assertActivated.mockRejectedValue(createError(409, "provisioning", { errorCode: "wallet_provisioning" }));
-
-      await expect(service.executeDerivedEncodedTxByUserId("user-123", [deploymentMessage])).rejects.toMatchObject({
-        status: 409,
-        errorCode: "wallet_provisioning"
-      });
-      expect(trialActivationJobService.assertActivated).toHaveBeenCalledWith({ userId: "user-123", activatedAt: null });
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
-    });
-
-    it("exposes a signer refusal of the caller's messages to the caller", async () => {
-      const wallet = createUserWallet({ userId: "user-123", feeAllowance: 100 });
-      const signerRefusal = new Error(
-        "Message /akash.escrow.v1.MsgAccountDeposit may not be signed by this wallet: acts on behalf of akash1other, not akash1self"
-      );
-      const exposedRefusal = createError(403, signerRefusal.message);
-      const depositMessage = {
-        typeUrl: `/${MsgAccountDeposit.$type}`,
-        value: Buffer.from(JSON.stringify({ signer: wallet.address })).toString("base64")
-      };
-
-      const { service, chainErrorService } = setup({
-        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
-        signAndBroadcastWithDerivedWallet: vi.fn().mockRejectedValue(signerRefusal),
-        exposeSignerRefusal: vi.fn().mockReturnValue(exposedRefusal),
-        decode: vi.fn().mockReturnValue({ signer: wallet.address, id: { scope: Scope.deployment, xid: `${wallet.address}/1` } })
-      });
-
-      await expect(service.executeDerivedEncodedTxByUserId("user-123", [depositMessage])).rejects.toBe(exposedRefusal);
-      expect(chainErrorService.exposeSignerRefusal).toHaveBeenCalledWith(signerRefusal);
-    });
-
-    it("keeps a signer refusal of the fee refill it runs before broadcasting as the signer's own error", async () => {
-      const wallet = createUserWallet({ userId: "user-123" });
-      const refillRefusal = new Error("Message /cosmos.feegrant.v1beta1.MsgGrantAllowance may not be signed by this wallet: denom uact is not grantable");
-      const closeMessage = {
-        typeUrl: MsgCloseDeployment.$type,
-        value: Buffer.from(JSON.stringify({ id: { dseq: "123", owner: wallet.address } })).toString("base64")
-      };
-
-      const { service, managedUserWalletService } = setup({
-        findOneUsedBy: vi.fn().mockResolvedValue(wallet),
-        retrieveAndCalcFeeLimit: vi.fn().mockResolvedValue(0),
-        exposeSignerRefusal: vi.fn().mockReturnValue(createError(403, refillRefusal.message)),
-        decode: vi.fn().mockReturnValue({ id: { dseq: "123", owner: wallet.address } })
-      });
-      managedUserWalletService.refillWalletFees.mockRejectedValue(refillRefusal);
-
-      await expect(service.executeDerivedEncodedTxByUserId("user-123", [closeMessage])).rejects.toBe(refillRefusal);
-    });
-
-    it("throws 400 with message index and typeUrl when a message fails to decode", async () => {
-      const decodeError = new Error("illegal tag: field no 0 wire type 7");
-      const badMessage = {
-        typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment",
-        value: Buffer.from("not a real proto").toString("base64")
-      };
-
-      const { service, logger } = setup({
-        decode: vi.fn().mockImplementation(() => {
-          throw decodeError;
-        })
-      });
-
-      await expect(service.executeDerivedEncodedTxByUserId("user-123", [badMessage])).rejects.toMatchObject({
-        status: 400,
-        message: expect.stringContaining("/akash.deployment.v1beta4.MsgCreateDeployment")
-      });
-
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: "TX_MESSAGE_DECODE_FAILED",
-          index: 0,
-          typeUrl: "/akash.deployment.v1beta4.MsgCreateDeployment",
-          error: decodeError
-        })
-      );
-    });
-  });
-
   describe("executeDerivedTx", () => {
     it("records the deposits pending before signing and settles them with the landed transaction", async () => {
       const deposits = { recorded: [mock<DeploymentDepositOutput>({ id: faker.string.uuid() })], awaitingPrice: [] };
@@ -1924,132 +1781,6 @@ describe(ManagedSignerService.name, () => {
     expect(createLogger).toHaveBeenCalledWith({ context: ManagedSignerService.name });
   });
 
-  describe("when the caller supplies the messages", () => {
-    it("refuses a message that acts for another account, before anything is signed", async () => {
-      const { service, txManagerService } = setupForTeam({ decode: vi.fn().mockReturnValue({ id: { owner: createAkashAddress(), dseq: 123 } }) });
-
-      await expect(service.executeDerivedEncodedTxByUserId("member-1", [encodedMessage(MsgCloseDeployment.$type)])).rejects.toMatchObject({
-        status: 403,
-        errorCode: "message_signer_mismatch"
-      });
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
-    });
-
-    it("refuses a message that names no account it acts for", async () => {
-      const { service, txManagerService } = setupForTeam({ decode: vi.fn().mockReturnValue({ id: { dseq: 123 } }) });
-
-      await expect(service.executeDerivedEncodedTxByUserId("member-1", [encodedMessage(MsgCloseDeployment.$type)])).rejects.toMatchObject({
-        status: 403
-      });
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
-    });
-
-    it("signs a deposit whose signer is the wallet", async () => {
-      const wallet = createOrganizationWallet({ feeAllowance: 100, deploymentAllowance: 100, activatedAt: new Date() });
-      const { service, txManagerService } = setupForTeam({
-        wallet,
-        decode: vi.fn().mockReturnValue({ signer: wallet.address, id: { scope: Scope.deployment, xid: `${wallet.address}/123` } })
-      });
-
-      await service.executeDerivedEncodedTxByUserId("member-1", [encodedMessage(MsgAccountDeposit.$type)]);
-
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalledWith(wallet.id, expect.anything(), expect.anything());
-    });
-
-    it("refuses a whole transaction when one of its messages acts for another account", async () => {
-      const wallet = createOrganizationWallet({ feeAllowance: 100, deploymentAllowance: 100, activatedAt: new Date() });
-      const decode = vi
-        .fn()
-        .mockReturnValueOnce({ id: { owner: wallet.address, dseq: 1 } })
-        .mockReturnValueOnce({ id: { owner: createAkashAddress(), dseq: 2 } });
-      const { service, txManagerService } = setupForTeam({ wallet, decode });
-
-      await expect(
-        service.executeDerivedEncodedTxByUserId("member-1", [encodedMessage(MsgCloseDeployment.$type), encodedMessage(MsgCloseDeployment.$type)])
-      ).rejects.toMatchObject({ status: 403, errorCode: "message_signer_mismatch" });
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
-    });
-
-    it("logs only the refused messages, each with the accounts it acts for", async () => {
-      const wallet = createOrganizationWallet({ feeAllowance: 100, deploymentAllowance: 100, activatedAt: new Date() });
-      const decode = vi
-        .fn()
-        .mockReturnValueOnce({ id: { owner: wallet.address, dseq: 1 } })
-        .mockReturnValueOnce({ signer: "", id: { scope: Scope.deployment, xid: `${wallet.address}/2` } });
-      const { service, logger } = setupForTeam({ wallet, decode });
-
-      await expect(
-        service.executeDerivedEncodedTxByUserId("member-1", [encodedMessage(MsgCloseDeployment.$type), encodedMessage(MsgAccountDeposit.$type)])
-      ).rejects.toMatchObject({ status: 403 });
-      expect(logger.warn).toHaveBeenCalledWith({
-        event: "MESSAGE_SIGNER_MISMATCH_REFUSED",
-        walletAddress: wallet.address,
-        messages: [{ typeUrl: `/${MsgAccountDeposit.$type}`, accounts: ["", wallet.address] }]
-      });
-    });
-
-    it("logs no signer refusal for messages the wallet signs", async () => {
-      const wallet = createOrganizationWallet({ feeAllowance: 100, deploymentAllowance: 100, activatedAt: new Date() });
-      const { service, logger } = setupForTeam({ wallet, decode: vi.fn().mockReturnValue({ id: { owner: wallet.address, dseq: 1 } }) });
-
-      await service.executeDerivedEncodedTxByUserId("member-1", [encodedMessage(MsgCloseDeployment.$type)]);
-
-      expect(logger.warn).not.toHaveBeenCalledWith(expect.objectContaining({ event: "MESSAGE_SIGNER_MISMATCH_REFUSED" }));
-    });
-
-    it("refuses a message type it does not know, whatever account it names", async () => {
-      const wallet = createOrganizationWallet({ activatedAt: new Date() });
-      const { service, txManagerService } = setupForTeam({ wallet, decode: vi.fn().mockReturnValue({ owner: wallet.address, fromAddress: wallet.address }) });
-
-      await expect(service.executeDerivedEncodedTxByUserId("member-1", [encodedMessage("cosmos.bank.v1beta1.MsgSend")])).rejects.toMatchObject({
-        status: 403
-      });
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
-    });
-
-    it("reads only the fields of the decoded message, so a field spelled another way names no account", async () => {
-      const wallet = createOrganizationWallet({ activatedAt: new Date() });
-      const { service, txManagerService } = setupForTeam({ wallet, decode: vi.fn().mockReturnValue({ bid_id: { owner: wallet.address, dseq: 1 } }) });
-
-      await expect(service.executeDerivedEncodedTxByUserId("member-1", [encodedMessage(MsgCreateLease.$type)])).rejects.toMatchObject({ status: 403 });
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
-    });
-
-    it("refuses a deposit into a deployment another account owns", async () => {
-      const wallet = createOrganizationWallet({ activatedAt: new Date() });
-      const { service, txManagerService } = setupForTeam({
-        wallet,
-        decode: vi.fn().mockReturnValue({ signer: wallet.address, id: { scope: Scope.deployment, xid: `${createAkashAddress()}/1` } })
-      });
-
-      await expect(service.executeDerivedEncodedTxByUserId("member-1", [encodedMessage(MsgAccountDeposit.$type)])).rejects.toMatchObject({ status: 403 });
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
-    });
-
-    it("refuses a deposit into anything but a deployment", async () => {
-      const wallet = createOrganizationWallet({ activatedAt: new Date() });
-      const { service } = setupForTeam({
-        wallet,
-        decode: vi.fn().mockReturnValue({ signer: wallet.address, id: { scope: Scope.bid, xid: `${wallet.address}/1` } })
-      });
-
-      await expect(service.executeDerivedEncodedTxByUserId("member-1", [encodedMessage(MsgAccountDeposit.$type)])).rejects.toMatchObject({ status: 403 });
-    });
-
-    it("reads a type url the same with or without its leading slash", async () => {
-      const wallet = createOrganizationWallet({ activatedAt: new Date() });
-      const { service, txManagerService } = setupForTeam({ wallet, decode: vi.fn().mockReturnValue({ owner: wallet.address }) });
-
-      await service.executeDerivedEncodedTxByUserId("member-1", [{ ...encodedMessage(MsgCreateCertificate.$type), typeUrl: MsgCreateCertificate.$type }]);
-
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalled();
-    });
-
-    function encodedMessage(type: string) {
-      return { typeUrl: `/${type}`, value: Buffer.from("message").toString("base64") };
-    }
-  });
-
   describe("when the caller is limited to some projects", () => {
     const projectScoped = createOrganizationContext({ role: "member", projectScope: createProjectsScope(["project-a"]) });
 
@@ -2135,32 +1866,6 @@ describe(ManagedSignerService.name, () => {
       await service.executeDerivedDecodedTxByUserId("member-1", [closeMessageFor(123)]);
 
       expect(deploymentSettingRepository.accessibleBy).not.toHaveBeenCalled();
-    });
-
-    it("refuses a certificate, which reaches the deployments of every project, before anything is signed", async () => {
-      const { service, txManagerService } = setupForTeam({ organizationContext: projectScoped });
-
-      await expect(service.executeDerivedDecodedTxByUserId("member-1", [createDeploymentMessageFor(123), certificateMessage()])).rejects.toMatchObject({
-        status: 403,
-        errorCode: "project_forbidden"
-      });
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).not.toHaveBeenCalled();
-    });
-
-    it("creates a certificate for a caller who reaches every project", async () => {
-      const { service, txManagerService } = setupForTeam({ organizationContext: createOrganizationContext({ projectScope: { kind: "all" } }) });
-
-      await service.executeDerivedDecodedTxByUserId("member-1", [certificateMessage()]);
-
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalled();
-    });
-
-    it("creates a certificate in legacy mode", async () => {
-      const { service, txManagerService } = setupForTeam({ organizationContext: { ...projectScoped, mode: "legacy" } });
-
-      await service.executeDerivedDecodedTxByUserId("member-1", [certificateMessage()]);
-
-      expect(txManagerService.signAndBroadcastWithDerivedWallet).toHaveBeenCalled();
     });
   });
 
@@ -2645,7 +2350,7 @@ describe(ManagedSignerService.name, () => {
     };
   }
 
-  function setupForFiling(input: { resolveFilingProject: DeploymentProjectService["resolveFilingProject"] }) {
+  function setupForFiling() {
     const wallet = createUserWallet({
       userId: "user-123",
       address: "akash1test",
@@ -2660,8 +2365,7 @@ describe(ManagedSignerService.name, () => {
       retrieveDeploymentLimit: vi.fn().mockResolvedValue(100),
       signAndBroadcastWithDerivedWallet: vi.fn().mockResolvedValue({ code: 0, hash: "tx-hash", rawLog: "success" }),
       refreshUserWalletLimits: vi.fn().mockResolvedValue(undefined),
-      publish: vi.fn().mockResolvedValue(undefined),
-      resolveFilingProject: input.resolveFilingProject
+      publish: vi.fn().mockResolvedValue(undefined)
     });
 
     return { ...mocks, wallet };
@@ -2697,7 +2401,6 @@ describe(ManagedSignerService.name, () => {
     toFiatAmount?: BalancesService["toFiatAmount"];
     publish?: DomainEventsService["publish"];
     transformChainError?: ChainErrorService["toAppError"];
-    exposeSignerRefusal?: ChainErrorService["exposeSignerRefusal"];
     hasLeases?: LeaseHttpService["hasLeases"];
     listLeases?: LeaseHttpService["list"];
     isEligibleForFeeRefill?: UserWalletRepository["isEligibleForFeeRefill"];
@@ -2708,8 +2411,6 @@ describe(ManagedSignerService.name, () => {
     filedIds?: string[];
     reachableIds?: string[];
     organizationContext?: OrganizationContext;
-    resolveFilingProject?: DeploymentProjectService["resolveFilingProject"];
-    decode?: Registry["decode"];
   }) {
     const mocks = {
       userWalletRepository: mock<UserWalletRepository>({
@@ -2731,8 +2432,7 @@ describe(ManagedSignerService.name, () => {
         ability: createMongoAbility<MongoAbility>()
       }),
       chainErrorService: mock<ChainErrorService>({
-        toAppError: input?.transformChainError ?? vi.fn(async e => e),
-        exposeSignerRefusal: input?.exposeSignerRefusal ?? vi.fn(e => e)
+        toAppError: input?.transformChainError ?? vi.fn(async e => e)
       }),
       anonymousValidateService: mock<TrialValidationService>({
         validateLeaseProvidersAuditors: input?.validateLeaseProvidersAuditors ?? vi.fn()
@@ -2782,9 +2482,6 @@ describe(ManagedSignerService.name, () => {
         hasContext: vi.fn().mockReturnValue(!!input?.organizationContext),
         get: vi.fn().mockReturnValue(input?.organizationContext)
       }),
-      deploymentProjectService: mock<DeploymentProjectService>({
-        resolveFilingProject: input?.resolveFilingProject ?? vi.fn()
-      }),
       depositLedger: mock<DeploymentDepositLedgerService>({
         recordPending: vi.fn().mockResolvedValue({ recorded: [], awaitingPrice: [] })
       }),
@@ -2798,14 +2495,9 @@ describe(ManagedSignerService.name, () => {
       })
     };
 
-    const registryMock = mock<Registry>({
-      decode: input?.decode ?? vi.fn()
-    });
-
     const createLogger = vi.fn<CreateLogger>(() => mocks.logger);
 
     const service = new ManagedSignerService(
-      registryMock,
       mocks.billingConfigService,
       mocks.userWalletRepository,
       mocks.userRepository,
@@ -2824,11 +2516,10 @@ describe(ManagedSignerService.name, () => {
       new DeploymentDepositRefusalCache(mocks.billingConfigService),
       mocks.executionContextService,
       mocks.deploymentOrganizationActivityService,
-      mocks.deploymentProjectService,
       mocks.depositLedger,
       createLogger
     );
 
-    return { service, registry: registryMock, createLogger, ...mocks };
+    return { service, createLogger, ...mocks };
   }
 });

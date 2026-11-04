@@ -1,16 +1,13 @@
-import type { EncodeObject } from "@cosmjs/proto-signing";
 import assert from "http-assert";
 import { Lifecycle, scoped } from "tsyringe";
 
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import type { FeeAllowancesResponse, GetBalancesResponseOutput, WalletBalancesResponse } from "@src/billing/http-schemas/balance.schema";
-import type { SignTxRequestInput, SignTxResponseOutput } from "@src/billing/http-schemas/tx.schema";
 import type { WalletListOutputResponse } from "@src/billing/http-schemas/wallet.schema";
 import { UserWalletRepository } from "@src/billing/repositories";
 import type { GetWalletQuery } from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
-import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { RefillService } from "@src/billing/services/refill/refill.service";
 import { TrialValidationService } from "@src/billing/services/trial-validation/trial-validation.service";
 import { WalletChainReaderService } from "@src/billing/services/wallet-chain-reader/wallet-chain-reader.service";
@@ -19,7 +16,6 @@ import { GetWalletOptions, WalletReaderService } from "@src/billing/services/wal
 @scoped(Lifecycle.ResolutionScoped)
 export class WalletController {
   constructor(
-    private readonly signerService: ManagedSignerService,
     private readonly refillService: RefillService,
     private readonly walletReaderService: WalletReaderService,
     private readonly balancesService: BalancesService,
@@ -63,13 +59,6 @@ export class WalletController {
   async listFeeAllowances(): Promise<FeeAllowancesResponse> {
     const wallet = await this.walletReaderService.getReadableWalletByUserId(this.authService.currentUser.id);
     return { data: await this.walletChainReaderService.getFeeAllowances(wallet.address) };
-  }
-
-  @Protected([{ action: "sign", subject: "UserWallet" }])
-  async signTx({ data: { userId, messages } }: SignTxRequestInput): Promise<SignTxResponseOutput> {
-    return {
-      data: (await this.signerService.executeDerivedEncodedTxByUserId(userId, messages as EncodeObject[])) as SignTxResponseOutput["data"]
-    };
   }
 
   async refillWallets() {

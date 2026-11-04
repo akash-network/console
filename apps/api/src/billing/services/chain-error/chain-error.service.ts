@@ -18,9 +18,6 @@ const FEE_GRANT_REFUSED_MESSAGE = "does not allow to pay fees";
 /** A signer that refused the connection or never resolved carries no response to read a status from, yet it is as much a dependency outage as a 5xx from one. */
 const UNREACHABLE_UPSTREAM_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "EHOSTUNREACH", "ENETUNREACH"]);
 
-/** tx-signer's 401 and 404 mean our own API key or base URL is wrong, so only these judge the caller's transaction. */
-const SIGNER_REFUSAL_STATUSES = new Set([400, 403]);
-
 /** Carries no host, address or upstream text, because the error handler echoes `message` to the caller for every `http-errors` instance regardless of `expose`. */
 const UPSTREAM_FAILURE_MESSAGE = "Service temporarily unavailable";
 
@@ -143,16 +140,6 @@ export class ChainErrorService {
     return createError(code, `${this.MESSAGE_ERROR_TITLES["/akash.market.v1beta5.MsgCreateLease"]}: ${message}`);
   }
 
-  /** Only for messages the caller supplied: a signer refusal of a message our own code built is our bug and must keep failing as a 500. */
-  public exposeSignerRefusal(error: unknown): unknown {
-    if (!(error instanceof Error)) {
-      return error;
-    }
-
-    const refusalStatus = this.getUpstreamRefusalStatusFromCause(error);
-    return refusalStatus ? createError(refusalStatus, error.message, { originalError: error }) : error;
-  }
-
   private isUnreachableUpstreamCause(error: Error): boolean {
     const { cause } = error;
     return axios.isAxiosError(cause) && !cause.response && UNREACHABLE_UPSTREAM_CODES.has(cause.code ?? "");
@@ -166,16 +153,6 @@ export class ChainErrorService {
 
     const status = cause.response.status;
     return status >= 500 ? status : undefined;
-  }
-
-  private getUpstreamRefusalStatusFromCause(error: Error): number | undefined {
-    const { cause } = error;
-    if (!axios.isAxiosError(cause) || !cause.response) {
-      return undefined;
-    }
-
-    const status = cause.response.status;
-    return SIGNER_REFUSAL_STATUSES.has(status) ? status : undefined;
   }
 
   public isDeploymentClosedError(error: Error): boolean {

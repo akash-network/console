@@ -1,13 +1,13 @@
-import { MsgAccountDeposit, MsgCreateCertificate, Scope } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgAccountDeposit, Scope } from "@akashnetwork/chain-sdk/private-types/akash.v1";
 import { MsgCloseDeployment, MsgCreateDeployment, MsgUpdateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgCreateLease } from "@akashnetwork/chain-sdk/private-types/akash.v1beta5";
 import { DeploymentHttpService, LeaseHttpService } from "@akashnetwork/http-sdk";
 import { Trace, withSpan } from "@akashnetwork/instrumentation";
-import { EncodeObject, Registry } from "@cosmjs/proto-signing";
+import { EncodeObject } from "@cosmjs/proto-signing";
 import { IndexedTx } from "@cosmjs/stargate";
 import { context, trace } from "@opentelemetry/api";
 import assert from "http-assert";
-import createError, { BadRequest, isHttpError } from "http-errors";
+import createError, { isHttpError } from "http-errors";
 import countBy from "lodash/countBy";
 import pick from "lodash/pick";
 import { inject, singleton } from "tsyringe";
@@ -23,7 +23,6 @@ import {
   isSpendingMessage,
   parseCoinAmount
 } from "@src/billing/lib/spending-messages/spending-messages";
-import { InjectTypeRegistry } from "@src/billing/providers/type-registry.provider";
 import { type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import type { SignAndBroadcastFundingOptions } from "@src/billing/services/external-signer-http-sdk/external-signer-http-sdk.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
@@ -38,7 +37,6 @@ import {
   type ConsoleClose,
   DeploymentOrganizationActivityService
 } from "@src/deployment/services/deployment-organization-activity/deployment-organization-activity.service";
-import { DeploymentProjectService } from "@src/deployment/services/deployment-project/deployment-project.service";
 import { RecordDeploymentSetting, recordDeploymentSettingKeyFor } from "@src/deployment/services/record-deployment-setting/record-deployment-setting.handler";
 import { isLeaseOn, type LeasePlacement } from "@src/deployment/utils/lease-placement/lease-placement";
 import { PROJECT_FORBIDDEN_ERROR_CODE } from "@src/organization/services/organization-context/organization-context.resolver";
@@ -51,13 +49,10 @@ import { DeploymentDepositLedgerService, type DepositRecordingOptions } from "..
 import { DeploymentDepositRefusalCache, isInsufficient } from "../deployment-deposit-refusal-cache/deployment-deposit-refusal-cache.service";
 import { TrialValidationService } from "../trial-validation/trial-validation.service";
 
-type StringifiedEncodeObject = Omit<EncodeObject, "value"> & { value: string };
-
 type ExecuteTxOptions = {
-  suppliedByCaller?: boolean;
   /** Who the transaction is signed for, recorded against what it creates when the wallet belongs to an organization rather than a user. */
   actingUserId?: string;
-  /** The project a create the console built was filed into when it was accepted; a create its caller signs is filed here instead. */
+  /** The project a create the console built was filed into when it was accepted. */
   filingProjectId?: string;
   consoleClose?: ConsoleClose;
 };
@@ -68,7 +63,6 @@ type LandedTxFiling = Pick<ExecuteTxOptions, "actingUserId" | "filingProjectId">
 const INSUFFICIENT_DEPOSIT_BALANCE_MESSAGE = "Not enough balance to cover the deployment deposit. Add credits or turn on auto recharge to continue.";
 const INSUFFICIENT_DEPOSIT_BALANCE_RELOADING_MESSAGE =
   "Not enough balance to cover the deployment deposit. A top up from your saved payment method is on the way, so try again in a moment.";
-const MESSAGE_SIGNER_MISMATCH_ERROR_CODE = "message_signer_mismatch";
 const UNFUNDED_WALLET_MESSAGE = "This wallet has not been funded yet. Add credits to continue.";
 const INSUFFICIENT_BALANCE_ERROR_CODE = "insufficient_balance";
 const BALANCE_TOP_UP_PENDING_ERROR_CODE = "balance_top_up_pending";
@@ -94,7 +88,6 @@ export class ManagedSignerService {
   private readonly logger: ReturnType<CreateLogger>;
 
   constructor(
-    @InjectTypeRegistry() private readonly registry: Registry,
     private readonly billingConfigService: BillingConfigService,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly userRepository: UserRepository,
@@ -113,7 +106,6 @@ export class ManagedSignerService {
     private readonly depositRefusalCache: DeploymentDepositRefusalCache,
     private readonly executionContextService: ExecutionContextService,
     private readonly deploymentOrganizationActivityService: DeploymentOrganizationActivityService,
-    private readonly deploymentProjectService: DeploymentProjectService,
     private readonly depositLedger: DeploymentDepositLedgerService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -147,11 +139,6 @@ export class ManagedSignerService {
     } catch (error: any) {
       throw await this.chainErrorService.toAppError(error, messages);
     }
-  }
-
-  async executeDerivedEncodedTxByUserId(userId: string, messages: StringifiedEncodeObject[]) {
-    const decoded = this.decodeMessages(messages);
-    return await this.executeDerivedDecodedTxByUserId(userId, decoded, { suppliedByCaller: true });
   }
 
   @Trace()
@@ -199,12 +186,7 @@ export class ManagedSignerService {
     transactionHash: string;
     rawLog: string;
   }> {
-    if (options?.suppliedByCaller) {
-      this.#assertSignedByWallet(userWallet, messages);
-    }
-
     await this.#assertBroadcastable(userWallet, messages);
-    const filingProjectId = options?.suppliedByCaller ? await this.#filingProjectOf(messages) : options?.filingProjectId;
 
     const actingUserId = userWallet.userId ?? options?.actingUserId;
     const leasedDseqs = leasedDseqsOf(messages);
@@ -213,7 +195,7 @@ export class ManagedSignerService {
     let tx: Awaited<ReturnType<ManagedSignerService["executeDerivedTx"]>>;
 
     try {
-      tx = await this.executeDerivedTx(userWallet.id, messages, { filingProjectId, actorUserId: actingUserId });
+      tx = await this.executeDerivedTx(userWallet.id, messages, { filingProjectId: options?.filingProjectId, actorUserId: actingUserId });
 
       if (tx.code !== COSMOS_TX_CODE_OK) {
         this.logger.error({ event: "TX_LANDED_WITH_NON_ZERO_CODE", txHash: tx.hash, code: tx.code, rawLog: tx.rawLog });
@@ -221,13 +203,13 @@ export class ManagedSignerService {
       }
     } catch (error) {
       await this.#scheduleReloadOnPaymentRequired(error, userWallet);
-      throw options?.suppliedByCaller ? this.chainErrorService.exposeSignerRefusal(error) : error;
+      throw error;
     }
 
     await this.#recordClosedDeployments(userWallet, messages, actingUserId, options?.consoleClose);
 
     await this.#followUpLeases(userWallet, { dseqs: leasedDseqs, isFirstLease, actingUserId });
-    await this.followUpLandedTx(userWallet, messages, { actingUserId, filingProjectId });
+    await this.followUpLandedTx(userWallet, messages, { actingUserId, filingProjectId: options?.filingProjectId });
     await this.#scheduleCreditsLowCheckOnClose(userWallet, messages);
 
     const result = pick(tx, ["code", "hash", "transactionHash", "rawLog"]) as Pick<IndexedTx, "code" | "hash" | "rawLog">;
@@ -331,13 +313,6 @@ export class ManagedSignerService {
     }
   }
 
-  /** A create the caller signs directly is refused before signing when it could not be filed into a project the caller reaches. */
-  async #filingProjectOf(messages: EncodeObject[]): Promise<string | undefined> {
-    if (!this.#getCreateDeploymentMessages(messages).length) return undefined;
-
-    return await this.deploymentProjectService.resolveFilingProject();
-  }
-
   /** No close path writes this record, and it runs before the other post-broadcast work so a rejected publish cannot drop an accepted close. */
   async #recordClosedDeployments(userWallet: UserWalletOutput, messages: EncodeObject[], actingUserId: string | undefined, consoleClose?: ConsoleClose) {
     const closer = consoleClose ? { actorUserId: null, reason: consoleClose.reason } : { actorUserId: actingUserId ?? null, reason: null };
@@ -407,7 +382,6 @@ export class ManagedSignerService {
   }
 
   async #assertBroadcastable(userWallet: UserWalletOutput, messages: EncodeObject[]): Promise<void> {
-    this.#assertCertificatesWithinProjectScope(messages);
     await this.assertDeploymentsInProjectScope(userWallet, existingDeploymentDseqsOf(messages));
     await this.#assertActivatedForSpending(userWallet, messages);
     await this.#validateBalances(userWallet, messages);
@@ -419,20 +393,6 @@ export class ManagedSignerService {
       this.anonymousValidateService.validateLeaseGpuModels(messages, userWallet),
       this.anonymousValidateService.validateFairUsePolicyAccepted(messages, userWallet)
     ]);
-  }
-
-  /** Every message of a caller's transaction names the accounts it acts for, which must all be the wallet the server chose to sign with. */
-  #assertSignedByWallet(userWallet: UserWalletOutput, messages: EncodeObject[]) {
-    const refused = messages.filter(message => !isSignedBy(userWallet, message));
-
-    if (refused.length) {
-      this.logger.warn({
-        event: "MESSAGE_SIGNER_MISMATCH_REFUSED",
-        walletAddress: userWallet.address,
-        messages: refused.map(message => ({ typeUrl: message.typeUrl, accounts: accountsActedForBy(message) }))
-      });
-      throw createError(403, "Every message must be signed by the wallet of the active organization", { errorCode: MESSAGE_SIGNER_MISMATCH_ERROR_CODE });
-    }
   }
 
   /** An organization's deployment keeps the row it was first filed under, so the caller's projects are checked before that row is read or written for them. */
@@ -462,15 +422,6 @@ export class ManagedSignerService {
 
   async isDeploymentInProjectScope(userWallet: UserWalletOutput, dseq: string, action: "read" | "update"): Promise<boolean> {
     return (await this.filterDeploymentsInProjectScope(userWallet, [dseq], action)).length > 0;
-  }
-
-  /** A certificate lets its holder reach every deployment of the wallet at its providers, beyond the projects a caller is limited to. */
-  #assertCertificatesWithinProjectScope(messages: EncodeObject[]): void {
-    if (this.#isLimitedToProjects() && messages.some(message => typeOf(message) === MsgCreateCertificate.$type)) {
-      throw createError(403, "A certificate reaches every project's deployments, so only a caller who reaches every project may create one", {
-        errorCode: PROJECT_FORBIDDEN_ERROR_CODE
-      });
-    }
   }
 
   /** Keeps every deployment for a caller who reaches every project; otherwise only those every row of which is reachable for the action, in two queries whatever the count. */
@@ -607,10 +558,8 @@ export class ManagedSignerService {
    * refuses the request here instead of several seconds later in chain simulation, where the shortfall surfaces
    * as an opaque 402.
    *
-   * Only amounts the chain reads as whole numbers count. `/v1/tx` takes a caller-supplied batch and the request schema does not
-   * constrain the deposit's sign, so summing raw values would let a negative deposit offset a positive one and
-   * understate what the chain is about to charge against the grant. The chain rejects the negative message and
-   * fails the whole tx anyway; this keeps the sum a true lower bound instead of a bypass of the check.
+   * Only amounts the chain reads as whole numbers count, so a negative deposit cannot offset a positive one and
+   * understate what the chain is about to charge against the grant.
    */
   #sumDepositsDrawnFromGrant(createDeploymentMessages: { value: MsgCreateDeployment }[]): number {
     const denom = this.billingConfigService.get("DEPLOYMENT_GRANT_DENOM");
@@ -695,30 +644,6 @@ export class ManagedSignerService {
 
     return deployments.every(deployment => "deployment" in deployment && deployment.deployment.state === "active");
   }
-
-  private decodeMessages(messages: StringifiedEncodeObject[]): EncodeObject[] {
-    return messages.map((message, index) => {
-      const value = new Uint8Array(Buffer.from(message.value, "base64"));
-
-      try {
-        return {
-          typeUrl: message.typeUrl,
-          value: this.registry.decode({ value, typeUrl: message.typeUrl })
-        };
-      } catch (error) {
-        this.logger.error({
-          event: "TX_MESSAGE_DECODE_FAILED",
-          index,
-          typeUrl: message.typeUrl,
-          valueLength: value.length,
-          bytePrefix: Buffer.from(value.subarray(0, 8)).toString("hex"),
-          error
-        });
-
-        throw new BadRequest(`Failed to decode message at index ${index} (typeUrl: ${message.typeUrl})`);
-      }
-    });
-  }
 }
 
 /** Auto recharge is set up per user on a personal wallet; an organization's wallet is found by its id. */
@@ -726,33 +651,8 @@ function reloadTargetOf(userWallet: UserWalletOutput): WalletReloadImmediateInpu
   return userWallet.userId ? { userId: userWallet.userId } : { walletId: userWallet.id };
 }
 
-type MessageValue = Record<string, any> | undefined;
-
-/** The accounts each message type a caller may send acts for, read from the decoded message that is signed; any other type has none and is refused. */
-const ACCOUNTS_ACTED_FOR: Record<string, (value: MessageValue) => unknown[]> = {
-  [MsgCreateDeployment.$type]: value => [value?.id?.owner],
-  [MsgUpdateDeployment.$type]: value => [value?.id?.owner],
-  [MsgCloseDeployment.$type]: value => [value?.id?.owner],
-  [MsgCreateLease.$type]: value => [value?.bidId?.owner],
-  [MsgCreateCertificate.$type]: value => [value?.owner],
-  [MsgAccountDeposit.$type]: value => (value?.id?.scope === Scope.deployment ? [value?.signer, ownerOfDeploymentEscrow(value)] : [])
-};
-
 function typeOf({ typeUrl }: EncodeObject): string {
   return typeUrl.startsWith("/") ? typeUrl.slice(1) : typeUrl;
-}
-
-function accountsActedForBy(message: EncodeObject): unknown[] | undefined {
-  return ACCOUNTS_ACTED_FOR[typeOf(message)]?.(message.value);
-}
-
-function isSignedBy({ address }: UserWalletOutput, message: EncodeObject): boolean {
-  const accounts = accountsActedForBy(message);
-  return accounts !== undefined && accounts.length > 0 && accounts.every(account => account === address);
-}
-
-function ownerOfDeploymentEscrow(value: MessageValue): string | undefined {
-  return typeof value?.id?.xid === "string" ? value.id.xid.split("/")[0] : undefined;
 }
 
 /** A deployment leased to several providers or for several groups is still followed up once. */
