@@ -52,7 +52,12 @@ const HardwareRequestSpecSchema = z.object({
   }),
   region: z
     .object({ mode: z.enum(["any", "only", "except"]), areas: z.array(z.enum(REGION_AREAS)).max(REGION_AREAS.length) })
-    .refine(region => region.mode === "any" || region.areas.length > 0, { message: "Pick at least one area", path: ["areas"] }),
+    .refine(region => region.mode === "any" || region.areas.length > 0, { message: "Pick at least one area", path: ["areas"] })
+    .refine(region => new Set(region.areas).size === region.areas.length, { message: "Pick each area once", path: ["areas"] })
+    .refine(region => region.mode !== "except" || region.areas.length < REGION_AREAS.length, {
+      message: "Excluding every area leaves no region",
+      path: ["areas"]
+    }),
   uplinkGbps: z.union([z.literal(1), z.literal(10), z.literal(25)]).nullable(),
   storage: z.object({ tbPerNode: z.number().nonnegative().max(MAX_STORAGE_TB_PER_NODE), nvme: z.boolean() }),
   sla: z.enum(UPTIME_SLAS).nullable(),

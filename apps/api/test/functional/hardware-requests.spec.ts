@@ -169,18 +169,35 @@ describe("Hardware requests", () => {
       });
     });
 
-    it("refuses a quote request whose spec names an area-restricted region without any area", async () => {
+    it.each([
+      { case: "an area-restricted region without any area", region: { mode: "only", areas: [] } },
+      { case: "the same area twice", region: { mode: "only", areas: ["uk", "uk"] } },
+      { case: "every area excluded", region: { mode: "except", areas: ["us", "ca", "eu", "uk", "apac", "me", "latam"] } }
+    ] as const)("refuses a quote request whose spec names $case", async ({ region }) => {
       const { team, headersOf } = await setupOrganization();
 
       const response = await app.request("/v1/hardware-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...headersOf(team.owner) },
         body: JSON.stringify({
-          data: { category: "quote", spec: createHardwareRequestSpec({ region: { mode: "only", areas: [] } }), email: "jane@example.com" }
+          data: { category: "quote", spec: createHardwareRequestSpec({ region: { mode: region.mode, areas: [...region.areas] } }), email: "jane@example.com" }
         })
       });
 
       expect(response.status).toBe(400);
+    });
+
+    it("stores the longest region an accepted quote request can describe", async () => {
+      const { team, headersOf } = await setupOrganization();
+      const spec = createHardwareRequestSpec({ region: { mode: "except", areas: ["us", "ca", "eu", "uk", "apac", "latam"] } });
+
+      const response = await app.request("/v1/hardware-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headersOf(team.owner) },
+        body: JSON.stringify({ data: { category: "quote", spec, email: "jane@example.com" } })
+      });
+
+      expect(response.status).toBe(201);
     });
 
     it("lists the organization's requests newest first to every member, without another organization's", async () => {
