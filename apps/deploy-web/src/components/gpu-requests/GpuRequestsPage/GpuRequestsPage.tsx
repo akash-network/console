@@ -7,15 +7,38 @@ import { NextSeo } from "next-seo";
 
 import Layout from "@src/components/layout/Layout";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
+import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
+import { useUser } from "@src/hooks/useUser";
 import { useHardwareRequestsQuery } from "@src/queries/useHardwareRequestsQuery";
 import { GpuQuoteRequestFlow } from "../GpuQuoteRequestFlow/GpuQuoteRequestFlow";
+import { canWithdraw } from "../gpuRequestAccess/gpuRequestAccess";
+import type { HardwareRequest } from "../gpuRequestStatus/gpuRequestStatus";
 import { GpuRequestCard } from "./GpuRequestCard";
+import { WithdrawGpuRequestDialog } from "./WithdrawGpuRequestDialog";
 
-export const DEPENDENCIES = { Layout, SettingsLayout, GpuQuoteRequestFlow, GpuRequestCard, useHardwareRequestsQuery };
+export const DEPENDENCIES = {
+  Layout,
+  SettingsLayout,
+  GpuQuoteRequestFlow,
+  GpuRequestCard,
+  WithdrawGpuRequestDialog,
+  useHardwareRequestsQuery,
+  useUser,
+  useActiveOrganization
+};
 
-export const GpuRequestsPage: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ dependencies: d = DEPENDENCIES }) => {
+type Props = {
+  requestId?: string;
+  dependencies?: typeof DEPENDENCIES;
+};
+
+export const GpuRequestsPage: FC<Props> = ({ requestId, dependencies: d = DEPENDENCIES }) => {
   const { data: requests, isLoading, isError } = d.useHardwareRequestsQuery();
+  const { user } = d.useUser();
+  const { activeOrganization } = d.useActiveOrganization();
+  const viewer = { userId: user?.id, role: activeOrganization?.role };
   const [isRequesting, setIsRequesting] = useState(false);
+  const [withdrawing, setWithdrawing] = useState<HardwareRequest | null>(null);
   const newestFirst = [...(requests ?? [])].sort((first, second) => second.createdAt.localeCompare(first.createdAt));
 
   return (
@@ -55,13 +78,18 @@ export const GpuRequestsPage: FC<{ dependencies?: typeof DEPENDENCIES }> = ({ de
           <ul className="flex flex-col gap-4">
             {newestFirst.map(request => (
               <li key={request.id}>
-                <d.GpuRequestCard request={request} />
+                <d.GpuRequestCard
+                  request={request}
+                  isFocused={request.id === requestId}
+                  onWithdraw={canWithdraw(request, viewer) ? () => setWithdrawing(request) : undefined}
+                />
               </li>
             ))}
           </ul>
         )}
       </d.SettingsLayout>
       {isRequesting && <d.GpuQuoteRequestFlow source="requests_page" onClose={() => setIsRequesting(false)} />}
+      {withdrawing && <d.WithdrawGpuRequestDialog request={withdrawing} onClose={() => setWithdrawing(null)} />}
     </d.Layout>
   );
 };

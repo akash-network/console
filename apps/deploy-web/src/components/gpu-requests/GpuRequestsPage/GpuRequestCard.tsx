@@ -1,6 +1,6 @@
 import type { FC, ReactNode } from "react";
-import { useId } from "react";
-import { Badge } from "@akashnetwork/ui/components";
+import { useEffect, useId, useRef } from "react";
+import { Badge, Button } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { CheckIcon } from "lucide-react";
 
@@ -9,14 +9,33 @@ import { describeEndState, describeRequestSummary, describeRequestTitle, describ
 
 const STAGE_STATE_LABELS: Record<TrackerStage["state"], string> = { done: "done", current: "current step", upcoming: "not started" };
 
-export const GpuRequestCard: FC<{ request: HardwareRequest }> = ({ request }) => {
+type Props = {
+  request: HardwareRequest;
+  isFocused?: boolean;
+  onWithdraw?: () => void;
+};
+
+export const GpuRequestCard: FC<Props> = ({ request, isFocused = false, onWithdraw }) => {
   const titleId = useId();
+  const cardRef = useRef<HTMLElement>(null);
   const tracker = describeTracker(request.status);
   const endState = describeEndState(request.status);
   const summary = describeRequestSummary(request);
 
+  useEffect(
+    function scrollToTheLinkedRequest() {
+      if (isFocused) cardRef.current?.scrollIntoView({ block: "start" });
+    },
+    [isFocused]
+  );
+
   return (
-    <article aria-labelledby={titleId} className="rounded-xl border bg-card">
+    <article
+      ref={cardRef}
+      aria-labelledby={titleId}
+      aria-current={isFocused ? "true" : undefined}
+      className={cn("rounded-xl border bg-card", isFocused && "ring-2 ring-primary")}
+    >
       <div className="flex flex-col gap-2 p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-0.5">
@@ -35,6 +54,13 @@ export const GpuRequestCard: FC<{ request: HardwareRequest }> = ({ request }) =>
       <div className="flex flex-col gap-3 border-t p-4">
         {tracker && <ProgressTracker stages={tracker} />}
         <p className="text-sm">{describeStatusMessage(request)}</p>
+        {onWithdraw && (
+          <div className="flex justify-end">
+            <Button type="button" variant="ghost" size="sm" onClick={onWithdraw}>
+              Withdraw request
+            </Button>
+          </div>
+        )}
       </div>
     </article>
   );

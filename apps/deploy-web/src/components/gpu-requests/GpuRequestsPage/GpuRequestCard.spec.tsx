@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { HardwareRequest } from "../gpuRequestStatus/gpuRequestStatus";
 import { GpuRequestCard } from "./GpuRequestCard";
 
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { buildHardwareRequest, buildHardwareRequestSpec } from "@tests/seeders/hardwareRequest";
 
 describe(GpuRequestCard.name, () => {
@@ -61,7 +62,39 @@ describe(GpuRequestCard.name, () => {
     expect(screen.getByRole("article", { name: "Hardware request" }).querySelectorAll("p")).toHaveLength(2);
   });
 
-  function setup(input: Partial<HardwareRequest>) {
-    return render(<GpuRequestCard request={buildHardwareRequest(input)} />);
+  it("offers to withdraw the request when the viewer may", async () => {
+    const onWithdraw = vi.fn();
+    setup({}, { onWithdraw });
+
+    await userEvent.click(screen.getByRole("button", { name: "Withdraw request" }));
+
+    expect(onWithdraw).toHaveBeenCalledOnce();
+  });
+
+  it("offers no withdrawal otherwise", () => {
+    setup({});
+
+    expect(screen.queryByRole("button", { name: "Withdraw request" })).not.toBeInTheDocument();
+  });
+
+  it("scrolls to and marks the request a link pointed at", () => {
+    const { scrollIntoView } = setup({}, { isFocused: true });
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+    expect(screen.getByRole("article")).toHaveAttribute("aria-current", "true");
+  });
+
+  it("leaves other requests where they are", () => {
+    const { scrollIntoView } = setup({});
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(screen.getByRole("article")).not.toHaveAttribute("aria-current");
+  });
+
+  function setup(input: Partial<HardwareRequest>, props: { isFocused?: boolean; onWithdraw?: () => void } = {}) {
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, "scrollIntoView").mockClear();
+    render(<GpuRequestCard request={buildHardwareRequest(input)} {...props} />);
+
+    return { scrollIntoView };
   }
 });
