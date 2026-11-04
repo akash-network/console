@@ -5,15 +5,23 @@ import {
   hardwareRequestCategoryEnum,
   hardwareRequestEventTypeEnum,
   hardwareRequestLaneEnum,
+  hardwareRequestOfferStatusEnum,
+  type HardwareRequestOfferTerms,
   hardwareRequestSourceEnum,
   hardwareRequestStatusEnum,
-  MAX_ACTOR_LENGTH
+  MAX_ACTOR_LENGTH,
+  MAX_GPU_MODEL_LENGTH,
+  MAX_OFFER_LOCATION_LENGTH,
+  REQUEST_TERMS,
+  UPTIME_SLAS
 } from "@src/hardware-request/model-schemas";
 import { HardwareRequestInputSchema } from "./hardware-request.schema";
 
 const MAX_QUEUE_PAGE_SIZE = 200;
 const MAX_NOTE_LENGTH = 4000;
 const DEFAULT_QUEUE_PAGE_SIZE = 50;
+const MAX_OFFER_GPUS = 1000;
+const MAX_OFFER_STORAGE_TB_PER_NODE = 1000;
 
 export const HardwareRequestIdParamsSchema = z.object({ id: z.string().uuid() });
 
@@ -53,6 +61,35 @@ const QueuedHardwareRequestSchema = z.object({
   updatedAt: z.string().datetime(),
   firstRepliedAt: z.string().datetime().nullable(),
   lastRepliedAt: z.string().datetime().nullable()
+});
+
+const HardwareRequestOfferTermsSchema = z.object({
+  gpu: z.object({
+    model: z.string().trim().min(1).max(MAX_GPU_MODEL_LENGTH),
+    count: z.number().int().min(1).max(MAX_OFFER_GPUS),
+    interconnect: z.enum(["none", "server", "cluster"])
+  }),
+  location: z.string().trim().min(1).max(MAX_OFFER_LOCATION_LENGTH),
+  availableFrom: z.string().date(),
+  term: z.enum(REQUEST_TERMS),
+  sla: z.enum(UPTIME_SLAS).nullable(),
+  storage: z.object({ tbPerNode: z.number().nonnegative().max(MAX_OFFER_STORAGE_TB_PER_NODE), nvme: z.boolean() }),
+  uplinkGbps: z.union([z.literal(1), z.literal(10), z.literal(25)]).nullable()
+}) satisfies z.ZodType<HardwareRequestOfferTerms>;
+
+const HardwareRequestOfferSchema = z.object({
+  id: z.string().uuid(),
+  hardwareRequestId: z.string().uuid(),
+  status: z.enum(hardwareRequestOfferStatusEnum.enumValues),
+  providerAddress: z.string(),
+  providerAudited: z.boolean(),
+  providerUptime7d: z.number().nullable(),
+  usdPerGpuHour: z.number(),
+  terms: HardwareRequestOfferTermsSchema,
+  expiresAt: z.string().datetime(),
+  publishedAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime()
 });
 
 const HardwareRequestEventSchema = z.object({
@@ -103,7 +140,7 @@ export const AddHardwareRequestNoteRequestSchema = z.object({
 export const HardwareRequestQueueResponseSchema = z.object({ data: z.array(QueuedHardwareRequestSchema) });
 
 export const HardwareRequestWithTimelineResponseSchema = z.object({
-  data: QueuedHardwareRequestSchema.extend({ events: z.array(HardwareRequestEventSchema) })
+  data: QueuedHardwareRequestSchema.extend({ events: z.array(HardwareRequestEventSchema), offers: z.array(HardwareRequestOfferSchema) })
 });
 
 export type HardwareRequestQueueQuery = z.infer<typeof HardwareRequestQueueQuerySchema>;

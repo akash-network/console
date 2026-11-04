@@ -13,6 +13,10 @@ import type {
   HardwareRequestEventOutput,
   HardwareRequestEventRepository
 } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
+import type {
+  HardwareRequestOfferOutput,
+  HardwareRequestOfferRepository
+} from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { HardwareRequestStatusNotificationJob } from "@src/hardware-request/services/hardware-request-status-notification/hardware-request-status-notification.handler";
 import { HardwareRequestBrokerService } from "./hardware-request-broker.service";
 
@@ -32,12 +36,13 @@ describe(HardwareRequestBrokerService.name, () => {
 
   describe("getWithTimeline", () => {
     it("returns the request with its events", async () => {
-      const { service, hardwareRequestRepository, hardwareRequestEventRepository, queued, events } = setup();
+      const { service, hardwareRequestRepository, hardwareRequestEventRepository, hardwareRequestOfferRepository, queued, events, offers } = setup();
 
-      await expect(service.getWithTimeline(queued.id)).resolves.toEqual({ ...queued, events });
+      await expect(service.getWithTimeline(queued.id)).resolves.toEqual({ ...queued, events, offers });
       expect(hardwareRequestRepository.unscoped).toHaveBeenCalledWith("gpu-request-broker");
       expect(hardwareRequestRepository.findQueuedById).toHaveBeenCalledWith(queued.id);
       expect(hardwareRequestEventRepository.findOldestFirst).toHaveBeenCalledWith(queued.id);
+      expect(hardwareRequestOfferRepository.findOldestFirst).toHaveBeenCalledWith(queued.id);
     });
 
     it("answers 404 for an unknown request", async () => {
@@ -50,9 +55,9 @@ describe(HardwareRequestBrokerService.name, () => {
 
   describe("assignOwner", () => {
     it("records the new owner and returns the request with its timeline", async () => {
-      const { service, hardwareRequestRepository, hardwareRequestEventRepository, txService, locked, queued, events } = setup({ owner: null });
+      const { service, hardwareRequestRepository, hardwareRequestEventRepository, txService, locked, queued, events, offers } = setup({ owner: null });
 
-      await expect(service.assignOwner(locked.id, { actor: "Remington", owner: "Remington" })).resolves.toEqual({ ...queued, events });
+      await expect(service.assignOwner(locked.id, { actor: "Remington", owner: "Remington" })).resolves.toEqual({ ...queued, events, offers });
       expect(txService.transaction).toHaveBeenCalledTimes(1);
       expect(hardwareRequestRepository.findOneByAndLock).toHaveBeenCalledWith({ id: locked.id });
       expect(hardwareRequestRepository.updateById).toHaveBeenCalledWith(locked.id, { owner: "Remington", updatedAt: expect.any(Date) });
@@ -166,9 +171,9 @@ describe(HardwareRequestBrokerService.name, () => {
 
   describe("addNote", () => {
     it("records the note without touching the request", async () => {
-      const { service, hardwareRequestRepository, hardwareRequestEventRepository, locked, queued, events } = setup();
+      const { service, hardwareRequestRepository, hardwareRequestEventRepository, locked, queued, events, offers } = setup();
 
-      await expect(service.addNote(locked.id, { actor: "Remington", text: "Called them" })).resolves.toEqual({ ...queued, events });
+      await expect(service.addNote(locked.id, { actor: "Remington", text: "Called them" })).resolves.toEqual({ ...queued, events, offers });
       expect(hardwareRequestRepository.updateById).not.toHaveBeenCalled();
       expect(hardwareRequestEventRepository.record).toHaveBeenCalledWith({
         hardwareRequestId: locked.id,
@@ -194,8 +199,28 @@ describe(HardwareRequestBrokerService.name, () => {
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());
     const jobQueueService = mock<JobQueueService>();
-    const service = new HardwareRequestBrokerService(hardwareRequestRepository, hardwareRequestEventRepository, txService, jobQueueService);
+    const offers = [mock<HardwareRequestOfferOutput>({ id: "offer-1" })];
+    const hardwareRequestOfferRepository = mock<HardwareRequestOfferRepository>();
+    hardwareRequestOfferRepository.findOldestFirst.mockResolvedValue(offers);
+    const service = new HardwareRequestBrokerService(
+      hardwareRequestRepository,
+      hardwareRequestEventRepository,
+      txService,
+      jobQueueService,
+      hardwareRequestOfferRepository
+    );
 
-    return { service, hardwareRequestRepository, hardwareRequestEventRepository, txService, jobQueueService, locked, queued, events };
+    return {
+      service,
+      hardwareRequestRepository,
+      hardwareRequestEventRepository,
+      hardwareRequestOfferRepository,
+      txService,
+      jobQueueService,
+      locked,
+      queued,
+      events,
+      offers
+    };
   }
 });
