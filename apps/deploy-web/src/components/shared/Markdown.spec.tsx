@@ -44,6 +44,8 @@ const ACTIVE_HTML_README = [
   "",
   '<video controls src="javascript:alert(1)" poster="javascript:alert(2)"></video>',
   "",
+  '<picture><source srcset="javascript:alert(1)"><img src="https://example.com/fallback.png" alt="Fallback"></picture>',
+  "",
   '<details open ontoggle="alert(1)"><summary>More</summary>Details body</details>',
   "",
   '<div style="position: fixed; inset: 0; z-index: 9999">Styled overlay</div>'
@@ -92,7 +94,7 @@ const PASSIVE_README = [
   "<hr>"
 ].join("\n");
 
-describe("Markdown", () => {
+describe(Markdown.name, () => {
   it.each(["script", "iframe", "style", "form", "button", "meta", "base", "object", "embed", "noscript", "template", "svg"])(
     "drops %s elements from README HTML",
     tagName => {
@@ -142,10 +144,52 @@ describe("Markdown", () => {
     expect(container.querySelector("[style]")).toBeNull();
   });
 
-  it("renders formatting, images, tables, details, task lists and media in README HTML as it did before sanitizing", () => {
+  it.each([
+    ["a javascript: candidate", "https://example.com/light.png 1x, javascript:alert(1) 2x"],
+    ["a data: candidate", "data:image/png;base64,iVBORw0KGgo= 1x"],
+    ["a candidate that is not a URL", "http://[ 1x"]
+  ])("drops a srcset with %s", (_, srcSet) => {
+    const { container } = setup({
+      markdown: `<picture><source srcset="${srcSet}"><img src="https://example.com/logo.png" alt="Logo"></picture>`,
+      hasHtml: true
+    });
+
+    expect(container.querySelector("source")?.hasAttribute("srcset")).toBe(false);
+  });
+
+  it("keeps a srcset whose candidates are all http(s) or relative", () => {
+    const srcSet = "https://example.com/dark.png 1x, /images/dark@2x.png 2x";
+    const { container } = setup({
+      markdown: `<picture><source srcset="${srcSet}"><img src="https://example.com/logo.png" alt="Logo"></picture>`,
+      hasHtml: true
+    });
+
+    expect(container.querySelector("source")?.getAttribute("srcset")).toBe(srcSet);
+  });
+
+  it("opens README HTML links without a handle back to the console, whatever rel the README wrote", () => {
+    const { container } = setup({ markdown: '<a href="https://example.com" rel="opener" target="_blank">Example</a>', hasHtml: true });
+
+    expect(container.querySelector("a")?.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(container.querySelector("a")?.getAttribute("target")).toBe("_blank");
+  });
+
+  it("drops rel from elements other than links", () => {
+    const { container } = setup({ markdown: '<p rel="opener">Paragraph</p>', hasHtml: true });
+
+    expect(container.querySelector("p")?.hasAttribute("rel")).toBe(false);
+  });
+
+  it("opens Markdown links without a handle back to the console", () => {
+    const { container } = setup({ markdown: "[Akash](https://akash.network)" });
+
+    expect(container.querySelector("a")?.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("renders formatting, images, tables, details, task lists and media in README HTML as it did before sanitizing, apart from the rel on links", () => {
     const { container } = setup({ markdown: PASSIVE_README, hasHtml: true });
 
-    expect(container.firstElementChild?.innerHTML).toBe(renderWithoutSanitizing(PASSIVE_README));
+    expect(container.firstElementChild?.innerHTML.replaceAll(' rel="noopener noreferrer"', "")).toBe(renderWithoutSanitizing(PASSIVE_README));
   });
 
   it("highlights fenced code in README HTML", () => {

@@ -11,6 +11,9 @@ import type { Options as SanitizeSchema } from "rehype-sanitize";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 
+import { rehypeDropUnsafeSrcSet } from "./rehypeDropUnsafeSrcSet/rehypeDropUnsafeSrcSet";
+import { rehypeOpenLinksWithoutOpener } from "./rehypeOpenLinksWithoutOpener/rehypeOpenLinksWithoutOpener";
+
 /** Unwrapping these instead would print their script, CSS, markup or fallback text into the page. */
 const ELEMENTS_DROPPED_WITH_THEIR_CONTENT = ["script", "style", "iframe", "noscript", "template"];
 
@@ -21,6 +24,7 @@ const PASSIVE_HTML_SCHEMA: SanitizeSchema = {
   tagNames: [...defaultSchema.tagNames!, "picture", "source", "video", "u"],
   attributes: {
     ...defaultSchema.attributes,
+    "*": defaultSchema.attributes!["*"]!.filter(attribute => attribute !== "rel"),
     code: [["className", /^language-./]],
     ul: [["className", "contains-task-list"]],
     source: ["srcSet"],
@@ -31,10 +35,16 @@ const PASSIVE_HTML_SCHEMA: SanitizeSchema = {
 
 const HIGHLIGHT_PLUGIN: PluggableList[number] = [rehypeHighlight, { ignoreMissing: true }];
 
-const MARKDOWN_PLUGINS: PluggableList = [HIGHLIGHT_PLUGIN];
+const MARKDOWN_PLUGINS: PluggableList = [HIGHLIGHT_PLUGIN, rehypeOpenLinksWithoutOpener];
 
 /** Highlighting runs after sanitizing because the schema does not allow the classes highlight.js adds. */
-const HTML_PLUGINS: PluggableList = [rehypeRaw as any, [rehypeSanitize, PASSIVE_HTML_SCHEMA], HIGHLIGHT_PLUGIN];
+const HTML_PLUGINS: PluggableList = [
+  rehypeRaw as any,
+  [rehypeSanitize, PASSIVE_HTML_SCHEMA],
+  rehypeDropUnsafeSrcSet,
+  HIGHLIGHT_PLUGIN,
+  rehypeOpenLinksWithoutOpener
+];
 
 type MarkdownProps = {
   children?: React.ReactNode | string;
