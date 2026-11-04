@@ -277,6 +277,24 @@ export function describeReviewLines(draft: GpuQuoteDraft): ReviewLine[] {
   return lines.filter((line): line is ReviewLine => line !== false);
 }
 
+/** The card line for a starting point, naming only what it answers. */
+export function describeStartingPoint({ answers }: StartingPoint): string {
+  const model = answers.gpuModel === undefined ? "any GPU" : describeGpuModel({ gpuModel: answers.gpuModel, otherGpuModel: answers.otherGpuModel ?? "" });
+  const interconnectNames: Record<Interconnect, string> = { none: "PCIe only", server: "Linked in each server", cluster: "Linked across servers" };
+
+  return [
+    answers.gpuCount !== undefined && `${answers.gpuCount}× ${model}`,
+    answers.interconnect && interconnectNames[answers.interconnect],
+    answers.storageTbPerNode !== undefined && `${answers.storageTbPerNode} TB${answers.nvme ? " NVMe" : ""}`,
+    answers.areas &&
+      REGION_AREAS.filter(area => answers.areas?.includes(area.value))
+        .map(area => area.label)
+        .join(", ")
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 export function describeNextStep(lane: RequestLane | undefined): string {
   return lane === "sales" ? "Our team will reply within 4 business hours." : "We'll get back to you within one business day.";
 }
