@@ -58,6 +58,17 @@ export class HardwareRequestRepository extends OrgScopedRepository<Table, Hardwa
     return rows.map(row => row.createdAt);
   }
 
+  /** Hands the requests the team filed for an address with no account to the account that owns it. */
+  async claimByContactEmail(email: string, owner: { userId: string; organizationId: string | null }): Promise<HardwareRequestOutput[]> {
+    const rows = await this.updateWhere(
+      this.whereAccessibleBy(and(isNull(this.table.userId), sql`lower(${this.table.contactEmail}) = ${email.trim().toLowerCase()}`)),
+      { ...owner, updatedAt: new Date() },
+      { returning: true }
+    );
+
+    return this.toOutputList(rows);
+  }
+
   async findNewestFirst(): Promise<HardwareRequestOutput[]> {
     const rows = await this.cursor
       .select()

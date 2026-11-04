@@ -12,6 +12,7 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.p
 import { getPostgresError, isUniqueViolation } from "@src/core/repositories/base.repository";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { TxService } from "@src/core/services/tx/tx.service";
+import { HardwareRequestClaimService } from "@src/hardware-request/services/hardware-request-claim/hardware-request-claim.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
@@ -36,7 +37,8 @@ export class UserService {
     private readonly blockedEmailDomainService: BlockedEmailDomainService,
     private readonly personalOrganizationService: PersonalOrganizationService,
     private readonly txService: TxService,
-    private readonly verifiedEmailService: VerifiedEmailService
+    private readonly verifiedEmailService: VerifiedEmailService,
+    private readonly hardwareRequestClaimService: HardwareRequestClaimService
   ) {
     this.logger = createLogger({ context: UserService.name });
   }
@@ -97,6 +99,9 @@ export class UserService {
     if (user.emailVerified) {
       await this.trialActivationJobService.schedule(user.id).catch(error => {
         this.logger.error({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", id: user.id, error });
+      });
+      await this.hardwareRequestClaimService.claimForVerifiedEmail(user).catch(error => {
+        this.logger.error({ event: "FAILED_TO_CLAIM_HARDWARE_REQUESTS", id: user.id, error });
       });
     }
 
