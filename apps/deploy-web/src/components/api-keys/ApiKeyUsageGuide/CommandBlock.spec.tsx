@@ -26,7 +26,7 @@ describe("CommandBlock", () => {
   });
 
   it("copies all lines", async () => {
-    const { user, enqueueSnackbar, writeText } = setup();
+    const { user, enqueueSnackbar, writeText, onCopied } = setup();
 
     await user.click(screen.getByRole("button", { name: "Copy install commands" }));
 
@@ -37,10 +37,11 @@ describe("CommandBlock", () => {
         autoHideDuration: 1500
       })
     );
+    expect(onCopied).toHaveBeenCalled();
   });
 
   it("tells the user when the lines can't be copied", async () => {
-    const { user, enqueueSnackbar, writeText } = setup();
+    const { user, enqueueSnackbar, writeText, onCopied } = setup();
     writeText.mockRejectedValue(new Error("denied"));
 
     await user.click(screen.getByRole("button", { name: "Copy install commands" }));
@@ -51,6 +52,7 @@ describe("CommandBlock", () => {
       })
     );
     expect(enqueueSnackbar).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variant: "success" }));
+    expect(onCopied).not.toHaveBeenCalled();
   });
 
   function setup() {
@@ -58,10 +60,11 @@ describe("CommandBlock", () => {
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
     writeText.mockClear();
     const enqueueSnackbar = vi.fn();
+    const onCopied = vi.fn();
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => Object.assign(mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>(), { enqueueSnackbar });
 
-    render(<CommandBlock label="install commands" lines={LINES} dependencies={{ useSnackbar }} />);
+    render(<CommandBlock label="install commands" lines={LINES} onCopied={onCopied} dependencies={{ useSnackbar }} />);
 
-    return { user, enqueueSnackbar, writeText };
+    return { user, enqueueSnackbar, writeText, onCopied };
   }
 });

@@ -31,7 +31,6 @@ import {
   SelectValue,
   Snackbar
 } from "@akashnetwork/ui/components";
-import { copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -49,6 +48,7 @@ import {
   getCustomApiKeyExpiryDayRange
 } from "@src/components/api-keys/apiKeyExpiry/apiKeyExpiry";
 import { ALL_PROJECTS_LABEL } from "@src/components/api-keys/ApiKeyList/ApiKeyList";
+import { ApiKeySecret, copyApiKeySecret } from "@src/components/api-keys/ApiKeySecret/ApiKeySecret";
 import { useServices } from "@src/context/ServicesProvider";
 import { useCreateApiKey } from "@src/queries/useApiKeysQuery";
 import { PROJECTS_QUERY_KEY } from "@src/queries/useProjectsQuery";
@@ -119,15 +119,7 @@ export const CreateApiKeyDialog: FC<Props> = ({ onClose, projects, teamName, dep
     });
   };
 
-  const copySecret = async (secret: string) => {
-    const isCopied = await copyTextToClipboard(secret);
-
-    if (isCopied) {
-      enqueueSnackbar(<Snackbar title="Key copied to clipboard" iconVariant="success" />, { variant: "success", autoHideDuration: 1500 });
-    } else {
-      enqueueSnackbar(<Snackbar title="Couldn't copy the key" subTitle="Select it and copy it yourself." iconVariant="error" />, { variant: "error" });
-    }
-  };
+  const copySecret = (secret: string) => copyApiKeySecret(secret, enqueueSnackbar);
 
   return (
     <DialogV2 open onOpenChange={isOpen => (!isOpen && isDismissible ? onClose() : undefined)}>
@@ -347,21 +339,7 @@ const ApiKeySecretStep: FC<ApiKeySecretStepProps> = ({ name, secret, onCopy, onD
     </DialogV2Header>
 
     <DialogV2Body className="flex flex-col gap-4">
-      <div className="flex items-center gap-2.5 rounded-lg border bg-muted px-3.5 py-3">
-        <code aria-label="API key secret" className="amp-mask min-w-0 flex-1 break-all font-mono text-[12.5px] leading-[18px] text-foreground">
-          {secret}
-        </code>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label="Copy to clipboard"
-          className="h-[30px] w-[30px] shrink-0 rounded-md"
-          onClick={() => onCopy(secret)}
-        >
-          <CopyIcon className="h-3.5 w-3.5" />
-        </Button>
-      </div>
+      <ApiKeySecret secret={secret} onCopy={onCopy} />
       <p className="flex items-start gap-2 text-[12.5px] leading-[18px] text-muted-foreground">
         <TriangleAlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
         <span>

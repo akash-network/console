@@ -110,6 +110,7 @@ export type AnalyticsEvent =
   | "get_started_step_click"
   | "get_started_dismissed"
   | "akashml_link_click"
+  | "onboarding_setup_copied"
   | "onboarding_deploy_click"
   | "onboarding_choose_provider_click"
   | "onboarding_match_failed"

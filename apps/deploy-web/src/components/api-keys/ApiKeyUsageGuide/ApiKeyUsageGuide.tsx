@@ -9,9 +9,15 @@ import { CommandBlock } from "./CommandBlock";
 export const AKT_INSTALL_GUIDE_URL = "https://akash.network/docs/developers/deployment/akt/installation/";
 export const AKT_DOCS_URL = "https://akash.network/docs/developers/deployment/akt/";
 
-export const API_KEY_USAGE_SCRIPT_LINES = [
+export const API_KEY_PLACEHOLDER = "<your-api-key>";
+
+export type ApiKeyUsageTab = "agent" | "akt" | "rest";
+
+const exportApiKeyLine = (apiKey: string) => `export AKASH_API_KEY="${apiKey}"`;
+
+export const getApiKeyUsageScriptLines = (apiKey: string) => [
   "# Authenticate every request with the x-api-key header",
-  'export AKASH_API_KEY="<your-api-key>"',
+  exportApiKeyLine(apiKey),
   "API=https://console-api.akash.network",
   "",
   "# 1. Create a deployment from deploy.yaml. Your account credits fund it.",
@@ -38,8 +44,16 @@ export const API_KEY_USAGE_SCRIPT_LINES = [
   '  -H "x-api-key: $AKASH_API_KEY"'
 ];
 
-export const ApiKeyUsageGuide: FC = () => (
-  <SettingsSection title="Using your keys">
+export const API_KEY_USAGE_SCRIPT_LINES = getApiKeyUsageScriptLines(API_KEY_PLACEHOLDER);
+
+type Props = {
+  title?: string;
+  apiKey?: string;
+  onCommandCopied?: (tab: ApiKeyUsageTab) => void;
+};
+
+export const ApiKeyUsageGuide: FC<Props> = ({ title = "Using your keys", apiKey, onCommandCopied }) => (
+  <SettingsSection title={title}>
     <Tabs defaultValue="agent">
       <TabsList>
         <TabsTrigger value="agent">Agent</TabsTrigger>
@@ -51,10 +65,10 @@ export const ApiKeyUsageGuide: FC = () => (
         <TabsContent value="agent" className="mt-0">
           <ol className="flex flex-col gap-6">
             <SetupStep index={1} title="Install the Akash skill" description="From your terminal. Works with Claude Code, Cursor, Codex, OpenCode and more.">
-              <CommandBlock label="skill install command" lines={[AKASH_SKILL_INSTALL_COMMAND]} />
+              <CommandBlock label="skill install command" lines={[AKASH_SKILL_INSTALL_COMMAND]} onCopied={() => onCommandCopied?.("agent")} />
             </SetupStep>
             <SetupStep index={2} title="Give your agent the key" description="Set it in the shell your agent runs in. The skill reads it from AKASH_API_KEY.">
-              <CommandBlock label="API key export" lines={['export AKASH_API_KEY="<your-api-key>"']} />
+              <CommandBlock label="API key export" lines={[exportApiKeyLine(apiKey ?? API_KEY_PLACEHOLDER)]} onCopied={() => onCommandCopied?.("agent")} />
             </SetupStep>
             <SetupStep
               index={3}
@@ -81,14 +95,18 @@ export const ApiKeyUsageGuide: FC = () => (
                 </>
               }
             >
-              <CommandBlock label="akt install command" lines={["brew install akash-network/tap/akt"]} />
+              <CommandBlock label="akt install command" lines={["brew install akash-network/tap/akt"]} onCopied={() => onCommandCopied?.("akt")} />
             </SetupStep>
             <SetupStep
               index={2}
               title="Connect it to your account"
               description="Creates a context that deploys through Console, then asks for your key and stores it."
             >
-              <CommandBlock label="akt login commands" lines={["akt context create console --deploy-via console --set-current", "akt console login"]} />
+              <CommandBlock
+                label="akt login commands"
+                lines={["akt context create console --deploy-via console --set-current", apiKey ? `akt console login ${apiKey}` : "akt console login"]}
+                onCopied={() => onCommandCopied?.("akt")}
+              />
             </SetupStep>
             <SetupStep
               index={3}
@@ -100,7 +118,11 @@ export const ApiKeyUsageGuide: FC = () => (
                 </>
               }
             >
-              <CommandBlock label="akt deploy commands" lines={["akt sdl init web > deploy.yaml", "akt deploy deploy.yaml"]} />
+              <CommandBlock
+                label="akt deploy commands"
+                lines={["akt sdl init web > deploy.yaml", "akt deploy deploy.yaml"]}
+                onCopied={() => onCommandCopied?.("akt")}
+              />
             </SetupStep>
           </ol>
         </TabsContent>
@@ -110,7 +132,7 @@ export const ApiKeyUsageGuide: FC = () => (
             Send the key in the x-api-key header. Save this script next to deploy.yaml and run it with bash. It follows the getting-started flow: create a
             deployment, wait for bids, start the lease and close it.
           </p>
-          <CommandBlock label="REST API script" lines={API_KEY_USAGE_SCRIPT_LINES} />
+          <CommandBlock label="REST API script" lines={getApiKeyUsageScriptLines(apiKey ?? API_KEY_PLACEHOLDER)} onCopied={() => onCommandCopied?.("rest")} />
         </TabsContent>
       </Card>
     </Tabs>

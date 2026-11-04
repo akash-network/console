@@ -15,10 +15,11 @@ export const DEPENDENCIES = {
 type Props = {
   label: string;
   lines: readonly string[];
+  onCopied?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const CommandBlock: FC<Props> = ({ label, lines, dependencies: d = DEPENDENCIES }) => {
+export const CommandBlock: FC<Props> = ({ label, lines, onCopied, dependencies: d = DEPENDENCIES }) => {
   const { enqueueSnackbar } = d.useSnackbar();
 
   const copyCommands = async () => {
@@ -26,6 +27,7 @@ export const CommandBlock: FC<Props> = ({ label, lines, dependencies: d = DEPEND
 
     if (isCopied) {
       enqueueSnackbar(<Snackbar title="Copied to clipboard" iconVariant="success" />, { variant: "success", autoHideDuration: 1500 });
+      onCopied?.();
     } else {
       enqueueSnackbar(<Snackbar title="Couldn't copy to your clipboard" subTitle="Select the text and copy it yourself." iconVariant="error" />, {
         variant: "error"
