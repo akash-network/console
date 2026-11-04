@@ -13,4 +13,5 @@ export type FeatureFlag =
   | "account_deletion"
   | "ui_command_menu"
   | "organizations"
-  | "invoices";
+  | "invoices"
+  | "onboarding_intent_first";

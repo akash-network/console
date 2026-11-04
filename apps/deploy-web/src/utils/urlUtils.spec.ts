@@ -34,6 +34,17 @@ describe(UrlService.project.name, () => {
   });
 });
 
+describe(UrlService.onboardingPicker.name, () => {
+  it("returns the onboarding page with no params by default", () => {
+    expect(UrlService.onboardingPicker()).toBe("/onboarding");
+  });
+
+  it("carries the picked intent and the coupon deep link as query params", () => {
+    expect(UrlService.onboardingPicker({ intent: "app" })).toBe("/onboarding?intent=app");
+    expect(UrlService.onboardingPicker({ redeemCoupon: true })).toBe("/onboarding?redeemCoupon=true");
+  });
+});
+
 describe(UrlService.newDeployment.name, () => {
   it("returns the picker by default", () => {
     expect(UrlService.newDeployment()).toBe("/new-deployment");

@@ -12,6 +12,7 @@ import { AddCreditsSheet } from "@src/components/auth/AddCreditsSheet/AddCredits
 import { BONUS_PERCENT, MAX_BONUS } from "@src/components/billing-usage/FirstPurchaseBonusAlert/FirstPurchaseBonusAlert";
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
 import { OnboardingHeader } from "@src/components/layout/OnboardingHeader/OnboardingHeader";
+import { IntentFirstPicker } from "@src/components/onboarding-picker/IntentFirstPicker/IntentFirstPicker";
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
@@ -54,6 +55,7 @@ export const DEPENDENCIES = {
   AddCreditsSheet,
   OnboardingHeader,
   SkipOnboardingButton,
+  IntentFirstPicker,
   Button
 };
 
@@ -72,6 +74,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const isOutOfCredit = d.useIsOutOfDeployCredit();
   const starterTemplateCta = isOutOfCredit ? ADD_CREDITS_TO_DEPLOY_CTA : DEPLOY_CTA;
   const isHackathonsEnabled = d.useFlag("hackathons");
+  const isIntentFirst = d.useFlag("onboarding_intent_first");
   const isLlmGated = isTrialing || !isWalletReady;
   const isLlmAvailable = !isLlmGated;
   const searchParams = d.useSearchParams();
@@ -83,7 +86,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   useEffect(() => {
     if (showHackathonEntry && searchParams?.get("redeemCoupon") === "true") {
       setAddCreditsPrompt(HACKATHON_COUPON_PROMPT);
-      router.replace(urlService.onboardingPicker(), { scroll: false });
+      router.replace(urlService.onboardingPicker({ intent: searchParams.get("intent") ?? undefined }), { scroll: false });
     }
   }, [showHackathonEntry, searchParams, router, urlService]);
 
@@ -116,6 +119,10 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
     }
   }
 
+  function openHackathonCoupon() {
+    setAddCreditsPrompt(HACKATHON_COUPON_PROMPT);
+  }
+
   function closeAddCreditsPrompt() {
     setAddCreditsPrompt(null);
   }
@@ -132,16 +139,44 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
     trackDeployClick("custom-image");
   }
 
+  const addCreditsSheet = (
+    <d.AddCreditsSheet
+      open={addCreditsPrompt !== null}
+      context={addCreditsPrompt?.context}
+      description={addCreditsPrompt?.context === "out-of-credit" ? OUT_OF_CREDIT_SHEET_DESCRIPTION : undefined}
+      onOpenChange={open => (!open ? closeAddCreditsPrompt() : undefined)}
+      onRedeemed={closeAddCreditsPrompt}
+      initialTab={addCreditsPrompt?.context === "hackathon-coupon" ? "coupon" : "purchase"}
+      nextStepLabel={templateIdToDeployAfterCredits ? "Continue to deploy" : undefined}
+      onDone={continueAfterAddingCredits}
+    />
+  );
+
+  if (isIntentFirst) {
+    return (
+      <>
+        <PageHead />
+        <div className="flex min-h-dvh flex-col bg-background">
+          <d.OnboardingHeader />
+          <d.IntentFirstPicker
+            isOutOfCredit={isOutOfCredit}
+            onDeployTemplate={deployTemplate}
+            onDeployImage={trackCustomImageDeploy}
+            onRedeemCoupon={showHackathonEntry ? openHackathonCoupon : undefined}
+          />
+          {addCreditsSheet}
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
-      <Head>
-        <title>Onboarding | Akash Console</title>
-        <meta name="description" content="Deploy your first app on Akash Network with our onboarding flow. Get a live URL in about 30 seconds." />
-      </Head>
+      <PageHead />
       <div className="flex min-h-dvh flex-col bg-background">
         <d.OnboardingHeader>
           {showHackathonEntry && (
-            <d.Button onClick={() => setAddCreditsPrompt(HACKATHON_COUPON_PROMPT)} variant="ghost" size="sm">
+            <d.Button onClick={openHackathonCoupon} variant="ghost" size="sm">
               Hackathon? click here
               <ArrowRight className="ml-2 h-4 w-4" />
             </d.Button>
@@ -234,16 +269,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
           </div>
         </div>
 
-        <d.AddCreditsSheet
-          open={addCreditsPrompt !== null}
-          context={addCreditsPrompt?.context}
-          description={addCreditsPrompt?.context === "out-of-credit" ? OUT_OF_CREDIT_SHEET_DESCRIPTION : undefined}
-          onOpenChange={open => (!open ? closeAddCreditsPrompt() : undefined)}
-          onRedeemed={closeAddCreditsPrompt}
-          initialTab={addCreditsPrompt?.context === "hackathon-coupon" ? "coupon" : "purchase"}
-          nextStepLabel={templateIdToDeployAfterCredits ? "Continue to deploy" : undefined}
-          onDone={continueAfterAddingCredits}
-        />
+        {addCreditsSheet}
       </div>
     </>
   );
@@ -259,5 +285,14 @@ function OutOfCreditIntro({ isTrialing }: { isTrialing: boolean }) {
       Your free trial is over. Add credits to deploy one of these templates. Your first purchase gets {BONUS_PERCENT}% in bonus credits, up to ${MAX_BONUS}, and
       unlocks full GPU access and 30 day deployments.
     </>
+  );
+}
+
+function PageHead() {
+  return (
+    <Head>
+      <title>Onboarding | Akash Console</title>
+      <meta name="description" content="Deploy your first app on Akash Network with our onboarding flow. Get a live URL in about 30 seconds." />
+    </Head>
   );
 }

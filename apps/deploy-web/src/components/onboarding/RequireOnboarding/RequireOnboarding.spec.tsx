@@ -174,7 +174,7 @@ describe(RequireOnboarding.name, () => {
       expect(replace).not.toHaveBeenCalled();
     });
 
-    it.each(["/invitations", "/members", "/projects/1234"])("lets a not-onboarded user reach %s", path => {
+    it.each(["/invitations", "/members", "/projects/1234", "/user/api-keys"])("lets a not-onboarded user reach %s", path => {
       const { replace } = setup({ address: "akash1", hasWallet: true, leases: 0, path, organizationType: "personal" });
       expect(screen.getByText("child")).toBeInTheDocument();
       expect(replace).not.toHaveBeenCalled();

@@ -14,10 +14,11 @@ export const DEPENDENCIES = { useSkipOnboarding, useDeploymentLeaveGuard, useSer
 
 type Props = {
   source: SkipOnboardingSource;
+  label?: string;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export function SkipOnboardingButton({ source, dependencies: d = DEPENDENCIES }: Props) {
+export function SkipOnboardingButton({ source, label = "Skip onboarding - Explore Console", dependencies: d = DEPENDENCIES }: Props) {
   const { skip, isSkipping } = d.useSkipOnboarding();
   const { isCreating, holdsUnleasedDeployment, isLeaseInFlight, keepsDeployingWithoutPage, discard } = d.useDeploymentLeaveGuard();
   const { analyticsService } = d.useServices();
@@ -58,7 +59,7 @@ export function SkipOnboardingButton({ source, dependencies: d = DEPENDENCIES }:
   return (
     <>
       <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" disabled={isSkipping} onClick={skipOrConfirm}>
-        Skip onboarding - Explore Console
+        {label}
       </Button>
       <DiscardDeploymentDialog
         open={isConfirming}

@@ -18,6 +18,7 @@ const LLM_ID = "akash-network-awesome-akash-Llama-3.1-8B";
 type PickerCardProps = Parameters<typeof DEPENDENCIES.DeploymentTemplatePickerCard>[0];
 type SheetProps = Parameters<typeof DEPENDENCIES.AddCreditsSheet>[0];
 type ButtonProps = Parameters<typeof DEPENDENCIES.Button>[0];
+type IntentFirstPickerProps = Parameters<typeof DEPENDENCIES.IntentFirstPicker>[0];
 
 describe(OnboardingPickerPage.name, () => {
   it("renders a card per template", () => {
@@ -458,6 +459,110 @@ describe(OnboardingPickerPage.name, () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  describe("when the onboarding_intent_first flag is on", () => {
+    it("renders the question-first picker instead of the template cards", () => {
+      const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
+      const IntentFirstPicker = vi.fn(ComponentMock);
+      setup({ isIntentFirst: true, dependencies: { DeploymentTemplatePickerCard, IntentFirstPicker } });
+
+      expect(IntentFirstPicker).toHaveBeenCalled();
+      expect(DeploymentTemplatePickerCard).not.toHaveBeenCalled();
+      expect(screen.queryByText(/in free trial credits/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the legacy picker when the flag is off", () => {
+      const IntentFirstPicker = vi.fn(ComponentMock);
+      setup({ isIntentFirst: false, dependencies: { IntentFirstPicker } });
+
+      expect(IntentFirstPicker).not.toHaveBeenCalled();
+    });
+
+    it("redirects to the auto-deploy intent when a template is deployed with credit left", () => {
+      const push = vi.fn();
+      const IntentFirstPicker = vi.fn(ComponentMock);
+      const { analyticsService } = setup({ isIntentFirst: true, push, dependencies: { IntentFirstPicker } });
+
+      act(() => getIntentFirstPickerProps(IntentFirstPicker).onDeployTemplate(SPACE_AGENT_ID));
+
+      expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: SPACE_AGENT_ID, sdlStrategy: "default", bidStrategy: "auto" }));
+      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", option: SPACE_AGENT_ID });
+    });
+
+    it("opens the out-of-credit sheet when a template is deployed without credit", () => {
+      const push = vi.fn();
+      const IntentFirstPicker = vi.fn(ComponentMock);
+      const AddCreditsSheet = vi.fn(ComponentMock);
+      setup({ isIntentFirst: true, isOutOfCredit: true, push, dependencies: { IntentFirstPicker, AddCreditsSheet } });
+
+      expect(getIntentFirstPickerProps(IntentFirstPicker).isOutOfCredit).toBe(true);
+      act(() => getIntentFirstPickerProps(IntentFirstPicker).onDeployTemplate(HELLO_WORLD_ID));
+
+      expect((AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).context).toBe("out-of-credit");
+      expect(push).not.toHaveBeenCalled();
+    });
+
+    it("tracks the custom image deploy click", () => {
+      const IntentFirstPicker = vi.fn(ComponentMock);
+      const { analyticsService } = setup({ isIntentFirst: true, dependencies: { IntentFirstPicker } });
+
+      act(() => getIntentFirstPickerProps(IntentFirstPicker).onDeployImage());
+
+      expect(analyticsService.track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", option: "custom-image" });
+    });
+
+    it("opens the coupon tab from the picker's coupon link and drops the header link", () => {
+      const IntentFirstPicker = vi.fn(ComponentMock);
+      const AddCreditsSheet = vi.fn(ComponentMock);
+      setup({ isIntentFirst: true, isTrialing: true, isHackathonsEnabled: true, dependencies: { IntentFirstPicker, AddCreditsSheet } });
+
+      act(() => getIntentFirstPickerProps(IntentFirstPicker).onRedeemCoupon!());
+
+      const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
+      expect(sheetProps.open).toBe(true);
+      expect(sheetProps.initialTab).toBe("coupon");
+      expect(screen.queryByText(/Hackathon\? click here/i)).not.toBeInTheDocument();
+    });
+
+    it.each([
+      { isTrialing: false, isHackathonsEnabled: true },
+      { isTrialing: true, isHackathonsEnabled: false }
+    ])("offers no coupon link when trialing is $isTrialing and hackathons is $isHackathonsEnabled", ({ isTrialing, isHackathonsEnabled }) => {
+      const IntentFirstPicker = vi.fn(ComponentMock);
+      setup({ isIntentFirst: true, isTrialing, isHackathonsEnabled, dependencies: { IntentFirstPicker } });
+
+      expect(getIntentFirstPickerProps(IntentFirstPicker).onRedeemCoupon).toBeUndefined();
+    });
+
+    it("opens the coupon tab from the redeemCoupon deep link", () => {
+      const replace = vi.fn();
+      const AddCreditsSheet = vi.fn(ComponentMock);
+      setup({
+        isIntentFirst: true,
+        isTrialing: true,
+        isHackathonsEnabled: true,
+        searchParams: "redeemCoupon=true",
+        replace,
+        dependencies: { AddCreditsSheet }
+      });
+
+      const sheetProps = AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps;
+      expect(sheetProps.open).toBe(true);
+      expect(sheetProps.initialTab).toBe("coupon");
+      expect(replace).toHaveBeenCalledWith(UrlService.onboardingPicker(), { scroll: false });
+    });
+
+    it("keeps the picked intent when it strips the coupon deep link", () => {
+      const replace = vi.fn();
+      setup({ isIntentFirst: true, isTrialing: true, isHackathonsEnabled: true, searchParams: "intent=tools&redeemCoupon=true", replace });
+
+      expect(replace).toHaveBeenCalledWith(UrlService.onboardingPicker({ intent: "tools" }), { scroll: false });
+    });
+  });
+
+  function getIntentFirstPickerProps(IntentFirstPicker: ReturnType<typeof vi.fn>) {
+    return IntentFirstPicker.mock.calls.at(-1)![0] as IntentFirstPickerProps;
+  }
+
   function getCard(DeploymentTemplatePickerCard: ReturnType<typeof vi.fn>, title: string) {
     return DeploymentTemplatePickerCard.mock.calls.find(call => (call[0] as PickerCardProps).title === title)![0] as PickerCardProps;
   }
@@ -478,6 +583,7 @@ describe(OnboardingPickerPage.name, () => {
       searchParams?: string;
       isTrialing?: boolean;
       isHackathonsEnabled?: boolean;
+      isIntentFirst?: boolean;
       isOutOfCredit?: boolean;
       trialCreditsAmount?: number;
       dependencies?: Partial<typeof DEPENDENCIES>;
@@ -499,7 +605,11 @@ describe(OnboardingPickerPage.name, () => {
     );
     const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing });
     const useIsOutOfDeployCredit: typeof DEPENDENCIES.useIsOutOfDeployCredit = () => input.isOutOfCredit ?? false;
-    const useFlag: typeof DEPENDENCIES.useFlag = flag => (flag === "hackathons" ? isHackathonsEnabled : false);
+    const flags: Partial<Record<Parameters<typeof DEPENDENCIES.useFlag>[0], boolean>> = {
+      hackathons: isHackathonsEnabled,
+      onboarding_intent_first: input.isIntentFirst ?? false
+    };
+    const useFlag: typeof DEPENDENCIES.useFlag = flag => flags[flag] ?? false;
     const analyticsService = mock<AnalyticsService>();
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({

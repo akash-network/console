@@ -177,8 +177,15 @@ describe(SkipOnboardingButton.name, () => {
     });
   });
 
+  it("labels the button with a custom label when given one", () => {
+    setup({ source: "picker", label: "Skip for now" });
+
+    expect(screen.getByRole("button", { name: "Skip for now" })).toBeInTheDocument();
+  });
+
   function setup(input: {
     source: SkipOnboardingSource;
+    label?: string;
     isSkipping?: boolean;
     isCreating?: boolean;
     holdsUnleasedDeployment?: boolean;
@@ -211,6 +218,7 @@ describe(SkipOnboardingButton.name, () => {
     const { rerender } = render(
       <SkipOnboardingButton
         source={input.source}
+        label={input.label}
         dependencies={dependenciesWith({
           holdsUnleasedDeployment: input.holdsUnleasedDeployment ?? false,
           isLeaseInFlight: input.isLeaseInFlight,
