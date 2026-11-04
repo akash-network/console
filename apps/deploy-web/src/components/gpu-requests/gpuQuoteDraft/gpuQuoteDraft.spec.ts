@@ -11,6 +11,7 @@ import {
   describeMissingAnswers,
   describeNextStep,
   describeReviewLines,
+  describeStartingPoint,
   isWholeNodes,
   listMissingAnswers,
   listSteps,
@@ -441,6 +442,27 @@ describe("gpuQuoteDraft", () => {
       expect(lineValue(completeDraft({ start: "flexible" }), "Start")).toBe("Flexible");
       expect(lineValue(completeDraft({ couldGrow: true }), "Also")).toBe("Could grow");
       expect(lineValue(completeDraft({ email: " me@example.com ", phone: " ", company: " Acme " }), "Contact")).toBe("me@example.com · Acme");
+    });
+  });
+
+  describe(describeStartingPoint.name, () => {
+    it("names what each package answers", () => {
+      expect(STARTER_PACKAGES.map(describeStartingPoint)).toEqual([
+        "8× H200 · Linked in each server · 8 TB NVMe",
+        "32× B200 · Linked across servers · 30 TB NVMe",
+        "16× L40S · PCIe only · 4 TB NVMe"
+      ]);
+    });
+
+    it("names the configuration's GPU, storage and regions", () => {
+      const startingPoint = configurationStartingPoint({ gpuCount: 2, gpuModels: ["gaudi3"], storageBytes: 0, regions: ["eu-west", "us-east"] });
+
+      expect(describeStartingPoint(startingPoint)).toBe("2× gaudi3 · 1 TB · United States, Europe");
+    });
+
+    it("says any GPU when the configuration names no model, and nothing for custom", () => {
+      expect(describeStartingPoint(configurationStartingPoint({ gpuCount: 1, gpuModels: [], storageBytes: 0, regions: [] }))).toBe("1× any GPU · 1 TB");
+      expect(describeStartingPoint(CUSTOM_STARTING_POINT)).toBe("");
     });
   });
 
