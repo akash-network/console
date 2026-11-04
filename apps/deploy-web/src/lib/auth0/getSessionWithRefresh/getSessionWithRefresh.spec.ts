@@ -11,6 +11,29 @@ import { createGetSessionWithRefresh } from "./getSessionWithRefresh";
 const NOW_SECONDS = Math.floor(Date.now() / 1_000);
 
 describe(createGetSessionWithRefresh.name, () => {
+  it("treats a request carrying the session cookie twice as signed out, clears the session cookies and never reads the session", async () => {
+    const session = createSession({ accessTokenExpiresAt: NOW_SECONDS - 60 });
+    const { getSessionWithRefresh, getSession, sessionService, logger, req, res } = setup({ session, cookieHeader: "appSession=encrypted; appSession=other" });
+
+    const result = await getSessionWithRefresh(req, res);
+
+    expect(result).toBeNull();
+    expect(getSession).not.toHaveBeenCalled();
+    expect(sessionService.refreshAccessToken).not.toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", [expect.stringMatching(/^appSession=;.*Expires=Thu, 01 Jan 1970/)]);
+    expect(logger.warn).toHaveBeenCalledWith({ event: "AMBIGUOUS_SESSION_COOKIES_REFUSED" });
+  });
+
+  it("reads the session when the request carries the session cookie once", async () => {
+    const session = createSession({ accessTokenExpiresAt: NOW_SECONDS + 3_600 });
+    const { getSessionWithRefresh, res, req } = setup({ session, cookieHeader: "theme=dark; appSession=encrypted" });
+
+    const result = await getSessionWithRefresh(req, res);
+
+    expect(result).toBe(session);
+    expect(res.setHeader).not.toHaveBeenCalled();
+  });
+
   it("returns the empty result when there is no session", async () => {
     const { getSessionWithRefresh, sessionService, req, res } = setup({ session: null });
 
@@ -155,12 +178,12 @@ describe(createGetSessionWithRefresh.name, () => {
     expect(sessionService.refreshAccessToken).toHaveBeenCalledTimes(2);
   });
 
-  function setup(input: { session: Session | null }) {
+  function setup(input: { session: Session | null; cookieHeader?: string }) {
     const getSession = vi.fn(async () => input.session);
     const setSession = vi.fn(async () => undefined);
     const sessionService = mock<Pick<SessionService, "refreshAccessToken">>();
     const logger = mock<Pick<LoggerService, "info" | "warn">>();
-    const req = mock<NextApiRequest>({ cookies: { appSession: "encrypted" } });
+    const req = mock<NextApiRequest>({ cookies: { appSession: "encrypted" }, headers: { cookie: input.cookieHeader ?? "appSession=encrypted" } });
     const res = mock<NextApiResponse>({ getHeader: vi.fn(() => undefined) });
     const getSessionWithRefresh = createGetSessionWithRefresh({ getSession, setSession, sessionService, logger });
 

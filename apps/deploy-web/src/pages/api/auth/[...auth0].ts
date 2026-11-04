@@ -100,7 +100,7 @@ const authHandler = once((services: AppServices) =>
       }
     },
     async logout(req: NextApiRequest, res: NextApiResponse) {
-      expireActiveOrganizationCookie(res);
+      expireActiveOrganizationCookie(res, new URL(services.privateConfig.AUTH0_BASE_URL));
 
       if (!services.privateConfig.AUTH0_LOCAL_ENABLED) {
         await handleLogout(req, res);

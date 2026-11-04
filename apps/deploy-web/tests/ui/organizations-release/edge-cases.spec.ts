@@ -3,7 +3,7 @@ import type { APIRequestContext, APIResponse, Page, PlaywrightWorkerArgs } from 
 import { signInPasswordless } from "../actions/auth";
 import { acceptFairUsePolicyIfPrompted } from "../actions/fair-use-policy";
 import {
-  ACTIVE_ORGANIZATION_COOKIE,
+  activeOrganizationCookieName,
   createApiKey,
   createNames,
   deleteAuth0UserQuietly,
@@ -1031,11 +1031,11 @@ async function organizationNamed(page: Page, name: string): Promise<Organization
 }
 
 async function workIn(page: Page, organizationId: string) {
-  await page.context().addCookies([{ name: ACTIVE_ORGANIZATION_COOKIE, value: organizationId, url: testEnvConfig.BASE_URL }]);
+  await page.context().addCookies([{ name: activeOrganizationCookieName(testEnvConfig.BASE_URL), value: organizationId, url: testEnvConfig.BASE_URL }]);
 }
 
 async function workInPersonalAccount(page: Page) {
-  await page.context().clearCookies({ name: ACTIVE_ORGANIZATION_COOKIE });
+  await page.context().clearCookies({ name: activeOrganizationCookieName(testEnvConfig.BASE_URL) });
 }
 
 /** A key is bound to the organization its session works in when it is created. */

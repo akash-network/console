@@ -11,7 +11,7 @@ import type { Auth0ManagementService } from "../services/auth0-management.servic
 import { signInPasswordless } from "./auth";
 import { deleteOwnedTeams } from "./team-janitor";
 
-export { ACTIVE_ORGANIZATION_COOKIE } from "./team-janitor";
+export { activeOrganizationCookieName } from "./team-janitor";
 
 export type ProjectList = { data: { id: string; name: string }[] };
 

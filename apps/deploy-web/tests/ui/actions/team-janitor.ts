@@ -1,9 +1,12 @@
 import type { Page } from "@playwright/test";
 
+import { getActiveOrganizationCookieName } from "@src/lib/active-organization/active-organization-cookie";
 import { closeAllActiveDeployments } from "./deployment-janitor";
 
 /** The app's proxy takes the organization a request runs in from this cookie only. */
-export const ACTIVE_ORGANIZATION_COOKIE = "console_org";
+export function activeOrganizationCookieName(baseUrl: string): string {
+  return getActiveOrganizationCookieName(new URL(baseUrl));
+}
 
 type OrganizationListBody = { data?: { id: string; type: string; role: string }[] };
 
@@ -15,7 +18,7 @@ export async function deleteOwnedTeams(page: Page, baseUrl: string): Promise<voi
   const failures = new Map<string, string>();
 
   try {
-    await page.context().clearCookies({ name: ACTIVE_ORGANIZATION_COOKIE });
+    await page.context().clearCookies({ name: activeOrganizationCookieName(baseUrl) });
     for (const id of await listOwnedTeamIds(page, organizationsUrl)) {
       const failure = await deleteOwnedTeam(page, { baseUrl, teamUrl: `${organizationsUrl}/${id}`, id }).catch(describeError);
       if (failure) failures.set(id, failure);
@@ -25,7 +28,7 @@ export async function deleteOwnedTeams(page: Page, baseUrl: string): Promise<voi
   } finally {
     await page
       .context()
-      .clearCookies({ name: ACTIVE_ORGANIZATION_COOKIE })
+      .clearCookies({ name: activeOrganizationCookieName(baseUrl) })
       .catch(() => undefined);
   }
 
@@ -45,7 +48,7 @@ async function listOwnedTeamIds(page: Page, organizationsUrl: string): Promise<s
 
 /** Answers what kept the team from being deleted, or nothing once it is gone. */
 async function deleteOwnedTeam(page: Page, input: { baseUrl: string; teamUrl: string; id: string }): Promise<string | undefined> {
-  await page.context().addCookies([{ name: ACTIVE_ORGANIZATION_COOKIE, value: input.id, url: input.baseUrl }]);
+  await page.context().addCookies([{ name: activeOrganizationCookieName(input.baseUrl), value: input.id, url: input.baseUrl }]);
   await closeAllActiveDeployments(page, input.baseUrl);
 
   const refusal = await page.request.delete(input.teamUrl, { failOnStatusCode: false });

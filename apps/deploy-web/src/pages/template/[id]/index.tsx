@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import { UserTemplate } from "@src/components/templates/UserTemplate";
-import { getSession } from "@src/lib/auth0";
 import { defineServerSideProps } from "@src/lib/nextjs/defineServerSideProps/defineServerSideProps";
 import type { ITemplate } from "@src/types";
 
@@ -23,8 +22,8 @@ export const getServerSideProps = defineServerSideProps({
       id: z.string()
     })
   }),
-  async handler({ params, services, req, res }) {
-    const session = await getSession(req, res);
+  async handler({ params, services, getCurrentSession }) {
+    const session = await getCurrentSession();
     let config = {};
 
     if (session) {
