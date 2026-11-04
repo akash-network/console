@@ -8,6 +8,7 @@ import {
   AddHardwareRequestNoteRequestSchema,
   AssignHardwareRequestOwnerRequestSchema,
   ChangeHardwareRequestStatusRequestSchema,
+  CreateHardwareRequestOnBehalfRequestSchema,
   HardwareRequestIdParamsSchema,
   HardwareRequestQueueQuerySchema,
   HardwareRequestQueueResponseSchema,
@@ -56,6 +57,28 @@ const getRoute = createRoute({
 
 internalHardwareRequestRouter.openapi(getRoute, async function routeGetHardwareRequestWithTimeline(c) {
   return c.json(await container.resolve(HardwareRequestBrokerController).get(c.req.valid("param").id), 200);
+});
+
+const createOnBehalfRoute = createRoute({
+  method: "post",
+  path: "/hardware-requests",
+  operationId: "createHardwareRequestOnBehalf",
+  summary: "File a GPU request the team took offline, for an organization",
+  security: SECURITY_NONE,
+  hiddenInOpenApiDocs: true,
+  middleware: [requireInternalToken],
+  request: { body: { required: true, content: { "application/json": { schema: CreateHardwareRequestOnBehalfRequestSchema } } } },
+  responses: {
+    201: { description: "The request and its timeline", content: { "application/json": { schema: HardwareRequestWithTimelineResponseSchema } } },
+    400: { description: "Invalid body" },
+    401: { description: "Missing or wrong internal token" },
+    404: { description: "No live organization has this id" },
+    422: { description: "The organization has no owner" }
+  }
+});
+
+internalHardwareRequestRouter.openapi(createOnBehalfRoute, async function routeCreateHardwareRequestOnBehalf(c) {
+  return c.json(await container.resolve(HardwareRequestBrokerController).createOnBehalf(c.req.valid("json")), 201);
 });
 
 const ACTION_RESPONSES = {

@@ -9,9 +9,18 @@ import type { HardwareRequestConfig } from "@src/hardware-request/config/env.con
 import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/hardware-request.schema";
 import type { LaneRoutedRequest } from "@src/hardware-request/lib/hardware-request-lane/hardware-request-lane";
 import type { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import type {
+  HardwareRequestEventOutput,
+  HardwareRequestEventRepository
+} from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
 import type { GpuRequestRoutingService, RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
+import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import type {
+  OrganizationMemberRepository,
+  OrganizationMemberWithUser
+} from "@src/organization/repositories/organization-member/organization-member.repository";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserRepository } from "@src/user/repositories";
 import { HardwareRequestService } from "./hardware-request.service";
@@ -48,6 +57,7 @@ describe(HardwareRequestService.name, () => {
         details: "Training run",
         contactEmail: "jane@example.com",
         userId: user.id,
+        organizationId: null,
         ...ROUTING
       });
     });
@@ -67,6 +77,7 @@ describe(HardwareRequestService.name, () => {
         region: "Anywhere except Middle East",
         contactEmail: "jane@example.com",
         userId: user.id,
+        organizationId: null,
         ...ROUTING
       });
     });
@@ -232,6 +243,77 @@ describe(HardwareRequestService.name, () => {
     });
   });
 
+  describe("createOnBehalf", () => {
+    it("files the request for the organization's oldest owner, routes and alerts it, and records who filed it", async () => {
+      const {
+        service,
+        hardwareRequestRepository,
+        hardwareRequestEventRepository,
+        organizationMemberRepository,
+        gpuRequestRoutingService,
+        jobQueueService,
+        created
+      } = setup({
+        members: [aMember({ userId: "admin-1", role: "admin" }), aMember({ userId: "owner-1", role: "owner" }), aMember({ userId: "owner-2", role: "owner" })]
+      });
+
+      await expect(service.createOnBehalf({ actor: "Remington", organizationId: "org-1", request: anInput() })).resolves.toEqual({ ...created, ...ROUTING });
+
+      expect(organizationMemberRepository.unscoped).toHaveBeenCalledWith("gpu-request-broker");
+      expect(organizationMemberRepository.findAllWithUsers).toHaveBeenCalledWith("org-1");
+      expect(hardwareRequestRepository.unscoped).toHaveBeenCalledWith("gpu-request-broker");
+      expect(gpuRequestRoutingService.route).toHaveBeenCalledWith(expect.anything(), { userId: "owner-1", organizationId: "org-1" });
+      expect(hardwareRequestRepository.create).toHaveBeenCalledWith({
+        category: "region",
+        region: "Frankfurt",
+        contactEmail: "jane@example.com",
+        userId: "owner-1",
+        organizationId: "org-1",
+        ...ROUTING
+      });
+      expect(hardwareRequestEventRepository.record).toHaveBeenCalledWith({
+        hardwareRequestId: created.id,
+        type: "created_on_behalf",
+        actor: "Remington",
+        payload: { organizationId: "org-1", email: null }
+      });
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new HardwareRequestEmailJob({ hardwareRequestId: created.id }));
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new HardwareRequestSlackAlertJob({ hardwareRequestId: created.id }));
+    });
+
+    it("skips the tenant's rate limits", async () => {
+      const { service, hardwareRequestRepository } = setup({ creationTimes: hoursAgo([0.1, 0.2, 0.3]) });
+
+      await service.createOnBehalf({ actor: "Remington", organizationId: "org-1", request: anInput() });
+
+      expect(hardwareRequestRepository.findCreationTimesSince).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { case: "does not exist", organization: undefined },
+      { case: "was deleted", organization: mock<OrganizationOutput>({ id: "org-1", deletedAt: new Date() }) }
+    ])("answers 404 when the organization $case", async ({ organization }) => {
+      const { service, hardwareRequestRepository, organizationRepository } = setup();
+      organizationRepository.findById.mockResolvedValue(organization);
+
+      await expect(service.createOnBehalf({ actor: "Remington", organizationId: "org-1", request: anInput() })).rejects.toMatchObject({
+        status: 404,
+        message: "Organization not found"
+      });
+      expect(hardwareRequestRepository.create).not.toHaveBeenCalled();
+    });
+
+    it("answers 422 when the organization has no owner", async () => {
+      const { service, hardwareRequestRepository } = setup({ members: [aMember({ userId: "admin-1", role: "admin" })] });
+
+      await expect(service.createOnBehalf({ actor: "Remington", organizationId: "org-1", request: anInput() })).rejects.toMatchObject({
+        status: 422,
+        message: "The organization has no owner to file the request for"
+      });
+      expect(hardwareRequestRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe("list", () => {
     it("returns the requests the current user can read, newest first", async () => {
       const { service, hardwareRequestRepository, authService } = setup();
@@ -251,13 +333,20 @@ describe(HardwareRequestService.name, () => {
     return { category: "region", region: "Frankfurt", email: "jane@example.com" };
   }
 
-  function setup(input: { creationTimes?: Date[]; config?: Partial<HardwareRequestConfig>; organizationId?: string } = {}) {
+  function aMember(member: Pick<OrganizationMemberWithUser, "userId" | "role">) {
+    return mock<OrganizationMemberWithUser>(member);
+  }
+
+  function setup(
+    input: { creationTimes?: Date[]; config?: Partial<HardwareRequestConfig>; organizationId?: string; members?: OrganizationMemberWithUser[] } = {}
+  ) {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
 
     const user = createUser();
     const created = createHardwareRequest({ userId: user.id });
     const hardwareRequestRepository = mock<HardwareRequestRepository>();
     hardwareRequestRepository.accessibleBy.mockReturnValue(hardwareRequestRepository);
+    hardwareRequestRepository.unscoped.mockReturnValue(hardwareRequestRepository);
     hardwareRequestRepository.findCreationTimesSince.mockResolvedValue(input.creationTimes ?? []);
     hardwareRequestRepository.create.mockResolvedValue(created);
     const userRepository = mock<UserRepository>();
@@ -271,6 +360,13 @@ describe(HardwareRequestService.name, () => {
     executionContextService.get.mockImplementation(key =>
       key === "ORGANIZATION_CONTEXT" && input.organizationId ? mock<OrganizationContext>({ organizationId: input.organizationId }) : undefined
     );
+    const hardwareRequestEventRepository = mock<HardwareRequestEventRepository>();
+    hardwareRequestEventRepository.record.mockResolvedValue(mock<HardwareRequestEventOutput>());
+    const organizationRepository = mock<OrganizationRepository>();
+    organizationRepository.findById.mockResolvedValue(mock<OrganizationOutput>({ id: "org-1", deletedAt: null }));
+    const organizationMemberRepository = mock<OrganizationMemberRepository>();
+    organizationMemberRepository.unscoped.mockReturnValue(organizationMemberRepository);
+    organizationMemberRepository.findAllWithUsers.mockResolvedValue(input.members ?? [aMember({ userId: "owner-1", role: "owner" })]);
     const config: HardwareRequestConfig = {
       HARDWARE_REQUEST_EMAIL: "support@akash.network",
       HARDWARE_REQUEST_HOURLY_LIMIT: 3,
@@ -286,9 +382,25 @@ describe(HardwareRequestService.name, () => {
       jobQueueService,
       gpuRequestRoutingService,
       executionContextService,
+      hardwareRequestEventRepository,
+      organizationRepository,
+      organizationMemberRepository,
       config
     );
 
-    return { service, hardwareRequestRepository, userRepository, jobQueueService, txService, authService, gpuRequestRoutingService, user, created };
+    return {
+      service,
+      hardwareRequestRepository,
+      hardwareRequestEventRepository,
+      organizationRepository,
+      organizationMemberRepository,
+      userRepository,
+      jobQueueService,
+      txService,
+      authService,
+      gpuRequestRoutingService,
+      user,
+      created
+    };
   }
 });

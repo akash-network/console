@@ -9,9 +9,12 @@ import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/ha
 import { describeSpecRegion } from "@src/hardware-request/lib/hardware-request-spec-summary/hardware-request-spec-summary";
 import { HARDWARE_REQUEST_CONFIG, type HardwareRequestConfig } from "@src/hardware-request/providers/config.provider";
 import { type HardwareRequestOutput, HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import { HardwareRequestEventRepository } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
 import { GpuRequestRoutingService, type RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { UserRepository } from "@src/user/repositories";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -20,6 +23,12 @@ const DAY_MS = 24 * HOUR_MS;
 type RequestWindow = { durationMs: number; limit: number; message: string };
 
 type Refusal = { message: string; retryAfterSeconds: number };
+
+type Requester = { userId: string; organizationId: string | null };
+
+export type HardwareRequestOnBehalfInput = { actor: string; organizationId: string; request: HardwareRequestInput };
+
+type HardwareRequestRepositoryCursor = Pick<HardwareRequestRepository, "create">;
 
 /** Waits on the request `limit` places before the newest, since a window a lowered limit left over-full needs more than its oldest to leave. */
 function refusalIn({ durationMs, limit, message }: RequestWindow, creationTimes: Date[], now: number): Refusal | undefined {
@@ -56,11 +65,13 @@ export class HardwareRequestService {
     private readonly jobQueueService: JobQueueService,
     private readonly gpuRequestRoutingService: GpuRequestRoutingService,
     private readonly executionContextService: ExecutionContextService,
+    private readonly hardwareRequestEventRepository: HardwareRequestEventRepository,
+    private readonly organizationRepository: OrganizationRepository,
+    private readonly organizationMemberRepository: OrganizationMemberRepository,
     @inject(HARDWARE_REQUEST_CONFIG) private readonly config: HardwareRequestConfig
   ) {}
 
   async create(input: HardwareRequestInput): Promise<HardwareRequestOutput & RoutedLane> {
-    const { email, ...fields } = input;
     const userId = this.authService.currentUser.id;
 
     return await this.txService.transaction(async () => {
@@ -68,19 +79,53 @@ export class HardwareRequestService {
       await this.#assertWithinLimits(userId);
 
       const organizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId ?? null;
-      const routing = await this.gpuRequestRoutingService.route(laneRoutedRequestOf(input), { userId, organizationId });
-      const hardwareRequest = await this.hardwareRequestRepository
-        .accessibleBy(this.authService.ability, "create")
-        .create({ ...fields, ...summaryColumnsOf(input), ...routing, contactEmail: email, userId });
-      await this.jobQueueService.enqueue(new HardwareRequestEmailJob({ hardwareRequestId: hardwareRequest.id }));
-      await this.jobQueueService.enqueue(new HardwareRequestSlackAlertJob({ hardwareRequestId: hardwareRequest.id }));
 
-      return { ...hardwareRequest, ...routing };
+      return await this.#file(this.hardwareRequestRepository.accessibleBy(this.authService.ability, "create"), input, { userId, organizationId });
+    });
+  }
+
+  /** Files a request the team took offline in the name of the organization's oldest owner, without the tenant's rate limits. */
+  async createOnBehalf({ actor, organizationId, request }: HardwareRequestOnBehalfInput): Promise<HardwareRequestOutput & RoutedLane> {
+    const requester = await this.#oldestOwnerOf(organizationId);
+
+    return await this.txService.transaction(async () => {
+      const hardwareRequest = await this.#file(this.hardwareRequestRepository.unscoped("gpu-request-broker"), request, requester);
+      await this.hardwareRequestEventRepository.record({
+        hardwareRequestId: hardwareRequest.id,
+        type: "created_on_behalf",
+        actor,
+        payload: { organizationId, email: null }
+      });
+
+      return hardwareRequest;
     });
   }
 
   async list(): Promise<HardwareRequestOutput[]> {
     return await this.hardwareRequestRepository.accessibleBy(this.authService.ability, "read").findNewestFirst();
+  }
+
+  async #file(repository: HardwareRequestRepositoryCursor, input: HardwareRequestInput, requester: Requester): Promise<HardwareRequestOutput & RoutedLane> {
+    const { email, ...fields } = input;
+    const routing = await this.gpuRequestRoutingService.route(laneRoutedRequestOf(input), requester);
+    const hardwareRequest = await repository.create({ ...fields, ...summaryColumnsOf(input), ...routing, contactEmail: email, ...requester });
+    await this.jobQueueService.enqueue(new HardwareRequestEmailJob({ hardwareRequestId: hardwareRequest.id }));
+    await this.jobQueueService.enqueue(new HardwareRequestSlackAlertJob({ hardwareRequestId: hardwareRequest.id }));
+
+    return { ...hardwareRequest, ...routing };
+  }
+
+  async #oldestOwnerOf(organizationId: string): Promise<Requester> {
+    const organization = await this.organizationRepository.findById(organizationId);
+
+    if (!organization || organization.deletedAt) throw createError(404, "Organization not found");
+
+    const members = await this.organizationMemberRepository.unscoped("gpu-request-broker").findAllWithUsers(organizationId);
+    const owner = members.find(member => member.role === "owner");
+
+    if (!owner) throw createError(422, "The organization has no owner to file the request for");
+
+    return { userId: owner.userId, organizationId };
   }
 
   /** A user over both limits is told the later of the two times, since either window can be the one that lifts last. */

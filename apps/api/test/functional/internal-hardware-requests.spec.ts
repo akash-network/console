@@ -7,6 +7,8 @@ import { JOB_NAME } from "@src/core";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { HardwareRequestEventRepository } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
+import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
+import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { HardwareRequestStatusNotificationJob } from "@src/hardware-request/services/hardware-request-status-notification/hardware-request-status-notification.handler";
 import { app } from "@src/rest-app";
 
@@ -136,6 +138,67 @@ describe("Internal hardware requests", () => {
     });
   });
 
+  describe("POST /internal/hardware-requests", () => {
+    it("files a request for the organization's owner, routes it and alerts the team", async () => {
+      const { user, organization } = await seedOrganizationWithOwner();
+
+      const { status, data } = await createOnBehalf({
+        actor: "Remington",
+        organizationId: organization.id,
+        request: { category: "gpu_model", gpuModel: "B200", quantity: 8, email: "jane@example.com" }
+      });
+
+      expect(status).toBe(201);
+      expect(data).toMatchObject({
+        userId: user.id,
+        organizationId: organization.id,
+        organizationName: organization.name,
+        gpuModel: "B200",
+        contactEmail: "jane@example.com",
+        lane: "automated",
+        laneReason: "no_payment_method",
+        estimatedMonthlyUsd: 8 * 5 * 730
+      });
+      expect(data.events).toMatchObject([{ type: "created_on_behalf", actor: "Remington", payload: { organizationId: organization.id, email: null } }]);
+      expect(await findJobRows(HardwareRequestEmailJob[JOB_NAME], { data: { hardwareRequestId: data.id } })).toHaveLength(1);
+      expect(await findJobRows(HardwareRequestSlackAlertJob[JOB_NAME], { data: { hardwareRequestId: data.id } })).toHaveLength(1);
+    });
+
+    it("answers 404 for an unknown organization", async () => {
+      const { status } = await createOnBehalf({
+        actor: "Remington",
+        organizationId: faker.string.uuid(),
+        request: { category: "other", details: "ARM", email: "jane@example.com" }
+      });
+
+      expect(status).toBe(404);
+    });
+
+    it("refuses an invalid request", async () => {
+      const { organization } = await seedOrganizationWithOwner();
+
+      const { status } = await createOnBehalf({
+        actor: "Remington",
+        organizationId: organization.id,
+        request: { category: "quote", email: "jane@example.com" }
+      });
+
+      expect(status).toBe(400);
+    });
+
+    it("rejects a caller without the token", async () => {
+      const response = await app.request("/internal/hardware-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: { actor: "Remington", organizationId: faker.string.uuid(), request: { category: "other", details: "ARM", email: "jane@example.com" } }
+        })
+      });
+
+      expect(response.status).toBe(401);
+    });
+  });
+
   describe("PUT /internal/hardware-requests/{id}/owner", () => {
     it("claims a request and records who did", async () => {
       const { seed } = await setup();
@@ -254,6 +317,17 @@ describe("Internal hardware requests", () => {
       body: JSON.stringify({ data: body })
     });
     const json = response.status === 200 ? ((await response.json()) as { data: QueueItem & { events: unknown[]; [key: string]: unknown } }) : undefined;
+
+    return { status: response.status, data: json?.data as QueueItem & { events: unknown[]; [key: string]: unknown } };
+  }
+
+  async function createOnBehalf(body: Record<string, unknown>) {
+    const response = await app.request("/internal/hardware-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-console-internal-token": internalToken! },
+      body: JSON.stringify({ data: body })
+    });
+    const json = response.status === 201 ? ((await response.json()) as { data: QueueItem & { events: unknown[]; [key: string]: unknown } }) : undefined;
 
     return { status: response.status, data: json?.data as QueueItem & { events: unknown[]; [key: string]: unknown } };
   }
