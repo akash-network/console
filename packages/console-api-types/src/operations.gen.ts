@@ -130,6 +130,14 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    markGithubStarPrompted: {
+      path: "/v1/user/markGithubStarPrompted",
+      method: "post",
+      operationId: "markGithubStarPrompted",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
     createAccountDeletionRequest: {
       path: "/v1/user/me/initiate-deletion",
       method: "post",

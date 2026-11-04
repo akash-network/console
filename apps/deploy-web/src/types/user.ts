@@ -19,6 +19,7 @@ export interface UserSettings {
   productUpdatesUnsubscribedAt?: string | null;
   getStartedDismissedAt?: string | null;
   agentSetupCopiedAt?: string | null;
+  githubStarPromptedAt?: string | null;
   timezone?: string | null;
   createdAt?: string | null;
 }

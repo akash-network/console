@@ -578,6 +578,17 @@ describe(UserService.name, () => {
     });
   });
 
+  describe("markGithubStarPrompted", () => {
+    it("persists the time with a set-if-null guard so the first one is kept", async () => {
+      const userId = faker.string.uuid();
+      const { service, userRepository } = setup();
+
+      await service.markGithubStarPrompted(userId);
+
+      expect(userRepository.updateBy).toHaveBeenCalledWith({ id: userId, githubStarPromptedAt: null }, { githubStarPromptedAt: expect.any(Date) });
+    });
+  });
+
   it("creates the logger with the service context", () => {
     const { createLogger } = setup();
 

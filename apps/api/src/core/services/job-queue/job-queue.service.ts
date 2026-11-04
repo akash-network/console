@@ -489,6 +489,7 @@ export class JobQueueService implements Disposable {
                 productUpdatesUnsubscribedAt: null,
                 getStartedDismissedAt: null,
                 agentSetupCopiedAt: null,
+                githubStarPromptedAt: null,
                 timezone: null,
                 timezonePickedAt: null,
                 lastUsedOrganizationId: null,

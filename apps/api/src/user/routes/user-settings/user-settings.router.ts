@@ -236,3 +236,25 @@ userSettingsRouter.openapi(markAgentSetupCopiedRoute, async function markAgentSe
   await container.resolve(UserController).markAgentSetupCopied();
   return c.body(null, 204);
 });
+
+const markGithubStarPromptedRoute = createRoute({
+  method: "post",
+  path: "/v1/user/markGithubStarPrompted",
+  operationId: "markGithubStarPrompted",
+  summary: "Record that the user answered the prompt to star the Console repository",
+  tags: ["Users"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  responses: {
+    204: {
+      description: "Prompt answer recorded"
+    },
+    401: {
+      description: "Unauthorized"
+    }
+  }
+});
+
+userSettingsRouter.openapi(markGithubStarPromptedRoute, async function markGithubStarPrompted(c) {
+  await container.resolve(UserController).markGithubStarPrompted();
+  return c.body(null, 204);
+});

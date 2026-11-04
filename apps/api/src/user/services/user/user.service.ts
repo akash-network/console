@@ -281,6 +281,10 @@ export class UserService {
   async markAgentSetupCopied(userId: string) {
     await this.userRepository.updateBy({ id: userId, agentSetupCopiedAt: null }, { agentSetupCopiedAt: new Date() });
   }
+
+  async markGithubStarPrompted(userId: string) {
+    await this.userRepository.updateBy({ id: userId, githubStarPromptedAt: null }, { githubStarPromptedAt: new Date() });
+  }
 }
 
 function adjustUsername(wantedUsername: string) {

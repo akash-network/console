@@ -750,6 +750,13 @@
       "when": 1793752892896,
       "tag": "0106_get_started_progress",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1793772012114,
+      "tag": "0107_github_star_prompt",
+      "breakpoints": true
     }
   ]
 }

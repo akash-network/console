@@ -500,6 +500,30 @@ describe(UserService.name, () => {
     });
   });
 
+  describe("markGithubStarPrompted", () => {
+    it("sets githubStarPromptedAt when it has not been set", async () => {
+      const { service, userRepository } = setup();
+      const user = await userRepository.create({ userId: faker.string.uuid(), username: `test-user-${faker.string.uuid()}` });
+
+      await service.markGithubStarPrompted(user.id);
+
+      const updatedUser = await userRepository.findById(user.id);
+      expect(updatedUser?.githubStarPromptedAt).toBeInstanceOf(Date);
+    });
+
+    it("preserves the original timestamp when called again", async () => {
+      const { service, userRepository } = setup();
+      const user = await userRepository.create({ userId: faker.string.uuid(), username: `test-user-${faker.string.uuid()}` });
+
+      await service.markGithubStarPrompted(user.id);
+      const firstAt = (await userRepository.findById(user.id))?.githubStarPromptedAt;
+      await service.markGithubStarPrompted(user.id);
+      const secondAt = (await userRepository.findById(user.id))?.githubStarPromptedAt;
+
+      expect(secondAt).toEqual(firstAt);
+    });
+  });
+
   function createRegisterInput(overrides: Partial<RegisterUserInput> = {}): RegisterUserInput {
     return {
       userId: faker.string.uuid(),

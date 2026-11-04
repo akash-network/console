@@ -633,6 +633,8 @@ export interface paths {
                 getStartedDismissedAt?: string | null;
                 /** Format: date-time */
                 agentSetupCopiedAt?: string | null;
+                /** Format: date-time */
+                githubStarPromptedAt?: string | null;
                 /** @description IANA timezone the dates in the user's emails are shown in, UTC when unknown */
                 timezone?: string | null;
               };
@@ -699,6 +701,8 @@ export interface paths {
                 getStartedDismissedAt?: string | null;
                 /** Format: date-time */
                 agentSetupCopiedAt?: string | null;
+                /** Format: date-time */
+                githubStarPromptedAt?: string | null;
                 /** @description IANA timezone the dates in the user's emails are shown in, UTC when unknown */
                 timezone?: string | null;
                 /** Format: date-time */
@@ -1012,6 +1016,23 @@ export interface paths {
     put?: never;
     /** Record that the user copied the agent setup */
     post: operations["markAgentSetupCopied"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/user/markGithubStarPrompted": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Record that the user answered the prompt to star the Console repository */
+    post: operations["markGithubStarPrompted"];
     delete?: never;
     options?: never;
     head?: never;
@@ -9491,6 +9512,36 @@ export interface operations {
     requestBody?: never;
     responses: {
       /** @description Agent setup copy recorded */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  markGithubStarPrompted: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Prompt answer recorded */
       204: {
         headers: {
           [name: string]: unknown;
