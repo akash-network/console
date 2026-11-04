@@ -4234,6 +4234,13 @@ export interface paths {
           };
           content?: never;
         };
+        /** @description Chain data query timed out */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
       };
     };
     put?: never;
@@ -4819,6 +4826,13 @@ export interface paths {
           };
           content?: never;
         };
+        /** @description Chain data query timed out */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
       };
     };
     put?: never;
@@ -4869,6 +4883,13 @@ export interface paths {
         };
         /** @description Provider not found */
         404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Chain data query timed out */
+        503: {
           headers: {
             [name: string]: unknown;
           };

@@ -28,6 +28,9 @@ const providerEarningsRoute = createRoute({
     },
     404: {
       description: "Provider not found"
+    },
+    503: {
+      description: "Chain data query timed out"
     }
   }
 });

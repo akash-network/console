@@ -23018,6 +23018,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           "404": {
             "description": "Provider not found",
           },
+          "503": {
+            "description": "Chain data query timed out",
+          },
         },
         "security": [],
         "summary": "Get dashboard data for provider console.",
@@ -23103,6 +23106,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           },
           "404": {
             "description": "Provider not found",
+          },
+          "503": {
+            "description": "Chain data query timed out",
           },
         },
         "security": [],
@@ -25245,6 +25251,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           },
           "400": {
             "description": "Invalid address",
+          },
+          "503": {
+            "description": "Chain data query timed out",
           },
         },
         "security": [],
