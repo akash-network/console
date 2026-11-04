@@ -12,6 +12,7 @@ test.describe("Onboarding picker — unlocking the gated LLM template via Add Cr
     const addCreditsSheet = new AddCreditsSheetPage(page);
 
     await onboardingPickerPage.goto();
+    test.skip(await onboardingPickerPage.isIntentFirst(), "the gated LLM Chatbot card exists only in the classic picker, off under onboarding_intent_first");
 
     await test.step("the gated LLM template CTA reads 'Add credits to unlock' once the trial is active", async () => {
       await expect(onboardingPickerPage.getLlmChatbotCta()).toHaveText(/add credits to unlock/i, { timeout: 60_000 });

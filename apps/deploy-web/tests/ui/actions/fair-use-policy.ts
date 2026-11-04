@@ -1,5 +1,7 @@
 import type { Locator, Page } from "@playwright/test";
 
+import { OnboardingPickerPage } from "../pages/OnboardingPickerPage";
+
 const PROMPT_TIMEOUT_MS = 30_000;
 
 /** Matches both presentations: an onboarding user gets the prompt as a page section, everyone else gets it as a modal. */
@@ -13,7 +15,7 @@ function locatePrompt(page: Page): Locator {
  */
 export async function acceptFairUsePolicyIfPrompted(page: Page, options: { settledBy?: Locator } = {}): Promise<void> {
   const prompt = locatePrompt(page);
-  const settledBy = options.settledBy ?? page.getByRole("heading", { name: /deploy your first app/i });
+  const settledBy = options.settledBy ?? new OnboardingPickerPage(page).getHeading();
 
   await Promise.race([waitForVisible(prompt), waitForVisible(settledBy)]);
 
