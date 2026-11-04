@@ -85,6 +85,7 @@ describe("Hardware requests", () => {
         laneReason: "no_payment_method",
         estimatedMonthlyUsd: 8 * 5 * 730,
         owner: null,
+        firstRepliedAt: null,
         createdAt: data.createdAt,
         updatedAt: data.createdAt
       });
