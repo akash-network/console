@@ -81,15 +81,26 @@ export class SessionService {
   async signUp(input: {
     email: string;
     password: string;
+    captchaToken?: string;
+    testingClientToken?: string;
     timezone?: string;
-  }): Promise<Result<Session, { code: "user_exists"; message: string; cause: unknown } | { code: "signup_failed"; message: string; cause: unknown }>> {
+  }): Promise<
+    Result<
+      Session,
+      | { code: "user_exists"; message: string; cause: unknown }
+      | { code: "signup_failed"; message: string; cause: unknown }
+      | { code: "captcha_verification_failed"; message: string; cause: unknown }
+    >
+  > {
     const signupResponse = await this.#consoleApiHttpClient.post(
       "/v1/auth/signup",
       {
         email: input.email,
-        password: input.password
+        password: input.password,
+        captchaToken: input.captchaToken
       },
       {
+        headers: input.testingClientToken ? { "x-testing-client-token": input.testingClientToken } : undefined,
         validateStatus: acceptAnyStatus
       }
     );
@@ -98,6 +109,14 @@ export class SessionService {
       return Err({
         message: "Signup is temporarily unavailable. Please try again in a moment.",
         code: "signup_failed",
+        cause: extractResponseDetails(signupResponse)
+      });
+    }
+
+    if (signupResponse.data?.code === "captcha_verification_failed") {
+      return Err({
+        message: signupResponse.data.message,
+        code: "captcha_verification_failed",
         cause: extractResponseDetails(signupResponse)
       });
     }
