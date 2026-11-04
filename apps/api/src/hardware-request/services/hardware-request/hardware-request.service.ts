@@ -165,9 +165,11 @@ export class HardwareRequestService {
 
       if (!readable) throw createError(404, "Hardware request not found");
 
-      const role = this.executionContextService.get("ORGANIZATION_CONTEXT")?.role;
+      const organizationContext = this.executionContextService.get("ORGANIZATION_CONTEXT");
+      const actsForRequestOrganization = (organizationContext?.organizationId ?? null) === readable.organizationId;
+      const role = organizationContext?.role;
 
-      if (readable.userId !== user.id && !(role && WITHDRAWING_ROLES.includes(role))) {
+      if (!actsForRequestOrganization || (readable.userId !== user.id && !(role && WITHDRAWING_ROLES.includes(role)))) {
         throw createError(403, "Only the requester or an owner or admin of the organization can withdraw this request");
       }
 

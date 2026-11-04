@@ -374,8 +374,11 @@ describe(HardwareRequestService.name, () => {
 
   describe("withdraw", () => {
     it("withdraws the requester's own request under a row lock, records who did and tells sales", async () => {
-      const { service, hardwareRequestRepository, hardwareRequestEventRepository, jobQueueService, authService, txService, user } = setup({ role: "viewer" });
-      const own = createHardwareRequest({ userId: user.id, status: "sourcing" });
+      const { service, hardwareRequestRepository, hardwareRequestEventRepository, jobQueueService, authService, txService, user } = setup({
+        role: "viewer",
+        organizationId: "org-1"
+      });
+      const own = createHardwareRequest({ userId: user.id, organizationId: "org-1", status: "sourcing" });
       hardwareRequestRepository.findById.mockResolvedValue(own);
       hardwareRequestRepository.findOneByAndLock.mockResolvedValue(own);
       hardwareRequestEventRepository.record.mockResolvedValue(mock<HardwareRequestEventOutput>({ id: "event-1" }));
@@ -396,8 +399,8 @@ describe(HardwareRequestService.name, () => {
     });
 
     it.each(["owner", "admin"] as const)("lets an organization %s withdraw a member's request", async role => {
-      const { service, hardwareRequestRepository } = setup({ role });
-      const othersRequest = createHardwareRequest({ status: "offers" });
+      const { service, hardwareRequestRepository } = setup({ role, organizationId: "org-1" });
+      const othersRequest = createHardwareRequest({ organizationId: "org-1", status: "offers" });
       hardwareRequestRepository.findById.mockResolvedValue(othersRequest);
       hardwareRequestRepository.findOneByAndLock.mockResolvedValue(othersRequest);
 
@@ -407,11 +410,14 @@ describe(HardwareRequestService.name, () => {
     });
 
     it.each([
-      { case: "a member", role: "member" },
-      { case: "a caller outside any organization", role: undefined }
-    ] as const)("answers 403 to $case withdrawing someone else's request", async ({ role }) => {
-      const { service, hardwareRequestRepository } = setup({ role });
-      hardwareRequestRepository.findById.mockResolvedValue(createHardwareRequest());
+      { case: "a member withdrawing someone else's request", role: "member", organizationId: "org-1", requester: false },
+      { case: "a caller outside any organization withdrawing someone else's request", role: undefined, organizationId: undefined, requester: false },
+      { case: "the requester acting for another organization", role: "owner", organizationId: "another-org", requester: true }
+    ] as const)("answers 403 to $case", async ({ role, organizationId, requester }) => {
+      const { service, hardwareRequestRepository, user } = setup({ role, organizationId });
+      hardwareRequestRepository.findById.mockResolvedValue(
+        createHardwareRequest({ organizationId: requester ? "org-1" : organizationId ?? null, ...(requester ? { userId: user.id } : {}) })
+      );
 
       await expect(service.withdraw("request-1")).rejects.toMatchObject({
         status: 403,
@@ -422,7 +428,7 @@ describe(HardwareRequestService.name, () => {
 
     it("leaves a request that is already withdrawn as it is", async () => {
       const { service, hardwareRequestRepository, jobQueueService, user } = setup();
-      const withdrawn = createHardwareRequest({ userId: user.id, status: "withdrawn" });
+      const withdrawn = createHardwareRequest({ userId: user.id, organizationId: null, status: "withdrawn" });
       hardwareRequestRepository.findById.mockResolvedValue(withdrawn);
       hardwareRequestRepository.findOneByAndLock.mockResolvedValue(withdrawn);
 
@@ -433,7 +439,7 @@ describe(HardwareRequestService.name, () => {
 
     it.each(["accepted", "fulfilled", "closed"] as const)("answers 409 for a %s request", async status => {
       const { service, hardwareRequestRepository, user } = setup();
-      const settled = createHardwareRequest({ userId: user.id, status });
+      const settled = createHardwareRequest({ userId: user.id, organizationId: null, status });
       hardwareRequestRepository.findById.mockResolvedValue(settled);
       hardwareRequestRepository.findOneByAndLock.mockResolvedValue(settled);
 
@@ -445,7 +451,7 @@ describe(HardwareRequestService.name, () => {
       { case: "is gone once locked", readable: true }
     ])("answers 404 for a request $case", async ({ readable }) => {
       const { service, hardwareRequestRepository, user } = setup();
-      hardwareRequestRepository.findById.mockResolvedValue(readable ? createHardwareRequest({ userId: user.id }) : undefined);
+      hardwareRequestRepository.findById.mockResolvedValue(readable ? createHardwareRequest({ userId: user.id, organizationId: null }) : undefined);
       hardwareRequestRepository.findOneByAndLock.mockResolvedValue(undefined);
 
       await expect(service.withdraw("request-1")).rejects.toMatchObject({ status: 404, message: "Hardware request not found" });
