@@ -9,10 +9,13 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DeploymentDepositRepository } from "@src/billing/repositories/deployment-deposit/deployment-deposit.repository";
+import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
+import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
+import { DomainEventsService } from "@src/core/services/domain-events/domain-events.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { OrganizationActivityRepository } from "@src/organization/repositories/organization-activity/organization-activity.repository";
@@ -30,6 +33,7 @@ import {
 import { AccountDeletionTokenRepository } from "@src/user/repositories/account-deletion-token/account-deletion-token.repository";
 import { UserTemplateRepository } from "@src/user/repositories/user-template/user-template.repository";
 import { PurgeDeletedAccount, PurgeDeletedAccountHandler } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
+import { ABUSE_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 import { AccountDeletionService } from "./account-deletion.service";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
@@ -37,7 +41,7 @@ import { findDeploymentDeposit, seedDeploymentDeposit } from "@test/seeders/db/d
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedAssistantConsent, seedAssistantConversation, seedFeedbackSubmission, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
 import { seedOrganizationActivity, seedOrganizationInvitation, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
-import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedUser, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
@@ -427,6 +431,84 @@ describe(AccountDeletionService.name, () => {
     expect(await findDeploymentDeposit(teamDeposit.id)).toMatchObject({ organizationId: team.id, actorUserId: null, amountCents: teamDeposit.amountCents });
   });
 
+  describe("when the deleted account signs up again", () => {
+    it("refuses a trial to the same identity if the deleted account was locked for workload abuse", async () => {
+      const { service, account, token, answerActiveDeployments, answerBalanceOf, lockForWorkloadAbuse, registerAgain } = await setup();
+      answerActiveDeployments([]);
+      answerBalanceOf(account.address, undefined);
+      await lockForWorkloadAbuse(account);
+
+      await service.confirm({ token });
+      const { wallet, grantTrial } = await registerAgain({ userId: account.user.userId!, email: faker.internet.email() });
+
+      expect(grantTrial).not.toHaveBeenCalled();
+      expect(wallet).toMatchObject({
+        isTrialing: false,
+        activatedAt: expect.any(Date),
+        abuseLockedAt: expect.any(Date),
+        abuseLockedReason: ABUSE_LOCK_REASON,
+        deploymentAllowance: "0.00",
+        feeAllowance: "0.00"
+      });
+    });
+
+    it("refuses a trial to a new identity with the normalized email of a deleted account locked for workload abuse", async () => {
+      const { service, account, token, answerActiveDeployments, answerBalanceOf, setEmailOf, lockForWorkloadAbuse, registerAgain } = await setup();
+      answerActiveDeployments([]);
+      answerBalanceOf(account.address, undefined);
+      const localPart = faker.string.alphanumeric(12);
+      const domain = `${faker.string.alphanumeric(12).toLowerCase()}.com`;
+      await setEmailOf(account, ` ${localPart.toUpperCase()}@${domain.toUpperCase()} `);
+      await lockForWorkloadAbuse(account);
+
+      await service.confirm({ token });
+      const { wallet, grantTrial } = await registerAgain({ userId: `auth0|${faker.string.alphanumeric(24)}`, email: `${localPart.toLowerCase()}@${domain}` });
+
+      expect(grantTrial).not.toHaveBeenCalled();
+      expect(wallet).toMatchObject({ isTrialing: false, abuseLockedReason: ABUSE_LOCK_REASON });
+    });
+
+    it("grants a trial again to the same identity and email if the deleted account was never locked", async () => {
+      const { service, account, token, answerActiveDeployments, setEmailOf, registerAgain } = await setup();
+      answerActiveDeployments([]);
+      const email = await setEmailOf(account, faker.internet.email().toLowerCase());
+
+      await service.confirm({ token });
+      const { wallet, grantTrial } = await registerAgain({ userId: account.user.userId!, email });
+
+      expect(grantTrial).toHaveBeenCalledWith(expect.anything(), { addressIndex: wallet.id });
+      expect(wallet).toMatchObject({ isTrialing: true, activatedAt: expect.any(Date), abuseLockedAt: null });
+    });
+
+    it("keeps no identity, email or user id of the deleted account in plain text", async () => {
+      const { service, db, account, token, answerActiveDeployments, answerBalanceOf, setEmailOf, lockForWorkloadAbuse } = await setup();
+      answerActiveDeployments([]);
+      answerBalanceOf(account.address, undefined);
+      const email = await setEmailOf(account, faker.internet.email());
+      await lockForWorkloadAbuse(account);
+      const rememberedBefore = await db.select({ id: resolveTable("DeletedAccountAbuseLocks").id }).from(resolveTable("DeletedAccountAbuseLocks"));
+
+      await service.confirm({ token });
+
+      const remembered = (await db.select().from(resolveTable("DeletedAccountAbuseLocks"))).filter(
+        row => !rememberedBefore.some(before => before.id === row.id)
+      );
+      expect(remembered).toEqual([
+        {
+          id: expect.any(String),
+          identityHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+          emailHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+          reason: ABUSE_LOCK_REASON,
+          createdAt: expect.any(Date)
+        }
+      ]);
+      const stored = JSON.stringify(remembered).toLowerCase();
+      expect(stored).not.toContain(account.user.userId!.toLowerCase());
+      expect(stored).not.toContain(email.toLowerCase());
+      expect(stored).not.toContain(account.user.id);
+    });
+  });
+
   it("leaves the account untouched while it still has an active deployment", async () => {
     const { service, account, token, answerActiveDeployments, countRowsOwnedBy } = await setup();
     answerActiveDeployments([account.address]);
@@ -592,6 +674,39 @@ describe(AccountDeletionService.name, () => {
         );
     }
 
+    async function setEmailOf({ user }: Awaited<ReturnType<typeof seedAccount>>, email: string) {
+      await db
+        .update(resolveTable("Users"))
+        .set({ email })
+        .where(eq(resolveTable("Users").id, user.id));
+
+      return email;
+    }
+
+    async function lockForWorkloadAbuse({ wallet }: Awaited<ReturnType<typeof seedAccount>>) {
+      await db
+        .update(resolveTable("UserWallets"))
+        .set({ isTrialing: false, deploymentAllowance: "0", feeAllowance: "0", abuseLockedAt: new Date(), abuseLockedReason: ABUSE_LOCK_REASON })
+        .where(eq(resolveTable("UserWallets").id, wallet.id));
+    }
+
+    async function registerAgain(identity: { userId: string; email: string }) {
+      const user = await seedUser({ ...identity, emailVerified: true });
+      await personalOrganizationService.ensureForUser(user);
+      const grantTrial = vi
+        .spyOn(container.resolve(ManagedUserWalletService), "createAndAuthorizeTrialSpending")
+        .mockImplementation(async (_signer, { addressIndex }) => ({ address: `granted-${addressIndex}`, limits: { deployment: 7_000_000, fees: 3_000_000 } }));
+      vi.spyOn(container.resolve(DomainEventsService), "publish").mockResolvedValue(null);
+
+      await container.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
+
+      const [wallet] = await db
+        .select()
+        .from(resolveTable("UserWallets"))
+        .where(eq(resolveTable("UserWallets").userId, user.id));
+      return { wallet, grantTrial };
+    }
+
     async function seedTeam() {
       const { user: owner, organization, project } = await seedOrganizationWithOwner({ user: { userId: faker.string.uuid() } });
 
@@ -703,6 +818,10 @@ describe(AccountDeletionService.name, () => {
       bystander,
       token,
       answerActiveDeployments,
+      answerBalanceOf,
+      setEmailOf,
+      lockForWorkloadAbuse,
+      registerAgain,
       countRowsOwnedBy,
       joinTeam,
       ownTeam,

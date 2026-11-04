@@ -109,6 +109,8 @@ export const envSchema = z.object({
   WORKLOAD_ABUSE_DOMAIN_BLOCK_MAX_SIBLINGS: z.number({ coerce: true }).int().positive().default(200),
   /** A domain with an account older than this predates the attack, so it is somebody's real domain. */
   WORKLOAD_ABUSE_DOMAIN_BLOCK_MIN_ACCOUNT_AGE_DAYS: z.number({ coerce: true }).int().positive().default(30),
+  /** Keys the hashes kept of a deleted account's abuse lock, so rotating it forgets every one of them. */
+  WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET: z.preprocess(blankToUndefined, z.string().min(32).optional()),
   /** Evidence rows feed the behavioural replay, so they must outlive its 30-day window with margin. */
   WORKLOAD_ABUSE_EVIDENCE_RETENTION_DAYS: z.number({ coerce: true }).int().positive().default(90),
   WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED: z.preprocess(

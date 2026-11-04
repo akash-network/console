@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { extractEmailDomain, normalizeEmailDomain } from "./email-domain";
+import { extractEmailDomain, normalizeEmailAddress, normalizeEmailDomain } from "./email-domain";
 
 describe("extractEmailDomain", () => {
   it.each([
@@ -36,6 +36,21 @@ describe("extractEmailDomain", () => {
 
   it.each([[null], [undefined]])("returns null for %s", email => {
     expect(extractEmailDomain(email)).toBeNull();
+  });
+});
+
+describe("normalizeEmailAddress", () => {
+  it.each([
+    ["user@example.com", "user@example.com"],
+    ["  Jane.Doe@Example.COM  ", "jane.doe@example.com"],
+    ["user+tag@example.com.", "user+tag@example.com"],
+    ['"User@internal"@example.com', '"user@internal"@example.com']
+  ])("normalizes %s to %s", (email, expected) => {
+    expect(normalizeEmailAddress(email)).toBe(expected);
+  });
+
+  it.each([[""], ["noatsign"], ["@example.com"], ["user@localhost"], [null], [undefined]])("returns null for %s", email => {
+    expect(normalizeEmailAddress(email)).toBeNull();
   });
 });
 

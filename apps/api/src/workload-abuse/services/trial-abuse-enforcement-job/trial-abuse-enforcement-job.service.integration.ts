@@ -3,13 +3,13 @@ import { container } from "tsyringe";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { JOB_NAME } from "@src/core";
+import { ABUSE_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import {
   EnforceTrialAbuse,
   EnforceTrialAbuseHandler,
   enforceTrialAbuseKeyFor
 } from "@src/workload-abuse/services/enforce-trial-abuse/enforce-trial-abuse.handler";
-import { ABUSE_LOCK_REASON } from "@src/workload-abuse/services/trial-abuse-enforcement/trial-abuse-enforcement.service";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import { TrialAbuseEnforcementJobService } from "./trial-abuse-enforcement-job.service";
 

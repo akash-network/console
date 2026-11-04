@@ -10,6 +10,16 @@ export const NORMALIZED_DOMAIN_PATTERN = new RegExp(`^${DOMAIN_LABEL}(?:\\.${DOM
  * treats null as "not blocked", so an address we cannot parse can never be refused by mistake.
  */
 export function extractEmailDomain(email: string | null | undefined): string | null {
+  return splitEmailAddress(email)?.domain ?? null;
+}
+
+export function normalizeEmailAddress(email: string | null | undefined): string | null {
+  const address = splitEmailAddress(email);
+
+  return address ? `${address.localPart}@${address.domain}` : null;
+}
+
+function splitEmailAddress(email: string | null | undefined): { localPart: string; domain: string } | null {
   if (!email) return null;
 
   const trimmed = email.trim();
@@ -17,7 +27,9 @@ export function extractEmailDomain(email: string | null | undefined): string | n
 
   if (separatorIndex <= 0) return null;
 
-  return normalizeEmailDomain(trimmed.slice(separatorIndex + 1));
+  const domain = normalizeEmailDomain(trimmed.slice(separatorIndex + 1));
+
+  return domain ? { localPart: trimmed.slice(0, separatorIndex).toLowerCase(), domain } : null;
 }
 
 /** Matching is exact, so a domain only ever matches a stored row when both went through this. */

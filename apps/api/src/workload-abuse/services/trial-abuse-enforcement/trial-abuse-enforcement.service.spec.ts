@@ -10,10 +10,11 @@ import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manag
 import type { CreateLogger, TxService } from "@src/core";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { ABUSE_LOCK_REASON, BLOCKED_DOMAIN_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 import type { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import type { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import type { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
-import { ABUSE_LOCK_REASON, BLOCKED_DOMAIN_LOCK_REASON, TrialAbuseEnforcementService } from "./trial-abuse-enforcement.service";
+import { TrialAbuseEnforcementService } from "./trial-abuse-enforcement.service";
 
 import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createInitializedUserWallet } from "@test/seeders/user-wallet.seeder";

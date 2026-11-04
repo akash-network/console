@@ -8,6 +8,7 @@ import { UserWalletRepository } from "@src/billing/repositories";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { JOB_NAME } from "@src/core";
+import { ABUSE_LOCK_REASON, BLOCKED_DOMAIN_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 import { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import {
@@ -15,7 +16,6 @@ import {
   LockBlockedDomainWalletHandler,
   lockBlockedDomainWalletKeyFor
 } from "@src/workload-abuse/services/lock-blocked-domain-wallet/lock-blocked-domain-wallet.handler";
-import { ABUSE_LOCK_REASON, BLOCKED_DOMAIN_LOCK_REASON } from "@src/workload-abuse/services/trial-abuse-enforcement/trial-abuse-enforcement.service";
 import { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
 import { BlockEmailDomainOfWallet, BlockEmailDomainOfWalletHandler, blockEmailDomainOfWalletKeyFor } from "./block-email-domain-of-wallet.handler";
 

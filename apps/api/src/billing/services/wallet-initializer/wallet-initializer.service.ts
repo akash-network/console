@@ -20,6 +20,7 @@ import { TxService } from "@src/core/services/tx/tx.service";
 import type { OrganizationOutput } from "@src/organization/repositories/organization/organization.repository";
 import { UserOutput, UserRepository } from "@src/user/repositories";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
+import { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
 import { ManagedUserWalletService } from "../managed-user-wallet/managed-user-wallet.service";
 
 /** Names the domain, unlike the registration refusal: only a verified account holder sees it, and support needs to be able to act on it. */
@@ -38,6 +39,7 @@ export class WalletInitializerService {
     private readonly trialActivationInstrumentation: TrialActivationInstrumentationService,
     private readonly trialValidationService: TrialValidationService,
     private readonly blockedEmailDomainService: BlockedEmailDomainService,
+    private readonly deletedAccountAbuseLockService: DeletedAccountAbuseLockService,
     private readonly txService: TxService
   ) {}
 
@@ -67,7 +69,7 @@ export class WalletInitializerService {
 
     await this.#assertEmailDomainNotBlocked(user);
 
-    const activation = await this.txService.transaction(async () => await this.#grantTrialLimitsOnce(userWallet));
+    const activation = await this.txService.transaction(async () => await this.#grantTrialLimitsOnce(userWallet, user));
     const activatedWallet = this.#toPublic({ ...activation.wallet, userId, address: userWallet.address });
     if (!activation.isNew) return activatedWallet;
 
@@ -78,12 +80,15 @@ export class WalletInitializerService {
   }
 
   /** Holds the wallet row until the grant is saved, so an activation running alongside for the same user finds it activated and grants nothing. */
-  async #grantTrialLimitsOnce(userWallet: WalletInitialized): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
+  async #grantTrialLimitsOnce(userWallet: WalletInitialized, user: UserOutput): Promise<{ wallet: UserWalletOutput; isNew: boolean }> {
     const wallets = this.userWalletRepository.unscoped("wallet-provisioning");
     const lockedWallet = await wallets.findOneByAndLock({ id: userWallet.id }, { strength: "no key update" });
 
     assert(lockedWallet, 404, "UserWallet Not Found");
     if (lockedWallet.activatedAt) return { wallet: lockedWallet, isNew: false };
+
+    const deletedAccountLockReason = await this.deletedAccountAbuseLockService.findLockReasonOf(user);
+    if (deletedAccountLockReason) return { wallet: await wallets.activateLockedForAbuse(userWallet.id, deletedAccountLockReason), isNew: false };
 
     const chainWallet = await this.walletManager.createAndAuthorizeTrialSpending(this.managedSignerService, { addressIndex: userWallet.id });
     const activatedWallet = await wallets.updateById(
