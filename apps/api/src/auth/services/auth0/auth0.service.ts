@@ -18,10 +18,6 @@ export class Auth0Service {
     });
   }
 
-  async sendVerificationEmail(userId: string) {
-    await this.managementClient.jobs.verifyEmail({ user_id: userId });
-  }
-
   async markEmailVerified(userId: string) {
     await this.managementClient.users.update({ id: userId }, { email_verified: true });
   }

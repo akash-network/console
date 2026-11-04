@@ -28312,59 +28312,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
-    "/v1/send-verification-email": {
-      "post": {
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationIdHeader",
-          },
-          {
-            "$ref": "#/components/parameters/ProjectIdHeader",
-          },
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "properties": {
-                  "data": {
-                    "properties": {
-                      "userId": {
-                        "type": "string",
-                      },
-                    },
-                    "required": [
-                      "userId",
-                    ],
-                    "type": "object",
-                  },
-                },
-                "required": [
-                  "data",
-                ],
-                "type": "object",
-              },
-            },
-          },
-          "required": true,
-        },
-        "responses": {
-          "200": {
-            "content": {},
-            "description": "Sends a verification email to the signed-in user",
-          },
-        },
-        "security": [
-          {
-            "BearerAuth": [],
-          },
-        ],
-        "summary": "Resends a verification email",
-        "tags": [
-          "Users",
-        ],
-      },
-    },
     "/v1/spend-rate": {
       "get": {
         "operationId": "getSpendRate",

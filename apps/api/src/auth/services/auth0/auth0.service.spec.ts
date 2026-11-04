@@ -29,17 +29,6 @@ describe(Auth0Service.name, () => {
     });
   });
 
-  describe("sendVerificationEmail", () => {
-    it("calls managementClient.jobs.verifyEmail with user ID", async () => {
-      const verifyEmail = vi.fn().mockResolvedValue(undefined);
-      const { auth0Service } = setup({ jobs: { verifyEmail } });
-
-      await auth0Service.sendVerificationEmail("auth0|abc123");
-
-      expect(verifyEmail).toHaveBeenCalledWith({ user_id: "auth0|abc123" });
-    });
-  });
-
   describe("markEmailVerified", () => {
     it("calls managementClient.users.update with email_verified true", async () => {
       const update = vi.fn().mockResolvedValue(undefined);
@@ -213,7 +202,6 @@ describe(Auth0Service.name, () => {
 
   function setup(
     input: {
-      jobs?: { verifyEmail: Mock };
       users?: { update?: Mock; create?: Mock; link?: Mock; delete?: Mock; get?: Mock };
       usersByEmail?: { getByEmail: Mock };
     } = {}
