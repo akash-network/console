@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { DEPENDENCIES as IS_ONBOARDED_DEPENDENCIES } from "@src/hooks/useIsOnboarded";
+import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
 import type { DEPENDENCIES } from "@src/hooks/useOnboardingChrome";
 import { useOnboardingChrome } from "@src/hooks/useOnboardingChrome";
 import type { OrganizationOutput } from "@src/types/organization";
@@ -118,16 +120,18 @@ describe(useOnboardingChrome.name, () => {
         isError: (input.isLeasesError ?? false) as never,
         data: (input.isLeasesError ? undefined : (input.leaseCount ?? 0) > 0) as never
       })) as typeof DEPENDENCIES.useLeaseExistenceQuery;
-    const useUser: typeof DEPENDENCIES.useUser = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useUser>>({
+    const useUser: typeof IS_ONBOARDED_DEPENDENCIES.useUser = () =>
+      mock<ReturnType<typeof IS_ONBOARDED_DEPENDENCIES.useUser>>({
         user: mock<CustomUserProfile>({ onboardingSkippedAt: input.onboardingSkippedAt ?? null })
       });
 
-    const useActiveOrganization: typeof DEPENDENCIES.useActiveOrganization = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
+    const useActiveOrganization: typeof IS_ONBOARDED_DEPENDENCIES.useActiveOrganization = () =>
+      mock<ReturnType<typeof IS_ONBOARDED_DEPENDENCIES.useActiveOrganization>>({
         activeOrganization: input.organizationType ? mock<OrganizationOutput>({ type: input.organizationType }) : undefined
       });
+    const useIsOnboardedFromInput: typeof DEPENDENCIES.useIsOnboarded = () =>
+      useIsOnboarded({ useWallet, useUser, useLeaseExistenceQuery, useActiveOrganization });
 
-    return { dependencies: { useWallet, usePathname, useLeaseExistenceQuery, useUser, useActiveOrganization } };
+    return { dependencies: { useWallet, usePathname, useLeaseExistenceQuery, useIsOnboarded: useIsOnboardedFromInput } };
   }
 });
