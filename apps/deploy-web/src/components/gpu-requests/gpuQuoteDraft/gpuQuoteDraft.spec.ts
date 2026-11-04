@@ -224,7 +224,7 @@ describe("gpuQuoteDraft", () => {
 
     it.each(["0", "-1", "abc", "1000.01"])("rejects a target price of %s", price => {
       expect(listMissingAnswers(completeDraft({ maxUsdPerGpuHour: price }), TODAY)).toEqual([
-        { step: "price", label: "a price between $0 and $1000 per GPU-hour" }
+        { step: "price", label: "a price over $0 and up to $1000 per GPU-hour" }
       ]);
       expect(listMissingAnswers(completeDraft({ minUsdPerGpuHour: price }), TODAY)).toHaveLength(1);
     });
@@ -256,6 +256,14 @@ describe("gpuQuoteDraft", () => {
 
     it("asks for an email address", () => {
       expect(listMissingAnswers(completeDraft({ email: " " }), TODAY)).toEqual([{ step: "contact", label: "an email address" }]);
+    });
+
+    it.each(["me@nope", "not-an-email", "a b@example.com"])("asks for a valid email address instead of %s", email => {
+      expect(listMissingAnswers(completeDraft({ email }), TODAY)).toEqual([{ step: "contact", label: "a valid email address" }]);
+    });
+
+    it("accepts an email address with surrounding spaces", () => {
+      expect(listMissingAnswers(completeDraft({ email: "  dana@example.com " }), TODAY)).toEqual([]);
     });
   });
 

@@ -1,4 +1,5 @@
 import { differenceInCalendarDays } from "date-fns";
+import { z } from "zod";
 
 import type {
   Fabric,
@@ -202,6 +203,8 @@ export function stepToChange(steps: QuoteStepId[], step: QuoteStepId): QuoteStep
   return steps.includes(step) ? step : "start";
 }
 
+const emailSchema = z.string().email();
+
 export function listMissingAnswers(draft: GpuQuoteDraft, today: string): MissingAnswer[] {
   const minPrice = parsePrice(draft.minUsdPerGpuHour);
   const maxPrice = parsePrice(draft.maxUsdPerGpuHour);
@@ -209,11 +212,12 @@ export function listMissingAnswers(draft: GpuQuoteDraft, today: string): Missing
     !describeGpuModel(draft) && { step: "gpu", label: "a GPU model" },
     draft.regionMode !== "any" && draft.areas.length === 0 && { step: "region", label: "at least one region" },
     draft.regionMode === "except" && draft.areas.length >= REGION_AREAS.length && { step: "region", label: "a region to leave open" },
-    (!minPrice.isValid || !maxPrice.isValid) && { step: "price", label: `a price between $0 and $${MAX_USD_PER_GPU_HOUR} per GPU-hour` },
+    (!minPrice.isValid || !maxPrice.isValid) && { step: "price", label: `a price over $0 and up to $${MAX_USD_PER_GPU_HOUR} per GPU-hour` },
     !!minPrice.value && !!maxPrice.value && minPrice.value > maxPrice.value && { step: "price", label: "a lowest price under the highest" },
     draft.start === "date" && !draft.startDate && { step: "timing", label: "a start date" },
     draft.start === "date" && !!draft.startDate && draft.startDate < today && { step: "timing", label: "a start date from today on" },
-    !draft.email.trim() && { step: "contact", label: "an email address" }
+    !draft.email.trim() && { step: "contact", label: "an email address" },
+    !!draft.email.trim() && !emailSchema.safeParse(draft.email.trim()).success && { step: "contact", label: "a valid email address" }
   ];
 
   return missing.filter((answer): answer is MissingAnswer => answer !== false);
