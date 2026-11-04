@@ -38,7 +38,7 @@ export const SETTLED_TRANSACTION_STATUSES: Set<StripeTransactionStatus> = new Se
 /** A pending claim older than this is stale: without an invoice it stops holding the coupon, with one its invoice decides. */
 const PENDING_COUPON_CLAIM_HOLD = sql`interval '1 hour'`;
 
-/** A person's claim of a coupon under another payer, which holds the coupon unless it is stale and its invoice was never paid. */
+/** A person's claim of a coupon, whichever payer it was made for, which holds the coupon unless it is stale and its invoice was never paid. */
 export interface CouponClaimHold {
   id: string;
   status: StripeTransactionStatus;
