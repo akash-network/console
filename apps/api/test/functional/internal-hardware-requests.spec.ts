@@ -404,6 +404,69 @@ describe("Internal hardware requests", () => {
     });
   });
 
+  describe("POST /internal/hardware-requests/{id}/offers/{offerId}/publish", () => {
+    it("shows the first offer to the tenant and moves the request to offers, which tells them", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ status: "sourcing" });
+      const { data: offer } = await draftOffer(hardwareRequest.id);
+
+      const { status, data } = await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${offer.id}/publish`, {
+        actor: "Remington"
+      });
+
+      expect(status).toBe(200);
+      expect(data).toMatchObject({ id: offer.id, status: "published", publishedAt: expect.any(String) });
+      const request = await getRequest(hardwareRequest.id);
+      expect(request).toMatchObject({ status: "offers", firstRepliedAt: expect.any(String) });
+      expect(request.events).toMatchObject([
+        { type: "offer_published", actor: "Remington", payload: { offerId: offer.id } },
+        { type: "status_changed", payload: { from: "sourcing", to: "offers" } }
+      ]);
+      expect(await findJobRows(HardwareRequestStatusNotificationJob[JOB_NAME], { data: { hardwareRequestId: hardwareRequest.id } })).toMatchObject([
+        { data: { status: "offers" } }
+      ]);
+    });
+
+    it("tells the tenant only once when more offers follow", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ status: "sourcing" });
+      const [{ data: first }, { data: second }] = [await draftOffer(hardwareRequest.id), await draftOffer(hardwareRequest.id)];
+      await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${first.id}/publish`, { actor: "Remington" });
+
+      await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${second.id}/publish`, { actor: "Remington" });
+
+      expect(await findJobRows(HardwareRequestStatusNotificationJob[JOB_NAME], { data: { hardwareRequestId: hardwareRequest.id } })).toHaveLength(1);
+    });
+
+    it("refuses an offer that expired before it was published", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ status: "sourcing" });
+      const { data: offer } = await draftOffer(hardwareRequest.id);
+      await container.resolve(HardwareRequestOfferRepository).updateById(offer.id, { expiresAt: new Date(Date.now() - 60_000) });
+
+      const { status } = await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${offer.id}/publish`, { actor: "Remington" });
+
+      expect(status).toBe(409);
+      expect(await getRequest(hardwareRequest.id)).toMatchObject({ status: "sourcing" });
+    });
+  });
+
+  describe("POST /internal/hardware-requests/{id}/offers/{offerId}/withdraw", () => {
+    it("withdraws an offer and records who did", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({});
+      const { data: offer } = await draftOffer(hardwareRequest.id);
+
+      const { status, data } = await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${offer.id}/withdraw`, {
+        actor: "Remington"
+      });
+
+      expect(status).toBe(200);
+      expect(data).toMatchObject({ id: offer.id, status: "withdrawn" });
+      expect((await getRequest(hardwareRequest.id)).events).toMatchObject([{ type: "offer_withdrawn", actor: "Remington", payload: { offerId: offer.id } }]);
+    });
+  });
+
   describe("POST /internal/hardware-requests/{id}/notes", () => {
     it("adds a note to the timeline without counting it as a reply", async () => {
       const { seed } = await setup();
@@ -464,6 +527,18 @@ describe("Internal hardware requests", () => {
     const json = response.ok ? ((await response.json()) as { data: { id: string; [key: string]: unknown } }) : undefined;
 
     return { status: response.status, data: json?.data as { id: string; [key: string]: unknown } };
+  }
+
+  async function draftOffer(hardwareRequestId: string) {
+    const provider = await createProvider();
+
+    return await offerRequest("POST", `/internal/hardware-requests/${hardwareRequestId}/offers`, anOffer(provider.owner));
+  }
+
+  async function getRequest(id: string) {
+    const response = await request(`/internal/hardware-requests/${id}`, internalToken);
+
+    return ((await response.json()) as { data: QueueItem & { status: string; firstRepliedAt: string | null; events: unknown[] } }).data;
   }
 
   async function listQueue(query: string): Promise<QueueItem[]> {

@@ -149,6 +149,8 @@ export const HardwareRequestOfferDraftRequestSchema = z.object({
   })
 });
 
+export const HardwareRequestOfferActionRequestSchema = z.object({ data: z.object({ actor: ActorSchema }) });
+
 export const HardwareRequestOfferResponseSchema = z.object({ data: HardwareRequestOfferSchema });
 
 export const AddHardwareRequestNoteRequestSchema = z.object({
@@ -168,6 +170,7 @@ export type SwitchHardwareRequestLaneRequest = z.infer<typeof SwitchHardwareRequ
 export type ChangeHardwareRequestStatusRequest = z.infer<typeof ChangeHardwareRequestStatusRequestSchema>;
 export type CreateHardwareRequestOnBehalfRequest = z.infer<typeof CreateHardwareRequestOnBehalfRequestSchema>;
 export type HardwareRequestOfferDraftRequest = z.infer<typeof HardwareRequestOfferDraftRequestSchema>;
+export type HardwareRequestOfferActionRequest = z.infer<typeof HardwareRequestOfferActionRequestSchema>;
 export type HardwareRequestOfferResponse = z.infer<typeof HardwareRequestOfferResponseSchema>;
 export type AddHardwareRequestNoteRequest = z.infer<typeof AddHardwareRequestNoteRequestSchema>;
 export type HardwareRequestWithTimelineResponse = z.infer<typeof HardwareRequestWithTimelineResponseSchema>;

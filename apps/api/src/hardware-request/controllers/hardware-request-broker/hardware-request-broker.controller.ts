@@ -5,6 +5,7 @@ import type {
   AssignHardwareRequestOwnerRequest,
   ChangeHardwareRequestStatusRequest,
   CreateHardwareRequestOnBehalfRequest,
+  HardwareRequestOfferActionRequest,
   HardwareRequestOfferDraftRequest,
   HardwareRequestOfferResponse,
   HardwareRequestQueueQuery,
@@ -56,6 +57,14 @@ export class HardwareRequestBrokerController {
 
   async updateOffer(id: string, offerId: string, { data }: HardwareRequestOfferDraftRequest): Promise<HardwareRequestOfferResponse> {
     return { data: await this.hardwareRequestOfferBrokerService.update(id, offerId, data) };
+  }
+
+  async publishOffer(id: string, offerId: string, { data }: HardwareRequestOfferActionRequest): Promise<HardwareRequestOfferResponse> {
+    return { data: await this.hardwareRequestOfferBrokerService.publish(id, offerId, data) };
+  }
+
+  async withdrawOffer(id: string, offerId: string, { data }: HardwareRequestOfferActionRequest): Promise<HardwareRequestOfferResponse> {
+    return { data: await this.hardwareRequestOfferBrokerService.withdraw(id, offerId, data) };
   }
 
   async addNote(id: string, { data }: AddHardwareRequestNoteRequest): Promise<HardwareRequestWithTimelineResponse> {

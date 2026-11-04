@@ -20,6 +20,8 @@ import {
 } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { HardwareRequestStatusNotificationJob } from "@src/hardware-request/services/hardware-request-status-notification/hardware-request-status-notification.handler";
 
+export type HardwareRequestStatusChange = { actor: string; status: HardwareRequestStatus; closeReason?: CloseReason };
+
 export type HardwareRequestWithTimeline = QueuedHardwareRequest & { events: HardwareRequestEventOutput[]; offers: HardwareRequestOfferOutput[] };
 
 /** Serves the team's broker queue, which sees every organization's requests. */
@@ -83,26 +85,26 @@ export class HardwareRequestBrokerService {
     return await this.getWithTimeline(id);
   }
 
-  /** Tells the tenant in the same transaction, and counts as the team's first reply when none came before. */
-  async changeStatus(
-    id: string,
-    { actor, status, closeReason }: { actor: string; status: HardwareRequestStatus; closeReason?: CloseReason }
-  ): Promise<HardwareRequestWithTimeline> {
-    await this.#changeLocked(id, async hardwareRequest => {
-      if (hardwareRequest.status === status) return;
-
-      const now = new Date();
-      await this.#requests.updateById(id, { status, updatedAt: now, ...(hardwareRequest.firstRepliedAt ? {} : { firstRepliedAt: now }) });
-      const event = await this.hardwareRequestEventRepository.record({
-        hardwareRequestId: id,
-        type: "status_changed",
-        actor,
-        payload: { from: hardwareRequest.status, to: status, ...(closeReason && { closeReason }) }
-      });
-      await this.jobQueueService.enqueue(new HardwareRequestStatusNotificationJob({ hardwareRequestId: id, eventId: event.id, status, closeReason }));
-    });
+  async changeStatus(id: string, change: HardwareRequestStatusChange): Promise<HardwareRequestWithTimeline> {
+    await this.#changeLocked(id, async hardwareRequest => await this.moveLockedToStatus(hardwareRequest, change));
 
     return await this.getWithTimeline(id);
+  }
+
+  /** Expects the caller to hold the request's row lock; tells the tenant in the same transaction and counts as the team's first reply when none came before. */
+  async moveLockedToStatus(hardwareRequest: HardwareRequestOutput, { actor, status, closeReason }: HardwareRequestStatusChange): Promise<void> {
+    if (hardwareRequest.status === status) return;
+
+    const { id } = hardwareRequest;
+    const now = new Date();
+    await this.#requests.updateById(id, { status, updatedAt: now, ...(hardwareRequest.firstRepliedAt ? {} : { firstRepliedAt: now }) });
+    const event = await this.hardwareRequestEventRepository.record({
+      hardwareRequestId: id,
+      type: "status_changed",
+      actor,
+      payload: { from: hardwareRequest.status, to: status, ...(closeReason && { closeReason }) }
+    });
+    await this.jobQueueService.enqueue(new HardwareRequestStatusNotificationJob({ hardwareRequestId: id, eventId: event.id, status, closeReason }));
   }
 
   async addNote(id: string, { actor, text }: { actor: string; text: string }): Promise<HardwareRequestWithTimeline> {
