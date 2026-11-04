@@ -122,18 +122,8 @@ export const ApplyCouponRequestSchema = z.object({
   })
 });
 
-export const CouponSchema = z.object({
-  id: z.string(),
-  percent_off: z.number().nullable().optional(),
-  amount_off: z.number().nullable().optional(),
-  valid: z.boolean().nullable().optional(),
-  name: z.string().nullable().optional(),
-  description: z.string().nullable().optional()
-});
-
 export const ApplyCouponResponseSchema = z.object({
   data: z.object({
-    coupon: CouponSchema.nullable().optional(),
     amountAdded: z.number().optional(),
     transactionId: z.string().optional(),
     transactionStatus: TransactionStatusSchema.optional(),
@@ -283,5 +273,4 @@ export type ConfirmPaymentRequest = z.infer<typeof ConfirmPaymentRequestSchema>;
 export type PaymentIntentResult = z.infer<typeof PaymentIntentResultSchema>;
 export type ConfirmPaymentResponse = z.infer<typeof ConfirmPaymentResponseSchema>;
 export type ApplyCouponRequest = z.infer<typeof ApplyCouponRequestSchema>;
-export type Coupon = z.infer<typeof CouponSchema>;
 export type Transaction = z.infer<typeof TransactionSchema>;

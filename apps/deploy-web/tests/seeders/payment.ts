@@ -1,3 +1,4 @@
+import type { CouponResponse } from "@akashnetwork/http-sdk";
 import { faker } from "@faker-js/faker";
 
 import type { BillingTransaction } from "@src/queries";
@@ -91,13 +92,7 @@ export const createMockPaymentResponse = (overrides = {}) => ({
   ...overrides
 });
 
-export const createMockCouponResponse = (overrides = {}) => ({
-  coupon: {
-    id: faker.helpers.arrayElement(["25OFF", "WELCOME10", "SUMMER20"]),
-    percent_off: faker.helpers.arrayElement([10, 15, 20, 25]),
-    valid: true,
-    name: faker.helpers.arrayElement(["25% Off Forever", "Welcome 10% Off", "Summer 20% Off"])
-  },
+export const createMockCouponResponse = (overrides: Partial<CouponResponse> = {}): CouponResponse => ({
   amountAdded: faker.number.float({ min: 5, max: 50, fractionDigits: 2 }),
   ...overrides
 });

@@ -125,14 +125,13 @@ export class StripeErrorService {
     });
   }
 
-  public toCouponResponseError(error: unknown): { coupon: null; error: { message: string; code?: string; type?: string } } {
+  public toCouponResponseError(error: unknown): { error: { message: string; code?: string; type?: string } } {
     const appError = this.toAppError(error, "coupon");
 
     // If it's a known coupon error, return it as a response error
     if (appError instanceof HttpError && appError.status >= 400 && appError.status < 500) {
       const errorCode = this.getCouponErrorCode(appError.message);
       return {
-        coupon: null,
         error: {
           message: appError.message,
           code: errorCode,
@@ -143,7 +142,6 @@ export class StripeErrorService {
 
     // For unknown errors, return a generic message
     return {
-      coupon: null,
       error: {
         message: "Failed to apply coupon. Please check the code and try again.",
         code: "unknown_coupon_error",

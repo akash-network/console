@@ -8776,14 +8776,6 @@ export interface operations {
         content: {
           "application/json": {
             data: {
-              coupon?: {
-                id: string;
-                percent_off?: number | null;
-                amount_off?: number | null;
-                valid?: boolean | null;
-                name?: string | null;
-                description?: string | null;
-              } | null;
               amountAdded?: number;
               transactionId?: string;
               /** @enum {string} */
