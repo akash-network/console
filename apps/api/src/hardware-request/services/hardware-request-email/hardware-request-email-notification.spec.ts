@@ -63,7 +63,7 @@ describe(hardwareRequestEmailNotification.name, () => {
       contactEmail: "jane@example.com",
       configuration: null
     });
-    const requester = createUser({ id: hardwareRequest.userId, email: "account@example.com", username: "jane" });
+    const requester = createUser({ id: hardwareRequest.userId ?? undefined, email: "account@example.com", username: "jane" });
 
     const { payload } = setup({ hardwareRequest, requester });
 
@@ -106,7 +106,7 @@ describe(hardwareRequestEmailNotification.name, () => {
 
   it("identifies the account the request came from", () => {
     const hardwareRequest = createHardwareRequest();
-    const requester = createUser({ id: hardwareRequest.userId, email: "account@example.com", username: "jane" });
+    const requester = createUser({ id: hardwareRequest.userId ?? undefined, email: "account@example.com", username: "jane" });
 
     const { payload } = setup({ hardwareRequest, requester });
 

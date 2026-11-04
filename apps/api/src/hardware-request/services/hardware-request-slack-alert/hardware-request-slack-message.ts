@@ -21,6 +21,8 @@ function slackLink(url: string, label: string): string {
 }
 
 function describeRequester(hardwareRequest: HardwareRequestOutput, requesterEmail: string | null | undefined): string {
+  if (!hardwareRequest.userId) return `${escapeSlackText(hardwareRequest.contactEmail)} · no account yet`;
+
   const requester = escapeSlackText(requesterEmail || hardwareRequest.userId);
 
   if (hardwareRequest.contactEmail.toLowerCase() === requesterEmail?.toLowerCase()) {
@@ -55,7 +57,9 @@ function describeConfiguration(hardwareRequest: HardwareRequestOutput): string[]
   return summary ? [`Sent while configuring: ${escapeSlackText(summary)}`] : [];
 }
 
-function describeLinks(userId: string, links: { amplitudeProjectUrl?: string; adminUrl?: string }): string[] {
+function describeLinks(userId: string | null, links: { amplitudeProjectUrl?: string; adminUrl?: string }): string[] {
+  if (!userId) return [];
+
   const userLinks: string[] = [];
 
   if (links.amplitudeProjectUrl) {

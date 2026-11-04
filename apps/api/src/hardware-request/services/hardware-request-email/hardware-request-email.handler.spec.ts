@@ -74,6 +74,17 @@ describe(HardwareRequestEmailHandler.name, () => {
     expect(userRepository.findById).toHaveBeenCalledWith(hardwareRequest.userId);
   });
 
+  it("emails the mailbox without looking up a requester for a request filed for an email with no account", async () => {
+    const { handler, userRepository, notificationService, hardwareRequestRepository } = setup();
+    const unclaimed = createHardwareRequest({ userId: null });
+    hardwareRequestRepository.findById.mockResolvedValue(unclaimed);
+
+    await handler.handle({ hardwareRequestId: unclaimed.id, version: 1 });
+
+    expect(userRepository.findById).not.toHaveBeenCalled();
+    expect(notificationService.createNotification).toHaveBeenCalledTimes(1);
+  });
+
   it("skips and logs when the request no longer exists", async () => {
     const { handler, notificationService, hardwareRequestRepository, logger } = setup();
     hardwareRequestRepository.findById.mockResolvedValue(undefined);

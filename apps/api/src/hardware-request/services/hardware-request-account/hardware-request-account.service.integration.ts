@@ -60,6 +60,12 @@ describe(HardwareRequestAccountService.name, () => {
     await expect(service.findAccountType({ userId: user.id, organizationId: null })).resolves.toBe("trial");
   });
 
+  it("calls a request filed for an email with no account no_account", async () => {
+    const { service } = setup();
+
+    await expect(service.findAccountType({ userId: null, organizationId: null })).resolves.toBe("no_account");
+  });
+
   async function seedCard(owner: { userId: string; organizationId: string | null }) {
     await container
       .resolve<ApiPgDatabase>(POSTGRES_DB)

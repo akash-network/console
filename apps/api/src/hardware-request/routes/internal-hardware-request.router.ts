@@ -63,7 +63,7 @@ const createOnBehalfRoute = createRoute({
   method: "post",
   path: "/hardware-requests",
   operationId: "createHardwareRequestOnBehalf",
-  summary: "File a GPU request the team took offline, for an organization",
+  summary: "File a GPU request the team took offline, for an organization or for an email with no account yet",
   security: SECURITY_NONE,
   hiddenInOpenApiDocs: true,
   middleware: [requireInternalToken],
@@ -73,6 +73,7 @@ const createOnBehalfRoute = createRoute({
     400: { description: "Invalid body" },
     401: { description: "Missing or wrong internal token" },
     404: { description: "No live organization has this id" },
+    409: { description: "A verified account already uses the email" },
     422: { description: "The organization has no owner" }
   }
 });

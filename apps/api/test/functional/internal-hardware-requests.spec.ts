@@ -11,6 +11,7 @@ import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { HardwareRequestStatusNotificationJob } from "@src/hardware-request/services/hardware-request-status-notification/hardware-request-status-notification.handler";
 import { app } from "@src/rest-app";
+import { UserRepository } from "@src/user/repositories";
 
 import { seedHardwareRequest } from "@test/seeders/db/hardware-request.seeder";
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
@@ -162,6 +163,25 @@ describe("Internal hardware requests", () => {
       expect(data.events).toMatchObject([{ type: "created_on_behalf", actor: "Remington", payload: { organizationId: organization.id, email: null } }]);
       expect(await findJobRows(HardwareRequestEmailJob[JOB_NAME], { data: { hardwareRequestId: data.id } })).toHaveLength(1);
       expect(await findJobRows(HardwareRequestSlackAlertJob[JOB_NAME], { data: { hardwareRequestId: data.id } })).toHaveLength(1);
+    });
+
+    it("files a request for a contact email with no account yet", async () => {
+      const email = faker.internet.email().toLowerCase();
+
+      const { status, data } = await createOnBehalf({ actor: "Remington", request: { category: "gpu_model", gpuModel: "B200", quantity: 8, email } });
+
+      expect(status).toBe(201);
+      expect(data).toMatchObject({ userId: null, organizationId: null, organizationName: null, contactEmail: email, lane: "automated" });
+      expect(data.events).toMatchObject([{ type: "created_on_behalf", payload: { organizationId: null, email } }]);
+    });
+
+    it("refuses a contact email a verified account already uses", async () => {
+      const email = faker.internet.email().toLowerCase();
+      await container.resolve(UserRepository).create({ userId: faker.string.uuid(), email, emailVerified: true });
+
+      const { status } = await createOnBehalf({ actor: "Remington", request: { category: "other", details: "ARM", email: email.toUpperCase() } });
+
+      expect(status).toBe(409);
     });
 
     it("answers 404 for an unknown organization", async () => {

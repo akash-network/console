@@ -64,6 +64,16 @@ describe(HardwareRequestStatusNotificationHandler.name, () => {
     expect(await container.resolve(ActivityRepository).find({ userId: user.id })).toHaveLength(1);
   });
 
+  it("emails the contact address of a request filed for an email with no account", async () => {
+    const { notifications, notify } = await setup();
+    const unclaimed = await seedHardwareRequest({ userId: null, contactEmail: "lead@example.com", gpuModel: "H100", quantity: 8 });
+    const eventId = faker.string.uuid();
+
+    await notify({ hardwareRequestId: unclaimed.id, eventId, status: "sourcing" });
+
+    expect(notifications).toMatchObject([{ notificationId: `gpuRequestStatus.${eventId}`, recipient: "lead@example.com" }]);
+  });
+
   it("completes without telling anyone when the request no longer exists", async () => {
     const { notifications, notify } = await setup();
 

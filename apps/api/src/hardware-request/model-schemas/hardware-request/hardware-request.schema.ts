@@ -92,9 +92,7 @@ export const HardwareRequests = pgTable(
       .primaryKey()
       .notNull()
       .default(sql`uuid_generate_v4()`),
-    userId: uuid("user_id")
-      .references(() => Users.id, { onDelete: "cascade" })
-      .notNull(),
+    userId: uuid("user_id").references(() => Users.id, { onDelete: "cascade" }),
     organizationId: uuid("organization_id").references(() => Organizations.id, { onDelete: "cascade" }),
     category: hardwareRequestCategoryEnum("category").notNull(),
     status: hardwareRequestStatusEnum("status").notNull().default("submitted"),
@@ -116,6 +114,9 @@ export const HardwareRequests = pgTable(
   },
   table => ({
     userIdCreatedAtIdx: index("hardware_requests_user_id_created_at_idx").on(table.userId, table.createdAt),
-    organizationIdCreatedAtIdx: index("hardware_requests_organization_id_created_at_idx").on(table.organizationId, table.createdAt)
+    organizationIdCreatedAtIdx: index("hardware_requests_organization_id_created_at_idx").on(table.organizationId, table.createdAt),
+    unclaimedContactEmailIdx: index("hardware_requests_unclaimed_contact_email_idx")
+      .on(sql`lower(${table.contactEmail})`)
+      .where(sql`${table.userId} IS NULL`)
   })
 );

@@ -13434,7 +13434,7 @@ export interface operations {
               /** Format: uuid */
               id: string;
               /** Format: uuid */
-              userId: string;
+              userId: string | null;
               /** Format: uuid */
               organizationId: string | null;
               /** @enum {string} */

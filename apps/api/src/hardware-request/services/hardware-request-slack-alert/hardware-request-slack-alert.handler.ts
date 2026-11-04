@@ -53,7 +53,7 @@ export class HardwareRequestSlackAlertHandler implements JobHandler<HardwareRequ
       return;
     }
 
-    const requester = await this.userRepository.findById(hardwareRequest.userId);
+    const requester = hardwareRequest.userId ? await this.userRepository.findById(hardwareRequest.userId) : undefined;
     const message = buildHardwareRequestSlackMessage({
       hardwareRequest,
       requesterEmail: requester?.email,

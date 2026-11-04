@@ -25765,7 +25765,8 @@
                           },
                           "userId": {
                             "type": "string",
-                            "format": "uuid"
+                            "format": "uuid",
+                            "nullable": true
                           },
                           "organizationId": {
                             "type": "string",

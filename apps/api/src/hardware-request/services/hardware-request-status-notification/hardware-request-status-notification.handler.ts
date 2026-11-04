@@ -7,6 +7,7 @@ import { describeStatusForTenant } from "@src/hardware-request/lib/hardware-requ
 import { hardwareRequestTitle } from "@src/hardware-request/lib/hardware-request-title/hardware-request-title";
 import type { CloseReason, HardwareRequestStatus } from "@src/hardware-request/model-schemas";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import { emailRecipientUserId } from "@src/notifications/lib/email-recipient-user-id/email-recipient-user-id";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { gpuRequestStatusNotification } from "@src/notifications/services/notification-templates/gpu-request-status-notification";
 import { UserRepository } from "@src/user/repositories";
@@ -42,29 +43,33 @@ export class HardwareRequestStatusNotificationHandler implements JobHandler<Hard
 
   async handle({ hardwareRequestId, eventId, status, closeReason }: JobPayload<HardwareRequestStatusNotificationJob>): Promise<void> {
     const hardwareRequest = await this.hardwareRequestRepository.findById(hardwareRequestId);
-    const requester = hardwareRequest && (await this.userRepository.findById(hardwareRequest.userId));
+    const requester = hardwareRequest?.userId ? await this.userRepository.findById(hardwareRequest.userId) : undefined;
 
-    if (!hardwareRequest || !requester) {
+    if (!hardwareRequest || (hardwareRequest.userId && !requester)) {
       this.#logger.warn({ event: "HARDWARE_REQUEST_STATUS_NOTIFICATION_SKIPPED", hardwareRequestId, reason: "Request or requester not found" });
       return;
     }
 
     const { headline, detail } = describeStatusForTenant(hardwareRequestTitle(hardwareRequest), status, closeReason);
 
-    await this.activityService.record({
-      userId: requester.id,
-      organizationId: hardwareRequest.organizationId,
-      type: "gpu_request_update",
-      status: "info",
-      initiator: "system",
-      meta: { hardwareRequestId, hardwareRequestStatus: status, summary: headline },
-      dedupeKey: `gpuRequestStatus:${eventId}`
-    });
+    if (requester) {
+      await this.activityService.record({
+        userId: requester.id,
+        organizationId: hardwareRequest.organizationId,
+        type: "gpu_request_update",
+        status: "info",
+        initiator: "system",
+        meta: { hardwareRequestId, hardwareRequestStatus: status, summary: headline },
+        dedupeKey: `gpuRequestStatus:${eventId}`
+      });
+    }
 
-    if (!requester.email) return;
+    const recipient = requester ?? { id: emailRecipientUserId(hardwareRequest.contactEmail), email: hardwareRequest.contactEmail };
+
+    if (!recipient.email) return;
 
     await this.notificationService.createNotification(
-      gpuRequestStatusNotification(requester, {
+      gpuRequestStatusNotification(recipient, {
         eventId,
         headline,
         detail,

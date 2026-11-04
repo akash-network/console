@@ -42,7 +42,7 @@ export class GpuRequestRoutingService {
   }
 
   /** Only a sales-lane request gets an owner at submit; the team claims the rest from the queue. */
-  async route(request: LaneRoutedRequest, requester: { userId: string; organizationId: string | null }): Promise<RoutedLane> {
+  async route(request: LaneRoutedRequest, requester: { userId: string | null; organizationId: string | null }): Promise<RoutedLane> {
     const accountType = await this.hardwareRequestAccountService.findAccountType(requester);
     const policy = this.getPolicy();
     const routing = routeHardwareRequest(request, { hasPaymentMethod: accountType === "paying" }, policy);

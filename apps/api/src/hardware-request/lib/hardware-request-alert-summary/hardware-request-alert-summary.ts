@@ -24,7 +24,8 @@ const LANE_REASON_NAMES: Record<HardwareRequestLaneReason, string> = {
 const ACCOUNT_TYPE_NAMES: Record<HardwareRequestAccountType, string> = {
   paying: "Paying",
   trial: "Trial",
-  no_card: "No card on file"
+  no_card: "No card on file",
+  no_account: "No account yet"
 };
 
 const SOURCE_NAMES: Record<HardwareRequestSource, string> = {

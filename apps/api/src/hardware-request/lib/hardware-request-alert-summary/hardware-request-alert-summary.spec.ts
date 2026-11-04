@@ -49,7 +49,8 @@ describe("hardware request alert summary", () => {
 
     it.each([
       { accountType: "trial", text: "Trial" },
-      { accountType: "no_card", text: "No card on file" }
+      { accountType: "no_card", text: "No card on file" },
+      { accountType: "no_account", text: "No account yet" }
     ] as const)("names the $accountType account type and leaves out a missing organization", ({ accountType, text }) => {
       expect(describeAccount(createHardwareRequest({ source: "gpu_menu" }), { ...CONTEXT, organizationName: undefined, accountType })).toBe(
         `${text} · via GPU menu`
