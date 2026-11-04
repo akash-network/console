@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "./fixture/base-test";
 import { testEnvConfig } from "./fixture/test-env.config";
 import { AppNav } from "./pages/AppNav";
+import { OnboardingPickerPage } from "./pages/OnboardingPickerPage";
 
 /**
  * Exercises the onboarding gate's routing contract: a not-onboarded user is confined to the onboarding +
@@ -40,7 +41,7 @@ test.describe("Onboarding gate — not-onboarded user", () => {
 
     await test.step("allowed on the onboarding picker", async () => {
       await visit(page, "/onboarding");
-      await expect(page.getByRole("heading", { name: /deploy your first app/i })).toBeVisible({ timeout: 30_000 });
+      await expect(new OnboardingPickerPage(page).getHeading()).toBeVisible({ timeout: 30_000 });
     });
 
     await test.step("allowed on billing, where the trial converts", async () => {
@@ -67,9 +68,9 @@ test.describe("Onboarding gate — onboarded user", () => {
       await expect(page).toHaveURL(/\/deployments(\?|$)/, { timeout: 60_000 });
     });
 
-    await test.step("opening the app home lands on the deployments list — where a not-onboarded user is bounced", async () => {
+    await test.step("opening the app home lands on the deployments list, or on projects under intent-first onboarding — where a not-onboarded user is bounced", async () => {
       await visit(page, "/");
-      await expect(page).toHaveURL(/\/deployments(\?|$)/, { timeout: 60_000 });
+      await expect(page).toHaveURL(/\/(deployments|projects)(\?|$)/, { timeout: 60_000 });
       await expect(new AppNav(page).accountMenuButton()).toBeVisible({ timeout: 60_000 });
     });
   });

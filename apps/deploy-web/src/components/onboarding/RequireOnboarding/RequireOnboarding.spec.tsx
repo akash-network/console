@@ -49,8 +49,14 @@ describe(RequireOnboarding.name, () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it("lets a not-onboarded user reach the projects page", () => {
+  it("sends a not-onboarded user from the projects list, the app home under intent-first onboarding, to onboarding", () => {
     const { replace } = setup({ address: "akash1", hasWallet: true, leases: 0, path: "/projects" });
+    expect(screen.queryByText("child")).not.toBeInTheDocument();
+    expect(replace).toHaveBeenCalledWith("/onboarding");
+  });
+
+  it("lets an onboarded user stay on the projects list", () => {
+    const { replace } = setup({ address: "akash1", hasWallet: true, leases: 1, path: "/projects" });
     expect(screen.getByText("child")).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
   });
