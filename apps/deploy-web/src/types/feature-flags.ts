@@ -14,4 +14,5 @@ export type FeatureFlag =
   | "ui_command_menu"
   | "organizations"
   | "invoices"
-  | "onboarding_intent_first";
+  | "onboarding_intent_first"
+  | "gpu_quote_requests";
