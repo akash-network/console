@@ -74,6 +74,16 @@ describe(GpuRequestsPage.name, () => {
     expect(GpuRequestCard.mock.lastCall![0].onWithdraw).toBeUndefined();
   });
 
+  it("shows the offers of requests that have reached them", () => {
+    const withOffers = buildHardwareRequest({ status: "offers", createdAt: "2026-11-02T00:00:00.000Z" });
+    const sourcing = buildHardwareRequest({ status: "sourcing", createdAt: "2026-11-01T00:00:00.000Z" });
+    const { GpuRequestCard } = setup({ requests: [withOffers, sourcing] });
+
+    const [withOffersCard, sourcingCard] = GpuRequestCard.mock.calls.map(([props]) => props);
+    expect(withOffersCard.offers).toMatchObject({ props: { request: withOffers } });
+    expect(sourcingCard.offers).toBe(false);
+  });
+
   it("focuses the request a link pointed at", () => {
     const linked = buildHardwareRequest({ id: "linked", createdAt: "2026-11-02T00:00:00.000Z" });
     const other = buildHardwareRequest({ createdAt: "2026-11-01T00:00:00.000Z" });
