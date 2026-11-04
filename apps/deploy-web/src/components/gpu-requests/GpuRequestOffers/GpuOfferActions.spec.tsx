@@ -16,7 +16,7 @@ describe(GpuOfferActions.name, () => {
   it("confirms an accept before sending it", async () => {
     const { GpuOfferDecisionDialog, offer } = setup({ decisions: OWNER });
 
-    await userEvent.click(screen.getByRole("button", { name: "Accept" }));
+    await userEvent.click(screen.getByRole("button", { name: "Accept Offer 2" }));
 
     expect(GpuOfferDecisionDialog).toHaveBeenLastCalledWith(
       expect.objectContaining({ decision: "accept", requestId: "request-1", offer, label: "Offer 2" }),
@@ -29,20 +29,20 @@ describe(GpuOfferActions.name, () => {
   it("confirms a decline before sending it", async () => {
     const { GpuOfferDecisionDialog } = setup({ decisions: OWNER });
 
-    await userEvent.click(screen.getByRole("button", { name: "Decline" }));
+    await userEvent.click(screen.getByRole("button", { name: "Decline Offer 2" }));
 
     expect(screen.getByText("Decision dialog")).toBeInTheDocument();
     expect(GpuOfferDecisionDialog).toHaveBeenLastCalledWith(expect.objectContaining({ decision: "decline" }), expect.anything());
-    expect(screen.queryByRole("button", { name: "Ask an admin to accept" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ask an admin to accept Offer 2" })).not.toBeInTheDocument();
   });
 
   it("lets a member ask an admin to accept instead", async () => {
     const { askForApproval, enqueueSnackbar, offer } = setup({ decisions: MEMBER });
     askForApproval.mockImplementation((input, options) => options?.onSuccess?.(mock(), input, undefined));
 
-    expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Decline" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Ask an admin to accept" }));
+    expect(screen.queryByRole("button", { name: "Accept Offer 2" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Decline Offer 2" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Ask an admin to accept Offer 2" }));
 
     expect(askForApproval).toHaveBeenCalledWith({ id: "request-1", offerId: offer.id }, expect.anything());
     expect(enqueueSnackbar).toHaveBeenCalledWith(
@@ -57,7 +57,7 @@ describe(GpuOfferActions.name, () => {
     const { askForApproval, enqueueSnackbar } = setup({ decisions: MEMBER });
     askForApproval.mockImplementation((input, options) => options?.onError?.(new Error("expired"), input, undefined));
 
-    await userEvent.click(screen.getByRole("button", { name: "Ask an admin to accept" }));
+    await userEvent.click(screen.getByRole("button", { name: "Ask an admin to accept Offer 2" }));
 
     expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't ask for approval" }) }), {
       variant: "error"
@@ -67,7 +67,7 @@ describe(GpuOfferActions.name, () => {
   it("waits for an approval request to finish before another", () => {
     setup({ decisions: MEMBER, isAsking: true });
 
-    expect(screen.getByRole("button", { name: "Ask an admin to accept" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Ask an admin to accept Offer 2" })).toBeDisabled();
   });
 
   it("shows nothing when no decision is open to the viewer", () => {

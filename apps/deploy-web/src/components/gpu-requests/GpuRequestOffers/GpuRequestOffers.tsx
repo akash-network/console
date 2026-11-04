@@ -2,7 +2,7 @@ import type { FC } from "react";
 import { Spinner } from "@akashnetwork/ui/components";
 
 import { useHardwareRequestOffersQuery } from "@src/queries/useHardwareRequestsQuery";
-import type { GpuRequestViewer } from "../gpuRequestAccess/gpuRequestAccess";
+import type { GpuRequestViewer, OfferDecisions } from "../gpuRequestAccess/gpuRequestAccess";
 import { describeOfferDecisions } from "../gpuRequestAccess/gpuRequestAccess";
 import type { HardwareRequest } from "../gpuRequestStatus/gpuRequestStatus";
 import { GpuOfferActions } from "./GpuOfferActions";
@@ -36,14 +36,23 @@ export const GpuRequestOffers: FC<Props> = ({ request, viewer, dependencies: d =
   }
   if (!offers?.length) return null;
 
+  const decisionsByOffer = new Map(offers.map(offer => [offer.id, describeOfferDecisions(request, offer, viewer)]));
+  const canDecideAnyOffer = [...decisionsByOffer.values()].some(hasAnyDecision);
+
   return (
     <d.GpuOffersTable
       spec={request.spec}
       offers={offers}
       now={new Date()}
-      renderActions={(offer, label) => (
-        <d.GpuOfferActions requestId={request.id} offer={offer} label={label} decisions={describeOfferDecisions(request, offer, viewer)} />
-      )}
+      renderActions={
+        canDecideAnyOffer
+          ? (offer, label) => <d.GpuOfferActions requestId={request.id} offer={offer} label={label} decisions={decisionsByOffer.get(offer.id)!} />
+          : undefined
+      }
     />
   );
 };
+
+function hasAnyDecision({ canAccept, canDecline, canAskForApproval }: OfferDecisions): boolean {
+  return canAccept || canDecline || canAskForApproval;
+}
