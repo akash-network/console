@@ -29,7 +29,9 @@ export function useSkipOnboarding(dependencies: typeof DEPENDENCIES = DEPENDENCI
   const { consoleApiHttpClient, analyticsService, urlService, errorHandler } = useServices();
   const { user, checkSession } = dependencies.useUser();
   const router = dependencies.useRouter();
-  const isProjectsHome = dependencies.useFlag("onboarding_intent_first") && dependencies.useFlag("organizations");
+  const isIntentFirst = dependencies.useFlag("onboarding_intent_first");
+  const isOrganizationsEnabled = dependencies.useFlag("organizations");
+  const isProjectsHome = isIntentFirst && isOrganizationsEnabled;
   const [isAwaitingSkippedProfile, setIsAwaitingSkippedProfile] = useState(false);
 
   const { mutateAsync, isPending } = useMutation({

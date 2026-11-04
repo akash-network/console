@@ -45,6 +45,13 @@ describe(useSkipOnboarding.name, () => {
     expect(push).toHaveBeenCalledWith("/new-deployment");
   });
 
+  it("reads both flags on every render so a flag flip keeps the hook order", () => {
+    const { useFlag } = setup({ enabledFlags: [] });
+
+    expect(useFlag).toHaveBeenCalledWith("onboarding_intent_first");
+    expect(useFlag).toHaveBeenCalledWith("organizations");
+  });
+
   it("forwards the auto_deploy source to analytics", async () => {
     const { result, analyticsService } = setup();
 
@@ -139,7 +146,7 @@ describe(useSkipOnboarding.name, () => {
       });
     const useRouter: typeof DEPENDENCIES.useRouter = () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push });
 
-    const useFlag: typeof DEPENDENCIES.useFlag = flag => !!input?.enabledFlags?.includes(flag);
+    const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag => !!input?.enabledFlags?.includes(flag));
 
     const { result } = setupQuery(() => useSkipOnboarding({ useUser, useRouter, useFlag }), {
       services: {
@@ -149,6 +156,6 @@ describe(useSkipOnboarding.name, () => {
       }
     });
 
-    return { result, consoleApiHttpClient, analyticsService, errorHandler, checkSession, push };
+    return { result, consoleApiHttpClient, analyticsService, errorHandler, checkSession, push, useFlag };
   }
 });

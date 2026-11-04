@@ -1,5 +1,5 @@
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import { AKASH_SKILL_INSTALL_COMMAND } from "@src/config/agent-setup.config";
@@ -8,7 +8,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { AKASHML_URL, API_KEY_SETUP_COMMAND, DEPENDENCIES, GetStartedChecklist } from "./GetStartedChecklist";
 import type { GetStartedSteps } from "./useGetStartedChecklist";
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 
@@ -129,11 +129,16 @@ describe(GetStartedChecklist.name, () => {
   });
 
   it("goes back to the copy label after a moment", async () => {
+    vi.useFakeTimers();
+    onTestFinished(() => vi.useRealTimers());
     setup();
 
-    await userEvent.click(screen.getByRole("button", { name: "Copy install" }));
+    fireEvent.click(screen.getByRole("button", { name: "Copy install" }));
+    await act(() => vi.advanceTimersByTimeAsync(1499));
+    expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(1));
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Copy install" })).toBeInTheDocument(), { timeout: 3000 });
+    expect(screen.getByRole("button", { name: "Copy install" })).toBeInTheDocument();
   });
 
   it("leaves the agent step open when the copy fails", async () => {
