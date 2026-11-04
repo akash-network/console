@@ -157,6 +157,61 @@ describe(SessionService.name, () => {
       expect(externalHttpClient.post).not.toHaveBeenCalled();
     });
 
+    it("sends the captcha token and the testing client token to the console api", async () => {
+      const { service, consoleApiHttpClient } = setup();
+
+      consoleApiHttpClient.post.mockResolvedValueOnce({ status: 400, data: { message: "Password is too weak" }, headers: {} });
+
+      await service.signUp({ email: "user@example.com", password: "weak", captchaToken: "captcha-token", testingClientToken: "testing-client-token" });
+
+      expect(consoleApiHttpClient.post).toHaveBeenCalledWith(
+        "/v1/auth/signup",
+        { email: "user@example.com", password: "weak", captchaToken: "captcha-token" },
+        expect.objectContaining({ headers: { "x-testing-client-token": "testing-client-token" } })
+      );
+    });
+
+    it("sends no testing client token header when none is given", async () => {
+      const { service, consoleApiHttpClient } = setup();
+
+      consoleApiHttpClient.post.mockResolvedValueOnce({ status: 400, data: { message: "Password is too weak" }, headers: {} });
+
+      await service.signUp({ email: "user@example.com", password: "weak", captchaToken: "captcha-token" });
+
+      expect(consoleApiHttpClient.post).toHaveBeenCalledWith(expect.any(String), expect.anything(), expect.objectContaining({ headers: undefined }));
+    });
+
+    it("returns captcha_verification_failed without signing in when the console api refuses the captcha", async () => {
+      const { service, consoleApiHttpClient, externalHttpClient } = setup();
+
+      consoleApiHttpClient.post.mockResolvedValueOnce({
+        status: 400,
+        data: { message: "Captcha verification failed. Please try again.", code: "captcha_verification_failed" },
+        headers: {}
+      });
+
+      const result = await service.signUp({ email: "user@example.com", password: "StrongPassword123!", captchaToken: "captcha-token" });
+
+      expect(expectErr(result)).toEqual(
+        expect.objectContaining({
+          message: "Captcha verification failed. Please try again.",
+          code: "captcha_verification_failed"
+        })
+      );
+      expect(externalHttpClient.post).not.toHaveBeenCalled();
+    });
+
+    it("returns signup_failed with a generic message when the console api rejects the signup without a body", async () => {
+      const { service, consoleApiHttpClient, externalHttpClient } = setup();
+
+      consoleApiHttpClient.post.mockResolvedValueOnce({ status: 400, data: undefined, headers: {} });
+
+      const result = await service.signUp({ email: "user@example.com", password: "StrongPassword123!", captchaToken: "captcha-token" });
+
+      expect(expectErr(result)).toEqual(expect.objectContaining({ message: "Signup failed", code: "signup_failed" }));
+      expect(externalHttpClient.post).not.toHaveBeenCalled();
+    });
+
     it("returns user_exists when user already exists and sign-in fails", async () => {
       const { service, consoleApiHttpClient, externalHttpClient } = setup();
 

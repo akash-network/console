@@ -8,11 +8,18 @@ import type { VerifyEmailCodeRequest } from "@src/auth/routes/verify-email-code/
 import { AuthService, Protected } from "@src/auth/services/auth.service";
 import { AUTH0_DB_CONNECTION, Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { extractAuth0ErrorMessage, isAuth0ApiError } from "@src/auth/services/auth0/auth0-error";
+import {
+  CAPTCHA_VERIFICATION_FAILED_ERROR_CODE,
+  type CaptchaVerificationContext,
+  CaptchaVerifierService
+} from "@src/auth/services/captcha-verifier/captcha-verifier.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 
 /** Auth0 being down is not the caller's fault, and its internal message is not useful to them. */
 const AUTH_PROVIDER_UNAVAILABLE_MESSAGE = "Unable to create the account right now. Please try again.";
+
+const CAPTCHA_VERIFICATION_FAILED_MESSAGE = "Captcha verification failed. Please try again.";
 
 @singleton()
 export class AuthController {
@@ -20,10 +27,15 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly auth0: Auth0Service,
     private readonly emailVerificationCodeService: EmailVerificationCodeService,
-    private readonly blockedEmailDomainService: BlockedEmailDomainService
+    private readonly blockedEmailDomainService: BlockedEmailDomainService,
+    private readonly captchaVerifierService: CaptchaVerifierService
   ) {}
 
-  async signup(input: SignupInput) {
+  async signup(input: SignupInput, captchaContext: CaptchaVerificationContext) {
+    if (!(await this.captchaVerifierService.verify(input.captchaToken, captchaContext))) {
+      throw createError(400, CAPTCHA_VERIFICATION_FAILED_MESSAGE, { errorCode: CAPTCHA_VERIFICATION_FAILED_ERROR_CODE });
+    }
+
     if (await this.blockedEmailDomainService.isBlockedEmail(input.email)) {
       throw createError(422, ACCOUNT_UNAVAILABLE_MESSAGE);
     }

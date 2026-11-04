@@ -3537,6 +3537,9 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "application/json": {
               "schema": {
                 "properties": {
+                  "captchaToken": {
+                    "type": "string",
+                  },
                   "email": {
                     "format": "email",
                     "type": "string",
@@ -3561,7 +3564,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "User created successfully",
           },
           "400": {
-            "description": "The email or password was rejected",
+            "description": "The captcha, email or password was rejected",
           },
           "422": {
             "description": "Account could not be created",

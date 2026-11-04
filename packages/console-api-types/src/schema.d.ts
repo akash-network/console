@@ -1682,6 +1682,7 @@ export interface paths {
             /** Format: email */
             email: string;
             password: string;
+            captchaToken?: string;
           };
         };
       };
@@ -1693,7 +1694,7 @@ export interface paths {
           };
           content?: never;
         };
-        /** @description The email or password was rejected */
+        /** @description The captcha, email or password was rejected */
         400: {
           headers: {
             [name: string]: unknown;

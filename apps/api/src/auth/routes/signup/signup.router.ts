@@ -8,7 +8,8 @@ import { SECURITY_NONE } from "@src/core/services/openapi-docs/openapi-security"
 
 const signupInputSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8)
+  password: z.string().min(8),
+  captchaToken: z.string().optional()
 });
 
 export type SignupInput = z.infer<typeof signupInputSchema>;
@@ -33,7 +34,7 @@ const route = createRoute({
     204: {
       description: "User created successfully"
     },
-    400: { description: "The email or password was rejected" },
+    400: { description: "The captcha, email or password was rejected" },
     422: { description: "Account could not be created" },
     429: { description: "Too many attempts" },
     502: { description: "Account creation is temporarily unavailable" }
@@ -43,6 +44,8 @@ const route = createRoute({
 export const signupRouter = new OpenApiHonoHandler();
 
 signupRouter.openapi(route, async function signup(c) {
-  await container.resolve(AuthController).signup(c.req.valid("json"));
+  await container
+    .resolve(AuthController)
+    .signup(c.req.valid("json"), { remoteIp: c.var.clientInfo?.ip, testingClientToken: c.req.header("x-testing-client-token") });
   return c.body(null, 204);
 });

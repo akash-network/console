@@ -3934,6 +3934,9 @@
                   "password": {
                     "type": "string",
                     "minLength": 8
+                  },
+                  "captchaToken": {
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -3949,7 +3952,7 @@
             "description": "User created successfully"
           },
           "400": {
-            "description": "The email or password was rejected"
+            "description": "The captcha, email or password was rejected"
           },
           "422": {
             "description": "Account could not be created"

@@ -2,7 +2,6 @@ import { z } from "zod";
 
 import { readBrowserTimezone } from "@src/lib/browser-timezone/browser-timezone-cookie";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
-import { verifyCaptcha } from "@src/middleware/verify-captcha/verify-captcha";
 
 const LOWER_LETTER_REGEX = /\p{Ll}/u;
 const UPPER_LETTER_REGEX = /\p{Lu}/u;
@@ -39,12 +38,11 @@ export default defineApiHandler({
   async handler(ctx) {
     const { res, req, services, body } = ctx;
 
-    const verification = await verifyCaptcha(body.captchaToken, ctx);
-    if (verification.err) return res.status(400).json(verification.val);
-
     const result = await services.sessionService.signUp({
       email: req.body.email,
       password: req.body.password,
+      captchaToken: body.captchaToken,
+      testingClientToken: req.headers["x-testing-client-token"] as string | undefined,
       timezone: readBrowserTimezone(req)
     });
 
@@ -55,6 +53,12 @@ export default defineApiHandler({
     }
 
     const { cause, ...errorDetails } = result.val;
+
+    if (result.val.code === "captcha_verification_failed") {
+      services.logger.warn({ event: "CAPTCHA_VERIFICATION_FAILED", cause: result.val });
+      return res.status(400).json(errorDetails);
+    }
+
     services.logger.warn({
       event: "PASSWORD_SIGNUP_ERROR",
       cause: result.val
