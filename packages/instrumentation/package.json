@@ -12,7 +12,8 @@
   "exports": {
     "./package.json": "./package.json",
     ".": "./src/index.ts",
-    "./register": "./src/register.ts"
+    "./register": "./src/register.ts",
+    "./testing": "./src/testing/register-context-propagation.ts"
   },
   "main": "src/index.ts",
   "scripts": {

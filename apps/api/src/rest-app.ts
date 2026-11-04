@@ -1,3 +1,4 @@
+import { dropCallerLogIdentity } from "@akashnetwork/instrumentation";
 import { HttpLoggerInterceptor } from "@akashnetwork/logging/hono";
 import { createOtelLogger } from "@akashnetwork/logging/otel";
 import { otel } from "@hono/otel";
@@ -33,6 +34,7 @@ import { CORE_CONFIG, migratePG } from "./core";
 
 const appHono = new Hono<AppEnv>();
 appHono.use("*", otel());
+appHono.use(dropCallerLogIdentity);
 appHono.use("*", redactSpanUrlCredentials);
 appHono.use(
   "/*",

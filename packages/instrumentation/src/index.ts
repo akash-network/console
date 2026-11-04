@@ -34,3 +34,4 @@ export {
   ValueType
 } from "@opentelemetry/api";
 export * from "./util/tracing/tracing.util";
+export { dropCallerLogIdentity } from "./util/drop-caller-log-identity/drop-caller-log-identity";
