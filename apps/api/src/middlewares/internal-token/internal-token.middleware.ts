@@ -19,7 +19,7 @@ export async function requireInternalToken(c: Context, next: Next) {
 }
 
 /** Digests are compared so the comparison stays constant time across inputs of differing length. */
-function equalsInConstantTime(a: string, b: string): boolean {
+export function equalsInConstantTime(a: string, b: string): boolean {
   return timingSafeEqual(sha256(a), sha256(b));
 }
 
