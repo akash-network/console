@@ -1,5 +1,11 @@
 import escapeHtml from "lodash/escape";
 
+import {
+  describeAccount,
+  describeLane,
+  type HardwareRequestAlertContext,
+  salesOwnerOf
+} from "@src/hardware-request/lib/hardware-request-alert-summary/hardware-request-alert-summary";
 import { describeSpec } from "@src/hardware-request/lib/hardware-request-spec-summary/hardware-request-spec-summary";
 import { hardwareRequestTitle } from "@src/hardware-request/lib/hardware-request-title/hardware-request-title";
 import type { HardwareRequestOutput } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
@@ -11,16 +17,22 @@ type Mailbox = { id: string; email: string };
 export function hardwareRequestEmailNotification(input: {
   hardwareRequest: HardwareRequestOutput;
   requester: UserOutput | undefined;
+  context: HardwareRequestAlertContext;
   mailbox: Mailbox;
+  notificationId?: string;
 }): CreateNotificationInput {
-  const { hardwareRequest, requester, mailbox } = input;
+  const { hardwareRequest, requester, context, mailbox } = input;
+  const owner = salesOwnerOf(hardwareRequest, context);
   const contactEmail = escapeHtml(hardwareRequest.contactEmail);
 
   return {
-    notificationId: `hardwareRequest.${hardwareRequest.id}`,
+    notificationId: input.notificationId ?? `hardwareRequest.${hardwareRequest.id}`,
     payload: {
       summary: hardwareRequestTitle(hardwareRequest),
       description: [
+        field("Lane", describeLane(hardwareRequest)),
+        field("Owner", owner?.name),
+        field("Account", describeAccount(hardwareRequest, context)),
         field("GPU model", hardwareRequest.gpuModel),
         field("Quantity", hardwareRequest.quantity?.toString()),
         field("Region", hardwareRequest.region),

@@ -1,8 +1,10 @@
 import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
+import { salesOwnerOf } from "@src/hardware-request/lib/hardware-request-alert-summary/hardware-request-alert-summary";
 import { HARDWARE_REQUEST_CONFIG, type HardwareRequestConfig } from "@src/hardware-request/providers/config.provider";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import { HardwareRequestAlertContextService } from "@src/hardware-request/services/hardware-request-alert-context/hardware-request-alert-context.service";
 import { emailRecipientUserId } from "@src/notifications/lib/email-recipient-user-id/email-recipient-user-id";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { UserRepository } from "@src/user/repositories";
@@ -26,6 +28,7 @@ export class HardwareRequestEmailHandler implements JobHandler<HardwareRequestEm
     private readonly hardwareRequestRepository: HardwareRequestRepository,
     private readonly userRepository: UserRepository,
     private readonly notificationService: NotificationService,
+    private readonly hardwareRequestAlertContextService: HardwareRequestAlertContextService,
     @inject(HARDWARE_REQUEST_CONFIG) private readonly config: HardwareRequestConfig,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
@@ -45,13 +48,24 @@ export class HardwareRequestEmailHandler implements JobHandler<HardwareRequestEm
     }
 
     const requester = await this.userRepository.findById(hardwareRequest.userId);
+    const context = await this.hardwareRequestAlertContextService.load(hardwareRequest);
     const mailboxEmail = this.config.HARDWARE_REQUEST_EMAIL;
+
+    await this.notificationService.createNotification(
+      hardwareRequestEmailNotification({ hardwareRequest, requester, context, mailbox: { id: emailRecipientUserId(mailboxEmail), email: mailboxEmail } })
+    );
+
+    const ownerEmail = salesOwnerOf(hardwareRequest, context)?.email;
+
+    if (!ownerEmail) return;
 
     await this.notificationService.createNotification(
       hardwareRequestEmailNotification({
         hardwareRequest,
         requester,
-        mailbox: { id: emailRecipientUserId(mailboxEmail), email: mailboxEmail }
+        context,
+        mailbox: { id: emailRecipientUserId(ownerEmail), email: ownerEmail },
+        notificationId: `hardwareRequest.${hardwareRequest.id}.owner`
       })
     );
   }

@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
 
+import type { HardwareRequestAlertContext } from "@src/hardware-request/lib/hardware-request-alert-summary/hardware-request-alert-summary";
 import { hardwareRequestTitle } from "@src/hardware-request/lib/hardware-request-title/hardware-request-title";
 import { hardwareRequestEmailNotification } from "./hardware-request-email-notification";
 
 import { createHardwareRequest, createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
+const CONTEXT: HardwareRequestAlertContext = { organizationName: undefined, accountType: "trial", owner: undefined };
+
 describe(hardwareRequestEmailNotification.name, () => {
   it("addresses the notification to the support mailbox", () => {
     const mailbox = { id: "f934d9e8-b4e3-8035-accb-cda9f04e97dc", email: "support@akash.network" };
 
-    const notification = hardwareRequestEmailNotification({ hardwareRequest: createHardwareRequest(), requester: createUser(), mailbox });
+    const notification = hardwareRequestEmailNotification({ hardwareRequest: createHardwareRequest(), requester: createUser(), context: CONTEXT, mailbox });
 
     expect(notification.user).toEqual(mailbox);
   });
@@ -65,7 +68,9 @@ describe(hardwareRequestEmailNotification.name, () => {
     const { payload } = setup({ hardwareRequest, requester });
 
     expect(payload.description).toBe(
-      "<p><strong>Region:</strong><br>Frankfurt</p>" +
+      "<p><strong>Lane:</strong><br>Automated lane · value unknown</p>" +
+        "<p><strong>Account:</strong><br>Trial · via the request form</p>" +
+        "<p><strong>Region:</strong><br>Frankfurt</p>" +
         '<p><strong>Reply to:</strong> <a href="mailto:jane@example.com">jane@example.com</a></p>' +
         "<p><strong>Account email:</strong><br>account@example.com</p>" +
         "<p><strong>Username:</strong><br>jane</p>" +
@@ -137,12 +142,43 @@ describe(hardwareRequestEmailNotification.name, () => {
     expect(payload.description).toContain("First line<br>Second line<br>Third line");
   });
 
-  function setup(input: { hardwareRequest: ReturnType<typeof createHardwareRequest>; requester?: ReturnType<typeof createUser> }) {
+  it("keys the notification on the id it is given", () => {
+    const notification = setup({ hardwareRequest: createHardwareRequest(), notificationId: "hardwareRequest.1.owner" });
+
+    expect(notification.notificationId).toBe("hardwareRequest.1.owner");
+  });
+
+  it("opens with the lane, the sales owner and the account behind the request", () => {
+    const hardwareRequest = createHardwareRequest({ lane: "sales", laneReason: "wants_to_talk", estimatedMonthlyUsd: 7300, source: "no_bids" });
+
+    const { payload } = setup({ hardwareRequest, context: { organizationName: "Acme", accountType: "paying", owner: { name: "Remington" } } });
+
+    expect(payload.description).toMatch(
+      /^<p><strong>Lane:<\/strong><br>Sales lane \(wants to talk\) · est\. \$7,300\/month<\/p><p><strong>Owner:<\/strong><br>Remington<\/p><p><strong>Account:<\/strong><br>Acme · Paying · via No bids<\/p>/
+    );
+  });
+
+  it("names no owner on an automated-lane request", () => {
+    const hardwareRequest = createHardwareRequest({ lane: "automated", laneReason: "below_thresholds" });
+
+    const { payload } = setup({ hardwareRequest, context: { owner: { name: "Remington" } } });
+
+    expect(payload.description).not.toContain("Owner:");
+  });
+
+  function setup(input: {
+    hardwareRequest: ReturnType<typeof createHardwareRequest>;
+    requester?: ReturnType<typeof createUser>;
+    context?: Partial<HardwareRequestAlertContext>;
+    notificationId?: string;
+  }) {
     const requester = "requester" in input ? input.requester : createUser();
 
     return hardwareRequestEmailNotification({
       hardwareRequest: input.hardwareRequest,
       requester,
+      context: { ...CONTEXT, ...input.context },
+      notificationId: input.notificationId,
       mailbox: { id: "f934d9e8-b4e3-8035-accb-cda9f04e97dc", email: "support@akash.network" }
     });
   }
