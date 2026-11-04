@@ -10,6 +10,9 @@ import {
   ChangeHardwareRequestStatusRequestSchema,
   CreateHardwareRequestOnBehalfRequestSchema,
   HardwareRequestIdParamsSchema,
+  HardwareRequestOfferDraftRequestSchema,
+  HardwareRequestOfferParamsSchema,
+  HardwareRequestOfferResponseSchema,
   HardwareRequestQueueQuerySchema,
   HardwareRequestQueueResponseSchema,
   HardwareRequestWithTimelineResponseSchema,
@@ -163,4 +166,58 @@ const createNoteRoute = createRoute({
 
 internalHardwareRequestRouter.openapi(createNoteRoute, async function routeCreateHardwareRequestNote(c) {
   return c.json(await container.resolve(HardwareRequestBrokerController).addNote(c.req.valid("param").id, c.req.valid("json")), 200);
+});
+
+const OFFER_RESPONSES = {
+  400: { description: "Invalid body" },
+  401: { description: "Missing or wrong internal token" },
+  404: { description: "No request or offer has this id" },
+  422: { description: "No provider has this address" }
+} as const;
+
+const createOfferRoute = createRoute({
+  method: "post",
+  path: "/hardware-requests/{id}/offers",
+  operationId: "createHardwareRequestOffer",
+  summary: "Draft an offer for a GPU request",
+  security: SECURITY_NONE,
+  hiddenInOpenApiDocs: true,
+  middleware: [requireInternalToken],
+  request: {
+    params: HardwareRequestIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: HardwareRequestOfferDraftRequestSchema } } }
+  },
+  responses: {
+    201: { description: "The drafted offer", content: { "application/json": { schema: HardwareRequestOfferResponseSchema } } },
+    ...OFFER_RESPONSES
+  }
+});
+
+internalHardwareRequestRouter.openapi(createOfferRoute, async function routeCreateHardwareRequestOffer(c) {
+  return c.json(await container.resolve(HardwareRequestBrokerController).createOffer(c.req.valid("param").id, c.req.valid("json")), 201);
+});
+
+const updateOfferRoute = createRoute({
+  method: "put",
+  path: "/hardware-requests/{id}/offers/{offerId}",
+  operationId: "updateHardwareRequestOffer",
+  summary: "Edit an offer that is still open",
+  security: SECURITY_NONE,
+  hiddenInOpenApiDocs: true,
+  middleware: [requireInternalToken],
+  request: {
+    params: HardwareRequestOfferParamsSchema,
+    body: { required: true, content: { "application/json": { schema: HardwareRequestOfferDraftRequestSchema } } }
+  },
+  responses: {
+    200: { description: "The edited offer", content: { "application/json": { schema: HardwareRequestOfferResponseSchema } } },
+    409: { description: "The offer is no longer open" },
+    ...OFFER_RESPONSES
+  }
+});
+
+internalHardwareRequestRouter.openapi(updateOfferRoute, async function routeUpdateHardwareRequestOffer(c) {
+  const { id, offerId } = c.req.valid("param");
+
+  return c.json(await container.resolve(HardwareRequestBrokerController).updateOffer(id, offerId, c.req.valid("json")), 200);
 });

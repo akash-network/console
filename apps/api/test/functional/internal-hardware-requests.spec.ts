@@ -7,12 +7,14 @@ import { JOB_NAME } from "@src/core";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { HardwareRequestEventRepository } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
+import { HardwareRequestOfferRepository } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { HardwareRequestStatusNotificationJob } from "@src/hardware-request/services/hardware-request-status-notification/hardware-request-status-notification.handler";
-import { app } from "@src/rest-app";
+import { app, initDb } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
 
+import { createAkashAddress, createProvider } from "@test/seeders";
 import { seedHardwareRequest } from "@test/seeders/db/hardware-request.seeder";
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { findJobRows } from "@test/services/job-queue-harness";
@@ -25,6 +27,7 @@ describe("Internal hardware requests", () => {
   const hardwareRequestRepository = container.resolve(HardwareRequestRepository);
 
   beforeAll(async () => {
+    await initDb();
     await startJobQueues();
   }, 20_000);
 
@@ -318,6 +321,89 @@ describe("Internal hardware requests", () => {
     });
   });
 
+  describe("POST /internal/hardware-requests/{id}/offers", () => {
+    it("drafts an offer with the provider's audit and uptime, and lists it on the request", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({});
+      const provider = await createProvider({ uptime7d: 0.97 });
+
+      const { status, data } = await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers`, anOffer(provider.owner));
+
+      expect(status).toBe(201);
+      expect(data).toMatchObject({
+        hardwareRequestId: hardwareRequest.id,
+        status: "draft",
+        providerAddress: provider.owner,
+        providerAudited: true,
+        providerUptime7d: 0.97,
+        usdPerGpuHour: 2.4,
+        terms: anOffer(provider.owner).terms,
+        publishedAt: null
+      });
+      const response = await request(`/internal/hardware-requests/${hardwareRequest.id}`, internalToken);
+      expect(((await response.json()) as { data: { offers: unknown[] } }).data.offers).toMatchObject([{ id: data.id }]);
+    });
+
+    it("answers 422 for an address no provider has", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({});
+
+      const { status } = await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers`, anOffer(createAkashAddress()));
+
+      expect(status).toBe(422);
+    });
+
+    it("refuses an offer that has already expired", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({});
+      const provider = await createProvider();
+
+      const { status } = await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers`, {
+        ...anOffer(provider.owner),
+        expiresAt: new Date(Date.now() - 60_000).toISOString()
+      });
+
+      expect(status).toBe(400);
+    });
+
+    it("answers 404 for an unknown request", async () => {
+      const provider = await createProvider();
+
+      const { status } = await offerRequest("POST", `/internal/hardware-requests/${faker.string.uuid()}/offers`, anOffer(provider.owner));
+
+      expect(status).toBe(404);
+    });
+  });
+
+  describe("PUT /internal/hardware-requests/{id}/offers/{offerId}", () => {
+    it("edits an open offer", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({});
+      const provider = await createProvider();
+      const created = await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers`, anOffer(provider.owner));
+
+      const { status, data } = await offerRequest("PUT", `/internal/hardware-requests/${hardwareRequest.id}/offers/${created.data.id}`, {
+        ...anOffer(provider.owner),
+        usdPerGpuHour: 2.1
+      });
+
+      expect(status).toBe(200);
+      expect(data).toMatchObject({ id: created.data.id, usdPerGpuHour: 2.1 });
+    });
+
+    it("answers 409 for an offer that is no longer open", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({});
+      const provider = await createProvider();
+      const created = await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers`, anOffer(provider.owner));
+      await container.resolve(HardwareRequestOfferRepository).updateById(created.data.id, { status: "withdrawn" });
+
+      const { status } = await offerRequest("PUT", `/internal/hardware-requests/${hardwareRequest.id}/offers/${created.data.id}`, anOffer(provider.owner));
+
+      expect(status).toBe(409);
+    });
+  });
+
   describe("POST /internal/hardware-requests/{id}/notes", () => {
     it("adds a note to the timeline without counting it as a reply", async () => {
       const { seed } = await setup();
@@ -350,6 +436,34 @@ describe("Internal hardware requests", () => {
     const json = response.status === 201 ? ((await response.json()) as { data: QueueItem & { events: unknown[]; [key: string]: unknown } }) : undefined;
 
     return { status: response.status, data: json?.data as QueueItem & { events: unknown[]; [key: string]: unknown } };
+  }
+
+  function anOffer(providerAddress: string) {
+    return {
+      providerAddress,
+      usdPerGpuHour: 2.4,
+      terms: {
+        gpu: { model: "H200", count: 16, interconnect: "cluster" },
+        location: "Frankfurt, DE",
+        availableFrom: "2026-12-01",
+        term: "6_months",
+        sla: "99.9",
+        storage: { tbPerNode: 8, nvme: true },
+        uplinkGbps: 10
+      },
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    };
+  }
+
+  async function offerRequest(method: "POST" | "PUT", path: string, body: Record<string, unknown>) {
+    const response = await app.request(path, {
+      method,
+      headers: { "Content-Type": "application/json", "x-console-internal-token": internalToken! },
+      body: JSON.stringify({ data: body })
+    });
+    const json = response.ok ? ((await response.json()) as { data: { id: string; [key: string]: unknown } }) : undefined;
+
+    return { status: response.status, data: json?.data as { id: string; [key: string]: unknown } };
   }
 
   async function listQueue(query: string): Promise<QueueItem[]> {
