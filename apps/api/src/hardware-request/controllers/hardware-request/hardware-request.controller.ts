@@ -1,7 +1,11 @@
 import { singleton } from "tsyringe";
 
 import { Protected } from "@src/auth/services/auth.service";
-import type { CreateHardwareRequestRequest, CreateHardwareRequestResponse } from "@src/hardware-request/http-schemas/hardware-request.schema";
+import type {
+  CreateHardwareRequestRequest,
+  CreateHardwareRequestResponse,
+  ListHardwareRequestsResponse
+} from "@src/hardware-request/http-schemas/hardware-request.schema";
 import { HardwareRequestService } from "@src/hardware-request/services/hardware-request/hardware-request.service";
 
 @singleton()
@@ -12,5 +16,13 @@ export class HardwareRequestController {
   async create(input: CreateHardwareRequestRequest["data"]): Promise<CreateHardwareRequestResponse> {
     const { id, createdAt } = await this.hardwareRequestService.create(input);
     return { data: { id, createdAt } };
+  }
+
+  @Protected([{ action: "read", subject: "HardwareRequest" }])
+  async list(): Promise<ListHardwareRequestsResponse> {
+    const hardwareRequests = await this.hardwareRequestService.list();
+    return {
+      data: hardwareRequests.map(({ configuration: _configuration, ...hardwareRequest }) => hardwareRequest)
+    };
   }
 }

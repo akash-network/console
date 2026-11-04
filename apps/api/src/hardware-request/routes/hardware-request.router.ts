@@ -4,7 +4,11 @@ import { createRoute } from "@src/core/lib/create-route/create-route";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { SECURITY_BEARER } from "@src/core/services/openapi-docs/openapi-security";
 import { HardwareRequestController } from "../controllers/hardware-request/hardware-request.controller";
-import { CreateHardwareRequestRequestSchema, CreateHardwareRequestResponseSchema } from "../http-schemas/hardware-request.schema";
+import {
+  CreateHardwareRequestRequestSchema,
+  CreateHardwareRequestResponseSchema,
+  ListHardwareRequestsResponseSchema
+} from "../http-schemas/hardware-request.schema";
 
 export const hardwareRequestRouter = new OpenApiHonoHandler();
 
@@ -45,4 +49,29 @@ hardwareRequestRouter.openapi(createHardwareRequestRoute, async function routeCr
   const { data } = c.req.valid("json");
   const result = await container.resolve(HardwareRequestController).create(data);
   return c.json(result, 201);
+});
+
+const listHardwareRequestsRoute = createRoute({
+  method: "get",
+  operationId: "listHardwareRequests",
+  path: "/v1/hardware-requests",
+  summary: "List the GPU requests of the active organization, newest first",
+  tags: ["Hardware Requests"],
+  security: SECURITY_BEARER,
+  responses: {
+    200: {
+      description: "The organization's requests with their status",
+      content: {
+        "application/json": {
+          schema: ListHardwareRequestsResponseSchema
+        }
+      }
+    },
+    401: { description: "Unauthorized" }
+  }
+});
+
+hardwareRequestRouter.openapi(listHardwareRequestsRoute, async function routeListHardwareRequests(c) {
+  const result = await container.resolve(HardwareRequestController).list();
+  return c.json(result, 200);
 });

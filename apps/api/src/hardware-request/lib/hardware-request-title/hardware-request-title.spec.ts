@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { hardwareRequestTitle } from "./hardware-request-title";
 
-import { createHardwareRequest } from "@test/seeders/hardware-request.seeder";
+import { createHardwareRequest, createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
 
 describe(hardwareRequestTitle.name, () => {
   it.each([
@@ -13,7 +13,15 @@ describe(hardwareRequestTitle.name, () => {
       hardwareRequest: createHardwareRequest({ category: "region", gpuModel: null, quantity: null, region: "Frankfurt" }),
       title: "Region request: Frankfurt"
     },
-    { hardwareRequest: createHardwareRequest({ category: "other", gpuModel: null, quantity: null }), title: "Hardware request" }
+    { hardwareRequest: createHardwareRequest({ category: "other", gpuModel: null, quantity: null }), title: "Hardware request" },
+    {
+      hardwareRequest: createHardwareRequest({
+        category: "quote",
+        spec: createHardwareRequestSpec({ gpu: { model: "H200", count: 16, interconnect: "cluster" } })
+      }),
+      title: "Quote request: 16× H200 (2 nodes)"
+    },
+    { hardwareRequest: createHardwareRequest({ category: "quote", spec: null, gpuModel: "L40S", quantity: 4 }), title: "Quote request: 4× L40S" }
   ])("titles a $hardwareRequest.category request '$title'", ({ hardwareRequest, title }) => {
     expect(hardwareRequestTitle(hardwareRequest)).toBe(title);
   });

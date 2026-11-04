@@ -1,3 +1,4 @@
+import { describeSpec } from "@src/hardware-request/lib/hardware-request-spec-summary/hardware-request-spec-summary";
 import { hardwareRequestTitle } from "@src/hardware-request/lib/hardware-request-title/hardware-request-title";
 import type { HardwareRequestOutput } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 
@@ -31,10 +32,14 @@ function quote(text: string | null): string[] {
     .map(line => `> ${line}`);
 }
 
+function describeSpecLines(hardwareRequest: HardwareRequestOutput): string[] {
+  return hardwareRequest.spec ? describeSpec(hardwareRequest.spec).map(line => `• ${escapeSlackText(line)}`) : [];
+}
+
 function describeConfiguration(hardwareRequest: HardwareRequestOutput): string[] {
   const summary = hardwareRequest.configuration?.summary;
 
-  return summary ? [`Current configuration: ${escapeSlackText(summary)}`] : [];
+  return summary ? [`Sent while configuring: ${escapeSlackText(summary)}`] : [];
 }
 
 function describeLinks(userId: string, links: { amplitudeProjectUrl?: string; adminUrl?: string }): string[] {
@@ -60,6 +65,7 @@ export function buildHardwareRequestSlackMessage(input: {
   const messageLines = [
     `:inbox_tray: *${escapeSlackText(hardwareRequestTitle(hardwareRequest))}*`,
     describeRequester(hardwareRequest, input.requesterEmail),
+    ...describeSpecLines(hardwareRequest),
     ...quote(hardwareRequest.details),
     ...describeConfiguration(hardwareRequest),
     ...describeLinks(hardwareRequest.userId, input)

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildHardwareRequestSlackMessage } from "./hardware-request-slack-message";
 
-import { createHardwareRequest } from "@test/seeders/hardware-request.seeder";
+import { createHardwareRequest, createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
 
 const USER_ID = "11111111-2222-4333-8444-555555555555";
 const AMPLITUDE_PROJECT_URL = "https://app.amplitude.com/analytics/example-org/project/100001";
@@ -28,9 +28,23 @@ describe(buildHardwareRequestSlackMessage.name, () => {
       ":inbox_tray: *GPU request: 8× B200*",
       "jane@example.com",
       "> Training run for 3 months",
-      "Current configuration: 1 vCPU · 2 GB memory · 0 MB storage · Any region",
+      "Sent while configuring: 1 vCPU · 2 GB memory · 0 MB storage · Any region",
       `${AMPLITUDE_LINK} · ${ADMIN_LINK}`
     ]);
+  });
+
+  it("lists each answer of a quote request as a bullet under the requester", () => {
+    const spec = createHardwareRequestSpec({ gpu: { model: "A100", count: 1, interconnect: "none" }, region: { mode: "only", areas: ["apac"] } });
+    const message = setup({ hardwareRequest: { category: "quote", spec, details: null }, requesterEmail: "jane@example.com" });
+
+    expect(lines(message).slice(0, 4)).toEqual([":inbox_tray: *Quote request: 1× A100*", expect.any(String), "• 1× A100", "• Asia Pacific"]);
+  });
+
+  it("escapes markup in the answers of a quote request", () => {
+    const spec = createHardwareRequestSpec({ company: "<Acme & Co>" });
+    const message = setup({ hardwareRequest: { category: "quote", spec }, requesterEmail: "jane@example.com" });
+
+    expect(lines(message)).toContain("• Company: &lt;Acme &amp; Co&gt;");
   });
 
   it("names the requester by account email alone when the contact email matches it in any case", () => {
@@ -79,7 +93,7 @@ describe(buildHardwareRequestSlackMessage.name, () => {
       ":inbox_tray: *Region request: &lt;!channel&gt; &amp; co*",
       "jane@example.com",
       "> &lt;https://phish.example|click&gt;",
-      "Current configuration: a&lt;b&gt;c"
+      "Sent while configuring: a&lt;b&gt;c"
     ]);
   });
 
@@ -108,7 +122,7 @@ describe(buildHardwareRequestSlackMessage.name, () => {
       adminUrl: undefined
     });
 
-    expect(lines(message).at(-1)).toBe("Current configuration: 1 vCPU");
+    expect(lines(message).at(-1)).toBe("Sent while configuring: 1 vCPU");
   });
 
   function lines(message: { text: string }) {

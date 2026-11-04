@@ -1,5 +1,6 @@
 import escapeHtml from "lodash/escape";
 
+import { describeSpec } from "@src/hardware-request/lib/hardware-request-spec-summary/hardware-request-spec-summary";
 import { hardwareRequestTitle } from "@src/hardware-request/lib/hardware-request-title/hardware-request-title";
 import type { HardwareRequestOutput } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import type { CreateNotificationInput } from "@src/notifications/services/notification/notification.service";
@@ -23,8 +24,9 @@ export function hardwareRequestEmailNotification(input: {
         field("GPU model", hardwareRequest.gpuModel),
         field("Quantity", hardwareRequest.quantity?.toString()),
         field("Region", hardwareRequest.region),
+        field("Request", hardwareRequest.spec && describeSpec(hardwareRequest.spec).join("\n")),
         field("Details", hardwareRequest.details),
-        field("Current configuration", hardwareRequest.configuration?.summary),
+        field("Sent while configuring", hardwareRequest.configuration?.summary),
         `<p><strong>Reply to:</strong> <a href="mailto:${contactEmail}">${contactEmail}</a></p>`,
         field("Account email", requester?.email),
         field("Username", requester?.username),

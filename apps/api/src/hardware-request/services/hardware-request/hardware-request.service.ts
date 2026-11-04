@@ -5,6 +5,7 @@ import { AuthService } from "@src/auth/services/auth.service";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/hardware-request.schema";
+import { describeSpecRegion } from "@src/hardware-request/lib/hardware-request-spec-summary/hardware-request-spec-summary";
 import { HARDWARE_REQUEST_CONFIG, type HardwareRequestConfig } from "@src/hardware-request/providers/config.provider";
 import { type HardwareRequestOutput, HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
@@ -29,6 +30,13 @@ function refusalIn({ durationMs, limit, message }: RequestWindow, creationTimes:
   return { message, retryAfterSeconds: Math.ceil((releasing.getTime() - windowStart) / 1000) };
 }
 
+/** Quote requests also fill the flat columns, so demand reporting groups them with the older request types. */
+function summaryColumnsOf(input: HardwareRequestInput) {
+  if (input.category !== "quote") return {};
+
+  return { gpuModel: input.spec.gpu.model, quantity: input.spec.gpu.count, region: describeSpecRegion(input.spec) };
+}
+
 @singleton()
 export class HardwareRequestService {
   constructor(
@@ -40,7 +48,8 @@ export class HardwareRequestService {
     @inject(HARDWARE_REQUEST_CONFIG) private readonly config: HardwareRequestConfig
   ) {}
 
-  async create({ email, ...fields }: HardwareRequestInput): Promise<HardwareRequestOutput> {
+  async create(input: HardwareRequestInput): Promise<HardwareRequestOutput> {
+    const { email, ...fields } = input;
     const userId = this.authService.currentUser.id;
 
     return await this.txService.transaction(async () => {
@@ -49,12 +58,16 @@ export class HardwareRequestService {
 
       const hardwareRequest = await this.hardwareRequestRepository
         .accessibleBy(this.authService.ability, "create")
-        .create({ ...fields, contactEmail: email, userId });
+        .create({ ...fields, ...summaryColumnsOf(input), contactEmail: email, userId });
       await this.jobQueueService.enqueue(new HardwareRequestEmailJob({ hardwareRequestId: hardwareRequest.id }));
       await this.jobQueueService.enqueue(new HardwareRequestSlackAlertJob({ hardwareRequestId: hardwareRequest.id }));
 
       return hardwareRequest;
     });
+  }
+
+  async list(): Promise<HardwareRequestOutput[]> {
+    return await this.hardwareRequestRepository.accessibleBy(this.authService.ability, "read").findNewestFirst();
   }
 
   /** A user over both limits is told the later of the two times, since either window can be the one that lifts last. */
