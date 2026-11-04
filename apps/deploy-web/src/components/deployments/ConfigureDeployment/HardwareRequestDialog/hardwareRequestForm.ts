@@ -2,7 +2,7 @@ import type { paths } from "@akashnetwork/console-api-types";
 import { z } from "zod";
 
 export type CreateHardwareRequestData = paths["/v1/hardware-requests"]["post"]["requestBody"]["content"]["application/json"]["data"];
-export type HardwareRequestCategory = CreateHardwareRequestData["category"];
+export type HardwareRequestCategory = Exclude<CreateHardwareRequestData["category"], "quote">;
 export type HardwareRequestConfiguration = NonNullable<CreateHardwareRequestData["configuration"]>;
 
 export const HARDWARE_REQUEST_CATEGORIES: { value: HardwareRequestCategory; label: string }[] = [
