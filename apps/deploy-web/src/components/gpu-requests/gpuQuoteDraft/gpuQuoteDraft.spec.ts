@@ -233,17 +233,20 @@ describe("gpuQuoteDraft", () => {
   describe(describeMissingAnswers.name, () => {
     it("names each missing answer once", () => {
       expect(
-        describeMissingAnswers([
-          { step: "gpu", label: "a GPU model" },
-          { step: "region", label: "at least one region" },
-          { step: "region", label: "at least one region" },
-          { step: "timing", label: "a start date" }
-        ])
+        describeMissingAnswers(
+          [
+            { step: "gpu", label: "a GPU model" },
+            { step: "region", label: "at least one region" },
+            { step: "region", label: "at least one region" },
+            { step: "timing", label: "a start date" }
+          ],
+          "send"
+        )
       ).toBe("Add a GPU model, at least one region and a start date to send.");
     });
 
     it("names a single missing answer on its own", () => {
-      expect(describeMissingAnswers([{ step: "gpu", label: "a GPU model" }])).toBe("Add a GPU model to send.");
+      expect(describeMissingAnswers([{ step: "gpu", label: "a GPU model" }], "continue")).toBe("Add a GPU model to continue.");
     });
   });
 

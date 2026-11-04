@@ -210,8 +210,8 @@ export function listMissingAnswers(draft: GpuQuoteDraft, today: string): Missing
   return missing.filter((answer): answer is MissingAnswer => answer !== false);
 }
 
-export function describeMissingAnswers(missing: MissingAnswer[]): string {
-  return `Add ${joinWithAnd([...new Set(missing.map(answer => answer.label))])} to send.`;
+export function describeMissingAnswers(missing: MissingAnswer[], action: "send" | "continue"): string {
+  return `Add ${joinWithAnd([...new Set(missing.map(answer => answer.label))])} to ${action}.`;
 }
 
 export function describeGpuModel(draft: Pick<GpuQuoteDraft, "gpuModel" | "otherGpuModel">): string | null {
