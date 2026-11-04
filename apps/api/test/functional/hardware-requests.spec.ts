@@ -9,6 +9,7 @@ import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { HardwareRequestOfferRepository } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
+import { HardwareRequestAcceptedNoticeJob } from "@src/hardware-request/services/hardware-request-accepted-notice/hardware-request-accepted-notice.handler";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { HardwareRequestWithdrawnNoticeJob } from "@src/hardware-request/services/hardware-request-withdrawn-notice/hardware-request-withdrawn-notice.handler";
@@ -356,6 +357,42 @@ describe("Hardware requests", () => {
       expect(response.status).toBe(409);
     });
   });
+
+  describe("POST /v1/hardware-requests/{id}/offers/{offerId}/accept", () => {
+    it("lets an owner accept an offer, which closes the others and tells sales", async () => {
+      const { team, headersOf } = await setupOrganization();
+      const hardwareRequest = await seedHardwareRequest({ userId: team.owner.id, organizationId: team.id, status: "offers" });
+      const offers = container.resolve(HardwareRequestOfferRepository);
+      const chosen = await offers.create({ ...anOffer(hardwareRequest.id), status: "published", publishedAt: new Date() });
+      const other = await offers.create({ ...anOffer(hardwareRequest.id), status: "published", publishedAt: new Date() });
+
+      const response = await decide(hardwareRequest.id, chosen.id, "accept", headersOf(team.owner));
+
+      expect(response.status).toBe(200);
+      expect(((await response.json()) as { data: unknown }).data).toMatchObject({ id: chosen.id, status: "accepted" });
+      expect(await offers.findById(other.id)).toMatchObject({ status: "closed" });
+      expect(await container.resolve(HardwareRequestRepository).findById(hardwareRequest.id)).toMatchObject({ status: "accepted" });
+      expect(await findJobRows(HardwareRequestAcceptedNoticeJob[JOB_NAME], { data: { hardwareRequestId: hardwareRequest.id } })).toHaveLength(1);
+    });
+  });
+
+  describe("POST /v1/hardware-requests/{id}/offers/{offerId}/decline", () => {
+    it("lets the requester decline an offer, which then can't be accepted", async () => {
+      const { team, headersOf } = await setupOrganization();
+      const hardwareRequest = await seedHardwareRequest({ userId: team.owner.id, organizationId: team.id, status: "offers" });
+      const offer = await container.resolve(HardwareRequestOfferRepository).create({ ...anOffer(hardwareRequest.id), status: "published" });
+
+      const response = await decide(hardwareRequest.id, offer.id, "decline", headersOf(team.owner));
+
+      expect(response.status).toBe(200);
+      expect(((await response.json()) as { data: unknown }).data).toMatchObject({ id: offer.id, status: "declined" });
+      expect((await decide(hardwareRequest.id, offer.id, "accept", headersOf(team.owner))).status).toBe(409);
+    });
+  });
+
+  async function decide(id: string, offerId: string, decision: "accept" | "decline", headers: Record<string, string>) {
+    return await app.request(`/v1/hardware-requests/${id}/offers/${offerId}/${decision}`, { method: "POST", headers });
+  }
 
   async function withdraw(id: string, headers: Record<string, string>) {
     return await app.request(`/v1/hardware-requests/${id}/withdraw`, { method: "POST", headers });
