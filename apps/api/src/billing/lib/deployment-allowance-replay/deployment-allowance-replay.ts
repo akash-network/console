@@ -7,16 +7,20 @@ import type { AllowanceChange } from "@src/billing/repositories/deployment-allow
 const MSG_GRANT_TYPE_URL = `/${MsgGrant.$type}`;
 const MSG_REVOKE_TYPE_URL = `/${MsgRevoke.$type}`;
 
-/** The allowance after these changes, starting from `limit`: a grant or revoke sets it, and any other change is a deposit that lowered it by the granter's coins it spent. */
+/** The allowance after these changes, starting from `limit`: a grant or revoke sets it, and the escrow module moves it with the granter's coins, down by those a deposit spent and up by those a closing deployment returned. */
 export function replayAllowance(limit: number, changes: AllowanceChange[], denom: string): number {
   return changes.reduce((current, change) => applyChange(current, change, denom), limit);
 }
 
-function applyChange(limit: number, { type, data, spentByGranter }: AllowanceChange, denom: string): number {
+function applyChange(limit: number, { type, data, spentByGranter, receivedByGranter }: AllowanceChange, denom: string): number {
   if (type === MSG_GRANT_TYPE_URL) return grantedLimitOf(MsgGrant.decode(data), denom);
   if (type === MSG_REVOKE_TYPE_URL) return 0;
 
-  return limit - spentByGranter.flatMap(coins => parseCoins(coins)).reduce((total, coin) => (coin.denom === denom ? total + Number(coin.amount) : total), 0);
+  return limit - totalOf(spentByGranter, denom) + totalOf(receivedByGranter, denom);
+}
+
+function totalOf(amounts: string[], denom: string): number {
+  return amounts.flatMap(coins => parseCoins(coins)).reduce((total, coin) => (coin.denom === denom ? total + Number(coin.amount) : total), 0);
 }
 
 /** Reads the limits the way the allowance read does, so a grant still carrying the single legacy limit counts the same in both. */

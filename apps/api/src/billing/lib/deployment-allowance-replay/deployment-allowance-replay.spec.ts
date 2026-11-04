@@ -1,4 +1,5 @@
 import { DepositAuthorization, MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgCloseDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgGrant, MsgRevoke } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { describe, expect, it } from "vitest";
 
@@ -14,6 +15,12 @@ describe(replayAllowance.name, () => {
     const changes = [deposit(["30uact"]), deposit(["7uakt,20uact"]), deposit(["5uact", "1uact"])];
 
     expect(replayAllowance(500, changes, "uact")).toBe(500 - 30 - 20 - 5 - 1);
+  });
+
+  it("raises the limit by the granter's coins of the grant denom a closing deployment returned", () => {
+    const changes = [refund(["30uact"]), deposit(["10uact"]), refund(["7uakt,20uact", "5uact"])];
+
+    expect(replayAllowance(500, changes, "uact")).toBe(500 + 30 - 10 + 20 + 5);
   });
 
   it("sets the limit to what a grant granted and applies the deposits after it", () => {
@@ -39,7 +46,11 @@ describe(replayAllowance.name, () => {
   });
 
   function deposit(spentByGranter: string[]): AllowanceChange {
-    return { height: 1, txIndex: 0, msgIndex: 0, type: `/${MsgAccountDeposit.$type}`, data: new Uint8Array([1]), spentByGranter };
+    return { height: 1, txIndex: 0, msgIndex: 0, type: `/${MsgAccountDeposit.$type}`, data: new Uint8Array([1]), spentByGranter, receivedByGranter: [] };
+  }
+
+  function refund(receivedByGranter: string[]): AllowanceChange {
+    return { height: 1, txIndex: 0, msgIndex: 0, type: `/${MsgCloseDeployment.$type}`, data: new Uint8Array([1]), spentByGranter: [], receivedByGranter };
   }
 
   function grant(authorization: Partial<DepositAuthorization>): AllowanceChange {
@@ -55,12 +66,12 @@ describe(replayAllowance.name, () => {
       }
     }).finish();
 
-    return { height: 1, txIndex: 0, msgIndex: 0, type: `/${MsgGrant.$type}`, data, spentByGranter: [] };
+    return { height: 1, txIndex: 0, msgIndex: 0, type: `/${MsgGrant.$type}`, data, spentByGranter: [], receivedByGranter: [] };
   }
 
   function revoke(): AllowanceChange {
     const data = MsgRevoke.encode({ granter: "akash1granter", grantee: "akash1grantee", msgTypeUrl: `/${MsgAccountDeposit.$type}` }).finish();
 
-    return { height: 1, txIndex: 0, msgIndex: 0, type: `/${MsgRevoke.$type}`, data, spentByGranter: [] };
+    return { height: 1, txIndex: 0, msgIndex: 0, type: `/${MsgRevoke.$type}`, data, spentByGranter: [], receivedByGranter: [] };
   }
 });

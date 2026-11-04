@@ -85,7 +85,7 @@ export class ReconcileDeploymentAllowanceHandler implements JobHandler<Reconcile
     return true;
   }
 
-  /** What the write erased: whatever moved the allowance between its read and its own landing, deposits and other grants alike. */
+  /** What the write erased: whatever moved the allowance between its read and its own landing, deposits, returned deposits and other grants alike. */
   async #overwrittenBy({ wallet, write }: AllowanceCheck, tx: IndexedTx): Promise<number> {
     const changes = await this.deploymentAllowanceHistoryRepository.findChanges({
       granter: await this.txManagerService.getFundingWalletAddress(),

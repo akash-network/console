@@ -7,8 +7,8 @@ export type ChainTxPosition = { height: number; txIndex: number };
 
 export type IndexedTx = ChainTxPosition & { isSucceeded: boolean };
 
-/** A message that changed a grant: the granter's own grant or revoke, or a deposit by the grantee that drew on it, with the granter's coins that deposit spent. */
-export type AllowanceChange = ChainTxPosition & { msgIndex: number; type: string; data: Uint8Array; spentByGranter: string[] };
+/** A message that changed a grant: the granter's own grant or revoke, or a message of the grantee's that drew on it or had its escrow return unspent coins to it, with the granter's coins it moved. */
+export type AllowanceChange = ChainTxPosition & { msgIndex: number; type: string; data: Uint8Array; spentByGranter: string[]; receivedByGranter: string[] };
 
 /** Authz emits one of these whenever it saves or deletes a grant, so every change to a grant, whoever made it, carries one. */
 const GRANT_EVENT_TYPES = ["cosmos.authz.v1beta1.EventGrant", "cosmos.authz.v1beta1.EventRevoke"];
@@ -53,7 +53,8 @@ export class DeploymentAllowanceHistoryRepository {
         m.index AS "msgIndex",
         m.type,
         m.data,
-        COALESCE(spent.amounts, ARRAY[]::text[]) AS "spentByGranter"
+        COALESCE(granter_coins.spent, ARRAY[]::text[]) AS "spentByGranter",
+        COALESCE(granter_coins.received, ARRAY[]::text[]) AS "receivedByGranter"
       FROM transaction t
       CROSS JOIN LATERAL (
         SELECT event_msg_index.value AS msg_index
@@ -71,16 +72,18 @@ export class DeploymentAllowanceHistoryRepository {
       ) grant_event
       INNER JOIN message m ON m."txId" = t.id AND m.index::text = grant_event.msg_index
       LEFT JOIN LATERAL (
-        SELECT array_agg(amount.value ORDER BY spent_event.index) AS amounts
-        FROM transaction_event spent_event
-        INNER JOIN transaction_event_attribute spender
-          ON spender.transaction_event_id = spent_event.id AND spender.key = 'spender' AND spender.value = :granter
-        INNER JOIN transaction_event_attribute spent_msg_index
-          ON spent_msg_index.transaction_event_id = spent_event.id AND spent_msg_index.key = 'msg_index' AND spent_msg_index.value = grant_event.msg_index
-        INNER JOIN transaction_event_attribute amount ON amount.transaction_event_id = spent_event.id AND amount.key = 'amount'
-        WHERE spent_event.tx_id = t.id AND spent_event.type = 'coin_spent'
+        SELECT
+          array_agg(amount.value ORDER BY coin_event.index) FILTER (WHERE coin_event.type = 'coin_spent') AS spent,
+          array_agg(amount.value ORDER BY coin_event.index) FILTER (WHERE coin_event.type = 'coin_received') AS received
+        FROM transaction_event coin_event
+        INNER JOIN transaction_event_attribute coin_owner
+          ON coin_owner.transaction_event_id = coin_event.id AND coin_owner.key IN ('spender', 'receiver') AND coin_owner.value = :granter
+        INNER JOIN transaction_event_attribute coin_msg_index
+          ON coin_msg_index.transaction_event_id = coin_event.id AND coin_msg_index.key = 'msg_index' AND coin_msg_index.value = grant_event.msg_index
+        INNER JOIN transaction_event_attribute amount ON amount.transaction_event_id = coin_event.id AND amount.key = 'amount'
+        WHERE coin_event.tx_id = t.id AND coin_event.type IN ('coin_spent', 'coin_received')
         OFFSET 0
-      ) spent ON TRUE
+      ) granter_coins ON TRUE
       WHERE t.height > :afterHeight
         AND t.height <= :beforeHeight
         AND (t.height, t.index) < (:beforeHeight, :beforeTxIndex)

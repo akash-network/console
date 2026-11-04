@@ -20,7 +20,8 @@ import {
   indexAllowanceRevoke,
   indexBalanceFundedDeposit,
   indexBlock,
-  indexGrantFundedDeposit
+  indexGrantFundedDeposit,
+  indexGrantRefund
 } from "@test/seeders/deployment-allowance-history.seeder";
 import { deleteQueuedJobs, expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
@@ -39,27 +40,39 @@ describe(ReconcileDeploymentAllowanceHandler.name, () => {
 
   describe("when the write landed", () => {
     it.each([
-      { draw: "leaves part of the grant", exhaustsGrant: false },
-      { draw: "uses up the grant", exhaustsGrant: true }
-    ])("lowers the allowance by exactly a deposit between the read and the write that $draw, run the way a worker runs it", async ({ exhaustsGrant }) => {
+      { draw: "leaves part of the grant", amount: 30_000_000 },
+      { draw: "uses up the grant", amount: readLimit }
+    ])("lowers the allowance by exactly a deposit between the read and the write that $draw, run the way a worker runs it", async ({ amount }) => {
       const { chain, readHeight, index, check, runCheck, findChecksOf, followUpHash } = await setup();
-      await index.deposit({ height: readHeight + 2, amount: 30_000_000, exhaustsGrant });
+      await index.deposit({ height: readHeight + 2, amount });
       const write = await check({ landedAt: readHeight + 4 });
 
       await runCheck(write);
 
-      expect(chain.limit).toBe(readLimit + credit - 30_000_000);
+      expect(chain.limit).toBe(readLimit + credit - amount);
       expect(await findChecksOf(followUpHash)).toEqual([
         expect.objectContaining({
           state: "created",
           data: expect.objectContaining({
             write: expect.objectContaining({ txHash: followUpHash, readHeight: chain.height, readLimit: readLimit + credit }),
-            adjustment: -30_000_000,
+            adjustment: -amount,
             round: 1,
             attempt: 0
           })
         })
       ]);
+    });
+
+    it("raises the allowance by exactly what a closing deployment returned to the grant between the read and the write", async () => {
+      const { chain, readHeight, index, check, handle, findChecksOf, followUpHash } = await setup();
+      await index.refund({ height: readHeight + 2, amount: 20_000_000 });
+      await index.deposit({ height: readHeight + 3, amount: 5_000_000 });
+      const write = await check({ landedAt: readHeight + 4 });
+
+      await handle(write);
+
+      expect(chain.limit).toBe(readLimit + credit + 20_000_000 - 5_000_000);
+      expect(await findChecksOf(followUpHash)).toEqual([expect.objectContaining({ data: expect.objectContaining({ adjustment: 15_000_000, round: 1 }) })]);
     });
 
     it("changes nothing for deposits outside the window or not drawn on the grant", async () => {
@@ -80,6 +93,8 @@ describe(ReconcileDeploymentAllowanceHandler.name, () => {
       });
       await indexBalanceFundedDeposit({ grantee: wallet.address, denom: index.denom, amount: 7_000_000, height: readHeight + 2, txIndex: 3 });
       await index.deposit({ height: readHeight + 2, txIndex: 4, amount: 8_000_000, denom: "uother" });
+      await index.refund({ height: readHeight + 5, txIndex: 1, amount: 9_000_000 });
+      await index.refund({ height: readHeight + 2, txIndex: 5, amount: 10_000_000, denom: "uother" });
       const write = await check({ landedAt: readHeight + 4 });
 
       await handle(write);
@@ -318,6 +333,8 @@ describe(ReconcileDeploymentAllowanceHandler.name, () => {
       denom,
       deposit: (at: Omit<Parameters<typeof indexGrantFundedDeposit>[0], "granter" | "grantee" | "denom"> & { denom?: string }) =>
         indexGrantFundedDeposit({ granter, grantee: wallet.address, denom, ...at }),
+      refund: (at: Omit<Parameters<typeof indexGrantRefund>[0], "granter" | "grantee" | "denom"> & { denom?: string }) =>
+        indexGrantRefund({ granter, grantee: wallet.address, denom, ...at }),
       grant: (at: Omit<Parameters<typeof indexAllowanceGrant>[0], "granter" | "grantee" | "denom">) =>
         indexAllowanceGrant({ granter, grantee: wallet.address, denom, ...at }),
       revoke: (at: Omit<Parameters<typeof indexAllowanceRevoke>[0], "granter" | "grantee">) => indexAllowanceRevoke({ granter, grantee: wallet.address, ...at })

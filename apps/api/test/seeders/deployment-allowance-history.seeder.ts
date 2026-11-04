@@ -1,9 +1,11 @@
 import { DepositAuthorization, DepositAuthorization_Scope, MsgAccountDeposit } from "@akashnetwork/chain-sdk/private-types/akash.v1";
+import { MsgCloseDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
 import { MsgGrant, MsgRevoke } from "@akashnetwork/chain-sdk/private-types/cosmos.v1beta1";
 import { AkashBlock } from "@akashnetwork/database/dbSchemas/akash";
 import { TransactionEvent, TransactionEventAttribute } from "@akashnetwork/database/dbSchemas/base";
 import { faker } from "@faker-js/faker";
 
+import { createAkashAddress } from "./akash-address.seeder";
 import { createAkashBlock } from "./akash-block.seeder";
 import { createAkashMessage } from "./akash-message.seeder";
 import { createTransaction } from "./transaction.seeder";
@@ -49,24 +51,17 @@ export async function indexAllowanceRevoke({ granter, grantee, ...at }: IndexedA
   return await indexTx(at, { type: `/${MsgRevoke.$type}`, data }, [grantEvent("EventRevoke", { granter, grantee })]);
 }
 
-/** A deposit by the grantee that drew `amount` on the granter's grant, next to the fee the granter paid for it. */
+/** A deposit by the grantee that drew `amount` on the granter's grant, next to the fee the granter paid for it; the escrow module saves a used-up grant rather than deleting it. */
 export async function indexGrantFundedDeposit({
   granter,
   grantee,
   denom,
   amount,
-  exhaustsGrant = false,
   ...at
-}: IndexedAt & { granter: string; grantee: string; denom: string; amount: number; exhaustsGrant?: boolean }) {
+}: IndexedAt & { granter: string; grantee: string; denom: string; amount: number }) {
   return await indexTx(at, { type: DEPOSIT_GRANT_MSG_TYPE_URL, data: new Uint8Array([1]) }, [
-    {
-      type: "coin_spent",
-      attributes: [
-        ["spender", granter],
-        ["amount", "5000uakt"]
-      ]
-    },
-    grantEvent(exhaustsGrant ? "EventRevoke" : "EventGrant", { granter, grantee }),
+    feePaidBy(granter),
+    grantEvent("EventGrant", { granter, grantee }),
     {
       type: "coin_spent",
       attributes: [
@@ -75,6 +70,38 @@ export async function indexGrantFundedDeposit({
         ["msg_index", "0"]
       ]
     }
+  ]);
+}
+
+/** A closing deployment of the grantee whose escrow returned `amount` of the granter's unspent deposit and added it back to the grant. */
+export async function indexGrantRefund({
+  granter,
+  grantee,
+  denom,
+  amount,
+  ...at
+}: IndexedAt & { granter: string; grantee: string; denom: string; amount: number }) {
+  const escrowModule = createAkashAddress();
+
+  return await indexTx(at, { type: `/${MsgCloseDeployment.$type}`, data: new Uint8Array([1]) }, [
+    feePaidBy(granter),
+    {
+      type: "coin_spent",
+      attributes: [
+        ["spender", escrowModule],
+        ["amount", `${amount}${denom}`],
+        ["msg_index", "0"]
+      ]
+    },
+    {
+      type: "coin_received",
+      attributes: [
+        ["receiver", granter],
+        ["amount", `${amount}${denom}`],
+        ["msg_index", "0"]
+      ]
+    },
+    grantEvent("EventGrant", { granter, grantee })
   ]);
 }
 
@@ -108,6 +135,16 @@ export async function indexBlock(height: number, at: Date = new Date()) {
   const block = await AkashBlock.findByPk(height);
 
   return block ?? (await createAkashBlock({ height, datetime: at }));
+}
+
+function feePaidBy(payer: string): IndexedEvent {
+  return {
+    type: "coin_spent",
+    attributes: [
+      ["spender", payer],
+      ["amount", "5000uakt"]
+    ]
+  };
 }
 
 function grantEvent(name: "EventGrant" | "EventRevoke", { granter, grantee }: { granter: string; grantee: string }): IndexedEvent {
