@@ -2,8 +2,7 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { API_REFERENCE_URL } from "@src/components/api-keys/ApiKeysPage/ApiKeysPage";
-import { AKT_DOCS_URL } from "@src/components/api-keys/ApiKeyUsageGuide/ApiKeyUsageGuide";
+import { AKT_DOCS_URL, API_REFERENCE_URL } from "@src/config/agent-setup.config";
 import { AI_AGENTS_DOCS_URL, AKASH_SKILL_INSTALL_COMMAND } from "@src/config/agent-setup.config";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { UrlService } from "@src/utils/urlUtils";
@@ -213,7 +212,9 @@ describe(GetStartedChecklist.name, () => {
 
   it("goes back to the copy label after a moment", async () => {
     vi.useFakeTimers();
-    onTestFinished(() => vi.useRealTimers());
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     setup();
     fireEvent.click(screen.getByRole("button", { name: "Set up your tools" }));
 

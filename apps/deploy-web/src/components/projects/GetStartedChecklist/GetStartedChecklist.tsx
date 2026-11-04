@@ -8,10 +8,8 @@ import { ArrowRight, ArrowUpRight, Braces, Check, ChevronDown, ChevronUp, Contai
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { API_REFERENCE_URL } from "@src/components/api-keys/ApiKeysPage/ApiKeysPage";
-import { AKT_DOCS_URL } from "@src/components/api-keys/ApiKeyUsageGuide/ApiKeyUsageGuide";
 import { useOnboardingApiKey } from "@src/components/onboarding-picker/ApiKeySetup/useOnboardingApiKey";
-import { AI_AGENTS_DOCS_URL, AKASH_SKILL_INSTALL_COMMAND } from "@src/config/agent-setup.config";
+import { AI_AGENTS_DOCS_URL, AKASH_SKILL_INSTALL_COMMAND, AKT_DOCS_URL, API_REFERENCE_URL } from "@src/config/agent-setup.config";
 import { useServices } from "@src/context/ServicesProvider";
 import { useGetStartedChecklist } from "./useGetStartedChecklist";
 import { useGetStartedQuickPicks } from "./useGetStartedQuickPicks";
