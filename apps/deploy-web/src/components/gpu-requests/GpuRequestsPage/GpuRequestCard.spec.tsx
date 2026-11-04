@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { HardwareRequest } from "../gpuRequestStatus/gpuRequestStatus";
@@ -62,6 +63,12 @@ describe(GpuRequestCard.name, () => {
     expect(screen.getByRole("article", { name: "Hardware request" }).querySelectorAll("p")).toHaveLength(2);
   });
 
+  it("shows the offers under the status message", () => {
+    setup({ status: "offers" }, { offers: <div>Offers table</div> });
+
+    expect(screen.getByRole("article")).toHaveTextContent("We have offers for you and will email you to go over them.Offers table");
+  });
+
   it("offers to withdraw the request when the viewer may", async () => {
     const onWithdraw = vi.fn();
     setup({}, { onWithdraw });
@@ -91,7 +98,7 @@ describe(GpuRequestCard.name, () => {
     expect(screen.getByRole("article")).not.toHaveAttribute("aria-current");
   });
 
-  function setup(input: Partial<HardwareRequest>, props: { isFocused?: boolean; onWithdraw?: () => void } = {}) {
+  function setup(input: Partial<HardwareRequest>, props: { isFocused?: boolean; offers?: ReactNode; onWithdraw?: () => void } = {}) {
     const scrollIntoView = vi.spyOn(HTMLElement.prototype, "scrollIntoView").mockClear();
     render(<GpuRequestCard request={buildHardwareRequest(input)} {...props} />);
 

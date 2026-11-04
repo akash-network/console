@@ -12,7 +12,9 @@ import { useUser } from "@src/hooks/useUser";
 import { useHardwareRequestsQuery } from "@src/queries/useHardwareRequestsQuery";
 import { GpuQuoteRequestFlow } from "../GpuQuoteRequestFlow/GpuQuoteRequestFlow";
 import { canWithdraw } from "../gpuRequestAccess/gpuRequestAccess";
+import { GpuRequestOffers } from "../GpuRequestOffers/GpuRequestOffers";
 import type { HardwareRequest } from "../gpuRequestStatus/gpuRequestStatus";
+import { hasOffers } from "../gpuRequestStatus/gpuRequestStatus";
 import { GpuRequestCard } from "./GpuRequestCard";
 import { WithdrawGpuRequestDialog } from "./WithdrawGpuRequestDialog";
 
@@ -21,6 +23,7 @@ export const DEPENDENCIES = {
   SettingsLayout,
   GpuQuoteRequestFlow,
   GpuRequestCard,
+  GpuRequestOffers,
   WithdrawGpuRequestDialog,
   useHardwareRequestsQuery,
   useUser,
@@ -81,6 +84,7 @@ export const GpuRequestsPage: FC<Props> = ({ requestId, dependencies: d = DEPEND
                 <d.GpuRequestCard
                   request={request}
                   isFocused={request.id === requestId}
+                  offers={hasOffers(request.status) && <d.GpuRequestOffers request={request} />}
                   onWithdraw={canWithdraw(request, viewer) ? () => setWithdrawing(request) : undefined}
                 />
               </li>

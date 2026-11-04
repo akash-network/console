@@ -12,10 +12,11 @@ const STAGE_STATE_LABELS: Record<TrackerStage["state"], string> = { done: "done"
 type Props = {
   request: HardwareRequest;
   isFocused?: boolean;
+  offers?: ReactNode;
   onWithdraw?: () => void;
 };
 
-export const GpuRequestCard: FC<Props> = ({ request, isFocused = false, onWithdraw }) => {
+export const GpuRequestCard: FC<Props> = ({ request, isFocused = false, offers, onWithdraw }) => {
   const titleId = useId();
   const cardRef = useRef<HTMLElement>(null);
   const tracker = describeTracker(request.status);
@@ -54,6 +55,7 @@ export const GpuRequestCard: FC<Props> = ({ request, isFocused = false, onWithdr
       <div className="flex flex-col gap-3 border-t p-4">
         {tracker && <ProgressTracker stages={tracker} />}
         <p className="text-sm">{describeStatusMessage(request)}</p>
+        {offers}
         {onWithdraw && (
           <div className="flex justify-end">
             <Button type="button" variant="ghost" size="sm" onClick={onWithdraw}>
