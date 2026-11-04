@@ -107,10 +107,10 @@ describe(DeletedAccountAbuseLockService.name, () => {
   });
 
   describe("findLockReasonOf", () => {
-    it("looks the account up by the same keyed hashes it was remembered under", async () => {
+    it("looks the account up by the same keyed hashes it was remembered under, whatever plus tag its email carries", async () => {
       const { service, repository } = setup();
 
-      await service.findLockReasonOf(createUser({ userId: "auth0|abc123", email: "JANE.doe@example.com" }));
+      await service.findLockReasonOf(createUser({ userId: "auth0|abc123", email: "JANE.doe+trial@example.com" }));
 
       expect(repository.findByAnyHash).toHaveBeenCalledWith({
         identityHash: keyedHash("deleted-account-identity:auth0|abc123"),

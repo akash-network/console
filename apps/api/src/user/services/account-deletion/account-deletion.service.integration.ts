@@ -468,6 +468,25 @@ describe(AccountDeletionService.name, () => {
       expect(wallet).toMatchObject({ isTrialing: false, abuseLockedReason: ABUSE_LOCK_REASON });
     });
 
+    it("refuses a trial to a new identity with a plus-tagged variant of the email of a deleted account locked for workload abuse", async () => {
+      const { service, account, token, answerActiveDeployments, answerBalanceOf, setEmailOf, lockForWorkloadAbuse, registerAgain } = await setup();
+      answerActiveDeployments([]);
+      answerBalanceOf(account.address, undefined);
+      const localPart = faker.string.alpha({ length: 10, casing: "lower" });
+      const domain = `${faker.string.alpha({ length: 12, casing: "lower" })}.com`;
+      await setEmailOf(account, `${localPart}@${domain}`);
+      await lockForWorkloadAbuse(account);
+
+      await service.confirm({ token });
+      const { wallet, grantTrial } = await registerAgain({
+        userId: `auth0|${faker.string.alphanumeric(24)}`,
+        email: `${localPart.charAt(0).toUpperCase()}${localPart.slice(1)}+1@${domain.toUpperCase()}`
+      });
+
+      expect(grantTrial).not.toHaveBeenCalled();
+      expect(wallet).toMatchObject({ isTrialing: false, abuseLockedReason: ABUSE_LOCK_REASON });
+    });
+
     it("grants a trial again to the same identity and email if the deleted account was never locked", async () => {
       const { service, account, token, answerActiveDeployments, setEmailOf, registerAgain } = await setup();
       answerActiveDeployments([]);
