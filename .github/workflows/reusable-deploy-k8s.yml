@@ -185,6 +185,7 @@ jobs:
       deployments: write
     runs-on: ubuntu-latest
     needs: deployment-prerequisites
+    environment: ${{ needs.deployment-prerequisites.outputs.environment }}
     if: >-
       needs.deployment-prerequisites.outputs.require_approval != 'true' || inputs.approve == 'true' || inputs.approve == true
     steps:
