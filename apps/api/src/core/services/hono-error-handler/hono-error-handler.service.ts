@@ -6,6 +6,7 @@ import { ConnectionAcquireTimeoutError, ConnectionError } from "sequelize";
 import { singleton } from "tsyringe";
 import { ZodError } from "zod";
 
+import { isUnreachableUpstreamError } from "@src/core/lib/unreachable-upstream/unreachable-upstream";
 import { getPostgresError } from "@src/core/repositories/base.repository";
 import type { AppContext } from "../../types/app-context";
 
@@ -91,6 +92,18 @@ export class HonoErrorHandlerService {
           type: "service_unavailable"
         },
         { status: 502 }
+      );
+    }
+
+    if (isUnreachableUpstreamError(error)) {
+      return c.json(
+        {
+          error: "ServiceUnavailableError",
+          message: "Service temporarily unavailable",
+          code: "service_unavailable",
+          type: "server_error"
+        },
+        { status: 503 }
       );
     }
 

@@ -1,3 +1,4 @@
+import { AxiosError } from "axios";
 import { HTTPException } from "hono/http-exception";
 import createHttpError from "http-errors";
 import { PostgresError } from "postgres";
@@ -111,6 +112,25 @@ describe(HonoErrorHandlerService.name, () => {
       await service.handle(error, mockContext);
 
       expect(body).toHaveBeenCalledWith(expect.stringContaining('"code":"service_unavailable"'), expect.objectContaining({ status }));
+    });
+  });
+
+  describe("when an upstream refuses the connection", () => {
+    it("answers service unavailable without the upstream's address", async () => {
+      const { service, mockContext, json } = setup();
+      const error = new AxiosError("connect ECONNREFUSED 216.153.61.186:443", "ECONNREFUSED");
+
+      await service.handle(error, mockContext);
+
+      expect(json).toHaveBeenCalledWith(
+        {
+          error: "ServiceUnavailableError",
+          message: "Service temporarily unavailable",
+          code: "service_unavailable",
+          type: "server_error"
+        },
+        { status: 503 }
+      );
     });
   });
 
