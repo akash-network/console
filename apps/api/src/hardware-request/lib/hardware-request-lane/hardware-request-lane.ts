@@ -1,4 +1,4 @@
-import { type GpuRequestRoutingPolicy, isSameGpuModel } from "@src/hardware-request/lib/gpu-request-routing-policy/gpu-request-routing-policy";
+import { type GpuRequestRoutingPolicy, isDataCenterGpu, isSameGpuModel } from "@src/hardware-request/lib/gpu-request-routing-policy/gpu-request-routing-policy";
 import type { HardwareRequestLane, HardwareRequestLaneReason, HardwareRequestSpec, SalesLaneReason } from "@src/hardware-request/model-schemas";
 
 const HOURS_PER_MONTH = 730;
@@ -38,10 +38,7 @@ function firstSalesRule(spec: HardwareRequestSpec | null, estimatedMonthlyUsd: n
     ["interconnect", interconnect.enabled && !!spec && spec.gpu.interconnect !== "none"],
     [
       "long_term_data_center",
-      longTermDataCenter.enabled &&
-        !!spec &&
-        TERM_MONTHS[spec.term] >= longTermDataCenter.minTermMonths &&
-        longTermDataCenter.gpuModels.some(model => isSameGpuModel(model, spec.gpu.model))
+      longTermDataCenter.enabled && !!spec && TERM_MONTHS[spec.term] >= longTermDataCenter.minTermMonths && isDataCenterGpu(spec.gpu.model, policy)
     ],
     ["could_grow", couldGrow.enabled && !!spec?.couldGrow],
     ["wants_to_talk", wantsToTalk.enabled && !!spec?.wantsToTalk]

@@ -122,7 +122,8 @@ describe("hardware request lane", () => {
 
     it("applies the thresholds of the policy", () => {
       const policy = policyWith({
-        salesRules: { monthlyValue: { minUsd: 100 }, multiNode: { minGpus: 16 }, longTermDataCenter: { minTermMonths: 12, gpuModels: ["RTX 4090"] } }
+        salesRules: { monthlyValue: { minUsd: 100 }, multiNode: { minGpus: 16 }, longTermDataCenter: { minTermMonths: 12 } },
+        dataCenterGpuModels: ["RTX 4090"]
       });
 
       expect(route(smallSpec({ gpu: { model: "RTX 4090", count: 1, interconnect: "none" } }), policy)).toMatchObject({ laneReason: "monthly_value" });
