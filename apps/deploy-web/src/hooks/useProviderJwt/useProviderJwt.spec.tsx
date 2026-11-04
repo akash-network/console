@@ -45,6 +45,17 @@ describe(useProviderJwt.name, () => {
     expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
   });
 
+  it("generates a provider token once the wallet arrives after the first render", async () => {
+    const hasWalletRef = { current: false };
+    const { result, rerender } = setup({ hasWalletRef, issuedToken: "provider-token" });
+
+    hasWalletRef.current = true;
+    rerender();
+    const returned = await act(() => result.current.generateScopedProviderToken({ provider: "akash1provider", scope: ["status"] }));
+
+    expect(returned).toBe("provider-token");
+  });
+
   it("generates a token for the named deployments of one provider", async () => {
     const { result, consoleApiHttpClient } = setup({ issuedToken: "deployment-token" });
 
@@ -89,13 +100,13 @@ describe(useProviderJwt.name, () => {
     expect(consoleApiHttpClient.post).not.toHaveBeenCalled();
   });
 
-  function setup(input?: { wallet?: Partial<WalletContext>; user?: null; issuedToken?: string }) {
+  function setup(input?: { wallet?: Partial<WalletContext>; hasWalletRef?: { current: boolean }; user?: null; issuedToken?: string }) {
     const consoleApiHttpClient = mock<HttpClient>({
       post: vi.fn().mockResolvedValue({ data: { data: { token: input?.issuedToken ?? "token" } } })
     } as unknown as HttpClient);
     const dependencies: typeof DEPENDENCIES = {
       ...DEPENDENCIES,
-      useWallet: () => buildWallet({ hasWallet: true, address: "akash1wallet", ...input?.wallet }),
+      useWallet: () => buildWallet({ hasWallet: input?.hasWalletRef?.current ?? true, address: "akash1wallet", ...input?.wallet }),
       useUser: () =>
         mock<ReturnType<typeof useUser>>({
           user: input?.user === null ? undefined : ({ id: "user-1" } as CustomUserProfile)
