@@ -72,7 +72,8 @@ export const UrlService = {
   template: (id: string) => `/template/${id}`,
 
   // Deploy
-  onboardingPicker: ({ redeemCoupon }: { redeemCoupon?: boolean } = {}) => `/onboarding${appendSearchParams({ redeemCoupon })}`,
+  onboardingPicker: ({ redeemCoupon, intent }: { redeemCoupon?: boolean; intent?: string } = {}) =>
+    `/onboarding${appendSearchParams({ redeemCoupon, intent })}`,
   deploymentList: () => `/deployments`,
   activity: () => "/activity",
   deploymentDetails: (dseq: string, tab?: string, logsMode?: string) => `/deployments/${dseq}${appendSearchParams({ tab, logsMode })}`,

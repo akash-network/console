@@ -106,6 +106,7 @@ export type AnalyticsEvent =
   | "log_collector_enabled"
   | "log_collector_disabled"
   | "log_collector_deployed"
+  | "onboarding_intent_selected"
   | "onboarding_deploy_click"
   | "onboarding_choose_provider_click"
   | "onboarding_match_failed"
