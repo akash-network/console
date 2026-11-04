@@ -436,6 +436,16 @@ describe("gpuQuoteDraft", () => {
       expect(describeReviewLines(completeDraft({ gpuCount: 8 }))[1]).toEqual({ step: "interconnect", label: "Connection", value: "Not needed" });
     });
 
+    it("lists the notes last, trimmed, when the tenant wrote some", () => {
+      const lines = describeReviewLines(completeDraft({ notes: "  Need it for a demo  " }));
+
+      expect(lines.at(-1)).toEqual({ step: "contact", label: "Notes", value: "Need it for a demo" });
+    });
+
+    it("leaves out the notes line when the notes are blank", () => {
+      expect(lineValue(completeDraft({ notes: "   " }), "Notes")).toBeUndefined();
+    });
+
     it("leaves unanswered lines empty", () => {
       const draft = completeDraft({ gpuModel: null, regionMode: "only", areas: [], start: "date", startDate: "", email: "", maxUsdPerGpuHour: "abc" });
 

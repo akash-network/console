@@ -30,6 +30,7 @@ export const GpuRequestCard: FC<{ request: HardwareRequest }> = ({ request }) =>
           {endState && <Badge variant="outline">{endState}</Badge>}
         </div>
         {summary && <p className="text-sm text-muted-foreground">{summary}</p>}
+        {request.spec && request.details && <p className="line-clamp-2 whitespace-pre-line text-sm text-muted-foreground">{request.details}</p>}
       </div>
       <div className="flex flex-col gap-3 border-t p-4">
         {tracker && <ProgressTracker stages={tracker} />}

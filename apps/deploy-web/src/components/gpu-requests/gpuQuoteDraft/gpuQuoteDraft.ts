@@ -277,7 +277,8 @@ export function describeReviewLines(draft: GpuQuoteDraft): ReviewLine[] {
       label: "Also",
       value: [draft.couldGrow && "Could grow", draft.wantsToTalk && "Wants to talk to someone"].filter(Boolean).join(", ") || "Nothing else"
     },
-    { step: "contact", label: "Contact", value: [draft.email.trim(), draft.phone.trim(), draft.company.trim()].filter(Boolean).join(" · ") || null }
+    { step: "contact", label: "Contact", value: [draft.email.trim(), draft.phone.trim(), draft.company.trim()].filter(Boolean).join(" · ") || null },
+    draft.notes.trim().length > 0 && { step: "contact", label: "Notes", value: draft.notes.trim() }
   ];
 
   return lines.filter((line): line is ReviewLine => line !== false);
