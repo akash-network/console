@@ -126,7 +126,50 @@ describe(EmailVerificationCodeService.name, () => {
 
     it("hands the verified account the GPU requests the team filed for its email", async () => {
       const code = "123456";
-      const user = createUser({ userId: "auth0|123", emailVerified: false });
+      const user = createUser({ userId: "auth0|123", emailVerified: false, email: "jane@example.com" });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0, email: "jane@example.com" });
+      const { service, emailVerificationCodeRepository, userRepository, hardwareRequestClaimService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
+
+      await service.verifyCode(user.id, code);
+
+      expect(hardwareRequestClaimService.claimForVerifiedEmail).toHaveBeenCalledWith({ id: user.id, email: record.email });
+      expect(userRepository.updateById.mock.invocationCallOrder[0]).toBeLessThan(hardwareRequestClaimService.claimForVerifiedEmail.mock.invocationCallOrder[0]);
+    });
+
+    it("claims nothing when the account's address changed after the code was sent", async () => {
+      const code = "123456";
+      const user = createUser({ userId: "auth0|123", emailVerified: false, email: "new@example.com" });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0, email: "old@example.com" });
+      const { service, emailVerificationCodeRepository, userRepository, hardwareRequestClaimService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
+
+      await service.verifyCode(user.id, code);
+
+      expect(hardwareRequestClaimService.claimForVerifiedEmail).not.toHaveBeenCalled();
+    });
+
+    it("claims when the account's address differs from the code's only in case and padding", async () => {
+      const code = "123456";
+      const user = createUser({ userId: "auth0|123", emailVerified: false, email: " Jane@Example.com" });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0, email: "JANE@example.com " });
+      const { service, emailVerificationCodeRepository, userRepository, hardwareRequestClaimService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
+
+      await service.verifyCode(user.id, code);
+
+      expect(hardwareRequestClaimService.claimForVerifiedEmail).toHaveBeenCalledWith({ id: user.id, email: "JANE@example.com " });
+    });
+
+    it("claims nothing for an account without an email", async () => {
+      const code = "123456";
+      const user = createUser({ userId: "auth0|123", emailVerified: false, email: null });
       const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0 });
       const { service, emailVerificationCodeRepository, userRepository, hardwareRequestClaimService } = setup();
       userRepository.findById.mockResolvedValue(user);
@@ -135,14 +178,13 @@ describe(EmailVerificationCodeService.name, () => {
 
       await service.verifyCode(user.id, code);
 
-      expect(hardwareRequestClaimService.claimForVerifiedEmail).toHaveBeenCalledWith(user);
-      expect(userRepository.updateById.mock.invocationCallOrder[0]).toBeLessThan(hardwareRequestClaimService.claimForVerifiedEmail.mock.invocationCallOrder[0]);
+      expect(hardwareRequestClaimService.claimForVerifiedEmail).not.toHaveBeenCalled();
     });
 
     it("verifies the email even when the GPU requests cannot be claimed", async () => {
       const code = "123456";
-      const user = createUser({ userId: "auth0|123", emailVerified: false });
-      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0 });
+      const user = createUser({ userId: "auth0|123", emailVerified: false, email: "jane@example.com" });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0, email: "jane@example.com" });
       const { service, emailVerificationCodeRepository, userRepository, hardwareRequestClaimService, logger, auth0Service } = setup();
       userRepository.findById.mockResolvedValue(user);
       emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);

@@ -19,6 +19,11 @@ function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");
 }
 
+/** The account's address can change after a code was sent, and only the address the code reached was proven. */
+function isSameAddress(codeEmail: string, accountEmail: string | null): boolean {
+  return codeEmail.trim().toLowerCase() === accountEmail?.trim().toLowerCase();
+}
+
 @singleton()
 export class EmailVerificationCodeService {
   private readonly logger: ReturnType<CreateLogger>;
@@ -84,9 +89,11 @@ export class EmailVerificationCodeService {
     await this.trialActivationJobService.schedule(userInternalId).catch(error => {
       this.logger.error({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", userId: userInternalId, error });
     });
-    await this.hardwareRequestClaimService.claimForVerifiedEmail(user).catch(error => {
-      this.logger.error({ event: "FAILED_TO_CLAIM_HARDWARE_REQUESTS", userId: userInternalId, error });
-    });
+    if (isSameAddress(record.email, user.email)) {
+      await this.hardwareRequestClaimService.claimForVerifiedEmail({ id: user.id, email: record.email }).catch(error => {
+        this.logger.error({ event: "FAILED_TO_CLAIM_HARDWARE_REQUESTS", userId: userInternalId, error });
+      });
+    }
 
     try {
       await this.auth0Service.markEmailVerified(user.userId);
