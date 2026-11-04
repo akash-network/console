@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { SKIP_REPORTING_HANDLED_BY_CALLER } from "@src/services/query-error-policy/query-error-policy";
 
@@ -10,13 +11,14 @@ export type SkipOnboardingSource = "picker" | "auto_deploy";
 
 export const DEPENDENCIES = {
   useUser,
-  useRouter
+  useRouter,
+  useFlag
 };
 
 /**
  * Permanently skips the onboarding flow: records the intent in analytics, persists the server-side flag, refreshes the
- * profile, then lands the user on the new-deployment page. Navigation waits until the refreshed profile actually carries
- * the skip flag — the onboarding gate reads that same profile, so navigating any earlier would bounce right back into
+ * profile, then lands the user on Projects under the intent-first onboarding, or on the new-deployment page otherwise.
+ * Navigation waits until the refreshed profile actually carries the skip flag — the onboarding gate reads that same profile, so navigating any earlier would bounce right back into
  * the funnel. This also covers the profile route failing open with a flagless 200 (it swallows its internal user
  * lookup's errors), which a resolved `checkSession()` alone cannot reveal. Any failure reports the error and stays
  * put: the flag is already persisted server-side, so retrying the (idempotent) skip or reloading gets the user
@@ -27,6 +29,9 @@ export function useSkipOnboarding(dependencies: typeof DEPENDENCIES = DEPENDENCI
   const { consoleApiHttpClient, analyticsService, urlService, errorHandler } = useServices();
   const { user, checkSession } = dependencies.useUser();
   const router = dependencies.useRouter();
+  const isIntentFirst = dependencies.useFlag("onboarding_intent_first");
+  const isOrganizationsEnabled = dependencies.useFlag("organizations");
+  const isProjectsHome = isIntentFirst && isOrganizationsEnabled;
   const [isAwaitingSkippedProfile, setIsAwaitingSkippedProfile] = useState(false);
 
   const { mutateAsync, isPending } = useMutation({
@@ -42,9 +47,9 @@ export function useSkipOnboarding(dependencies: typeof DEPENDENCIES = DEPENDENCI
 
   useEffect(
     function navigateOnceProfileCarriesSkipFlag() {
-      if (isAwaitingSkippedProfile && user?.onboardingSkippedAt) router.push(urlService.newDeployment());
+      if (isAwaitingSkippedProfile && user?.onboardingSkippedAt) router.push(isProjectsHome ? urlService.projects() : urlService.newDeployment());
     },
-    [isAwaitingSkippedProfile, user?.onboardingSkippedAt, router, urlService]
+    [isAwaitingSkippedProfile, user?.onboardingSkippedAt, router, urlService, isProjectsHome]
   );
 
   const skip = useCallback(

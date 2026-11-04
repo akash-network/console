@@ -17,6 +17,8 @@ export interface UserSettings {
   onboardingSkippedAt?: string | null;
   fairUsePolicyAcceptedAt?: string | null;
   productUpdatesUnsubscribedAt?: string | null;
+  getStartedDismissedAt?: string | null;
+  agentSetupCopiedAt?: string | null;
   timezone?: string | null;
   createdAt?: string | null;
 }

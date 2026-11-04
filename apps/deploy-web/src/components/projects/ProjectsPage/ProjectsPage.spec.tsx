@@ -43,6 +43,14 @@ describe(ProjectsPage.name, () => {
     expect(screen.queryByRole("heading", { name: "Create your first project" })).not.toBeInTheDocument();
   });
 
+  it("puts the Get started checklist above the projects", () => {
+    setup({ projects: [project({ name: "storefront" })] });
+
+    const checklist = screen.getByRole("region", { name: "Get started" });
+    const allProjects = screen.getByRole("region", { name: "All projects" });
+    expect(checklist.compareDocumentPosition(allProjects) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("lets owners and admins manage each project from its folder", () => {
     setup({ role: "admin", projects: [project({ name: "storefront" })] });
 
@@ -267,6 +275,7 @@ describe(ProjectsPage.name, () => {
       ProjectFolder,
       ProjectFolderMenu: ({ project }) => <button type="button">menu of {project.name}</button>,
       RecentActivityFeed,
+      GetStartedChecklist: () => <section aria-label="Get started" />,
       NewProjectModal: props => (
         <NewProjectModal
           {...props}
