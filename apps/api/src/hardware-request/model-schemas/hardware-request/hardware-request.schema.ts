@@ -47,6 +47,7 @@ export type SalesLaneReason = (typeof SALES_LANE_REASONS)[number];
 export type HardwareRequestLaneReason = SalesLaneReason | "no_payment_method" | "below_thresholds" | "manual";
 
 const MAX_LANE_REASON_LENGTH = 32;
+const MAX_OWNER_LENGTH = 64;
 
 export const hardwareRequestLaneEnum = pgEnum("hardware_request_lane", HARDWARE_REQUEST_LANES);
 
@@ -108,6 +109,7 @@ export const HardwareRequests = pgTable(
     lane: hardwareRequestLaneEnum("lane"),
     laneReason: varchar("lane_reason", { length: MAX_LANE_REASON_LENGTH }).$type<HardwareRequestLaneReason>(),
     estimatedMonthlyUsd: integer("estimated_monthly_usd"),
+    owner: varchar("owner", { length: MAX_OWNER_LENGTH }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
   },

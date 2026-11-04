@@ -10,7 +10,10 @@ import {
   gpuRequestRoutingPolicySchema
 } from "@src/hardware-request/lib/gpu-request-routing-policy/gpu-request-routing-policy";
 import { type LaneRoutedRequest, type LaneRouting, routeHardwareRequest } from "@src/hardware-request/lib/hardware-request-lane/hardware-request-lane";
+import { pickSalesOwner } from "@src/hardware-request/lib/hardware-request-owner/hardware-request-owner";
 import { HardwareRequestAccountService } from "@src/hardware-request/services/hardware-request-account/hardware-request-account.service";
+
+export type RoutedLane = LaneRouting & { owner: string | null };
 
 @singleton()
 export class GpuRequestRoutingService {
@@ -38,10 +41,13 @@ export class GpuRequestRoutingService {
     return DEFAULT_GPU_REQUEST_ROUTING_POLICY;
   }
 
-  async route(request: LaneRoutedRequest, requester: { userId: string; organizationId: string | null }): Promise<LaneRouting> {
+  /** Only a sales-lane request gets an owner at submit; the team claims the rest from the queue. */
+  async route(request: LaneRoutedRequest, requester: { userId: string; organizationId: string | null }): Promise<RoutedLane> {
     const accountType = await this.hardwareRequestAccountService.findAccountType(requester);
+    const policy = this.getPolicy();
+    const routing = routeHardwareRequest(request, { hasPaymentMethod: accountType === "paying" }, policy);
 
-    return routeHardwareRequest(request, { hasPaymentMethod: accountType === "paying" }, this.getPolicy());
+    return { ...routing, owner: routing.lane === "sales" ? pickSalesOwner(request, policy).name : null };
   }
 }
 

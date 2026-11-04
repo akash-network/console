@@ -27,7 +27,9 @@ describe("GPU request routing policy", () => {
         MI300X: 2,
         "RTX 5090": 0.7,
         "RTX 4090": 0.45
-      }
+      },
+      owners: [],
+      fallbackOwner: { name: "Sales" }
     });
   });
 
@@ -46,7 +48,11 @@ describe("GPU request routing policy", () => {
     { payload: { salesRules: { multiNode: { minGpus: 0 } } } },
     { payload: { salesRules: { longTermDataCenter: { minTermMonths: 1.5 } } } },
     { payload: { referenceUsdPerGpuHour: { H100: 0 } } },
-    { payload: { salesRules: { couldGrow: { enabled: "yes" } } } }
+    { payload: { salesRules: { couldGrow: { enabled: "yes" } } } },
+    { payload: { owners: [{ name: "Remington", match: { areas: ["mars"] } }] } },
+    { payload: { owners: [{ name: "Remington", match: { areas: [] } }] } },
+    { payload: { owners: [{ name: " ", match: {} }] } },
+    { payload: { fallbackOwner: { name: "Sales", email: "not-an-email" } } }
   ])("rejects $payload", ({ payload }) => {
     expect(gpuRequestRoutingPolicySchema.safeParse(payload).success).toBe(false);
   });

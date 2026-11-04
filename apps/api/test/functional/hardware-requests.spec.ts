@@ -84,6 +84,7 @@ describe("Hardware requests", () => {
         lane: "automated",
         laneReason: "no_payment_method",
         estimatedMonthlyUsd: 8 * 5 * 730,
+        owner: null,
         createdAt: data.createdAt,
         updatedAt: data.createdAt
       });
@@ -190,7 +191,8 @@ describe("Hardware requests", () => {
       expect(await hardwareRequestRepository.findById(data.id)).toMatchObject({
         lane: "sales",
         laneReason: "monthly_value",
-        estimatedMonthlyUsd: 16 * 3 * 730
+        estimatedMonthlyUsd: 16 * 3 * 730,
+        owner: "Sales"
       });
     });
 
@@ -257,6 +259,7 @@ describe("Hardware requests", () => {
       expect(data[0]).not.toHaveProperty("configuration");
       expect(data[0]).not.toHaveProperty("laneReason");
       expect(data[0]).not.toHaveProperty("estimatedMonthlyUsd");
+      expect(data[0]).not.toHaveProperty("owner");
     });
 
     it("returns 401 to an anonymous caller", async () => {

@@ -6,11 +6,10 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/hardware-request.schema";
-import type { LaneRouting } from "@src/hardware-request/lib/hardware-request-lane/hardware-request-lane";
 import { describeSpecRegion } from "@src/hardware-request/lib/hardware-request-spec-summary/hardware-request-spec-summary";
 import { HARDWARE_REQUEST_CONFIG, type HardwareRequestConfig } from "@src/hardware-request/providers/config.provider";
 import { type HardwareRequestOutput, HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
-import { GpuRequestRoutingService } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
+import { GpuRequestRoutingService, type RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { UserRepository } from "@src/user/repositories";
@@ -60,7 +59,7 @@ export class HardwareRequestService {
     @inject(HARDWARE_REQUEST_CONFIG) private readonly config: HardwareRequestConfig
   ) {}
 
-  async create(input: HardwareRequestInput): Promise<HardwareRequestOutput & LaneRouting> {
+  async create(input: HardwareRequestInput): Promise<HardwareRequestOutput & RoutedLane> {
     const { email, ...fields } = input;
     const userId = this.authService.currentUser.id;
 
