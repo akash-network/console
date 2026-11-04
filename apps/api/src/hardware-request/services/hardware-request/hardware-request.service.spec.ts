@@ -7,7 +7,9 @@ import type { JobQueueService } from "@src/core/services/job-queue/job-queue.ser
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { HardwareRequestConfig } from "@src/hardware-request/config/env.config";
 import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/hardware-request.schema";
+import { DEFAULT_GPU_REQUEST_ROUTING_POLICY } from "@src/hardware-request/lib/gpu-request-routing-policy/gpu-request-routing-policy";
 import type { LaneRoutedRequest } from "@src/hardware-request/lib/hardware-request-lane/hardware-request-lane";
+import type { ResponseTarget } from "@src/hardware-request/lib/hardware-request-response-schedule/hardware-request-response-schedule";
 import type { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import type {
   HardwareRequestEventOutput,
@@ -19,6 +21,8 @@ import type {
 } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import type { GpuRequestRoutingService, RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
+import { HardwareRequestResponseTargetJob } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target.handler";
+import type { ResponseTargetStage } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target-notice";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { HardwareRequestWithdrawnNoticeJob } from "@src/hardware-request/services/hardware-request-withdrawn-notice/hardware-request-withdrawn-notice.handler";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
@@ -38,6 +42,16 @@ const ROUTING: RoutedLane = { lane: "sales", laneReason: "monthly_value", estima
 const QUOTE_SPEC = createHardwareRequestSpec();
 
 const NOW = new Date("2026-09-29T12:00:00.000Z").getTime();
+
+const FIRST_REPLY_DUE_AT = "2026-09-29T17:00:00.000Z";
+const FIRST_OFFER_DUE_AT = "2026-09-30T21:00:00.000Z";
+
+const SCHEDULED_COLUMNS = {
+  createdAt: new Date(NOW),
+  updatedAt: new Date(NOW),
+  firstReplyDueAt: new Date(FIRST_REPLY_DUE_AT),
+  firstOfferDueAt: new Date(FIRST_OFFER_DUE_AT)
+};
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 
@@ -64,7 +78,8 @@ describe(HardwareRequestService.name, () => {
         contactEmail: "jane@example.com",
         userId: user.id,
         organizationId: null,
-        ...ROUTING
+        ...ROUTING,
+        ...SCHEDULED_COLUMNS
       });
     });
 
@@ -84,7 +99,8 @@ describe(HardwareRequestService.name, () => {
         contactEmail: "jane@example.com",
         userId: user.id,
         organizationId: null,
-        ...ROUTING
+        ...ROUTING,
+        ...SCHEDULED_COLUMNS
       });
     });
 
@@ -127,15 +143,21 @@ describe(HardwareRequestService.name, () => {
       await expect(service.create(anInput())).resolves.toEqual({ ...created, ...ROUTING });
     });
 
-    it("queues the email and the Slack alert for the created request in the same transaction", async () => {
+    it("queues the email, the Slack alert and the sales lane's response target checks in the same transaction", async () => {
       const { service, jobQueueService, txService, created } = setup();
 
       await service.create(anInput());
 
       expect(txService.transaction).toHaveBeenCalledTimes(1);
+      const responseTargetJob = (target: ResponseTarget, stage: ResponseTargetStage, dueAt: string) =>
+        new HardwareRequestResponseTargetJob({ hardwareRequestId: created.id, target, stage, dueAt });
       expect(jobQueueService.enqueue.mock.calls).toEqual([
         [new HardwareRequestEmailJob({ hardwareRequestId: created.id })],
-        [new HardwareRequestSlackAlertJob({ hardwareRequestId: created.id })]
+        [new HardwareRequestSlackAlertJob({ hardwareRequestId: created.id })],
+        [responseTargetJob("first_reply", "reminder", FIRST_REPLY_DUE_AT), { startAfter: "2026-09-29T16:00:00.000Z" }],
+        [responseTargetJob("first_reply", "escalation", FIRST_REPLY_DUE_AT), { startAfter: FIRST_REPLY_DUE_AT }],
+        [responseTargetJob("first_offer", "reminder", FIRST_OFFER_DUE_AT), { startAfter: "2026-09-30T20:00:00.000Z" }],
+        [responseTargetJob("first_offer", "escalation", FIRST_OFFER_DUE_AT), { startAfter: FIRST_OFFER_DUE_AT }]
       ]);
     });
 
@@ -275,7 +297,8 @@ describe(HardwareRequestService.name, () => {
         contactEmail: "jane@example.com",
         userId: "owner-1",
         organizationId: "org-1",
-        ...ROUTING
+        ...ROUTING,
+        ...SCHEDULED_COLUMNS
       });
       expect(hardwareRequestEventRepository.record).toHaveBeenCalledWith({
         hardwareRequestId: created.id,
@@ -506,6 +529,7 @@ describe(HardwareRequestService.name, () => {
     const jobQueueService = mock<JobQueueService>();
     const gpuRequestRoutingService = mock<GpuRequestRoutingService>();
     gpuRequestRoutingService.route.mockResolvedValue(ROUTING);
+    gpuRequestRoutingService.getPolicy.mockReturnValue(DEFAULT_GPU_REQUEST_ROUTING_POLICY);
     const executionContextService = mock<ExecutionContextService>();
     executionContextService.get.mockImplementation(key =>
       key === "ORGANIZATION_CONTEXT" && (input.organizationId || input.role)

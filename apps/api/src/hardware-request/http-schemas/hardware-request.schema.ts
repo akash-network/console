@@ -124,7 +124,8 @@ export const CreateHardwareRequestResponseSchema = z.object({
   data: z.object({
     id: z.string().uuid(),
     createdAt: z.string().datetime(),
-    lane: z.enum(hardwareRequestLaneEnum.enumValues)
+    lane: z.enum(hardwareRequestLaneEnum.enumValues),
+    firstReplyDueAt: z.string().datetime().nullable().describe("When the team promises its first reply, counted in business hours for the request's lane")
   })
 });
 

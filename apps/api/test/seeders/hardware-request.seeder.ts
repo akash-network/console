@@ -25,6 +25,8 @@ export function createHardwareRequest(overrides: Partial<HardwareRequestOutput> 
     estimatedMonthlyUsd: null,
     owner: null,
     firstRepliedAt: null,
+    firstReplyDueAt: null,
+    firstOfferDueAt: null,
     createdAt,
     updatedAt: createdAt,
     ...overrides

@@ -12,10 +12,12 @@ type Table = ApiPgTables["HardwareRequests"];
 export type HardwareRequestInput = Partial<Table["$inferInsert"]>;
 export type HardwareRequestDbOutput = Table["$inferSelect"];
 
-export type HardwareRequestOutput = Omit<HardwareRequestDbOutput, "createdAt" | "updatedAt" | "firstRepliedAt"> & {
+export type HardwareRequestOutput = Omit<HardwareRequestDbOutput, "createdAt" | "updatedAt" | "firstRepliedAt" | "firstReplyDueAt" | "firstOfferDueAt"> & {
   createdAt: string;
   updatedAt: string;
   firstRepliedAt: string | null;
+  firstReplyDueAt: string | null;
+  firstOfferDueAt: string | null;
 };
 
 export type HardwareRequestQueueFilters = {
@@ -128,7 +130,9 @@ export class HardwareRequestRepository extends OrgScopedRepository<Table, Hardwa
       ...payload,
       createdAt: payload.createdAt.toISOString(),
       updatedAt: payload.updatedAt.toISOString(),
-      firstRepliedAt: payload.firstRepliedAt?.toISOString() ?? null
+      firstRepliedAt: payload.firstRepliedAt?.toISOString() ?? null,
+      firstReplyDueAt: payload.firstReplyDueAt?.toISOString() ?? null,
+      firstOfferDueAt: payload.firstOfferDueAt?.toISOString() ?? null
     };
   }
 }

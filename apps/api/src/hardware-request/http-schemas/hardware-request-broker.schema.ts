@@ -55,6 +55,8 @@ const QueuedHardwareRequestSchema = z.object({
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   firstRepliedAt: z.string().datetime().nullable(),
+  firstReplyDueAt: z.string().datetime().nullable(),
+  firstOfferDueAt: z.string().datetime().nullable(),
   lastRepliedAt: z.string().datetime().nullable()
 });
 

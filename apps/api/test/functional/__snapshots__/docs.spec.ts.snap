@@ -16048,6 +16048,12 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "format": "date-time",
                           "type": "string",
                         },
+                        "firstReplyDueAt": {
+                          "description": "When the team promises its first reply, counted in business hours for the request's lane",
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "id": {
                           "format": "uuid",
                           "type": "string",
@@ -16064,6 +16070,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                         "id",
                         "createdAt",
                         "lane",
+                        "firstReplyDueAt",
                       ],
                       "type": "object",
                     },
