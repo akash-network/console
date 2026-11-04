@@ -91,8 +91,13 @@ export class HardwareRequestOfferBrokerService {
     });
   }
 
+  /** Withdrawing the last offer the tenant could see takes the request back to sourcing, so it stops reading as having offers. */
   async withdraw(hardwareRequestId: string, offerId: string, { actor }: { actor: string }): Promise<HardwareRequestOfferOutput> {
     return await this.txService.transaction(async () => {
+      const hardwareRequest = await this.hardwareRequestRepository.unscoped("gpu-request-broker").findOneByAndLock({ id: hardwareRequestId });
+
+      if (!hardwareRequest) throw createError(404, "Hardware request not found");
+
       const offer = await this.#lockOffer(hardwareRequestId, offerId);
 
       if (offer.status === "withdrawn") return offer;
@@ -100,6 +105,10 @@ export class HardwareRequestOfferBrokerService {
 
       const withdrawn = await this.hardwareRequestOfferRepository.updateById(offerId, { status: "withdrawn", updatedAt: new Date() }, { returning: true });
       await this.hardwareRequestEventRepository.record({ hardwareRequestId, type: "offer_withdrawn", actor, payload: { offerId } });
+
+      if (hardwareRequest.status === "offers" && (await this.hardwareRequestOfferRepository.count({ hardwareRequestId, status: "published" })) === 0) {
+        await this.hardwareRequestBrokerService.moveLockedToStatus(hardwareRequest, { actor, status: "sourcing" });
+      }
 
       return withdrawn;
     });
