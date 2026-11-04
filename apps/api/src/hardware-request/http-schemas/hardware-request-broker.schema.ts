@@ -2,13 +2,18 @@ import { z } from "@hono/zod-openapi";
 
 import {
   hardwareRequestCategoryEnum,
+  hardwareRequestEventTypeEnum,
   hardwareRequestLaneEnum,
   hardwareRequestSourceEnum,
-  hardwareRequestStatusEnum
+  hardwareRequestStatusEnum,
+  MAX_ACTOR_LENGTH
 } from "@src/hardware-request/model-schemas";
 
 const MAX_QUEUE_PAGE_SIZE = 200;
+const MAX_NOTE_LENGTH = 4000;
 const DEFAULT_QUEUE_PAGE_SIZE = 50;
+
+export const HardwareRequestIdParamsSchema = z.object({ id: z.string().uuid() });
 
 export const HardwareRequestQueueQuerySchema = z.object({
   lane: z.enum(hardwareRequestLaneEnum.enumValues).optional(),
@@ -48,7 +53,37 @@ const QueuedHardwareRequestSchema = z.object({
   lastRepliedAt: z.string().datetime().nullable()
 });
 
+const HardwareRequestEventSchema = z.object({
+  id: z.string().uuid(),
+  type: z.enum(hardwareRequestEventTypeEnum.enumValues),
+  actor: z.string().nullable(),
+  payload: z.record(z.unknown()),
+  createdAt: z.string().datetime()
+});
+
+const ActorSchema = z.string().trim().min(1).max(MAX_ACTOR_LENGTH).describe("The name of the team member acting, as picked in the admin app");
+
+export const AssignHardwareRequestOwnerRequestSchema = z.object({
+  data: z.object({ actor: ActorSchema, owner: z.string().trim().min(1).max(MAX_ACTOR_LENGTH).nullable() })
+});
+
+export const SwitchHardwareRequestLaneRequestSchema = z.object({
+  data: z.object({ actor: ActorSchema, lane: z.enum(hardwareRequestLaneEnum.enumValues) })
+});
+
+export const AddHardwareRequestNoteRequestSchema = z.object({
+  data: z.object({ actor: ActorSchema, text: z.string().trim().min(1).max(MAX_NOTE_LENGTH) })
+});
+
 export const HardwareRequestQueueResponseSchema = z.object({ data: z.array(QueuedHardwareRequestSchema) });
+
+export const HardwareRequestWithTimelineResponseSchema = z.object({
+  data: QueuedHardwareRequestSchema.extend({ events: z.array(HardwareRequestEventSchema) })
+});
 
 export type HardwareRequestQueueQuery = z.infer<typeof HardwareRequestQueueQuerySchema>;
 export type HardwareRequestQueueResponse = z.infer<typeof HardwareRequestQueueResponseSchema>;
+export type AssignHardwareRequestOwnerRequest = z.infer<typeof AssignHardwareRequestOwnerRequestSchema>;
+export type SwitchHardwareRequestLaneRequest = z.infer<typeof SwitchHardwareRequestLaneRequestSchema>;
+export type AddHardwareRequestNoteRequest = z.infer<typeof AddHardwareRequestNoteRequestSchema>;
+export type HardwareRequestWithTimelineResponse = z.infer<typeof HardwareRequestWithTimelineResponseSchema>;

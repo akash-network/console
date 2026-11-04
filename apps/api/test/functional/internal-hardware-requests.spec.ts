@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
+import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { HardwareRequestEventRepository } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
 import { app } from "@src/rest-app";
 
@@ -14,6 +15,7 @@ type QueueItem = { id: string; organizationName: string | null; lastRepliedAt: s
 describe("Internal hardware requests", () => {
   const internalToken = container.resolve(CORE_CONFIG).INTERNAL_API_TOKEN;
   const eventRepository = container.resolve(HardwareRequestEventRepository);
+  const hardwareRequestRepository = container.resolve(HardwareRequestRepository);
 
   afterAll(async () => {
     await container.dispose();
@@ -89,6 +91,125 @@ describe("Internal hardware requests", () => {
       expect(response.status).toBe(400);
     });
   });
+
+  describe("GET /internal/hardware-requests/{id}", () => {
+    it("returns the request with its events, oldest first", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ owner: "Remington" });
+      const first = await eventRepository.record({ hardwareRequestId: hardwareRequest.id, type: "note", actor: "Remington", payload: { text: "First" } });
+      const second = await eventRepository.record({
+        hardwareRequestId: hardwareRequest.id,
+        type: "owner_changed",
+        actor: "Remington",
+        payload: { from: null, to: "Remington" }
+      });
+
+      const response = await request(`/internal/hardware-requests/${hardwareRequest.id}`, internalToken);
+      const { data } = (await response.json()) as { data: QueueItem & { events: Array<{ id: string; type: string; payload: unknown }> } };
+
+      expect(response.status).toBe(200);
+      expect(data).toMatchObject({ id: hardwareRequest.id, owner: "Remington", lastRepliedAt: null });
+      expect(data.events).toEqual([
+        { ...first, payload: { text: "First" } },
+        { ...second, payload: { from: null, to: "Remington" } }
+      ]);
+    });
+
+    it("answers 404 for an unknown request", async () => {
+      const response = await request(`/internal/hardware-requests/${faker.string.uuid()}`, internalToken);
+
+      expect(response.status).toBe(404);
+    });
+
+    it("rejects a caller without the token", async () => {
+      const response = await request(`/internal/hardware-requests/${faker.string.uuid()}`, undefined);
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe("PUT /internal/hardware-requests/{id}/owner", () => {
+    it("claims a request and records who did", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ owner: null });
+
+      const { status, data } = await act(hardwareRequest.id, "owner", { actor: "Remington", owner: "Remington" });
+
+      expect(status).toBe(200);
+      expect(data).toMatchObject({ owner: "Remington" });
+      expect(data.events).toMatchObject([{ type: "owner_changed", actor: "Remington", payload: { from: null, to: "Remington" } }]);
+      expect(await hardwareRequestRepository.findById(hardwareRequest.id)).toMatchObject({ owner: "Remington" });
+    });
+
+    it("releases a request", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ owner: "Remington" });
+
+      const { data } = await act(hardwareRequest.id, "owner", { actor: "Remington", owner: null });
+
+      expect(data.owner).toBeNull();
+    });
+
+    it("answers 404 for an unknown request", async () => {
+      const { status } = await act(faker.string.uuid(), "owner", { actor: "Remington", owner: "Remington" });
+
+      expect(status).toBe(404);
+    });
+
+    it("refuses a change without an actor", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({});
+
+      const { status } = await act(hardwareRequest.id, "owner", { actor: " ", owner: "Remington" });
+
+      expect(status).toBe(400);
+    });
+
+    it("rejects a caller without the token", async () => {
+      const response = await app.request(`/internal/hardware-requests/${faker.string.uuid()}/owner`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: { actor: "Remington", owner: "Remington" } })
+      });
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe("PUT /internal/hardware-requests/{id}/lane", () => {
+    it("moves a request to the sales lane by hand", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ lane: "automated", laneReason: "below_thresholds" });
+
+      const { data } = await act(hardwareRequest.id, "lane", { actor: "Remington", lane: "sales" });
+
+      expect(data).toMatchObject({ lane: "sales", laneReason: "manual" });
+      expect(data.events).toMatchObject([{ type: "lane_changed", payload: { from: "automated", to: "sales" } }]);
+    });
+  });
+
+  describe("POST /internal/hardware-requests/{id}/notes", () => {
+    it("adds a note to the timeline without counting it as a reply", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({});
+
+      const { data } = await act(hardwareRequest.id, "notes", { actor: "Remington", text: "Called them, wants InfiniBand" });
+
+      expect(data).toMatchObject({ lastRepliedAt: null, firstRepliedAt: null });
+      expect(data.events).toMatchObject([{ type: "note", actor: "Remington", payload: { text: "Called them, wants InfiniBand" } }]);
+    });
+  });
+
+  async function act(id: string, action: string, body: Record<string, unknown>) {
+    const response = await app.request(`/internal/hardware-requests/${id}/${action}`, {
+      method: action === "notes" ? "POST" : "PUT",
+      headers: { "Content-Type": "application/json", "x-console-internal-token": internalToken! },
+      body: JSON.stringify({ data: body })
+    });
+    const json = response.status === 200 ? ((await response.json()) as { data: QueueItem & { events: unknown[]; [key: string]: unknown } }) : undefined;
+
+    return { status: response.status, data: json?.data as QueueItem & { events: unknown[]; [key: string]: unknown } };
+  }
 
   async function listQueue(query: string): Promise<QueueItem[]> {
     const response = await request(`/internal/hardware-requests?${query}`, internalToken);
