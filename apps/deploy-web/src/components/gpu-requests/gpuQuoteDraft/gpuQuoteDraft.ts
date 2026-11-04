@@ -1,8 +1,11 @@
+import { differenceInCalendarDays } from "date-fns";
+
 import type {
   Fabric,
   FabricGbps,
   Interconnect,
   QuoteRequestData,
+  QuoteRequestReceipt,
   QuoteRequestSource,
   RegionArea,
   RegionMode,
@@ -90,8 +93,6 @@ export type MissingAnswer = { step: QuoteStepId; label: string };
 export type ReviewLine = { step: QuoteStepId; label: string; value: string | null };
 
 export type ConfigurationHardware = { gpuCount: number; gpuModels: string[]; storageBytes: number; regions: string[] };
-
-export type RequestLane = "sales" | "automated";
 
 const BYTES_PER_TB = 1024 ** 4;
 
@@ -302,8 +303,23 @@ export function describeStartingPoint({ answers }: StartingPoint): string {
     .join(" · ");
 }
 
-export function describeNextStep(lane: RequestLane | undefined): string {
-  return lane === "sales" ? "Our team will reply within 4 business hours." : "We'll get back to you within one business day.";
+const REPLY_PROMISES: Record<QuoteRequestReceipt["lane"], { replier: string; window: string }> = {
+  sales: { replier: "Our team will reply", window: "within 4 business hours" },
+  automated: { replier: "We'll get back to you", window: "within one business day" }
+};
+
+export function describeNextStep({ lane, firstReplyDueAt }: Pick<QuoteRequestReceipt, "lane" | "firstReplyDueAt">, now: Date): string {
+  const { replier, window } = REPLY_PROMISES[lane];
+  return `${replier} ${firstReplyDueAt ? `by ${describeReplyTime(new Date(firstReplyDueAt), now)}` : window}.`;
+}
+
+function describeReplyTime(dueAt: Date, now: Date): string {
+  const time = dueAt.toLocaleTimeString("en-US", dueAt.getMinutes() === 0 ? { hour: "numeric" } : { hour: "numeric", minute: "2-digit" });
+  const daysAway = differenceInCalendarDays(dueAt, now);
+
+  if (daysAway === 0) return `${time} today`;
+  if (daysAway === 1) return `${time} tomorrow`;
+  return `${dueAt.toLocaleDateString("en-US", { weekday: "long" })} ${time}`;
 }
 
 function describeGpus(draft: GpuQuoteDraft): string | null {

@@ -184,14 +184,15 @@ describe("GpuQuoteRequestFlow", () => {
     expect(screen.getByRole("radio", { name: /Custom/ })).toBeChecked();
   });
 
-  it("reads an unknown lane as the automated one", async () => {
-    const { user, enqueueSnackbar } = setup({ source: "requests_page", initialAnswers: { gpuModel: "h100" }, lane: "priority" });
+  it("confirms the request with the time the team promised to reply", async () => {
+    const firstReplyDueAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
+    const { user, enqueueSnackbar } = setup({ source: "requests_page", initialAnswers: { gpuModel: "h100" }, firstReplyDueAt });
 
     await continueTo(user, "Check your request");
     await user.click(screen.getByRole("button", { name: "Send request" }));
 
     await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "success" }));
-    expect(snackbarProps(enqueueSnackbar).subTitle).toBe("We'll get back to you within one business day.");
+    expect(snackbarProps(enqueueSnackbar).subTitle).toMatch(/^We'll get back to you by \w+day \d{1,2}(:\d{2})? [AP]M\.$/);
   });
 
   it("shows every answer on the review step and jumps back to its question", async () => {
@@ -323,11 +324,15 @@ describe("GpuQuoteRequestFlow", () => {
     configuration?: ConfigurationPrefill;
     initialAnswers?: DraftAnswers;
     email?: string;
-    lane?: string;
+    lane?: "sales" | "automated";
+    firstReplyDueAt?: string;
     response?: Promise<unknown>;
   }) {
     const response =
-      input.response ?? Promise.resolve({ data: { id: "request-id", createdAt: "2026-11-04T12:00:00.000Z", ...(input.lane ? { lane: input.lane } : {}) } });
+      input.response ??
+      Promise.resolve({
+        data: { id: "request-id", createdAt: "2026-11-04T12:00:00.000Z", lane: input.lane ?? "automated", firstReplyDueAt: input.firstReplyDueAt ?? null }
+      });
     response.catch(() => undefined);
     const createHardwareRequest = vi.fn((_: { data: { spec: object } }) => response);
     const queryClient = new QueryClient();
