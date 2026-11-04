@@ -10,6 +10,7 @@ import {
   ChangeHardwareRequestStatusRequestSchema,
   CreateHardwareRequestOnBehalfRequestSchema,
   HardwareRequestIdParamsSchema,
+  HardwareRequestOfferActionRequestSchema,
   HardwareRequestOfferDraftRequestSchema,
   HardwareRequestOfferParamsSchema,
   HardwareRequestOfferResponseSchema,
@@ -220,4 +221,58 @@ internalHardwareRequestRouter.openapi(updateOfferRoute, async function routeUpda
   const { id, offerId } = c.req.valid("param");
 
   return c.json(await container.resolve(HardwareRequestBrokerController).updateOffer(id, offerId, c.req.valid("json")), 200);
+});
+
+const publishOfferRoute = createRoute({
+  method: "post",
+  path: "/hardware-requests/{id}/offers/{offerId}/publish",
+  operationId: "publishHardwareRequestOffer",
+  summary: "Show an offer to the tenant; the first one moves the request to offers and notifies them",
+  security: SECURITY_NONE,
+  hiddenInOpenApiDocs: true,
+  middleware: [requireInternalToken],
+  request: {
+    params: HardwareRequestOfferParamsSchema,
+    body: { required: true, content: { "application/json": { schema: HardwareRequestOfferActionRequestSchema } } }
+  },
+  responses: {
+    200: { description: "The published offer", content: { "application/json": { schema: HardwareRequestOfferResponseSchema } } },
+    400: { description: "Invalid body" },
+    401: { description: "Missing or wrong internal token" },
+    404: { description: "No request or offer has this id" },
+    409: { description: "The offer is no longer a draft, has expired, or the request is settled" }
+  }
+});
+
+internalHardwareRequestRouter.openapi(publishOfferRoute, async function routePublishHardwareRequestOffer(c) {
+  const { id, offerId } = c.req.valid("param");
+
+  return c.json(await container.resolve(HardwareRequestBrokerController).publishOffer(id, offerId, c.req.valid("json")), 200);
+});
+
+const withdrawOfferRoute = createRoute({
+  method: "post",
+  path: "/hardware-requests/{id}/offers/{offerId}/withdraw",
+  operationId: "withdrawHardwareRequestOffer",
+  summary: "Withdraw an offer before it is accepted",
+  security: SECURITY_NONE,
+  hiddenInOpenApiDocs: true,
+  middleware: [requireInternalToken],
+  request: {
+    params: HardwareRequestOfferParamsSchema,
+    body: { required: true, content: { "application/json": { schema: HardwareRequestOfferActionRequestSchema } } }
+  },
+  responses: {
+    200: { description: "The withdrawn offer", content: { "application/json": { schema: HardwareRequestOfferResponseSchema } } },
+    400: { description: "Invalid body" },
+    401: { description: "Missing or wrong internal token" },
+    404: { description: "No request or offer has this id" },
+    409: { description: "The offer was already accepted, declined or closed" }
+  }
+});
+
+internalHardwareRequestRouter.openapi(withdrawOfferRoute, async function routeWithdrawHardwareRequestOffer(c) {
+  const { id, offerId } = c.req.valid("param");
+
+  return c.json(await container.resolve(HardwareRequestBrokerController).withdrawOffer(id, offerId, c.req.valid("json")), 200);
 });
