@@ -151,6 +151,14 @@ jobs:
           BLOCKCHAIN_NAME: ${{ inputs.chain != 'NA' && inputs.chain || '' }}
           DEPLOYMENT_ENVIRONMENT: ${{ inputs.environment == 'prod' && 'production' || 'beta' }}
         run: |
+          case "$BLOCKCHAIN_NAME" in
+            "" | mainnet | sandbox | testnet) ;;
+            *)
+              echo "❌ Unsupported chain: $BLOCKCHAIN_NAME" >&2
+              exit 1
+              ;;
+          esac
+
           environment_suffix=""
           if [[ -n "$BLOCKCHAIN_NAME" ]]; then
             environment_suffix="-$BLOCKCHAIN_NAME"
