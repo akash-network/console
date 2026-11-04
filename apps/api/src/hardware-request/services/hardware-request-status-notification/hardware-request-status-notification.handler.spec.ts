@@ -9,10 +9,43 @@ import type { NotificationService } from "@src/notifications/services/notificati
 import type { UserRepository } from "@src/user/repositories";
 import { HardwareRequestStatusNotificationHandler } from "./hardware-request-status-notification.handler";
 
+import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createHardwareRequest } from "@test/seeders/hardware-request.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
 describe(HardwareRequestStatusNotificationHandler.name, () => {
+  it("records the change in the requester's feed and emails them a link to the request", async () => {
+    const { handler, activityService, notificationService, hardwareRequest, requester } = setup({ email: "jane@example.com" });
+
+    await handler.handle({ hardwareRequestId: hardwareRequest.id, eventId: "event-1", status: "closed", closeReason: "price", version: 1 });
+
+    expect(activityService.record).toHaveBeenCalledWith({
+      userId: requester.id,
+      organizationId: hardwareRequest.organizationId,
+      type: "gpu_request_update",
+      status: "info",
+      initiator: "system",
+      meta: { hardwareRequestId: hardwareRequest.id, hardwareRequestStatus: "closed", summary: expect.stringMatching(/ was closed$/) },
+      dedupeKey: "gpuRequestStatus:event-1"
+    });
+    expect(notificationService.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        notificationId: "gpuRequestStatus.event-1",
+        payload: expect.objectContaining({
+          description: "We couldn't find capacity at your target price.",
+          actions: [{ label: "View request", url: `https://console.akash.network/gpu-requests/${hardwareRequest.id}` }]
+        }),
+        user: { id: requester.id, email: "jane@example.com" }
+      })
+    );
+  });
+
+  it("logs under its own name", () => {
+    const { createLogger } = setup({ email: null });
+
+    expect(createLogger).toHaveBeenCalledWith({ context: HardwareRequestStatusNotificationHandler.name });
+  });
+
   it("records the change in the requester's feed but sends no email to a requester without one", async () => {
     const { handler, activityService, notificationService, hardwareRequest } = setup({ email: null });
 
@@ -55,17 +88,18 @@ describe(HardwareRequestStatusNotificationHandler.name, () => {
     userRepository.findById.mockResolvedValue(requester);
     const activityService = mock<ActivityService>();
     const notificationService = mock<NotificationService>();
-    const deploymentConfigService = mock<DeploymentConfigService>();
+    const deploymentConfigService = mockConfigService<DeploymentConfigService>({ DEPLOY_WEB_BASE_URL: "https://console.akash.network" });
     const logger = mock<ReturnType<CreateLogger>>();
+    const createLogger = vi.fn<CreateLogger>(() => logger);
     const handler = new HardwareRequestStatusNotificationHandler(
       hardwareRequestRepository,
       userRepository,
       activityService,
       notificationService,
       deploymentConfigService,
-      vi.fn<CreateLogger>(() => logger)
+      createLogger
     );
 
-    return { handler, hardwareRequestRepository, userRepository, activityService, notificationService, logger, hardwareRequest };
+    return { handler, hardwareRequestRepository, userRepository, activityService, notificationService, logger, createLogger, hardwareRequest, requester };
   }
 });
