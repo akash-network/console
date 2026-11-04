@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { AI_AGENTS_DOCS_URL } from "@src/config/agent-setup.config";
+import { AI_AGENTS_DOCS_URL, AKT_DOCS_URL } from "@src/config/agent-setup.config";
 import type { ApiKeyUsageTab } from "./ApiKeyUsageGuide";
-import { AKT_DOCS_URL, AKT_INSTALL_GUIDE_URL, API_KEY_USAGE_SCRIPT_LINES, ApiKeyUsageGuide, getApiKeyUsageScriptLines } from "./ApiKeyUsageGuide";
+import { AKT_INSTALL_GUIDE_URL, API_KEY_USAGE_SCRIPT_LINES, ApiKeyUsageGuide, getApiKeyUsageScriptLines } from "./ApiKeyUsageGuide";
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

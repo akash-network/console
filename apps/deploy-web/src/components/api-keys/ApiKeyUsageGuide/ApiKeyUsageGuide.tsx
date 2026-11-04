@@ -3,11 +3,10 @@ import type { FC, ReactNode } from "react";
 import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
-import { AI_AGENTS_DOCS_URL, AKASH_SKILL_INSTALL_COMMAND } from "@src/config/agent-setup.config";
+import { AI_AGENTS_DOCS_URL, AKASH_SKILL_INSTALL_COMMAND, AKT_DOCS_URL } from "@src/config/agent-setup.config";
 import { CommandBlock } from "./CommandBlock";
 
 export const AKT_INSTALL_GUIDE_URL = "https://akash.network/docs/developers/deployment/akt/installation/";
-export const AKT_DOCS_URL = "https://akash.network/docs/developers/deployment/akt/";
 
 export const API_KEY_PLACEHOLDER = "<your-api-key>";
 

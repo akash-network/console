@@ -1,6 +1,7 @@
 import React from "react";
 import type { DocumentHeadTagsProps } from "@mui/material-nextjs/v14-pagesRouter";
 import { documentGetInitialProps, DocumentHeadTags } from "@mui/material-nextjs/v14-pagesRouter";
+import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import type { DocumentContext } from "next/document";
 import { Head, Html, Main, NextScript } from "next/document";
@@ -9,9 +10,9 @@ import { customColors } from "@src/utils/colors";
 
 export default function MyDocument(props: DocumentHeadTagsProps) {
   return (
-    // Apply the Geist font variable at the document root so portaled content
-    // (modals, popups) rendered outside the app's <main> still resolves --font-geist-sans.
-    <Html suppressHydrationWarning className={GeistSans.variable}>
+    // Apply the Geist font variables at the document root so portaled content
+    // (modals, popups) rendered outside the app's <main> still resolves --font-geist-sans and --font-geist-mono.
+    <Html suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <Head>
         {/* MUI */}
         <DocumentHeadTags {...props} />

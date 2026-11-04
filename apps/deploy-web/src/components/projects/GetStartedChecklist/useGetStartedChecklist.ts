@@ -37,8 +37,10 @@ export function useGetStartedChecklist(d: typeof DEPENDENCIES = DEPENDENCIES) {
     hasApiKey: !!apiKeysQuery.data?.length,
     hasConnectedAgent: hasCopiedAgentSetupHere || !!user?.agentSetupCopiedAt
   };
-  const stepCount = Object.keys(steps).length;
-  const doneCount = Object.values(steps).filter(Boolean).length;
+  const hasSetUpTools = steps.hasApiKey && steps.hasConnectedAgent;
+  const progress = [steps.hasDeployed, hasSetUpTools];
+  const stepCount = progress.length;
+  const doneCount = progress.filter(Boolean).length;
   const isComplete = doneCount === stepCount;
   const isProgressKnown = !leaseExistenceQuery.isLoading && !apiKeysQuery.isLoading;
   const isDismissed = isDismissedHere || !!user?.getStartedDismissedAt;
@@ -85,5 +87,5 @@ export function useGetStartedChecklist(d: typeof DEPENDENCIES = DEPENDENCIES) {
   const isFreshlyComplete = isComplete && wasIncomplete && !isSetUpStateOver;
   const isVisible = isEligible && isProgressKnown && !isDismissed && (!isComplete || isFreshlyComplete);
 
-  return { isVisible, steps, doneCount, stepCount, isComplete, dismiss, markAgentSetupCopied };
+  return { isVisible, steps, hasSetUpTools, doneCount, stepCount, isComplete, dismiss, markAgentSetupCopied };
 }

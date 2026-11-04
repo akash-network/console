@@ -11,14 +11,13 @@ import { CreateApiKeyDialog } from "@src/components/api-keys/CreateApiKeyDialog/
 import { RevokeApiKeyDialog } from "@src/components/api-keys/RevokeApiKeyDialog/RevokeApiKeyDialog";
 import Layout from "@src/components/layout/Layout";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
+import { API_REFERENCE_URL } from "@src/config/agent-setup.config";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useServices } from "@src/context/ServicesProvider";
 import { useFlag } from "@src/hooks/useFlag";
 import { useProjectsUi } from "@src/hooks/useProjectsUi/useProjectsUi";
 import { useDeleteApiKey, useUserApiKeys } from "@src/queries/useApiKeysQuery";
 import { useProjectsQuery } from "@src/queries/useProjectsQuery";
-
-export const API_REFERENCE_URL = "https://akash.network/docs/api-documentation/console-api/getting-started/";
 
 const EXPIRY_POLICY = "Keys expire after one year at most. We email you ahead of each expiry, so you can replace a key before it stops working.";
 

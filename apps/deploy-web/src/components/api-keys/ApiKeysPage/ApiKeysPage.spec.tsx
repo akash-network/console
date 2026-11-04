@@ -3,10 +3,11 @@ import { faker } from "@faker-js/faker";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { API_REFERENCE_URL } from "@src/config/agent-setup.config";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { OrganizationOutput, OrganizationRole, OrganizationType } from "@src/types/organization";
 import type { ProjectOutput } from "@src/types/project";
-import { API_REFERENCE_URL, ApiKeysPage, DEPENDENCIES } from "./ApiKeysPage";
+import { ApiKeysPage, DEPENDENCIES } from "./ApiKeysPage";
 
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
