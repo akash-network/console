@@ -34,6 +34,7 @@ export const Users = pgTable("userSetting", {
   productUpdatesUnsubscribedAt: timestamp("product_updates_unsubscribed_at", { withTimezone: true }),
   getStartedDismissedAt: timestamp("get_started_dismissed_at", { withTimezone: true }),
   agentSetupCopiedAt: timestamp("agent_setup_copied_at", { withTimezone: true }),
+  githubStarPromptedAt: timestamp("github_star_prompted_at", { withTimezone: true }),
   timezone: varchar("timezone", { length: 64 }),
   /** Set once the user picks a timezone in their profile, after which sign-in detection leaves it alone. */
   timezonePickedAt: timestamp("timezone_picked_at", { withTimezone: true }),

@@ -522,7 +522,8 @@ describe(useDeploymentFlow.name, () => {
         useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
         useHoldActivityEvents: () => vi.fn(),
-        useRecordOneClickDeploy: () => vi.fn()
+        useRecordOneClickDeploy: () => vi.fn(),
+        useGithubStarPrompt: () => vi.fn()
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       act(() => vi.advanceTimersByTime(60_000));
@@ -767,7 +768,8 @@ describe(useDeploymentFlow.name, () => {
         useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
         useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
         useHoldActivityEvents: () => vi.fn(),
-        useRecordOneClickDeploy: () => vi.fn()
+        useRecordOneClickDeploy: () => vi.fn(),
+        useGithubStarPrompt: () => vi.fn()
       };
       const { result, rerender } = renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies);
       expect(result.current.phase).toBe("quoting");
@@ -903,15 +905,17 @@ describe(useDeploymentFlow.name, () => {
       createDeployment.mutate.mockImplementation((_i, o) => o.onSuccess({ data: { dseq: "555", manifest: "M" } }));
       const createLease = mockMutation();
       createLease.mutate.mockImplementation((_i, o) => o.onSuccess(deployedResult("akash1owner")));
-      const { result, router } = renderFlow({ createDeployment, createLease });
+      const { result, router, promptGithubStar } = renderFlow({ createDeployment, createLease });
 
       act(() => result.current.actions.requestQuotes("sdl"));
 
       await settleSeal();
       act(() => result.current.actions.selectProvider("placement-1", "akash1a/555/1/3"));
+      expect(promptGithubStar).not.toHaveBeenCalled();
       act(() => result.current.actions.deploy("sdl"));
 
       expect(result.current.deploySucceeded).toBe(true);
+      expect(promptGithubStar).toHaveBeenCalledTimes(1);
       expect(router.replace).not.toHaveBeenCalledWith(UrlService.deploymentDetails("555", "EVENTS", "events"));
 
       act(() => vi.runAllTimers());
@@ -4261,6 +4265,7 @@ describe(useDeploymentFlow.name, () => {
     const stopFollowing = vi.fn();
     const holdActivityEvents = vi.fn();
     const recordOneClickDeploy = vi.fn();
+    const promptGithubStar = vi.fn();
     const services = mockServices({ createDeployment, closeDeployment, getDeployment, getSdlSecretsContext });
     services.api.v1.getActivity.useQuery.mockImplementation(({ id }) => {
       const activity = api.activities.find(candidate => candidate.id === id);
@@ -4284,7 +4289,8 @@ describe(useDeploymentFlow.name, () => {
           forgetProject
         }),
       useHoldActivityEvents: () => holdActivityEvents,
-      useRecordOneClickDeploy: () => recordOneClickDeploy
+      useRecordOneClickDeploy: () => recordOneClickDeploy,
+      useGithubStarPrompt: () => promptGithubStar
     };
     return {
       services,
@@ -4305,7 +4311,8 @@ describe(useDeploymentFlow.name, () => {
       followUntilSettled,
       stopFollowing,
       holdActivityEvents,
-      recordOneClickDeploy
+      recordOneClickDeploy,
+      promptGithubStar
     };
   }
 
@@ -4344,6 +4351,7 @@ describe(useDeploymentFlow.name, () => {
     const stopFollowing = vi.fn();
     const holdActivityEvents = vi.fn<ReturnType<typeof DEPENDENCIES.useHoldActivityEvents>>();
     const recordOneClickDeploy = vi.fn();
+    const promptGithubStar = vi.fn();
     const dependencies: typeof DEPENDENCIES = {
       useServices: (() => services) as never,
       useListBids: (() => ({ data: { data: input?.listBids ?? [] }, isLoading: false, isError: false })) as never,
@@ -4358,7 +4366,8 @@ describe(useDeploymentFlow.name, () => {
         mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>({ forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing }),
       useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
       useHoldActivityEvents: () => holdActivityEvents,
-      useRecordOneClickDeploy: () => recordOneClickDeploy
+      useRecordOneClickDeploy: () => recordOneClickDeploy,
+      useGithubStarPrompt: () => promptGithubStar
     };
     const utils = renderDeploymentFlow(intent, dependencies, input?.settingsId);
     return {
@@ -4367,6 +4376,7 @@ describe(useDeploymentFlow.name, () => {
       queryClient,
       holdActivityEvents,
       recordOneClickDeploy,
+      promptGithubStar,
       followUntilSettled,
       services,
       sealSdlSecrets,
@@ -4393,7 +4403,8 @@ describe(useDeploymentFlow.name, () => {
       useMarkActivityOutcomes: () => mock<ReturnType<typeof DEPENDENCIES.useMarkActivityOutcomes>>(),
       useConfigureDeployTarget: () => mock<ReturnType<typeof DEPENDENCIES.useConfigureDeployTarget>>({ project: undefined }),
       useHoldActivityEvents: () => vi.fn(),
-      useRecordOneClickDeploy: () => vi.fn()
+      useRecordOneClickDeploy: () => vi.fn(),
+      useGithubStarPrompt: () => vi.fn()
     };
     return {
       ...renderDeploymentFlow({ sdlStrategy: "edit", bidStrategy: "select", dseq: "777", vm: false }, dependencies),

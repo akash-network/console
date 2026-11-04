@@ -103,4 +103,10 @@ export class UserController {
     const userId = this.authService.currentUser.id;
     await this.userService.markAgentSetupCopied(userId);
   }
+
+  async markGithubStarPrompted() {
+    assert(this.authService.currentUser?.id, 401);
+    const userId = this.authService.currentUser.id;
+    await this.userService.markGithubStarPrompted(userId);
+  }
 }

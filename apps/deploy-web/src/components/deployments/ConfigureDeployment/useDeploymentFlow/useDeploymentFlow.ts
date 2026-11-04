@@ -6,6 +6,7 @@ import { useRouter } from "next/router";
 
 import { useConfigureDeployTarget } from "@src/components/projects/DeployTargetGate/DeployTargetGate";
 import { useServices } from "@src/context/ServicesProvider";
+import { useGithubStarPrompt } from "@src/hooks/useGithubStarPrompt/useGithubStarPrompt";
 import { useMarkActivityOutcomes } from "@src/hooks/useHandledActivityOutcomes/useHandledActivityOutcomes";
 import { type HeldActivityEvent, useHoldActivityEvents } from "@src/hooks/useHeldActivityEvents/useHeldActivityEvents";
 import { useRecordOneClickDeploy } from "@src/hooks/useOneClickDeploys/useOneClickDeploys";
@@ -200,6 +201,7 @@ export const DEPENDENCIES = {
   useMarkActivityOutcomes,
   useHoldActivityEvents,
   useRecordOneClickDeploy,
+  useGithubStarPrompt,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   manifestFromSdl,
   // eslint-disable-next-line akash/dependencies-component-or-hook
@@ -227,6 +229,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
   const { forgetEarlierOutcomes, markOutcomeHandled, followUntilSettled, stopFollowing } = dependencies.useMarkActivityOutcomes();
   const holdActivityEvents = dependencies.useHoldActivityEvents();
   const recordOneClickDeploy = dependencies.useRecordOneClickDeploy();
+  const promptGithubStar = dependencies.useGithubStarPrompt();
   const deployTarget = dependencies.useConfigureDeployTarget();
   const deployTargetProjectId = deployTarget.project?.id;
   const forgetProject = deployTarget.forgetProject;
@@ -1006,6 +1009,7 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
         queryClient.invalidateQueries({ queryKey: QueryKeys.getDeploymentListKey(owner) });
         queryClient.invalidateQueries({ queryKey: api.v1.listDeployments.getKey() });
         setDeploySucceeded(true);
+        promptGithubStar();
         redirectTimerRef.current = setTimeout(function redirectToDeployment() {
           router.replace(UrlService.deploymentDetails(activeDseq, "EVENTS", "events"));
         }, DEPLOY_SUCCESS_DWELL_MS);
@@ -1152,7 +1156,8 @@ export function useDeploymentFlow({ intent }: UseDeploymentFlowInput, dependenci
       markOutcomeHandled,
       api,
       settingsId,
-      holdActivityEvents
+      holdActivityEvents,
+      promptGithubStar
     ]
   );
 

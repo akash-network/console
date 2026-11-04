@@ -2618,6 +2618,11 @@
                           "nullable": true,
                           "format": "date-time"
                         },
+                        "githubStarPromptedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
                         "timezone": {
                           "type": "string",
                           "nullable": true,
@@ -2732,6 +2737,11 @@
                           "format": "date-time"
                         },
                         "agentSetupCopiedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "githubStarPromptedAt": {
                           "type": "string",
                           "nullable": true,
                           "format": "date-time"
@@ -3094,6 +3104,39 @@
         "responses": {
           "204": {
             "description": "Agent setup copy recorded"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/user/markGithubStarPrompted": {
+      "post": {
+        "operationId": "markGithubStarPrompted",
+        "summary": "Record that the user answered the prompt to star the Console repository",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Prompt answer recorded"
           },
           "401": {
             "description": "Unauthorized"

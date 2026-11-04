@@ -124,6 +124,26 @@ describe(UserController.name, () => {
     });
   });
 
+  describe("markGithubStarPrompted", () => {
+    it("delegates to the user service with the current user id", async () => {
+      const user = createUser();
+      const { controller, authService, userService } = setup();
+      authService.currentUser = user;
+
+      await controller.markGithubStarPrompted();
+
+      expect(userService.markGithubStarPrompted).toHaveBeenCalledWith(user.id);
+    });
+
+    it("throws 401 when there is no current user", async () => {
+      const { controller, authService, userService } = setup();
+      authService.currentUser = undefined as unknown as UserOutput;
+
+      await expect(controller.markGithubStarPrompted()).rejects.toMatchObject({ status: 401 });
+      expect(userService.markGithubStarPrompted).not.toHaveBeenCalled();
+    });
+  });
+
   function setup(input: { authorization?: string } = {}) {
     const authService = mock<AuthService>({ isAuthenticated: true });
     const httpContext = {

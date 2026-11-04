@@ -1,0 +1,1 @@
+ALTER TABLE "userSetting" ADD COLUMN "github_star_prompted_at" timestamp with time zone;

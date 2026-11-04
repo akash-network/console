@@ -25828,6 +25828,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "nullable": true,
                           "type": "string",
                         },
+                        "githubStarPromptedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "githubUsername": {
                           "nullable": true,
                           "type": "string",
@@ -27295,6 +27300,39 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/user/markGithubStarPrompted": {
+      "post": {
+        "operationId": "markGithubStarPrompted",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "Prompt answer recorded",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Record that the user answered the prompt to star the Console repository",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
     "/v1/user/me": {
       "get": {
         "parameters": [
@@ -27339,6 +27377,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "getStartedDismissedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "githubStarPromptedAt": {
                           "format": "date-time",
                           "nullable": true,
                           "type": "string",

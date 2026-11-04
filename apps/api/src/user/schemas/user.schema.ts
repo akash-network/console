@@ -17,6 +17,7 @@ export const UserSchema = z.object({
   productUpdatesUnsubscribedAt: z.string().datetime().nullable().optional(),
   getStartedDismissedAt: z.string().datetime().nullable().optional(),
   agentSetupCopiedAt: z.string().datetime().nullable().optional(),
+  githubStarPromptedAt: z.string().datetime().nullable().optional(),
   timezone: z.string().nullable().optional().openapi({ description: "IANA timezone the dates in the user's emails are shown in, UTC when unknown" })
 });
 
