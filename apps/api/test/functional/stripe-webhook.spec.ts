@@ -638,6 +638,33 @@ describe("Stripe webhook", () => {
         expect(await stripeTransactionRepository.findById(transaction.id)).toMatchObject({ status: "created", amountRefunded: 0 });
       });
 
+      it("records a payment already refunded in full by hand and acknowledges its success", async () => {
+        const { transaction, payload } = await seedDeletedTeamPayment({ earlierRefunds: [{ amount: 5000, status: "succeeded" }] });
+
+        const response = await getWebhookResponse(payload);
+
+        expect(response.status).toBe(200);
+        expect(await stripeTransactionRepository.findById(transaction.id)).toMatchObject({ status: "refunded", amountRefunded: 5000 });
+      });
+
+      it("keeps refusing a payment refunded only in part", async () => {
+        const { transaction, payload } = await seedDeletedTeamPayment({ earlierRefunds: [{ amount: 2000, status: "succeeded" }] });
+
+        const response = await getWebhookResponse(payload);
+
+        expect(response.status).toBe(409);
+        expect(await stripeTransactionRepository.findById(transaction.id)).toMatchObject({ status: "created", amountRefunded: 0 });
+      });
+
+      it("refuses the delivery so Stripe retries it when the refund fails straight away", async () => {
+        const { transaction, payload } = await seedDeletedTeamPayment({ refundStatus: "failed" });
+
+        const response = await getWebhookResponse(payload);
+
+        expect(response.status).toBe(502);
+        expect(await stripeTransactionRepository.findById(transaction.id)).toMatchObject({ status: "created", amountRefunded: 0 });
+      });
+
       it("takes nothing back when Stripe reports the refund it made", async () => {
         const { transaction, payload, stripeCustomerId, paymentIntentId } = await seedDeletedTeamPayment();
         const reduceWalletBalance = vi.spyOn(container.resolve(RefillService), "reduceWalletBalance");
@@ -950,7 +977,9 @@ describe("Stripe webhook", () => {
     });
   });
 
-  async function seedDeletedTeamPayment(input: { credit?: "landed" | "pending" } = {}) {
+  async function seedDeletedTeamPayment(
+    input: { credit?: "landed" | "pending"; refundStatus?: string; earlierRefunds?: { amount: number; status: string }[] } = {}
+  ) {
     const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
     const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
     const amount = 5000;
@@ -979,8 +1008,33 @@ describe("Stripe webhook", () => {
       .times(3)
       .reply(() => {
         refundRequestCount += 1;
-        return [200, { id: `re_${faker.string.alphanumeric(24)}`, object: "refund", amount, status: "succeeded", payment_intent: paymentIntentId }];
+
+        if (input.earlierRefunds) {
+          return [400, { error: { type: "invalid_request_error", code: "charge_already_refunded", message: "Charge has already been refunded." } }];
+        }
+
+        return [
+          200,
+          { id: `re_${faker.string.alphanumeric(24)}`, object: "refund", amount, status: input.refundStatus ?? "succeeded", payment_intent: paymentIntentId }
+        ];
       });
+
+    if (input.earlierRefunds) {
+      nock("https://api.stripe.com")
+        .get("/v1/refunds")
+        .query({ payment_intent: paymentIntentId, limit: "100" })
+        .reply(200, {
+          object: "list",
+          url: "/v1/refunds",
+          has_more: false,
+          data: input.earlierRefunds.map(refund => ({
+            id: `re_${faker.string.alphanumeric(24)}`,
+            object: "refund",
+            payment_intent: paymentIntentId,
+            ...refund
+          }))
+        });
+    }
 
     return {
       transaction,

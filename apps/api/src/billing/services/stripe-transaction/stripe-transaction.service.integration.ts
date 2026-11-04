@@ -1449,6 +1449,102 @@ describe(StripeTransactionService.name, () => {
       expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
     });
 
+    it("records a refund Stripe still has pending and reports it for a later check", async () => {
+      const { stripe, stripeTransactionRepository, paymentCreditService, logger, settleDeletedTeamPayment } = setup();
+      paymentCreditService.hasLanded.mockResolvedValue(false);
+      vi.spyOn(stripe.refunds, "create").mockResolvedValue(mock<Stripe.Response<Stripe.Refund>>({ id: "re_team", amount: 5000, status: "pending" }));
+
+      const { transaction } = await settleDeletedTeamPayment({ paymentIntentId: "pi_team" });
+
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transaction.id, {
+        status: "refunded",
+        amountRefunded: 5000,
+        stripePaymentIntentId: "pi_team"
+      });
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DELETED_TEAM_PAYMENT_REFUND_PENDING", transactionId: transaction.id, refundId: "re_team", refundStatus: "pending" })
+      );
+      expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "DELETED_TEAM_PAYMENT_REFUNDED" }));
+    });
+
+    it.each(["failed", "canceled"])("refuses the delivery so Stripe retries it when the refund is %s straight away", async refundStatus => {
+      const { stripe, stripeTransactionRepository, paymentCreditService, logger, settleDeletedTeamPayment } = setup();
+      paymentCreditService.hasLanded.mockResolvedValue(false);
+      vi.spyOn(stripe.refunds, "create").mockResolvedValue(
+        mock<Stripe.Response<Stripe.Refund>>({ id: "re_team", amount: 5000, status: refundStatus, failure_reason: "unknown" })
+      );
+
+      await expect(settleDeletedTeamPayment({ paymentIntentId: "pi_team" })).rejects.toMatchObject({ status: 502, errorCode: "refund_failed" });
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DELETED_TEAM_PAYMENT_REFUND_FAILED", refundId: "re_team", refundStatus, failureReason: "unknown" })
+      );
+    });
+
+    it("records a payment Stripe already refunded in full and acknowledges its success", async () => {
+      const { stripe, stripeTransactionRepository, paymentCreditService, logger, settleDeletedTeamPayment } = setup();
+      paymentCreditService.hasLanded.mockResolvedValue(false);
+      vi.spyOn(stripe.refunds, "create").mockRejectedValue(chargeAlreadyRefundedError());
+      const refundsList = vi.spyOn(stripe.refunds, "list").mockResolvedValue(
+        refundListOf([
+          { amount: 3000, status: "succeeded" },
+          { amount: 2000, status: "succeeded" },
+          { amount: 5000, status: "failed" }
+        ])
+      );
+
+      const { outcome, transaction, team } = await settleDeletedTeamPayment({ paymentIntentId: "pi_team" });
+
+      expect(outcome).toEqual({});
+      expect(refundsList).toHaveBeenCalledWith({ payment_intent: "pi_team", limit: 100 });
+      expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(transaction.id, {
+        status: "refunded",
+        amountRefunded: 5000,
+        stripePaymentIntentId: "pi_team"
+      });
+      expect(logger.info).toHaveBeenCalledWith({
+        event: "DELETED_TEAM_PAYMENT_ALREADY_REFUNDED",
+        transactionId: transaction.id,
+        organizationId: team.id,
+        paymentIntentId: "pi_team",
+        amountRefunded: 5000,
+        paymentAmount: 5000
+      });
+    });
+
+    it("keeps refusing a payment Stripe refunded only in part, counting a pending refund as not refunded yet", async () => {
+      const { stripe, stripeTransactionRepository, paymentCreditService, logger, settleDeletedTeamPayment } = setup();
+      paymentCreditService.hasLanded.mockResolvedValue(false);
+      vi.spyOn(stripe.refunds, "create").mockRejectedValue(chargeAlreadyRefundedError());
+      vi.spyOn(stripe.refunds, "list").mockResolvedValue(
+        refundListOf([
+          { amount: 2000, status: "succeeded" },
+          { amount: 3000, status: "pending" }
+        ])
+      );
+
+      await expect(settleDeletedTeamPayment({ paymentIntentId: "pi_team" })).rejects.toMatchObject({ status: 409, errorCode: "payment_partly_refunded" });
+
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "DELETED_TEAM_PAYMENT_PARTLY_REFUNDED", amountRefunded: 2000, paymentAmount: 5000 })
+      );
+    });
+
+    it("passes on any other refusal of the refund without looking up earlier refunds", async () => {
+      const { stripe, stripeTransactionRepository, paymentCreditService, settleDeletedTeamPayment } = setup();
+      paymentCreditService.hasLanded.mockResolvedValue(false);
+      const outage = new Stripe.errors.StripeAPIError({ type: "api_error", message: "Service unavailable" });
+      vi.spyOn(stripe.refunds, "create").mockRejectedValue(outage);
+      const refundsList = vi.spyOn(stripe.refunds, "list");
+
+      await expect(settleDeletedTeamPayment({ paymentIntentId: "pi_team" })).rejects.toBe(outage);
+
+      expect(refundsList).not.toHaveBeenCalled();
+      expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
+    });
+
     it("leaves a credit settled through an invoice to the refusal of the team's wallet instead of refunding it", async () => {
       const { service, stripe, organizationRepository, stripeTransactionRepository, refillService, paymentCreditService } = setup();
       const team = createOrganization({ type: "team", stripeCustomerId: "cus_team", deletedAt: new Date() });
@@ -1928,6 +2024,21 @@ describe(StripeTransactionService.name, () => {
       logger,
       toppedUpWallet
     };
+  }
+
+  function chargeAlreadyRefundedError() {
+    return new Stripe.errors.StripeInvalidRequestError({
+      type: "invalid_request_error",
+      code: "charge_already_refunded",
+      message: "Charge ch_team has already been refunded."
+    });
+  }
+
+  function refundListOf(refunds: Pick<Stripe.Refund, "amount" | "status">[]) {
+    return mock<Stripe.Response<Stripe.ApiList<Stripe.Refund>>>({
+      data: refunds.map(refund => mock<Stripe.Refund>({ id: `re_${faker.string.alphanumeric(14)}`, ...refund })),
+      has_more: false
+    });
   }
 
   function createPaymentIntentSucceededEvent(paymentIntent: Partial<Stripe.PaymentIntent>): Stripe.PaymentIntentSucceededEvent {
