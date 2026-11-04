@@ -792,6 +792,13 @@
       "when": 1793780374636,
       "tag": "0112_activity_type_gpu_request_update",
       "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1793781814683,
+      "tag": "0113_hardware_requests_nullable_user",
+      "breakpoints": true
     }
   ]
 }

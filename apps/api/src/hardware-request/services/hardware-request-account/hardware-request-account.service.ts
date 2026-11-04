@@ -5,7 +5,7 @@ import { PaymentMethodRepository } from "@src/billing/repositories/payment-metho
 import { UserWalletRepository } from "@src/billing/repositories/user-wallet/user-wallet.repository";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 
-export type HardwareRequestAccountType = "paying" | "trial" | "no_card";
+export type HardwareRequestAccountType = "paying" | "trial" | "no_card" | "no_account";
 
 @singleton()
 export class HardwareRequestAccountService {
@@ -16,7 +16,9 @@ export class HardwareRequestAccountService {
   ) {}
 
   /** A team pays with its own card and wallet, while a personal organization pays with its owner's. */
-  async findAccountType({ userId, organizationId }: { userId: string; organizationId: string | null }): Promise<HardwareRequestAccountType> {
+  async findAccountType({ userId, organizationId }: { userId: string | null; organizationId: string | null }): Promise<HardwareRequestAccountType> {
+    if (!userId) return "no_account";
+
     const organization = organizationId ? await this.organizationRepository.findById(organizationId) : undefined;
     const owner: BillingOwner = organization?.type === "team" ? { organizationId: organization.id } : { userId };
 

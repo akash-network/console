@@ -281,6 +281,31 @@ describe(HardwareRequestService.name, () => {
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(new HardwareRequestSlackAlertJob({ hardwareRequestId: created.id }));
     });
 
+    it("files a request for its contact email when no organization is named, for whoever signs up with it", async () => {
+      const { service, hardwareRequestRepository, hardwareRequestEventRepository, userRepository, gpuRequestRoutingService, created } = setup();
+      userRepository.hasVerifiedEmail.mockResolvedValue(false);
+
+      await service.createOnBehalf({ actor: "Remington", request: anInput() });
+
+      expect(userRepository.hasVerifiedEmail).toHaveBeenCalledWith("jane@example.com");
+      expect(gpuRequestRoutingService.route).toHaveBeenCalledWith(expect.anything(), { userId: null, organizationId: null });
+      expect(hardwareRequestRepository.create).toHaveBeenCalledWith(expect.objectContaining({ userId: null, organizationId: null }));
+      expect(hardwareRequestEventRepository.record).toHaveBeenCalledWith(
+        expect.objectContaining({ hardwareRequestId: created.id, payload: { organizationId: null, email: "jane@example.com" } })
+      );
+    });
+
+    it("answers 409 for a contact email a verified account already uses", async () => {
+      const { service, hardwareRequestRepository, userRepository } = setup();
+      userRepository.hasVerifiedEmail.mockResolvedValue(true);
+
+      await expect(service.createOnBehalf({ actor: "Remington", request: anInput() })).rejects.toMatchObject({
+        status: 409,
+        message: "An account already uses this email, so file the request for one of its organizations"
+      });
+      expect(hardwareRequestRepository.create).not.toHaveBeenCalled();
+    });
+
     it("skips the tenant's rate limits", async () => {
       const { service, hardwareRequestRepository } = setup({ creationTimes: hoursAgo([0.1, 0.2, 0.3]) });
 

@@ -114,6 +114,12 @@ describe(buildHardwareRequestSlackMessage.name, () => {
     expect(lines(message)[3]).toBe("a&amp;b@example.com · reply to o&lt;p&gt;s@example.com");
   });
 
+  it("names a requester with no account yet by the contact email and links to no user", () => {
+    const message = setup({ hardwareRequest: { userId: null, contactEmail: "j<a>ne@example.com" }, requesterEmail: undefined });
+
+    expect(lines(message).slice(3)).toEqual(["j&lt;a&gt;ne@example.com · no account yet"]);
+  });
+
   it("links only to Amplitude when no admin URL is configured", () => {
     const message = setup({ adminUrl: undefined });
 

@@ -5,6 +5,7 @@ import type { ActivityService } from "@src/activity/services/activity/activity.s
 import type { CreateLogger } from "@src/core";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import { emailRecipientUserId } from "@src/notifications/lib/email-recipient-user-id/email-recipient-user-id";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { UserRepository } from "@src/user/repositories";
 import { HardwareRequestStatusNotificationHandler } from "./hardware-request-status-notification.handler";
@@ -37,6 +38,20 @@ describe(HardwareRequestStatusNotificationHandler.name, () => {
         }),
         user: { id: requester.id, email: "jane@example.com" }
       })
+    );
+  });
+
+  it("emails the contact address of a request filed for an email with no account, without a feed entry", async () => {
+    const { handler, activityService, notificationService, userRepository, hardwareRequestRepository } = setup({ email: null });
+    const unclaimed = createHardwareRequest({ userId: null, contactEmail: "lead@example.com" });
+    hardwareRequestRepository.findById.mockResolvedValue(unclaimed);
+
+    await handler.handle({ hardwareRequestId: unclaimed.id, eventId: "event-1", status: "sourcing", version: 1 });
+
+    expect(userRepository.findById).not.toHaveBeenCalled();
+    expect(activityService.record).not.toHaveBeenCalled();
+    expect(notificationService.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ user: { id: emailRecipientUserId("lead@example.com"), email: "lead@example.com" } })
     );
   });
 

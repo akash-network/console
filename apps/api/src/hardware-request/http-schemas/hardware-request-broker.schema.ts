@@ -33,7 +33,7 @@ export const HardwareRequestQueueQuerySchema = z.object({
 
 const QueuedHardwareRequestSchema = z.object({
   id: z.string().uuid(),
-  userId: z.string().uuid(),
+  userId: z.string().uuid().nullable().describe("Null until someone signs up with the contact email of a request the team filed for them"),
   organizationId: z.string().uuid().nullable(),
   organizationName: z.string().nullable(),
   category: z.enum(hardwareRequestCategoryEnum.enumValues),
@@ -85,7 +85,13 @@ export const ChangeHardwareRequestStatusRequestSchema = z.object({
 export const CreateHardwareRequestOnBehalfRequestSchema = z.object({
   data: z.object({
     actor: ActorSchema,
-    organizationId: z.string().uuid().describe("The organization the request is filed for, in the name of its oldest owner"),
+    organizationId: z
+      .string()
+      .uuid()
+      .optional()
+      .describe(
+        "The organization the request is filed for, in the name of its oldest owner; without it, the request waits for whoever signs up with its contact email"
+      ),
     request: HardwareRequestInputSchema
   })
 });

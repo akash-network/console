@@ -263,6 +263,22 @@ describe(UserRepository.name, () => {
     });
   });
 
+  describe("hasVerifiedEmail", () => {
+    it("answers true for an address a verified account uses, whatever its case and padding", async () => {
+      const { userRepository, domain } = setupDomain();
+      await userRepository.create({ userId: faker.string.uuid(), email: `Jane@${domain.toUpperCase()}`, emailVerified: true });
+
+      await expect(userRepository.hasVerifiedEmail(` jane@${domain} `)).resolves.toBe(true);
+    });
+
+    it("answers false when only an unverified account uses the address", async () => {
+      const { userRepository, domain } = setupDomain();
+      await userRepository.create({ userId: faker.string.uuid(), email: `jane@${domain}`, emailVerified: false });
+
+      await expect(userRepository.hasVerifiedEmail(`jane@${domain}`)).resolves.toBe(false);
+    });
+  });
+
   function setupDomain() {
     const userRepository = container.resolve(UserRepository);
     const domain = `${faker.string.alphanumeric(16).toLowerCase()}.com`;

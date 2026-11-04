@@ -47,7 +47,7 @@ export class HardwareRequestEmailHandler implements JobHandler<HardwareRequestEm
       return;
     }
 
-    const requester = await this.userRepository.findById(hardwareRequest.userId);
+    const requester = hardwareRequest.userId ? await this.userRepository.findById(hardwareRequest.userId) : undefined;
     const context = await this.hardwareRequestAlertContextService.load(hardwareRequest);
     const mailboxEmail = this.config.HARDWARE_REQUEST_EMAIL;
 

@@ -24,9 +24,9 @@ type RequestWindow = { durationMs: number; limit: number; message: string };
 
 type Refusal = { message: string; retryAfterSeconds: number };
 
-type Requester = { userId: string; organizationId: string | null };
+type Requester = { userId: string | null; organizationId: string | null };
 
-export type HardwareRequestOnBehalfInput = { actor: string; organizationId: string; request: HardwareRequestInput };
+export type HardwareRequestOnBehalfInput = { actor: string; organizationId?: string; request: HardwareRequestInput };
 
 type HardwareRequestRepositoryCursor = Pick<HardwareRequestRepository, "create">;
 
@@ -84,9 +84,9 @@ export class HardwareRequestService {
     });
   }
 
-  /** Files a request the team took offline in the name of the organization's oldest owner, without the tenant's rate limits. */
+  /** Files a request the team took offline, for an organization's oldest owner or for an email with no account yet, without the tenant's rate limits. */
   async createOnBehalf({ actor, organizationId, request }: HardwareRequestOnBehalfInput): Promise<HardwareRequestOutput & RoutedLane> {
-    const requester = await this.#oldestOwnerOf(organizationId);
+    const requester = organizationId ? await this.#oldestOwnerOf(organizationId) : await this.#unclaimedRequester(request.email);
 
     return await this.txService.transaction(async () => {
       const hardwareRequest = await this.#file(this.hardwareRequestRepository.unscoped("gpu-request-broker"), request, requester);
@@ -94,7 +94,7 @@ export class HardwareRequestService {
         hardwareRequestId: hardwareRequest.id,
         type: "created_on_behalf",
         actor,
-        payload: { organizationId, email: null }
+        payload: organizationId ? { organizationId, email: null } : { organizationId: null, email: request.email }
       });
 
       return hardwareRequest;
@@ -113,6 +113,14 @@ export class HardwareRequestService {
     await this.jobQueueService.enqueue(new HardwareRequestSlackAlertJob({ hardwareRequestId: hardwareRequest.id }));
 
     return { ...hardwareRequest, ...routing };
+  }
+
+  async #unclaimedRequester(email: string): Promise<Requester> {
+    if (await this.userRepository.hasVerifiedEmail(email)) {
+      throw createError(409, "An account already uses this email, so file the request for one of its organizations");
+    }
+
+    return { userId: null, organizationId: null };
   }
 
   async #oldestOwnerOf(organizationId: string): Promise<Requester> {

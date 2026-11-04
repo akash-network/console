@@ -110,7 +110,7 @@ export const CreateHardwareRequestResponseSchema = z.object({
 
 const HardwareRequestSchema = z.object({
   id: z.string().uuid(),
-  userId: z.string().uuid(),
+  userId: z.string().uuid().nullable(),
   organizationId: z.string().uuid().nullable(),
   category: z.enum(hardwareRequestCategoryEnum.enumValues),
   status: z.enum(hardwareRequestStatusEnum.enumValues),

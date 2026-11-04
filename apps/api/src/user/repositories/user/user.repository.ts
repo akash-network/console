@@ -105,6 +105,16 @@ export class UserRepository extends BaseRepository<ApiPgTables["Users"], UserInp
     return { user: this.toOutput(updated), wasInserted: false };
   }
 
+  async hasVerifiedEmail(email: string): Promise<boolean> {
+    const [match] = await this.pg
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(and(sql`lower(${this.table.email}) = ${email.trim().toLowerCase()}`, eq(this.table.emailVerified, true)))
+      .limit(1);
+
+    return !!match;
+  }
+
   async findTrialUsersByFingerprint(fingerprint: string, excludeUserId: string): Promise<{ id: string }[]> {
     return this.pg
       .select({ id: this.table.id })
