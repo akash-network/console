@@ -67,6 +67,7 @@ export const AvailabilityPane: FC<Props> = ({
   const gpuQuantities = d.useGpuQuantityAvailability(placement);
   const gpuSelection = d.useGpuSelection(placement.id);
   const scope = placementCount > 1 ? "this placement" : "your deployment";
+  const canSourceNoFit = isQuoteFlowEnabled && gpuAvailability.requestsGpu;
   const notBiddingCount = screened.isLoading || screened.isInvalid ? 0 : countNotBiddingProviders(screened.providers);
 
   return (
@@ -108,9 +109,11 @@ export const AvailabilityPane: FC<Props> = ({
       <footer className="shrink-0 border-t border-zinc-300 p-4 dark:border-zinc-700">
         <div className="mx-auto max-w-[720px] space-y-3">
           {!isReady && <p className="text-sm text-muted-foreground">Add a container image and hardware to every service to deploy.</p>}
-          {hasPlacementWithoutProviders && isQuoteFlowEnabled && <NoFitCard placementCount={placementCount} onRequest={onRequestComputeForNoFit} />}
-          {hasPlacementWithoutProviders && !isQuoteFlowEnabled && (
-            <p className="text-sm text-muted-foreground">{describeNoFit(placementCount)} Change the resources or request compute.</p>
+          {hasPlacementWithoutProviders && canSourceNoFit && <NoFitCard placementCount={placementCount} onRequest={onRequestComputeForNoFit} />}
+          {hasPlacementWithoutProviders && !canSourceNoFit && (
+            <p className="text-sm text-muted-foreground">
+              {describeNoFit(placementCount)} {isQuoteFlowEnabled ? "Change the resources or widen the region." : "Change the resources or request compute."}
+            </p>
           )}
           <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-3">
             {isQuoteFlowEnabled ? (

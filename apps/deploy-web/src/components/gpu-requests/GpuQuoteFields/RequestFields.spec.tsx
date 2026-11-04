@@ -15,7 +15,7 @@ describe("RequestFields", () => {
       const { onChange } = setup({ Field: RegionField, answers: { regionMode: "any" } });
 
       expect(screen.getByRole("radio", { name: "Anywhere" })).toBeChecked();
-      expect(screen.queryByRole("group", { name: "Where can they run?" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "Regions to run in" })).not.toBeInTheDocument();
 
       await userEvent.click(screen.getByRole("radio", { name: "Only in…" }));
 
@@ -27,14 +27,14 @@ describe("RequestFields", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Asia Pacific" }));
 
-      expect(screen.getByRole("group", { name: "Where can they run?" })).toBeInTheDocument();
+      expect(screen.getByRole("group", { name: "Regions to run in" })).toBeInTheDocument();
       expect(onChange).toHaveBeenCalledWith({ areas: ["eu", "apac"] });
     });
 
     it("picks the areas they can't run in", () => {
       setup({ Field: RegionField, answers: { regionMode: "except", areas: [] } });
 
-      expect(screen.getByRole("group", { name: "Where can't they run?" })).toBeInTheDocument();
+      expect(screen.getByRole("group", { name: "Regions to leave out" })).toBeInTheDocument();
     });
 
     it("asks for internet speed unless the starting point answered it", async () => {

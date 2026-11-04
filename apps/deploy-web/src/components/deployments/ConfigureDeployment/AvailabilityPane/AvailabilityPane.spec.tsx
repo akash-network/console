@@ -347,7 +347,11 @@ describe(AvailabilityPane.name, () => {
     });
 
     it("offers to source the hardware when no provider can host the configuration", async () => {
-      const { onRequestComputeForNoFit, onRequestCompute } = setup({ isQuoteFlowEnabled: true, hasPlacementWithoutProviders: true });
+      const { onRequestComputeForNoFit, onRequestCompute } = setup({
+        isQuoteFlowEnabled: true,
+        hasPlacementWithoutProviders: true,
+        gpuAvailability: { requestsGpu: true }
+      });
 
       const noFit = screen.getByRole("region", { name: "We can source this for you" });
       expect(noFit).toHaveTextContent("No provider can host this configuration right now.");
@@ -360,13 +364,20 @@ describe(AvailabilityPane.name, () => {
     });
 
     it("says no provider can host every placement once the deployment has several", () => {
-      setup({ isQuoteFlowEnabled: true, hasPlacementWithoutProviders: true, placementCount: 2 });
+      setup({ isQuoteFlowEnabled: true, hasPlacementWithoutProviders: true, placementCount: 2, gpuAvailability: { requestsGpu: true } });
 
       expect(screen.getByRole("region", { name: "We can source this for you" })).toHaveTextContent("No provider can host every placement right now.");
     });
 
+    it("points at the resources instead of a GPU request when the configuration asks for no GPU", () => {
+      setup({ isQuoteFlowEnabled: true, hasPlacementWithoutProviders: true, gpuAvailability: { requestsGpu: false } });
+
+      expect(screen.queryByRole("region", { name: "We can source this for you" })).not.toBeInTheDocument();
+      expect(screen.getByText("No provider can host this configuration right now. Change the resources or widen the region.")).toBeInTheDocument();
+    });
+
     it("hides the sourcing offer while a provider can host the configuration", () => {
-      setup({ isQuoteFlowEnabled: true, hasPlacementWithoutProviders: false });
+      setup({ isQuoteFlowEnabled: true, hasPlacementWithoutProviders: false, gpuAvailability: { requestsGpu: true } });
 
       expect(screen.queryByRole("region", { name: "We can source this for you" })).not.toBeInTheDocument();
     });

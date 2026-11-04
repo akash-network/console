@@ -26,27 +26,15 @@ describe(GpuOffersTable.name, () => {
       within(table)
         .getAllByRole("columnheader")
         .map(header => header.textContent)
-    ).toEqual([
-      "Offer",
-      "Price per GPU-hour",
-      "GPUs",
-      "Location",
-      "Available",
-      "Term",
-      "Uptime SLA",
-      "Interconnect",
-      "Storage per server",
-      "Internet",
-      "Provider"
-    ]);
-    const [, requestRow, offerRow] = within(table).getAllByRole("row");
-    expect(within(requestRow).getByRole("rowheader")).toHaveTextContent("Your request");
-    expect(requestRow).toHaveTextContent("Up to $3.00 per GPU-hour");
-    expect(within(offerRow).getByRole("rowheader")).toHaveTextContent("Offer 1Expires in 3 days");
-    expect(within(offerRow).getByText("≈ $14,600 a month")).toBeInTheDocument();
-    expect(within(offerRow).getByText("Oslo, NO")).toBeInTheDocument();
-    expect(within(offerRow).getByText("You asked for 6 months")).toBeInTheDocument();
-    expect(within(offerRow).getByText("Month to month")).toBeInTheDocument();
+    ).toEqual(["Compared on", "Your request", "Offer 1Expires in 3 days"]);
+    expect(
+      within(table)
+        .getAllByRole("rowheader")
+        .map(header => header.textContent)
+    ).toEqual(["Price per GPU-hour", "GPUs", "Location", "Available", "Term", "Uptime SLA", "Interconnect", "Storage per server", "Internet", "Provider"]);
+    expect(cellsOf("Price per GPU-hour")).toEqual(["Up to $3.00 per GPU-hour", "$2.50≈ $14,600 a month"]);
+    expect(cellsOf("Location")[1]).toBe("Oslo, NO");
+    expect(cellsOf("Term")).toEqual(["6 months", "Month to monthYou asked for 6 months"]);
     expect(screen.getByText("Doesn't match your request")).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Sort offers" })).not.toBeInTheDocument();
   });
@@ -90,7 +78,7 @@ describe(GpuOffersTable.name, () => {
     expect(screen.getByText("Accepted")).toBeInTheDocument();
   });
 
-  it("adds each offer's actions in a last column", () => {
+  it("adds each offer's actions in a last row, under that offer", () => {
     const offer = buildGpuRequestOffer();
     render(
       <GpuOffersTable
@@ -101,23 +89,31 @@ describe(GpuOffersTable.name, () => {
       />
     );
 
-    expect(screen.getAllByRole("columnheader").at(-1)).toHaveTextContent("Actions");
-    const [, requestRow, offerRow] = screen.getAllByRole("row");
-    expect(within(offerRow).getAllByRole("cell").at(-1)).toContainElement(screen.getByRole("button", { name: "Act on Offer 1" }));
-    expect(within(requestRow).getAllByRole("cell").at(-1)).toBeEmptyDOMElement();
+    const actionsRow = screen.getAllByRole("row").at(-1)!;
+    expect(within(actionsRow).getByRole("rowheader")).toHaveTextContent("Actions");
+    const [requestCell, offerCell] = within(actionsRow).getAllByRole("cell");
+    expect(offerCell).toContainElement(screen.getByRole("button", { name: "Act on Offer 1" }));
+    expect(requestCell).toBeEmptyDOMElement();
   });
 
-  it("has no actions column without actions", () => {
+  it("has no actions row without actions", () => {
     setup({ spec: buildHardwareRequestSpec(), offers: [buildGpuRequestOffer()] });
 
-    expect(screen.queryByRole("columnheader", { name: "Actions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("rowheader", { name: "Actions" })).not.toBeInTheDocument();
   });
 
   function offerLabels() {
     return screen
-      .getAllByRole("rowheader")
-      .slice(1)
+      .getAllByRole("columnheader")
+      .slice(2)
       .map(header => header.firstChild?.textContent);
+  }
+
+  function cellsOf(attributeLabel: string) {
+    const row = screen.getByRole("rowheader", { name: attributeLabel }).closest("tr")!;
+    return within(row)
+      .getAllByRole("cell")
+      .map(cell => cell.textContent);
   }
 
   function setup(input: { spec: HardwareRequest["spec"]; offers: GpuRequestOffer[] }) {
