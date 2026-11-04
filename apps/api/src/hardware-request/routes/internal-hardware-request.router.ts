@@ -7,6 +7,7 @@ import { HardwareRequestBrokerController } from "@src/hardware-request/controlle
 import {
   AddHardwareRequestNoteRequestSchema,
   AssignHardwareRequestOwnerRequestSchema,
+  ChangeHardwareRequestStatusRequestSchema,
   HardwareRequestIdParamsSchema,
   HardwareRequestQueueQuerySchema,
   HardwareRequestQueueResponseSchema,
@@ -100,6 +101,25 @@ const updateLaneRoute = createRoute({
 
 internalHardwareRequestRouter.openapi(updateLaneRoute, async function routeUpdateHardwareRequestLane(c) {
   return c.json(await container.resolve(HardwareRequestBrokerController).switchLane(c.req.valid("param").id, c.req.valid("json")), 200);
+});
+
+const updateStatusRoute = createRoute({
+  method: "put",
+  path: "/hardware-requests/{id}/status",
+  operationId: "updateHardwareRequestStatus",
+  summary: "Move a GPU request to another status and tell the tenant",
+  security: SECURITY_NONE,
+  hiddenInOpenApiDocs: true,
+  middleware: [requireInternalToken],
+  request: {
+    params: HardwareRequestIdParamsSchema,
+    body: { required: true, content: { "application/json": { schema: ChangeHardwareRequestStatusRequestSchema } } }
+  },
+  responses: ACTION_RESPONSES
+});
+
+internalHardwareRequestRouter.openapi(updateStatusRoute, async function routeUpdateHardwareRequestStatus(c) {
+  return c.json(await container.resolve(HardwareRequestBrokerController).changeStatus(c.req.valid("param").id, c.req.valid("json")), 200);
 });
 
 const createNoteRoute = createRoute({

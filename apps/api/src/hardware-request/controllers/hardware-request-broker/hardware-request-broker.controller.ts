@@ -3,6 +3,7 @@ import { singleton } from "tsyringe";
 import type {
   AddHardwareRequestNoteRequest,
   AssignHardwareRequestOwnerRequest,
+  ChangeHardwareRequestStatusRequest,
   HardwareRequestQueueQuery,
   HardwareRequestQueueResponse,
   HardwareRequestWithTimelineResponse,
@@ -28,6 +29,10 @@ export class HardwareRequestBrokerController {
 
   async switchLane(id: string, { data }: SwitchHardwareRequestLaneRequest): Promise<HardwareRequestWithTimelineResponse> {
     return { data: await this.hardwareRequestBrokerService.switchLane(id, data) };
+  }
+
+  async changeStatus(id: string, { data }: ChangeHardwareRequestStatusRequest): Promise<HardwareRequestWithTimelineResponse> {
+    return { data: await this.hardwareRequestBrokerService.changeStatus(id, data) };
   }
 
   async addNote(id: string, { data }: AddHardwareRequestNoteRequest): Promise<HardwareRequestWithTimelineResponse> {
