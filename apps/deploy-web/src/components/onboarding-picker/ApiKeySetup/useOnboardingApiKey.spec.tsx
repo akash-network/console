@@ -133,6 +133,7 @@ describe(useOnboardingApiKey.name, () => {
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>(), {
         data: input.projects,
         isPending: input.isLoadingProjects ?? false,
+        isLoading: false,
         isError: input.hasProjectsError ?? false,
         refetch: refetchProjects
       })
