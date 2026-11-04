@@ -327,6 +327,14 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    withdrawHardwareRequest: {
+      path: "/v1/hardware-requests/{id}/withdraw",
+      method: "post",
+      operationId: "withdrawHardwareRequest",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
     createNotificationAddressConfirmation: {
       path: "/v1/notification-address-confirmations",
       method: "post",

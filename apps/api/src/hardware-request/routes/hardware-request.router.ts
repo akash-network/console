@@ -8,6 +8,7 @@ import {
   CreateHardwareRequestRequestSchema,
   CreateHardwareRequestResponseSchema,
   HardwareRequestIdParamsSchema,
+  HardwareRequestResponseSchema,
   ListHardwareRequestOffersResponseSchema,
   ListHardwareRequestsResponseSchema
 } from "../http-schemas/hardware-request.schema";
@@ -102,5 +103,35 @@ const listHardwareRequestOffersRoute = createRoute({
 
 hardwareRequestRouter.openapi(listHardwareRequestOffersRoute, async function routeListHardwareRequestOffers(c) {
   const result = await container.resolve(HardwareRequestController).listOffers(c.req.valid("param").id);
+  return c.json(result, 200);
+});
+
+const withdrawHardwareRequestRoute = createRoute({
+  method: "post",
+  operationId: "withdrawHardwareRequest",
+  path: "/v1/hardware-requests/{id}/withdraw",
+  summary: "Withdraw a GPU request before an offer is accepted",
+  description: "Open to the requester and to the organization's owners and admins. Withdrawing twice changes nothing.",
+  tags: ["Hardware Requests"],
+  security: SECURITY_BEARER,
+  request: { params: HardwareRequestIdParamsSchema },
+  responses: {
+    200: {
+      description: "The withdrawn request",
+      content: {
+        "application/json": {
+          schema: HardwareRequestResponseSchema
+        }
+      }
+    },
+    401: { description: "Unauthorized" },
+    403: { description: "The caller is neither the requester nor an owner or admin of the organization" },
+    404: { description: "No request the caller can read has this id" },
+    409: { description: "The request was already accepted, fulfilled or closed" }
+  }
+});
+
+hardwareRequestRouter.openapi(withdrawHardwareRequestRoute, async function routeWithdrawHardwareRequest(c) {
+  const result = await container.resolve(HardwareRequestController).withdraw(c.req.valid("param").id);
   return c.json(result, 200);
 });

@@ -16325,6 +16325,417 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/hardware-requests/{id}/withdraw": {
+      "post": {
+        "description": "Open to the requester and to the organization's owners and admins. Withdrawing twice changes nothing.",
+        "operationId": "withdrawHardwareRequest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string",
+            },
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "category": {
+                          "enum": [
+                            "gpu_model",
+                            "capacity",
+                            "region",
+                            "other",
+                            "quote",
+                          ],
+                          "type": "string",
+                        },
+                        "contactEmail": {
+                          "type": "string",
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "details": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "gpuModel": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string",
+                        },
+                        "organizationId": {
+                          "format": "uuid",
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "quantity": {
+                          "nullable": true,
+                          "type": "integer",
+                        },
+                        "region": {
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "source": {
+                          "enum": [
+                            "reserve_capacity",
+                            "configure_reserve",
+                            "no_fit",
+                            "no_bids",
+                            "gpu_menu",
+                            "requests_page",
+                          ],
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "spec": {
+                          "nullable": true,
+                          "properties": {
+                            "company": {
+                              "maxLength": 100,
+                              "type": "string",
+                            },
+                            "couldGrow": {
+                              "type": "boolean",
+                            },
+                            "gpu": {
+                              "properties": {
+                                "count": {
+                                  "maximum": 1000,
+                                  "minimum": 1,
+                                  "type": "integer",
+                                },
+                                "fabric": {
+                                  "enum": [
+                                    "any",
+                                    "infiniband",
+                                    "roce",
+                                  ],
+                                  "type": "string",
+                                },
+                                "fabricGbps": {
+                                  "anyOf": [
+                                    {
+                                      "enum": [
+                                        200,
+                                      ],
+                                      "type": "number",
+                                    },
+                                    {
+                                      "enum": [
+                                        400,
+                                      ],
+                                      "type": "number",
+                                    },
+                                    {
+                                      "enum": [
+                                        800,
+                                      ],
+                                      "type": "number",
+                                    },
+                                  ],
+                                },
+                                "interconnect": {
+                                  "enum": [
+                                    "none",
+                                    "server",
+                                    "cluster",
+                                  ],
+                                  "type": "string",
+                                },
+                                "model": {
+                                  "maxLength": 100,
+                                  "minLength": 1,
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "model",
+                                "count",
+                                "interconnect",
+                              ],
+                              "type": "object",
+                            },
+                            "phone": {
+                              "maxLength": 100,
+                              "type": "string",
+                            },
+                            "region": {
+                              "properties": {
+                                "areas": {
+                                  "items": {
+                                    "enum": [
+                                      "us",
+                                      "ca",
+                                      "eu",
+                                      "uk",
+                                      "apac",
+                                      "me",
+                                      "latam",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "maxItems": 7,
+                                  "type": "array",
+                                },
+                                "mode": {
+                                  "enum": [
+                                    "any",
+                                    "only",
+                                    "except",
+                                  ],
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "mode",
+                                "areas",
+                              ],
+                              "type": "object",
+                            },
+                            "sla": {
+                              "enum": [
+                                "99",
+                                "99.5",
+                                "99.9",
+                              ],
+                              "nullable": true,
+                              "type": "string",
+                            },
+                            "start": {
+                              "oneOf": [
+                                {
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "asap",
+                                      ],
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "kind",
+                                  ],
+                                  "type": "object",
+                                },
+                                {
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "flexible",
+                                      ],
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "kind",
+                                  ],
+                                  "type": "object",
+                                },
+                                {
+                                  "properties": {
+                                    "date": {
+                                      "format": "date",
+                                      "type": "string",
+                                    },
+                                    "kind": {
+                                      "enum": [
+                                        "date",
+                                      ],
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "date",
+                                  ],
+                                  "type": "object",
+                                },
+                              ],
+                            },
+                            "storage": {
+                              "properties": {
+                                "nvme": {
+                                  "type": "boolean",
+                                },
+                                "tbPerNode": {
+                                  "maximum": 1000,
+                                  "minimum": 0,
+                                  "type": "number",
+                                },
+                              },
+                              "required": [
+                                "tbPerNode",
+                                "nvme",
+                              ],
+                              "type": "object",
+                            },
+                            "targetPrice": {
+                              "nullable": true,
+                              "properties": {
+                                "maxUsdPerGpuHour": {
+                                  "exclusiveMinimum": true,
+                                  "maximum": 1000,
+                                  "minimum": 0,
+                                  "type": "number",
+                                },
+                                "minUsdPerGpuHour": {
+                                  "exclusiveMinimum": true,
+                                  "maximum": 1000,
+                                  "minimum": 0,
+                                  "type": "number",
+                                },
+                              },
+                              "type": "object",
+                            },
+                            "term": {
+                              "enum": [
+                                "month_to_month",
+                                "3_months",
+                                "6_months",
+                                "12_months",
+                                "24_months",
+                              ],
+                              "type": "string",
+                            },
+                            "uplinkGbps": {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    1,
+                                  ],
+                                  "type": "number",
+                                },
+                                {
+                                  "enum": [
+                                    10,
+                                  ],
+                                  "type": "number",
+                                },
+                                {
+                                  "enum": [
+                                    25,
+                                  ],
+                                  "type": "number",
+                                },
+                                {
+                                  "nullable": true,
+                                },
+                              ],
+                            },
+                            "wantsToTalk": {
+                              "type": "boolean",
+                            },
+                          },
+                          "required": [
+                            "gpu",
+                            "region",
+                            "uplinkGbps",
+                            "storage",
+                            "sla",
+                            "targetPrice",
+                            "term",
+                            "start",
+                            "couldGrow",
+                            "wantsToTalk",
+                          ],
+                          "type": "object",
+                        },
+                        "status": {
+                          "enum": [
+                            "submitted",
+                            "in_review",
+                            "sourcing",
+                            "offers",
+                            "accepted",
+                            "fulfilled",
+                            "withdrawn",
+                            "closed",
+                          ],
+                          "type": "string",
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "type": "string",
+                        },
+                        "userId": {
+                          "format": "uuid",
+                          "nullable": true,
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "organizationId",
+                        "category",
+                        "status",
+                        "source",
+                        "gpuModel",
+                        "quantity",
+                        "region",
+                        "details",
+                        "contactEmail",
+                        "spec",
+                        "createdAt",
+                        "updatedAt",
+                      ],
+                      "type": "object",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "The withdrawn request",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+          "403": {
+            "description": "The caller is neither the requester nor an owner or admin of the organization",
+          },
+          "404": {
+            "description": "No request the caller can read has this id",
+          },
+          "409": {
+            "description": "The request was already accepted, fulfilled or closed",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+        ],
+        "summary": "Withdraw a GPU request before an offer is accepted",
+        "tags": [
+          "Hardware Requests",
+        ],
+      },
+    },
     "/v1/invitations/accept": {
       "post": {
         "operationId": "acceptInvitation",

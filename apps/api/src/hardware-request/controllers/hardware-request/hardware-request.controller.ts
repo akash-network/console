@@ -4,6 +4,7 @@ import { Protected } from "@src/auth/services/auth.service";
 import type {
   CreateHardwareRequestRequest,
   CreateHardwareRequestResponse,
+  HardwareRequestResponse,
   ListHardwareRequestOffersResponse,
   ListHardwareRequestsResponse
 } from "@src/hardware-request/http-schemas/hardware-request.schema";
@@ -33,6 +34,11 @@ export class HardwareRequestController {
   async list(): Promise<ListHardwareRequestsResponse> {
     const hardwareRequests = await this.hardwareRequestService.list();
     return { data: hardwareRequests.map(toTenantView) };
+  }
+
+  @Protected([{ action: "read", subject: "HardwareRequest" }])
+  async withdraw(hardwareRequestId: string): Promise<HardwareRequestResponse> {
+    return { data: toTenantView(await this.hardwareRequestService.withdraw(hardwareRequestId)) };
   }
 
   @Protected([{ action: "read", subject: "HardwareRequest" }])

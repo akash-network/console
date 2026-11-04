@@ -145,6 +145,8 @@ const HardwareRequestSchema = z.object({
   updatedAt: z.string().datetime()
 });
 
+export const HardwareRequestResponseSchema = z.object({ data: HardwareRequestSchema });
+
 export const ListHardwareRequestsResponseSchema = z.object({
   data: z.array(HardwareRequestSchema)
 });
@@ -170,4 +172,5 @@ export type HardwareRequestInput = z.infer<typeof HardwareRequestInputSchema>;
 export type CreateHardwareRequestRequest = z.infer<typeof CreateHardwareRequestRequestSchema>;
 export type CreateHardwareRequestResponse = z.infer<typeof CreateHardwareRequestResponseSchema>;
 export type ListHardwareRequestOffersResponse = z.infer<typeof ListHardwareRequestOffersResponseSchema>;
+export type HardwareRequestResponse = z.infer<typeof HardwareRequestResponseSchema>;
 export type ListHardwareRequestsResponse = z.infer<typeof ListHardwareRequestsResponseSchema>;
