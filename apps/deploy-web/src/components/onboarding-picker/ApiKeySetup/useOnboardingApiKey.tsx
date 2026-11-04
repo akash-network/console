@@ -18,11 +18,12 @@ export function useOnboardingApiKey({ enabled }: { enabled: boolean }, d: typeof
   const { isEnabled: isProjectsUiEnabled } = d.useProjectsUi();
   const {
     data: projects,
-    isLoading: isLoadingTrialProject,
+    isPending: isTrialProjectPending,
     isError: hasTrialProjectLookupFailed,
     refetch: retryTrialProjectLookup
   } = d.useProjectsQuery({ enabled: enabled && isProjectsUiEnabled });
   const { mutate, data: createdApiKey, isPending: isCreating } = d.useCreateApiKey();
+  const isLoadingTrialProject = isProjectsUiEnabled && isTrialProjectPending;
   const trialProjectId = projects?.find(project => project.isDefault)?.id;
 
   function notifyApiKeyNotCreated() {

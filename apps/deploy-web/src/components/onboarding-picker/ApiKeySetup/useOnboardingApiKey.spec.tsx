@@ -70,10 +70,16 @@ describe(useOnboardingApiKey.name, () => {
     expect(useProjectsQuery).toHaveBeenCalledWith({ enabled: loadsProjects });
   });
 
-  it("reports while the trial project is loading", () => {
+  it("reports while the trial project is loading, including a lookup paused offline", () => {
     const { result } = setup({ isLoadingProjects: true });
 
     expect(result.current.isLoadingTrialProject).toBe(true);
+  });
+
+  it("doesn't wait on the trial project when projects are off", () => {
+    const { result } = setup({ isProjectsUiEnabled: false, isLoadingProjects: true });
+
+    expect(result.current.isLoadingTrialProject).toBe(false);
   });
 
   it("exposes the created key and whether it is being created", () => {
@@ -126,7 +132,7 @@ describe(useOnboardingApiKey.name, () => {
     const useProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectsQuery>(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>(), {
         data: input.projects,
-        isLoading: input.isLoadingProjects ?? false,
+        isPending: input.isLoadingProjects ?? false,
         isError: input.hasProjectsError ?? false,
         refetch: refetchProjects
       })
