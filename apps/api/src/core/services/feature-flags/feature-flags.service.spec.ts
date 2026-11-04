@@ -201,7 +201,7 @@ describe(FeatureFlagsService.name, () => {
   });
 
   describe("getVariantPayload", () => {
-    it("returns the payload of the enabled variant, evaluated without a user or session", async () => {
+    it("returns the payload of the enabled variant, sticky to the flag rather than the caller", async () => {
       const client = createUnleashMockClient({ variant: { name: "rules", enabled: true, payload: { type: PayloadType.JSON, value: '{"minUsd":1}' } } });
       const config = { DEPLOYMENT_ENV: "production", NETWORK: "mainnet" } as const;
       const service = await setup({ config, createClient: () => client, currentUser: { id: "caller" }, unleashSessionId: "caller-session" });
@@ -210,7 +210,7 @@ describe(FeatureFlagsService.name, () => {
       expect(client.getVariant).toHaveBeenCalledWith(FeatureFlags.GPU_REQUEST_ROUTING, {
         currentTime: expect.any(Date),
         userId: undefined,
-        sessionId: undefined,
+        sessionId: FeatureFlags.GPU_REQUEST_ROUTING,
         environment: config.DEPLOYMENT_ENV,
         properties: { chainNetwork: config.NETWORK }
       });

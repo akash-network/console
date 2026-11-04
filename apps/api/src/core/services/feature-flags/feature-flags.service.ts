@@ -43,13 +43,13 @@ export class FeatureFlagsService implements Disposable, AppInitializer {
     return this.#evaluate(featureFlag, { userId: subjectId, sessionId: undefined });
   }
 
-  /** Leaves out the caller's user and session, so a settings payload reads the same on every path, background jobs included. */
+  /** Pins stickiness to the flag name instead of the caller, so a settings payload reads the same on every path, background jobs included. */
   getVariantPayload(featureFlag: FeatureFlagValue): string | undefined {
     if (this.configService.get("FEATURE_FLAGS_ENABLE_ALL")) return undefined;
 
     assert(this.client, "Feature flags service was not initialized. Call initialize() method first.");
 
-    const variant = this.client.getVariant(featureFlag, this.#context({ userId: undefined, sessionId: undefined }));
+    const variant = this.client.getVariant(featureFlag, this.#context({ userId: undefined, sessionId: featureFlag }));
 
     return variant.enabled ? variant.payload?.value : undefined;
   }

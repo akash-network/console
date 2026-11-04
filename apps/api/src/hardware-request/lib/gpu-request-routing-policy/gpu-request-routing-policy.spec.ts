@@ -72,7 +72,16 @@ describe("GPU request routing policy", () => {
     { payload: { businessHours: { startHour: 17, endHour: 17 } } },
     { payload: { responseTargets: { sales: { firstReplyBusinessHours: 0, firstOfferBusinessHours: 16 } } } },
     { payload: { responseTargets: { automated: { firstReplyBusinessHours: 8, firstOfferBusinessHours: -1 } } } },
-    { payload: { responseTargets: { reminderLeadBusinessHours: 0 } } }
+    { payload: { responseTargets: { reminderLeadBusinessHours: 0 } } },
+    { payload: { salesRulez: {} } },
+    { payload: { salesRules: { monthlyValu: {} } } },
+    { payload: { salesRules: { monthlyValue: { minUSD: 1 } } } },
+    { payload: { salesRules: { couldGrow: { enable: false } } } },
+    { payload: { owners: [{ name: "Ada", slackId: "U1" }] } },
+    { payload: { owners: [{ name: "Ada", match: { gpuClas: "other" } }] } },
+    { payload: { businessHours: { timezone: "Europe/Berlin" } } },
+    { payload: { responseTargets: { sales: { firstReplyBusinessHours: 4, firstOfferBusinessHours: 16, firstOffer: 1 } } } },
+    { payload: { responseTargets: { reminderLead: 1 } } }
   ])("rejects $payload", ({ payload }) => {
     expect(gpuRequestRoutingPolicySchema.safeParse(payload).success).toBe(false);
   });

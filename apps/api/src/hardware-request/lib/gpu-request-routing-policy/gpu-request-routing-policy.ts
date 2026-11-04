@@ -20,12 +20,17 @@ const REFERENCE_USD_PER_GPU_HOUR: Record<string, number> = {
   "RTX 4090": 0.45
 };
 
-const toggle = z.object({ enabled: z.boolean().default(true) });
+const toggle = z.object({ enabled: z.boolean().default(true) }).strict();
 
-const salesOwnerSchema = z.object({ name: z.string().trim().min(1), slackUserId: z.string().trim().min(1).optional(), email: z.string().email().optional() });
+const salesOwnerSchema = z
+  .object({ name: z.string().trim().min(1), slackUserId: z.string().trim().min(1).optional(), email: z.string().email().optional() })
+  .strict();
 
 const ownerRuleSchema = salesOwnerSchema.extend({
-  match: z.object({ gpuClass: z.enum(["data_center", "other"]).optional(), areas: z.array(z.enum(REGION_AREAS)).min(1).optional() }).default({})
+  match: z
+    .object({ gpuClass: z.enum(["data_center", "other"]).optional(), areas: z.array(z.enum(REGION_AREAS)).min(1).optional() })
+    .strict()
+    .default({})
 });
 
 const businessHoursSchema = z
@@ -35,37 +40,43 @@ const businessHoursSchema = z
     startHour: z.number().int().min(0).max(23).default(9),
     endHour: z.number().int().min(1).max(24).default(17)
   })
+  .strict()
   .refine(({ startHour, endHour }) => endHour > startHour, "Business hours must end after they start");
 
-const laneTargetsSchema = z.object({ firstReplyBusinessHours: z.number().positive(), firstOfferBusinessHours: z.number().positive() });
+const laneTargetsSchema = z.object({ firstReplyBusinessHours: z.number().positive(), firstOfferBusinessHours: z.number().positive() }).strict();
 
 /** Targets count business hours, so the 2 business days decided for a sales offer are 16 hours of a 9-to-5 day. */
-const responseTargetsSchema = z.object({
-  sales: laneTargetsSchema.default({ firstReplyBusinessHours: 4, firstOfferBusinessHours: 16 }),
-  automated: laneTargetsSchema.default({ firstReplyBusinessHours: 8, firstOfferBusinessHours: 8 }),
-  reminderLeadBusinessHours: z.number().positive().default(1)
-});
+const responseTargetsSchema = z
+  .object({
+    sales: laneTargetsSchema.default({ firstReplyBusinessHours: 4, firstOfferBusinessHours: 16 }),
+    automated: laneTargetsSchema.default({ firstReplyBusinessHours: 8, firstOfferBusinessHours: 8 }),
+    reminderLeadBusinessHours: z.number().positive().default(1)
+  })
+  .strict();
 
-export const gpuRequestRoutingPolicySchema = z.object({
-  salesRules: z
-    .object({
-      monthlyValue: toggle.extend({ minUsd: z.number().nonnegative().default(5000) }).default({}),
-      multiNode: toggle.extend({ minGpus: z.number().int().positive().default(8) }).default({}),
-      interconnect: toggle.default({}),
-      longTermDataCenter: toggle.extend({ minTermMonths: z.number().int().positive().default(6) }).default({}),
-      couldGrow: toggle.default({}),
-      wantsToTalk: toggle.default({})
-    })
-    .default({}),
-  salesRequiresPaymentMethod: z.boolean().default(true),
-  dataCenterGpuModels: z.array(z.string()).default(DATA_CENTER_GPU_MODELS),
-  referenceUsdPerGpuHour: z.record(z.string(), z.number().positive()).default(REFERENCE_USD_PER_GPU_HOUR),
-  owners: z.array(ownerRuleSchema).default([]),
-  fallbackOwner: salesOwnerSchema.default({ name: "Sales" }),
-  salesLead: salesOwnerSchema.optional(),
-  businessHours: businessHoursSchema.default({}),
-  responseTargets: responseTargetsSchema.default({})
-});
+export const gpuRequestRoutingPolicySchema = z
+  .object({
+    salesRules: z
+      .object({
+        monthlyValue: toggle.extend({ minUsd: z.number().nonnegative().default(5000) }).default({}),
+        multiNode: toggle.extend({ minGpus: z.number().int().positive().default(8) }).default({}),
+        interconnect: toggle.default({}),
+        longTermDataCenter: toggle.extend({ minTermMonths: z.number().int().positive().default(6) }).default({}),
+        couldGrow: toggle.default({}),
+        wantsToTalk: toggle.default({})
+      })
+      .strict()
+      .default({}),
+    salesRequiresPaymentMethod: z.boolean().default(true),
+    dataCenterGpuModels: z.array(z.string()).default(DATA_CENTER_GPU_MODELS),
+    referenceUsdPerGpuHour: z.record(z.string(), z.number().positive()).default(REFERENCE_USD_PER_GPU_HOUR),
+    owners: z.array(ownerRuleSchema).default([]),
+    fallbackOwner: salesOwnerSchema.default({ name: "Sales" }),
+    salesLead: salesOwnerSchema.optional(),
+    businessHours: businessHoursSchema.default({}),
+    responseTargets: responseTargetsSchema.default({})
+  })
+  .strict();
 
 export type GpuRequestRoutingPolicy = z.infer<typeof gpuRequestRoutingPolicySchema>;
 
