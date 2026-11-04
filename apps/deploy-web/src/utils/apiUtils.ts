@@ -66,6 +66,9 @@ export class ApiUrlService {
   static providerGpus(providerAddress: string) {
     return `${this.baseApiUrl}/v1/gpu?provider=${providerAddress}`;
   }
+  static trialGpuAvailability() {
+    return `${this.baseApiUrl}/v1/trial-gpu-availability`;
+  }
   static trialProviders() {
     return `${this.baseApiUrl}/v1/trial-providers`;
   }

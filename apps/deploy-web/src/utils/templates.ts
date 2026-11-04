@@ -76,4 +76,126 @@ deployment:
 `
 };
 
-export const hardcodedTemplates = [sdlBuilderTemplate, helloWorldTemplate];
+export const gemmaTrialTemplate = {
+  title: "Gemma 3 4B",
+  name: "Gemma 3 4B",
+  code: "gemma-3-4b-v100",
+  category: "AI - GPU",
+  description: "Google's Gemma 3 4B served by Ollama on an NVIDIA V100.",
+  githubUrl: "https://github.com/akash-network/awesome-akash/tree/master/gemma3-4b",
+  valuesToChange: [],
+  content: `---
+version: "2.0"
+services:
+  gemma3:
+    image: ollama/ollama:0.13.4
+    expose:
+      - port: 11434
+        as: 11434
+        to:
+          - global: true
+    env:
+      - MODEL=gemma3:4b
+    command:
+      - /bin/sh
+      - -c
+      - |
+        ollama serve &
+        while ! ollama pull \${MODEL}; do
+          echo "Waiting for ollama pull to succeed..."
+          sleep 2.5
+        done
+        ollama list
+        pkill ollama
+        ollama serve
+profiles:
+  compute:
+    gemma3:
+      resources:
+        cpu:
+          units: 4
+        memory:
+          size: 16Gi
+        storage:
+          size: 50Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+                - model: v100
+  placement:
+    akash:
+      signedBy:
+        anyOf:
+          - "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63"
+      pricing:
+        gemma3:
+          denom: uact
+          amount: 10000
+deployment:
+  gemma3:
+    akash:
+      profile: gemma3
+      count: 1
+`
+};
+
+export const fasterWhisperTrialTemplate = {
+  title: "Faster Whisper",
+  name: "Faster Whisper",
+  code: "faster-whisper-rtx3060ti",
+  category: "AI - GPU",
+  description: "Speech to text with the Faster Whisper engine on an NVIDIA RTX 3060 Ti, with a web page to upload audio.",
+  githubUrl: "https://github.com/akash-network/awesome-akash/tree/master/whisper-asr-gpu",
+  valuesToChange: [],
+  content: `---
+version: "2.0"
+services:
+  whisper-asr:
+    image: onerahmet/openai-whisper-asr-webservice:v1.10.0-gpu
+    expose:
+      - port: 9000
+        as: 80
+        to:
+          - global: true
+    env:
+      - ASR_MODEL=base
+      - ASR_ENGINE=faster_whisper
+profiles:
+  compute:
+    whisper-asr:
+      resources:
+        cpu:
+          units: 4
+        memory:
+          size: 16Gi
+        storage:
+          size: 100Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+                - model: rtx3060ti
+  placement:
+    akash:
+      signedBy:
+        anyOf:
+          - "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63"
+      pricing:
+        whisper-asr:
+          denom: uact
+          amount: 10000
+deployment:
+  whisper-asr:
+    akash:
+      profile: whisper-asr
+      count: 1
+`
+};
+
+/** Trial-sized copies of awesome-akash GPU templates, pinned to one GPU model because the gallery copies accept any NVIDIA GPU, including ones blocked on trial. */
+export const trialGpuModelTemplates = [gemmaTrialTemplate, fasterWhisperTrialTemplate];
+
+export const hardcodedTemplates = [sdlBuilderTemplate, helloWorldTemplate, ...trialGpuModelTemplates];

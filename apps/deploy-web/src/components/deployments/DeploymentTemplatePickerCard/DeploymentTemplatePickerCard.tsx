@@ -19,6 +19,7 @@ type DeploymentTemplatePickerCard = {
   heroNoiseOverlaySrc?: string;
   heroBackgroundClassName?: string;
   recommended?: boolean;
+  showLiveDot?: boolean;
   disabled?: boolean;
   onDeploy?: () => void;
 };
@@ -37,6 +38,7 @@ export function DeploymentTemplatePickerCard({
   heroNoiseOverlaySrc,
   heroBackgroundClassName,
   recommended = false,
+  showLiveDot = false,
   disabled = false,
   onDeploy
 }: DeploymentTemplatePickerCard) {
@@ -83,6 +85,7 @@ export function DeploymentTemplatePickerCard({
           </div>
 
           <p className="font-mono text-xs leading-5 text-muted-foreground">
+            {showLiveDot && <span aria-hidden className="mr-1.5 inline-block h-[7px] w-[7px] rounded-full bg-emerald-500 align-middle" />}
             <span className="font-bold">{priceBold}</span>
             <span>{priceRest}</span>
           </p>

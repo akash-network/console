@@ -43,3 +43,10 @@ export interface ProviderGpuInventory {
     details: Record<string, ProviderGpuModelInventory[]>;
   };
 }
+
+/** A GPU model a free trial may request, with the units free right now; vendor and model are lowercase as in SDL GPU attributes. */
+export interface TrialGpuAvailability {
+  vendor: string;
+  model: string;
+  freeUnits: number;
+}

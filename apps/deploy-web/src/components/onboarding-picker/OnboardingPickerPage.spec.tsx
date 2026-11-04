@@ -5,6 +5,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { EnsureTrialStartedResult } from "@src/hooks/useEnsureTrialStarted";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
+import { gemmaTrialTemplate } from "@src/utils/templates";
 import { UrlService } from "@src/utils/urlUtils";
 import { DEPENDENCIES, OnboardingPickerPage } from "./OnboardingPickerPage";
 
@@ -486,6 +487,16 @@ describe(OnboardingPickerPage.name, () => {
 
       expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: SPACE_AGENT_ID, sdlStrategy: "default", bidStrategy: "auto" }));
       expect(analyticsService.track).toHaveBeenCalledWith("onboarding_deploy_click", { category: "onboarding", option: SPACE_AGENT_ID });
+    });
+
+    it("redirects a model card deploy to the auto-deploy intent of its gpu-pinned template", () => {
+      const push = vi.fn();
+      const IntentFirstPicker = vi.fn(ComponentMock);
+      setup({ isIntentFirst: true, push, dependencies: { IntentFirstPicker } });
+
+      act(() => getIntentFirstPickerProps(IntentFirstPicker).onDeployTemplate(gemmaTrialTemplate.code));
+
+      expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: "gemma-3-4b-v100", sdlStrategy: "default", bidStrategy: "auto" }));
     });
 
     it("opens the out-of-credit sheet when a template is deployed without credit", () => {

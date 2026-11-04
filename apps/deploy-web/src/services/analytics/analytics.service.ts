@@ -112,6 +112,7 @@ export type AnalyticsEvent =
   | "onboarding_match_failed"
   | "onboarding_skipped"
   | "onboarding_left"
+  | "akashml_link_click"
   | "fair_use_policy_accepted"
   | "add_credits_opened"
   | "add_credits_payment_form_ready"
