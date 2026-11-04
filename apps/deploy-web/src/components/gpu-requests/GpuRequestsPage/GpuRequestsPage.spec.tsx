@@ -2,6 +2,7 @@ import type { PropsWithChildren, ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { OrganizationOutput, OrganizationRole } from "@src/types/organization";
 import type { HardwareRequest } from "../gpuRequestStatus/gpuRequestStatus";
 import { DEPENDENCIES, GpuRequestsPage } from "./GpuRequestsPage";
 
@@ -47,6 +48,40 @@ describe(GpuRequestsPage.name, () => {
     expect(GpuQuoteRequestFlow).toHaveBeenCalled();
   });
 
+  it("lets the viewer withdraw only the requests they may", async () => {
+    const own = buildHardwareRequest({ userId: "me", createdAt: "2026-11-02T00:00:00.000Z" });
+    const teammates = buildHardwareRequest({ userId: "teammate", createdAt: "2026-11-01T00:00:00.000Z" });
+    const { GpuRequestCard, WithdrawGpuRequestDialog } = setup({ requests: [own, teammates], role: "member" });
+
+    const [ownCard, teammatesCard] = GpuRequestCard.mock.calls.map(([props]) => props);
+    expect(teammatesCard.onWithdraw).toBeUndefined();
+    act(() => ownCard.onWithdraw!());
+
+    expect(WithdrawGpuRequestDialog).toHaveBeenLastCalledWith(expect.objectContaining({ request: own }), expect.anything());
+    act(() => WithdrawGpuRequestDialog.mock.lastCall![0].onClose());
+    expect(screen.queryByText("Withdraw dialog")).not.toBeInTheDocument();
+  });
+
+  it("lets an admin withdraw a teammate's request", () => {
+    const { GpuRequestCard } = setup({ requests: [buildHardwareRequest({ userId: "teammate" })], role: "admin" });
+
+    expect(GpuRequestCard.mock.lastCall![0].onWithdraw).toBeInstanceOf(Function);
+  });
+
+  it("offers no withdrawal before the user and organization load", () => {
+    const { GpuRequestCard } = setup({ requests: [buildHardwareRequest({ userId: null })], isSignedOut: true });
+
+    expect(GpuRequestCard.mock.lastCall![0].onWithdraw).toBeUndefined();
+  });
+
+  it("focuses the request a link pointed at", () => {
+    const linked = buildHardwareRequest({ id: "linked", createdAt: "2026-11-02T00:00:00.000Z" });
+    const other = buildHardwareRequest({ createdAt: "2026-11-01T00:00:00.000Z" });
+    const { GpuRequestCard } = setup({ requests: [linked, other], requestId: "linked" });
+
+    expect(GpuRequestCard.mock.calls.map(([props]) => props.isFocused)).toEqual([true, false]);
+  });
+
   it("shows that the requests are loading", () => {
     setup({ isLoading: true });
 
@@ -62,8 +97,16 @@ describe(GpuRequestsPage.name, () => {
     expect(screen.queryByText("Loading your requests…")).not.toBeInTheDocument();
   });
 
-  function setup(input: { requests?: HardwareRequest[]; isLoading?: boolean; isError?: boolean }) {
+  function setup(input: {
+    requests?: HardwareRequest[];
+    isLoading?: boolean;
+    isError?: boolean;
+    role?: OrganizationRole;
+    requestId?: string;
+    isSignedOut?: boolean;
+  }) {
     const GpuRequestCard = vi.fn<typeof DEPENDENCIES.GpuRequestCard>(() => null);
+    const WithdrawGpuRequestDialog = vi.fn<typeof DEPENDENCIES.WithdrawGpuRequestDialog>(() => <div>Withdraw dialog</div>);
     const GpuQuoteRequestFlow = vi.fn<typeof DEPENDENCIES.GpuQuoteRequestFlow>(() => <div>GPU quote request</div>);
     const SettingsLayout = vi.fn(({ headerActions, children }: PropsWithChildren<{ headerActions?: ReactNode }>) => (
       <div>
@@ -76,6 +119,12 @@ describe(GpuRequestsPage.name, () => {
       SettingsLayout: SettingsLayout as never,
       GpuRequestCard,
       GpuQuoteRequestFlow,
+      WithdrawGpuRequestDialog,
+      useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedOut ? undefined : { id: "me" } }),
+      useActiveOrganization: () =>
+        mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
+          activeOrganization: input.isSignedOut ? undefined : mock<OrganizationOutput>({ role: input.role ?? "member" })
+        }),
       useHardwareRequestsQuery: () =>
         Object.assign(mock<ReturnType<typeof DEPENDENCIES.useHardwareRequestsQuery>>(), {
           data: input.requests,
@@ -84,8 +133,8 @@ describe(GpuRequestsPage.name, () => {
         })
     });
 
-    render(<GpuRequestsPage dependencies={dependencies} />);
+    render(<GpuRequestsPage requestId={input.requestId} dependencies={dependencies} />);
 
-    return { GpuRequestCard, GpuQuoteRequestFlow, SettingsLayout };
+    return { GpuRequestCard, GpuQuoteRequestFlow, SettingsLayout, WithdrawGpuRequestDialog };
   }
 });
