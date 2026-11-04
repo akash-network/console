@@ -11,6 +11,8 @@ import userEvent from "@testing-library/user-event";
 
 const PROVIDER = { owner: "akash1provider", hostUri: "https://provider.example.com:8443" };
 
+const OTHER_PROVIDER = { owner: "akash1other", hostUri: "https://other.example.com:8443" };
+
 describe(useProviderApiActions.name, () => {
   it("stops a log download from the Cancel button of its toast and shows no failure", async () => {
     const { result, providerProxy, enqueueSnackbar, closeSnackbar } = setup();
@@ -56,6 +58,41 @@ describe(useProviderApiActions.name, () => {
     );
   });
 
+  it.each([
+    { name: "logs", isLogs: true, scope: ["logs", "events"] },
+    { name: "events", isLogs: false, scope: ["logs", "events"] }
+  ])("asks for a token of each lease's own provider when downloading its $name", async ({ isLogs, scope }) => {
+    const { result, providerProxy, providerCredentials } = setup();
+    providerProxy.downloadLogs.mockImplementation(async ({ ensureToken }) => {
+      await ensureToken();
+      return { ok: true };
+    });
+
+    await result.current.downloadLogs(PROVIDER, "1234", 1, 1, isLogs);
+    await result.current.downloadLogs(OTHER_PROVIDER, "5678", 1, 1, isLogs);
+
+    expect(providerCredentials.ensureToken.mock.calls).toEqual([
+      [{ access: { provider: PROVIDER.owner, dseqs: ["1234"], scope } }],
+      [{ access: { provider: OTHER_PROVIDER.owner, dseqs: ["5678"], scope } }]
+    ]);
+  });
+
+  it("asks for a shell token of each lease's own provider when downloading a file", async () => {
+    const { result, providerProxy, providerCredentials } = setup();
+    providerProxy.downloadFileFromShell.mockImplementation(async ({ ensureToken }) => {
+      await ensureToken();
+      return { ok: true };
+    });
+
+    await result.current.downloadFileFromShell(PROVIDER, "1234", 1, 1, "web", "/app/data.txt");
+    await result.current.downloadFileFromShell(OTHER_PROVIDER, "5678", 1, 1, "api", "/app/data.txt");
+
+    expect(providerCredentials.ensureToken.mock.calls).toEqual([
+      [{ access: { provider: PROVIDER.owner, dseqs: ["1234"], scope: ["shell"] } }],
+      [{ access: { provider: OTHER_PROVIDER.owner, dseqs: ["5678"], scope: ["shell"] } }]
+    ]);
+  });
+
   function setup() {
     const enqueueSnackbar = vi.fn().mockReturnValue("download-toast");
     const closeSnackbar = vi.fn();
@@ -71,6 +108,6 @@ describe(useProviderApiActions.name, () => {
 
     const { result } = renderHook(() => useProviderApiActions(dependencies));
 
-    return { result, providerProxy, logger, enqueueSnackbar, closeSnackbar };
+    return { result, providerProxy, providerCredentials, logger, enqueueSnackbar, closeSnackbar };
   }
 });

@@ -10,7 +10,6 @@ import type { CloseDeploymentRequest } from "./closeDeploymentStore";
 import { closeDeploymentRequestAtom } from "./closeDeploymentStore";
 import { deployTargetProjectIdAtom } from "./deployTargetStore";
 import { resetOrganizationScopedState } from "./organizationScopedState";
-import providerCredentialsStore from "./providerCredentialsStore";
 import sdlStore from "./sdlStore";
 import { settingsIdAtom } from "./settingsStore";
 import walletStore from "./walletStore";
@@ -44,15 +43,6 @@ describe(resetOrganizationScopedState.name, () => {
     expect(store.get(deployTargetProjectIdAtom)).toBeNull();
   });
 
-  it("forgets the provider token issued for the wallet of the previous organization", () => {
-    const { store } = setup();
-
-    resetOrganizationScopedState(store);
-
-    expect(store.get(providerCredentialsStore.issuedToken)).toBeNull();
-    expect(store.get(providerCredentialsStore.inFlightTokenRequest)).toBeNull();
-  });
-
   it("keeps the user's interface preferences", () => {
     const { store } = setup();
     store.set(sdlStore.sdlPreviewOpen, true);
@@ -70,8 +60,6 @@ describe(resetOrganizationScopedState.name, () => {
     store.set(addCreditsRequestAtom, mock<AddCreditsRequest>({ context: "test" }));
     store.set(closeDeploymentRequestAtom, mock<CloseDeploymentRequest>());
     store.set(deployTargetProjectIdAtom, "project-of-the-previous-organization");
-    store.set(providerCredentialsStore.issuedToken, { userId: "user-1", address: "akash1previous", token: "previous-token" });
-    store.set(providerCredentialsStore.inFlightTokenRequest, { address: "akash1previous", promise: Promise.resolve("previous-token") });
 
     return { store };
   }

@@ -190,7 +190,7 @@ describe(DeploymentLeaseShell.name, () => {
     });
     const notificator = mock<ReturnType<typeof DEPENDENCIES.useNotificator>>();
     const providerCredentials = mock<ReturnType<typeof DEPENDENCIES.useProviderCredentials>>({
-      details: { type: "jwt", value: "token", isExpired: false, usable: true, error: null },
+      details: { usable: true, error: null },
       tokenMode: input?.tokenMode ?? "shared"
     });
     const providers = mock<ReturnType<typeof DEPENDENCIES.useProvidersByAddresses>>({

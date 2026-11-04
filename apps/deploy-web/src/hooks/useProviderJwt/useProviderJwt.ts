@@ -1,12 +1,9 @@
 import { useCallback, useMemo } from "react";
 import type { JwtTokenAccessScope } from "@akashnetwork/chain-sdk/web";
-import { JwtTokenManager } from "@akashnetwork/chain-sdk/web";
-import { useAtom } from "jotai";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useUser } from "@src/hooks/useUser";
-import providerCredentialsStore from "@src/store/providerCredentialsStore";
 
 export const REFRESH_SKEW_SECONDS = 60;
 
@@ -23,43 +20,9 @@ export const DEPENDENCIES = {
 
 export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencies?: typeof DEPENDENCIES } = {}): UseProviderJwtResult {
   const { consoleApiHttpClient } = d.useServices();
-  const { hasWallet, address } = d.useWallet();
+  const { hasWallet } = d.useWallet();
   const { user } = d.useUser();
   const userId = user?.id;
-  const [issuedToken, setIssuedToken] = useAtom(providerCredentialsStore.issuedToken);
-  const accessToken = issuedToken && issuedToken.userId === userId && issuedToken.address === address ? issuedToken.token : null;
-
-  const jwtTokenManager = useMemo(
-    () =>
-      new JwtTokenManager({
-        signArbitrary: () => {
-          throw new Error("Cannot sign jwt token: managed wallet uses server-side signing");
-        }
-      }),
-    []
-  );
-  const parsedToken = useMemo(() => {
-    if (!accessToken) return null;
-    return jwtTokenManager.decodeToken(accessToken);
-  }, [accessToken, jwtTokenManager]);
-
-  const generateToken = useCallback(async (): Promise<string> => {
-    assertCanIssueToken(hasWallet, userId);
-
-    const response = await consoleApiHttpClient.post<{ data: { token: string } }>("/v1/create-jwt-token", {
-      data: {
-        ttl: TOKEN_TTL_SECONDS,
-        leases: {
-          access: "scoped",
-          scope: ["status", "shell", "events", "logs", "send-manifest", "get-manifest"]
-        }
-      }
-    });
-    const token = response.data.data.token;
-
-    setIssuedToken({ userId, address, token });
-    return token;
-  }, [hasWallet, userId, address, consoleApiHttpClient, setIssuedToken]);
 
   const generateScopedProviderToken = useCallback(
     async ({ provider, scope }: { provider: string; scope: readonly string[] }): Promise<string> => {
@@ -99,18 +62,7 @@ export function useProviderJwt({ dependencies: d = DEPENDENCIES }: { dependencie
     [hasWallet, userId, consoleApiHttpClient]
   );
 
-  return useMemo(
-    () => ({
-      get isTokenExpired() {
-        return !!parsedToken && parsedToken.exp - REFRESH_SKEW_SECONDS <= Math.floor(Date.now() / 1000);
-      },
-      accessToken,
-      generateToken,
-      generateScopedProviderToken,
-      generateDeploymentToken
-    }),
-    [accessToken, generateToken, generateScopedProviderToken, generateDeploymentToken]
-  );
+  return useMemo(() => ({ generateScopedProviderToken, generateDeploymentToken }), [generateScopedProviderToken, generateDeploymentToken]);
 }
 
 function assertCanIssueToken(hasWallet: boolean, userId: string | undefined): asserts userId is string {
@@ -129,10 +81,7 @@ export type DeploymentTokenRequest = {
 };
 
 export interface UseProviderJwtResult {
-  isTokenExpired: boolean;
-  accessToken: string | null;
-  generateToken: () => Promise<string>;
-  /** A single-provider token for one call, such as an attestation quote, which never replaces the shared token. */
+  /** A token for every lease of the owner at the one provider named, limited to the actions named. */
   generateScopedProviderToken: (params: { provider: string; scope: readonly string[] }) => Promise<string>;
   generateDeploymentToken: (params: DeploymentTokenRequest) => Promise<string>;
 }
