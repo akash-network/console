@@ -1593,7 +1593,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "name": "type",
             "required": false,
             "schema": {
-              "description": "What the action was, or which kind of alert fired: \`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`.",
+              "description": "What the action was, which kind of alert fired (\`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`), or \`gpu_request_update\` when the team moved one of the user's GPU requests along.",
               "enum": [
                 "deployment_close",
                 "deployment_create",
@@ -1603,6 +1603,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                 "deployment_closed_alert",
                 "deployment_reclaim_alert",
                 "deployment_rename",
+                "gpu_request_update",
               ],
               "type": "string",
             },
@@ -1750,6 +1751,15 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                     ],
                                     "type": "object",
                                   },
+                                  "hardwareRequestId": {
+                                    "description": "The GPU request a \`gpu_request_update\` is about.",
+                                    "format": "uuid",
+                                    "type": "string",
+                                  },
+                                  "hardwareRequestStatus": {
+                                    "description": "The status the GPU request moved to, on a \`gpu_request_update\`.",
+                                    "type": "string",
+                                  },
                                   "manifestVersion": {
                                     "description": "The base64 manifest version an update saved.",
                                     "type": "string",
@@ -1804,7 +1814,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                 "type": "string",
                               },
                               "type": {
-                                "description": "What the action was, or which kind of alert fired: \`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`.",
+                                "description": "What the action was, which kind of alert fired (\`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`), or \`gpu_request_update\` when the team moved one of the user's GPU requests along.",
                                 "enum": [
                                   "deployment_close",
                                   "deployment_create",
@@ -1814,6 +1824,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                                   "deployment_closed_alert",
                                   "deployment_reclaim_alert",
                                   "deployment_rename",
+                                  "gpu_request_update",
                                 ],
                                 "type": "string",
                               },
@@ -2164,6 +2175,15 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                               ],
                               "type": "object",
                             },
+                            "hardwareRequestId": {
+                              "description": "The GPU request a \`gpu_request_update\` is about.",
+                              "format": "uuid",
+                              "type": "string",
+                            },
+                            "hardwareRequestStatus": {
+                              "description": "The status the GPU request moved to, on a \`gpu_request_update\`.",
+                              "type": "string",
+                            },
                             "manifestVersion": {
                               "description": "The base64 manifest version an update saved.",
                               "type": "string",
@@ -2218,7 +2238,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "string",
                         },
                         "type": {
-                          "description": "What the action was, or which kind of alert fired: \`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`.",
+                          "description": "What the action was, which kind of alert fired (\`wallet_balance_alert\`, \`deployment_closed_alert\` or \`deployment_reclaim_alert\`), or \`gpu_request_update\` when the team moved one of the user's GPU requests along.",
                           "enum": [
                             "deployment_close",
                             "deployment_create",
@@ -2228,6 +2248,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                             "deployment_closed_alert",
                             "deployment_reclaim_alert",
                             "deployment_rename",
+                            "gpu_request_update",
                           ],
                           "type": "string",
                         },

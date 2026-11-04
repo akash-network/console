@@ -75,6 +75,7 @@ export const UrlService = {
   onboardingPicker: ({ redeemCoupon, intent }: { redeemCoupon?: boolean; intent?: string } = {}) =>
     `/onboarding${appendSearchParams({ redeemCoupon, intent })}`,
   deploymentList: () => `/deployments`,
+  gpuRequest: (id: string) => `/gpu-requests/${id}`,
   activity: () => "/activity",
   deploymentDetails: (dseq: string, tab?: string, logsMode?: string) => `/deployments/${dseq}${appendSearchParams({ tab, logsMode })}`,
   templates: (category?: string | null, search?: string) => `/templates${appendSearchParams({ category, search })}`,

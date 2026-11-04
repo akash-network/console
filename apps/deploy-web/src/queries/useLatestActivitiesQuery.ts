@@ -16,7 +16,8 @@ const KNOWN_ACTIVITY_TYPES: Record<Activity["type"], true> = {
   lease_create: true,
   wallet_balance_alert: true,
   deployment_closed_alert: true,
-  deployment_reclaim_alert: true
+  deployment_reclaim_alert: true,
+  gpu_request_update: true
 };
 
 export const PENDING_ACTIVITY_POLL_MS = 5_000;

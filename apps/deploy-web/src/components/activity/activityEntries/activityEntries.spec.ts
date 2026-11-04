@@ -121,6 +121,25 @@ describe(activityEntriesOf.name, () => {
     expect(entry).not.toHaveProperty("changeSummary");
   });
 
+  it("describes a GPU request update by its summary, linking to the request", () => {
+    const [entry] = entriesOf([
+      buildActivity({
+        type: "gpu_request_update",
+        status: "info",
+        initiator: "system",
+        meta: { hardwareRequestId: "request-1", hardwareRequestStatus: "sourcing", summary: "GPU request: 1× A100 is being sourced" }
+      })
+    ]);
+
+    expect(entry).toMatchObject({ title: "GPU request: 1× A100 is being sourced", href: "/gpu-requests/request-1", systemIcon: "activity" });
+  });
+
+  it("describes a GPU request update without a summary", () => {
+    const [entry] = entriesOf([buildActivity({ type: "gpu_request_update", status: "info", initiator: "system", meta: {} })]);
+
+    expect(entry.title).toBe("One of your GPU requests moved along");
+  });
+
   it("describes a rename that recorded no names by its deployment", () => {
     const [entry] = entriesOf([buildActivity({ type: "deployment_rename", status: "succeeded", meta: { dseq: "1234" } })]);
 

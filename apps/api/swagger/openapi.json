@@ -26238,9 +26238,10 @@
                 "wallet_balance_alert",
                 "deployment_closed_alert",
                 "deployment_reclaim_alert",
-                "deployment_rename"
+                "deployment_rename",
+                "gpu_request_update"
               ],
-              "description": "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
+              "description": "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along."
             },
             "required": false,
             "name": "type",
@@ -26283,9 +26284,10 @@
                                   "wallet_balance_alert",
                                   "deployment_closed_alert",
                                   "deployment_reclaim_alert",
-                                  "deployment_rename"
+                                  "deployment_rename",
+                                  "gpu_request_update"
                                 ],
-                                "description": "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
+                                "description": "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along."
                               },
                               "status": {
                                 "type": "string",
@@ -26447,6 +26449,15 @@
                                       }
                                     },
                                     "description": "What an update or a rename changed, on `deployment_update` and `deployment_rename`. Names variables and never their values. Absent on an update that only replaced secret values."
+                                  },
+                                  "hardwareRequestId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "description": "The GPU request a `gpu_request_update` is about."
+                                  },
+                                  "hardwareRequestStatus": {
+                                    "type": "string",
+                                    "description": "The status the GPU request moved to, on a `gpu_request_update`."
                                   }
                                 }
                               },
@@ -26586,9 +26597,10 @@
                             "wallet_balance_alert",
                             "deployment_closed_alert",
                             "deployment_reclaim_alert",
-                            "deployment_rename"
+                            "deployment_rename",
+                            "gpu_request_update"
                           ],
-                          "description": "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
+                          "description": "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along."
                         },
                         "status": {
                           "type": "string",
@@ -26750,6 +26762,15 @@
                                 }
                               },
                               "description": "What an update or a rename changed, on `deployment_update` and `deployment_rename`. Names variables and never their values. Absent on an update that only replaced secret values."
+                            },
+                            "hardwareRequestId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "description": "The GPU request a `gpu_request_update` is about."
+                            },
+                            "hardwareRequestStatus": {
+                              "type": "string",
+                              "description": "The status the GPU request moved to, on a `gpu_request_update`."
                             }
                           }
                         },

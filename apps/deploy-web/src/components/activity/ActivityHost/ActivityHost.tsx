@@ -90,6 +90,7 @@ const ANNOUNCEMENTS: Record<
       : { title: `Couldn't update ${deployment}`, subTitle: meta.error?.message ?? "Try updating it again.", variant: "error" };
   },
   deployment_rename: () => undefined,
+  gpu_request_update: () => undefined,
   lease_create: ({ status, meta }, labelDeployment) => {
     if (status === "succeeded" || meta.error?.code === CLOSED_WHILE_MATCHING) return undefined;
 

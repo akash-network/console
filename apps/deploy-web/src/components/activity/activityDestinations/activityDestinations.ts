@@ -50,6 +50,8 @@ const DESTINATIONS: Record<Activity["type"], (activity: Activity) => ActivityDes
 
     return { href: UrlService.deploymentDetails(dseq), label: "View deployment" };
   },
+  gpu_request_update: ({ meta: { hardwareRequestId } }) =>
+    hardwareRequestId ? { href: UrlService.gpuRequest(hardwareRequestId), label: "View request" } : DEPLOYMENT_LIST,
   deployment_rename: ({ meta: { dseq } }) => (dseq ? { href: UrlService.deploymentDetails(dseq), label: "View deployment" } : DEPLOYMENT_LIST),
   lease_create: ({ status, meta: { dseq, error } }) => {
     if (!dseq) return DEPLOYMENT_LIST;

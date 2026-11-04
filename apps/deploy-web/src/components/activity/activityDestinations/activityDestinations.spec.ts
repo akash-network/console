@@ -141,6 +141,18 @@ describe("activityDestinations", () => {
       expect(activityDestinationOf(activity)).toEqual({ href: "/deployments/1234", label: "View deployment" });
     });
 
+    it("leads a GPU request update to its request", () => {
+      const activity = buildActivity({ type: "gpu_request_update", status: "info", meta: { hardwareRequestId: "request-1" } });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/gpu-requests/request-1", label: "View request" });
+    });
+
+    it("leads a GPU request update about no particular request to the deployments list", () => {
+      const activity = buildActivity({ type: "gpu_request_update", status: "info", meta: {} });
+
+      expect(activityDestinationOf(activity)).toEqual({ href: "/deployments", label: "View deployments" });
+    });
+
     it("leads a rename about no particular deployment to the deployments list", () => {
       const activity = buildActivity({ type: "deployment_rename", status: "succeeded", meta: {} });
 

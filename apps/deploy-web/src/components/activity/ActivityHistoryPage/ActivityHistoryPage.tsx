@@ -41,7 +41,8 @@ const ACTION_LABELS = {
   lease_create: "Deploys",
   wallet_balance_alert: "Wallet balance alerts",
   deployment_closed_alert: "Deployment closed alerts",
-  deployment_reclaim_alert: "Reclaim alerts"
+  deployment_reclaim_alert: "Reclaim alerts",
+  gpu_request_update: "GPU request updates"
 } satisfies Record<Activity["type"], string>;
 
 const FILTER_TRIGGER_CLASS_NAME = "h-9 min-w-0 flex-1 gap-2 text-[13px] font-medium sm:w-auto sm:min-w-[9.5rem] sm:flex-none";
