@@ -136,17 +136,7 @@ function isTrialingInPersonalAccount(activeOrganization: OrganizationOutput, isA
 }
 
 function PersonalAccountBadge({ isTrialing, className }: { isTrialing: boolean; className?: string }) {
-  return (
-    <span
-      className={cn(
-        BADGE_CLASSES,
-        isTrialing ? TRIAL_BADGE_CLASSES : PERSONAL_BADGE_CLASSES,
-        className
-      )}
-    >
-      {isTrialing ? "Trial" : "Personal"}
-    </span>
-  );
+  return <span className={cn(BADGE_CLASSES, isTrialing ? TRIAL_BADGE_CLASSES : PERSONAL_BADGE_CLASSES, className)}>{isTrialing ? "Trial" : "Personal"}</span>;
 }
 
 function NoTeamsPrompt() {

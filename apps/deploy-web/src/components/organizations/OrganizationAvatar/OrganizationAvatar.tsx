@@ -31,11 +31,7 @@ export function OrganizationAvatar({ organization, size = 22, className }: Props
   if (organization.type === "personal") {
     const iconSize = Math.round(size * 0.6);
     return (
-      <span
-        aria-hidden="true"
-        className={cn(PERSONAL_AVATAR_CLASSES, className)}
-        style={{ width: size, height: size, borderRadius }}
-      >
+      <span aria-hidden="true" className={cn(PERSONAL_AVATAR_CLASSES, className)} style={{ width: size, height: size, borderRadius }}>
         <User style={{ width: iconSize, height: iconSize }} />
       </span>
     );
