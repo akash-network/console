@@ -29,6 +29,12 @@ export function describeTracker(status: HardwareRequestStatus): TrackerStage[] |
   }));
 }
 
+const STATUSES_WITH_OFFERS: HardwareRequestStatus[] = ["offers", "accepted", "fulfilled"];
+
+export function hasOffers(status: HardwareRequestStatus): boolean {
+  return STATUSES_WITH_OFFERS.includes(status);
+}
+
 export function describeEndState(status: HardwareRequestStatus): string | null {
   return END_STATE_LABELS[status] ?? null;
 }
@@ -84,7 +90,7 @@ function describeSpecGpus({ gpu }: RequestSpec): string {
   return `${gpu.count}× ${gpu.model} · ${servers} ${servers === 1 ? "server" : "servers"}`;
 }
 
-function describeSpecRegion({ region }: RequestSpec): string {
+export function describeSpecRegion({ region }: RequestSpec): string {
   const areaNames = REGION_AREAS.filter(area => region.areas.includes(area.value))
     .map(area => area.label)
     .join(", ");
@@ -99,7 +105,7 @@ function describeSpecRegion({ region }: RequestSpec): string {
   }
 }
 
-function describeSpecPrice({ targetPrice }: RequestSpec): string {
+export function describeSpecPrice({ targetPrice }: RequestSpec): string {
   const min = targetPrice?.minUsdPerGpuHour;
   const max = targetPrice?.maxUsdPerGpuHour;
 
