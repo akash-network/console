@@ -26,6 +26,12 @@ describe(TrialGpuBlockHint.name, () => {
     expect(BlockedGpuAlternatives).toHaveBeenCalledWith({ templateId: undefined, placement: "configure" }, expect.anything());
   });
 
+  it("offers the alternatives without a template before the router has its search params", () => {
+    const { BlockedGpuAlternatives } = setup({ gpuModel: "h100", isRouterReady: false });
+
+    expect(BlockedGpuAlternatives).toHaveBeenCalledWith({ templateId: undefined, placement: "configure" }, expect.anything());
+  });
+
   it("stays out of the way of a gpu the trial can use", () => {
     const { BlockedGpuAlternatives } = setup({ gpuModel: "v100", templateId: "gemma-3-4b-v100" });
 
@@ -45,7 +51,7 @@ describe(TrialGpuBlockHint.name, () => {
     expect(useFlag).toHaveBeenCalledWith("onboarding_intent_first");
   });
 
-  function setup(input: { gpuModel: string; hasGpu?: boolean; templateId?: string; isIntentFirst?: boolean }) {
+  function setup(input: { gpuModel: string; hasGpu?: boolean; templateId?: string; isIntentFirst?: boolean; isRouterReady?: boolean }) {
     const base = defaultServiceWithPlacement();
     const service = base.services[0];
     const values: SdlBuilderFormValuesType = {
@@ -62,7 +68,7 @@ describe(TrialGpuBlockHint.name, () => {
         })
       });
     const useSearchParams: typeof DEPENDENCIES.useSearchParams = () =>
-      new URLSearchParams(input.templateId ? { templateId: input.templateId } : {}) as ReadonlyURLSearchParams;
+      (input.isRouterReady === false ? null : new URLSearchParams(input.templateId ? { templateId: input.templateId } : {})) as ReadonlyURLSearchParams;
     const dependencies = MockComponents(DEPENDENCIES, { BlockedGpuAlternatives, useFlag, useServices, useSearchParams });
     const Wrapper = ({ children }: PropsWithChildren) => {
       const form = useForm<SdlBuilderFormValuesType>({ defaultValues: values });
