@@ -31,6 +31,7 @@ import { RecordLeaseGpuOffersHandler } from "@src/deployment/services/record-lea
 import { RecordUserGpuBidsHandler } from "@src/deployment/services/record-user-gpu-bids/record-user-gpu-bids.handler";
 import { ScreenUserGpuDeploymentHandler } from "@src/deployment/services/screen-user-gpu-deployment/screen-user-gpu-deployment.handler";
 import { HardwareRequestAcceptedNoticeHandler } from "@src/hardware-request/services/hardware-request-accepted-notice/hardware-request-accepted-notice.handler";
+import { HardwareRequestApprovalRequestHandler } from "@src/hardware-request/services/hardware-request-approval-request/hardware-request-approval-request.handler";
 import { HardwareRequestEmailHandler } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertHandler } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { HardwareRequestStatusNotificationHandler } from "@src/hardware-request/services/hardware-request-status-notification/hardware-request-status-notification.handler";
@@ -113,6 +114,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(HardwareRequestStatusNotificationHandler),
     container.resolve(HardwareRequestWithdrawnNoticeHandler),
     container.resolve(HardwareRequestAcceptedNoticeHandler),
+    container.resolve(HardwareRequestApprovalRequestHandler),
     container.resolve(PurgeDeletedAccountHandler),
     container.resolve(ExpireConfigureDraftHandler),
     container.resolve(OrganizationInvitationEmailHandler),
