@@ -31,8 +31,8 @@ export class HardwareRequestController {
 
   @Protected([{ action: "create", subject: "HardwareRequest" }])
   async create(input: CreateHardwareRequestRequest["data"]): Promise<CreateHardwareRequestResponse> {
-    const { id, createdAt, lane } = await this.hardwareRequestService.create(input);
-    return { data: { id, createdAt, lane } };
+    const { id, createdAt, lane, firstReplyDueAt } = await this.hardwareRequestService.create(input);
+    return { data: { id, createdAt, lane, firstReplyDueAt } };
   }
 
   @Protected([{ action: "read", subject: "HardwareRequest" }])

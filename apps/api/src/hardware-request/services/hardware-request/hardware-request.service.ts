@@ -6,6 +6,11 @@ import { ExecutionContextService } from "@src/core/services/execution-context/ex
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/hardware-request.schema";
+import {
+  RESPONSE_TARGETS,
+  type ResponseSchedule,
+  responseScheduleOf
+} from "@src/hardware-request/lib/hardware-request-response-schedule/hardware-request-response-schedule";
 import { describeSpecRegion } from "@src/hardware-request/lib/hardware-request-spec-summary/hardware-request-spec-summary";
 import { isVisibleToTenant, type TenantVisibleOffer } from "@src/hardware-request/lib/hardware-request-tenant-offer/hardware-request-tenant-offer";
 import type { HardwareRequestStatus } from "@src/hardware-request/model-schemas";
@@ -15,6 +20,8 @@ import { HardwareRequestEventRepository } from "@src/hardware-request/repositori
 import { HardwareRequestOfferRepository } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { GpuRequestRoutingService, type RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
+import { HardwareRequestResponseTargetJob } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target.handler";
+import type { ResponseTargetStage } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target-notice";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { HardwareRequestWithdrawnNoticeJob } from "@src/hardware-request/services/hardware-request-withdrawn-notice/hardware-request-withdrawn-notice.handler";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
@@ -118,11 +125,34 @@ export class HardwareRequestService {
   async #file(repository: HardwareRequestRepositoryCursor, input: HardwareRequestInput, requester: Requester): Promise<HardwareRequestOutput & RoutedLane> {
     const { email, ...fields } = input;
     const routing = await this.gpuRequestRoutingService.route(laneRoutedRequestOf(input), requester);
-    const hardwareRequest = await repository.create({ ...fields, ...summaryColumnsOf(input), ...routing, contactEmail: email, ...requester });
+    const filedAt = new Date();
+    const schedule = responseScheduleOf(filedAt, routing.lane, this.gpuRequestRoutingService.getPolicy());
+    const hardwareRequest = await repository.create({
+      ...fields,
+      ...summaryColumnsOf(input),
+      ...routing,
+      contactEmail: email,
+      ...requester,
+      createdAt: filedAt,
+      updatedAt: filedAt,
+      firstReplyDueAt: schedule.first_reply.dueAt,
+      firstOfferDueAt: schedule.first_offer.dueAt
+    });
     await this.jobQueueService.enqueue(new HardwareRequestEmailJob({ hardwareRequestId: hardwareRequest.id }));
     await this.jobQueueService.enqueue(new HardwareRequestSlackAlertJob({ hardwareRequestId: hardwareRequest.id }));
+    await this.#scheduleResponseTargets(hardwareRequest.id, schedule);
 
     return { ...hardwareRequest, ...routing };
+  }
+
+  async #scheduleResponseTargets(hardwareRequestId: string, schedule: ResponseSchedule): Promise<void> {
+    for (const target of RESPONSE_TARGETS) {
+      const { remindAt, dueAt } = schedule[target];
+      const job = (stage: ResponseTargetStage) => new HardwareRequestResponseTargetJob({ hardwareRequestId, target, stage, dueAt: dueAt.toISOString() });
+
+      await this.jobQueueService.enqueue(job("reminder"), { startAfter: remindAt.toISOString() });
+      await this.jobQueueService.enqueue(job("escalation"), { startAfter: dueAt.toISOString() });
+    }
   }
 
   async #unclaimedRequester(email: string): Promise<Requester> {

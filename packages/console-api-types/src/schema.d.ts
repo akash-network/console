@@ -13797,6 +13797,11 @@ export interface operations {
               createdAt: string;
               /** @enum {string} */
               lane: "sales" | "automated";
+              /**
+               * Format: date-time
+               * @description When the team promises its first reply, counted in business hours for the request's lane
+               */
+              firstReplyDueAt: string | null;
             };
           };
         };

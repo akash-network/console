@@ -25700,12 +25700,19 @@
                             "sales",
                             "automated"
                           ]
+                        },
+                        "firstReplyDueAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time",
+                          "description": "When the team promises its first reply, counted in business hours for the request's lane"
                         }
                       },
                       "required": [
                         "id",
                         "createdAt",
-                        "lane"
+                        "lane",
+                        "firstReplyDueAt"
                       ]
                     }
                   },

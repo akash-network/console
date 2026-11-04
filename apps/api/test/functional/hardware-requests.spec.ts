@@ -12,6 +12,7 @@ import { HardwareRequestOfferRepository } from "@src/hardware-request/repositori
 import { HardwareRequestAcceptedNoticeJob } from "@src/hardware-request/services/hardware-request-accepted-notice/hardware-request-accepted-notice.handler";
 import { HardwareRequestApprovalRequestJob } from "@src/hardware-request/services/hardware-request-approval-request/hardware-request-approval-request.handler";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
+import { HardwareRequestResponseTargetJob } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { HardwareRequestWithdrawnNoticeJob } from "@src/hardware-request/services/hardware-request-withdrawn-notice/hardware-request-withdrawn-notice.handler";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
@@ -90,11 +91,14 @@ describe("Hardware requests", () => {
         estimatedMonthlyUsd: 8 * 5 * 730,
         owner: null,
         firstRepliedAt: null,
+        firstReplyDueAt: expect.any(String),
+        firstOfferDueAt: expect.any(String),
         createdAt: data.createdAt,
         updatedAt: data.createdAt
       });
       expect(await findJobRows(HardwareRequestEmailJob[JOB_NAME], { data: { hardwareRequestId: data.id } })).toHaveLength(1);
       expect(await findJobRows(HardwareRequestSlackAlertJob[JOB_NAME], { data: { hardwareRequestId: data.id } })).toHaveLength(1);
+      expect(await findJobRows(HardwareRequestResponseTargetJob[JOB_NAME], { data: { hardwareRequestId: data.id } })).toHaveLength(4);
     });
 
     it("records a region request without any GPU fields", async () => {
@@ -189,11 +193,13 @@ describe("Hardware requests", () => {
         headers: { "Content-Type": "application/json", ...headersOf(team.owner) },
         body: JSON.stringify({ data: { category: "quote", spec, email: "jane@example.com" } })
       });
-      const { data } = (await response.json()) as { data: { id: string; lane: string } };
+      const { data } = (await response.json()) as { data: { id: string; lane: string; firstReplyDueAt: string } };
 
       expect(response.status).toBe(201);
       expect(data.lane).toBe("sales");
+      expect(new Date(data.firstReplyDueAt).getTime()).toBeGreaterThan(Date.now());
       expect(await hardwareRequestRepository.findById(data.id)).toMatchObject({
+        firstReplyDueAt: data.firstReplyDueAt,
         lane: "sales",
         laneReason: "monthly_value",
         estimatedMonthlyUsd: 16 * 3 * 730,

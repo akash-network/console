@@ -109,6 +109,8 @@ export const HardwareRequests = pgTable(
     estimatedMonthlyUsd: integer("estimated_monthly_usd"),
     owner: varchar("owner", { length: MAX_OWNER_LENGTH }),
     firstRepliedAt: timestamp("first_replied_at", { withTimezone: true }),
+    firstReplyDueAt: timestamp("first_reply_due_at", { withTimezone: true }),
+    firstOfferDueAt: timestamp("first_offer_due_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
   },
