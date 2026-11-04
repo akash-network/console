@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { HardwareRequestOfferStatus, HardwareRequestStatus } from "@src/hardware-request/model-schemas";
 import type { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
@@ -10,6 +11,7 @@ import type {
   HardwareRequestOfferRepository
 } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import type { HardwareRequestBrokerService } from "@src/hardware-request/services/hardware-request-broker/hardware-request-broker.service";
+import { HardwareRequestFunnelJob } from "@src/hardware-request/services/hardware-request-funnel/hardware-request-funnel.handler";
 import type { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import type { AuditorService } from "@src/provider/services/auditors/auditors.service";
 import { HardwareRequestOfferBrokerService, type HardwareRequestOfferDraft } from "./hardware-request-offer-broker.service";
@@ -117,12 +119,14 @@ describe(HardwareRequestOfferBrokerService.name, () => {
 
   describe("publish", () => {
     it("shows a draft to the tenant, records who did, and moves the request to offers under its row lock", async () => {
+      vi.useFakeTimers({ now: new Date("2026-11-04T12:00:00.000Z"), toFake: ["Date"] });
       const {
         service,
         hardwareRequestRepository,
         hardwareRequestOfferRepository,
         hardwareRequestEventRepository,
         hardwareRequestBrokerService,
+        jobQueueService,
         hardwareRequest
       } = setup();
 
@@ -142,15 +146,25 @@ describe(HardwareRequestOfferBrokerService.name, () => {
         payload: { offerId: "offer-1" }
       });
       expect(hardwareRequestBrokerService.moveLockedToStatus).toHaveBeenCalledWith(hardwareRequest, { actor: "Remington", status: "offers" });
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new HardwareRequestFunnelJob({
+          hardwareRequestId: hardwareRequest.id,
+          step: "gpu_request_offer_published",
+          stepKey: "offer-1",
+          occurredAt: "2026-11-04T12:00:00.000Z",
+          properties: { offerId: "offer-1", usdPerGpuHour: 2.4 }
+        })
+      );
     });
 
     it("leaves an offer that is already published as it is", async () => {
-      const { service, hardwareRequestOfferRepository, hardwareRequestBrokerService, hardwareRequest } = setup({ status: "published" });
+      const { service, hardwareRequestOfferRepository, hardwareRequestBrokerService, jobQueueService, hardwareRequest } = setup({ status: "published" });
 
       await service.publish(hardwareRequest.id, "offer-1", { actor: "Remington" });
 
       expect(hardwareRequestOfferRepository.updateById).not.toHaveBeenCalled();
       expect(hardwareRequestBrokerService.moveLockedToStatus).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
     it.each(["withdrawn", "accepted", "declined", "closed"] as const)("answers 409 for a %s offer", async status => {
@@ -261,6 +275,7 @@ describe(HardwareRequestOfferBrokerService.name, () => {
     hardwareRequestOfferRepository.findOneByAndLock.mockResolvedValue(
       mock<HardwareRequestOfferOutput>({
         id: "offer-1",
+        usdPerGpuHour: 2.4,
         status: input.status ?? "draft",
         expiresAt: input.expiresAt ?? new Date(Date.now() + 60_000).toISOString()
       })
@@ -273,6 +288,7 @@ describe(HardwareRequestOfferBrokerService.name, () => {
     txService.transaction.mockImplementation(async cb => await cb());
     const hardwareRequestEventRepository = mock<HardwareRequestEventRepository>();
     const hardwareRequestBrokerService = mock<HardwareRequestBrokerService>();
+    const jobQueueService = mock<JobQueueService>();
     const service = new HardwareRequestOfferBrokerService(
       hardwareRequestRepository,
       hardwareRequestOfferRepository,
@@ -280,7 +296,8 @@ describe(HardwareRequestOfferBrokerService.name, () => {
       auditorService,
       txService,
       hardwareRequestEventRepository,
-      hardwareRequestBrokerService
+      hardwareRequestBrokerService,
+      jobQueueService
     );
 
     return {
@@ -289,6 +306,7 @@ describe(HardwareRequestOfferBrokerService.name, () => {
       hardwareRequestOfferRepository,
       hardwareRequestEventRepository,
       hardwareRequestBrokerService,
+      jobQueueService,
       providerRepository,
       txService,
       hardwareRequest,

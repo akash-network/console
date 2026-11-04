@@ -12,6 +12,7 @@ import { HardwareRequestEventRepository } from "@src/hardware-request/repositori
 import { HardwareRequestOfferRepository } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { HardwareRequestAcceptedNoticeJob } from "@src/hardware-request/services/hardware-request-accepted-notice/hardware-request-accepted-notice.handler";
 import { HardwareRequestApprovalRequestJob } from "@src/hardware-request/services/hardware-request-approval-request/hardware-request-approval-request.handler";
+import { HardwareRequestFunnelJob } from "@src/hardware-request/services/hardware-request-funnel/hardware-request-funnel.handler";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 
 const COMMITTING_ROLES: OrganizationRole[] = ["owner", "admin"];
@@ -44,7 +45,7 @@ export class HardwareRequestOfferDecisionService {
 
     return await this.txService.transaction(async () => {
       const hardwareRequest = await this.#lockRequest(hardwareRequestId, "owners_and_admins");
-      await this.#lockOpenOffer(hardwareRequestId, offerId);
+      const offer = await this.#lockOpenOffer(hardwareRequestId, offerId);
 
       const now = new Date();
       const accepted = await this.hardwareRequestOfferRepository.updateById(offerId, { status: "accepted", updatedAt: now }, { returning: true });
@@ -58,6 +59,15 @@ export class HardwareRequestOfferDecisionService {
       });
       const event = await this.hardwareRequestEventRepository.record({ hardwareRequestId, type: "offer_accepted", actor: null, payload: { offerId, userId } });
       await this.jobQueueService.enqueue(new HardwareRequestAcceptedNoticeJob({ hardwareRequestId, offerId, eventId: event.id, acceptedByUserId: userId }));
+      await this.jobQueueService.enqueue(
+        new HardwareRequestFunnelJob({
+          hardwareRequestId,
+          step: "gpu_request_accepted",
+          stepKey: event.id,
+          occurredAt: now.toISOString(),
+          properties: { offerId, usdPerGpuHour: offer.usdPerGpuHour }
+        })
+      );
 
       return { ...accepted, status: "accepted" };
     });
