@@ -16,7 +16,7 @@ export function providerUnreachableNotification(
   const downSince = new Date(vars.downSince);
 
   return {
-    notificationId: `providerUnreachable.${downSince.toISOString()}.${vars.dseq}.${vars.owner}`,
+    notificationId: `providerUnreachable.${downSince.toISOString()}.${vars.dseq}.${vars.owner}.${user.id}`,
     payload: {
       summary: "Your Akash deployment's provider is unreachable",
       description:

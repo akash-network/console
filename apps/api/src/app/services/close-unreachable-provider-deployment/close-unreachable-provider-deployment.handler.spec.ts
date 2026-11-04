@@ -9,12 +9,15 @@ import type { CloseUnreachableProviderDeploymentCommand } from "@src/deployment/
 import type { DarkDeployment } from "@src/deployment/lib/dark-deployment/dark-deployment";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
+import type { DeploymentContactsService } from "@src/deployment/services/deployment-contacts/deployment-contacts.service";
 import type { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import type { SystemCloseActivityService } from "@src/deployment/services/system-close-activity/system-close-activity.service";
 import type { UnreachableProviderDeploymentsCloserService } from "@src/deployment/services/unreachable-provider-deployments-closer/unreachable-provider-deployments-closer.service";
+import type { UserOutput } from "@src/user/repositories";
 import { CloseUnreachableProviderDeploymentHandler } from "./close-unreachable-provider-deployment.handler";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
+import { createUser } from "@test/seeders/user.seeder";
 import { createOrganizationWallet, createUserWallet } from "@test/seeders/user-wallet.seeder";
 
 const DEPLOY_WEB_BASE_URL = "https://console.akash.network";
@@ -94,8 +97,42 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
           vars: expect.objectContaining({ dseq: DSEQ, hostUri: HOST_URI, downForDays: DAYS_DOWN, redeployUrl: `${DEPLOY_WEB_BASE_URL}/new-deployment` })
         })
       }),
-      { singletonKey: `notification.providerUnreachableClosed.${DSEQ}.${WALLET_ID}` }
+      { singletonKey: `notification.providerUnreachableClosed.${DSEQ}.${WALLET_ID}.${USER_ID}` }
     );
+  });
+
+  it("asks who hears about a team deployment with the member who filed it", async () => {
+    const { handler, deploymentContactsService } = setup({ teamWallet: true, setting: mock<DeploymentSettingsOutput>({ closed: false, userId: "member-2" }) });
+
+    await handler.handle(aPayload());
+
+    expect(deploymentContactsService.findFor).toHaveBeenCalledWith({
+      wallet: expect.objectContaining({ id: WALLET_ID, userId: null, organizationId: ORGANIZATION_ID }),
+      filingUserId: "member-2"
+    });
+  });
+
+  it("queues one email for each person who hears about the deployment, each under its own key", async () => {
+    const { handler, jobQueueService } = setup({ recipients: [createUser({ id: "owner-1" }), createUser({ id: "owner-2" })] });
+
+    await handler.handle(aPayload());
+
+    expect(jobQueueService.enqueue).toHaveBeenCalledTimes(2);
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: "owner-1" }) }), {
+      singletonKey: `notification.providerUnreachableClosed.${DSEQ}.${WALLET_ID}.owner-1`
+    });
+    expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ userId: "owner-2" }) }), {
+      singletonKey: `notification.providerUnreachableClosed.${DSEQ}.${WALLET_ID}.owner-2`
+    });
+  });
+
+  it("still records the close when nobody is left to hear about it", async () => {
+    const { handler, deploymentSettingRepository, jobQueueService } = setup({ recipients: [] });
+
+    await handler.handle(aPayload());
+
+    expect(deploymentSettingRepository.markClosed).toHaveBeenCalledTimes(1);
+    expect(jobQueueService.enqueue).not.toHaveBeenCalled();
   });
 
   it("records the close and queues the email in one transaction", async () => {
@@ -241,6 +278,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
       closeError?: Error;
       isUnsettleable?: boolean;
       alreadyClosedOnChain?: boolean;
+      recipients?: UserOutput[];
     } = {}
   ) {
     const userWalletRepository = mock<UserWalletRepository>();
@@ -278,6 +316,8 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
 
     const config = mockConfigService<DeploymentConfigService>({ DEPLOY_WEB_BASE_URL });
     const systemCloseActivityService = mock<SystemCloseActivityService>();
+    const deploymentContactsService = mock<DeploymentContactsService>();
+    deploymentContactsService.findFor.mockImplementation(async ({ filingUserId }) => input.recipients ?? [createUser({ id: filingUserId })]);
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -291,6 +331,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
       txService,
       config,
       systemCloseActivityService,
+      deploymentContactsService,
       createLogger
     );
 
@@ -304,6 +345,7 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
       jobQueueService,
       txService,
       systemCloseActivityService,
+      deploymentContactsService,
       logger
     };
   }

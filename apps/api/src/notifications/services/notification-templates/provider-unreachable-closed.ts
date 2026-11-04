@@ -13,7 +13,7 @@ export function providerUnreachableClosedNotification(
   vars: { dseq: string; owner: string; hostUri: string; downForDays: number; redeployUrl: string }
 ): CreateNotificationInput {
   return {
-    notificationId: `providerUnreachableClosed.${vars.dseq}.${vars.owner}`,
+    notificationId: `providerUnreachableClosed.${vars.dseq}.${vars.owner}.${user.id}`,
     payload: {
       summary: "Your Akash deployment was closed: provider unreachable",
       description:

@@ -7,10 +7,10 @@ import type { DryRunOptions } from "@src/core/types/console";
 import { DeploymentSettingRepository, type ProviderUnreachableClaim } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { type ActiveLeaseOnProvider, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
+import { DeploymentContactsService } from "@src/deployment/services/deployment-contacts/deployment-contacts.service";
 import { type ProviderOutage, ProviderOutagesHttpService } from "@src/deployment/services/provider-outages-http/provider-outages-http.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { providerUnreachableNotification } from "@src/notifications/services/notification-templates/provider-unreachable-notification";
-import { UserRepository } from "@src/user/repositories";
 
 /** A deployment with at least one lease on a provider that has gone dark, and the outage to tell its owner about. */
 interface DarkDeployment {
@@ -30,7 +30,7 @@ export class UnreachableProviderDeploymentsNotifierService {
     private readonly leaseRepository: LeaseRepository,
     private readonly userWalletRepository: UserWalletRepository,
     private readonly deploymentSettingRepository: DeploymentSettingRepository,
-    private readonly userRepository: UserRepository,
+    private readonly deploymentContactsService: DeploymentContactsService,
     private readonly notificationService: NotificationService,
     private readonly config: DeploymentConfigService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -138,15 +138,16 @@ export class UnreachableProviderDeploymentsNotifierService {
       return false;
     }
 
-    const recipientUserId = wallet.userId ?? setting?.userId;
-    const user = recipientUserId ? await this.userRepository.findById(recipientUserId) : undefined;
+    const filingUserId = wallet.userId ?? setting?.userId;
+    const contacts = filingUserId ? await this.deploymentContactsService.findFor({ wallet, filingUserId }) : [];
+    const recipients = contacts.filter(contact => !!contact.email);
 
-    if (!user?.email) {
+    if (!filingUserId || recipients.length === 0) {
       this.logger.warn({
         event: "UNREACHABLE_PROVIDER_DEPLOYMENT_SKIPPED",
         reason: "USER_HAS_NO_EMAIL",
         dseq: deployment.dseq,
-        userId: recipientUserId
+        userId: filingUserId
       });
       return false;
     }
@@ -162,7 +163,7 @@ export class UnreachableProviderDeploymentsNotifierService {
       return false;
     }
 
-    const claim = { userId: user.id, dseq: deployment.dseq, organizationId: wallet.organizationId, downSinceMarker: deployment.downSince };
+    const claim = { userId: filingUserId, dseq: deployment.dseq, organizationId: wallet.organizationId, downSinceMarker: deployment.downSince };
     const claimed = await this.deploymentSettingRepository.claimProviderUnreachableNotification(claim);
 
     if (!claimed) {
@@ -176,16 +177,18 @@ export class UnreachableProviderDeploymentsNotifierService {
     }
 
     try {
-      await this.notificationService.createNotification(
-        providerUnreachableNotification(user, {
-          dseq: deployment.dseq,
-          owner: deployment.owner,
-          hostUri: deployment.hostUri,
-          downSince: deployment.downSince,
-          closeAfterDays: this.config.get("PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS"),
-          deploymentUrl: this.#deploymentUrl(deployment.dseq)
-        })
-      );
+      for (const recipient of recipients) {
+        await this.notificationService.createNotification(
+          providerUnreachableNotification(recipient, {
+            dseq: deployment.dseq,
+            owner: deployment.owner,
+            hostUri: deployment.hostUri,
+            downSince: deployment.downSince,
+            closeAfterDays: this.config.get("PROVIDER_UNREACHABLE_CLOSE_AFTER_DAYS"),
+            deploymentUrl: this.#deploymentUrl(deployment.dseq)
+          })
+        );
+      }
     } catch (error) {
       await this.#releaseClaim(deployment, claim);
       throw error;

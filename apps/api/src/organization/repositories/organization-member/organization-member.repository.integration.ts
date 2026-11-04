@@ -97,6 +97,38 @@ describe(OrganizationMemberRepository.name, () => {
     });
   });
 
+  describe("findOwners", () => {
+    it("lists the users who own the organization, oldest member first, and nobody else", async () => {
+      const { repository, organization, user } = await setup();
+      await seedOrganizationMember({ organizationId: organization.id, userId: user.id, role: "owner" });
+      const secondOwner = await seedUser();
+      await seedOrganizationMember({ organizationId: organization.id, userId: secondOwner.id, role: "owner" });
+      const admin = await seedUser();
+      await seedOrganizationMember({ organizationId: organization.id, userId: admin.id, role: "admin" });
+      await seedOrganizationWithOwner();
+
+      const owners = await repository.findOwners(organization.id);
+
+      expect(owners.map(({ id }) => id)).toEqual([user.id, secondOwner.id]);
+    });
+  });
+
+  describe("findMemberUser", () => {
+    it("finds the user while they are a member of the organization", async () => {
+      const { repository, organization, user } = await setup();
+      await seedOrganizationMember({ organizationId: organization.id, userId: user.id });
+
+      expect(await repository.findMemberUser(organization.id, user.id)).toMatchObject({ id: user.id, email: user.email });
+    });
+
+    it("finds nobody for a user who only belongs to another organization", async () => {
+      const { repository, organization } = await setup();
+      const { user: foreignMember } = await seedOrganizationWithOwner();
+
+      expect(await repository.findMemberUser(organization.id, foreignMember.id)).toBeUndefined();
+    });
+  });
+
   describe("findEmailsOfMembers", () => {
     it("returns the given addresses that belong to members of the organization, ignoring case", async () => {
       const { repository, organization } = await setup();

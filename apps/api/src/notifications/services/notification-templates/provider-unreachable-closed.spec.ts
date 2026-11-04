@@ -18,7 +18,7 @@ describe(providerUnreachableClosedNotification.name, () => {
       redeployUrl: REDEPLOY_URL
     });
 
-    expect(result.notificationId).toBe("providerUnreachableClosed.654321.akash1owner");
+    expect(result.notificationId).toBe("providerUnreachableClosed.654321.akash1owner.user-123");
     expect(result.payload.summary).toBe("Your Akash deployment was closed: provider unreachable");
     expect(result.payload.description).toContain("<strong>654321</strong>");
     expect(result.payload.description).toContain("<strong>provider.akash.cmolls.de</strong>");

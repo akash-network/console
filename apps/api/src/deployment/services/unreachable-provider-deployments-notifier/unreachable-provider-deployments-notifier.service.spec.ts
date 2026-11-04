@@ -6,9 +6,10 @@ import type { CreateLogger } from "@src/core";
 import type { DeploymentSettingRepository, DeploymentSettingsOutput } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { ActiveLeaseOnProvider, LeaseRepository } from "@src/deployment/repositories/lease/lease.repository";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
+import type { DeploymentContactsService } from "@src/deployment/services/deployment-contacts/deployment-contacts.service";
 import type { ProviderOutage, ProviderOutagesHttpService } from "@src/deployment/services/provider-outages-http/provider-outages-http.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
-import type { UserOutput, UserRepository } from "@src/user/repositories";
+import type { UserOutput } from "@src/user/repositories";
 import { UnreachableProviderDeploymentsNotifierService } from "./unreachable-provider-deployments-notifier.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -122,13 +123,74 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
     const { service, notificationService, deploymentSettingRepository } = setup({
       outages: [anOutage({})],
       leases: [aLease({})],
-      user: mock<UserOutput>({ id: "user-1", email: null })
+      recipients: [mock<UserOutput>({ id: "user-1", email: null })]
     });
 
     await service.notifyUnreachableProviderDeployments({ dryRun: false });
 
     expect(notificationService.createNotification).not.toHaveBeenCalled();
     expect(deploymentSettingRepository.claimProviderUnreachableNotification).not.toHaveBeenCalled();
+  });
+
+  it("asks who hears about a team deployment with the member who filed it", async () => {
+    const { service, deploymentContactsService } = setup({
+      outages: [anOutage({})],
+      leases: [aLease({})],
+      teamWallet: true,
+      setting: mock<DeploymentSettingsOutput>({ userId: "member-2", providerUnreachableNotifiedFor: null })
+    });
+
+    await service.notifyUnreachableProviderDeployments({ dryRun: false });
+
+    expect(deploymentContactsService.findFor).toHaveBeenCalledWith({
+      wallet: expect.objectContaining({ userId: null, organizationId: WALLET_ORGANIZATION_ID }),
+      filingUserId: "member-2"
+    });
+  });
+
+  it("claims the outage on the filer's record while emailing each of the team's owners in their place", async () => {
+    const { service, deploymentSettingRepository, notificationService } = setup({
+      outages: [anOutage({})],
+      leases: [aLease({})],
+      teamWallet: true,
+      setting: mock<DeploymentSettingsOutput>({ userId: "member-2", providerUnreachableNotifiedFor: null }),
+      recipients: [mock<UserOutput>({ id: "owner-1", email: "owner-1@example.com" }), mock<UserOutput>({ id: "owner-2", email: "owner-2@example.com" })]
+    });
+
+    await service.notifyUnreachableProviderDeployments({ dryRun: false });
+
+    expect(deploymentSettingRepository.claimProviderUnreachableNotification).toHaveBeenCalledWith(expect.objectContaining({ userId: "member-2" }));
+    expect(notificationService.createNotification).toHaveBeenCalledTimes(2);
+    expect(notificationService.createNotification).toHaveBeenCalledWith(expect.objectContaining({ user: { id: "owner-1", email: "owner-1@example.com" } }));
+    expect(notificationService.createNotification).toHaveBeenCalledWith(expect.objectContaining({ user: { id: "owner-2", email: "owner-2@example.com" } }));
+  });
+
+  it("emails only the people who have an address to send to", async () => {
+    const { service, notificationService } = setup({
+      outages: [anOutage({})],
+      leases: [aLease({})],
+      recipients: [mock<UserOutput>({ id: "owner-1", email: null }), mock<UserOutput>({ id: "owner-2", email: "owner-2@example.com" })]
+    });
+
+    await service.notifyUnreachableProviderDeployments({ dryRun: false });
+
+    expect(notificationService.createNotification).toHaveBeenCalledTimes(1);
+    expect(notificationService.createNotification).toHaveBeenCalledWith(expect.objectContaining({ user: { id: "owner-2", email: "owner-2@example.com" } }));
+  });
+
+  it("tells nobody about a team deployment no member filed", async () => {
+    const { service, deploymentContactsService, deploymentSettingRepository, notificationService } = setup({
+      outages: [anOutage({})],
+      leases: [aLease({})],
+      teamWallet: true
+    });
+
+    const result = await service.notifyUnreachableProviderDeployments({ dryRun: false });
+
+    expect(result.ok).toBe(true);
+    expect(deploymentContactsService.findFor).not.toHaveBeenCalled();
+    expect(deploymentSettingRepository.claimProviderUnreachableNotification).not.toHaveBeenCalled();
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
   });
 
   it("skips an outage already reported for this deployment without touching the claim", async () => {
@@ -211,8 +273,9 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
   function setup(input: {
     outages?: ProviderOutage[];
     leases?: ActiveLeaseOnProvider[];
-    wallet?: { userId: string } | null;
-    user?: UserOutput;
+    wallet?: null;
+    teamWallet?: boolean;
+    recipients?: UserOutput[];
     setting?: DeploymentSettingsOutput;
     claimed?: boolean;
   }) {
@@ -224,15 +287,17 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
 
     const userWalletRepository = mock<UserWalletRepository>();
     userWalletRepository.findByAddresses.mockImplementation(async addresses =>
-      input.wallet === null ? [] : addresses.map(address => mock<UserWalletOutput>({ userId: "user-1", organizationId: WALLET_ORGANIZATION_ID, address }))
+      input.wallet === null
+        ? []
+        : addresses.map(address => mock<UserWalletOutput>({ userId: input.teamWallet ? null : "user-1", organizationId: WALLET_ORGANIZATION_ID, address }))
     );
 
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
     deploymentSettingRepository.findOneOfWallet.mockResolvedValue(input.setting);
     deploymentSettingRepository.claimProviderUnreachableNotification.mockResolvedValue(input.claimed ?? true);
 
-    const userRepository = mock<UserRepository>();
-    userRepository.findById.mockResolvedValue(input.user ?? mock<UserOutput>({ id: "user-1", email: "owner@example.com" }));
+    const deploymentContactsService = mock<DeploymentContactsService>();
+    deploymentContactsService.findFor.mockResolvedValue(input.recipients ?? [mock<UserOutput>({ id: "user-1", email: "owner@example.com" })]);
 
     const notificationService = mock<NotificationService>();
     const config = mockConfigService<DeploymentConfigService>({
@@ -247,13 +312,21 @@ describe(UnreachableProviderDeploymentsNotifierService.name, () => {
       leaseRepository,
       userWalletRepository,
       deploymentSettingRepository,
-      userRepository,
+      deploymentContactsService,
       notificationService,
       config,
       createLogger
     );
 
-    return { service, providerOutagesHttpService, leaseRepository, userWalletRepository, deploymentSettingRepository, userRepository, notificationService };
+    return {
+      service,
+      providerOutagesHttpService,
+      leaseRepository,
+      userWalletRepository,
+      deploymentSettingRepository,
+      deploymentContactsService,
+      notificationService
+    };
   }
 });
 
