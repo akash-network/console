@@ -212,6 +212,32 @@ describe(BillingView.name, () => {
     expect(within(cell(0, "Status")).queryByText("Refunded")).not.toBeInTheDocument();
   });
 
+  it("labels a held affiliate commission as On hold", () => {
+    setup({ data: [createMockTransaction({ type: "affiliate_commission", status: "pending", cardLast4: null })] });
+
+    const pill = within(cell(0, "Status")).getByText("On hold");
+    expect(pill).toHaveAttribute("data-status", "pending");
+  });
+
+  it("labels a pending card payment as Pending", () => {
+    setup({ data: [createMockTransaction({ type: "payment_intent", status: "pending" })] });
+
+    expect(cell(0, "Status")).toHaveTextContent(/^Pending$/);
+  });
+
+  it("does not say anything was taken back from a commission canceled during its hold", () => {
+    setup({ data: [createMockTransaction({ type: "affiliate_commission", amount: 500, amountRefunded: 500, status: "canceled", cardLast4: null })] });
+
+    expect(cell(0, "Amount")).not.toHaveTextContent("taken back");
+    expect(cell(0, "Status")).toHaveTextContent(/^Canceled$/);
+  });
+
+  it("says a canceled card payment's refund was refunded", () => {
+    setup({ data: [createMockTransaction({ type: "payment_intent", amount: 500, amountRefunded: 500, status: "canceled" })] });
+
+    expect(cell(0, "Amount")).toHaveTextContent("refunded");
+  });
+
   it("labels a partially reversed affiliate commission as Successful", () => {
     setup({ data: [createMockTransaction({ type: "affiliate_commission", status: "succeeded", amountRefunded: 100, cardLast4: null })] });
 

@@ -26,6 +26,11 @@ export const envSchema = z.object({
   TRIAL_ALLOWANCE_EXPIRATION_DAYS: z.number({ coerce: true }).default(30),
   TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: z.number({ coerce: true }),
   REFERRAL_TRIAL_DEPLOYMENT_ALLOWANCE_AMOUNT: z.number({ coerce: true }).optional().default(5000000),
+  AFFILIATE_COMMISSION_HOLD_SECONDS: z
+    .number({ coerce: true })
+    .int()
+    .min(0)
+    .default(30 * 24 * 60 * 60),
   TRIAL_FEES_ALLOWANCE_AMOUNT: z.number({ coerce: true }),
   TRIAL_DEPLOYMENT_CLEANUP_HOURS: z.number({ coerce: true }).default(24),
   DEPLOYMENT_GRANT_DENOM: z.enum(["uakt", "uact"]),

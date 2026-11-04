@@ -357,7 +357,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return total;
   }
 
-  /** Stores the commission as a `stripe_transactions` row so billing history and CSV export pick it up unchanged. */
+  /** Stores the commission as a held `stripe_transactions` row so billing history and CSV export pick it up unchanged; its release credits it. */
   async createAffiliateCommission(input: {
     userId: string;
     organizationId?: string | null;
@@ -369,7 +369,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
       userId: input.userId,
       organizationId: input.organizationId,
       type: "affiliate_commission",
-      status: "succeeded",
+      status: "pending",
       currency: "usd",
       description: "Affiliate commission",
       amount: input.amount,
@@ -382,13 +382,18 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     return this.findOneBy({ sourceTransactionId, type: "affiliate_commission" });
   }
 
+  /** Leaves the key lockable, because crediting the commission records a payment credit that references it from another connection. */
   async findAffiliateCommissionBySourceAndLock(sourceTransactionId: string): Promise<StripeTransactionOutput | undefined> {
-    return this.findOneByAndLock({ sourceTransactionId, type: "affiliate_commission" });
+    return this.findOneByAndLock({ sourceTransactionId, type: "affiliate_commission" }, { strength: "no key update" });
   }
 
-  /** Nets each row's amount against its own amountRefunded before summing, so a partly reversed commission counts for only what the affiliate kept. */
+  /** Nets each credited row's amount against its own amountRefunded before summing, so a partly reversed commission counts for only what the affiliate kept and a held one not at all. */
   async sumAffiliateCommissionNet(userId: string, since?: Date): Promise<number> {
-    const conditions: SQL[] = [eq(this.table.userId, userId), eq(this.table.type, "affiliate_commission")];
+    const conditions: SQL[] = [
+      eq(this.table.userId, userId),
+      eq(this.table.type, "affiliate_commission"),
+      inArray(this.table.status, [...SETTLED_TRANSACTION_STATUSES])
+    ];
 
     if (since) {
       conditions.push(gte(this.table.createdAt, since));
