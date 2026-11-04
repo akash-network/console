@@ -7,9 +7,11 @@ import { JobQueueService } from "@src/core/services/job-queue/job-queue.service"
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/hardware-request.schema";
 import { describeSpecRegion } from "@src/hardware-request/lib/hardware-request-spec-summary/hardware-request-spec-summary";
+import { isVisibleToTenant, type TenantVisibleOffer } from "@src/hardware-request/lib/hardware-request-tenant-offer/hardware-request-tenant-offer";
 import { HARDWARE_REQUEST_CONFIG, type HardwareRequestConfig } from "@src/hardware-request/providers/config.provider";
 import { type HardwareRequestOutput, HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { HardwareRequestEventRepository } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
+import { HardwareRequestOfferRepository } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { GpuRequestRoutingService, type RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
@@ -68,6 +70,7 @@ export class HardwareRequestService {
     private readonly hardwareRequestEventRepository: HardwareRequestEventRepository,
     private readonly organizationRepository: OrganizationRepository,
     private readonly organizationMemberRepository: OrganizationMemberRepository,
+    private readonly hardwareRequestOfferRepository: HardwareRequestOfferRepository,
     @inject(HARDWARE_REQUEST_CONFIG) private readonly config: HardwareRequestConfig
   ) {}
 
@@ -134,6 +137,16 @@ export class HardwareRequestService {
     if (!owner) throw createError(422, "The organization has no owner to file the request for");
 
     return { userId: owner.userId, organizationId };
+  }
+
+  async listOffers(hardwareRequestId: string): Promise<TenantVisibleOffer[]> {
+    const hardwareRequest = await this.hardwareRequestRepository.accessibleBy(this.authService.ability, "read").findById(hardwareRequestId);
+
+    if (!hardwareRequest) throw createError(404, "Hardware request not found");
+
+    const offers = await this.hardwareRequestOfferRepository.findOldestFirst(hardwareRequestId);
+
+    return offers.filter(isVisibleToTenant);
   }
 
   /** A user over both limits is told the later of the two times, since either window can be the one that lifts last. */

@@ -319,6 +319,14 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    listHardwareRequestOffers: {
+      path: "/v1/hardware-requests/{id}/offers",
+      method: "get",
+      operationId: "listHardwareRequestOffers",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
     createNotificationAddressConfirmation: {
       path: "/v1/notification-address-confirmations",
       method: "post",

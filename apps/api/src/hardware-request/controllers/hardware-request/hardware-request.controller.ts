@@ -4,8 +4,10 @@ import { Protected } from "@src/auth/services/auth.service";
 import type {
   CreateHardwareRequestRequest,
   CreateHardwareRequestResponse,
+  ListHardwareRequestOffersResponse,
   ListHardwareRequestsResponse
 } from "@src/hardware-request/http-schemas/hardware-request.schema";
+import { toTenantOffer } from "@src/hardware-request/lib/hardware-request-tenant-offer/hardware-request-tenant-offer";
 import type { HardwareRequestOutput } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { HardwareRequestService } from "@src/hardware-request/services/hardware-request/hardware-request.service";
 
@@ -31,5 +33,13 @@ export class HardwareRequestController {
   async list(): Promise<ListHardwareRequestsResponse> {
     const hardwareRequests = await this.hardwareRequestService.list();
     return { data: hardwareRequests.map(toTenantView) };
+  }
+
+  @Protected([{ action: "read", subject: "HardwareRequest" }])
+  async listOffers(hardwareRequestId: string): Promise<ListHardwareRequestOffersResponse> {
+    const offers = await this.hardwareRequestService.listOffers(hardwareRequestId);
+    const now = new Date();
+
+    return { data: offers.map(offer => toTenantOffer(offer, now)) };
   }
 }

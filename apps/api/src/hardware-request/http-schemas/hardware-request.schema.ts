@@ -1,14 +1,20 @@
 import { z } from "@hono/zod-openapi";
 
 import {
+  TENANT_VISIBLE_OFFER_STATUSES,
+  type TenantHardwareRequestOffer
+} from "@src/hardware-request/lib/hardware-request-tenant-offer/hardware-request-tenant-offer";
+import {
   hardwareRequestCategoryEnum,
   type HardwareRequestConfiguration,
   hardwareRequestLaneEnum,
+  type HardwareRequestOfferTerms,
   hardwareRequestSourceEnum,
   type HardwareRequestSpec,
   hardwareRequestStatusEnum,
   MAX_CONTACT_EMAIL_LENGTH,
   MAX_GPU_MODEL_LENGTH,
+  MAX_OFFER_LOCATION_LENGTH,
   MAX_REGION_LENGTH,
   REGION_AREAS,
   REQUEST_TERMS,
@@ -42,6 +48,20 @@ const HardwareRequestConfigurationSchema = z.object({
     })
     .optional()
 }) satisfies z.ZodType<HardwareRequestConfiguration>;
+
+export const HardwareRequestOfferTermsSchema = z.object({
+  gpu: z.object({
+    model: requiredText(MAX_GPU_MODEL_LENGTH),
+    count: z.number().int().min(1).max(MAX_QUANTITY),
+    interconnect: z.enum(["none", "server", "cluster"])
+  }),
+  location: requiredText(MAX_OFFER_LOCATION_LENGTH),
+  availableFrom: z.string().date(),
+  term: z.enum(REQUEST_TERMS),
+  sla: z.enum(UPTIME_SLAS).nullable(),
+  storage: z.object({ tbPerNode: z.number().nonnegative().max(MAX_STORAGE_TB_PER_NODE), nvme: z.boolean() }),
+  uplinkGbps: z.union([z.literal(1), z.literal(10), z.literal(25)]).nullable()
+}) satisfies z.ZodType<HardwareRequestOfferTerms>;
 
 const HardwareRequestSpecSchema = z.object({
   gpu: z.object({
@@ -129,7 +149,25 @@ export const ListHardwareRequestsResponseSchema = z.object({
   data: z.array(HardwareRequestSchema)
 });
 
+export const HardwareRequestIdParamsSchema = z.object({ id: z.string().uuid() });
+
+const TenantHardwareRequestOfferSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(TENANT_VISIBLE_OFFER_STATUSES),
+  expired: z.boolean().describe("A published offer past its expiry, which can no longer be accepted"),
+  providerAudited: z.boolean(),
+  providerUptime7d: z.number().nullable().describe("The provider's uptime over the 7 days before the offer was written, from 0 to 1"),
+  usdPerGpuHour: z.number(),
+  estimatedMonthlyUsd: z.number().int().describe("The price per GPU-hour for every GPU in the offer, over 730 hours"),
+  terms: HardwareRequestOfferTermsSchema,
+  expiresAt: z.string().datetime(),
+  publishedAt: z.string().datetime().nullable()
+}) satisfies z.ZodType<TenantHardwareRequestOffer>;
+
+export const ListHardwareRequestOffersResponseSchema = z.object({ data: z.array(TenantHardwareRequestOfferSchema) });
+
 export type HardwareRequestInput = z.infer<typeof HardwareRequestInputSchema>;
 export type CreateHardwareRequestRequest = z.infer<typeof CreateHardwareRequestRequestSchema>;
 export type CreateHardwareRequestResponse = z.infer<typeof CreateHardwareRequestResponseSchema>;
+export type ListHardwareRequestOffersResponse = z.infer<typeof ListHardwareRequestOffersResponseSchema>;
 export type ListHardwareRequestsResponse = z.infer<typeof ListHardwareRequestsResponseSchema>;

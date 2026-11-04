@@ -8,6 +8,7 @@ import { type ApiPgDatabase, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/co
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import { HardwareRequestOfferRepository } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
@@ -269,6 +270,67 @@ describe("Hardware requests", () => {
       expect(response.status).toBe(401);
     });
   });
+
+  describe("GET /v1/hardware-requests/{id}/offers", () => {
+    it("shows every member the published offers of the organization's request, without the provider", async () => {
+      const { team, headersOf, memberWith } = await setupOrganization();
+      const member = await memberWith("viewer");
+      const hardwareRequest = await seedHardwareRequest({ userId: team.owner.id, organizationId: team.id });
+      const offers = container.resolve(HardwareRequestOfferRepository);
+      const published = await offers.create({ ...anOffer(hardwareRequest.id), status: "published", publishedAt: new Date() });
+      await offers.create({ ...anOffer(hardwareRequest.id), status: "draft" });
+      await offers.create({ ...anOffer(hardwareRequest.id), status: "withdrawn" });
+
+      const response = await app.request(`/v1/hardware-requests/${hardwareRequest.id}/offers`, { headers: headersOf(member) });
+      const { data } = (await response.json()) as { data: Array<Record<string, unknown>> };
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual([
+        {
+          id: published.id,
+          status: "published",
+          expired: false,
+          providerAudited: true,
+          providerUptime7d: 0.99,
+          usdPerGpuHour: 2.4,
+          estimatedMonthlyUsd: 28_032,
+          terms: anOffer(hardwareRequest.id).terms,
+          expiresAt: published.expiresAt,
+          publishedAt: published.publishedAt
+        }
+      ]);
+    });
+
+    it("answers 404 for another organization's request", async () => {
+      const { headersOf, team } = await setupOrganization();
+      const other = await seedOrganizationWithOwner({ user: { userId: faker.string.uuid() } });
+      const hardwareRequest = await seedHardwareRequest({ userId: other.user.id, organizationId: other.organization.id });
+
+      const response = await app.request(`/v1/hardware-requests/${hardwareRequest.id}/offers`, { headers: headersOf(team.owner) });
+
+      expect(response.status).toBe(404);
+    });
+  });
+
+  function anOffer(hardwareRequestId: string) {
+    return {
+      hardwareRequestId,
+      providerAddress: "akash1provider",
+      providerAudited: true,
+      providerUptime7d: 0.99,
+      usdPerGpuHour: 2.4,
+      terms: {
+        gpu: { model: "H200", count: 16, interconnect: "cluster" as const },
+        location: "Frankfurt, DE",
+        availableFrom: "2026-12-01",
+        term: "6_months" as const,
+        sla: "99.9" as const,
+        storage: { tbPerNode: 8, nvme: true },
+        uplinkGbps: 10 as const
+      },
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    };
+  }
 
   async function seedPaymentMethod(owner: { userId: string; organizationId: string }) {
     await container

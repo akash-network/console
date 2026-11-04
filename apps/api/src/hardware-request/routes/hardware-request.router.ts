@@ -7,6 +7,8 @@ import { HardwareRequestController } from "../controllers/hardware-request/hardw
 import {
   CreateHardwareRequestRequestSchema,
   CreateHardwareRequestResponseSchema,
+  HardwareRequestIdParamsSchema,
+  ListHardwareRequestOffersResponseSchema,
   ListHardwareRequestsResponseSchema
 } from "../http-schemas/hardware-request.schema";
 
@@ -73,5 +75,32 @@ const listHardwareRequestsRoute = createRoute({
 
 hardwareRequestRouter.openapi(listHardwareRequestsRoute, async function routeListHardwareRequests(c) {
   const result = await container.resolve(HardwareRequestController).list();
+  return c.json(result, 200);
+});
+
+const listHardwareRequestOffersRoute = createRoute({
+  method: "get",
+  operationId: "listHardwareRequestOffers",
+  path: "/v1/hardware-requests/{id}/offers",
+  summary: "List the offers the Akash team published for a GPU request, oldest first",
+  tags: ["Hardware Requests"],
+  security: SECURITY_BEARER,
+  request: { params: HardwareRequestIdParamsSchema },
+  responses: {
+    200: {
+      description: "The request's offers, without the provider behind each",
+      content: {
+        "application/json": {
+          schema: ListHardwareRequestOffersResponseSchema
+        }
+      }
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "No request the caller can read has this id" }
+  }
+});
+
+hardwareRequestRouter.openapi(listHardwareRequestOffersRoute, async function routeListHardwareRequestOffers(c) {
+  const result = await container.resolve(HardwareRequestController).listOffers(c.req.valid("param").id);
   return c.json(result, 200);
 });
