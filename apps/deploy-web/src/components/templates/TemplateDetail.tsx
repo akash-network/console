@@ -1,17 +1,22 @@
 "use client";
 
 import type { FC, MouseEvent } from "react";
-import { useId } from "react";
+import { useId, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage, buttonVariants } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import { ArrowLeft, ArrowRight, LayoutTemplate } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { BlockedGpuAlternatives } from "@src/components/deployments/BlockedGpuAlternatives/BlockedGpuAlternatives";
+import { useServices } from "@src/context/ServicesProvider";
+import { useWallet } from "@src/context/WalletProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useHasInAppHistory } from "@src/hooks/useHasInAppHistory";
 import type { ApiTemplate } from "@src/types";
 import { UrlService } from "@src/utils/urlUtils";
 import Layout from "../layout/Layout";
+import { needsTrialBlockedGpu } from "./TemplateDeploysAs/templateDeploymentSummary";
 import { TemplateDeploysAs } from "./TemplateDeploysAs/TemplateDeploysAs";
 import { TemplateDocuments } from "./TemplateDocuments/TemplateDocuments";
 
@@ -20,9 +25,13 @@ const OVERLINE_CLASSES = "font-mono text-[10px] font-semibold uppercase tracking
 export const DEPENDENCIES = {
   useRouter,
   useHasInAppHistory,
+  useWallet,
+  useFlag,
+  useServices,
   Layout,
   TemplateDocuments,
-  TemplateDeploysAs
+  TemplateDeploysAs,
+  BlockedGpuAlternatives
 };
 
 export interface TemplateDetailProps {
@@ -34,6 +43,12 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
   const router = d.useRouter();
   const hasInAppHistory = d.useHasInAppHistory();
   const beforeYouDeployId = useId();
+  const { isTrialing } = d.useWallet();
+  const isIntentFirst = d.useFlag("onboarding_intent_first");
+  const { publicConfig } = d.useServices();
+  const blockedGpuModels = publicConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS;
+  const isGpuBlockedForTrial = useMemo(() => needsTrialBlockedGpu(template.deploy, blockedGpuModels), [template.deploy, blockedGpuModels]);
+  const offersTrialGpuAlternatives = isIntentFirst && isTrialing && isGpuBlockedForTrial;
 
   const returnToPreviousPage = (event: MouseEvent<HTMLAnchorElement>) => {
     if (!hasInAppHistory || isOpeningElsewhere(event)) return;
@@ -79,6 +94,7 @@ export const TemplateDetail: FC<TemplateDetailProps> = ({ template, dependencies
           <d.TemplateDocuments template={template} showsSdl className="-mx-4 sm:mx-0" />
 
           <aside className="flex min-w-0 flex-col gap-3.5">
+            {offersTrialGpuAlternatives && <d.BlockedGpuAlternatives templateId={template.id} placement="template_detail" />}
             <d.TemplateDeploysAs sdl={template.deploy} />
 
             <section aria-labelledby={beforeYouDeployId} className="rounded-[14px] border border-border bg-card px-4 py-3.5 shadow-sm">

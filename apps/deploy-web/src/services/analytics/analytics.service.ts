@@ -113,6 +113,7 @@ export type AnalyticsEvent =
   | "onboarding_skipped"
   | "onboarding_left"
   | "akashml_link_click"
+  | "trial_gpu_alternative_click"
   | "fair_use_policy_accepted"
   | "add_credits_opened"
   | "add_credits_payment_form_ready"
