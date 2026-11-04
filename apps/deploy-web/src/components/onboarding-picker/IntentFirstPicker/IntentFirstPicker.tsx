@@ -148,7 +148,7 @@ function IntentTab({ intent }: { intent: OnboardingIntent }) {
   return (
     <TabsTrigger
       value={intent.id}
-      className="h-[38px] gap-2 rounded-full border border-border bg-background py-0 pl-3 pr-[15px] text-[13.5px] text-muted-foreground transition-colors data-[state=active]:border-foreground data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-none hover:text-foreground focus-visible:ring-offset-0"
+      className="h-[38px] gap-2 rounded-full border border-border bg-background py-0 pl-3 pr-[15px] text-[13.5px] text-muted-foreground transition-colors data-[state=active]:border-foreground data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-none data-[state=inactive]:hover:border-foreground/30 data-[state=inactive]:hover:text-foreground focus-visible:ring-offset-0"
     >
       <intent.Icon className="h-3.5 w-3.5" />
       {intent.title}
