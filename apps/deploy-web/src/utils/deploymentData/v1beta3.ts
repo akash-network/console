@@ -72,7 +72,7 @@ export function isTrialGpuRestrictionActive(blockedModels: readonly string[] = b
  * the backend, see there).
  */
 export function hasTrialBlockedGpu(
-  values: SdlBuilderFormValuesType,
+  values: Pick<SdlBuilderFormValuesType, "services">,
   blockedModels: readonly string[] = browserEnvConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS
 ): boolean {
   return values.services.some(

@@ -9,6 +9,7 @@ export function useTrialRunnableModels() {
 
   return {
     models: pickRunnableModels(availability.data ?? [], trialLimitsFrom(publicConfig)),
-    isChecking: availability.isLoading
+    isChecking: availability.isLoading,
+    hasCheckFailed: availability.isError
   };
 }

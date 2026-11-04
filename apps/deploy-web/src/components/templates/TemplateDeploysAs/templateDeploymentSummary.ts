@@ -1,5 +1,6 @@
 import { aggregateDeploymentResources, formatBytes } from "@src/components/deployments/ConfigureDeployment/DeploymentResourceSummary/deploymentResources";
 import type { ProfileGpuModelType, ServiceType } from "@src/types";
+import { hasTrialBlockedGpu } from "@src/utils/deploymentData/v1beta3";
 import { roundDecimal } from "@src/utils/mathHelpers";
 import { importSimpleSdl } from "@src/utils/sdl/sdlImport";
 
@@ -30,6 +31,11 @@ export function summarizeTemplateDeployment(sdl: string | undefined): TemplateDe
     storage: formatBytes(totals.ephemeralBytes),
     persistentStorage: totals.persistentBytes > 0 ? formatBytes(totals.persistentBytes) : undefined
   };
+}
+
+export function needsTrialBlockedGpu(sdl: string | undefined, blockedModels: readonly string[]): boolean {
+  const services = importServices(sdl);
+  return !!services && hasTrialBlockedGpu({ services }, blockedModels);
 }
 
 function importServices(sdl: string | undefined): ServiceType[] | undefined {

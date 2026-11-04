@@ -73,6 +73,14 @@ describe(RunModelPath.name, () => {
     expect(screen.getByRole("link", { name: /Open AkashML/ })).toBeInTheDocument();
   });
 
+  it("says the check failed instead of claiming no trial gpu is free", () => {
+    setup({ models: [], hasCheckFailed: true });
+
+    expect(screen.getByText("We couldn't check which GPUs your trial can use right now.")).toBeInTheDocument();
+    expect(screen.queryByText(NO_FREE_GPU_NOTICE)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open AkashML/ })).toBeInTheDocument();
+  });
+
   it("holds the notice back while the gpus are still being checked", () => {
     setup({ models: [], isChecking: true });
 
@@ -110,11 +118,21 @@ describe(RunModelPath.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("akashml_link_click", { category: "onboarding", placement: "onboarding_model" });
   });
 
-  function setup(input: { models: RunnableModel[]; isChecking?: boolean; isOutOfCredit?: boolean; dependencies?: Partial<typeof DEPENDENCIES> }) {
+  function setup(input: {
+    models: RunnableModel[];
+    isChecking?: boolean;
+    hasCheckFailed?: boolean;
+    isOutOfCredit?: boolean;
+    dependencies?: Partial<typeof DEPENDENCIES>;
+  }) {
     const onDeployTemplate = vi.fn();
     const analyticsService = mock<AnalyticsService>();
     const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
-    const useTrialRunnableModels: typeof DEPENDENCIES.useTrialRunnableModels = () => ({ models: input.models, isChecking: input.isChecking ?? false });
+    const useTrialRunnableModels: typeof DEPENDENCIES.useTrialRunnableModels = () => ({
+      models: input.models,
+      isChecking: input.isChecking ?? false,
+      hasCheckFailed: input.hasCheckFailed ?? false
+    });
 
     render(
       <RunModelPath

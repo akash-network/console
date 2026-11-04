@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { summarizeTemplateDeployment } from "./templateDeploymentSummary";
+import { needsTrialBlockedGpu, summarizeTemplateDeployment } from "./templateDeploymentSummary";
 
 const SINGLE_SERVICE_SDL = `
 version: "2.0"
@@ -427,5 +427,24 @@ describe(summarizeTemplateDeployment.name, () => {
   it("returns nothing without an SDL", () => {
     expect(summarizeTemplateDeployment(undefined)).toBeUndefined();
     expect(summarizeTemplateDeployment("")).toBeUndefined();
+  });
+});
+
+describe(needsTrialBlockedGpu.name, () => {
+  it("answers yes when the template pins a gpu the trial blocks", () => {
+    expect(needsTrialBlockedGpu(PINNED_GPU_MODELS_SDL, ["nvidia/h100"])).toBe(true);
+  });
+
+  it("answers no when every gpu the template pins is open to the trial", () => {
+    expect(needsTrialBlockedGpu(PINNED_GPU_MODELS_SDL, ["nvidia/rtx4090"])).toBe(false);
+  });
+
+  it("answers no for a template without a gpu", () => {
+    expect(needsTrialBlockedGpu(SINGLE_SERVICE_SDL, ["nvidia/h100"])).toBe(false);
+  });
+
+  it("answers no for an SDL Configure cannot import", () => {
+    expect(needsTrialBlockedGpu("services:\n  web:\n    image: nginx\n", ["nvidia/h100"])).toBe(false);
+    expect(needsTrialBlockedGpu(undefined, ["nvidia/h100"])).toBe(false);
   });
 });

@@ -212,6 +212,28 @@ describe(HardwareSection.name, () => {
     expect(AddCreditsSheet).toHaveBeenLastCalledWith(expect.objectContaining({ open: true }), expect.anything());
   });
 
+  it("offers the trial gpu alternatives to a restricted account while the pane is editable", () => {
+    const TrialGpuBlockHint = vi.fn(() => null);
+    const useTrialGate = () => ({ isRestricted: true, isWalletReady: true });
+
+    setup({ dependencies: { TrialGpuBlockHint, useTrialGate } });
+
+    expect(TrialGpuBlockHint).toHaveBeenCalled();
+  });
+
+  it.each([
+    { case: "an unrestricted account", isRestricted: false },
+    { case: "the read-only quote view", isRestricted: true, locked: true },
+    { case: "another view of the deployment", isRestricted: true, showsDeploymentLimit: false }
+  ])("leaves the trial gpu alternatives out of $case", ({ isRestricted, locked, showsDeploymentLimit }) => {
+    const TrialGpuBlockHint = vi.fn(() => null);
+    const useTrialGate = () => ({ isRestricted, isWalletReady: true });
+
+    setup({ locked, showsDeploymentLimit, dependencies: { TrialGpuBlockHint, useTrialGate } });
+
+    expect(TrialGpuBlockHint).not.toHaveBeenCalled();
+  });
+
   function setup(input: { serviceIndex?: number; locked?: boolean; showsDeploymentLimit?: boolean; dependencies?: Partial<typeof DEPENDENCIES> }) {
     const dependencies = MockComponents(DEPENDENCIES, {
       useTrialGate: () => ({ isRestricted: false, isWalletReady: false }),

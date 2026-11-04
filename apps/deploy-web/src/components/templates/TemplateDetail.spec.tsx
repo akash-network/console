@@ -5,7 +5,45 @@ import type { ApiTemplate } from "@src/types";
 import { DEPENDENCIES, TemplateDetail } from "./TemplateDetail";
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { MockComponents } from "@tests/unit/mocks";
+import { ComponentMock, MockComponents } from "@tests/unit/mocks";
+
+const H100_SDL = `
+version: "2.0"
+services:
+  llm:
+    image: vllm/vllm-openai
+    expose:
+      - port: 8000
+        to:
+          - global: true
+profiles:
+  compute:
+    llm:
+      resources:
+        cpu:
+          units: 8
+        memory:
+          size: 64Gi
+        storage:
+          size: 100Gi
+        gpu:
+          units: 1
+          attributes:
+            vendor:
+              nvidia:
+                - model: h100
+  placement:
+    dcloud:
+      pricing:
+        llm:
+          denom: uact
+          amount: 1000
+deployment:
+  llm:
+    dcloud:
+      profile: llm
+      count: 1
+`;
 
 describe(TemplateDetail.name, () => {
   it("shows the template's name without repeating the summary its README already opens with", () => {
@@ -74,7 +112,21 @@ describe(TemplateDetail.name, () => {
     expect(screen.getByRole("region", { name: "Before you deploy" })).toBeInTheDocument();
   });
 
-  function setup(input: { template?: Partial<ApiTemplate>; hasInAppHistory?: boolean }) {
+  it.each([
+    { case: "a trial user on a template that needs a blocked gpu", isTrialing: true, deploy: H100_SDL, isIntentFirst: true, offers: true },
+    { case: "a paying user", isTrialing: false, deploy: H100_SDL, isIntentFirst: true, offers: false },
+    { case: "a template the trial can run", isTrialing: true, deploy: "version: '2.0'", isIntentFirst: true, offers: false },
+    { case: "onboarding_intent_first off", isTrialing: true, deploy: H100_SDL, isIntentFirst: false, offers: false }
+  ])("offers the trial gpu alternatives only to $case: $offers", ({ isTrialing, deploy, isIntentFirst, offers }) => {
+    const { BlockedGpuAlternatives, useFlag } = setup({ template: { deploy }, isTrialing, isIntentFirst });
+
+    expect(BlockedGpuAlternatives.mock.calls.map(call => call[0])).toEqual(
+      offers ? [{ templateId: "akash-network-awesome-akash-comfyui", placement: "template_detail" }] : []
+    );
+    expect(useFlag).toHaveBeenCalledWith("onboarding_intent_first");
+  });
+
+  function setup(input: { template?: Partial<ApiTemplate>; hasInAppHistory?: boolean; isTrialing?: boolean; isIntentFirst?: boolean }) {
     const template: ApiTemplate = {
       id: "akash-network-awesome-akash-comfyui",
       name: "ComfyUI",
@@ -89,12 +141,23 @@ describe(TemplateDetail.name, () => {
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
     const TemplateDocuments = vi.fn(() => null);
     const TemplateDeploysAs = vi.fn(() => null);
+    const BlockedGpuAlternatives = vi.fn(ComponentMock);
+    const useFlag = vi.fn(() => input.isIntentFirst ?? false);
+    const useWallet: typeof DEPENDENCIES.useWallet = () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false });
+    const useServices: typeof DEPENDENCIES.useServices = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useServices>>({
+        publicConfig: { NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS: ["nvidia/h100"] }
+      });
 
     const dependencies = MockComponents(DEPENDENCIES, {
       useRouter: () => router,
       useHasInAppHistory: () => input.hasInAppHistory ?? false,
+      useWallet,
+      useFlag,
+      useServices,
       TemplateDocuments,
-      TemplateDeploysAs
+      TemplateDeploysAs,
+      BlockedGpuAlternatives
     });
 
     const { container } = render(<TemplateDetail template={template} dependencies={dependencies} />);
@@ -111,6 +174,6 @@ describe(TemplateDetail.name, () => {
       return wasPrevented;
     };
 
-    return { container, router, TemplateDocuments, TemplateDeploysAs, clickAndReportPrevented };
+    return { container, router, TemplateDocuments, TemplateDeploysAs, BlockedGpuAlternatives, useFlag, clickAndReportPrevented };
   }
 });
