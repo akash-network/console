@@ -7041,6 +7041,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/hardware-requests/{id}/offers/{offerId}/request-approval": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Ask the organization's owners and admins to accept an offer
+     * @description Open to members who can't accept offers themselves. Emails every owner and admin; asking twice for the same offer sends nothing more.
+     */
+    post: operations["requestHardwareRequestOfferApproval"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/notification-address-confirmations": {
     parameters: {
       query?: never;
@@ -14193,6 +14213,101 @@ export interface operations {
         content?: never;
       };
       /** @description The offer was already accepted or closed, or the request is already settled */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  requestHardwareRequestOfferApproval: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+        offerId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The offer the approval was asked for */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** @enum {string} */
+              status: "published" | "accepted" | "declined" | "closed";
+              /** @description A published offer past its expiry, which can no longer be accepted */
+              expired: boolean;
+              providerAudited: boolean;
+              /** @description The provider's uptime over the 7 days before the offer was written, from 0 to 1 */
+              providerUptime7d: number | null;
+              usdPerGpuHour: number;
+              /** @description The price per GPU-hour for every GPU in the offer, over 730 hours */
+              estimatedMonthlyUsd: number;
+              terms: {
+                gpu: {
+                  model: string;
+                  count: number;
+                  /** @enum {string} */
+                  interconnect: "none" | "server" | "cluster";
+                };
+                location: string;
+                /** Format: date */
+                availableFrom: string;
+                /** @enum {string} */
+                term: "month_to_month" | "3_months" | "6_months" | "12_months" | "24_months";
+                /** @enum {string|null} */
+                sla: "99" | "99.5" | "99.9" | null;
+                storage: {
+                  tbPerNode: number;
+                  nvme: boolean;
+                };
+                uplinkGbps: 1 | 10 | 25 | unknown;
+              };
+              /** Format: date-time */
+              expiresAt: string;
+              /** Format: date-time */
+              publishedAt: string | null;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not acting for the request's organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No request the caller can read, or no offer on it, has this id */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller can accept the offer, the offer is not open or has expired, or the request is already settled */
       409: {
         headers: {
           [name: string]: unknown;

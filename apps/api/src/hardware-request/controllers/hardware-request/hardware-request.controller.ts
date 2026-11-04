@@ -57,6 +57,11 @@ export class HardwareRequestController {
   }
 
   @Protected([{ action: "read", subject: "HardwareRequest" }])
+  async requestOfferApproval(hardwareRequestId: string, offerId: string): Promise<TenantHardwareRequestOfferResponse> {
+    return { data: toTenantOffer(await this.hardwareRequestOfferDecisionService.requestApproval(hardwareRequestId, offerId), new Date()) };
+  }
+
+  @Protected([{ action: "read", subject: "HardwareRequest" }])
   async listOffers(hardwareRequestId: string): Promise<ListHardwareRequestOffersResponse> {
     const offers = await this.hardwareRequestService.listOffers(hardwareRequestId);
     const now = new Date();

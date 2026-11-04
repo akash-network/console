@@ -11,13 +11,20 @@ import { type HardwareRequestOutput, HardwareRequestRepository } from "@src/hard
 import { HardwareRequestEventRepository } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
 import { HardwareRequestOfferRepository } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { HardwareRequestAcceptedNoticeJob } from "@src/hardware-request/services/hardware-request-accepted-notice/hardware-request-accepted-notice.handler";
+import { HardwareRequestApprovalRequestJob } from "@src/hardware-request/services/hardware-request-approval-request/hardware-request-approval-request.handler";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 
 const COMMITTING_ROLES: OrganizationRole[] = ["owner", "admin"];
 
 const SETTLED_REQUEST_STATUSES: HardwareRequestStatus[] = ["accepted", "fulfilled", "withdrawn", "closed"];
 
-type Decider = "owners_and_admins" | "requester_owners_and_admins";
+type Decider = "owners_and_admins" | "requester_owners_and_admins" | "members";
+
+const FORBIDDEN_MESSAGES: Record<Decider, string> = {
+  owners_and_admins: "Only an owner or admin of the organization can accept an offer",
+  requester_owners_and_admins: "Only the requester or an owner or admin of the organization can decline an offer",
+  members: "Only a member of the organization can ask for approval"
+};
 
 /** Only someone who can commit the organization accepts, while the requester may also turn an offer down. */
 @singleton()
@@ -37,10 +44,7 @@ export class HardwareRequestOfferDecisionService {
 
     return await this.txService.transaction(async () => {
       const hardwareRequest = await this.#lockRequest(hardwareRequestId, "owners_and_admins");
-      const offer = await this.#lockVisibleOffer(hardwareRequestId, offerId);
-
-      if (offer.status !== "published") throw createError(409, `This offer is already ${offer.status}`);
-      if (new Date(offer.expiresAt) <= new Date()) throw createError(409, "This offer has expired");
+      await this.#lockOpenOffer(hardwareRequestId, offerId);
 
       const now = new Date();
       const accepted = await this.hardwareRequestOfferRepository.updateById(offerId, { status: "accepted", updatedAt: now }, { returning: true });
@@ -76,6 +80,24 @@ export class HardwareRequestOfferDecisionService {
     });
   }
 
+  /** Asking twice for the same offer records and emails nothing more, so a member can't flood the approvers. */
+  async requestApproval(hardwareRequestId: string, offerId: string): Promise<TenantVisibleOffer> {
+    const userId = this.authService.currentUser.id;
+
+    return await this.txService.transaction(async () => {
+      await this.#lockRequest(hardwareRequestId, "members");
+      const offer = await this.#lockOpenOffer(hardwareRequestId, offerId);
+      const approvalRequest = { hardwareRequestId, type: "approval_requested" as const, payload: { offerId, userId } };
+
+      if (await this.hardwareRequestEventRepository.hasRecorded(approvalRequest)) return offer;
+
+      const event = await this.hardwareRequestEventRepository.record({ ...approvalRequest, actor: null });
+      await this.jobQueueService.enqueue(new HardwareRequestApprovalRequestJob({ hardwareRequestId, offerId, eventId: event.id, requestedByUserId: userId }));
+
+      return offer;
+    });
+  }
+
   async #lockRequest(hardwareRequestId: string, decider: Decider): Promise<HardwareRequestOutput> {
     const readable = await this.hardwareRequestRepository.accessibleBy(this.authService.ability, "read").findById(hardwareRequestId);
 
@@ -84,16 +106,12 @@ export class HardwareRequestOfferDecisionService {
     const organizationContext = this.executionContextService.get("ORGANIZATION_CONTEXT");
     const actsForRequestOrganization = (organizationContext?.organizationId ?? null) === readable.organizationId;
     const role = actsForRequestOrganization ? organizationContext?.role : undefined;
-    const isRequester = decider === "requester_owners_and_admins" && actsForRequestOrganization && readable.userId === this.authService.currentUser.id;
+    const canCommit = !!role && COMMITTING_ROLES.includes(role);
+    const isRequester = actsForRequestOrganization && readable.userId === this.authService.currentUser.id;
+    const allowed = { owners_and_admins: canCommit, requester_owners_and_admins: canCommit || isRequester, members: !!role }[decider];
 
-    if (!isRequester && !(role && COMMITTING_ROLES.includes(role))) {
-      throw createError(
-        403,
-        decider === "owners_and_admins"
-          ? "Only an owner or admin of the organization can accept an offer"
-          : "Only the requester or an owner or admin of the organization can decline an offer"
-      );
-    }
+    if (!allowed) throw createError(403, FORBIDDEN_MESSAGES[decider]);
+    if (decider === "members" && canCommit) throw createError(409, "An owner or admin accepts the offer instead of asking for approval");
 
     const hardwareRequest = await this.hardwareRequestRepository.findOneByAndLock({ id: hardwareRequestId });
 
@@ -101,6 +119,15 @@ export class HardwareRequestOfferDecisionService {
     if (SETTLED_REQUEST_STATUSES.includes(hardwareRequest.status)) throw createError(409, `This request is already ${hardwareRequest.status}`);
 
     return hardwareRequest;
+  }
+
+  async #lockOpenOffer(hardwareRequestId: string, offerId: string): Promise<TenantVisibleOffer> {
+    const offer = await this.#lockVisibleOffer(hardwareRequestId, offerId);
+
+    if (offer.status !== "published") throw createError(409, `This offer is already ${offer.status}`);
+    if (new Date(offer.expiresAt) <= new Date()) throw createError(409, "This offer has expired");
+
+    return offer;
   }
 
   async #lockVisibleOffer(hardwareRequestId: string, offerId: string): Promise<TenantVisibleOffer> {

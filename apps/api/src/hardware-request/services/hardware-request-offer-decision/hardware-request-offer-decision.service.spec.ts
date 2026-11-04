@@ -16,6 +16,7 @@ import type {
   HardwareRequestOfferRepository
 } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { HardwareRequestAcceptedNoticeJob } from "@src/hardware-request/services/hardware-request-accepted-notice/hardware-request-accepted-notice.handler";
+import { HardwareRequestApprovalRequestJob } from "@src/hardware-request/services/hardware-request-approval-request/hardware-request-approval-request.handler";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import { HardwareRequestOfferDecisionService } from "./hardware-request-offer-decision.service";
@@ -175,6 +176,60 @@ describe(HardwareRequestOfferDecisionService.name, () => {
       const { service, hardwareRequest } = setup({ role: "owner", offerStatus });
 
       await expect(service.decline(hardwareRequest.id, "offer-1")).rejects.toMatchObject({ status: 409, message: `This offer is already ${offerStatus}` });
+    });
+  });
+
+  describe("requestApproval", () => {
+    it.each(["member", "viewer"] as const)("lets a %s ask the owners and admins once, under a row lock", async role => {
+      const { service, hardwareRequestRepository, hardwareRequestEventRepository, jobQueueService, txService, hardwareRequest, user } = setup({ role });
+      const approvalRequest = { hardwareRequestId: hardwareRequest.id, type: "approval_requested", payload: { offerId: "offer-1", userId: user.id } };
+
+      await expect(service.requestApproval(hardwareRequest.id, "offer-1")).resolves.toMatchObject({ id: "offer-1", status: "published" });
+
+      expect(txService.transaction).toHaveBeenCalledTimes(1);
+      expect(hardwareRequestRepository.findOneByAndLock).toHaveBeenCalledWith({ id: hardwareRequest.id });
+      expect(hardwareRequestEventRepository.hasRecorded).toHaveBeenCalledWith(approvalRequest);
+      expect(hardwareRequestEventRepository.record).toHaveBeenCalledWith({ ...approvalRequest, actor: null });
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new HardwareRequestApprovalRequestJob({ hardwareRequestId: hardwareRequest.id, offerId: "offer-1", eventId: "event-1", requestedByUserId: user.id })
+      );
+    });
+
+    it("records and emails nothing more when the member already asked about this offer", async () => {
+      const { service, hardwareRequestEventRepository, jobQueueService, hardwareRequest } = setup({ role: "member" });
+      hardwareRequestEventRepository.hasRecorded.mockResolvedValue(true);
+
+      await expect(service.requestApproval(hardwareRequest.id, "offer-1")).resolves.toMatchObject({ id: "offer-1" });
+      expect(hardwareRequestEventRepository.record).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it.each(["owner", "admin"] as const)("answers 409 to an %s, who accepts instead", async role => {
+      const { service, hardwareRequestEventRepository, hardwareRequest } = setup({ role });
+
+      await expect(service.requestApproval(hardwareRequest.id, "offer-1")).rejects.toMatchObject({
+        status: 409,
+        message: "An owner or admin accepts the offer instead of asking for approval"
+      });
+      expect(hardwareRequestEventRepository.record).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { case: "a caller outside any organization", role: undefined },
+      { case: "a member acting for another organization", role: "member", contextOrganizationId: "another-org" }
+    ] as const)("answers 403 to $case", async input => {
+      const { service, hardwareRequest } = setup({ requester: true, ...input });
+
+      await expect(service.requestApproval(hardwareRequest.id, "offer-1")).rejects.toMatchObject({
+        status: 403,
+        message: "Only a member of the organization can ask for approval"
+      });
+    });
+
+    it("answers 409 for an offer that is no longer open", async () => {
+      const { service, hardwareRequest } = setup({ role: "member", offerStatus: "declined" });
+
+      await expect(service.requestApproval(hardwareRequest.id, "offer-1")).rejects.toMatchObject({ status: 409, message: "This offer is already declined" });
     });
   });
 

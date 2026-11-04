@@ -185,3 +185,27 @@ hardwareRequestRouter.openapi(declineHardwareRequestOfferRoute, async function r
   const result = await container.resolve(HardwareRequestController).declineOffer(id, offerId);
   return c.json(result, 200);
 });
+
+const requestHardwareRequestOfferApprovalRoute = createRoute({
+  method: "post",
+  operationId: "requestHardwareRequestOfferApproval",
+  path: "/v1/hardware-requests/{id}/offers/{offerId}/request-approval",
+  summary: "Ask the organization's owners and admins to accept an offer",
+  description: "Open to members who can't accept offers themselves. Emails every owner and admin; asking twice for the same offer sends nothing more.",
+  tags: ["Hardware Requests"],
+  security: SECURITY_BEARER,
+  request: { params: HardwareRequestOfferIdParamsSchema },
+  responses: {
+    200: { description: "The offer the approval was asked for", content: { "application/json": { schema: TenantHardwareRequestOfferResponseSchema } } },
+    401: { description: "Unauthorized" },
+    403: { description: "The caller is not acting for the request's organization" },
+    404: { description: "No request the caller can read, or no offer on it, has this id" },
+    409: { description: "The caller can accept the offer, the offer is not open or has expired, or the request is already settled" }
+  }
+});
+
+hardwareRequestRouter.openapi(requestHardwareRequestOfferApprovalRoute, async function routeRequestHardwareRequestOfferApproval(c) {
+  const { id, offerId } = c.req.valid("param");
+  const result = await container.resolve(HardwareRequestController).requestOfferApproval(id, offerId);
+  return c.json(result, 200);
+});
