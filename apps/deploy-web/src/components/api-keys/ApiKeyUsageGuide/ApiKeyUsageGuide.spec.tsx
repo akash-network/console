@@ -9,6 +9,17 @@ import userEvent from "@testing-library/user-event";
 
 const API_KEY = "ac.sk.staging.0123456789abcdef";
 
+const COMMANDS: { tab: string; label: string; copiedTab: ApiKeyUsageTab; holdsKey: boolean }[] = [
+  { tab: "Agent", label: "skill install command", copiedTab: "agent", holdsKey: false },
+  { tab: "Agent", label: "API key export", copiedTab: "agent", holdsKey: true },
+  { tab: "akt CLI", label: "akt install command", copiedTab: "akt", holdsKey: false },
+  { tab: "akt CLI", label: "akt login commands", copiedTab: "akt", holdsKey: true },
+  { tab: "akt CLI", label: "akt deploy commands", copiedTab: "akt", holdsKey: false },
+  { tab: "REST API", label: "REST API script", copiedTab: "rest", holdsKey: true }
+];
+
+const KEY_COMMANDS = COMMANDS.filter(command => command.holdsKey);
+
 describe("ApiKeyUsageGuide", () => {
   it("opens on the agent setup steps", () => {
     setup();
@@ -97,14 +108,34 @@ describe("ApiKeyUsageGuide", () => {
     expect(screen.getByLabelText("REST API script")).toHaveTextContent(`export AKASH_API_KEY="${API_KEY}"`);
   });
 
-  it.each<{ tab: string; label: string; copiedTab: ApiKeyUsageTab }>([
-    { tab: "Agent", label: "skill install command", copiedTab: "agent" },
-    { tab: "Agent", label: "API key export", copiedTab: "agent" },
-    { tab: "akt CLI", label: "akt install command", copiedTab: "akt" },
-    { tab: "akt CLI", label: "akt login commands", copiedTab: "akt" },
-    { tab: "akt CLI", label: "akt deploy commands", copiedTab: "akt" },
-    { tab: "REST API", label: "REST API script", copiedTab: "rest" }
-  ])("reports copying the $label from the $tab tab", async ({ tab, label, copiedTab }) => {
+  it.each(KEY_COMMANDS)("masks the $label in session replays once it holds a key", async ({ tab, label }) => {
+    const { user } = setup({ apiKey: API_KEY });
+
+    await user.click(screen.getByRole("tab", { name: tab }));
+
+    expect(screen.getByLabelText(label)).toHaveClass("amp-mask");
+  });
+
+  it.each(KEY_COMMANDS)("leaves the $label unmasked with the placeholder", async ({ tab, label }) => {
+    const { user } = setup();
+
+    await user.click(screen.getByRole("tab", { name: tab }));
+
+    expect(screen.getByLabelText(label)).not.toHaveClass("amp-mask");
+  });
+
+  it.each(COMMANDS)("copies the $label when nobody listens for copies", async ({ tab, label }) => {
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    render(<ApiKeyUsageGuide />);
+
+    await user.click(screen.getByRole("tab", { name: tab }));
+    await user.click(screen.getByRole("button", { name: `Copy ${label}` }));
+
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalled());
+  });
+
+  it.each(COMMANDS)("reports copying the $label from the $tab tab", async ({ tab, label, copiedTab }) => {
     const { user, onCommandCopied } = setup();
     vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
 

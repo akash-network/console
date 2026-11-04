@@ -22,6 +22,14 @@ describe(useOnboardingApiKey.name, () => {
     expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ name: ONBOARDING_API_KEY_NAME, projectId: "trial-project" }), expect.anything());
   });
 
+  it("creates the key without a project when no project is the default", () => {
+    const { result, mutate } = setup({ projects: [project({ id: "other-project", isDefault: false })] });
+
+    result.current.createApiKey();
+
+    expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ projectId: undefined }), expect.anything());
+  });
+
   it("creates the key without a project when projects are off", () => {
     const { result, mutate } = setup({ isProjectsUiEnabled: false });
 

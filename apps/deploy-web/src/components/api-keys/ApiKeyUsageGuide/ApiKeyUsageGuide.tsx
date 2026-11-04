@@ -68,7 +68,12 @@ export const ApiKeyUsageGuide: FC<Props> = ({ title = "Using your keys", apiKey,
               <CommandBlock label="skill install command" lines={[AKASH_SKILL_INSTALL_COMMAND]} onCopied={() => onCommandCopied?.("agent")} />
             </SetupStep>
             <SetupStep index={2} title="Give your agent the key" description="Set it in the shell your agent runs in. The skill reads it from AKASH_API_KEY.">
-              <CommandBlock label="API key export" lines={[exportApiKeyLine(apiKey ?? API_KEY_PLACEHOLDER)]} onCopied={() => onCommandCopied?.("agent")} />
+              <CommandBlock
+                label="API key export"
+                lines={[exportApiKeyLine(apiKey ?? API_KEY_PLACEHOLDER)]}
+                isMasked={!!apiKey}
+                onCopied={() => onCommandCopied?.("agent")}
+              />
             </SetupStep>
             <SetupStep
               index={3}
@@ -105,6 +110,7 @@ export const ApiKeyUsageGuide: FC<Props> = ({ title = "Using your keys", apiKey,
               <CommandBlock
                 label="akt login commands"
                 lines={["akt context create console --deploy-via console --set-current", apiKey ? `akt console login ${apiKey}` : "akt console login"]}
+                isMasked={!!apiKey}
                 onCopied={() => onCommandCopied?.("akt")}
               />
             </SetupStep>
@@ -132,7 +138,12 @@ export const ApiKeyUsageGuide: FC<Props> = ({ title = "Using your keys", apiKey,
             Send the key in the x-api-key header. Save this script next to deploy.yaml and run it with bash. It follows the getting-started flow: create a
             deployment, wait for bids, start the lease and close it.
           </p>
-          <CommandBlock label="REST API script" lines={getApiKeyUsageScriptLines(apiKey ?? API_KEY_PLACEHOLDER)} onCopied={() => onCommandCopied?.("rest")} />
+          <CommandBlock
+            label="REST API script"
+            lines={getApiKeyUsageScriptLines(apiKey ?? API_KEY_PLACEHOLDER)}
+            isMasked={!!apiKey}
+            onCopied={() => onCommandCopied?.("rest")}
+          />
         </TabsContent>
       </Card>
     </Tabs>

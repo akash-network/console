@@ -2,7 +2,7 @@
 import type { FC } from "react";
 import { Fragment } from "react";
 import { Button, Snackbar } from "@akashnetwork/ui/components";
-import { copyTextToClipboard } from "@akashnetwork/ui/utils";
+import { cn, copyTextToClipboard } from "@akashnetwork/ui/utils";
 import { CopyIcon } from "lucide-react";
 import { useSnackbar } from "notistack";
 
@@ -15,11 +15,13 @@ export const DEPENDENCIES = {
 type Props = {
   label: string;
   lines: readonly string[];
+  /** Keeps lines that hold a real API key out of Amplitude session replays. */
+  isMasked?: boolean;
   onCopied?: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const CommandBlock: FC<Props> = ({ label, lines, onCopied, dependencies: d = DEPENDENCIES }) => {
+export const CommandBlock: FC<Props> = ({ label, lines, isMasked, onCopied, dependencies: d = DEPENDENCIES }) => {
   const { enqueueSnackbar } = d.useSnackbar();
 
   const copyCommands = async () => {
@@ -38,7 +40,7 @@ export const CommandBlock: FC<Props> = ({ label, lines, onCopied, dependencies: 
   return (
     <div className="flex items-start gap-2 rounded-lg border bg-muted py-2 pl-4 pr-1.5">
       <pre className="min-w-0 flex-1 overflow-x-auto py-1 font-mono text-xs leading-relaxed text-foreground">
-        <code aria-label={label}>
+        <code aria-label={label} className={cn(isMasked && "amp-mask")}>
           {lines.map((line, lineIndex) => (
             <Fragment key={lineIndex}>
               {lineIndex > 0 && "\n"}
