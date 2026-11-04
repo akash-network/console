@@ -7,12 +7,13 @@ import { useSnackbar } from "notistack";
 import { deploymentLabelOf } from "@src/components/activity/activityLabels/activityLabels";
 import { ActivityToast } from "@src/components/activity/ActivityToast/ActivityToast";
 import { useDeploymentsReadiness } from "@src/hooks/useDeploymentsReadiness/useDeploymentsReadiness";
+import { useGithubStarPrompt } from "@src/hooks/useGithubStarPrompt/useGithubStarPrompt";
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { type Activity, useActivityFeedQuery } from "@src/queries/useLatestActivitiesQuery";
 import { UrlService } from "@src/utils/urlUtils";
 
-export const DEPENDENCIES = { useUser, useActivityFeedQuery, useDeploymentsReadiness, useSnackbar, useQueryClient, useRouter };
+export const DEPENDENCIES = { useUser, useActivityFeedQuery, useDeploymentsReadiness, useGithubStarPrompt, useSnackbar, useQueryClient, useRouter };
 
 /** A deploy that went through this long ago is left to the deployment's own page, so a feed of old deploys never fans out into checks on each. */
 const READY_WATCH_WINDOW_MS = 30 * 60 * 1000;
@@ -40,6 +41,7 @@ export function DeploymentReadyHost({ dependencies: d = DEPENDENCIES }: { depend
   const { enqueueSnackbar, closeSnackbar } = d.useSnackbar();
   const queryClient = d.useQueryClient();
   const router = d.useRouter();
+  const promptGithubStar = d.useGithubStarPrompt();
 
   useEffect(
     function noteDeploysSeenUnderway() {
@@ -84,9 +86,10 @@ export function DeploymentReadyHost({ dependencies: d = DEPENDENCIES }: { depend
           />,
           { variant: "success" }
         );
+        promptGithubStar();
       }
     },
-    [launches, watchedDeploys, enqueueSnackbar, closeSnackbar, queryClient, router]
+    [launches, watchedDeploys, enqueueSnackbar, closeSnackbar, queryClient, router, promptGithubStar]
   );
 
   useEffect(

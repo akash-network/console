@@ -74,6 +74,16 @@ describe(DeploymentReadyHost.name, () => {
     expect(closeSnackbar).toHaveBeenCalledWith("toast-1");
   });
 
+  it("asks the user to star the Console repository when a deployment they deployed becomes ready", () => {
+    const { promptGithubStar, receive } = setup({ activities: [deploy("1", "pending")] });
+
+    receive({ "1": "starting" });
+    expect(promptGithubStar).not.toHaveBeenCalled();
+    receive({ "1": "ready" });
+
+    expect(promptGithubStar).toHaveBeenCalledTimes(1);
+  });
+
   it("refreshes what the providers report for a deployment once it is ready, so every view of it reads running", () => {
     const { queryClient, receive } = setup({ activities: [deploy("1", "pending")] });
 
@@ -104,11 +114,12 @@ describe(DeploymentReadyHost.name, () => {
   });
 
   it("announces nothing for a deployment already running when it was first checked, and stops checking on it", () => {
-    const { enqueueSnackbar, queryClient, receive, watchedDseqs } = setup({ activities: [deploy("1", "succeeded", minutesAgo(5))] });
+    const { enqueueSnackbar, queryClient, promptGithubStar, receive, watchedDseqs } = setup({ activities: [deploy("1", "succeeded", minutesAgo(5))] });
 
     receive({ "1": "ready" });
 
     expect(enqueueSnackbar).not.toHaveBeenCalled();
+    expect(promptGithubStar).not.toHaveBeenCalled();
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
     expect(watchedDseqs()).toEqual([]);
   });
@@ -228,11 +239,13 @@ describe(DeploymentReadyHost.name, () => {
     const closeSnackbar = vi.fn();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
     const router = mock<ReturnType<typeof DEPENDENCIES.useRouter>>();
+    const promptGithubStar = vi.fn();
 
     const dependencies: typeof DEPENDENCIES = {
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: input.isSignedIn === false ? undefined : buildUser() }),
       useActivityFeedQuery,
       useDeploymentsReadiness,
+      useGithubStarPrompt: () => promptGithubStar,
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar }),
       useQueryClient: () => queryClient,
       useRouter: () => router
@@ -247,6 +260,17 @@ describe(DeploymentReadyHost.name, () => {
     };
     const watchedDseqs = () => useDeploymentsReadiness.mock.calls.at(-1)?.[0];
 
-    return { useActivityFeedQuery, useDeploymentsReadiness, enqueueSnackbar, closeSnackbar, queryClient, router, receive, watchedDseqs, unmount };
+    return {
+      useActivityFeedQuery,
+      useDeploymentsReadiness,
+      enqueueSnackbar,
+      closeSnackbar,
+      queryClient,
+      router,
+      promptGithubStar,
+      receive,
+      watchedDseqs,
+      unmount
+    };
   }
 });
