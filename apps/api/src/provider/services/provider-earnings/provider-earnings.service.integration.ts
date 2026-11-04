@@ -1,9 +1,12 @@
 import { container } from "tsyringe";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { CHAIN_DB } from "@src/chain";
+import { BoundedChainQueryService } from "@src/chain/services/bounded-chain-query/bounded-chain-query.service";
+import type { ChainConfigService } from "@src/chain/services/chain-config/chain-config.service";
 import { ProviderEarningsService } from "./provider-earnings.service";
 
+import { mockConfigService } from "@test/mocks/config-service.mock";
 import { createAkashAddress, createAkashBlock, createProvider } from "@test/seeders";
 
 describe(ProviderEarningsService.name, () => {
@@ -68,10 +71,42 @@ describe(ProviderEarningsService.name, () => {
 
       await expect(service.getProviderEarnings(owner, firstTwoDays)).resolves.toHaveProperty("earnings");
     });
+
+    it("answers 503 when computing earnings outlasts the chain query timeout", async () => {
+      const { service } = setup({ chainQueryTimeoutMs: 100 });
+      const provider = await createProvider();
+      await lockLeaseTable();
+
+      await expect(service.getProviderEarnings(provider.owner, firstTwoDays)).rejects.toMatchObject({ status: 503 });
+    });
+
+    it("computes a range again after an attempt that timed out", async () => {
+      const { service, computeEarnings } = setup({ chainQueryTimeoutMs: 100 });
+      const provider = await createProvider();
+      const releaseLeaseTable = await lockLeaseTable();
+
+      await expect(service.getProviderEarnings(provider.owner, firstTwoDays)).rejects.toMatchObject({ status: 503 });
+      await releaseLeaseTable();
+
+      await expect(service.getProviderEarnings(provider.owner, firstTwoDays)).resolves.toHaveProperty("earnings");
+      expect(computeEarnings).toHaveBeenCalledTimes(2);
+    });
   });
 
-  function setup() {
-    const service = new ProviderEarningsService(container.resolve(CHAIN_DB));
+  async function lockLeaseTable() {
+    const chainDb = container.resolve(CHAIN_DB);
+    const transaction = await chainDb.transaction();
+    await chainDb.query("LOCK TABLE lease IN ACCESS EXCLUSIVE MODE", { transaction });
+    let rollback: Promise<void> | undefined;
+    const release = () => (rollback ??= transaction.rollback());
+    onTestFinished(release);
+
+    return release;
+  }
+
+  function setup(input: { chainQueryTimeoutMs?: number } = {}) {
+    const chainConfig = mockConfigService<ChainConfigService>({ BOUNDED_CHAIN_QUERY_TIMEOUT_MS: input.chainQueryTimeoutMs ?? 10_000 });
+    const service = new ProviderEarningsService(new BoundedChainQueryService(container.resolve(CHAIN_DB), chainConfig));
     const computeEarnings = vi.spyOn(service, "getEarningsAtHeight");
 
     return { service, computeEarnings };
