@@ -207,9 +207,10 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole
   );
 };
 
-/** A cancelled deployment still closing counts too, since a fresh start would never close it. */
+/** A failed attempt that left no deployment is as fresh as the form it returns to, while a cancelled deployment still closing counts, since a fresh start would never close it. */
 function ReportDeployStarted({ flow, onChange }: { flow: DeploymentFlow; onChange: (hasStartedDeploying: boolean) => void }) {
-  const hasStartedDeploying = flow.phase !== "configuring" || !!flow.pendingClose;
+  const hasFailedWithoutDeployment = flow.phase === "error" && !flow.dseq;
+  const hasStartedDeploying = (flow.phase !== "configuring" && !hasFailedWithoutDeployment) || !!flow.pendingClose;
 
   useEffect(
     function reportDeployStarted() {

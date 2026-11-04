@@ -318,8 +318,24 @@ describe(ConfigureDeployment.name, () => {
     expect(AutoDeployFlow.mock.lastCall?.[0].flow).toBe(deployingFlow);
   });
 
+  it("auto deploys, on a fresh flow, the template already shown when Deploy again marks it over a manual screen whose create failed", () => {
+    const { AutoDeployFlow, ConfigureDeploymentForm, markAutoDeployStart, navigate } = setup({ templateId: helloWorldTemplate.code, flow: { phase: "error" } });
+    const failedFlow = ConfigureDeploymentForm.mock.lastCall?.[0].flow;
+
+    markAutoDeployStart(helloWorldTemplate.code);
+    navigate({ templateId: helloWorldTemplate.code, sdlStrategy: "default", bidStrategy: "auto" });
+
+    expect(AutoDeployFlow).toHaveBeenLastCalledWith(expect.objectContaining({ sdl: helloWorldTemplate.content }), expect.anything());
+    expect(AutoDeployFlow.mock.lastCall?.[0].flow).not.toBe(failedFlow);
+  });
+
   it.each([
     { state: "has a deployment being created", flow: { phase: "creating" } },
+    { state: "failed with its deployment still open", flow: { phase: "error", dseq: "1234" } },
+    {
+      state: "failed while a cancelled deployment is still closing",
+      flow: { phase: "error", pendingClose: mock<NonNullable<DeploymentFlow["pendingClose"]>>() }
+    },
     { state: "is still closing a cancelled deployment", flow: { pendingClose: mock<NonNullable<DeploymentFlow["pendingClose"]>>() } }
   ] as const)("keeps the form when the shown template is marked over a manual screen that $state", ({ flow }) => {
     const { AutoDeployFlow, markAutoDeployStart, navigate } = setup({ templateId: helloWorldTemplate.code, flow });
@@ -601,7 +617,7 @@ describe(ConfigureDeployment.name, () => {
     );
     const AutoDeployFlow = vi.fn<typeof DEPENDENCIES.AutoDeployFlow>(() => <div data-testid="auto-mock" />);
     const DeploymentFlowProvider = vi.fn(function FlowProviderMock({ children }) {
-      const [flow] = useState(() => mock<DeploymentFlow>({ phase: "configuring", pendingClose: null, ...input.flow }));
+      const [flow] = useState(() => mock<DeploymentFlow>({ phase: "configuring", dseq: null, pendingClose: null, ...input.flow }));
       return <>{children({ flow })}</>;
     });
     const enqueueSnackbar = vi.fn();
