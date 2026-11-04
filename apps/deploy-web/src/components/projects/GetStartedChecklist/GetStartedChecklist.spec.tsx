@@ -2,8 +2,7 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { AKT_DOCS_URL, API_REFERENCE_URL } from "@src/config/agent-setup.config";
-import { AI_AGENTS_DOCS_URL, AKASH_SKILL_INSTALL_COMMAND } from "@src/config/agent-setup.config";
+import { AI_AGENTS_DOCS_URL, AKASH_SKILL_INSTALL_COMMAND, AKT_DOCS_URL, API_REFERENCE_URL } from "@src/config/agent-setup.config";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import { UrlService } from "@src/utils/urlUtils";
 import {
@@ -27,6 +26,42 @@ describe(GetStartedChecklist.name, () => {
   it("renders nothing while the checklist is hidden", () => {
     const { container } = setup({ isVisible: false });
 
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("stays on screen while a newly created key has not been copied yet", async () => {
+    setup({ isVisible: false, createdApiKey: { name: "Onboarding key", apiKey: "ac.sk.secret-key-value" } });
+    await userEvent.click(screen.getByRole("button", { name: "Set up your tools" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Copy skill install command" }));
+
+    expect(screen.getByText("“Onboarding key” is shown once. Copy it now.")).toBeInTheDocument();
+  });
+
+  it("hides once the newly created key is copied", async () => {
+    const { container } = setup({ isVisible: false, createdApiKey: { name: "Onboarding key", apiKey: "ac.sk.secret-key-value" } });
+    await userEvent.click(screen.getByRole("button", { name: "Set up your tools" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Copy API key command" }));
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("keeps the newly created key on screen when copying it fails", async () => {
+    setup({ isVisible: false, isCopySuccessful: false, createdApiKey: { name: "Onboarding key", apiKey: "ac.sk.secret-key-value" } });
+    await userEvent.click(screen.getByRole("button", { name: "Set up your tools" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Copy API key command" }));
+
+    expect(screen.getByText("“Onboarding key” is shown once. Copy it now.")).toBeInTheDocument();
+  });
+
+  it("hides on dismiss even while a newly created key has not been copied", async () => {
+    const { container, dismiss } = setup({ isVisible: false, createdApiKey: { name: "Onboarding key", apiKey: "ac.sk.secret-key-value" } });
+
+    await userEvent.click(screen.getByRole("button", { name: "Dismiss Get started" }));
+
+    expect(dismiss).toHaveBeenCalled();
     expect(container).toBeEmptyDOMElement();
   });
 

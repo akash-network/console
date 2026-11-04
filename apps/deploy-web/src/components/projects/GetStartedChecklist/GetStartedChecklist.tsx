@@ -54,9 +54,11 @@ export function GetStartedChecklist({ dependencies: d = DEPENDENCIES }: { depend
   const [quickPick] = d.useGetStartedQuickPicks();
   const { urlService, analyticsService } = d.useServices();
   const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const [isCreatedKeyReleased, setIsCreatedKeyReleased] = useState(false);
   const onboardingApiKey = d.useOnboardingApiKey({ enabled: isVisible && isToolsOpen });
+  const isHoldingUncopiedKey = !!onboardingApiKey.createdApiKey?.apiKey && !isCreatedKeyReleased;
 
-  if (!isVisible) return null;
+  if (!isVisible && !isHoldingUncopiedKey) return null;
 
   const nextStep = !steps.hasDeployed ? "deploy" : !hasSetUpTools ? "tools" : undefined;
 
@@ -86,6 +88,17 @@ export function GetStartedChecklist({ dependencies: d = DEPENDENCIES }: { depend
     return isCopied;
   };
 
+  const copyKeyCommand = async (tab: ToolTab, text: string) => {
+    const isCopied = await copySetupCommand(tab, text);
+    if (isCopied) setIsCreatedKeyReleased(true);
+    return isCopied;
+  };
+
+  const dismissChecklist = () => {
+    setIsCreatedKeyReleased(true);
+    dismiss();
+  };
+
   const keyStep = (tab: ToolTab, line: (apiKey: string) => string) => (
     <KeyStep
       createdApiKey={onboardingApiKey.createdApiKey}
@@ -93,7 +106,7 @@ export function GetStartedChecklist({ dependencies: d = DEPENDENCIES }: { depend
       hasApiKey={steps.hasApiKey}
       line={line}
       onCreate={createApiKey}
-      onCopy={text => copySetupCommand(tab, text)}
+      onCopy={text => copyKeyCommand(tab, text)}
     />
   );
 
@@ -107,7 +120,13 @@ export function GetStartedChecklist({ dependencies: d = DEPENDENCIES }: { depend
           <ProgressRing doneCount={doneCount} total={stepCount} />
           {doneCount} of {stepCount} done
         </span>
-        <Button variant="link" size="sm" className="ml-auto h-7 px-0 text-[13px] text-muted-foreground" aria-label="Dismiss Get started" onClick={dismiss}>
+        <Button
+          variant="link"
+          size="sm"
+          className="ml-auto h-7 px-0 text-[13px] text-muted-foreground"
+          aria-label="Dismiss Get started"
+          onClick={dismissChecklist}
+        >
           Dismiss
         </Button>
       </div>
