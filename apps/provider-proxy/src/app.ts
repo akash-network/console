@@ -1,3 +1,4 @@
+import { dropCallerLogIdentity } from "@akashnetwork/instrumentation";
 import { serve } from "@hono/node-server";
 import { otel } from "@hono/otel";
 import { OpenAPIHono } from "@hono/zod-openapi";
@@ -30,6 +31,7 @@ export function createApp(container: Container): Hono<AppEnv> {
   ];
 
   app.use("*", otel({ captureRequestHeaders: ["baggage"] }));
+  app.use(dropCallerLogIdentity);
   app.use((c, next) => {
     c.set("container", container);
     return next();
