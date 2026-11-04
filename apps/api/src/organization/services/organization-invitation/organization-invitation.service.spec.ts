@@ -678,7 +678,9 @@ describe(OrganizationInvitationService.name, () => {
 
       const url = await service.createInvitationLink(invitation.id, { authMethod: "api_key" });
 
-      expect(url).toMatch(new RegExp(`^${DEPLOY_WEB_BASE_URL}/invitations#token=[A-Za-z0-9_-]{43}$`));
+      const linkPrefix = `${DEPLOY_WEB_BASE_URL}/invitations#token=`;
+      expect(url.startsWith(linkPrefix)).toBe(true);
+      expect(url.slice(linkPrefix.length)).toMatch(/^[A-Za-z0-9_-]{43}$/);
       expect(repositories.update.updateBy).toHaveBeenCalledTimes(1);
     });
   });
