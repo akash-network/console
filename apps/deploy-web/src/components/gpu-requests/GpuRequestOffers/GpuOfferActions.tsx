@@ -40,17 +40,17 @@ export const GpuOfferActions: FC<Props> = ({ requestId, offer, label, decisions,
   return (
     <div className="flex flex-wrap items-center justify-end gap-1.5">
       {decisions.canAccept && (
-        <Button type="button" size="sm" onClick={() => setDecision("accept")}>
+        <Button type="button" size="sm" aria-label={`Accept ${label}`} onClick={() => setDecision("accept")}>
           Accept
         </Button>
       )}
       {decisions.canAskForApproval && (
-        <Button type="button" size="sm" variant="outline" disabled={isAsking} onClick={askAnAdmin}>
+        <Button type="button" size="sm" variant="outline" aria-label={`Ask an admin to accept ${label}`} disabled={isAsking} onClick={askAnAdmin}>
           Ask an admin to accept
         </Button>
       )}
       {decisions.canDecline && (
-        <Button type="button" size="sm" variant="ghost" onClick={() => setDecision("decline")}>
+        <Button type="button" size="sm" variant="ghost" aria-label={`Decline ${label}`} onClick={() => setDecision("decline")}>
           Decline
         </Button>
       )}

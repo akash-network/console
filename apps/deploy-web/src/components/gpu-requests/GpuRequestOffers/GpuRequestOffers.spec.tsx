@@ -32,6 +32,32 @@ describe(GpuRequestOffers.name, () => {
     );
   });
 
+  it.each([
+    { status: "accepted", viewer: { userId: "me", role: "owner" } },
+    { status: "fulfilled", viewer: { userId: "me", role: "admin" } },
+    { status: "offers", viewer: { userId: "me", role: undefined } }
+  ] as const)("leaves out the actions column when a $status request gives a $viewer.role viewer no decision", ({ status, viewer }) => {
+    const request = buildHardwareRequest({ status, userId: "someone" });
+    const { GpuOffersTable } = setup({ request, offers: [buildGpuRequestOffer()], viewer });
+
+    expect(GpuOffersTable).toHaveBeenCalledWith(expect.objectContaining({ renderActions: undefined }), expect.anything());
+  });
+
+  it("keeps the actions column when the viewer can decide one of several offers", () => {
+    const request = buildHardwareRequest({ status: "offers", userId: "someone" });
+    const offers = [buildGpuRequestOffer({ status: "declined" }), buildGpuRequestOffer({ status: "published" })];
+    const { GpuOffersTable } = setup({ request, offers, viewer: { userId: "me", role: "member" } });
+
+    expect(GpuOffersTable).toHaveBeenCalledWith(expect.objectContaining({ renderActions: expect.any(Function) }), expect.anything());
+  });
+
+  it("keeps the actions column when the requester can only decline an expired offer", () => {
+    const request = buildHardwareRequest({ status: "offers", userId: "me" });
+    const { GpuOffersTable } = setup({ request, offers: [buildGpuRequestOffer({ expired: true })], viewer: { userId: "me", role: "member" } });
+
+    expect(GpuOffersTable).toHaveBeenCalledWith(expect.objectContaining({ renderActions: expect.any(Function) }), expect.anything());
+  });
+
   it("shows that the offers are loading", () => {
     const { GpuOffersTable } = setup({ isLoading: true });
 
