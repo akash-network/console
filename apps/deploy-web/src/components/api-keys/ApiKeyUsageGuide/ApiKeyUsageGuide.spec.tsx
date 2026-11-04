@@ -1,10 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { AI_AGENTS_DOCS_URL } from "@src/config/agent-setup.config";
-import { AKT_DOCS_URL, AKT_INSTALL_GUIDE_URL, API_KEY_USAGE_SCRIPT_LINES, ApiKeyUsageGuide } from "./ApiKeyUsageGuide";
+import type { ApiKeyUsageTab } from "./ApiKeyUsageGuide";
+import { AKT_DOCS_URL, AKT_INSTALL_GUIDE_URL, API_KEY_USAGE_SCRIPT_LINES, ApiKeyUsageGuide, getApiKeyUsageScriptLines } from "./ApiKeyUsageGuide";
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+const API_KEY = "ac.sk.staging.0123456789abcdef";
+
+const COMMANDS: { tab: string; label: string; copiedTab: ApiKeyUsageTab; holdsKey: boolean }[] = [
+  { tab: "Agent", label: "skill install command", copiedTab: "agent", holdsKey: false },
+  { tab: "Agent", label: "API key export", copiedTab: "agent", holdsKey: true },
+  { tab: "akt CLI", label: "akt install command", copiedTab: "akt", holdsKey: false },
+  { tab: "akt CLI", label: "akt login commands", copiedTab: "akt", holdsKey: true },
+  { tab: "akt CLI", label: "akt deploy commands", copiedTab: "akt", holdsKey: false },
+  { tab: "REST API", label: "REST API script", copiedTab: "rest", holdsKey: true }
+];
+
+const KEY_COMMANDS = COMMANDS.filter(command => command.holdsKey);
 
 describe("ApiKeyUsageGuide", () => {
   it("opens on the agent setup steps", () => {
@@ -30,6 +44,7 @@ describe("ApiKeyUsageGuide", () => {
 
     expect(screen.getByLabelText("akt install command")).toHaveTextContent("brew install akash-network/tap/akt");
     expect(screen.getByLabelText("akt login commands").textContent).toBe("akt context create console --deploy-via console --set-current\nakt console login");
+    expect(screen.getByText("Creates a context that deploys through Console, then asks for your key and stores it.")).toBeInTheDocument();
     expect(screen.getByLabelText("akt deploy commands").textContent).toBe("akt sdl init web > deploy.yaml\nakt deploy deploy.yaml");
     expect(screen.queryByLabelText("skill install command")).not.toBeInTheDocument();
   });
@@ -63,15 +78,85 @@ describe("ApiKeyUsageGuide", () => {
     expect(within(screen.getByRole("region", { name: "Using your keys" })).getByRole("tablist")).toBeInTheDocument();
   });
 
+  it("sits in a section with the given title", () => {
+    setup({ title: "Pick how you'll use it" });
+
+    expect(within(screen.getByRole("region", { name: "Pick how you'll use it" })).getByRole("tablist")).toBeInTheDocument();
+  });
+
+  it("fills the given key into the agent setup", () => {
+    setup({ apiKey: API_KEY });
+
+    expect(screen.getByLabelText("API key export")).toHaveTextContent(`export AKASH_API_KEY="${API_KEY}"`);
+  });
+
+  it("logs akt in with the given key instead of prompting for it", async () => {
+    const { user } = setup({ apiKey: API_KEY });
+
+    await user.click(screen.getByRole("tab", { name: "akt CLI" }));
+
+    expect(screen.getByLabelText("akt login commands").textContent).toBe(
+      `akt context create console --deploy-via console --set-current\nakt console login ${API_KEY}`
+    );
+    expect(screen.getByText("Creates a context that deploys through Console, then stores your key for it.")).toBeInTheDocument();
+  });
+
+  it("fills the given key into the REST API script", async () => {
+    const { user } = setup({ apiKey: API_KEY });
+
+    await user.click(screen.getByRole("tab", { name: "REST API" }));
+
+    expect(screen.getByLabelText("REST API script").textContent).toBe(getApiKeyUsageScriptLines(API_KEY).join("\n"));
+    expect(screen.getByLabelText("REST API script")).toHaveTextContent(`export AKASH_API_KEY="${API_KEY}"`);
+  });
+
+  it.each(KEY_COMMANDS)("masks the $label in session replays once it holds a key", async ({ tab, label }) => {
+    const { user } = setup({ apiKey: API_KEY });
+
+    await user.click(screen.getByRole("tab", { name: tab }));
+
+    expect(screen.getByLabelText(label)).toHaveClass("amp-mask");
+  });
+
+  it.each(KEY_COMMANDS)("leaves the $label unmasked with the placeholder", async ({ tab, label }) => {
+    const { user } = setup();
+
+    await user.click(screen.getByRole("tab", { name: tab }));
+
+    expect(screen.getByLabelText(label)).not.toHaveClass("amp-mask");
+  });
+
+  it.each(COMMANDS)("copies the $label when nobody listens for copies", async ({ tab, label }) => {
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    render(<ApiKeyUsageGuide />);
+
+    await user.click(screen.getByRole("tab", { name: tab }));
+    await user.click(screen.getByRole("button", { name: `Copy ${label}` }));
+
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalled());
+  });
+
+  it.each(COMMANDS)("reports copying the $label from the $tab tab", async ({ tab, label, copiedTab }) => {
+    const { user, onCommandCopied } = setup();
+    vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+
+    await user.click(screen.getByRole("tab", { name: tab }));
+    await user.click(screen.getByRole("button", { name: `Copy ${label}` }));
+
+    await vi.waitFor(() => expect(onCommandCopied).toHaveBeenCalledWith(copiedTab));
+  });
+
   function expectExternalLink(link: HTMLElement, href: string) {
     expect(link).toHaveAttribute("href", href);
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
   }
 
-  function setup() {
+  function setup(input?: { title?: string; apiKey?: string }) {
     const user = userEvent.setup();
-    render(<ApiKeyUsageGuide />);
-    return { user };
+    const onCommandCopied = vi.fn();
+    render(<ApiKeyUsageGuide title={input?.title} apiKey={input?.apiKey} onCommandCopied={onCommandCopied} />);
+    return { user, onCommandCopied };
   }
 });

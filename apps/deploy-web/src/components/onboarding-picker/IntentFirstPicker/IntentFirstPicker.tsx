@@ -3,12 +3,13 @@
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { LucideIcon } from "lucide-react";
-import { ArrowRight, Container, KeyRound, LayoutTemplate, Sparkles, Terminal } from "lucide-react";
+import { ArrowRight, Container, LayoutTemplate, Sparkles, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { ApiKeyUsageGuide } from "@src/components/api-keys/ApiKeyUsageGuide/ApiKeyUsageGuide";
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
+import { ApiKeySetup } from "@src/components/onboarding-picker/ApiKeySetup/ApiKeySetup";
+import { useOnboardingApiKey } from "@src/components/onboarding-picker/ApiKeySetup/useOnboardingApiKey";
 import {
   describeTemplateSize,
   ONBOARDING_SLOTS,
@@ -41,8 +42,9 @@ export const DEPENDENCIES = {
   useRouter,
   useSearchParams,
   useServices,
+  useOnboardingApiKey,
   DeploymentTemplatePickerCard,
-  ApiKeyUsageGuide,
+  ApiKeySetup,
   SkipOnboardingButton,
   RunModelPath
 };
@@ -61,7 +63,8 @@ export function IntentFirstPicker({ isOutOfCredit, onDeployTemplate, onDeployIma
   const { urlService, analyticsService } = d.useServices();
   const intents = ONBOARDING_INTENTS.filter(intent => intent.isAvailable);
   const selectedIntent = intents.find(intent => intent.id === searchParams?.get("intent"));
-  const footer = <Footer onRedeemCoupon={onRedeemCoupon} SkipOnboardingButton={d.SkipOnboardingButton} />;
+  const onboardingApiKey = d.useOnboardingApiKey({ enabled: selectedIntent?.id === "tools" });
+  const footer = <Footer hasApiKey={!!onboardingApiKey.createdApiKey} onRedeemCoupon={onRedeemCoupon} SkipOnboardingButton={d.SkipOnboardingButton} />;
 
   function selectIntent(intent: OnboardingIntentId, via: "question" | "switch") {
     analyticsService.track("onboarding_intent_selected", { category: "onboarding", intent, via });
@@ -102,15 +105,12 @@ export function IntentFirstPicker({ isOutOfCredit, onDeployTemplate, onDeployIma
           )}
           {selectedIntent.id === "model" && <d.RunModelPath isOutOfCredit={isOutOfCredit} onDeployTemplate={onDeployTemplate} />}
           {selectedIntent.id === "tools" && (
-            <div className="flex flex-col gap-6">
-              <Button className="gap-2 self-start" asChild>
-                <Link href={urlService.userApiKeys()}>
-                  <KeyRound className="h-4 w-4" />
-                  Create an API key
-                </Link>
-              </Button>
-              <d.ApiKeyUsageGuide />
-            </div>
+            <d.ApiKeySetup
+              createdApiKey={onboardingApiKey.createdApiKey}
+              isCreating={onboardingApiKey.isCreating}
+              isLoadingTrialProject={onboardingApiKey.isLoadingTrialProject}
+              onCreate={onboardingApiKey.createApiKey}
+            />
           )}
         </TabsContent>
       </Tabs>
@@ -196,10 +196,16 @@ function DeployAppPath({ isOutOfCredit, onDeployTemplate, onDeployImage, depende
   );
 }
 
-function Footer({ onRedeemCoupon, SkipOnboardingButton }: { onRedeemCoupon?: () => void; SkipOnboardingButton: typeof DEPENDENCIES.SkipOnboardingButton }) {
+type FooterProps = {
+  hasApiKey: boolean;
+  onRedeemCoupon?: () => void;
+  SkipOnboardingButton: typeof DEPENDENCIES.SkipOnboardingButton;
+};
+
+function Footer({ hasApiKey, onRedeemCoupon, SkipOnboardingButton }: FooterProps) {
   return (
     <div className="mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
-      <SkipOnboardingButton source="picker" label="Skip for now" />
+      {hasApiKey ? <SkipOnboardingButton source="api_key" label="Continue to Console" /> : <SkipOnboardingButton source="picker" label="Skip for now" />}
       {onRedeemCoupon && (
         <>
           <span aria-hidden className="h-1 w-1 rounded-full bg-border" />

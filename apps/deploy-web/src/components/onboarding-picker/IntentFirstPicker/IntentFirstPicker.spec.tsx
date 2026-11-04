@@ -1,3 +1,4 @@
+import type { ApiKeyResponse } from "@akashnetwork/http-sdk";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
@@ -13,6 +14,8 @@ import { ComponentMock, MockComponents } from "@tests/unit/mocks";
 
 type PickerCardProps = Parameters<typeof DEPENDENCIES.DeploymentTemplatePickerCard>[0];
 type SkipButtonProps = Parameters<typeof DEPENDENCIES.SkipOnboardingButton>[0];
+type ApiKeySetupProps = Parameters<typeof DEPENDENCIES.ApiKeySetup>[0];
+type OnboardingApiKey = ReturnType<typeof DEPENDENCIES.useOnboardingApiKey>;
 
 describe(IntentFirstPicker.name, () => {
   it("asks what the user wants to do first when no intent is picked", () => {
@@ -157,12 +160,17 @@ describe(IntentFirstPicker.name, () => {
     expect(onDeployImage).toHaveBeenCalled();
   });
 
-  it("shows the api key guide and a link to create a key on the connect path", () => {
-    const ApiKeyUsageGuide = vi.fn(ComponentMock);
-    setup({ searchParams: "intent=tools", dependencies: { ApiKeyUsageGuide } });
+  it("hands the onboarding api key to the key setup on the connect path", () => {
+    const ApiKeySetup = vi.fn(ComponentMock);
+    const onboardingApiKey = mock<OnboardingApiKey>({ createdApiKey: undefined, isCreating: true, isLoadingTrialProject: false });
+    setup({ searchParams: "intent=tools", onboardingApiKey, dependencies: { ApiKeySetup } });
 
-    expect(ApiKeyUsageGuide).toHaveBeenCalled();
-    expect(screen.getByRole("link", { name: /Create an API key/ })).toHaveAttribute("href", UrlService.userApiKeys());
+    expect(ApiKeySetup.mock.calls.at(-1)![0] as ApiKeySetupProps).toMatchObject({
+      createdApiKey: undefined,
+      isCreating: true,
+      isLoadingTrialProject: false,
+      onCreate: onboardingApiKey.createApiKey
+    });
     expect(screen.queryByRole("link", { name: /Deploy image/ })).not.toBeInTheDocument();
   });
 
@@ -190,18 +198,36 @@ describe(IntentFirstPicker.name, () => {
     expect(RunModelPath).not.toHaveBeenCalled();
   });
 
-  it("leaves the api key guide off the deploy an app path", () => {
-    const ApiKeyUsageGuide = vi.fn(ComponentMock);
-    setup({ searchParams: "intent=app", dependencies: { ApiKeyUsageGuide } });
+  it("leaves the key setup off the deploy an app path", () => {
+    const ApiKeySetup = vi.fn(ComponentMock);
+    setup({ searchParams: "intent=app", dependencies: { ApiKeySetup } });
 
-    expect(ApiKeyUsageGuide).not.toHaveBeenCalled();
+    expect(ApiKeySetup).not.toHaveBeenCalled();
   });
 
-  it.each(["", "intent=app"])("offers skipping with the picker source (%s)", searchParams => {
+  it.each([
+    { searchParams: "intent=tools", enabled: true },
+    { searchParams: "intent=app", enabled: false },
+    { searchParams: "", enabled: false }
+  ])("prepares the onboarding api key only on the connect path ($searchParams)", ({ searchParams, enabled }) => {
+    const { useOnboardingApiKey } = setup({ searchParams });
+
+    expect(useOnboardingApiKey).toHaveBeenCalledWith({ enabled });
+  });
+
+  it.each(["", "intent=app", "intent=tools"])("offers skipping with the picker source until a key exists (%s)", searchParams => {
     const SkipOnboardingButton = vi.fn(ComponentMock);
     setup({ searchParams, dependencies: { SkipOnboardingButton } });
 
     expect(SkipOnboardingButton.mock.calls.at(-1)![0] as SkipButtonProps).toMatchObject({ source: "picker", label: "Skip for now" });
+  });
+
+  it("offers continuing to Console once a key exists, recording onboarding as done through the key", () => {
+    const SkipOnboardingButton = vi.fn(ComponentMock);
+    const onboardingApiKey = mock<OnboardingApiKey>({ createdApiKey: mock<ApiKeyResponse>() });
+    setup({ searchParams: "intent=tools", onboardingApiKey, dependencies: { SkipOnboardingButton } });
+
+    expect(SkipOnboardingButton.mock.calls.at(-1)![0] as SkipButtonProps).toMatchObject({ source: "api_key", label: "Continue to Console" });
   });
 
   it("opens the coupon entry from the footer link", () => {
@@ -229,6 +255,7 @@ describe(IntentFirstPicker.name, () => {
     maxCpu?: number;
     maxMemoryGi?: number;
     onRedeemCoupon?: () => void;
+    onboardingApiKey?: OnboardingApiKey;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const push = vi.fn();
@@ -236,6 +263,9 @@ describe(IntentFirstPicker.name, () => {
     const onDeployImage = vi.fn();
     const analyticsService = mock<AnalyticsService>();
     const useRouter: typeof DEPENDENCIES.useRouter = () => mock<AppRouterInstance>({ push });
+    const useOnboardingApiKey = vi.fn<typeof DEPENDENCIES.useOnboardingApiKey>(
+      () => input.onboardingApiKey ?? mock<OnboardingApiKey>({ createdApiKey: undefined })
+    );
     const useSearchParams: typeof DEPENDENCIES.useSearchParams = () =>
       (input.searchParams === null ? null : new URLSearchParams(input.searchParams ?? "")) as ReadonlyURLSearchParams;
     const useServices: typeof DEPENDENCIES.useServices = () =>
@@ -255,10 +285,10 @@ describe(IntentFirstPicker.name, () => {
         onDeployTemplate={onDeployTemplate}
         onDeployImage={onDeployImage}
         onRedeemCoupon={input.onRedeemCoupon}
-        dependencies={MockComponents(DEPENDENCIES, { useRouter, useSearchParams, useServices, ...input.dependencies })}
+        dependencies={MockComponents(DEPENDENCIES, { useRouter, useSearchParams, useServices, useOnboardingApiKey, ...input.dependencies })}
       />
     );
 
-    return { push, onDeployTemplate, onDeployImage, analyticsService };
+    return { push, onDeployTemplate, onDeployImage, analyticsService, useOnboardingApiKey };
   }
 });
