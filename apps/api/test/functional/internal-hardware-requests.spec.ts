@@ -67,7 +67,12 @@ describe("Internal hardware requests", () => {
       { filter: "lane=sales", matching: { lane: "sales" as const }, other: { lane: "automated" as const } },
       { filter: "status=sourcing", matching: { status: "sourcing" as const }, other: { status: "submitted" as const } },
       { filter: "owner=Remington", matching: { owner: "Remington" }, other: { owner: "Someone else" } },
-      { filter: "unowned=true", matching: { owner: null }, other: { owner: "Remington" } }
+      { filter: "unowned=true", matching: { owner: null }, other: { owner: "Remington" } },
+      {
+        filter: "responseTarget=missed",
+        matching: { firstReplyDueAt: new Date(Date.now() - 60_000) },
+        other: { firstReplyDueAt: new Date(Date.now() + 3_600_000) }
+      }
     ])("filters on $filter", async ({ filter, matching, other }) => {
       const { seed, gpuModel } = await setup();
       const match = await seed(matching);
