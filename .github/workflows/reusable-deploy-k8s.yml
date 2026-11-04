@@ -164,6 +164,24 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Resolve pinned chart version
+        id: chart-version
+        env:
+          APP: ${{ inputs.app }}
+          CHART_VERSIONS_FILE: .helm/chart-versions.yaml
+        run: | # shell
+          chart_version=$(yq -e '.[strenv(APP)]' "$CHART_VERSIONS_FILE") || {
+            echo "❌ No chart version pinned for $APP in $CHART_VERSIONS_FILE" >&2
+            exit 1
+          }
+
+          if [[ ! "$chart_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "❌ Chart version for $APP in $CHART_VERSIONS_FILE must be an exact version, got: $chart_version" >&2
+            exit 1
+          fi
+
+          echo "version=$chart_version" >> "$GITHUB_OUTPUT"
+
       - name: Load kubeconfig
         id: op-load-secret
         uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4.0.0
@@ -224,6 +242,7 @@ jobs:
           DEPLOYMENT_ENV: ${{ inputs.environment == 'prod' && 'production' || 'staging' }}
           APP_NAMESPACE: ${{ inputs.environment }}
           APP_VERSION: ${{ inputs.appVersion }}
+          CHART_VERSION: ${{ steps.chart-version.outputs.version }}
         run: | # shell
           echo "$KUBECONFIG" > kubeconfig
 
@@ -250,9 +269,9 @@ jobs:
 
           helm repo add akash https://akash-network.github.io/helm-charts
 
-          echo "executing: helm upgrade $release_name $chart_name --install --atomic -n $APP_NAMESPACE --set appVersion=$APP_VERSION --set deploymentEnv=$DEPLOYMENT_ENV --debug --kubeconfig kubeconfig $values_file_arg $extra_values_arg"
+          echo "executing: helm upgrade $release_name $chart_name --version $CHART_VERSION --install --atomic -n $APP_NAMESPACE --set appVersion=$APP_VERSION --set deploymentEnv=$DEPLOYMENT_ENV --debug --kubeconfig kubeconfig $values_file_arg $extra_values_arg"
           # shellcheck disable=SC2086
-          helm upgrade "$release_name" "$chart_name" --install --atomic -n "$APP_NAMESPACE" --set "appVersion=$APP_VERSION" --set "deploymentEnv=$DEPLOYMENT_ENV" --debug --kubeconfig kubeconfig $values_file_arg $extra_values_arg
+          helm upgrade "$release_name" "$chart_name" --version "$CHART_VERSION" --install --atomic -n "$APP_NAMESPACE" --set "appVersion=$APP_VERSION" --set "deploymentEnv=$DEPLOYMENT_ENV" --debug --kubeconfig kubeconfig $values_file_arg $extra_values_arg
 
       - name: Force rollout (restart pods even if spec unchanged)
         if: success() && inputs.force-rollout
