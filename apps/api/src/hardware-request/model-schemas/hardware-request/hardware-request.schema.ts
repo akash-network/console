@@ -110,6 +110,7 @@ export const HardwareRequests = pgTable(
     laneReason: varchar("lane_reason", { length: MAX_LANE_REASON_LENGTH }).$type<HardwareRequestLaneReason>(),
     estimatedMonthlyUsd: integer("estimated_monthly_usd"),
     owner: varchar("owner", { length: MAX_OWNER_LENGTH }),
+    firstRepliedAt: timestamp("first_replied_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
   },
