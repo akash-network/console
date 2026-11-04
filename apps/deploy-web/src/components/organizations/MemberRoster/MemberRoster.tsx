@@ -241,9 +241,9 @@ const MemberAvatar: FC<{ name: string }> = ({ name }) => {
     .join("");
 
   return (
-    <Avatar aria-hidden="true" className="h-[34px] w-[34px] shrink-0">
+    <Avatar aria-hidden="true" className="h-[34px] w-[34px] shrink-0 rounded-[9px]">
       <AvatarFallback
-        className="text-xs font-semibold"
+        className="rounded-[9px] text-xs font-semibold"
         style={{ background: `oklch(0.94 0.04 ${hue})`, color: `oklch(0.42 0.12 ${hue})`, boxShadow: `inset 0 0 0 1px oklch(0.86 0.06 ${hue})` }}
       >
         {initials}
@@ -256,7 +256,7 @@ const MemberRosterSkeleton: FC = () => (
   <div className="flex flex-col gap-5 px-4 py-4">
     {Array.from({ length: 3 }).map((_, index) => (
       <div key={index} className="flex items-center gap-3.5">
-        <Skeleton className="h-[34px] w-[34px] rounded-full" />
+        <Skeleton className="h-[34px] w-[34px] rounded-[9px]" />
         <div className="flex flex-col gap-1.5">
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-3 w-48" />
