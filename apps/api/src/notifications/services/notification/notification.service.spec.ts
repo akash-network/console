@@ -2,6 +2,7 @@ import { ApiError } from "@akashnetwork/openapi-sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type DeepMockProxy, mock, mockDeep, type MockProxy } from "vitest-mock-extended";
 
+import type { VerifiedEmailService } from "@src/auth/services/verified-email/verified-email.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
@@ -34,7 +35,7 @@ describe(NotificationService.name, () => {
             }
           }
         },
-        { headers: { "x-user-id": user.id } }
+        { headers: { "x-user-id": user.id, "x-user-email": "user@example.com", "x-user-email-verified": "false" } }
       );
     });
 
@@ -46,7 +47,7 @@ describe(NotificationService.name, () => {
 
       expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(
         { data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] }, timezone: "Europe/Paris" } },
-        { headers: { "x-user-id": "user-1" } }
+        { headers: { "x-user-id": "user-1", "x-user-email": "user@example.com", "x-user-email-verified": "false" } }
       );
     });
 
@@ -82,8 +83,72 @@ describe(NotificationService.name, () => {
       await service.createDefaultChannel({ id: "user-1", email: "user@example.com" });
 
       expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(expect.anything(), {
-        headers: { "x-user-id": "user-1", "x-organization-id": "personal-organization-1", "x-organization-type": "personal" }
+        headers: {
+          "x-user-id": "user-1",
+          "x-organization-id": "personal-organization-1",
+          "x-organization-type": "personal",
+          "x-user-email": "user@example.com",
+          "x-user-email-verified": "false"
+        }
       });
+    });
+  });
+
+  describe("account email", () => {
+    it("names the email Auth0 reports verified, looking up the Auth0 id of a user given without one", async () => {
+      const { service, api, userRepository, verifiedEmailService } = setup();
+      userRepository.findById.calledWith("user-1").mockResolvedValue({ id: "user-1", userId: "auth0|user-1" } as UserOutput);
+      verifiedEmailService.getRecentVerifiedEmail.calledWith("auth0|user-1").mockResolvedValue("user@example.com");
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createDefaultChannel({ id: "user-1", email: "user@example.com" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(expect.anything(), {
+        headers: { "x-user-id": "user-1", "x-user-email": "user@example.com", "x-user-email-verified": "true" }
+      });
+      expect(verifiedEmailService.getVerifiedEmail).not.toHaveBeenCalled();
+    });
+
+    it("asks Auth0 nothing and names the account email as unverified for a user without an Auth0 id", async () => {
+      const { service, api, userRepository, verifiedEmailService, logger } = setup();
+      userRepository.findById.mockResolvedValue(undefined);
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createDefaultChannel({ id: "user-1", email: "user@example.com" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(expect.anything(), {
+        headers: { "x-user-id": "user-1", "x-user-email": "user@example.com", "x-user-email-verified": "false" }
+      });
+      expect(verifiedEmailService.getRecentVerifiedEmail).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("reads Auth0 afresh when confirming the account email", async () => {
+      const { service, api, verifiedEmailService } = setup();
+      verifiedEmailService.getVerifiedEmail.calledWith("auth0|user-1").mockResolvedValue("user@example.com");
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.confirmAccountEmail({ id: "user-1", userId: "auth0|user-1", email: "user@example.com" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(
+        { data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] } } },
+        { headers: { "x-user-id": "user-1", "x-user-email": "user@example.com", "x-user-email-verified": "true" } }
+      );
+      expect(verifiedEmailService.getRecentVerifiedEmail).not.toHaveBeenCalled();
+    });
+
+    it("names the account email as unverified when Auth0 cannot be read", async () => {
+      const { service, api, verifiedEmailService, logger } = setup();
+      const error = new Error("Auth0 unavailable");
+      verifiedEmailService.getRecentVerifiedEmail.mockRejectedValue(error);
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.createDefaultChannel({ id: "user-1", userId: "auth0|user-1", email: "user@example.com" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(expect.anything(), {
+        headers: { "x-user-id": "user-1", "x-user-email": "user@example.com", "x-user-email-verified": "false" }
+      });
+      expect(logger.warn).toHaveBeenCalledWith({ event: "ACCOUNT_EMAIL_VERIFICATION_LOOKUP_FAILED", userId: "user-1", error });
     });
   });
 
@@ -163,7 +228,7 @@ describe(NotificationService.name, () => {
 
       expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ config: { addresses: [input.user.email!] } }) }),
-        { headers: { "x-user-id": input.user.id } }
+        { headers: { "x-user-id": input.user.id, "x-user-email": "user@example.com", "x-user-email-verified": "false" } }
       );
     });
 
@@ -250,7 +315,7 @@ describe(NotificationService.name, () => {
 
       expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(
         { data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] } } },
-        { headers: { "x-user-id": "user-1" } }
+        { headers: { "x-user-id": "user-1", "x-user-email": "user@example.com", "x-user-email-verified": "false" } }
       );
       expect(apiInternal.v1.createNotification).toHaveBeenCalledTimes(2);
     });
@@ -264,7 +329,7 @@ describe(NotificationService.name, () => {
 
       expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(
         { data: { name: "Default", type: "email", config: { addresses: ["user@example.com"] }, timezone: "Asia/Tokyo" } },
-        { headers: { "x-user-id": "user-1" } }
+        { headers: { "x-user-id": "user-1", "x-user-email": "user@example.com", "x-user-email-verified": "false" } }
       );
       expect(apiInternal.v1.createNotification).toHaveBeenCalledWith(
         { notificationId: "n-1", payload: { summary: "s", description: "d" }, recipient: "user@example.com" },
@@ -281,7 +346,9 @@ describe(NotificationService.name, () => {
       await service.createNotificationOnce(input);
 
       const headers = { "x-user-id": "user-1", "x-organization-id": "personal-organization-1", "x-organization-type": "personal" };
-      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(expect.anything(), { headers });
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(expect.anything(), {
+        headers: { ...headers, "x-user-email": "user@example.com", "x-user-email-verified": "false" }
+      });
       expect(apiInternal.v1.createNotification).toHaveBeenNthCalledWith(2, expect.anything(), { headers });
     });
 
@@ -303,6 +370,33 @@ describe(NotificationService.name, () => {
       );
       expect(apiInternal.v1.createNotification).not.toHaveBeenCalled();
       expect(api.v1.createDefaultNotificationChannel).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("confirmAddress", () => {
+    it("confirms the address of the link's token", async () => {
+      const { service, apiInternal } = setup();
+      apiInternal.v1.confirmAddress.mockResolvedValue(undefined as never);
+
+      expect(await service.confirmAddress("link-token")).toBe(true);
+      expect(apiInternal.v1.confirmAddress).toHaveBeenCalledWith({ token: "link-token" });
+    });
+
+    it("answers false for a link that confirms nothing", async () => {
+      const { service, apiInternal } = setup();
+      apiInternal.v1.confirmAddress.mockRejectedValue(
+        new ApiError(400, { code: "INVALID_CONFIRMATION_LINK" }, "POST /internal/v1/address-confirmations → 400")
+      );
+
+      expect(await service.confirmAddress("used-token")).toBe(false);
+    });
+
+    it("fails when the notifications service fails", async () => {
+      const { service, apiInternal } = setup();
+      const error = new ApiError(500, { message: "boom" }, "POST /internal/v1/address-confirmations → 500");
+      apiInternal.v1.confirmAddress.mockRejectedValue(error);
+
+      await expect(service.confirmAddress("link-token")).rejects.toBe(error);
     });
   });
 
@@ -472,13 +566,43 @@ describe(NotificationService.name, () => {
       expect(api.v1.listNotificationChannels).toHaveBeenCalledWith(expect.anything(), { headers: teamHeaders });
       expect(api.v1.createNotificationChannel).toHaveBeenCalledWith(
         { data: { name: "Deployment alerts", type: "email", config: { addresses: ["user@example.com"] }, isDefault: false } },
-        { headers: teamHeaders }
+        { headers: { ...teamHeaders, "x-user-email": "user@example.com", "x-user-email-verified": "false" } }
       );
       expect(api.v1.createDefaultNotificationChannel).not.toHaveBeenCalled();
       expect(api.v1.upsertDeploymentAlert).toHaveBeenCalledWith(
         { dseq: "123", data: { alerts: { deploymentClosed: { notificationChannelId: "team-channel", enabled: true } } } },
         { headers: { ...teamHeaders, "x-owner-address": "akash1abc" } }
       );
+    });
+
+    it("names the deployer's verified email when opening a channel for them", async () => {
+      const { service, api, userRepository, deploymentSettingRepository, verifiedEmailService } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", userId: "auth0|user-1", email: "user@example.com" } as UserOutput);
+      verifiedEmailService.getRecentVerifiedEmail.calledWith("auth0|user-1").mockResolvedValue("user@example.com");
+      deploymentSettingRepository.findTenancy.mockResolvedValue({ organizationId: "organization-1", organizationType: "team", projectId: null });
+      api.v1.listNotificationChannels.mockResolvedValue({ data: [] } as never);
+      api.v1.createNotificationChannel.mockResolvedValue({ data: { id: "team-channel" } } as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
+
+      expect(api.v1.createNotificationChannel).toHaveBeenCalledWith(expect.anything(), {
+        headers: expect.objectContaining({ "x-user-email": "user@example.com", "x-user-email-verified": "true" })
+      });
+    });
+
+    it("names the deployer's verified email when opening their missing default channel", async () => {
+      const { service, api, userRepository, deploymentSettingRepository, verifiedEmailService } = setup();
+      userRepository.findById.mockResolvedValue({ id: "user-1", userId: "auth0|user-1", email: "user@example.com" } as UserOutput);
+      verifiedEmailService.getRecentVerifiedEmail.calledWith("auth0|user-1").mockResolvedValue("user@example.com");
+      deploymentSettingRepository.findTenancy.mockResolvedValue(undefined);
+      api.v1.listNotificationChannels.mockResolvedValueOnce({ data: [] } as never).mockResolvedValueOnce({ data: [{ id: "default-channel" }] } as never);
+      api.v1.createDefaultNotificationChannel.mockResolvedValue({} as never);
+
+      await service.autoEnableDeploymentAlert({ userId: "user-1", walletAddress: "akash1abc", dseq: "123" });
+
+      expect(api.v1.createDefaultNotificationChannel).toHaveBeenCalledWith(expect.anything(), {
+        headers: expect.objectContaining({ "x-user-email": "user@example.com", "x-user-email-verified": "true" })
+      });
     });
 
     it("converges on the oldest team channel when a concurrent lease created one too", async () => {
@@ -677,8 +801,17 @@ describe(NotificationService.name, () => {
     const logger = overrides?.logger ?? mock<ReturnType<CreateLogger>>();
     const organizationRepository = mock<OrganizationRepository>();
     const deploymentSettingRepository = mock<DeploymentSettingRepository>();
-    const service = new NotificationService(api, apiInternal, userRepository, organizationRepository, deploymentSettingRepository, () => logger);
+    const verifiedEmailService = mock<VerifiedEmailService>();
+    const service = new NotificationService(
+      api,
+      apiInternal,
+      userRepository,
+      organizationRepository,
+      deploymentSettingRepository,
+      verifiedEmailService,
+      () => logger
+    );
 
-    return { service, api, apiInternal, userRepository, organizationRepository, deploymentSettingRepository, logger };
+    return { service, api, apiInternal, userRepository, organizationRepository, deploymentSettingRepository, verifiedEmailService, logger };
   }
 });

@@ -2,7 +2,7 @@ import { DrizzleAbility } from "@akashnetwork/drizzle-ability";
 import type { AnyAbility } from "@casl/ability";
 import { InjectDrizzle } from "@knaadh/nestjs-drizzle-pg";
 import { Injectable } from "@nestjs/common";
-import { and, count, eq, isNull, or, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm/sql/sql";
@@ -122,24 +122,27 @@ export class NotificationChannelRepository {
     return notificationChannel && this.toOutput(notificationChannel);
   }
 
-  /** Checks for an existing default before inserting because an unattributed default and an organization default sit under different unique indexes. */
-  async createDefaultChannel(input: NotificationChannelInput, owner: DefaultChannelOwner): Promise<void> {
+  /** Checks for an existing default before inserting because an unattributed default and an organization default sit under different unique indexes; returns the channel only when it inserts one. */
+  async createDefaultChannel(input: NotificationChannelInput, owner: DefaultChannelOwner): Promise<NotificationChannelOutput | undefined> {
     this.ability?.throwUnlessCanExecute({ ...input, isDefault: true });
 
     const existingDefault = await this.db.query.NotificationChannel.findFirst({ where: this.#liveDefaultOf(owner) });
 
     if (existingDefault) {
       await this.#moveToTimezone(existingDefault, input.timezone);
-      return;
+      return undefined;
     }
 
-    await this.db
+    const [created] = await this.db
       .insert(schema.NotificationChannel)
       .values({
         ...this.toInput(input),
         isDefault: true
       })
-      .onConflictDoNothing();
+      .onConflictDoNothing()
+      .returning();
+
+    return created && this.toOutput(created);
   }
 
   async #moveToTimezone(channel: InternalNotificationChannelOutput, timezone: string | null | undefined): Promise<void> {
@@ -201,8 +204,25 @@ export class NotificationChannelRepository {
     return this.toOutput(result);
   }
 
-  async updateById(id: string, input: Partial<NotificationChannelInput>): Promise<NotificationChannelOutput | undefined> {
-    const [notificationChannel] = await this.db
+  /** Runs the change with the channel row locked, the lock every writer of its addresses takes first, so no confirmation lands between the change's reads and its writes. */
+  async updateLocked<T>(id: string, change: (channel: NotificationChannelOutput, tx: NodePgDatabase<typeof schema>) => Promise<T>): Promise<T | undefined> {
+    return await this.db.transaction(async tx => {
+      const [notificationChannel] = await tx
+        .select()
+        .from(schema.NotificationChannel)
+        .where(this.nonDeleted(this.whereAccessibleBy(eq(schema.NotificationChannel.id, id))))
+        .for("update");
+
+      return notificationChannel && (await change(this.toOutput(notificationChannel), tx));
+    });
+  }
+
+  async updateById(
+    id: string,
+    input: Partial<NotificationChannelInput>,
+    tx: NodePgDatabase<typeof schema> = this.db
+  ): Promise<NotificationChannelOutput | undefined> {
+    const [notificationChannel] = await tx
       .update(schema.NotificationChannel)
       .set(this.toInput(input))
       .where(this.nonDeleted(this.whereAccessibleBy(eq(schema.NotificationChannel.id, id))))
@@ -237,6 +257,7 @@ export class NotificationChannelRepository {
         .select({ id: schema.NotificationChannel.id, config: schema.NotificationChannel.config })
         .from(schema.NotificationChannel)
         .where(this.nonDeleted(eq(schema.NotificationChannel.organizationId, organizationId)))
+        .orderBy(schema.NotificationChannel.id)
         .for("update");
       const isStillHere = (address: string) => sha256OfAddress(address) !== addressSha256;
       const remainingFallbackAddresses = fallbackAddresses.filter(isStillHere);
@@ -256,6 +277,8 @@ export class NotificationChannelRepository {
           .where(eq(schema.NotificationChannel.id, id));
       }
 
+      await this.#releasePendingAddress(tx, channels, isStillHere);
+
       return releasedChannels.length;
     });
   }
@@ -267,6 +290,25 @@ export class NotificationChannelRepository {
       .returning({ id: schema.NotificationChannel.id });
 
     return deleted.length;
+  }
+
+  async #releasePendingAddress(tx: NodePgDatabase<typeof schema>, channels: { id: string }[], isStillHere: (address: string) => boolean): Promise<void> {
+    if (!channels.length) return;
+
+    const pendingAddresses = await tx
+      .select({ id: schema.NotificationChannelPendingAddress.id, address: schema.NotificationChannelPendingAddress.address })
+      .from(schema.NotificationChannelPendingAddress)
+      .where(
+        inArray(
+          schema.NotificationChannelPendingAddress.notificationChannelId,
+          channels.map(channel => channel.id)
+        )
+      );
+    const releasedIds = pendingAddresses.filter(pending => !isStillHere(pending.address)).map(pending => pending.id);
+
+    if (releasedIds.length) {
+      await tx.delete(schema.NotificationChannelPendingAddress).where(inArray(schema.NotificationChannelPendingAddress.id, releasedIds));
+    }
   }
 
   /** Leaves the channels the user created for team organizations to those organizations. */

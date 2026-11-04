@@ -27,7 +27,7 @@ export const NotificationChannelDialog: FC<Props> = ({ notificationChannel, onCr
         {props => (
           <ChannelDialogFrame title="Edit notification channel" isSaving={props.isLoading} onClose={onClose}>
             <d.NotificationChannelForm
-              initialValues={{ name: notificationChannel.name, emails: notificationChannel.config.addresses }}
+              initialValues={{ name: notificationChannel.name, emails: [...notificationChannel.config.addresses, ...notificationChannel.pendingAddresses] }}
               submitLabel="Save changes"
               isLoading={props.isLoading}
               onSubmit={props.onEdit}
@@ -60,7 +60,9 @@ const ChannelDialogFrame: FC<{ title: string; isSaving: boolean; onClose: () => 
     <DialogV2Content className="max-w-[460px]">
       <DialogV2Header>
         <DialogV2Title>{title}</DialogV2Title>
-        <DialogV2Description>Alerts that use this channel are emailed to every address listed.</DialogV2Description>
+        <DialogV2Description>
+          Alerts that use this channel are emailed to every address listed. A new address starts receiving them once it is confirmed from the email it gets.
+        </DialogV2Description>
       </DialogV2Header>
       {children}
     </DialogV2Content>

@@ -18,6 +18,7 @@ type EmailSendOptions = {
   actions?: EmailAction[];
   code?: string;
   unsubscribe?: EmailUnsubscribe;
+  receivingReason?: string;
 };
 
 function oneClickUnsubscribeHeaders({ oneClickUrl }: EmailUnsubscribe) {
@@ -37,7 +38,7 @@ export class EmailSenderService {
     this.loggerService.setContext(EmailSenderService.name);
   }
 
-  async send({ addresses, userId, subject, content, notificationId, actions, code, unsubscribe }: EmailSendOptions): Promise<void> {
+  async send({ addresses, userId, subject, content, notificationId, actions, code, unsubscribe, receivingReason }: EmailSendOptions): Promise<void> {
     await this.novu.trigger({
       workflowId: this.configService.getOrThrow("notifications.NOVU_MAILER_WORKFLOW_ID"),
       to: {
@@ -51,6 +52,7 @@ export class EmailSenderService {
           actions,
           code,
           unsubscribe,
+          receivingReason,
           postalAddress: this.configService.get("notifications.PROMOTIONAL_EMAIL_POSTAL_ADDRESS"),
           content: sanitizeHtml(content, {
             allowedTags: ["a", "strong", "p", "br"],

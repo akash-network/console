@@ -90,6 +90,10 @@ export class EmailVerificationCodeService {
       throw error;
     }
 
+    await this.notificationService.confirmAccountEmail(user).catch(error => {
+      this.logger.error({ event: "FAILED_TO_CONFIRM_ACCOUNT_EMAIL_ON_CHANNELS", userId: userInternalId, error });
+    });
+
     this.logger.info({ event: "EMAIL_VERIFIED_VIA_CODE", userId: userInternalId });
   }
 }

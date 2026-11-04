@@ -6963,6 +6963,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/notification-address-confirmations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Confirm an address added to a notification channel through the link emailed to it, without signing in */
+    post: operations["createNotificationAddressConfirmation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/activities": {
     parameters: {
       query?: never;
@@ -7624,6 +7641,22 @@ export interface paths {
     options?: never;
     head?: never;
     patch: operations["updateNotificationChannel"];
+    trace?: never;
+  };
+  "/v1/notification-channels/{id}/confirmation-emails": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["createNotificationChannelConfirmationEmail"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   "/v1/deployment-alerts/{dseq}": {
@@ -8314,6 +8347,7 @@ export interface components {
         /** @enum {string} */
         type: "email";
         config: {
+          /** @description Addresses other than the requester's verified email wait for confirmation before they receive alerts */
           addresses: string[];
         };
         isDefault?: boolean;
@@ -8324,10 +8358,13 @@ export interface components {
         name: string;
         /** @enum {string} */
         type: "email";
+        /** @description The confirmed addresses, which receive the channel's alerts */
         config: {
           addresses: string[];
         };
         isDefault: boolean;
+        /** @description Addresses on the channel that receive no alerts until they are confirmed through the link emailed to them */
+        pendingAddresses: string[];
         /** Format: uuid */
         id: string;
         /** Format: uuid */
@@ -8344,6 +8381,7 @@ export interface components {
         /** @enum {string} */
         type: "email";
         config: {
+          /** @description Addresses other than the requester's verified email wait for confirmation before they receive alerts */
           addresses: string[];
         };
         /** @description IANA timezone the dates in the channel's emails are shown in, also set on an existing default channel. A value that names no zone is ignored. */
@@ -8359,10 +8397,13 @@ export interface components {
         name: string;
         /** @enum {string} */
         type: "email";
+        /** @description The confirmed addresses, which receive the channel's alerts */
         config: {
           addresses: string[];
         };
         isDefault: boolean;
+        /** @description Addresses on the channel that receive no alerts until they are confirmed through the link emailed to them */
+        pendingAddresses: string[];
         /** Format: uuid */
         id: string;
         /** Format: uuid */
@@ -8386,10 +8427,24 @@ export interface components {
         name?: string;
         /** @enum {string} */
         type?: "email";
+        /** @description Replaces both the confirmed and the pending addresses; addresses new to the channel wait for confirmation */
         config?: {
           addresses: string[];
         };
       };
+    };
+    NotificationChannelConfirmationEmailInput: {
+      data: {
+        /**
+         * Format: email
+         * @description An address on the channel that waits for confirmation
+         */
+        address: string;
+      };
+    };
+    TooManyRequestsErrorResponse: {
+      statusCode: number;
+      message: string;
     };
     DeploymentAlertCreateInput: {
       data: {
@@ -13489,6 +13544,40 @@ export interface operations {
       };
     };
   };
+  createNotificationAddressConfirmation: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description The token of the confirmation link emailed to an address added to a notification channel */
+            token: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The address receives the channel's alerts from now on */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The confirmation link is invalid or was already used */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   listActivities: {
     parameters: {
       query?: {
@@ -17469,7 +17558,7 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Creates the default notification channel only if it doesn't exist, and otherwise updates its timezone when one is given. */
+      /** @description Creates the default notification channel only if it doesn't exist, and otherwise updates its timezone when one is given. Either way, confirms the requester's verified email wherever it waits on their channels. */
       204: {
         headers: {
           [name: string]: unknown;
@@ -17724,6 +17813,90 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["NotFoundErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
+        };
+      };
+    };
+  };
+  createNotificationChannelConfirmationEmail: {
+    parameters: {
+      query?: never;
+      header?: {
+        Authorization?: string;
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NotificationChannelConfirmationEmailInput"];
+      };
+    };
+    responses: {
+      /** @description Emails a new confirmation link to an address that waits for confirmation on the channel */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
+        };
+      };
+      /** @description Returns 404 if the channel is not found or the address doesn't wait for confirmation on it */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotFoundErrorResponse"];
+        };
+      };
+      /** @description Returns 429 once the daily limit of confirmation emails is reached */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TooManyRequestsErrorResponse"];
         };
       };
       /** @description Internal server error, should probably be reported */

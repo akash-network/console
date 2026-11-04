@@ -69,9 +69,17 @@ const FOOTER_TEXT_STYLE = "font-size:12px;line-height:1.6;color:#71717a;";
 const POSTAL_ADDRESS_STYLE = "font-size:11px;line-height:1.5;color:#71717a;";
 
 /** CAN-SPAM requires a promotional email to say how to opt out and to carry the sender's postal address. */
-function renderFooterNotice({ unsubscribe, postalAddress }: { unsubscribe?: { url: string }; postalAddress?: string }): string {
+function renderFooterNotice({
+  unsubscribe,
+  postalAddress,
+  receivingReason = "you have an Akash Console account"
+}: {
+  unsubscribe?: { url: string };
+  postalAddress?: string;
+  receivingReason?: string;
+}): string {
   if (!unsubscribe) {
-    return `<p class="footer-text" style="margin:0;${FOOTER_TEXT_STYLE}">Sent by Akash Console. You're receiving this because you have an Akash Console account.</p>`;
+    return `<p class="footer-text" style="margin:0;${FOOTER_TEXT_STYLE}">Sent by Akash Console. You're receiving this because ${escape(receivingReason)}.</p>`;
   }
 
   const unsubscribeLink = `<a href="${escape(unsubscribe.url)}" style="color:inherit;text-decoration:underline;">Unsubscribe</a>`;
@@ -94,7 +102,8 @@ export function renderEmailLayout({
   actions,
   code,
   unsubscribe,
-  postalAddress
+  postalAddress,
+  receivingReason
 }: {
   subject: string;
   content: string;
@@ -102,6 +111,7 @@ export function renderEmailLayout({
   code?: string;
   unsubscribe?: { url: string };
   postalAddress?: string;
+  receivingReason?: string;
 }): string {
   const escapedSubject = escape(subject);
 
@@ -155,7 +165,7 @@ export function renderEmailLayout({
         </td></tr>
         <tr><td class="card-footer" style="padding:24px 40px;background-color:#fafafa;border-top:1px solid #f0f0f1;">
           <p class="muted" style="margin:0 0 12px 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#a1a1aa;font-family:'SF Mono',Menlo,Consolas,monospace;">Akash &middot; The Open Compute Marketplace</p>
-          ${renderFooterNotice({ unsubscribe, postalAddress })}
+          ${renderFooterNotice({ unsubscribe, postalAddress, receivingReason })}
         </td></tr>
       </table>
     </td></tr>

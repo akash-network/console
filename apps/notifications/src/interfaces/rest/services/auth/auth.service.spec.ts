@@ -51,6 +51,20 @@ describe(AuthService.name, () => {
     });
   });
 
+  describe("accountEmail", () => {
+    it("returns the account email minted for the request", async () => {
+      const { service } = await setup({ headers: { "x-user-email": "owner@example.com", "x-user-email-verified": "true" } });
+
+      expect(service.accountEmail).toEqual({ address: "owner@example.com", isVerified: true });
+    });
+
+    it("returns null when none is minted", async () => {
+      const { service } = await setup({ headers: { "x-user-id": faker.string.uuid() } });
+
+      expect(service.accountEmail).toBeNull();
+    });
+  });
+
   describe("defaultChannelOwner", () => {
     it("names the organization when its rules apply", async () => {
       const organizationId = faker.string.uuid();

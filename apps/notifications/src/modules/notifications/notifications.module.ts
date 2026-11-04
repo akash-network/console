@@ -12,8 +12,10 @@ import { DbHealthzService } from "@src/infrastructure/db/services/db-healthz/db-
 import moduleConfig from "@src/modules/notifications/config";
 import { NovuProvider } from "./providers/novu.provider";
 import { NotificationChannelRepository } from "./repositories/notification-channel/notification-channel.repository";
+import { PendingAddressRepository } from "./repositories/pending-address/pending-address.repository";
 import { ActivityFeedService } from "./services/activity-feed/activity-feed.service";
 import { ActivityFeedClient } from "./services/activity-feed-client/activity-feed-client.service";
+import { AddressConfirmationService } from "./services/address-confirmation/address-confirmation.service";
 import { EmailSenderService } from "./services/email-sender/email-sender.service";
 import { NotificationRouterService } from "./services/notification-router/notification-router.service";
 import * as schema from "./model-schemas";
@@ -27,9 +29,11 @@ import * as schema from "./model-schemas";
     ActivityFeedService,
     NotificationRouterService,
     NotificationChannelRepository,
+    PendingAddressRepository,
+    AddressConfirmationService,
     DbHealthzService
   ],
-  exports: [NotificationChannelRepository, NotificationRouterService, EmailSenderService, DbHealthzService]
+  exports: [NotificationChannelRepository, NotificationRouterService, EmailSenderService, AddressConfirmationService, DbHealthzService]
 })
 export class NotificationsModule implements OnApplicationShutdown {
   constructor(@InjectDrizzle(DRIZZLE_PROVIDER_TOKEN) private readonly db: NodePgDatabase<FullSchema>) {}

@@ -1,7 +1,7 @@
 import { faker } from "@faker-js/faker";
 import { describe, expect, it } from "vitest";
 
-import { reachesUnattributedRows, readRequestIdentity } from "./request-identity";
+import { reachesUnattributedRows, readAccountEmail, readRequestIdentity } from "./request-identity";
 
 describe(readRequestIdentity.name, () => {
   it("reads a user without an organization", () => {
@@ -126,5 +126,28 @@ describe(reachesUnattributedRows.name, () => {
   it("keeps them out of reach from a team organization or one of unknown type", () => {
     expect(reachesUnattributedRows({ organizationId: faker.string.uuid(), organizationType: "team" })).toBe(false);
     expect(reachesUnattributedRows({ organizationId: faker.string.uuid(), organizationType: null })).toBe(false);
+  });
+});
+
+describe(readAccountEmail.name, () => {
+  it("reads a verified account email", () => {
+    expect(readAccountEmail({ "x-user-email": "owner@example.com", "x-user-email-verified": "true" })).toEqual({
+      address: "owner@example.com",
+      isVerified: true
+    });
+  });
+
+  it("reads an account email as unverified unless it is minted as verified", () => {
+    expect(readAccountEmail({ "x-user-email": "owner@example.com", "x-user-email-verified": "false" })).toEqual({
+      address: "owner@example.com",
+      isVerified: false
+    });
+    expect(readAccountEmail({ "x-user-email": "owner@example.com" })).toEqual({ address: "owner@example.com", isVerified: false });
+  });
+
+  it("reads no account email when none is minted or it is malformed", () => {
+    expect(readAccountEmail({})).toBeNull();
+    expect(readAccountEmail({ "x-user-email": "owner" })).toBeNull();
+    expect(readAccountEmail({ "x-user-email": "owner@example.com", "x-user-email-verified": "yes" })).toBeNull();
   });
 });

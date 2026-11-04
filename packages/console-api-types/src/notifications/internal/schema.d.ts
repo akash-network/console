@@ -36,6 +36,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/internal/v1/address-confirmations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["confirmAddress"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/internal/v1/organizations/{organizationId}/departed-members": {
     parameters: {
       query?: never;
@@ -88,6 +104,25 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    ValidationErrorResponse: {
+      statusCode: number;
+      message: string;
+      errors: {
+        issues: Record<string, never>[];
+      };
+    };
+    UnauthorizedErrorResponse: {
+      statusCode: number;
+      message: string;
+    };
+    ForbiddenErrorResponse: {
+      statusCode: number;
+      message: string;
+    };
+    InternalServerErrorResponse: {
+      statusCode: number;
+      message: string;
+    };
     NotificationJobDto: {
       notificationId: string;
       notificationChannelId?: string;
@@ -121,6 +156,10 @@ export interface components {
        * @description Sends the email to this address alone in place of the channel's addresses
        */
       recipient?: string;
+    };
+    AddressConfirmationInput: {
+      /** @description The token of the confirmation link emailed to the address */
+      token: string;
     };
     DepartedMemberInput: {
       data: {
@@ -184,6 +223,66 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  confirmAddress: {
+    parameters: {
+      query?: never;
+      header?: {
+        Authorization?: string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AddressConfirmationInput"];
+      };
+    };
+    responses: {
+      /** @description Confirms the address a confirmation link was emailed to, which then receives its channel's alerts */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation error responded when some request parameters are invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ValidationErrorResponse"];
+        };
+      };
+      /** @description Unauthorized error responded when the user is not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnauthorizedErrorResponse"];
+        };
+      };
+      /** @description Forbidden error responded when the user is not authorized */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ForbiddenErrorResponse"];
+        };
+      };
+      /** @description Internal server error, should probably be reported */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InternalServerErrorResponse"];
+        };
       };
     };
   };

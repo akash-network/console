@@ -6,6 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
+import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -619,6 +620,7 @@ describe("Team role access", () => {
       async header => sessions.get(header.replace(/^Bearer +/i, "")) ?? null
     );
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation(flag => flag !== FeatureFlags.ORGANIZATIONS_ENFORCE);
+    vi.spyOn(container.resolve(Auth0Service), "getUser").mockResolvedValue(null);
     answerNotifications();
 
     const { team, credentials } = await seedTeam(sessions);

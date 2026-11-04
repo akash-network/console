@@ -12,6 +12,14 @@ export const operations = {
       hasBody: true
     },
     purge: { path: "/internal/v1/users/{userId}/purge", method: "post", operationId: "purge", pathParams: ["userId"], queryParams: [], hasBody: false },
+    confirmAddress: {
+      path: "/internal/v1/address-confirmations",
+      method: "post",
+      operationId: "confirmAddress",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
     releaseDepartedMember: {
       path: "/internal/v1/organizations/{organizationId}/departed-members",
       method: "post",

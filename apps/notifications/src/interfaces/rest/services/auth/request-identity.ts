@@ -7,7 +7,9 @@ export const IDENTITY_HEADERS = {
   organizationType: "x-organization-type",
   organizationRole: "x-organization-role",
   projectScope: "x-project-scope",
-  projectId: "x-project-id"
+  projectId: "x-project-id",
+  userEmail: "x-user-email",
+  userEmailVerified: "x-user-email-verified"
 } as const;
 
 const organizationRoleSchema = z.enum(["owner", "admin", "member", "billing", "viewer"]);
@@ -86,6 +88,20 @@ export function readRequestIdentity(headers: IncomingHttpHeaders): RequestIdenti
   const result = identityHeadersSchema.safeParse(headers);
 
   return result.success ? result.data : undefined;
+}
+
+const accountEmailHeadersSchema = z
+  .object({
+    [IDENTITY_HEADERS.userEmail]: z.string().email(),
+    [IDENTITY_HEADERS.userEmailVerified]: z.enum(["true", "false"]).optional()
+  })
+  .transform(headers => ({ address: headers[IDENTITY_HEADERS.userEmail], isVerified: headers[IDENTITY_HEADERS.userEmailVerified] === "true" }));
+
+/** The api mints these from the requesting user's account, so an address counts as theirs only through them. */
+export function readAccountEmail(headers: IncomingHttpHeaders): { address: string; isVerified: boolean } | null {
+  const result = accountEmailHeadersSchema.safeParse(headers);
+
+  return result.success ? result.data : null;
 }
 
 /** Rows filed in no organization predate organizations and belong to their owner's personal one, so only a request in no organization or in a personal one reaches them. */

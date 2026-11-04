@@ -13,6 +13,13 @@ const notFoundErrorResponseSchema = z.object({
 
 export class NotFoundErrorResponse extends createZodDto(notFoundErrorResponseSchema) {}
 
+const tooManyRequestsErrorResponseSchema = z.object({
+  statusCode: z.literal(429),
+  message: z.string()
+});
+
+export class TooManyRequestsErrorResponse extends createZodDto(tooManyRequestsErrorResponseSchema) {}
+
 const unauthorizedErrorResponseSchema = z.object({
   statusCode: z.literal(401),
   message: z.string()

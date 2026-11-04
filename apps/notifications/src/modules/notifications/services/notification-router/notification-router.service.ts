@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Err, Ok, Result } from "ts-results";
 
+import { LoggerService } from "@src/common/services/logger/logger.service";
 import { RichError } from "@src/lib/rich-error/rich-error";
 import { NotificationCommandDto } from "../../dto/NotificationCommand.dto";
 import { NotificationChannelRepository } from "../../repositories/notification-channel/notification-channel.repository";
@@ -12,8 +13,11 @@ export class NotificationRouterService {
   constructor(
     private readonly emailSenderService: EmailSenderService,
     private notificationChannelRepository: NotificationChannelRepository,
-    private readonly activityFeedService: ActivityFeedService
-  ) {}
+    private readonly activityFeedService: ActivityFeedService,
+    private readonly loggerService: LoggerService
+  ) {
+    this.loggerService.setContext(NotificationRouterService.name);
+  }
 
   async send(notificationCommand: NotificationCommandDto): Promise<Result<void, RichError>> {
     const notificationChannel = await this.notificationChannelRepository.findById(notificationCommand.notificationChannelId);
@@ -26,10 +30,16 @@ export class NotificationRouterService {
       );
     }
 
-    if (notificationChannel.type === "email") {
+    if (notificationChannel.type !== "email") {
+      return Err(new RichError("NotificationChannel type not implemented", "UNSUPPORTED_NOTIFICATION_CHANNEL_TYPE", { notificationChannel }));
+    }
+
+    const addresses = notificationCommand.recipient ? [notificationCommand.recipient] : notificationChannel.config.addresses;
+
+    if (addresses.length) {
       await this.emailSenderService.send({
         userId: notificationChannel.userId,
-        addresses: notificationCommand.recipient ? [notificationCommand.recipient] : notificationChannel.config.addresses,
+        addresses,
         subject: notificationCommand.payload.summary,
         content: notificationCommand.payload.description,
         actions: notificationCommand.payload.actions,
@@ -38,7 +48,7 @@ export class NotificationRouterService {
         unsubscribe: notificationCommand.unsubscribe
       });
     } else {
-      return Err(new RichError("NotificationChannel type not implemented", "UNSUPPORTED_NOTIFICATION_CHANNEL_TYPE", { notificationChannel }));
+      this.loggerService.info({ event: "EMAIL_SKIPPED", reason: "No confirmed address on the channel", notificationChannelId: notificationChannel.id });
     }
 
     await this.#addToFeed(notificationCommand.payload);

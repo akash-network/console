@@ -50,6 +50,24 @@ describe(NotificationChannelsListView.name, () => {
     expect(screen.getByText("ops@acme.dev")).toHaveAttribute("title", "ops@acme.dev");
   });
 
+  it("lists the addresses waiting for confirmation after the confirmed ones and resends their confirmation email", async () => {
+    const channel = buildNotificationChannel({ name: "Ops team", config: { addresses: ["ops@acme.dev"] }, pendingAddresses: ["oncall@acme.dev"] });
+    const { onResendConfirmation } = setup({ data: [channel] });
+
+    const cells = within(screen.getAllByRole("row")[1]).getAllByRole("cell");
+    expect(cells[2].textContent).toBe("ops@acme.devoncall@acme.devPending confirmationResend");
+
+    await userEvent.click(screen.getByRole("button", { name: "Resend the confirmation email to oncall@acme.dev" }));
+
+    expect(onResendConfirmation).toHaveBeenCalledWith(channel.id, "oncall@acme.dev");
+  });
+
+  it("locks the resend buttons while a confirmation email is being sent", () => {
+    setup({ data: [buildNotificationChannel({ pendingAddresses: ["oncall@acme.dev"] })], isResendingConfirmation: true });
+
+    expect(screen.getByRole("button", { name: "Resend the confirmation email to oncall@acme.dev" })).toBeDisabled();
+  });
+
   it("opens the channel in the edit dialog and closes it when asked", async () => {
     const channel = buildNotificationChannel({ name: "Ops team" });
     const { NotificationChannelDialog } = setup({ data: [channel] });
@@ -159,6 +177,7 @@ describe(NotificationChannelsListView.name, () => {
       totalPages?: number;
       page?: number;
       removeResult?: RemoveNotificationChannelResult;
+      isResendingConfirmation?: boolean;
     } = {}
   ) {
     const CustomPagination = vi.fn<typeof DEPENDENCIES.CustomPagination>(() => <nav />);
@@ -168,6 +187,7 @@ describe(NotificationChannelsListView.name, () => {
       </div>
     ));
     const onRemove = vi.fn(() => Promise.resolve(input.removeResult ?? "removed"));
+    const onResendConfirmation = vi.fn(() => Promise.resolve());
     const onPaginationChange = vi.fn();
     const data = input.data ?? Array.from({ length: 3 }, () => buildNotificationChannel());
 
@@ -179,11 +199,13 @@ describe(NotificationChannelsListView.name, () => {
         isError={input.isError ?? false}
         removingIds={input.removingIds ?? new Set()}
         onRemove={onRemove}
+        onResendConfirmation={onResendConfirmation}
+        isResendingConfirmation={input.isResendingConfirmation ?? false}
         onPaginationChange={onPaginationChange}
         dependencies={{ ...DEPENDENCIES, CustomPagination, NotificationChannelDialog }}
       />
     );
 
-    return { onRemove, onPaginationChange, CustomPagination, NotificationChannelDialog };
+    return { onRemove, onResendConfirmation, onPaginationChange, CustomPagination, NotificationChannelDialog };
   }
 });

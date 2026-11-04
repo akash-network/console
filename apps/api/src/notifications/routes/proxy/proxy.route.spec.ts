@@ -4,6 +4,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { ApiKeyOutput } from "@src/auth/repositories/api-key/api-key.repository";
 import type { AuthService } from "@src/auth/services/auth.service";
+import type { VerifiedEmailService } from "@src/auth/services/verified-email/verified-email.service";
 import type { UserWalletRepository } from "@src/billing/repositories";
 import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { AppContext } from "@src/core/types/app-context";
@@ -74,7 +75,9 @@ describe("createProxy", () => {
         "x-organization-id": faker.string.uuid(),
         "x-organization-role": "owner",
         "x-project-scope": "all",
-        "x-project-id": faker.string.uuid()
+        "x-project-id": faker.string.uuid(),
+        "x-user-email": faker.internet.email(),
+        "x-user-email-verified": "true"
       }
     });
 
@@ -86,6 +89,65 @@ describe("createProxy", () => {
         headers: { "x-custom": expect.any(String), "x-user-id": userId, "x-owner-address": owner }
       })
     );
+  });
+
+  it.each([
+    { method: "POST", path: "/v1/notification-channels" },
+    { method: "PATCH", path: "/v1/notification-channels/channel-1" }
+  ])("mints the account email Auth0 reports verified for a $method of $path", async ({ method, path }) => {
+    const { handler, context, fetchMock, verifiedEmailService } = setupProxyTest({
+      method,
+      path,
+      currentUser: { userId: "auth0|owner", email: "owner@example.com", emailVerified: false },
+      verifiedEmail: "owner@example.com"
+    });
+
+    await handler(context);
+
+    expect(verifiedEmailService.getVerifiedEmail).toHaveBeenCalledWith("auth0|owner");
+    const headers = forwardedHeaders(fetchMock);
+    expect(headers["x-user-email"]).toBe("owner@example.com");
+    expect(headers["x-user-email-verified"]).toBe("true");
+  });
+
+  it("mints the account email as unverified when Auth0 reports none verified, whatever the user row says", async () => {
+    const { handler, context, fetchMock } = setupProxyTest({
+      path: "/v1/notification-channels",
+      currentUser: { userId: "auth0|owner", email: "owner@example.com", emailVerified: true },
+      verifiedEmail: null
+    });
+
+    await handler(context);
+
+    const headers = forwardedHeaders(fetchMock);
+    expect(headers["x-user-email"]).toBe("owner@example.com");
+    expect(headers["x-user-email-verified"]).toBe("false");
+  });
+
+  it("asks Auth0 nothing and mints no account email for a user without an Auth0 id", async () => {
+    const { handler, context, fetchMock, verifiedEmailService } = setupProxyTest({ path: "/v1/notification-channels", currentUser: { userId: null } });
+
+    await handler(context);
+
+    expect(verifiedEmailService.getVerifiedEmail).not.toHaveBeenCalled();
+    expect(forwardedHeaders(fetchMock)).not.toHaveProperty("x-user-email-verified");
+  });
+
+  it.each([
+    { method: "GET", path: "/v1/notification-channels" },
+    { method: "DELETE", path: "/v1/notification-channels/channel-1" },
+    { method: "POST", path: "/v1/alerts" }
+  ])("asks Auth0 nothing for a $method of $path", async ({ method, path }) => {
+    const { handler, context, fetchMock, verifiedEmailService } = setupProxyTest({
+      method,
+      path,
+      currentUser: { userId: "auth0|owner", email: "owner@example.com" }
+    });
+
+    await handler(context);
+
+    expect(verifiedEmailService.getVerifiedEmail).not.toHaveBeenCalled();
+    expect(forwardedHeaders(fetchMock)).not.toHaveProperty("x-user-email");
   });
 
   it("mints only the organization to stamp while legacy rules apply", async () => {
@@ -449,6 +511,8 @@ describe("createProxy", () => {
     body?: unknown;
     apiKey?: ApiKeyOutput;
     upstream?: Response;
+    currentUser?: { userId?: string | null; email?: string | null; emailVerified?: boolean };
+    verifiedEmail?: string | null;
   };
 
   function setupProxyTest(options: SetupOptions = {}) {
@@ -459,7 +523,7 @@ describe("createProxy", () => {
     const userId = faker.string.uuid();
 
     const authService = mock<AuthService>({
-      currentUser: { id: userId },
+      currentUser: { id: userId, userId: null, email: null, emailVerified: false, ...options.currentUser },
       throwUnlessCan: vi.fn().mockReturnValue(undefined)
     });
     const owner = createAkashAddress();
@@ -486,7 +550,18 @@ describe("createProxy", () => {
       options.filedProjectId === undefined ? new Map() : new Map([["1234", options.filedProjectId]])
     );
 
-    const handler = createProxy({ authService, userWalletRepository, deploymentSettingRepository, executionContextService, config, fetchFn: fetchMock });
+    const verifiedEmailService = mock<VerifiedEmailService>();
+    verifiedEmailService.getVerifiedEmail.mockResolvedValue(options.verifiedEmail ?? null);
+
+    const handler = createProxy({
+      authService,
+      userWalletRepository,
+      deploymentSettingRepository,
+      executionContextService,
+      verifiedEmailService,
+      config,
+      fetchFn: fetchMock
+    });
 
     const context = {
       req: {
@@ -506,6 +581,7 @@ describe("createProxy", () => {
       fetchMock,
       authService,
       deploymentSettingRepository,
+      verifiedEmailService,
       userId,
       owner,
       fullUrl,

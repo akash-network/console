@@ -111,6 +111,13 @@ describe(renderEmailLayout.name, () => {
     );
   });
 
+  it("says in the footer why the address receives an email that names its own reason", () => {
+    const { html } = setup({ receivingReason: "this address was added to a <notification> channel" });
+
+    expect(html).toContain("Sent by Akash Console. You're receiving this because this address was added to a &lt;notification&gt; channel.</p>");
+    expect(html).not.toContain("because you have an Akash Console account");
+  });
+
   it("keeps the account footer and leaves out the postal address on an email without unsubscribe links", () => {
     const { html } = setup({ postalAddress: "1 Market St, San Francisco, CA 94105" });
 
@@ -168,14 +175,23 @@ describe(renderEmailLayout.name, () => {
     });
   });
 
-  function setup(input: { subject?: string; content?: string; actions?: EmailAction[]; code?: string; unsubscribe?: { url: string }; postalAddress?: string }) {
+  function setup(input: {
+    subject?: string;
+    content?: string;
+    actions?: EmailAction[];
+    code?: string;
+    unsubscribe?: { url: string };
+    postalAddress?: string;
+    receivingReason?: string;
+  }) {
     const html = renderEmailLayout({
       subject: input.subject ?? faker.lorem.sentence(),
       content: input.content ?? faker.lorem.paragraph(),
       actions: input.actions,
       code: input.code,
       unsubscribe: input.unsubscribe,
-      postalAddress: input.postalAddress
+      postalAddress: input.postalAddress,
+      receivingReason: input.receivingReason
     });
     return { html };
   }

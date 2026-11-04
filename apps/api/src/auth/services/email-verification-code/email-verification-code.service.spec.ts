@@ -123,6 +123,53 @@ describe(EmailVerificationCodeService.name, () => {
       expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { emailVerified: true });
     });
 
+    it("confirms the verified email on the user's notification channels", async () => {
+      const code = "123456";
+      const user = createUser({ userId: "auth0|123", emailVerified: false });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0 });
+      const { service, emailVerificationCodeRepository, userRepository, auth0Service, notificationService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
+
+      await service.verifyCode(user.id, code);
+
+      expect(notificationService.confirmAccountEmail).toHaveBeenCalledWith(user);
+      expect(auth0Service.markEmailVerified.mock.invocationCallOrder[0]).toBeLessThan(notificationService.confirmAccountEmail.mock.invocationCallOrder[0]);
+    });
+
+    it("leaves the notification channels alone when Auth0 cannot mark the email verified", async () => {
+      const code = "123456";
+      const user = createUser({ userId: "auth0|123" });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0 });
+      const { service, emailVerificationCodeRepository, userRepository, auth0Service, notificationService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
+      auth0Service.markEmailVerified.mockRejectedValue(new Error("Auth0 unavailable"));
+
+      await expect(service.verifyCode(user.id, code)).rejects.toThrow("Auth0 unavailable");
+
+      expect(notificationService.confirmAccountEmail).not.toHaveBeenCalled();
+    });
+
+    it("verifies the email even when its notification channels cannot be updated", async () => {
+      const code = "123456";
+      const user = createUser({ userId: "auth0|123" });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0 });
+      const error = new Error("notifications unavailable");
+      const { service, emailVerificationCodeRepository, userRepository, auth0Service, notificationService, logger } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
+      notificationService.confirmAccountEmail.mockRejectedValue(error);
+
+      await service.verifyCode(user.id, code);
+
+      expect(auth0Service.markEmailVerified).toHaveBeenCalledWith(user.userId);
+      expect(logger.error).toHaveBeenCalledWith({ event: "FAILED_TO_CONFIRM_ACCOUNT_EMAIL_ON_CHANNELS", userId: user.id, error });
+    });
+
     it("counts the attempt and rejects an invalid code", async () => {
       const user = createUser({ userId: "auth0|123" });
       const record = createVerificationCodeOutput({ userId: user.id, code: hashCode("123456"), attempts: 0 });
@@ -237,7 +284,7 @@ describe(EmailVerificationCodeService.name, () => {
   function setup() {
     const emailVerificationCodeRepository = mock<EmailVerificationCodeRepository>();
     const auth0Service = mock<Auth0Service>();
-    const notificationService = mock<NotificationService>();
+    const notificationService = mock<NotificationService>({ confirmAccountEmail: vi.fn().mockResolvedValue(undefined) });
     const userRepository = mock<UserRepository>();
     const trialActivationJobService = mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) });
     const logger = mock<ReturnType<CreateLogger>>();

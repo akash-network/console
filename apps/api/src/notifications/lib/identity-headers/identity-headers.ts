@@ -8,13 +8,28 @@ export const NOTIFICATIONS_IDENTITY_HEADERS = {
   organizationType: "x-organization-type",
   organizationRole: "x-organization-role",
   projectScope: "x-project-scope",
-  projectId: "x-project-id"
+  projectId: "x-project-id",
+  userEmail: "x-user-email",
+  userEmailVerified: "x-user-email-verified"
 } as const;
 
 const IDENTITY_HEADER_NAMES: ReadonlySet<string> = new Set(Object.values(NOTIFICATIONS_IDENTITY_HEADERS));
 
 export function stripIdentityHeaders(headers: Record<string, string>): Record<string, string> {
   return Object.fromEntries(Object.entries(headers).filter(([name]) => !IDENTITY_HEADER_NAMES.has(name.toLowerCase())));
+}
+
+/** Only an email Auth0 reports verified is named as verified, since the notifications service confirms it on the requester's channels without asking. */
+export function accountEmailHeaders({ email, verifiedEmail }: { email?: string | null; verifiedEmail: string | null }): Record<string, string> {
+  if (verifiedEmail) {
+    return { [NOTIFICATIONS_IDENTITY_HEADERS.userEmail]: verifiedEmail, [NOTIFICATIONS_IDENTITY_HEADERS.userEmailVerified]: "true" };
+  }
+
+  if (!email) {
+    return {};
+  }
+
+  return { [NOTIFICATIONS_IDENTITY_HEADERS.userEmail]: email, [NOTIFICATIONS_IDENTITY_HEADERS.userEmailVerified]: "false" };
 }
 
 /** The role and project scope travel only when organization rules are authoritative, which is how the notifications service tells the two modes apart. */
