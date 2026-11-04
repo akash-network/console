@@ -13775,7 +13775,8 @@ export interface operations {
           | "wallet_balance_alert"
           | "deployment_closed_alert"
           | "deployment_reclaim_alert"
-          | "deployment_rename";
+          | "deployment_rename"
+          | "gpu_request_update";
       };
       header?: {
         /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
@@ -13801,7 +13802,7 @@ export interface operations {
                 /** Format: uuid */
                 id: string;
                 /**
-                 * @description What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`.
+                 * @description What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along.
                  * @enum {string}
                  */
                 type:
@@ -13812,7 +13813,8 @@ export interface operations {
                   | "wallet_balance_alert"
                   | "deployment_closed_alert"
                   | "deployment_reclaim_alert"
-                  | "deployment_rename";
+                  | "deployment_rename"
+                  | "gpu_request_update";
                 /**
                  * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome.
                  * @enum {string}
@@ -13878,6 +13880,13 @@ export interface operations {
                       settings?: ("command" | "args" | "credentials" | "expose" | "storage")[];
                     }[];
                   };
+                  /**
+                   * Format: uuid
+                   * @description The GPU request a `gpu_request_update` is about.
+                   */
+                  hardwareRequestId?: string;
+                  /** @description The status the GPU request moved to, on a `gpu_request_update`. */
+                  hardwareRequestStatus?: string;
                 };
                 /**
                  * Format: date-time
@@ -13945,7 +13954,7 @@ export interface operations {
               /** Format: uuid */
               id: string;
               /**
-               * @description What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`.
+               * @description What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along.
                * @enum {string}
                */
               type:
@@ -13956,7 +13965,8 @@ export interface operations {
                 | "wallet_balance_alert"
                 | "deployment_closed_alert"
                 | "deployment_reclaim_alert"
-                | "deployment_rename";
+                | "deployment_rename"
+                | "gpu_request_update";
               /**
                * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome.
                * @enum {string}
@@ -14022,6 +14032,13 @@ export interface operations {
                     settings?: ("command" | "args" | "credentials" | "expose" | "storage")[];
                   }[];
                 };
+                /**
+                 * Format: uuid
+                 * @description The GPU request a `gpu_request_update` is about.
+                 */
+                hardwareRequestId?: string;
+                /** @description The status the GPU request moved to, on a `gpu_request_update`. */
+                hardwareRequestStatus?: string;
               };
               /**
                * Format: date-time

@@ -12,7 +12,8 @@ export const activityTypeEnum = pgEnum("activity_type", [
   "deployment_update",
   "lease_create",
   ...ALERT_ACTIVITY_TYPES,
-  "deployment_rename"
+  "deployment_rename",
+  "gpu_request_update"
 ]);
 export const activityStatusEnum = pgEnum("activity_status", ["pending", "succeeded", "failed", "info"]);
 export const activityInitiatorEnum = pgEnum("activity_initiator", ["user", "system"]);
@@ -57,6 +58,8 @@ export type ActivityMeta = {
   summary?: string;
   organizationId?: string;
   changes?: DeploymentChanges;
+  hardwareRequestId?: string;
+  hardwareRequestStatus?: string;
 };
 
 export type NewActivity = {

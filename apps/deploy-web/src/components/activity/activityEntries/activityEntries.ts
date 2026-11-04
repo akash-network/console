@@ -24,7 +24,7 @@ export interface ActivityEntry {
 
 type LabelDeployment = (dseq: string | undefined) => string;
 
-type ActionType = Exclude<Activity["type"], `${string}_alert` | "deployment_rename">;
+type ActionType = Exclude<Activity["type"], `${string}_alert` | "deployment_rename" | "gpu_request_update">;
 
 type AlertType = Extract<Activity["type"], `${string}_alert`>;
 
@@ -73,6 +73,7 @@ export function activityEntryOf(activity: Activity, labelDeployment: LabelDeploy
   const common = { id, status, href: activityDestinationOf(activity).href, createdAt, isUnseen: isUnseen(activity) };
 
   if (type === "deployment_rename") return { ...common, title: renameEntryTitleOf(meta, labelDeployment) };
+  if (type === "gpu_request_update") return { ...common, title: meta.summary ?? "One of your GPU requests moved along", systemIcon: "activity" };
   if (!isActionType(type))
     return { ...common, ...alertWordingOf(type, meta, labelDeployment), systemIcon: type === "wallet_balance_alert" ? "wallet" : "bell" };
 

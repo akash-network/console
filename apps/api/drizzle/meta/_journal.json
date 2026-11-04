@@ -785,6 +785,13 @@
       "when": 1793779698857,
       "tag": "0111_hardware_request_events",
       "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1793780374636,
+      "tag": "0112_activity_type_gpu_request_update",
+      "breakpoints": true
     }
   ]
 }
