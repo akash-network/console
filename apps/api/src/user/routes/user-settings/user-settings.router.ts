@@ -192,3 +192,47 @@ userSettingsRouter.openapi(acceptFairUsePolicyRoute, async function acceptFairUs
   await container.resolve(UserController).acceptFairUsePolicy();
   return c.body(null, 204);
 });
+
+const markGetStartedDismissedRoute = createRoute({
+  method: "post",
+  path: "/v1/user/markGetStartedDismissed",
+  operationId: "markGetStartedDismissed",
+  summary: "Dismiss the Get started checklist",
+  tags: ["Users"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  responses: {
+    204: {
+      description: "Get started checklist dismissed"
+    },
+    401: {
+      description: "Unauthorized"
+    }
+  }
+});
+
+userSettingsRouter.openapi(markGetStartedDismissedRoute, async function markGetStartedDismissed(c) {
+  await container.resolve(UserController).markGetStartedDismissed();
+  return c.body(null, 204);
+});
+
+const markAgentSetupCopiedRoute = createRoute({
+  method: "post",
+  path: "/v1/user/markAgentSetupCopied",
+  operationId: "markAgentSetupCopied",
+  summary: "Record that the user copied the agent setup",
+  tags: ["Users"],
+  security: SECURITY_BEARER_OR_API_KEY,
+  responses: {
+    204: {
+      description: "Agent setup copy recorded"
+    },
+    401: {
+      description: "Unauthorized"
+    }
+  }
+});
+
+userSettingsRouter.openapi(markAgentSetupCopiedRoute, async function markAgentSetupCopied(c) {
+  await container.resolve(UserController).markAgentSetupCopied();
+  return c.body(null, 204);
+});

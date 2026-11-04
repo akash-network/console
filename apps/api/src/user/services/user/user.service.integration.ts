@@ -452,6 +452,54 @@ describe(UserService.name, () => {
     });
   });
 
+  describe("markGetStartedDismissed", () => {
+    it("sets getStartedDismissedAt when it has not been set", async () => {
+      const { service, userRepository } = setup();
+      const user = await userRepository.create({ userId: faker.string.uuid(), username: `test-user-${faker.string.uuid()}` });
+
+      await service.markGetStartedDismissed(user.id);
+
+      const updatedUser = await userRepository.findById(user.id);
+      expect(updatedUser?.getStartedDismissedAt).toBeInstanceOf(Date);
+    });
+
+    it("preserves the original timestamp when called again", async () => {
+      const { service, userRepository } = setup();
+      const user = await userRepository.create({ userId: faker.string.uuid(), username: `test-user-${faker.string.uuid()}` });
+
+      await service.markGetStartedDismissed(user.id);
+      const firstAt = (await userRepository.findById(user.id))?.getStartedDismissedAt;
+      await service.markGetStartedDismissed(user.id);
+      const secondAt = (await userRepository.findById(user.id))?.getStartedDismissedAt;
+
+      expect(secondAt).toEqual(firstAt);
+    });
+  });
+
+  describe("markAgentSetupCopied", () => {
+    it("sets agentSetupCopiedAt when it has not been set", async () => {
+      const { service, userRepository } = setup();
+      const user = await userRepository.create({ userId: faker.string.uuid(), username: `test-user-${faker.string.uuid()}` });
+
+      await service.markAgentSetupCopied(user.id);
+
+      const updatedUser = await userRepository.findById(user.id);
+      expect(updatedUser?.agentSetupCopiedAt).toBeInstanceOf(Date);
+    });
+
+    it("preserves the original timestamp when called again", async () => {
+      const { service, userRepository } = setup();
+      const user = await userRepository.create({ userId: faker.string.uuid(), username: `test-user-${faker.string.uuid()}` });
+
+      await service.markAgentSetupCopied(user.id);
+      const firstAt = (await userRepository.findById(user.id))?.agentSetupCopiedAt;
+      await service.markAgentSetupCopied(user.id);
+      const secondAt = (await userRepository.findById(user.id))?.agentSetupCopiedAt;
+
+      expect(secondAt).toEqual(firstAt);
+    });
+  });
+
   function createRegisterInput(overrides: Partial<RegisterUserInput> = {}): RegisterUserInput {
     return {
       userId: faker.string.uuid(),

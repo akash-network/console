@@ -556,6 +556,28 @@ describe(UserService.name, () => {
     });
   });
 
+  describe("markGetStartedDismissed", () => {
+    it("persists the time with a set-if-null guard so the first one is kept", async () => {
+      const userId = faker.string.uuid();
+      const { service, userRepository } = setup();
+
+      await service.markGetStartedDismissed(userId);
+
+      expect(userRepository.updateBy).toHaveBeenCalledWith({ id: userId, getStartedDismissedAt: null }, { getStartedDismissedAt: expect.any(Date) });
+    });
+  });
+
+  describe("markAgentSetupCopied", () => {
+    it("persists the time with a set-if-null guard so the first one is kept", async () => {
+      const userId = faker.string.uuid();
+      const { service, userRepository } = setup();
+
+      await service.markAgentSetupCopied(userId);
+
+      expect(userRepository.updateBy).toHaveBeenCalledWith({ id: userId, agentSetupCopiedAt: null }, { agentSetupCopiedAt: expect.any(Date) });
+    });
+  });
+
   it("creates the logger with the service context", () => {
     const { createLogger } = setup();
 

@@ -2731,6 +2731,16 @@
                           "nullable": true,
                           "format": "date-time"
                         },
+                        "getStartedDismissedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "agentSetupCopiedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
                         "timezone": {
                           "type": "string",
                           "nullable": true,
@@ -2835,6 +2845,16 @@
                           "format": "date-time"
                         },
                         "productUpdatesUnsubscribedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "getStartedDismissedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "agentSetupCopiedAt": {
                           "type": "string",
                           "nullable": true,
                           "format": "date-time"
@@ -3131,6 +3151,72 @@
         "responses": {
           "204": {
             "description": "Fair Use Policy accepted"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/user/markGetStartedDismissed": {
+      "post": {
+        "operationId": "markGetStartedDismissed",
+        "summary": "Dismiss the Get started checklist",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Get started checklist dismissed"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/user/markAgentSetupCopied": {
+      "post": {
+        "operationId": "markAgentSetupCopied",
+        "summary": "Record that the user copied the agent setup",
+        "tags": [
+          "Users"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Agent setup copy recorded"
           },
           "401": {
             "description": "Unauthorized"
