@@ -63,8 +63,21 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const routeParams = d.useParams();
   const dseqSegment = Array.isArray(routeParams?.dseq) ? routeParams.dseq[0] : (routeParams?.dseq as string | undefined);
   const intent = parseDeploymentIntent({ dseqSegment, searchParams: new URLSearchParams(searchParams?.toString() ?? "") });
+  const autoDeployStart = d.useTakeAutoDeployStart(intent);
+
+  return <ConfigureDeploymentScreen key={autoDeployStart.key} intent={intent} isStartedByConsole={autoDeployStart.templateId !== null} dependencies={d} />;
+};
+
+type ScreenProps = {
+  intent: DeploymentIntent;
+  /** The URL alone never deploys: any arrival other than a console deploy button for this template, a reload included, opens the form. */
+  isStartedByConsole: boolean;
+  dependencies: typeof DEPENDENCIES;
+};
+
+/** Remounted for each console start, so its draft, resume guard and flow begin afresh for the template that start deploys. */
+const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole, dependencies: d }) => {
   const draft = d.useConfigureDraft(intent);
-  const autoDeployStart = d.useTakeAutoDeployStart();
   const templateId = intent.templateId;
   const deploySdl = useAtomValue(sdlStore.deploySdl);
   const hardcodedTemplate: TemplateCreation | undefined = templateId ? hardcodedTemplates.find(template => template.code === templateId) : undefined;
@@ -107,8 +120,6 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const needsSecretValues = useMemo(() => !!initialSdl && secretReferenceNamesIn(initialSdl).size > 0, [initialSdl]);
   /** Only the form saves a draft, and a template that failed with nothing to start from has handed the session to it, so neither returns to auto later. */
   const isEditedInForm = isDraftRestored || hasFallenBackToForm;
-  /** The URL alone never deploys: any arrival other than a console deploy button for this template, a reload included, opens the form. */
-  const isStartedByConsole = !!templateId && autoDeployStart === templateId;
   const resolvedIntent = useMemo<DeploymentIntent>(
     () => ({
       templateId: intent.templateId,
