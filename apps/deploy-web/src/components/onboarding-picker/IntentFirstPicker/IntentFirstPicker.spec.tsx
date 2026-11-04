@@ -42,6 +42,12 @@ describe(IntentFirstPicker.name, () => {
     expect(screen.getByText("Pick one. The others stay one click away.")).toBeInTheDocument();
   });
 
+  it("asks the question while the search params aren't ready yet", () => {
+    setup({ searchParams: null });
+
+    expect(screen.getByText("Pick one. The others stay one click away.")).toBeInTheDocument();
+  });
+
   it("puts the picked intent in the url and tracks it as answered from the question", () => {
     const { push, analyticsService } = setup({});
 
@@ -181,7 +187,7 @@ describe(IntentFirstPicker.name, () => {
   }
 
   function setup(input: {
-    searchParams?: string;
+    searchParams?: string | null;
     isOutOfCredit?: boolean;
     maxCpu?: number;
     maxMemoryGi?: number;
@@ -193,7 +199,8 @@ describe(IntentFirstPicker.name, () => {
     const onDeployImage = vi.fn();
     const analyticsService = mock<AnalyticsService>();
     const useRouter: typeof DEPENDENCIES.useRouter = () => mock<AppRouterInstance>({ push });
-    const useSearchParams: typeof DEPENDENCIES.useSearchParams = () => new URLSearchParams(input.searchParams ?? "") as ReadonlyURLSearchParams;
+    const useSearchParams: typeof DEPENDENCIES.useSearchParams = () =>
+      (input.searchParams === null ? null : new URLSearchParams(input.searchParams ?? "")) as ReadonlyURLSearchParams;
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
         publicConfig: {
