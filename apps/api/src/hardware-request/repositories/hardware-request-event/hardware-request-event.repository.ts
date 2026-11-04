@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -33,6 +33,18 @@ export class HardwareRequestEventRepository extends BaseRepository<Table, Hardwa
 
   async record<T extends HardwareRequestEventType>(event: HardwareRequestEventRecord<T>): Promise<HardwareRequestEventOutput> {
     return await this.create(event);
+  }
+
+  async hasRecorded<T extends HardwareRequestEventType>({ hardwareRequestId, type, payload }: Omit<HardwareRequestEventRecord<T>, "actor">): Promise<boolean> {
+    const [match] = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(
+        and(eq(this.table.hardwareRequestId, hardwareRequestId), eq(this.table.type, type), sql`${this.table.payload} @> ${JSON.stringify(payload)}::jsonb`)
+      )
+      .limit(1);
+
+    return !!match;
   }
 
   async findOldestFirst(hardwareRequestId: string): Promise<HardwareRequestEventOutput[]> {
