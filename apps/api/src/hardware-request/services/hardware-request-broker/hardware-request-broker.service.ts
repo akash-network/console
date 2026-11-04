@@ -14,9 +14,13 @@ import {
   type HardwareRequestEventOutput,
   HardwareRequestEventRepository
 } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
+import {
+  type HardwareRequestOfferOutput,
+  HardwareRequestOfferRepository
+} from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { HardwareRequestStatusNotificationJob } from "@src/hardware-request/services/hardware-request-status-notification/hardware-request-status-notification.handler";
 
-export type HardwareRequestWithTimeline = QueuedHardwareRequest & { events: HardwareRequestEventOutput[] };
+export type HardwareRequestWithTimeline = QueuedHardwareRequest & { events: HardwareRequestEventOutput[]; offers: HardwareRequestOfferOutput[] };
 
 /** Serves the team's broker queue, which sees every organization's requests. */
 @singleton()
@@ -25,7 +29,8 @@ export class HardwareRequestBrokerService {
     private readonly hardwareRequestRepository: HardwareRequestRepository,
     private readonly hardwareRequestEventRepository: HardwareRequestEventRepository,
     private readonly txService: TxService,
-    private readonly jobQueueService: JobQueueService
+    private readonly jobQueueService: JobQueueService,
+    private readonly hardwareRequestOfferRepository: HardwareRequestOfferRepository
   ) {}
 
   async listQueue(filters: HardwareRequestQueueFilters): Promise<QueuedHardwareRequest[]> {
@@ -37,7 +42,12 @@ export class HardwareRequestBrokerService {
 
     if (!hardwareRequest) throw createError(404, "Hardware request not found");
 
-    return { ...hardwareRequest, events: await this.hardwareRequestEventRepository.findOldestFirst(id) };
+    const [events, offers] = await Promise.all([
+      this.hardwareRequestEventRepository.findOldestFirst(id),
+      this.hardwareRequestOfferRepository.findOldestFirst(id)
+    ]);
+
+    return { ...hardwareRequest, events, offers };
   }
 
   /** Claims, reassigns or releases a request; assigning the owner it already has records nothing. */

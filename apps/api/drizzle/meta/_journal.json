@@ -799,6 +799,13 @@
       "when": 1793781814683,
       "tag": "0113_hardware_requests_nullable_user",
       "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1793782659553,
+      "tag": "0114_hardware_request_offers",
+      "breakpoints": true
     }
   ]
 }
