@@ -23,7 +23,7 @@ export const MAX_FOLLOW_UP_WRITES = 5;
 /** With a check every minute, this waits about half an hour for a chain index that has not reached the write. */
 export const MAX_CHECK_ATTEMPTS = 30;
 
-/** Must stay above tx-signer's UNORDERED_TX_TTL_MS, since a grant signed as TX_SIGNER_REQUEST_TIMEOUT_MS runs out can still land that long after. */
+/** Clock-skew slack on a bound that holds only while TX_SIGNER_REQUEST_TIMEOUT_MS stays above tx-signer's SIGN_AND_BROADCAST_DEADLINE_MS, which every attempt it signs expires within, gas re-signs included. */
 const LANDING_MARGIN_IN_MIN = 1;
 
 @singleton()
