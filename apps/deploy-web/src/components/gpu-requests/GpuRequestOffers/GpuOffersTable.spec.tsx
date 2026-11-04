@@ -90,6 +90,29 @@ describe(GpuOffersTable.name, () => {
     expect(screen.getByText("Accepted")).toBeInTheDocument();
   });
 
+  it("adds each offer's actions in a last column", () => {
+    const offer = buildGpuRequestOffer();
+    render(
+      <GpuOffersTable
+        spec={buildHardwareRequestSpec()}
+        offers={[offer]}
+        now={NOW}
+        renderActions={(_, label) => <button type="button">Act on {label}</button>}
+      />
+    );
+
+    expect(screen.getAllByRole("columnheader").at(-1)).toHaveTextContent("Actions");
+    const [, requestRow, offerRow] = screen.getAllByRole("row");
+    expect(within(offerRow).getAllByRole("cell").at(-1)).toContainElement(screen.getByRole("button", { name: "Act on Offer 1" }));
+    expect(within(requestRow).getAllByRole("cell").at(-1)).toBeEmptyDOMElement();
+  });
+
+  it("has no actions column without actions", () => {
+    setup({ spec: buildHardwareRequestSpec(), offers: [buildGpuRequestOffer()] });
+
+    expect(screen.queryByRole("columnheader", { name: "Actions" })).not.toBeInTheDocument();
+  });
+
   function offerLabels() {
     return screen
       .getAllByRole("rowheader")

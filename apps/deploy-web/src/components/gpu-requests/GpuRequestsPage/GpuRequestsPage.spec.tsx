@@ -80,7 +80,7 @@ describe(GpuRequestsPage.name, () => {
     const { GpuRequestCard } = setup({ requests: [withOffers, sourcing] });
 
     const [withOffersCard, sourcingCard] = GpuRequestCard.mock.calls.map(([props]) => props);
-    expect(withOffersCard.offers).toMatchObject({ props: { request: withOffers } });
+    expect(withOffersCard.offers).toMatchObject({ props: { request: withOffers, viewer: { userId: "me", role: "member" } } });
     expect(sourcingCard.offers).toBe(false);
   });
 

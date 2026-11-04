@@ -66,7 +66,7 @@ describe(GpuRequestCard.name, () => {
   it("shows the offers under the status message", () => {
     setup({ status: "offers" }, { offers: <div>Offers table</div> });
 
-    expect(screen.getByRole("article")).toHaveTextContent("We have offers for you and will email you to go over them.Offers table");
+    expect(screen.getByRole("article")).toHaveTextContent("We have offers for you. Compare them below and pick the one that fits.Offers table");
   });
 
   it("offers to withdraw the request when the viewer may", async () => {

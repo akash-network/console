@@ -84,7 +84,7 @@ export const GpuRequestsPage: FC<Props> = ({ requestId, dependencies: d = DEPEND
                 <d.GpuRequestCard
                   request={request}
                   isFocused={request.id === requestId}
-                  offers={hasOffers(request.status) && <d.GpuRequestOffers request={request} />}
+                  offers={hasOffers(request.status) && <d.GpuRequestOffers request={request} viewer={viewer} />}
                   onWithdraw={canWithdraw(request, viewer) ? () => setWithdrawing(request) : undefined}
                 />
               </li>

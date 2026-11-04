@@ -48,9 +48,9 @@ export function describeStatusMessage(request: Pick<HardwareRequest, "status" | 
     case "sourcing":
       return "We're talking to providers who can supply this hardware.";
     case "offers":
-      return "We have offers for you and will email you to go over them.";
+      return "We have offers for you. Compare them below and pick the one that fits.";
     case "accepted":
-      return "You accepted an offer. We're getting it ready with the provider.";
+      return "You accepted an offer. Our team is setting up the deployment with the provider and will email you.";
     case "fulfilled":
       return "Your GPUs are ready.";
     case "withdrawn":

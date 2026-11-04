@@ -2,17 +2,21 @@ import type { FC } from "react";
 import { Spinner } from "@akashnetwork/ui/components";
 
 import { useHardwareRequestOffersQuery } from "@src/queries/useHardwareRequestsQuery";
+import type { GpuRequestViewer } from "../gpuRequestAccess/gpuRequestAccess";
+import { describeOfferDecisions } from "../gpuRequestAccess/gpuRequestAccess";
 import type { HardwareRequest } from "../gpuRequestStatus/gpuRequestStatus";
+import { GpuOfferActions } from "./GpuOfferActions";
 import { GpuOffersTable } from "./GpuOffersTable";
 
-export const DEPENDENCIES = { useHardwareRequestOffersQuery, GpuOffersTable };
+export const DEPENDENCIES = { useHardwareRequestOffersQuery, GpuOffersTable, GpuOfferActions };
 
 type Props = {
   request: HardwareRequest;
+  viewer: GpuRequestViewer;
   dependencies?: typeof DEPENDENCIES;
 };
 
-export const GpuRequestOffers: FC<Props> = ({ request, dependencies: d = DEPENDENCIES }) => {
+export const GpuRequestOffers: FC<Props> = ({ request, viewer, dependencies: d = DEPENDENCIES }) => {
   const { data: offers, isLoading, isError } = d.useHardwareRequestOffersQuery(request.id);
 
   if (isLoading) {
@@ -32,5 +36,14 @@ export const GpuRequestOffers: FC<Props> = ({ request, dependencies: d = DEPENDE
   }
   if (!offers?.length) return null;
 
-  return <d.GpuOffersTable spec={request.spec} offers={offers} now={new Date()} />;
+  return (
+    <d.GpuOffersTable
+      spec={request.spec}
+      offers={offers}
+      now={new Date()}
+      renderActions={(offer, label) => (
+        <d.GpuOfferActions requestId={request.id} offer={offer} label={label} decisions={describeOfferDecisions(request, offer, viewer)} />
+      )}
+    />
+  );
 };

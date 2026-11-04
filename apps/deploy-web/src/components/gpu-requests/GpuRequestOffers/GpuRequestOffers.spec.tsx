@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { GpuRequestOffer } from "../gpuOfferComparison/gpuOfferComparison";
+import type { GpuRequestViewer } from "../gpuRequestAccess/gpuRequestAccess";
 import { DEPENDENCIES, GpuRequestOffers } from "./GpuRequestOffers";
 
 import { render, screen } from "@testing-library/react";
@@ -16,6 +17,19 @@ describe(GpuRequestOffers.name, () => {
 
     expect(useHardwareRequestOffersQuery).toHaveBeenCalledWith("request-1");
     expect(GpuOffersTable).toHaveBeenCalledWith(expect.objectContaining({ spec: request.spec, offers, now: expect.any(Date) }), expect.anything());
+  });
+
+  it("offers each viewer the decisions their role allows", () => {
+    const request = buildHardwareRequest({ id: "request-1", status: "offers", userId: "someone" });
+    const offer = buildGpuRequestOffer();
+    const { GpuOffersTable, GpuOfferActions } = setup({ request, offers: [offer], viewer: { userId: "me", role: "admin" } });
+
+    render(<>{GpuOffersTable.mock.lastCall![0].renderActions!(offer, "Offer 1")}</>);
+
+    expect(GpuOfferActions).toHaveBeenCalledWith(
+      { requestId: "request-1", offer, label: "Offer 1", decisions: { canAccept: true, canDecline: true, canAskForApproval: false } },
+      expect.anything()
+    );
   });
 
   it("shows that the offers are loading", () => {
@@ -44,7 +58,13 @@ describe(GpuRequestOffers.name, () => {
     expect(GpuOffersTable).not.toHaveBeenCalled();
   });
 
-  function setup(input: { request?: ReturnType<typeof buildHardwareRequest>; offers?: GpuRequestOffer[]; isLoading?: boolean; isError?: boolean }) {
+  function setup(input: {
+    request?: ReturnType<typeof buildHardwareRequest>;
+    offers?: GpuRequestOffer[];
+    isLoading?: boolean;
+    isError?: boolean;
+    viewer?: GpuRequestViewer;
+  }) {
     const useHardwareRequestOffersQuery = vi.fn(() =>
       Object.assign(mock<ReturnType<typeof DEPENDENCIES.useHardwareRequestOffersQuery>>(), {
         data: input.offers,
@@ -54,8 +74,14 @@ describe(GpuRequestOffers.name, () => {
     );
     const dependencies = MockComponents(DEPENDENCIES, { useHardwareRequestOffersQuery });
 
-    render(<GpuRequestOffers request={input.request ?? buildHardwareRequest()} dependencies={dependencies} />);
+    render(
+      <GpuRequestOffers
+        request={input.request ?? buildHardwareRequest()}
+        viewer={input.viewer ?? { userId: "me", role: "member" }}
+        dependencies={dependencies}
+      />
+    );
 
-    return { GpuOffersTable: dependencies.GpuOffersTable, useHardwareRequestOffersQuery };
+    return { GpuOffersTable: dependencies.GpuOffersTable, GpuOfferActions: dependencies.GpuOfferActions, useHardwareRequestOffersQuery };
   }
 });
