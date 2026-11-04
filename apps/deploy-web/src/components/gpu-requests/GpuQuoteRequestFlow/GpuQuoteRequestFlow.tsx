@@ -97,7 +97,7 @@ function isRequestLimitError(error: unknown): boolean {
 const SKIP_REPORTING_REQUEST_LIMIT = { skipErrorReporting: isRequestLimitError };
 
 export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialAnswers, onClose, dependencies: d = DEPENDENCIES }) => {
-  const { api } = useServices();
+  const { api, analyticsService } = useServices();
   const { user } = d.useUser();
   const { enqueueSnackbar } = d.useSnackbar();
   const queryClient = useQueryClient();
@@ -117,6 +117,13 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
   const isReview = step === "review";
   const blocking = listMissingAnswers(draft, today).filter(answer => answer.step === step);
   const limitMessage = isRequestLimitError(createHardwareRequest.error) ? extractApiErrorMessage(createHardwareRequest.error) : null;
+
+  useEffect(
+    function trackFormOpened() {
+      analyticsService.track("gpu_request_form_opened", { category: "deployments", source });
+    },
+    [analyticsService, source]
+  );
 
   useEffect(
     function followConfigurationEdits() {
@@ -154,6 +161,7 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
       { data: toQuoteRequestData(draft, { source, configuration: configuration?.summary }) },
       {
         onSuccess: function confirmSentAndClose(response) {
+          analyticsService.track("gpu_request_sent", { category: "deployments", source, lane: response.data.lane, hardwareRequestId: response.data.id });
           void queryClient.invalidateQueries({ queryKey: api.v1.listHardwareRequests.getKey() });
           enqueueSnackbar(<Snackbar title="Request sent" subTitle={describeNextStep(response.data, new Date())} iconVariant="success" />, {
             variant: "success"

@@ -13,11 +13,12 @@ import {
 } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useWithdrawHardwareRequestMutation } from "@src/queries/useHardwareRequestsQuery";
 import type { HardwareRequest } from "../gpuRequestStatus/gpuRequestStatus";
 import { describeRequestTitle } from "../gpuRequestStatus/gpuRequestStatus";
 
-export const DEPENDENCIES = { useWithdrawHardwareRequestMutation, useSnackbar };
+export const DEPENDENCIES = { useWithdrawHardwareRequestMutation, useSnackbar, useServices };
 
 type Props = {
   request: HardwareRequest;
@@ -27,9 +28,11 @@ type Props = {
 
 export const WithdrawGpuRequestDialog: FC<Props> = ({ request, onClose, dependencies: d = DEPENDENCIES }) => {
   const { enqueueSnackbar } = d.useSnackbar();
+  const { analyticsService } = d.useServices();
   const { mutate: withdrawRequest, isPending } = d.useWithdrawHardwareRequestMutation();
 
   const confirmWithdrawn = () => {
+    analyticsService.track("gpu_request_withdrawn", { category: "deployments", hardwareRequestId: request.id, status: request.status });
     enqueueSnackbar(<Snackbar title="Request withdrawn" subTitle="We've let the team know." iconVariant="success" />, { variant: "success" });
     onClose();
   };

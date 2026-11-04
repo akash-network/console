@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AppDIContainer } from "@src/context/ServicesProvider/ServicesProvider";
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { QuoteRequestSource } from "../gpuQuoteDraft/gpuQuoteCatalog";
 import type { DraftAnswers } from "../gpuQuoteDraft/gpuQuoteDraft";
 import type { ConfigurationPrefill, DEPENDENCIES } from "./GpuQuoteRequestFlow";
@@ -23,7 +24,7 @@ const REQUESTS_KEY = ["v1", "listHardwareRequests"];
 
 describe("GpuQuoteRequestFlow", () => {
   it("sends a package request after changing only the region and term", async () => {
-    const { user, createHardwareRequest, enqueueSnackbar, onClose, queryClient } = setup({ source: "reserve_capacity" });
+    const { user, createHardwareRequest, enqueueSnackbar, onClose, queryClient, analyticsService } = setup({ source: "reserve_capacity" });
 
     expect(screen.getByText("Reserve GPUs for a term.")).toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: /Full server/ }));
@@ -61,6 +62,10 @@ describe("GpuQuoteRequestFlow", () => {
     });
     expect(snackbarProps(enqueueSnackbar)).toMatchObject({ title: "Request sent", subTitle: "We'll get back to you within one business day." });
     expect(queryClient.getQueryState(REQUESTS_KEY)?.isInvalidated).toBe(true);
+    expect(analyticsService.track.mock.calls).toEqual([
+      ["gpu_request_form_opened", { category: "deployments", source: "reserve_capacity" }],
+      ["gpu_request_sent", { category: "deployments", source: "reserve_capacity", lane: "automated", hardwareRequestId: "request-id" }]
+    ]);
   });
 
   it("sends the configuration being set up without asking hardware questions", async () => {
@@ -340,13 +345,14 @@ describe("GpuQuoteRequestFlow", () => {
     const api = createProxy({ v1: { createHardwareRequest, listHardwareRequests: vi.fn() } }) as unknown as AppDIContainer["api"];
     const enqueueSnackbar = vi.fn();
     const onClose = vi.fn();
+    const analyticsService = mock<AnalyticsService>();
     const email = "email" in input ? input.email : "jane@example.com";
     const dependencies: typeof DEPENDENCIES = {
       useUser: () => mock<ReturnType<typeof DEPENDENCIES.useUser>>({ user: email ? { email } : undefined }),
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() })
     };
     const renderFlow = (configuration?: ConfigurationPrefill) => (
-      <TestContainerProvider services={{ api: () => api, queryClient: () => queryClient }}>
+      <TestContainerProvider services={{ api: () => api, queryClient: () => queryClient, analyticsService: () => analyticsService }}>
         <GpuQuoteRequestFlow
           source={input.source}
           configuration={configuration}
@@ -364,6 +370,7 @@ describe("GpuQuoteRequestFlow", () => {
       enqueueSnackbar,
       onClose,
       queryClient,
+      analyticsService,
       rerender: (configuration: ConfigurationPrefill) => view.rerender(renderFlow(configuration))
     };
   }

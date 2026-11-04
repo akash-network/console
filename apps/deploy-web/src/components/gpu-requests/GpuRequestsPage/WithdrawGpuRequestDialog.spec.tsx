@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { DEPENDENCIES } from "./WithdrawGpuRequestDialog";
 import { WithdrawGpuRequestDialog } from "./WithdrawGpuRequestDialog";
 
@@ -18,7 +19,7 @@ describe(WithdrawGpuRequestDialog.name, () => {
   });
 
   it("withdraws the request and confirms it", async () => {
-    const { user, withdrawRequest, enqueueSnackbar, onClose } = setup({});
+    const { user, withdrawRequest, enqueueSnackbar, onClose, analyticsService } = setup({});
     withdrawRequest.mockImplementation((input, options) => options?.onSuccess?.(mock(), input, undefined));
 
     await user.click(screen.getByRole("button", { name: "Withdraw request" }));
@@ -29,10 +30,15 @@ describe(WithdrawGpuRequestDialog.name, () => {
       { variant: "success" }
     );
     expect(onClose).toHaveBeenCalled();
+    expect(analyticsService.track).toHaveBeenCalledWith("gpu_request_withdrawn", {
+      category: "deployments",
+      hardwareRequestId: "request-1",
+      status: "sourcing"
+    });
   });
 
   it("reports a refused withdrawal and closes", async () => {
-    const { user, withdrawRequest, enqueueSnackbar, onClose } = setup({});
+    const { user, withdrawRequest, enqueueSnackbar, onClose, analyticsService } = setup({});
     withdrawRequest.mockImplementation((input, options) => options?.onError?.(new Error("already accepted"), input, undefined));
 
     await user.click(screen.getByRole("button", { name: "Withdraw request" }));
@@ -44,6 +50,7 @@ describe(WithdrawGpuRequestDialog.name, () => {
       { variant: "error" }
     );
     expect(onClose).toHaveBeenCalled();
+    expect(analyticsService.track).not.toHaveBeenCalled();
   });
 
   it("keeps the request on Keep request", async () => {
@@ -76,15 +83,21 @@ describe(WithdrawGpuRequestDialog.name, () => {
     const withdrawRequest = vi.fn<ReturnType<typeof DEPENDENCIES.useWithdrawHardwareRequestMutation>["mutate"]>();
     const enqueueSnackbar = vi.fn();
     const onClose = vi.fn();
+    const analyticsService = mock<AnalyticsService>();
     const dependencies: typeof DEPENDENCIES = {
       useWithdrawHardwareRequestMutation: () =>
         mock<ReturnType<typeof DEPENDENCIES.useWithdrawHardwareRequestMutation>>({ mutate: withdrawRequest, isPending: input.isPending ?? false }),
-      useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })
+      useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
+      useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService })
     };
-    const request = buildHardwareRequest({ id: "request-1", spec: buildHardwareRequestSpec({ gpu: { model: "A100", count: 2, interconnect: "none" } }) });
+    const request = buildHardwareRequest({
+      id: "request-1",
+      status: "sourcing",
+      spec: buildHardwareRequestSpec({ gpu: { model: "A100", count: 2, interconnect: "none" } })
+    });
 
     render(<WithdrawGpuRequestDialog request={request} onClose={onClose} dependencies={dependencies} />);
 
-    return { user: userEvent.setup(), withdrawRequest, enqueueSnackbar, onClose };
+    return { user: userEvent.setup(), withdrawRequest, enqueueSnackbar, onClose, analyticsService };
   }
 });
