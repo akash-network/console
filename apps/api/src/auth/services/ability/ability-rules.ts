@@ -157,6 +157,7 @@ function isKeptByProjectBoundKey({ action }: AbilityRule, subjectType: string): 
 function organizationWideRules(conditions: TenantConditions, { role }: OrganizationContext): AbilityRule[] {
   return [
     { action: "read", subject: "OrganizationActivity", conditions: conditions.organizationWide },
+    { action: "read", subject: "HardwareRequest", conditions: conditions.inOrg },
     ...(ORGANIZATION_WIDE_ROLE_RULES[role]?.(conditions) ?? [])
   ];
 }
@@ -177,7 +178,7 @@ function userKeyedRules(user: RuleUser): AbilityRule[] {
     { action: "read", subject: "User", conditions: { id: user.id } },
     { action: "create", subject: "VerificationEmail", conditions: { id: user.id } },
     { action: "read", subject: "LeaseGpu", conditions: { userId: user.id } },
-    { action: "create", subject: "HardwareRequest", conditions: { userId: user.id } },
+    { action: ["create", "read"], subject: "HardwareRequest", conditions: { userId: user.id } },
     { action: ["read", "update"], subject: "Activity", conditions: { userId: user.id } },
     { action: "manage", subject: "FavoriteProvider", conditions: { userId: user.id } },
     { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } }

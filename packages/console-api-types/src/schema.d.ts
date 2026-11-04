@@ -6953,7 +6953,8 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /** List the GPU requests of the active organization, newest first */
+    get: operations["listHardwareRequests"];
     put?: never;
     /** Ask the Akash team for a GPU model, more capacity or a region that is not available yet */
     post: operations["createHardwareRequest"];
@@ -13408,6 +13409,110 @@ export interface operations {
       };
     };
   };
+  listHardwareRequests: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The organization's requests with their status */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** Format: uuid */
+              userId: string;
+              /** Format: uuid */
+              organizationId: string | null;
+              /** @enum {string} */
+              category: "gpu_model" | "capacity" | "region" | "other" | "quote";
+              /** @enum {string} */
+              status: "submitted" | "in_review" | "sourcing" | "offers" | "accepted" | "fulfilled" | "withdrawn" | "closed";
+              /** @enum {string|null} */
+              source: "reserve_capacity" | "configure_reserve" | "no_fit" | "no_bids" | "gpu_menu" | "requests_page" | null;
+              gpuModel: string | null;
+              quantity: number | null;
+              region: string | null;
+              details: string | null;
+              contactEmail: string;
+              spec: {
+                gpu: {
+                  model: string;
+                  count: number;
+                  /** @enum {string} */
+                  interconnect: "none" | "server" | "cluster";
+                  /** @enum {string} */
+                  fabric?: "any" | "infiniband" | "roce";
+                  fabricGbps?: 200 | 400 | 800;
+                };
+                region: {
+                  /** @enum {string} */
+                  mode: "any" | "only" | "except";
+                  areas: ("us" | "ca" | "eu" | "uk" | "apac" | "me" | "latam")[];
+                };
+                uplinkGbps: 1 | 10 | 25 | unknown;
+                storage: {
+                  tbPerNode: number;
+                  nvme: boolean;
+                };
+                /** @enum {string|null} */
+                sla: "99" | "99.5" | "99.9" | null;
+                targetPrice: {
+                  minUsdPerGpuHour?: number;
+                  maxUsdPerGpuHour?: number;
+                } | null;
+                /** @enum {string} */
+                term: "month_to_month" | "3_months" | "6_months" | "12_months" | "24_months";
+                start:
+                  | {
+                      /** @enum {string} */
+                      kind: "asap";
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "flexible";
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "date";
+                      /** Format: date */
+                      date: string;
+                    };
+                couldGrow: boolean;
+                wantsToTalk: boolean;
+                company?: string;
+                phone?: string;
+              } | null;
+              /** Format: date-time */
+              createdAt: string;
+              /** Format: date-time */
+              updatedAt: string;
+            }[];
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   createHardwareRequest: {
     parameters: {
       query?: never;
@@ -13443,6 +13548,8 @@ export interface operations {
                     models: string[];
                   };
                 };
+                /** @enum {string} */
+                source?: "reserve_capacity" | "configure_reserve" | "no_fit" | "no_bids" | "gpu_menu" | "requests_page";
               }
             | {
                 /** @enum {string} */
@@ -13463,6 +13570,8 @@ export interface operations {
                     models: string[];
                   };
                 };
+                /** @enum {string} */
+                source?: "reserve_capacity" | "configure_reserve" | "no_fit" | "no_bids" | "gpu_menu" | "requests_page";
               }
             | {
                 /** @enum {string} */
@@ -13482,6 +13591,8 @@ export interface operations {
                     models: string[];
                   };
                 };
+                /** @enum {string} */
+                source?: "reserve_capacity" | "configure_reserve" | "no_fit" | "no_bids" | "gpu_menu" | "requests_page";
               }
             | {
                 /** @enum {string} */
@@ -13500,6 +13611,76 @@ export interface operations {
                     models: string[];
                   };
                 };
+                /** @enum {string} */
+                source?: "reserve_capacity" | "configure_reserve" | "no_fit" | "no_bids" | "gpu_menu" | "requests_page";
+              }
+            | {
+                /** @enum {string} */
+                category: "quote";
+                spec: {
+                  gpu: {
+                    model: string;
+                    count: number;
+                    /** @enum {string} */
+                    interconnect: "none" | "server" | "cluster";
+                    /** @enum {string} */
+                    fabric?: "any" | "infiniband" | "roce";
+                    fabricGbps?: 200 | 400 | 800;
+                  };
+                  region: {
+                    /** @enum {string} */
+                    mode: "any" | "only" | "except";
+                    areas: ("us" | "ca" | "eu" | "uk" | "apac" | "me" | "latam")[];
+                  };
+                  uplinkGbps: 1 | 10 | 25 | unknown;
+                  storage: {
+                    tbPerNode: number;
+                    nvme: boolean;
+                  };
+                  /** @enum {string|null} */
+                  sla: "99" | "99.5" | "99.9" | null;
+                  targetPrice: {
+                    minUsdPerGpuHour?: number;
+                    maxUsdPerGpuHour?: number;
+                  } | null;
+                  /** @enum {string} */
+                  term: "month_to_month" | "3_months" | "6_months" | "12_months" | "24_months";
+                  start:
+                    | {
+                        /** @enum {string} */
+                        kind: "asap";
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "flexible";
+                      }
+                    | {
+                        /** @enum {string} */
+                        kind: "date";
+                        /** Format: date */
+                        date: string;
+                      };
+                  couldGrow: boolean;
+                  wantsToTalk: boolean;
+                  company?: string;
+                  phone?: string;
+                };
+                details?: string;
+                /** Format: email */
+                email: string;
+                configuration?: {
+                  summary: string;
+                  cpu: number;
+                  memoryBytes: number;
+                  storageBytes: number;
+                  region: string | null;
+                  gpu?: {
+                    count: number;
+                    models: string[];
+                  };
+                };
+                /** @enum {string} */
+                source?: "reserve_capacity" | "configure_reserve" | "no_fit" | "no_bids" | "gpu_menu" | "requests_page";
               };
         };
       };

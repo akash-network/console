@@ -199,7 +199,7 @@ describe("ability rules", () => {
           { action: "manage", subject: "ApiKey", conditions: { userId: user.id } },
           { action: "manage", subject: "Alert", conditions: { userId: user.id } },
           { action: "manage", subject: "NotificationChannel", conditions: { userId: user.id } },
-          { action: "create", subject: "HardwareRequest", conditions: { userId: user.id } },
+          { action: ["create", "read"], subject: "HardwareRequest", conditions: { userId: user.id } },
           { action: ["read", "update"], subject: "Activity", conditions: { userId: user.id } },
           { action: "manage", subject: "FavoriteProvider", conditions: { userId: user.id } },
           { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } },
@@ -259,6 +259,31 @@ describe("ability rules", () => {
       const organizationWide = actionsBySubject(ability, { organizationId, projectId: null, userId: user.id });
 
       expect(organizationWide.OrganizationActivity).toEqual(READ);
+    });
+
+    it.each(ROLES)("lets the %s role read every GPU request of the organization", role => {
+      const { ability, organizationId } = setup({ role, projectScope: createProjectsScope([]) });
+
+      const teammateRequest = subject("HardwareRequest", { organizationId, userId: faker.string.uuid() });
+
+      expect(allowedActions(ability, teammateRequest)).toEqual(READ);
+    });
+
+    it.each(ROLES)("keeps the %s role out of another organization's GPU requests", role => {
+      const { ability } = setup({ role });
+
+      const otherRequest = subject("HardwareRequest", { organizationId: faker.string.uuid(), userId: faker.string.uuid() });
+
+      expect(allowedActions(ability, otherRequest)).toEqual(NONE);
+    });
+
+    it.each(ROLES)("keeps a project-bound key of the %s role to its own user's GPU requests", role => {
+      const projectId = faker.string.uuid();
+      const { ability, organizationId } = setup({ role, projectScope: createProjectsScope([projectId]), apiKeyProjectId: projectId });
+
+      const teammateRequest = subject("HardwareRequest", { organizationId, userId: faker.string.uuid() });
+
+      expect(allowedActions(ability, teammateRequest)).toEqual(NONE);
     });
 
     it("keeps the billing role to the activities about the whole organization", () => {

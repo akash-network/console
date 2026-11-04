@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { hardwareRequestTitle } from "@src/hardware-request/lib/hardware-request-title/hardware-request-title";
 import { hardwareRequestEmailNotification } from "./hardware-request-email-notification";
 
-import { createHardwareRequest } from "@test/seeders/hardware-request.seeder";
+import { createHardwareRequest, createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
 describe(hardwareRequestEmailNotification.name, () => {
@@ -47,7 +47,7 @@ describe(hardwareRequestEmailNotification.name, () => {
     expect(payload.description).toContain("<p><strong>Quantity:</strong><br>8</p>");
     expect(payload.description).toContain("<p><strong>Region:</strong><br>Frankfurt</p>");
     expect(payload.description).toContain("<p><strong>Details:</strong><br>Training run for 3 months</p>");
-    expect(payload.description).toContain("<p><strong>Current configuration:</strong><br>1 vCPU · 2 GB memory · 0 MB storage · Any region</p>");
+    expect(payload.description).toContain("<p><strong>Sent while configuring:</strong><br>1 vCPU · 2 GB memory · 0 MB storage · Any region</p>");
   });
 
   it("renders one paragraph per field the request carries, and nothing for the rest", () => {
@@ -81,7 +81,14 @@ describe(hardwareRequestEmailNotification.name, () => {
     expect(payload.description).not.toContain("GPU model:");
     expect(payload.description).not.toContain("Quantity:");
     expect(payload.description).not.toContain("Region:");
-    expect(payload.description).not.toContain("Current configuration:");
+    expect(payload.description).not.toContain("Sent while configuring:");
+  });
+
+  it("lists the answers of a quote request one per line", () => {
+    const spec = createHardwareRequestSpec({ gpu: { model: "A100", count: 1, interconnect: "none" }, region: { mode: "any", areas: [] } });
+    const { payload } = setup({ hardwareRequest: createHardwareRequest({ category: "quote", spec }) });
+
+    expect(payload.description).toContain("<p><strong>Request:</strong><br>1× A100<br>Anywhere<br>");
   });
 
   it("links the contact email so support can reply to it", () => {

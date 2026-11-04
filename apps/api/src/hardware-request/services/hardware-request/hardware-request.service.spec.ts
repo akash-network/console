@@ -12,7 +12,7 @@ import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/har
 import type { UserRepository } from "@src/user/repositories";
 import { HardwareRequestService } from "./hardware-request.service";
 
-import { createHardwareRequest } from "@test/seeders/hardware-request.seeder";
+import { createHardwareRequest, createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z").getTime();
@@ -39,6 +39,24 @@ describe(HardwareRequestService.name, () => {
         gpuModel: "B200",
         quantity: 8,
         details: "Training run",
+        contactEmail: "jane@example.com",
+        userId: user.id
+      });
+    });
+
+    it("records a quote request with its spec and fills the GPU, quantity and region columns from it", async () => {
+      const { service, hardwareRequestRepository, user } = setup();
+      const spec = createHardwareRequestSpec({ gpu: { model: "H200", count: 16, interconnect: "server" }, region: { mode: "except", areas: ["me"] } });
+
+      await service.create({ category: "quote", spec, source: "reserve_capacity", email: "jane@example.com" });
+
+      expect(hardwareRequestRepository.create).toHaveBeenCalledWith({
+        category: "quote",
+        spec,
+        source: "reserve_capacity",
+        gpuModel: "H200",
+        quantity: 16,
+        region: "Anywhere except Middle East",
         contactEmail: "jane@example.com",
         userId: user.id
       });
@@ -177,6 +195,17 @@ describe(HardwareRequestService.name, () => {
       await expect(service.create(anInput())).rejects.toMatchObject({
         message: "You can send up to 1 requests an hour. Try again later, or ask us on Discord."
       });
+    });
+  });
+
+  describe("list", () => {
+    it("returns the requests the current user can read, newest first", async () => {
+      const { service, hardwareRequestRepository, authService } = setup();
+      const requests = [createHardwareRequest(), createHardwareRequest()];
+      hardwareRequestRepository.findNewestFirst.mockResolvedValue(requests);
+
+      await expect(service.list()).resolves.toEqual(requests);
+      expect(hardwareRequestRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
     });
   });
 
