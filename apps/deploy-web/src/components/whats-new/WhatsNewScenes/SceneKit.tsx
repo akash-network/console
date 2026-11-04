@@ -1,7 +1,7 @@
 "use client";
 import type { CSSProperties, ReactNode } from "react";
 import { forwardRef, useCallback, useLayoutEffect, useRef, useState } from "react";
-import { ArrowRight, Check, ChevronsUpDown, FolderPlus, Info, Plus, Search, X } from "lucide-react";
+import { ArrowRight, Check, ChevronsUpDown, FolderPlus, Info, Plus, Search, User, X } from "lucide-react";
 
 import { AkashConsoleLogo } from "@src/components/icons/AkashConsoleLogo";
 import type { FolderState } from "./sceneMath";
@@ -63,7 +63,7 @@ function ProfileAvatar({ size = 28 }: { size?: number }) {
       style={{
         width: size,
         height: size,
-        borderRadius: 9999,
+        borderRadius: 10,
         display: "inline-block",
         flexShrink: 0,
         background: "radial-gradient(circle at 30% 25%, #FFD86B 0%, #FF7A8A 25%, #C159F0 55%, #5B6DF6 85%, #1C1B5E 100%)",
@@ -73,8 +73,49 @@ function ProfileAvatar({ size = 28 }: { size?: number }) {
   );
 }
 
+function PersonalOrganizationBadge({ size }: { size: number }) {
+  return (
+    <span
+      style={{
+        width: size,
+        height: size,
+        borderRadius: Math.round(size * 0.28),
+        flexShrink: 0,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: COLOR.muted,
+        color: COLOR.mutedForeground,
+        boxShadow: `inset 0 0 0 1px ${COLOR.border}`
+      }}
+    >
+      <User size={Math.round(size * 0.6)} strokeWidth={1.75} style={ICON_STYLE} />
+    </span>
+  );
+}
+
+function PersonalAccountTag() {
+  return (
+    <span
+      style={{
+        flexShrink: 0,
+        padding: "0 6px",
+        borderRadius: 6,
+        border: `1px solid ${COLOR.border}`,
+        background: COLOR.muted,
+        color: COLOR.mutedForeground,
+        fontSize: 11,
+        fontWeight: 500,
+        lineHeight: "16px"
+      }}
+    >
+      Personal
+    </span>
+  );
+}
+
 function OrganizationBadge({ organization, size = 22 }: { organization: SceneOrganization; size?: number }) {
-  if (organization.isPersonal) return <ProfileAvatar size={size} />;
+  if (organization.isPersonal) return <PersonalOrganizationBadge size={size} />;
   const hue = organization.hue ?? hueOf(organization.name);
   return (
     <span
@@ -120,6 +161,7 @@ function SwitcherPill({ organization, highlight }: { organization: SceneOrganiza
         <OrganizationBadge organization={organization} size={22} />
       </span>
       <span>{organization.name}</span>
+      {organization.isPersonal && <PersonalAccountTag />}
       <span data-scene-anchor="switcher-chevron" style={{ display: "inline-flex", color: COLOR.mutedForeground }}>
         <ChevronsUpDown size={14} strokeWidth={1.75} style={ICON_STYLE} />
       </span>
@@ -552,6 +594,7 @@ export function SceneOrganizationMenu({ openness, personal, teams, currentId, ho
       <OrganizationBadge organization={organization} size={20} />
       <span style={{ flex: 1, minWidth: 0 }}>{organization.name}</span>
       {organization.role && <span style={{ fontSize: 12, fontWeight: 400, color: COLOR.mutedForeground }}>{organization.role}</span>}
+      {organization.isPersonal && <PersonalAccountTag />}
       <span style={{ width: 14, display: "inline-flex" }}>{currentId === organization.id && <Check size={14} strokeWidth={1.75} style={ICON_STYLE} />}</span>
     </div>
   );
@@ -575,7 +618,6 @@ export function SceneOrganizationMenu({ openness, personal, teams, currentId, ho
         transformOrigin: "100% 0"
       }}
     >
-      <div style={MENU_SECTION_STYLE}>Personal account</div>
       {renderRow(personal, 0)}
       <div style={MENU_SECTION_STYLE}>Organizations</div>
       {teams.map((team, index) => renderRow(team, index + 1))}

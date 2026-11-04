@@ -1,6 +1,6 @@
 "use client";
 import type { ComponentType } from "react";
-import { Avatar, AvatarFallback, Button } from "@akashnetwork/ui/components";
+import { Button } from "@akashnetwork/ui/components";
 import { Activity, Clock, User, Wallet } from "lucide-react";
 import Link from "next/link";
 
@@ -91,7 +91,7 @@ function ActivityItem({ activity, projectName }: { activity: OrganizationActivit
       {activity.actor ? (
         <MemberAvatar name={activity.actor.username} />
       ) : isDeletedAccountSubject ? (
-        <DeletedAccountAvatar />
+        <SystemAvatar icon={User} />
       ) : (
         <SystemAvatar icon={SYSTEM_ICONS[systemIcon]} />
       )}
@@ -135,14 +135,4 @@ function Segment({ segment }: { segment: ActivitySegment }) {
   }
   if (segment.kind === "strong") return <strong className="font-semibold text-foreground">{segment.text}</strong>;
   return <>{segment.text}</>;
-}
-
-function DeletedAccountAvatar() {
-  return (
-    <Avatar className="h-[30px] w-[30px]">
-      <AvatarFallback>
-        <User className="h-3.5 w-3.5 text-muted-foreground" />
-      </AvatarFallback>
-    </Avatar>
-  );
 }

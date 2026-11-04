@@ -8,15 +8,16 @@ import {
   DropdownMenuTrigger
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Users } from "lucide-react";
 
 import { TOUR_TARGET } from "@src/components/whats-new/tourTargets";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
+import { useWallet } from "@src/context/WalletProvider";
 import type { OrganizationOutput } from "@src/types/organization";
 import { ORGANIZATION_ROLE_LABELS } from "../organizationAccess";
 import { OrganizationAvatar } from "../OrganizationAvatar/OrganizationAvatar";
 
-export const DEPENDENCIES = { useActiveOrganization };
+export const DEPENDENCIES = { useActiveOrganization, useWallet };
 
 type Props = {
   dependencies?: typeof DEPENDENCIES;
@@ -35,16 +36,23 @@ const SECTION_LABEL_CLASSES = "px-[9px] pb-[5px] pt-2 font-mono text-[10.5px] fo
 
 const ROW_CLASSES = "min-h-9 cursor-pointer gap-2.5 rounded-[7px] px-[9px] py-0 text-[13.5px] font-medium focus:bg-muted focus:text-foreground";
 
-const NO_TEAMS_MESSAGE = "You're not in any organizations yet. Create one to share projects, deployments and billing with your team.";
+const BADGE_CLASSES = "inline-flex shrink-0 rounded-md border px-1.5 py-px text-[11px] font-medium leading-4";
+
+const TRIAL_BADGE_CLASSES = "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400";
+
+const PERSONAL_BADGE_CLASSES = "border-border bg-muted text-muted-foreground";
 
 export function OrganizationSwitcher({ dependencies: d = DEPENDENCIES, layout = "header", onCreateOrganization, onNavigate }: Props) {
   const { organizations, activeOrganization, switchOrganization } = d.useActiveOrganization();
+  const { isTrialing } = d.useWallet();
   const personalOrganization = organizations.find(organization => organization.type === "personal");
   const teamOrganizations = organizations.filter(organization => organization.type === "team");
   const hasTeams = teamOrganizations.length > 0;
   const idsOfTeamsSharingAName = idsOfOrganizationsSharingAName(teamOrganizations);
 
   if (!activeOrganization || (!hasTeams && !onCreateOrganization)) return null;
+
+  const isPersonalAccountTrialing = isTrialingInPersonalAccount(activeOrganization, isTrialing);
 
   const select = (organization: OrganizationOutput) => {
     if (organization.id !== activeOrganization.id) switchOrganization(organization.id);
@@ -60,8 +68,10 @@ export function OrganizationSwitcher({ dependencies: d = DEPENDENCIES, layout = 
           <span className="truncate">{organization.name}</span>
           {idsOfTeamsSharingAName.has(organization.id) && <span className="truncate text-xs font-normal text-muted-foreground">{organization.slug}</span>}
         </span>
-        {organization.type === "team" && (
+        {organization.type === "team" ? (
           <span className="shrink-0 text-xs font-normal text-muted-foreground">{ORGANIZATION_ROLE_LABELS[organization.role]}</span>
+        ) : (
+          <PersonalAccountBadge isTrialing={isPersonalAccountTrialing} />
         )}
         <span className="inline-flex w-3.5 shrink-0 justify-center">{isCurrent && <Check className="h-3.5 w-3.5" />}</span>
       </DropdownMenuItem>
@@ -77,6 +87,9 @@ export function OrganizationSwitcher({ dependencies: d = DEPENDENCIES, layout = 
       >
         <OrganizationAvatar organization={activeOrganization} size={22} />
         <span className={cn("truncate", layout === "header" ? "hidden max-w-[180px] sm:block" : "min-w-0 flex-1 text-left")}>{activeOrganization.name}</span>
+        {activeOrganization.type === "personal" && (
+          <PersonalAccountBadge isTrialing={isPersonalAccountTrialing} className={cn(layout === "header" && "hidden sm:inline-flex")} />
+        )}
         <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -85,13 +98,14 @@ export function OrganizationSwitcher({ dependencies: d = DEPENDENCIES, layout = 
         collisionPadding={8}
         className="organization-switcher-menu w-[292px] max-w-[calc(100vw-1rem)] rounded-[11px] p-[5px] shadow-[0_16px_38px_-12px_rgba(0,0,0,0.28)]"
       >
-        <DropdownMenuLabel className={SECTION_LABEL_CLASSES}>Personal account</DropdownMenuLabel>
         {personalOrganization && renderRow(personalOrganization)}
-        <DropdownMenuLabel className={SECTION_LABEL_CLASSES}>Organizations</DropdownMenuLabel>
         {hasTeams ? (
-          teamOrganizations.map(renderRow)
+          <>
+            <DropdownMenuLabel className={SECTION_LABEL_CLASSES}>Organizations</DropdownMenuLabel>
+            {teamOrganizations.map(renderRow)}
+          </>
         ) : (
-          <p className="text-pretty px-[9px] pb-[9px] pt-px text-[12.5px] leading-[18px] text-muted-foreground">{NO_TEAMS_MESSAGE}</p>
+          <NoTeamsPrompt />
         )}
         {onCreateOrganization && (
           <>
@@ -113,6 +127,27 @@ export function OrganizationSwitcher({ dependencies: d = DEPENDENCIES, layout = 
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/** The wallet follows the active organization, so its trial only describes the personal account while that account is active. */
+function isTrialingInPersonalAccount(activeOrganization: OrganizationOutput, isActiveWalletTrialing: boolean): boolean {
+  return activeOrganization.type === "personal" && isActiveWalletTrialing;
+}
+
+function PersonalAccountBadge({ isTrialing, className }: { isTrialing: boolean; className?: string }) {
+  return <span className={cn(BADGE_CLASSES, isTrialing ? TRIAL_BADGE_CLASSES : PERSONAL_BADGE_CLASSES, className)}>{isTrialing ? "Trial" : "Personal"}</span>;
+}
+
+function NoTeamsPrompt() {
+  return (
+    <div className="flex flex-col items-center px-4 pb-4 pt-5 text-center">
+      <span className="mb-3 flex h-8 w-8 items-center justify-center rounded-[8px] border border-border bg-background">
+        <Users className="h-4 w-4 text-muted-foreground" />
+      </span>
+      <p className="text-[13.5px] font-semibold text-foreground">Deploy as a team</p>
+      <p className="mt-0.5 text-pretty text-[12.5px] leading-[18px] text-muted-foreground">Share projects and billing with teammates.</p>
+    </div>
   );
 }
 

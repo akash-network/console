@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
 import { useCustomUser } from "@src/hooks/useCustomUser";
+import { initialsOf } from "@src/utils/initials";
 import { CustomDropdownLinkItem } from "../../shared/CustomDropdownLinkItem";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -136,9 +137,11 @@ export function TopNavAccountMenu({
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button size="icon" variant="outline" className="h-9 w-9 cursor-pointer rounded-full bg-accent" aria-label="Account menu">
-          <Avatar className="h-9 w-9">
-            <AvatarFallback className="bg-transparent">{username ? username[0].toUpperCase() : <User className="h-5 w-5" />}</AvatarFallback>
+        <Button size="icon" variant="outline" className="h-9 w-9 cursor-pointer rounded-[10px] bg-accent" aria-label="Account menu">
+          <Avatar className="h-9 w-9 rounded-[10px]">
+            <AvatarFallback className="rounded-[10px] bg-transparent text-[13px] font-semibold">
+              {username ? initialsOf(username) : <User className="h-5 w-5" />}
+            </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>

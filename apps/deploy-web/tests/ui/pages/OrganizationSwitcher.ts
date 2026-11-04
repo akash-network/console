@@ -26,7 +26,7 @@ export class OrganizationSwitcher {
     await this.page.getByRole("menuitemradio", { name: new RegExp(`^${escapeRegExp(organizationName)}`) }).click();
   }
 
-  /** The personal organization is always the first row, under the "Personal account" heading. */
+  /** The personal organization is always the first row. */
   async switchToPersonal() {
     await this.trigger().click();
     await this.page.getByRole("menuitemradio").first().click();

@@ -17,10 +17,10 @@ describe(TopNavAccountMenu.name, () => {
     expect(screen.queryByRole("button", { name: /account menu/i })).not.toBeInTheDocument();
   });
 
-  it("renders the user's initial when signed in", () => {
-    setup({ username: "alice" });
+  it("renders the user's initials when signed in", () => {
+    setup({ username: "Joshua Meyer" });
 
-    expect(screen.getByRole("button", { name: /account menu/i })).toHaveTextContent("A");
+    expect(screen.getByRole("button", { name: /account menu/i })).toHaveTextContent("JM");
   });
 
   it("shows the signed-in items when opened", async () => {

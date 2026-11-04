@@ -9,7 +9,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 describe(OrganizationSwitcher.name, () => {
-  it("shows a person without a team their personal account, an empty organizations section and the create row", async () => {
+  it("shows a person without a team their personal account, a prompt to deploy as a team and the create row", async () => {
     const { user } = setup({ activeId: "org-1", teams: [] });
 
     await user.click(screen.getByRole("button", { name: "alice, switch organization" }));
@@ -17,10 +17,9 @@ describe(OrganizationSwitcher.name, () => {
     const menu = await screen.findByRole("menu");
     expect(within(menu).getByRole("menuitemradio", { name: /alice/, checked: true })).toBeInTheDocument();
     expect(within(menu).getAllByRole("menuitemradio")).toHaveLength(1);
-    expect(within(menu).getByText("Organizations")).toBeInTheDocument();
-    expect(
-      within(menu).getByText("You're not in any organizations yet. Create one to share projects, deployments and billing with your team.")
-    ).toBeInTheDocument();
+    expect(within(menu).queryByText("Organizations")).not.toBeInTheDocument();
+    expect(within(menu).getByText("Deploy as a team")).toBeInTheDocument();
+    expect(within(menu).getByText("Share projects and billing with teammates.")).toBeInTheDocument();
     expect(within(menu).getByRole("separator")).toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Create organization" })).toBeInTheDocument();
   });
@@ -55,22 +54,21 @@ describe(OrganizationSwitcher.name, () => {
     expect(screen.queryByRole("button", { name: /account menu/i })).not.toBeInTheDocument();
   });
 
-  it("lists the personal account, then the organizations with their roles, and checks the current one", async () => {
+  it("lists the badged personal account, then the organizations with their roles, and checks the current one", async () => {
     const { user } = setup({ activeId: "org-2" });
 
     await user.click(screen.getByRole("button", { name: /switch organization/ }));
 
     const menu = await screen.findByRole("menu");
-    expect(within(menu).getByText("Personal account")).toBeInTheDocument();
     expect(within(menu).getByText("Organizations")).toBeInTheDocument();
     expect(
       within(menu)
         .getAllByRole("menuitemradio")
         .map(item => item.textContent)
-    ).toEqual(["A" + "alice", "A" + "Acme Corp" + "Admin", "N" + "Northwind Labs" + "Member"]);
+    ).toEqual(["alice" + "Personal", "A" + "Acme Corp" + "Admin", "N" + "Northwind Labs" + "Member"]);
     expect(within(menu).getByRole("menuitemradio", { name: /Acme Corp/, checked: true })).toBeInTheDocument();
     expect(within(menu).getByRole("menuitemradio", { name: /alice/, checked: false })).toBeInTheDocument();
-    expect(within(menu).queryByText(/not in any organizations/)).not.toBeInTheDocument();
+    expect(within(menu).queryByText("Deploy as a team")).not.toBeInTheDocument();
   });
 
   it("shows the slug under the name of each organization whose name another one shares, whatever its case", async () => {
@@ -90,10 +88,10 @@ describe(OrganizationSwitcher.name, () => {
       within(menu)
         .getAllByRole("menuitemradio")
         .map(item => item.textContent)
-    ).toEqual(["A" + "alice", "D" + "Dup-x" + "dup-x" + "Owner", "D" + "dup-x" + "dup-x-2" + "Member", "N" + "Northwind Labs" + "Member"]);
+    ).toEqual(["alice" + "Personal", "D" + "Dup-x" + "dup-x" + "Owner", "D" + "dup-x" + "dup-x-2" + "Member", "N" + "Northwind Labs" + "Member"]);
   });
 
-  it("leaves the slug out for an organization named like the personal account, which sits in its own section", async () => {
+  it("leaves the slug out for an organization named like the personal account", async () => {
     const { user } = setup({ activeId: "org-2", teams: [{ id: "org-2", name: "Alice", slug: "alice", role: "owner" }] });
 
     await user.click(screen.getByRole("button", { name: /switch organization/ }));
@@ -103,7 +101,49 @@ describe(OrganizationSwitcher.name, () => {
       within(menu)
         .getAllByRole("menuitemradio")
         .map(item => item.textContent)
-    ).toEqual(["A" + "alice", "A" + "Alice" + "Owner"]);
+    ).toEqual(["alice" + "Personal", "A" + "Alice" + "Owner"]);
+  });
+
+  it("badges the active personal account as a trial in the trigger and the menu while its wallet is trialing", async () => {
+    const { user } = setup({ activeId: "org-1", isTrialing: true });
+
+    const trigger = screen.getByRole("button", { name: "alice, switch organization" });
+    expect(within(trigger).getByText("Trial")).toBeInTheDocument();
+
+    await user.click(trigger);
+
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByRole("menuitemradio", { name: /alice/ })).toHaveTextContent("alice" + "Trial");
+  });
+
+  it("badges the active personal account as personal when its wallet is not trialing", () => {
+    setup({ activeId: "org-1", isTrialing: false });
+
+    const trigger = screen.getByRole("button", { name: "alice, switch organization" });
+    expect(within(trigger).getByText("Personal")).toBeInTheDocument();
+    expect(within(trigger).queryByText("Trial")).not.toBeInTheDocument();
+  });
+
+  it("badges the personal account as personal while a team, whose wallet says nothing of the personal trial, is active", async () => {
+    const { user } = setup({ activeId: "org-2", isTrialing: true });
+
+    const trigger = screen.getByRole("button", { name: "Acme Corp, switch organization" });
+    expect(within(trigger).queryByText("Personal")).not.toBeInTheDocument();
+    expect(within(trigger).queryByText("Trial")).not.toBeInTheDocument();
+
+    await user.click(trigger);
+
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getByRole("menuitemradio", { name: /alice/ })).toHaveTextContent("alice" + "Personal");
+  });
+
+  it("keeps the personal badge out of the compact phone header but shows it in the navigation sheet", () => {
+    const header = setup({ activeId: "org-1", layout: "header" });
+    expect(within(header.container).getByText("Personal")).toHaveClass("hidden", "sm:inline-flex");
+    header.unmount();
+
+    const sheet = setup({ activeId: "org-1", layout: "sheet" });
+    expect(within(sheet.container).getByText("Personal")).not.toHaveClass("hidden");
   });
 
   it("switches to the chosen organization", async () => {
@@ -156,7 +196,13 @@ describe(OrganizationSwitcher.name, () => {
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
-  function setup(input: { activeId?: string; teams?: Pick<OrganizationOutput, "id" | "name" | "slug" | "role">[]; canCreate?: boolean }) {
+  function setup(input: {
+    activeId?: string;
+    teams?: Pick<OrganizationOutput, "id" | "name" | "slug" | "role">[];
+    canCreate?: boolean;
+    isTrialing?: boolean;
+    layout?: "header" | "sheet";
+  }) {
     const personal: OrganizationOutput = {
       id: "org-1",
       name: "alice",
@@ -184,17 +230,19 @@ describe(OrganizationSwitcher.name, () => {
           organizations,
           activeOrganization: organizations.find(organization => organization.isActive),
           switchOrganization
-        })
+        }),
+      useWallet: () => mock<ReturnType<typeof DEPENDENCIES.useWallet>>({ isTrialing: input.isTrialing ?? false })
     };
 
-    const { container } = render(
+    const { container, unmount } = render(
       <OrganizationSwitcher
         dependencies={dependencies}
+        layout={input.layout}
         onCreateOrganization={input.canCreate === false ? undefined : onCreateOrganization}
         onNavigate={onNavigate}
       />
     );
 
-    return { user: userEvent.setup(), container, switchOrganization, onCreateOrganization, onNavigate };
+    return { user: userEvent.setup(), container, unmount, switchOrganization, onCreateOrganization, onNavigate };
   }
 });

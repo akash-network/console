@@ -42,12 +42,13 @@ describe(OrganizationAvatar.name, () => {
     expect(avatar).toHaveTextContent("?");
   });
 
-  it("shows the user's own avatar for the personal organization", () => {
+  it("draws a person icon in a decorative square for the personal organization", () => {
     const { avatar } = setup({ name: "alice", type: "personal", size: 20 });
 
-    expect(avatar).toHaveClass("rounded-full");
-    expect(avatar).toHaveTextContent("A");
-    expect(avatar).toHaveStyle({ width: "20px", height: "20px" });
+    expect(avatar).toHaveAttribute("aria-hidden", "true");
+    expect(avatar).toHaveTextContent("");
+    expect(avatar.querySelector("svg")).toHaveStyle({ width: "12px", height: "12px" });
+    expect(avatar).toHaveStyle({ width: "20px", height: "20px", borderRadius: "6px" });
   });
 
   describe(hueOf.name, () => {
