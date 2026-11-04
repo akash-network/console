@@ -265,8 +265,6 @@ describe(SessionService.name, () => {
         "/v1/register-user",
         {
           wantedUsername: tokenPayload.nickname,
-          email,
-          emailVerified: true,
           subscribedToNewsletter: true
         },
         {
@@ -331,8 +329,6 @@ describe(SessionService.name, () => {
         "/v1/register-user",
         {
           wantedUsername: "PreferredName",
-          email: "local@example.com",
-          emailVerified: true,
           subscribedToNewsletter: true
         },
         {

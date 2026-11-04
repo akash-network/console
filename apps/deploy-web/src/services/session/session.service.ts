@@ -218,8 +218,6 @@ export class SessionService {
       "/v1/register-user",
       {
         wantedUsername: session.user.nickname,
-        email: session.user.email,
-        emailVerified: session.user.email_verified,
         subscribedToNewsletter: user_metadata?.subscribedToNewsletter === "true",
         timezone: browser.timezone
       },
