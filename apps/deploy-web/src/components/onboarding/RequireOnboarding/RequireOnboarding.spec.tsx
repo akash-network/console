@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
 import type { OrganizationOutput } from "@src/types/organization";
 import type { CustomUserProfile } from "@src/types/user";
 import { DEPENDENCIES, RequireOnboarding } from "./RequireOnboarding";
@@ -208,34 +209,42 @@ describe(RequireOnboarding.name, () => {
       return <div>child</div>;
     }
 
-    const buildDependencies = (props: typeof input): typeof DEPENDENCIES => ({
-      ...DEPENDENCIES,
-      useUser: (() =>
+    const buildDependencies = (props: typeof input): typeof DEPENDENCIES => {
+      const useUser = (() =>
         mock<ReturnType<typeof DEPENDENCIES.useUser>>({
           user: props.loggedOut ? undefined : mock<CustomUserProfile>({ userId: props.userId ?? "u1", onboardingSkippedAt: props.onboardingSkippedAt ?? null }),
           isLoading: false
-        })) as typeof DEPENDENCIES.useUser,
-      useWallet: (() =>
+        })) as typeof DEPENDENCIES.useUser;
+      const useWallet = (() =>
         mock<ReturnType<typeof DEPENDENCIES.useWallet>>({
           address: props.address ?? "",
           hasWallet: props.hasWallet ?? false
-        })) as typeof DEPENDENCIES.useWallet,
-      useLeaseExistenceQuery: (() =>
+        })) as typeof DEPENDENCIES.useWallet;
+      const useLeaseExistenceQuery = (() =>
         mock<ReturnType<typeof DEPENDENCIES.useLeaseExistenceQuery>>({
           data: (props.leasesError ? undefined : (props.leases ?? 0) > 0) as never,
           isLoading: (props.leasesLoading ?? false) as never,
           isError: (props.leasesError ?? false) as never
-        })) as typeof DEPENDENCIES.useLeaseExistenceQuery,
-      useReturnTo: (() => mock<ReturnType<typeof DEPENDENCIES.useReturnTo>>({ returnTo: props.returnTo ?? "/" })) as typeof DEPENDENCIES.useReturnTo,
-      useRouter: (() =>
-        mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ asPath: props.path, pathname: props.path, replace })) as typeof DEPENDENCIES.useRouter,
-      useActiveOrganization: () =>
+        })) as typeof DEPENDENCIES.useLeaseExistenceQuery;
+      const useActiveOrganization: typeof DEPENDENCIES.useActiveOrganization = () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
           activeOrganization: props.organizationType ? mock<OrganizationOutput>({ type: props.organizationType }) : undefined,
           isLoading: props.isOrganizationLoading ?? false,
           isError: props.isOrganizationLookupFailed ?? false
-        })
-    });
+        });
+
+      return {
+        ...DEPENDENCIES,
+        useUser,
+        useWallet,
+        useLeaseExistenceQuery,
+        useActiveOrganization,
+        useIsOnboarded: () => useIsOnboarded({ useUser, useWallet, useLeaseExistenceQuery, useActiveOrganization }),
+        useReturnTo: (() => mock<ReturnType<typeof DEPENDENCIES.useReturnTo>>({ returnTo: props.returnTo ?? "/" })) as typeof DEPENDENCIES.useReturnTo,
+        useRouter: (() =>
+          mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ asPath: props.path, pathname: props.path, replace })) as typeof DEPENDENCIES.useRouter
+      };
+    };
 
     const renderGate = (props: typeof input) => (
       <RequireOnboarding isPublic={props.isPublic} dependencies={buildDependencies(props)}>

@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import { BootLoading } from "@src/context/BootLoadingProvider/BootLoadingProvider";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
 import { useReturnTo } from "@src/hooks/useReturnTo/useReturnTo";
 import { useUser } from "@src/hooks/useUser";
 import { useLeaseExistenceQuery } from "@src/queries/useLeaseQuery";
@@ -23,6 +24,7 @@ export const DEPENDENCIES = {
   useWallet,
   useActiveOrganization,
   useLeaseExistenceQuery,
+  useIsOnboarded,
   useReturnTo,
   useRouter
 };
@@ -55,16 +57,14 @@ function LeaseBasedGate({
   const router = d.useRouter();
   const { user, isLoading: isUserLoading } = d.useUser();
   const { address, hasWallet } = d.useWallet();
-  const { activeOrganization, isLoading: isOrganizationLoading, isError: organizationsErrored } = d.useActiveOrganization();
+  const { isLoading: isOrganizationLoading, isError: organizationsErrored } = d.useActiveOrganization();
   const { returnTo } = d.useReturnTo({ defaultReturnTo: "/" });
 
   const hasWalletAddress = hasWallet && !!address;
   const leaseExistenceQuery = d.useLeaseExistenceQuery(address, { enabled: hasWalletAddress });
   const isLeasesLoading = hasWalletAddress && leaseExistenceQuery.isLoading;
   const leasesErrored = hasWalletAddress && leaseExistenceQuery.isError;
-  const isOnboarded = hasWalletAddress && !!leaseExistenceQuery.data;
-  const hasSkippedOnboarding = !!user?.onboardingSkippedAt;
-  const isInTeamOrganization = activeOrganization?.type === "team";
+  const isOnboarded = d.useIsOnboarded();
 
   const path = router.asPath.split("?")[0];
   const isOnOnboarding = path === ONBOARDING_ROUTE;
@@ -80,8 +80,6 @@ function LeaseBasedGate({
     organizationsErrored,
     isAuthenticated: !!user?.userId,
     isOnboarded,
-    hasSkippedOnboarding,
-    isInTeamOrganization,
     isOnOnboarding,
     isAllowed
   });
@@ -115,10 +113,9 @@ function LeaseBasedGate({
  * where the user is rather than eject a genuinely onboarded user into the first-deploy funnel on a transient
  * chain-API blip.
  *
- * A user who has explicitly skipped onboarding (`hasSkippedOnboarding`) is treated exactly like an onboarded one, and
- * this is known as soon as identity is (before the leases query), so a skipper never waits on leases and is never
- * sent back into the funnel. A team organization never trials, so working in one counts as onboarded too, and memberships
- * that fail to load leave that unknowable, so the gate fails open as it does for leases.
+ * `isOnboarded` (see `useIsOnboarded`) is already true for a skipper or a team organization as soon as identity is
+ * known, so they never wait on leases and are never sent back into the funnel. Memberships that fail to load leave
+ * the team case unknowable, so the gate fails open as it does for leases.
  */
 function decideLeaseGate(input: {
   isPublic: boolean;
@@ -128,8 +125,6 @@ function decideLeaseGate(input: {
   organizationsErrored: boolean;
   isAuthenticated: boolean;
   isOnboarded: boolean;
-  hasSkippedOnboarding: boolean;
-  isInTeamOrganization: boolean;
   isOnOnboarding: boolean;
   isAllowed: boolean;
 }): GateDecision {
@@ -137,7 +132,7 @@ function decideLeaseGate(input: {
   if (input.isAllowed) return "render";
   if (!input.identityKnown) return "loading";
   if (!input.isAuthenticated) return "render";
-  if (input.isOnboarded || input.hasSkippedOnboarding || input.isInTeamOrganization) return input.isOnOnboarding ? "toReturn" : "render";
+  if (input.isOnboarded) return input.isOnOnboarding ? "toReturn" : "render";
   if (input.isOnOnboarding) return "render";
   if (!input.leasesSettled) return "loading";
   if (input.leasesErrored || input.organizationsErrored) return "render";

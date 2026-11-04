@@ -3,6 +3,7 @@ import { mock } from "vitest-mock-extended";
 
 import type { DEPENDENCIES } from "@src/hooks/useIsKnownNotOnboarded";
 import { useIsKnownNotOnboarded } from "@src/hooks/useIsKnownNotOnboarded";
+import { useIsOnboarded } from "@src/hooks/useIsOnboarded";
 import type { OrganizationOutput } from "@src/types/organization";
 
 import { renderHook } from "@testing-library/react";
@@ -107,9 +108,9 @@ describe(useIsKnownNotOnboarded.name, () => {
         isLoading: input.isUserLoading ?? false
       });
     const hasLease = "hasLease" in input ? input.hasLease : false;
-    const useLeaseExistenceQuery =
-      input.useLeaseExistenceQuery ??
-      vi.fn<typeof DEPENDENCIES.useLeaseExistenceQuery>(() => mock<ReturnType<typeof DEPENDENCIES.useLeaseExistenceQuery>>({ data: hasLease }));
+    const answerLeaseExistence: typeof DEPENDENCIES.useLeaseExistenceQuery = () =>
+      mock<ReturnType<typeof DEPENDENCIES.useLeaseExistenceQuery>>({ data: hasLease });
+    const useLeaseExistenceQuery = input.useLeaseExistenceQuery ?? vi.fn<typeof DEPENDENCIES.useLeaseExistenceQuery>(answerLeaseExistence);
     const useActiveOrganization: typeof DEPENDENCIES.useActiveOrganization = () =>
       mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
         activeOrganization: mock<OrganizationOutput>({ type: input.organizationType ?? "personal" }),
@@ -117,7 +118,12 @@ describe(useIsKnownNotOnboarded.name, () => {
         isError: input.organizationsErrored ?? false
       });
 
-    const rendered = renderHook(() => useIsKnownNotOnboarded({ useWallet, useUser, useLeaseExistenceQuery, useActiveOrganization }));
+    const useIsOnboardedFromInput: typeof DEPENDENCIES.useIsOnboarded = () =>
+      useIsOnboarded({ useWallet, useUser, useLeaseExistenceQuery: answerLeaseExistence, useActiveOrganization });
+
+    const rendered = renderHook(() =>
+      useIsKnownNotOnboarded({ useWallet, useUser, useLeaseExistenceQuery, useActiveOrganization, useIsOnboarded: useIsOnboardedFromInput })
+    );
     return { ...rendered, useLeaseExistenceQuery };
   }
 });
