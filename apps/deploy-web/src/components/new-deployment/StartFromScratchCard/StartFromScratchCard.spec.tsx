@@ -25,7 +25,18 @@ describe(StartFromScratchCard.name, () => {
     expect(preview).toHaveTextContent("deploy.yaml");
   });
 
-  function setup() {
+  it("labels its action Continue unless told otherwise", () => {
+    setup();
+    expect(screen.getByText("Continue")).toBeInTheDocument();
+  });
+
+  it("labels its action as it is told", () => {
+    setup({ actionLabel: "Get a quote" });
+    expect(screen.getByText("Get a quote")).toBeInTheDocument();
+    expect(screen.queryByText("Continue")).not.toBeInTheDocument();
+  });
+
+  function setup(input: { actionLabel?: string } = {}) {
     const onSelect = vi.fn();
     render(
       <StartFromScratchCard
@@ -34,6 +45,7 @@ describe(StartFromScratchCard.name, () => {
         previewLabel="deploy.yaml"
         previewIcon={Container}
         preview={<span>services:</span>}
+        actionLabel={input.actionLabel}
         onSelect={onSelect}
       />
     );

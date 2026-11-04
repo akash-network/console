@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { GpuQuoteDraft } from "./gpuQuoteDraft";
 import {
+  answersForGpuModel,
   applyStartingPoint,
   asksUplink,
   configurationStartingPoint,
@@ -90,6 +91,14 @@ describe("gpuQuoteDraft", () => {
       });
 
       expect(answers.areas).toEqual(["us", "ca", "uk", "apac", "me", "latam"]);
+    });
+  });
+
+  describe(answersForGpuModel.name, () => {
+    it("matches a searched model to the catalog, keeps an unknown one as typed and ignores a blank search", () => {
+      expect(answersForGpuModel(" H200 SXM ")).toEqual({ gpuModel: "h200", otherGpuModel: "" });
+      expect(answersForGpuModel(" GB200 ")).toEqual({ gpuModel: "other", otherGpuModel: "GB200" });
+      expect(answersForGpuModel("  ")).toBeUndefined();
     });
   });
 

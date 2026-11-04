@@ -160,6 +160,12 @@ export function configurationStartingPoint(hardware: ConfigurationHardware): Sta
   };
 }
 
+/** A search from the GPU menu names a model, matched to the catalog when it can be; an empty search answers nothing. */
+export function answersForGpuModel(search: string): DraftAnswers | undefined {
+  const model = search.trim();
+  return model ? gpuModelAnswers(model) : undefined;
+}
+
 export function applyStartingPoint(draft: GpuQuoteDraft, startingPoint: StartingPoint): GpuQuoteDraft {
   return { ...draft, ...startingPoint.answers, startingPoint: startingPoint.id };
 }
