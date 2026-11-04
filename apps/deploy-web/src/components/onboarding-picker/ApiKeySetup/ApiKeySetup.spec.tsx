@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
-import { API_KEY_MASK, ApiKeySetup, DEPENDENCIES } from "./ApiKeySetup";
+import { ApiKeySetup, DEPENDENCIES } from "./ApiKeySetup";
 
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -36,10 +36,10 @@ describe(ApiKeySetup.name, () => {
     expect(screen.getByRole("button", { name: /Create key/ })).toBeDisabled();
   });
 
-  it("fills the commands with a masked placeholder before a key exists", () => {
+  it("leaves the key out of the commands before one exists", () => {
     const { ApiKeyUsageGuide } = setup({});
 
-    expect(lastGuideProps(ApiKeyUsageGuide)).toMatchObject({ title: "Pick how you'll use it", apiKey: API_KEY_MASK });
+    expect(lastGuideProps(ApiKeyUsageGuide)).toMatchObject({ title: "Pick how you'll use it", apiKey: undefined });
   });
 
   it("shows the new key once with its name and expiry, and replaces the create button", () => {

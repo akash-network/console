@@ -38,6 +38,18 @@ describe(useOnboardingApiKey.name, () => {
     expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ projectId: undefined }), expect.anything());
   });
 
+  it("doesn't create an account-wide key when the trial project can't be looked up", () => {
+    const { result, mutate, enqueueSnackbar, refetchProjects } = setup({ hasProjectsError: true });
+
+    result.current.createApiKey();
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(refetchProjects).toHaveBeenCalled();
+    expect(enqueueSnackbar).toHaveBeenCalledWith(expect.objectContaining({ props: expect.objectContaining({ title: "Couldn't create the API key" }) }), {
+      variant: "error"
+    });
+  });
+
   it("gives the key the default one year expiry", () => {
     vi.useFakeTimers({ now: new Date("2026-11-03T12:00:00Z") });
     const { result, mutate } = setup({});
@@ -103,14 +115,21 @@ describe(useOnboardingApiKey.name, () => {
     isProjectsUiEnabled?: boolean;
     projects?: Project[];
     isLoadingProjects?: boolean;
+    hasProjectsError?: boolean;
     createdApiKey?: ApiKeyResponse;
     isPending?: boolean;
   }) {
     const mutate = vi.fn();
+    const refetchProjects = vi.fn();
     const enqueueSnackbar = vi.fn();
     const analyticsService = mock<AnalyticsService>();
     const useProjectsQuery = vi.fn<typeof DEPENDENCIES.useProjectsQuery>(() =>
-      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>(), { data: input.projects, isLoading: input.isLoadingProjects ?? false })
+      Object.assign(mock<ReturnType<typeof DEPENDENCIES.useProjectsQuery>>(), {
+        data: input.projects,
+        isLoading: input.isLoadingProjects ?? false,
+        isError: input.hasProjectsError ?? false,
+        refetch: refetchProjects
+      })
     );
     const dependencies: typeof DEPENDENCIES = {
       useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService }),
@@ -123,6 +142,6 @@ describe(useOnboardingApiKey.name, () => {
 
     const { result } = renderHook(() => useOnboardingApiKey({ enabled: input.enabled ?? true }, dependencies));
 
-    return { result, mutate, enqueueSnackbar, analyticsService, useProjectsQuery };
+    return { result, mutate, enqueueSnackbar, analyticsService, useProjectsQuery, refetchProjects };
   }
 });

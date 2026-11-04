@@ -13,8 +13,6 @@ import { ApiKeyUsageGuide } from "@src/components/api-keys/ApiKeyUsageGuide/ApiK
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
 import { useServices } from "@src/context/ServicesProvider";
 
-export const API_KEY_MASK = "ac.sk.••••••••••••";
-
 const SECRET_SHOWN_ONCE = "Copy it now. It isn't shown again once you leave this page.";
 
 export const DEPENDENCIES = { useServices, useSnackbar, ApiKeyUsageGuide };
@@ -59,7 +57,7 @@ export function ApiKeySetup({ createdApiKey, isCreating, isLoadingTrialProject, 
           )}
         </Card>
       </SettingsSection>
-      <d.ApiKeyUsageGuide title="Pick how you'll use it" apiKey={secret ?? API_KEY_MASK} onCommandCopied={trackSetupCopied} />
+      <d.ApiKeyUsageGuide title="Pick how you'll use it" apiKey={secret} onCommandCopied={trackSetupCopied} />
     </div>
   );
 }

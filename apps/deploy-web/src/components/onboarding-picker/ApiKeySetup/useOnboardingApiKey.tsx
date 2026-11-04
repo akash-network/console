@@ -16,19 +16,32 @@ export function useOnboardingApiKey({ enabled }: { enabled: boolean }, d: typeof
   const { analyticsService } = d.useServices();
   const { enqueueSnackbar } = d.useSnackbar();
   const { isEnabled: isProjectsUiEnabled } = d.useProjectsUi();
-  const { data: projects, isLoading: isLoadingTrialProject } = d.useProjectsQuery({ enabled: enabled && isProjectsUiEnabled });
+  const {
+    data: projects,
+    isLoading: isLoadingTrialProject,
+    isError: hasTrialProjectLookupFailed,
+    refetch: retryTrialProjectLookup
+  } = d.useProjectsQuery({ enabled: enabled && isProjectsUiEnabled });
   const { mutate, data: createdApiKey, isPending: isCreating } = d.useCreateApiKey();
   const trialProjectId = projects?.find(project => project.isDefault)?.id;
 
+  function notifyApiKeyNotCreated() {
+    enqueueSnackbar(<Snackbar title="Couldn't create the API key" subTitle="Try again in a moment." iconVariant="error" />, { variant: "error" });
+  }
+
   function createApiKey() {
+    if (hasTrialProjectLookupFailed) {
+      void retryTrialProjectLookup();
+      return notifyApiKeyNotCreated();
+    }
+
     const expiresAt = getApiKeyExpiryDate(DEFAULT_API_KEY_LIFETIME_DAYS, new Date());
 
     mutate(
       { name: ONBOARDING_API_KEY_NAME, expiresAt, projectId: trialProjectId },
       {
         onSuccess: () => analyticsService.track("create_api_key", { category: "onboarding", label: "Create API key" }),
-        onError: () =>
-          enqueueSnackbar(<Snackbar title="Couldn't create the API key" subTitle="Try again in a moment." iconVariant="error" />, { variant: "error" })
+        onError: notifyApiKeyNotCreated
       }
     );
   }
