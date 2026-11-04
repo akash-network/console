@@ -83,7 +83,7 @@ describe(BlockedGpuAlternatives.name, () => {
   });
 
   it("deploys the smaller model in one click through the auto deploy flow", () => {
-    const { analyticsService, push } = setup({ templateId: COMFYUI_TEMPLATE_ID, models: RUNNABLE_MODELS });
+    const { analyticsService, push, markAutoDeployStart } = setup({ templateId: COMFYUI_TEMPLATE_ID, models: RUNNABLE_MODELS });
 
     fireEvent.click(screen.getByRole("button", { name: "Deploy Gemma 3 4B" }));
 
@@ -94,6 +94,7 @@ describe(BlockedGpuAlternatives.name, () => {
       templateId: COMFYUI_TEMPLATE_ID
     });
     expect(analyticsService.flush).toHaveBeenCalled();
+    expect(markAutoDeployStart).toHaveBeenCalledWith("gemma-3-4b-v100");
     expect(push).toHaveBeenCalledWith("/new-deployment/configure?templateId=gemma-3-4b-v100&sdl-strategy=default&bid-strategy=auto");
   });
 
@@ -124,6 +125,7 @@ describe(BlockedGpuAlternatives.name, () => {
     const analyticsService = mock<AnalyticsService>();
     const push = vi.fn();
     const openAddCredits = vi.fn();
+    const markAutoDeployStart = vi.fn();
     const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService, urlService: UrlService });
     const useRouter: typeof DEPENDENCIES.useRouter = () => mock<AppRouterInstance>({ push });
 
@@ -136,11 +138,12 @@ describe(BlockedGpuAlternatives.name, () => {
           useRouter,
           useAddCredits: () => openAddCredits,
           useIsOutOfDeployCredit: () => input.isOutOfCredit ?? false,
-          useTrialRunnableModels: () => ({ models: input.models, isChecking: false, hasCheckFailed: false })
+          useTrialRunnableModels: () => ({ models: input.models, isChecking: false, hasCheckFailed: false }),
+          useMarkAutoDeployStart: () => markAutoDeployStart
         })}
       />
     );
 
-    return { analyticsService, push, openAddCredits };
+    return { analyticsService, push, openAddCredits, markAutoDeployStart };
   }
 });
