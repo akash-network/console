@@ -1,6 +1,6 @@
 "use client";
 import type { ComponentType } from "react";
-import { ChartColumnIncreasing, CreditCard, KeyRound, MessageSquareWarning, Settings, Users } from "lucide-react";
+import { ChartColumnIncreasing, Cpu, CreditCard, KeyRound, MessageSquareWarning, Settings, Users } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { canViewBillingAndUsage, hasGeneralSettingsPage, hasMembersPage } from "@src/components/organizations/organizationAccess";
@@ -30,6 +30,7 @@ export function useSettingsNavLinks({ dependencies: d = DEPENDENCIES }: { depend
   const showsGeneral = !!organization && hasGeneralSettingsPage(organization.type);
   const showsMembers = !!organization && hasMembersPage(organization.type);
   const showsBillingAndUsage = !organization || canViewBillingAndUsage(organization.role);
+  const showsGpuRequests = d.useFlag("gpu_quote_requests");
 
   return [
     ...(showsGeneral ? [{ title: "General", url: UrlService.organizationSettings(), isActive: isRouteActive(pathname, "/organization"), icon: Settings }] : []),
@@ -37,6 +38,7 @@ export function useSettingsNavLinks({ dependencies: d = DEPENDENCIES }: { depend
     ...(showsBillingAndUsage ? [{ title: "Billing", url: UrlService.billing(), isActive: isRouteActive(pathname, "/billing"), icon: CreditCard }] : []),
     { title: "API Keys", url: UrlService.userApiKeys(), isActive: isRouteActive(pathname, "/user/api-keys"), icon: KeyRound },
     ...(showsBillingAndUsage ? [{ title: "Usage", url: UrlService.usage(), isActive: isRouteActive(pathname, "/usage"), icon: ChartColumnIncreasing }] : []),
-    { title: "Alerts", url: UrlService.alerts(), isActive: isRouteActive(pathname, "/alerts"), icon: MessageSquareWarning }
+    { title: "Alerts", url: UrlService.alerts(), isActive: isRouteActive(pathname, "/alerts"), icon: MessageSquareWarning },
+    ...(showsGpuRequests ? [{ title: "GPU requests", url: UrlService.gpuRequests(), isActive: isRouteActive(pathname, "/gpu-requests"), icon: Cpu }] : [])
   ];
 }

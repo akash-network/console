@@ -1,5 +1,6 @@
 import { ApiError } from "@akashnetwork/openapi-sdk";
 import { createProxy } from "@akashnetwork/react-query-proxy";
+import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -18,9 +19,11 @@ const CONFIGURATION: ConfigurationPrefill = {
   summary: { summary: "4 vCPU · 1× H100", cpu: 4, memoryBytes: 1, storageBytes: 1, region: "eu-central" }
 };
 
+const REQUESTS_KEY = ["v1", "listHardwareRequests"];
+
 describe("GpuQuoteRequestFlow", () => {
   it("sends a package request after changing only the region and term", async () => {
-    const { user, createHardwareRequest, enqueueSnackbar, onClose } = setup({ source: "reserve_capacity" });
+    const { user, createHardwareRequest, enqueueSnackbar, onClose, queryClient } = setup({ source: "reserve_capacity" });
 
     expect(screen.getByText("Reserve GPUs for a term.")).toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: /Full server/ }));
@@ -57,6 +60,7 @@ describe("GpuQuoteRequestFlow", () => {
       })
     });
     expect(snackbarProps(enqueueSnackbar)).toMatchObject({ title: "Request sent", subTitle: "We'll get back to you within one business day." });
+    expect(queryClient.getQueryState(REQUESTS_KEY)?.isInvalidated).toBe(true);
   });
 
   it("sends the configuration being set up without asking hardware questions", async () => {
@@ -326,7 +330,9 @@ describe("GpuQuoteRequestFlow", () => {
       input.response ?? Promise.resolve({ data: { id: "request-id", createdAt: "2026-11-04T12:00:00.000Z", ...(input.lane ? { lane: input.lane } : {}) } });
     response.catch(() => undefined);
     const createHardwareRequest = vi.fn((_: { data: { spec: object } }) => response);
-    const api = createProxy({ v1: { createHardwareRequest } }) as unknown as AppDIContainer["api"];
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(REQUESTS_KEY, { data: [] });
+    const api = createProxy({ v1: { createHardwareRequest, listHardwareRequests: vi.fn() } }) as unknown as AppDIContainer["api"];
     const enqueueSnackbar = vi.fn();
     const onClose = vi.fn();
     const email = "email" in input ? input.email : "jane@example.com";
@@ -335,7 +341,7 @@ describe("GpuQuoteRequestFlow", () => {
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() })
     };
     const renderFlow = (configuration?: ConfigurationPrefill) => (
-      <TestContainerProvider services={{ api: () => api }}>
+      <TestContainerProvider services={{ api: () => api, queryClient: () => queryClient }}>
         <GpuQuoteRequestFlow
           source={input.source}
           configuration={configuration}
@@ -352,6 +358,7 @@ describe("GpuQuoteRequestFlow", () => {
       createHardwareRequest,
       enqueueSnackbar,
       onClose,
+      queryClient,
       rerender: (configuration: ConfigurationPrefill) => view.rerender(renderFlow(configuration))
     };
   }
