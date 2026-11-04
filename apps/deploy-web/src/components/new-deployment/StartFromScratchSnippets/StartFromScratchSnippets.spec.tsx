@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ContainerSdlSnippet, SshSessionSnippet, WELCOME_BANNER_ROTATION_MS } from "./StartFromScratchSnippets";
+import { ContainerSdlSnippet, ReservableGpusSnippet, SshSessionSnippet, WELCOME_BANNER_ROTATION_MS } from "./StartFromScratchSnippets";
 
 import { act, render, screen } from "@testing-library/react";
 
@@ -9,6 +9,17 @@ describe("StartFromScratchSnippets", () => {
     const { container } = render(<ContainerSdlSnippet />);
 
     expect(container).toHaveTextContent("services: web: image: ghcr.io/you/app:latest expose: 8080 → 80");
+  });
+
+  it("lists the GPUs most often reserved with their memory", () => {
+    const { container } = render(<ReservableGpusSnippet />);
+
+    expect(Array.from(container.children, line => line.textContent)).toEqual([
+      "NVIDIA B200 · 180 GB",
+      "NVIDIA H200 · 141 GB",
+      "NVIDIA H100 · 80 GB",
+      "NVIDIA A100 · 80 GB"
+    ]);
   });
 
   it("shows an ssh session into the machine", () => {

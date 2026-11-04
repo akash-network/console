@@ -10,10 +10,19 @@ export interface StartFromScratchCardProps {
   previewLabel: string;
   previewIcon: LucideIcon;
   preview: ReactNode;
+  actionLabel?: string;
   onSelect: () => void;
 }
 
-export const StartFromScratchCard: FC<StartFromScratchCardProps> = ({ title, description, previewLabel, previewIcon: PreviewIcon, preview, onSelect }) => {
+export const StartFromScratchCard: FC<StartFromScratchCardProps> = ({
+  title,
+  description,
+  previewLabel,
+  previewIcon: PreviewIcon,
+  preview,
+  actionLabel = "Continue",
+  onSelect
+}) => {
   const titleId = useId();
   const descriptionId = useId();
 
@@ -48,7 +57,7 @@ export const StartFromScratchCard: FC<StartFromScratchCardProps> = ({ title, des
 
         <span className="mt-3 flex w-full items-center justify-end">
           <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-foreground" aria-hidden="true">
-            Continue
+            {actionLabel}
             <ArrowRight className="h-3 w-3 transition-transform duration-150 group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5" />
           </span>
         </span>
