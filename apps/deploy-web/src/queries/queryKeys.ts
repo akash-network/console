@@ -51,6 +51,7 @@ export class QueryKeys {
   static getProviderGpusKey = (providerAddress: string) => ["PROVIDER_GPUS", providerAddress];
   static getLandTopologyKey = () => ["LAND_TOPOLOGY"];
   static getTrialProvidersKey = () => ["TRIAL_PROVIDERS"];
+  static getTrialGpuAvailabilityKey = () => ["TRIAL_GPU_AVAILABILITY"];
   static getDeploymentSettingKey = (dseq: string) => ["DEPLOYMENT_SETTING", dseq];
   static getApiKeysKey = (userId: string) => ["API_KEYS", userId];
 

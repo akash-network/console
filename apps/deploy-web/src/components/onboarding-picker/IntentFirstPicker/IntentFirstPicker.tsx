@@ -9,8 +9,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { ApiKeyUsageGuide } from "@src/components/api-keys/ApiKeyUsageGuide/ApiKeyUsageGuide";
 import { DeploymentTemplatePickerCard } from "@src/components/deployments/DeploymentTemplatePickerCard/DeploymentTemplatePickerCard";
-import type { TrialLimits } from "@src/components/onboarding-picker/onboarding-catalog/onboarding-catalog";
-import { describeTemplateSize, ONBOARDING_SLOTS, pickOnboardingCards } from "@src/components/onboarding-picker/onboarding-catalog/onboarding-catalog";
+import {
+  describeTemplateSize,
+  ONBOARDING_SLOTS,
+  pickOnboardingCards,
+  trialLimitsFrom
+} from "@src/components/onboarding-picker/onboarding-catalog/onboarding-catalog";
+import { RunModelPath } from "@src/components/onboarding-picker/RunModelPath/RunModelPath";
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
 import { useServices } from "@src/context/ServicesProvider";
 
@@ -27,7 +32,7 @@ type OnboardingIntent = {
 export const ONBOARDING_INTENTS: readonly OnboardingIntent[] = [
   { id: "app", Icon: LayoutTemplate, title: "Deploy an app", description: "Start from a template or your own Docker image.", isAvailable: true },
   { id: "tools", Icon: Terminal, title: "Connect my agent or code", description: "API key, then Claude Code, Cursor, the CLI or REST.", isAvailable: true },
-  { id: "model", Icon: Sparkles, title: "Run an AI model", description: "Open models on the GPUs your trial can use now.", isAvailable: false }
+  { id: "model", Icon: Sparkles, title: "Run an AI model", description: "Open models on the GPUs your trial can use now.", isAvailable: true }
 ];
 
 const QUESTION = "What do you want to do first?";
@@ -38,7 +43,8 @@ export const DEPENDENCIES = {
   useServices,
   DeploymentTemplatePickerCard,
   ApiKeyUsageGuide,
-  SkipOnboardingButton
+  SkipOnboardingButton,
+  RunModelPath
 };
 
 type IntentFirstPickerProps = {
@@ -94,6 +100,7 @@ export function IntentFirstPicker({ isOutOfCredit, onDeployTemplate, onDeployIma
           {selectedIntent.id === "app" && (
             <DeployAppPath isOutOfCredit={isOutOfCredit} onDeployTemplate={onDeployTemplate} onDeployImage={onDeployImage} dependencies={d} />
           )}
+          {selectedIntent.id === "model" && <d.RunModelPath isOutOfCredit={isOutOfCredit} onDeployTemplate={onDeployTemplate} />}
           {selectedIntent.id === "tools" && (
             <div className="flex flex-col gap-6">
               <Button className="gap-2 self-start" asChild>
@@ -153,12 +160,7 @@ type DeployAppPathProps = Pick<IntentFirstPickerProps, "isOutOfCredit" | "onDepl
 
 function DeployAppPath({ isOutOfCredit, onDeployTemplate, onDeployImage, dependencies: d }: DeployAppPathProps) {
   const { publicConfig, urlService } = d.useServices();
-  const limits: TrialLimits = {
-    maxCpu: publicConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_MAX_CPU,
-    maxMemoryGi: publicConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_MAX_MEMORY_GI,
-    blockedGpuModels: publicConfig.NEXT_PUBLIC_MANAGED_WALLET_TRIAL_BLOCKED_GPU_MODELS
-  };
-  const cards = pickOnboardingCards(ONBOARDING_SLOTS, limits);
+  const cards = pickOnboardingCards(ONBOARDING_SLOTS, trialLimitsFrom(publicConfig));
 
   return (
     <>

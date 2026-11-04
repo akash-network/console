@@ -72,6 +72,18 @@ describe(DeploymentTemplatePickerCard.name, () => {
     expect(container.querySelector("div[aria-hidden]")).toBeNull();
   });
 
+  it("marks the spec line with a live dot when showLiveDot is true", () => {
+    const { container } = setup({ showLiveDot: true });
+
+    expect(container.querySelector("p span[aria-hidden]")).not.toBeNull();
+  });
+
+  it("leaves the live dot off by default", () => {
+    const { container } = setup();
+
+    expect(container.querySelector("p span[aria-hidden]")).toBeNull();
+  });
+
   function baseProps(input?: Partial<Parameters<typeof DeploymentTemplatePickerCard>[0]>) {
     return {
       chip: "Starter",

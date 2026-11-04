@@ -23,21 +23,16 @@ describe(IntentFirstPicker.name, () => {
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 
-  it("offers deploying an app and connecting an agent or code", () => {
+  it("offers deploying an app, connecting an agent or code and running an AI model", () => {
     setup({});
 
     expect(screen.getByRole("button", { name: /Deploy an app/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Connect my agent or code/ })).toBeInTheDocument();
-  });
-
-  it("does not offer running an AI model yet", () => {
-    setup({});
-
-    expect(screen.queryByRole("button", { name: /Run an AI model/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Run an AI model/ })).toBeInTheDocument();
   });
 
   it("keeps asking the question when the url names an intent that isn't offered", () => {
-    setup({ searchParams: "intent=model" });
+    setup({ searchParams: "intent=unknown" });
 
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
     expect(screen.getByText("Pick one. The others stay one click away.")).toBeInTheDocument();
@@ -169,6 +164,30 @@ describe(IntentFirstPicker.name, () => {
     expect(ApiKeyUsageGuide).toHaveBeenCalled();
     expect(screen.getByRole("link", { name: /Create an API key/ })).toHaveAttribute("href", UrlService.userApiKeys());
     expect(screen.queryByRole("link", { name: /Deploy image/ })).not.toBeInTheDocument();
+  });
+
+  it("opens the run an AI model path from a deep link", () => {
+    const RunModelPath = vi.fn(ComponentMock);
+    const { onDeployTemplate } = setup({ searchParams: "intent=model", isOutOfCredit: true, dependencies: { RunModelPath } });
+
+    expect(screen.getByRole("tab", { name: "Run an AI model" })).toHaveAttribute("aria-selected", "true");
+    expect(RunModelPath.mock.calls.at(-1)![0]).toEqual({ isOutOfCredit: true, onDeployTemplate });
+  });
+
+  it("puts the run an AI model intent in the url when it is picked", () => {
+    const { push, analyticsService } = setup({});
+
+    fireEvent.click(screen.getByRole("button", { name: /Run an AI model/ }));
+
+    expect(push).toHaveBeenCalledWith(UrlService.onboardingPicker({ intent: "model" }), { scroll: false });
+    expect(analyticsService.track).toHaveBeenCalledWith("onboarding_intent_selected", { category: "onboarding", intent: "model", via: "question" });
+  });
+
+  it("leaves the model path off the deploy an app path", () => {
+    const RunModelPath = vi.fn(ComponentMock);
+    setup({ searchParams: "intent=app", dependencies: { RunModelPath } });
+
+    expect(RunModelPath).not.toHaveBeenCalled();
   });
 
   it("leaves the api key guide off the deploy an app path", () => {
