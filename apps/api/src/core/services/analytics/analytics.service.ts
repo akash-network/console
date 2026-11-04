@@ -21,7 +21,12 @@ type AnalyticsEvent =
   | "account_deletion_confirmed"
   | "account_deletion_failed"
   | "bids_received"
-  | "onboarding_match_failed";
+  | "onboarding_match_failed"
+  | "gpu_request_created"
+  | "gpu_request_first_reply"
+  | "gpu_request_offer_published"
+  | "gpu_request_accepted"
+  | "gpu_request_closed";
 
 @singleton()
 export class AnalyticsService {

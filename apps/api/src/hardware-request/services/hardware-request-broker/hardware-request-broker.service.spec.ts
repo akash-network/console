@@ -17,6 +17,7 @@ import type {
   HardwareRequestOfferOutput,
   HardwareRequestOfferRepository
 } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
+import { HardwareRequestFunnelJob } from "@src/hardware-request/services/hardware-request-funnel/hardware-request-funnel.handler";
 import { HardwareRequestStatusNotificationJob } from "@src/hardware-request/services/hardware-request-status-notification/hardware-request-status-notification.handler";
 import { HardwareRequestBrokerService } from "./hardware-request-broker.service";
 
@@ -136,14 +137,44 @@ describe(HardwareRequestBrokerService.name, () => {
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         new HardwareRequestStatusNotificationJob({ hardwareRequestId: locked.id, eventId: "recorded-event", status: "sourcing", closeReason: undefined })
       );
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new HardwareRequestFunnelJob({ hardwareRequestId: locked.id, step: "gpu_request_first_reply", stepKey: locked.id, occurredAt: expect.any(String) })
+      );
     });
 
     it("keeps the first reply of a request already answered", async () => {
-      const { service, hardwareRequestRepository, locked } = setup({ status: "in_review", firstRepliedAt: "2026-11-01T00:00:00.000Z" });
+      const { service, hardwareRequestRepository, jobQueueService, locked } = setup({ status: "in_review", firstRepliedAt: "2026-11-01T00:00:00.000Z" });
 
       await service.changeStatus(locked.id, { actor: "Remington", status: "sourcing" });
 
       expect(hardwareRequestRepository.updateById).toHaveBeenCalledWith(locked.id, { status: "sourcing", updatedAt: expect.any(Date) });
+      expect(jobQueueService.enqueue.mock.calls.map(([job]) => job.name)).toEqual(["HardwareRequestStatusNotificationJob"]);
+    });
+
+    it("counts a request the team accepted for the tenant as accepted", async () => {
+      const { service, jobQueueService, locked } = setup({ status: "offers", firstRepliedAt: "2026-11-01T00:00:00.000Z" });
+
+      await service.changeStatus(locked.id, { actor: "Remington", status: "accepted" });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new HardwareRequestFunnelJob({ hardwareRequestId: locked.id, step: "gpu_request_accepted", stepKey: "recorded-event", occurredAt: expect.any(String) })
+      );
+    });
+
+    it("counts a request the team marked withdrawn as closed by the tenant", async () => {
+      const { service, jobQueueService, locked } = setup({ status: "offers", firstRepliedAt: "2026-11-01T00:00:00.000Z" });
+
+      await service.changeStatus(locked.id, { actor: "Remington", status: "withdrawn" });
+
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new HardwareRequestFunnelJob({
+          hardwareRequestId: locked.id,
+          step: "gpu_request_closed",
+          stepKey: "recorded-event",
+          occurredAt: expect.any(String),
+          properties: { reason: "withdrawn", from: "offers" }
+        })
+      );
     });
 
     it("records why a request was closed", async () => {
@@ -156,6 +187,15 @@ describe(HardwareRequestBrokerService.name, () => {
       );
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         new HardwareRequestStatusNotificationJob({ hardwareRequestId: locked.id, eventId: "recorded-event", status: "closed", closeReason: "no_supply" })
+      );
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new HardwareRequestFunnelJob({
+          hardwareRequestId: locked.id,
+          step: "gpu_request_closed",
+          stepKey: "recorded-event",
+          occurredAt: expect.any(String),
+          properties: { reason: "no_supply", from: "sourcing" }
+        })
       );
     });
 

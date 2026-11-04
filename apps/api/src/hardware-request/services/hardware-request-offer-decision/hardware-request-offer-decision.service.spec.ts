@@ -17,6 +17,7 @@ import type {
 } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { HardwareRequestAcceptedNoticeJob } from "@src/hardware-request/services/hardware-request-accepted-notice/hardware-request-accepted-notice.handler";
 import { HardwareRequestApprovalRequestJob } from "@src/hardware-request/services/hardware-request-approval-request/hardware-request-approval-request.handler";
+import { HardwareRequestFunnelJob } from "@src/hardware-request/services/hardware-request-funnel/hardware-request-funnel.handler";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import { HardwareRequestOfferDecisionService } from "./hardware-request-offer-decision.service";
@@ -70,6 +71,15 @@ describe(HardwareRequestOfferDecisionService.name, () => {
       });
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(
         new HardwareRequestAcceptedNoticeJob({ hardwareRequestId: hardwareRequest.id, offerId: "offer-1", eventId: "event-1", acceptedByUserId: user.id })
+      );
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new HardwareRequestFunnelJob({
+          hardwareRequestId: hardwareRequest.id,
+          step: "gpu_request_accepted",
+          stepKey: "event-1",
+          occurredAt: expect.any(String),
+          properties: { offerId: "offer-1", usdPerGpuHour: 2.4 }
+        })
       );
     });
 
@@ -256,6 +266,7 @@ describe(HardwareRequestOfferDecisionService.name, () => {
     hardwareRequestRepository.findOneByAndLock.mockResolvedValue(hardwareRequest);
     const offer = mock<HardwareRequestOfferOutput>({
       id: "offer-1",
+      usdPerGpuHour: 2.4,
       status: input.offerStatus ?? "published",
       expiresAt: input.expiresAt ?? new Date(Date.now() + 60_000).toISOString()
     });

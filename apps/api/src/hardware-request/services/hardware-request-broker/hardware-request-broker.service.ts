@@ -18,9 +18,12 @@ import {
   type HardwareRequestOfferOutput,
   HardwareRequestOfferRepository
 } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
+import { HardwareRequestFunnelJob } from "@src/hardware-request/services/hardware-request-funnel/hardware-request-funnel.handler";
 import { HardwareRequestStatusNotificationJob } from "@src/hardware-request/services/hardware-request-status-notification/hardware-request-status-notification.handler";
 
 export type HardwareRequestStatusChange = { actor: string; status: HardwareRequestStatus; closeReason?: CloseReason };
+
+const CLOSING_STATUSES: HardwareRequestStatus[] = ["withdrawn", "closed"];
 
 export type HardwareRequestWithTimeline = QueuedHardwareRequest & { events: HardwareRequestEventOutput[]; offers: HardwareRequestOfferOutput[] };
 
@@ -105,6 +108,35 @@ export class HardwareRequestBrokerService {
       payload: { from: hardwareRequest.status, to: status, ...(closeReason && { closeReason }) }
     });
     await this.jobQueueService.enqueue(new HardwareRequestStatusNotificationJob({ hardwareRequestId: id, eventId: event.id, status, closeReason }));
+    await this.#trackStatusChange(hardwareRequest, { status, closeReason, eventId: event.id, occurredAt: now.toISOString() });
+  }
+
+  /** The team's first move on a request is its first reply, and a team-moved status can also accept or close it. */
+  async #trackStatusChange(
+    hardwareRequest: HardwareRequestOutput,
+    { status, closeReason, eventId, occurredAt }: { status: HardwareRequestStatus; closeReason?: CloseReason; eventId: string; occurredAt: string }
+  ): Promise<void> {
+    const hardwareRequestId = hardwareRequest.id;
+
+    if (!hardwareRequest.firstRepliedAt) {
+      await this.jobQueueService.enqueue(
+        new HardwareRequestFunnelJob({ hardwareRequestId, step: "gpu_request_first_reply", stepKey: hardwareRequestId, occurredAt })
+      );
+    }
+    if (status === "accepted") {
+      await this.jobQueueService.enqueue(new HardwareRequestFunnelJob({ hardwareRequestId, step: "gpu_request_accepted", stepKey: eventId, occurredAt }));
+    }
+    if (CLOSING_STATUSES.includes(status)) {
+      await this.jobQueueService.enqueue(
+        new HardwareRequestFunnelJob({
+          hardwareRequestId,
+          step: "gpu_request_closed",
+          stepKey: eventId,
+          occurredAt,
+          properties: { reason: closeReason ?? status, from: hardwareRequest.status }
+        })
+      );
+    }
   }
 
   async addNote(id: string, { actor, text }: { actor: string; text: string }): Promise<HardwareRequestWithTimeline> {

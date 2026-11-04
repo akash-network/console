@@ -1,6 +1,7 @@
 import createError from "http-errors";
 import { singleton } from "tsyringe";
 
+import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { HardwareRequestOfferStatus, HardwareRequestOfferTerms, HardwareRequestStatus } from "@src/hardware-request/model-schemas";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
@@ -10,6 +11,7 @@ import {
   HardwareRequestOfferRepository
 } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { HardwareRequestBrokerService } from "@src/hardware-request/services/hardware-request-broker/hardware-request-broker.service";
+import { HardwareRequestFunnelJob } from "@src/hardware-request/services/hardware-request-funnel/hardware-request-funnel.handler";
 import { ProviderRepository } from "@src/provider/repositories/provider/provider.repository";
 import { AuditorService } from "@src/provider/services/auditors/auditors.service";
 
@@ -29,7 +31,8 @@ export class HardwareRequestOfferBrokerService {
     private readonly auditorService: AuditorService,
     private readonly txService: TxService,
     private readonly hardwareRequestEventRepository: HardwareRequestEventRepository,
-    private readonly hardwareRequestBrokerService: HardwareRequestBrokerService
+    private readonly hardwareRequestBrokerService: HardwareRequestBrokerService,
+    private readonly jobQueueService: JobQueueService
   ) {}
 
   async create(hardwareRequestId: string, draft: HardwareRequestOfferDraft): Promise<HardwareRequestOfferOutput> {
@@ -73,6 +76,15 @@ export class HardwareRequestOfferBrokerService {
         { returning: true }
       );
       await this.hardwareRequestEventRepository.record({ hardwareRequestId, type: "offer_published", actor, payload: { offerId } });
+      await this.jobQueueService.enqueue(
+        new HardwareRequestFunnelJob({
+          hardwareRequestId,
+          step: "gpu_request_offer_published",
+          stepKey: offerId,
+          occurredAt: now.toISOString(),
+          properties: { offerId, usdPerGpuHour: offer.usdPerGpuHour }
+        })
+      );
       await this.hardwareRequestBrokerService.moveLockedToStatus(hardwareRequest, { actor, status: "offers" });
 
       return published;
