@@ -21,7 +21,7 @@ import { useSnackbar } from "notistack";
 import { useServices } from "@src/context/ServicesProvider";
 import { useUser } from "@src/hooks/useUser";
 import type { QuoteRequestData, QuoteRequestSource } from "../gpuQuoteDraft/gpuQuoteCatalog";
-import type { ConfigurationHardware, DraftAnswers, GpuQuoteDraft, QuoteStepId, RequestLane, StartingPoint } from "../gpuQuoteDraft/gpuQuoteDraft";
+import type { ConfigurationHardware, DraftAnswers, GpuQuoteDraft, QuoteStepId, StartingPoint } from "../gpuQuoteDraft/gpuQuoteDraft";
 import {
   applyStartingPoint,
   asksUplink,
@@ -96,11 +96,6 @@ function isRequestLimitError(error: unknown): boolean {
 /** Hitting the request limit is the user's state rather than a fault, so it is shown in the flow instead of being reported. */
 const SKIP_REPORTING_REQUEST_LIMIT = { skipErrorReporting: isRequestLimitError };
 
-/** The API only adds the lane later, so a response without one reads as the automated lane. */
-function laneOf(data: object): RequestLane | undefined {
-  return "lane" in data && (data.lane === "sales" || data.lane === "automated") ? data.lane : undefined;
-}
-
 export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialAnswers, onClose, dependencies: d = DEPENDENCIES }) => {
   const { api } = useServices();
   const { user } = d.useUser();
@@ -160,7 +155,9 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
       {
         onSuccess: function confirmSentAndClose(response) {
           void queryClient.invalidateQueries({ queryKey: api.v1.listHardwareRequests.getKey() });
-          enqueueSnackbar(<Snackbar title="Request sent" subTitle={describeNextStep(laneOf(response.data))} iconVariant="success" />, { variant: "success" });
+          enqueueSnackbar(<Snackbar title="Request sent" subTitle={describeNextStep(response.data, new Date())} iconVariant="success" />, {
+            variant: "success"
+          });
           onClose();
         },
         onError: function reportSendFailure(error) {

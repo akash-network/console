@@ -2,6 +2,7 @@ import type { paths } from "@akashnetwork/console-api-types";
 
 type CreateHardwareRequestData = paths["/v1/hardware-requests"]["post"]["requestBody"]["content"]["application/json"]["data"];
 export type QuoteRequestData = Extract<CreateHardwareRequestData, { category: "quote" }>;
+export type QuoteRequestReceipt = paths["/v1/hardware-requests"]["post"]["responses"][201]["content"]["application/json"]["data"];
 export type QuoteSpec = QuoteRequestData["spec"];
 export type QuoteRequestSource = NonNullable<QuoteRequestData["source"]>;
 export type RegionArea = QuoteSpec["region"]["areas"][number];

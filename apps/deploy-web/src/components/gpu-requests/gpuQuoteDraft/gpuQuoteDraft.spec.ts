@@ -489,10 +489,29 @@ describe("gpuQuoteDraft", () => {
   });
 
   describe(describeNextStep.name, () => {
-    it("promises a faster reply on the sales lane", () => {
-      expect(describeNextStep("sales")).toBe("Our team will reply within 4 business hours.");
-      expect(describeNextStep("automated")).toBe("We'll get back to you within one business day.");
-      expect(describeNextStep(undefined)).toBe("We'll get back to you within one business day.");
+    const WEDNESDAY_10_AM = new Date(2026, 10, 4, 10, 0);
+
+    it("promises each lane's business-hours window when the api names no reply time", () => {
+      expect(describeNextStep({ lane: "sales", firstReplyDueAt: null }, WEDNESDAY_10_AM)).toBe("Our team will reply within 4 business hours.");
+      expect(describeNextStep({ lane: "automated", firstReplyDueAt: null }, WEDNESDAY_10_AM)).toBe("We'll get back to you within one business day.");
+    });
+
+    it("names a reply time later today by its hour", () => {
+      const firstReplyDueAt = new Date(2026, 10, 4, 14, 0).toISOString();
+
+      expect(describeNextStep({ lane: "sales", firstReplyDueAt }, WEDNESDAY_10_AM)).toBe("Our team will reply by 2 PM today.");
+    });
+
+    it("names a reply time tomorrow with its minutes", () => {
+      const firstReplyDueAt = new Date(2026, 10, 5, 9, 30).toISOString();
+
+      expect(describeNextStep({ lane: "automated", firstReplyDueAt }, WEDNESDAY_10_AM)).toBe("We'll get back to you by 9:30 AM tomorrow.");
+    });
+
+    it("names a reply time after tomorrow by its weekday", () => {
+      const firstReplyDueAt = new Date(2026, 10, 9, 13, 0).toISOString();
+
+      expect(describeNextStep({ lane: "sales", firstReplyDueAt }, WEDNESDAY_10_AM)).toBe("Our team will reply by Monday 1 PM.");
     });
   });
 
