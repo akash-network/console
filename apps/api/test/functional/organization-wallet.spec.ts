@@ -1,21 +1,17 @@
-import { certificateManager } from "@akashnetwork/chain-sdk";
-import { MsgCreateCertificate } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import { MsgCloseDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import type { Registry } from "@cosmjs/proto-signing";
 import { and, eq } from "drizzle-orm";
 import createError from "http-errors";
 import nock from "nock";
 import fs from "node:fs";
 import path from "node:path";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import type { WalletListOutputResponse } from "@src/billing/http-schemas/wallet.schema";
 import { BILLING_CONFIG } from "@src/billing/providers";
-import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -40,8 +36,11 @@ import { WalletTestingService } from "@test/services/wallet-testing.service";
 const HELLO_WORLD_SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
 describe("Organization wallet", () => {
-  const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
+
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -96,51 +95,32 @@ describe("Organization wallet", () => {
     });
   });
 
-  describe("POST /v1/tx", () => {
+  describe("DELETE /v1/deployments/{dseq}", () => {
     it("signs with the team wallet's derivation index while the team is active", async () => {
-      const { user, token, team, teamWallet, signedIndexes } = await setup();
+      const { token, team, teamWallet, signedIndexes } = await setupDeployed();
 
-      const response = await signTx(user.id, teamWallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+      const response = await closeDeployment("123", { authorization: `Bearer ${token}`, "x-organization-id": team.id });
 
       expect(response.status).toBe(200);
       expect(signedIndexes).toEqual([teamWallet.id]);
     });
 
-    it("refuses a message that acts for another wallet than the active team's", async () => {
-      const { user, token, team, wallet, signedIndexes } = await setup();
-
-      const response = await signTx(user.id, wallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
-
-      expect(response.status).toBe(403);
-      expect(await response.json()).toMatchObject({ code: "message_signer_mismatch" });
-      expect(signedIndexes).toEqual([]);
-    });
-
-    it("refuses to sign for another user than the one authenticated", async () => {
-      const { token, team, teamWallet, signedIndexes } = await setup();
-
-      const response = await signTx(team.createdByUserId!, teamWallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
-
-      expect(response.status).toBe(404);
-      expect(signedIndexes).toEqual([]);
-    });
-
     it("refuses a viewer, who may not sign with the team wallet", async () => {
-      const { user, token, team, teamWallet, signedIndexes } = await setup({ role: "viewer" });
+      const { token, team, signedIndexes } = await setupDeployed({ role: "viewer" });
 
-      const response = await signTx(user.id, teamWallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+      const response = await closeDeployment("123", { authorization: `Bearer ${token}`, "x-organization-id": team.id });
 
       expect(response.status).toBe(403);
       expect(signedIndexes).toEqual([]);
     });
 
     it("refuses a member limited to one project who closes a deployment filed in another", async () => {
-      const { user, token, team, teamWallet, signedIndexes } = await setup({ role: "member" });
+      const { user, token, team, signedIndexes } = await setupDeployed({ role: "member" });
       const [granted, other] = await Promise.all([seedProject({ organizationId: team.id }), seedProject({ organizationId: team.id })]);
       await seedProjectMember({ organizationId: team.id, projectId: granted.id, userId: user.id });
       await seedDeploymentSetting({ userId: team.createdByUserId!, organizationId: team.id, projectId: other.id, dseq: "123" });
 
-      const response = await signTx(user.id, teamWallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+      const response = await closeDeployment("123", { authorization: `Bearer ${token}`, "x-organization-id": team.id });
 
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ code: "project_forbidden" });
@@ -148,24 +128,24 @@ describe("Organization wallet", () => {
     });
 
     it("lets a member limited to one project close a deployment filed in it", async () => {
-      const { user, token, team, teamWallet, signedIndexes } = await setup({ role: "member" });
+      const { user, token, team, teamWallet, signedIndexes } = await setupDeployed({ role: "member" });
       const granted = await seedProject({ organizationId: team.id });
       await seedProjectMember({ organizationId: team.id, projectId: granted.id, userId: user.id });
       await seedDeploymentSetting({ userId: team.createdByUserId!, organizationId: team.id, projectId: granted.id, dseq: "123" });
 
-      const response = await signTx(user.id, teamWallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+      const response = await closeDeployment("123", { authorization: `Bearer ${token}`, "x-organization-id": team.id });
 
       expect(response.status).toBe(200);
       expect(signedIndexes).toEqual([teamWallet.id]);
     });
 
     it("refuses a member whose grant on the deployment's project only lets them view it", async () => {
-      const { user, token, team, teamWallet, signedIndexes } = await setup({ role: "member" });
+      const { user, token, team, signedIndexes } = await setupDeployed({ role: "member" });
       const granted = await seedProject({ organizationId: team.id });
       await seedProjectMember({ organizationId: team.id, projectId: granted.id, userId: user.id, role: "viewer" });
       await seedDeploymentSetting({ userId: team.createdByUserId!, organizationId: team.id, projectId: granted.id, dseq: "123" });
 
-      const response = await signTx(user.id, teamWallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+      const response = await closeDeployment("123", { authorization: `Bearer ${token}`, "x-organization-id": team.id });
 
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ code: "project_forbidden" });
@@ -173,54 +153,9 @@ describe("Organization wallet", () => {
     });
 
     it("signs with the member's own derivation index while organizations are off for them", async () => {
-      const { user, token, team, wallet, signedIndexes } = await setup({ organizationsOn: false });
+      const { token, team, wallet, signedIndexes } = await setupDeployed({ organizationsOn: false });
 
-      const response = await signTx(user.id, wallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
-
-      expect(response.status).toBe(200);
-      expect(signedIndexes).toEqual([wallet.id]);
-    });
-
-    it("refuses a certificate for the team wallet to a member limited to one project, since it would reach every project", async () => {
-      const { user, token, team, teamWallet, signedIndexes } = await setup({ role: "member" });
-      const granted = await seedProject({ organizationId: team.id });
-      await seedProjectMember({ organizationId: team.id, projectId: granted.id, userId: user.id });
-
-      const response = await createCertificate(user.id, teamWallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
-
-      expect(response.status).toBe(403);
-      expect(await response.json()).toMatchObject({ code: "project_forbidden" });
-      expect(signedIndexes).toEqual([]);
-    });
-
-    it("refuses a certificate for the team wallet to an admin whose request is narrowed to one project", async () => {
-      const { user, token, team, teamWallet, signedIndexes } = await setup({ role: "admin" });
-      const project = await seedProject({ organizationId: team.id });
-
-      const response = await createCertificate(user.id, teamWallet.address, {
-        authorization: `Bearer ${token}`,
-        "x-organization-id": team.id,
-        "x-project-id": project.id
-      });
-
-      expect(response.status).toBe(403);
-      expect(await response.json()).toMatchObject({ code: "project_forbidden" });
-      expect(signedIndexes).toEqual([]);
-    });
-
-    it("creates a certificate for the team wallet for an admin, who reaches every project", async () => {
-      const { user, token, team, teamWallet, signedIndexes } = await setup({ role: "admin" });
-
-      const response = await createCertificate(user.id, teamWallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
-
-      expect(response.status).toBe(200);
-      expect(signedIndexes).toEqual([teamWallet.id]);
-    });
-
-    it("creates a certificate for a member's own wallet while organizations are off for them", async () => {
-      const { user, token, team, wallet, signedIndexes } = await setup({ role: "member", organizationsOn: false });
-
-      const response = await createCertificate(user.id, wallet.address, { authorization: `Bearer ${token}`, "x-organization-id": team.id });
+      const response = await closeDeployment("123", { authorization: `Bearer ${token}`, "x-organization-id": team.id });
 
       expect(response.status).toBe(200);
       expect(signedIndexes).toEqual([wallet.id]);
@@ -500,32 +435,8 @@ describe("Organization wallet", () => {
     return (await response.json()) as WalletListOutputResponse;
   }
 
-  async function signTx(userId: string, owner: string, headers: Record<string, string>) {
-    const message = { typeUrl: `/${MsgCloseDeployment.$type}`, value: MsgCloseDeployment.fromPartial({ id: { owner, dseq: 123 } }) };
-
-    return await app.request("/v1/tx", {
-      method: "POST",
-      body: JSON.stringify({
-        data: { userId, messages: [{ typeUrl: message.typeUrl, value: Buffer.from(registry.encode(message)).toString("base64") }] }
-      }),
-      headers: { "Content-Type": "application/json", ...headers }
-    });
-  }
-
-  async function createCertificate(userId: string, owner: string, headers: Record<string, string>) {
-    const { cert, publicKey } = await certificateManager.generatePEM(owner);
-    const message = {
-      typeUrl: `/${MsgCreateCertificate.$type}`,
-      value: MsgCreateCertificate.fromPartial({ owner, cert: Buffer.from(cert), pubkey: Buffer.from(publicKey) })
-    };
-
-    return await app.request("/v1/tx", {
-      method: "POST",
-      body: JSON.stringify({
-        data: { userId, messages: [{ typeUrl: message.typeUrl, value: Buffer.from(registry.encode(message)).toString("base64") }] }
-      }),
-      headers: { "Content-Type": "application/json", ...headers }
-    });
+  async function closeDeployment(dseq: string, headers: Record<string, string>) {
+    return await app.request(`/v1/deployments/${dseq}`, { method: "DELETE", headers });
   }
 
   function answerDeploymentEscrow(amountByOwner: Record<string, string>) {
@@ -623,6 +534,21 @@ describe("Organization wallet", () => {
       .reply(200, { leases: [], pagination: { next_key: null, total: "0" } });
 
     return { ...context, granted, other };
+  }
+
+  async function setupDeployed(input: { organizationsOn?: boolean; role?: OrganizationRole } = {}) {
+    const context = await setup(input);
+    const restApi = nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL).persist();
+
+    for (const owner of [context.teamWallet.address, context.wallet.address]) {
+      restApi
+        .get(uri => uri.includes("/deployments/info") && uri.includes(owner))
+        .reply(200, createDeploymentInfoSeed({ owner, dseq: "123" }))
+        .get(uri => uri.includes("/leases/list") && uri.includes(owner))
+        .reply(200, { leases: [], pagination: { next_key: null, total: "0" } });
+    }
+
+    return context;
   }
 
   async function requestProviderToken(leases: ReturnType<typeof deploymentLeases>, headers: Record<string, string>, ttl = 1800) {

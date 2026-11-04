@@ -9,7 +9,6 @@ import {
   firstPurchaseBonusRouter,
   getBalancesRouter,
   getWalletListRouter,
-  signAndBroadcastTxRouter,
   stripeCouponsRouter,
   stripePaymentMethodsRouter,
   stripePricesRouter,
@@ -84,7 +83,6 @@ import { validatorsRouter } from "@src/validator";
 export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   getWalletListRouter,
   walletSettingRouter,
-  signAndBroadcastTxRouter,
   stripeWebhook,
   stripePricesRouter,
   stripeCouponsRouter,

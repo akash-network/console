@@ -1,5 +1,3 @@
-import { MsgCloseDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import type { Registry } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import { eq, sql } from "drizzle-orm";
 import fs from "fs";
@@ -14,7 +12,6 @@ import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.reposit
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
-import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import { type ApiPgDatabase, CORE_CONFIG, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -86,15 +83,6 @@ const SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.ym
 const MAX_ACKNOWLEDGED_FORFEIT_USD = 1_000_000;
 
 const templateOf = (team: TeamIds) => ({ id: team.templateId, sdl: SDL, title: "Taken", cpu: 100, ram: 100, storage: 100, isPublic: false });
-
-const closeMessageOf = (team: TeamIds) => {
-  const message = {
-    typeUrl: `/${MsgCloseDeployment.$type}`,
-    value: MsgCloseDeployment.fromPartial({ id: { owner: team.walletAddress, dseq: Number(team.grantedDseq) } })
-  };
-
-  return { typeUrl: message.typeUrl, value: Buffer.from(container.resolve<Registry>(TYPE_REGISTRY).encode(message)).toString("base64") };
-};
 
 const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
   {
@@ -274,12 +262,6 @@ const ROUTES_NAMING_ANOTHER_TEAM: RouteNamingAnotherTeam[] = [
     status: 404,
     ownerStatus: 201,
     request: team => post("/v1/deployments", { sdl: SDL, inheritSecretsFrom: team.grantedDseq })
-  },
-  {
-    route: "POST /v1/tx signing as the team's owner to close its deployment",
-    status: 404,
-    ownerStatus: 200,
-    request: team => post("/v1/tx", { userId: team.ownerUserId, messages: [closeMessageOf(team)] })
   },
   { route: "PATCH /v1/deployments/{dseq}", status: 404, ownerStatus: 200, request: team => patch(`/v1/deployments/${team.grantedDseq}`, { name: "Taken" }) },
   { route: "PUT /v1/deployments/{dseq}", status: 404, ownerStatus: 422, request: team => put(`/v1/deployments/${team.grantedDseq}`, { sdl: SDL }) },

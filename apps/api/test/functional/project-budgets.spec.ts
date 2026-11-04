@@ -1,6 +1,3 @@
-import { generateManifest, generateManifestVersion, yaml } from "@akashnetwork/chain-sdk";
-import { MsgAccountDeposit, Scope, Source } from "@akashnetwork/chain-sdk/private-types/akash.v1";
-import type { EncodeObject, Registry } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import { and, eq } from "drizzle-orm";
 import nock from "nock";
@@ -15,37 +12,37 @@ import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-gener
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { BILLING_CONFIG } from "@src/billing/providers";
-import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { ApiPgDatabase } from "@src/core";
 import { CORE_CONFIG, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
+import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
 import type { ListProjectBudgetsResponse, ProjectBudgetResponse } from "@src/organization/http-schemas/project-budget.schema";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { ProjectBudgetAlert } from "@src/organization/services/project-budget-alert/project-budget-alert.handler";
 import { app } from "@src/rest-app";
 import type { UserOutput } from "@src/user/repositories";
-import { deploymentVersion } from "@src/utils/constants";
 
 import { findDeploymentDepositsOf } from "@test/seeders/db/deployment-deposit.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedProjectMember } from "@test/seeders/db/organization.seeder";
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createDeploymentGrantResponseSeed } from "@test/seeders/deployment-grant-response.seeder";
+import { createDeploymentInfoSeed } from "@test/seeders/deployment-info.seeder";
 import { createDeploymentListResponseSeed } from "@test/seeders/deployment-list-response.seeder";
 import { createFeeAllowanceResponse } from "@test/seeders/fee-allowance-response.seeder";
 import { findJobRows } from "@test/services/job-queue-harness";
 import { WalletTestingService } from "@test/services/wallet-testing.service";
 
-/** 5 AKT priced at $2: every deposit below commits $10. */
-const DEPOSIT_UDENOM = 5_000_000;
+/** 5 AKT priced at $2: every top-up below commits $10. */
+const TOP_UP_AKT = 5;
 const AKT_PRICE_USD = 2;
+const GRANTED_UDENOM = 50_000_000;
 
 const SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
 
 describe("Project budgets", () => {
-  const registry = container.resolve<Registry>(TYPE_REGISTRY);
   const walletService = new WalletTestingService(app);
 
   beforeAll(async () => {
@@ -191,56 +188,58 @@ describe("Project budgets", () => {
     });
   });
 
-  describe("deposits signed for a budgeted project", () => {
+  describe("POST /v1/deployments into a budgeted project", () => {
     it("alerts once when a create crosses the threshold, then refuses the create that would go past the budget", async () => {
-      const { signTx, budgetOn, defaultProject, organizationId, createDeployment } = await setupSigner();
-      await budgetOn(defaultProject.id, { monthlyAmountCents: 1500, alertThresholdPercent: 50 });
+      const { createDeployment, budgetOn, defaultProject, organizationId, createDepositCents } = await setupSigner();
+      await budgetOn(defaultProject.id, { monthlyAmountCents: Math.ceil(createDepositCents * 1.5), alertThresholdPercent: 50 });
 
-      const first = await signTx([await createDeployment()]);
+      const first = await createDeployment();
       const alertsAfterFirst = await alertsFor(defaultProject.id);
-      const second = await signTx([await createDeployment()]);
+      const second = await createDeployment();
 
-      expect(first.status).toBe(200);
+      expect(first.status).toBe(201);
       expect(alertsAfterFirst).toHaveLength(1);
       expect(second.status).toBe(403);
       expect(await second.json()).toMatchObject({ code: "project_budget_exceeded", data: { projectIds: [defaultProject.id] } });
       expect(await alertsFor(defaultProject.id)).toHaveLength(1);
       expect((await findDeploymentDepositsOf(organizationId)).map(({ status, amountCents }) => ({ status, amountCents }))).toEqual([
-        { status: "confirmed", amountCents: 1000 }
+        { status: "confirmed", amountCents: createDepositCents }
       ]);
     });
 
     it("lets only one of two concurrent creates through when the budget fits one", async () => {
-      const { signTx, budgetOn, defaultProject, createDeployment } = await setupSigner();
-      await budgetOn(defaultProject.id, { monthlyAmountCents: 1500 });
+      const { createDeployment, budgetOn, defaultProject, createDepositCents } = await setupSigner();
+      await budgetOn(defaultProject.id, { monthlyAmountCents: Math.ceil(createDepositCents * 1.5) });
 
-      const responses = await Promise.all([signTx([await createDeployment()]), signTx([await createDeployment()])]);
+      const responses = await Promise.all([createDeployment(), createDeployment()]);
 
-      expect(responses.map(({ status }) => status).sort()).toEqual([200, 403]);
+      expect(responses.map(({ status }) => status).sort()).toEqual([201, 403]);
     });
 
+    it("checks nothing while organizations are off for the user", async () => {
+      const { createDeployment, budgetOn, defaultProject, organizationId, createDepositCents } = await setupSigner({ organizationsOn: false });
+      await budgetOn(defaultProject.id, { monthlyAmountCents: Math.floor(createDepositCents / 2) });
+
+      const response = await createDeployment();
+
+      expect(response.status).toBe(201);
+      expect(await alertsFor(defaultProject.id)).toEqual([]);
+      expect(await findDeploymentDepositsOf(organizationId)).toEqual([expect.objectContaining({ status: "confirmed" })]);
+    });
+  });
+
+  describe("POST /v1/deposit-deployment into a budgeted project", () => {
     it("keeps topping up running deployments past the budget unless the budget stops top-ups", async () => {
-      const { signTx, budgetOn, defaultProject, topUp, setStopTopUps } = await setupSigner();
+      const { topUp, budgetOn, defaultProject, setStopTopUps } = await setupSigner();
       const budgetId = await budgetOn(defaultProject.id, { monthlyAmountCents: 500 });
 
-      const whileOff = await signTx([await topUp()]);
+      const whileOff = await topUp();
       await setStopTopUps(budgetId, true);
-      const onceOn = await signTx([await topUp()]);
+      const onceOn = await topUp();
 
       expect(whileOff.status).toBe(200);
       expect(onceOn.status).toBe(403);
       expect(await onceOn.json()).toMatchObject({ code: "project_budget_exceeded" });
-    });
-
-    it("checks nothing while organizations are off for the user", async () => {
-      const { signTx, budgetOn, defaultProject, createDeployment, organizationId } = await setupSigner({ organizationsOn: false });
-      await budgetOn(defaultProject.id, { monthlyAmountCents: 100 });
-
-      const response = await signTx([await createDeployment()]);
-
-      expect(response.status).toBe(200);
-      expect(await alertsFor(defaultProject.id)).toEqual([]);
-      expect(await findDeploymentDepositsOf(organizationId)).toEqual([expect.objectContaining({ status: "confirmed" })]);
     });
   });
 
@@ -319,7 +318,6 @@ describe("Project budgets", () => {
     answerSigner();
     const { user, token, wallet } = await walletService.createUserAndWallet();
     const { organizationId, defaultProject } = await personalOrganizationOf(user.id);
-    const denom = container.resolve(BILLING_CONFIG).DEPLOYMENT_GRANT_DENOM;
 
     vi.spyOn(container.resolve(FeatureFlagsService), "isEnabled").mockImplementation((flag, context) => {
       if (flag === FeatureFlags.ORGANIZATIONS_ENFORCE) return false;
@@ -335,46 +333,19 @@ describe("Project budgets", () => {
       priceChange24h: 0,
       priceChangePercentage24: 0
     });
-    answerChain(wallet.address);
-
-    const createDeployment = async (): Promise<EncodeObject> => {
-      const manifest = generateManifest(yaml.template(SDL));
-      if (!manifest.ok) throw new Error("Failed to generate manifest");
-
-      return {
-        typeUrl: `/akash.deployment.${deploymentVersion}.MsgCreateDeployment`,
-        value: {
-          id: { owner: wallet.address, dseq: BigInt(faker.number.int({ min: 1_000_000, max: 9_000_000 })) },
-          groups: manifest.value.groupSpecs,
-          hash: await generateManifestVersion(manifest.value.groups),
-          deposit: { amount: { denom, amount: String(DEPOSIT_UDENOM) }, sources: [Source.grant] }
-        }
-      };
-    };
-
-    const runningDseq = faker.string.numeric(8);
+    const runningDseq = faker.string.numeric({ length: 8, allowLeadingZeros: false });
     await seedDeploymentSetting({ userId: user.id, organizationId, projectId: defaultProject.id, dseq: runningDseq });
+    answerChain(wallet.address, runningDseq);
 
-    const topUp = async (): Promise<EncodeObject> => ({
-      typeUrl: `/${MsgAccountDeposit.$type}`,
-      value: MsgAccountDeposit.fromPartial({
-        signer: wallet.address,
-        id: { scope: Scope.deployment, xid: `${wallet.address}/${runningDseq}` },
-        deposit: { amount: { denom, amount: String(DEPOSIT_UDENOM) }, sources: [Source.grant] }
-      })
-    });
-
-    const signTx = (messages: EncodeObject[]) =>
-      app.request("/v1/tx", {
+    const request = (requestPath: string, data: Record<string, unknown>) =>
+      app.request(requestPath, {
         method: "POST",
         headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          data: {
-            userId: user.id,
-            messages: messages.map(message => ({ typeUrl: message.typeUrl, value: Buffer.from(registry.encode(message)).toString("base64") }))
-          }
-        })
+        body: JSON.stringify({ data })
       });
+    const createDeployment = () => request("/v1/deployments", { sdl: SDL });
+    const topUp = () => request("/v1/deposit-deployment", { dseq: runningDseq, deposit: TOP_UP_AKT });
+    const createDepositCents = Math.round(container.resolve(DeploymentConfigService).get("DEPLOYMENT_DEFAULT_DEPOSIT") * AKT_PRICE_USD * 100);
 
     const budgetOn = async (projectId: string, settings: { monthlyAmountCents: number; alertThresholdPercent?: number }) => {
       const [budget] = await db
@@ -390,7 +361,7 @@ describe("Project budgets", () => {
       await db.update(budgets).set({ stopTopUps }).where(eq(budgets.id, budgetId));
     };
 
-    return { signTx, budgetOn, setStopTopUps, defaultProject, organizationId, createDeployment, topUp };
+    return { createDeployment, topUp, budgetOn, setStopTopUps, defaultProject, organizationId, createDepositCents };
   }
 
   async function personalOrganizationOf(userId: string) {
@@ -418,18 +389,19 @@ describe("Project budgets", () => {
       .reply(200, { allowances: [createFeeAllowanceResponse()] });
   }
 
-  function answerChain(address: string) {
+  function answerChain(address: string, runningDseq: string) {
     nock(container.resolve(CORE_CONFIG).REST_API_NODE_URL)
       .persist()
       .get(/\/cosmos\/feegrant\/v1beta1\/allowance\/.*\/.*/)
       .reply(200, createFeeAllowanceResponse({ grantee: address, amount: "5000000" }))
       .get(/\/cosmos\/authz\/v1beta1\/grants\?.*/)
-      .reply(
-        200,
-        createDeploymentGrantResponseSeed({ grantee: address, amount: String(DEPOSIT_UDENOM * 10), grantType: "/akash.escrow.v1.DepositAuthorization" })
-      )
+      .reply(200, createDeploymentGrantResponseSeed({ grantee: address, amount: String(GRANTED_UDENOM), grantType: "/akash.escrow.v1.DepositAuthorization" }))
       .get(/\/akash\/deployment\/.*\/deployments\/list\?.*/)
       .reply(200, createDeploymentListResponseSeed({ owner: address }))
+      .get(uri => uri.includes("/deployments/info") && uri.includes(runningDseq))
+      .reply(200, createDeploymentInfoSeed({ owner: address, dseq: runningDseq }))
+      .get(uri => uri.includes("/leases/list"))
+      .reply(200, { leases: [], pagination: { next_key: null, total: "0" } })
       .get("/cosmos/base/tendermint/v1beta1/blocks/latest")
       .reply(200, { block: { header: { height: "1000" } } });
   }

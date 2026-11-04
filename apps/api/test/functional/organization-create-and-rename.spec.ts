@@ -1,7 +1,7 @@
-import { MsgCreateDeployment } from "@akashnetwork/chain-sdk/private-types/akash.v1beta4";
-import type { Registry } from "@cosmjs/proto-signing";
 import { faker } from "@faker-js/faker";
 import { eq } from "drizzle-orm";
+import fs from "node:fs";
+import path from "node:path";
 import { container } from "tsyringe";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
@@ -9,7 +9,6 @@ import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.reposit
 import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { AuthService } from "@src/auth/services/auth.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
-import { TYPE_REGISTRY } from "@src/billing/providers/type-registry.provider";
 import { type ApiPgDatabase, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -20,9 +19,10 @@ import { app } from "@src/rest-app";
 
 import { seedOrganization, seedOrganizationMember, seedOrganizationWithOwner, seedProject } from "@test/seeders/db/organization.seeder";
 
+const SDL = fs.readFileSync(path.resolve(__dirname, "../mocks/hello-world-sdl.yml"), "utf8");
+
 describe("Organization creation and renaming", () => {
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
-  const registry = container.resolve<Registry>(TYPE_REGISTRY);
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -61,14 +61,13 @@ describe("Organization creation and renaming", () => {
     });
 
     it("answers payment required when the new organization spends before it is funded", async () => {
-      const { user, bearer } = await setupCaller({});
+      const { bearer } = await setupCaller({});
       const created = await createOrganization({ authorization: bearer }, { name: "Acme Corp" });
       const { data: organization } = (await created.json()) as { data: { id: string } };
-      const { wallets } = await readOrganizationRows(organization.id);
 
-      const response = await app.request("/v1/tx", {
+      const response = await app.request("/v1/deployments", {
         method: "POST",
-        body: JSON.stringify({ data: { userId: user.id, messages: [createDeploymentMessage(wallets[0].address!)] } }),
+        body: JSON.stringify({ data: { sdl: SDL } }),
         headers: { "Content-Type": "application/json", authorization: bearer, "x-organization-id": organization.id }
       });
 
@@ -382,12 +381,6 @@ describe("Organization creation and renaming", () => {
       .where(eq(resolveTable("UserWallets").organizationId, organizationId));
 
     return { members, projects, wallets };
-  }
-
-  function createDeploymentMessage(owner: string) {
-    const message = { typeUrl: `/${MsgCreateDeployment.$type}`, value: MsgCreateDeployment.fromPartial({ id: { owner, dseq: 123 } }) };
-
-    return { typeUrl: message.typeUrl, value: Buffer.from(registry.encode(message)).toString("base64") };
   }
 
   function signIn(externalUserId: string) {

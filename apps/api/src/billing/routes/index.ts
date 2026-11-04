@@ -1,6 +1,5 @@
 export * from "@src/billing/routes/billing-details/billing-details.router";
 export * from "@src/billing/routes/get-wallet-list/get-wallet-list.router";
-export * from "@src/billing/routes/sign-and-broadcast-tx/sign-and-broadcast-tx.router";
 export * from "@src/billing/routes/stripe-webhook/stripe-webhook.router";
 export * from "@src/billing/routes/stripe-prices/stripe-prices.router";
 export * from "@src/billing/routes/stripe-coupons/stripe-coupons.router";
