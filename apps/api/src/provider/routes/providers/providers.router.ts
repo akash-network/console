@@ -175,6 +175,9 @@ const activeLeasesGraphDataRoute = createRoute({
     },
     400: {
       description: "Invalid address"
+    },
+    503: {
+      description: "Chain data query timed out"
     }
   }
 });

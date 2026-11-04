@@ -2,22 +2,22 @@ import { Block } from "@akashnetwork/database/dbSchemas";
 import { Provider } from "@akashnetwork/database/dbSchemas/akash";
 import { minutesToSeconds } from "date-fns";
 import assert from "http-assert";
-import { Op, QueryTypes, Sequelize } from "sequelize";
-import { inject, singleton } from "tsyringe";
+import { Op } from "sequelize";
+import { singleton } from "tsyringe";
 
 import { cacheResponse } from "@src/caching/helpers";
 import MemoryCacheEngine from "@src/caching/memoryCacheEngine";
-import { CHAIN_DB } from "@src/chain";
+import { BoundedChainQueryService } from "@src/chain/services/bounded-chain-query/bounded-chain-query.service";
 import { ProviderEarningsQuery, ProviderEarningsResponse } from "@src/provider/http-schemas/provider-earnings.schema";
 
 @singleton()
 export class ProviderEarningsService {
-  readonly #chainDb: Sequelize;
+  readonly #boundedChainQuery: BoundedChainQueryService;
 
   readonly #earningsCache = new MemoryCacheEngine({ maxEntries: 500, name: "ProviderEarningsService#getProviderEarnings" });
 
-  constructor(@inject(CHAIN_DB) chainDb: Sequelize) {
-    this.#chainDb = chainDb;
+  constructor(boundedChainQuery: BoundedChainQueryService) {
+    this.#boundedChainQuery = boundedChainQuery;
   }
 
   async getProviderEarnings(owner: string, query: ProviderEarningsQuery): Promise<ProviderEarningsResponse> {
@@ -71,7 +71,7 @@ export class ProviderEarningsService {
   }
 
   async getEarningsAtHeight(provider: string, providerCreatedHeight: number, height: number) {
-    const days = await this.#chainDb.query<{ date: string; aktPrice: number; totalUAkt: number; totalUAct: number }>(
+    const days = await this.#boundedChainQuery.select<{ date: string; aktPrice: number; totalUAkt: number; totalUAct: number }>(
       `/* provider-stats:earnings-at-height */
     WITH provider_leases AS (
       SELECT dseq, price, "createdHeight", "closedHeight","predictedClosedHeight", "denom"
@@ -107,10 +107,7 @@ export class ProviderEarningsService {
     WHERE d."lastBlockHeightYet" >= :providerCreatedHeight AND d."firstBlockHeight" <= :height
     ORDER BY d.date DESC
 `,
-      {
-        type: QueryTypes.SELECT,
-        replacements: { provider, height, providerCreatedHeight }
-      }
+      { provider, height, providerCreatedHeight }
     );
 
     return days.reduce(

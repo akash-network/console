@@ -1,19 +1,18 @@
-import { QueryTypes, Sequelize } from "sequelize";
-import { inject, singleton } from "tsyringe";
+import { singleton } from "tsyringe";
 
-import { CHAIN_DB } from "@src/chain";
+import { BoundedChainQueryService } from "@src/chain/services/bounded-chain-query/bounded-chain-query.service";
 import type { ProviderActiveLeasesStats } from "@src/types/graph";
 
 @singleton()
 export class ProviderStatsService {
-  readonly #chainDb: Sequelize;
+  readonly #boundedChainQuery: BoundedChainQueryService;
 
-  constructor(@inject(CHAIN_DB) chainDb: Sequelize) {
-    this.#chainDb = chainDb;
+  constructor(boundedChainQuery: BoundedChainQueryService) {
+    this.#boundedChainQuery = boundedChainQuery;
   }
 
   async getProviderActiveLeasesGraphData(providerAddress: string) {
-    const result = await this.#chainDb.query<ProviderActiveLeasesStats>(
+    const result = await this.#boundedChainQuery.select<ProviderActiveLeasesStats>(
       `SELECT "date" AS date, COUNT(l."id") AS count
     FROM "day" d
     LEFT JOIN "lease" l
@@ -26,10 +25,7 @@ export class ProviderStatsService {
     WHERE d."lastBlockHeightYet" >= p."createdHeight"
     GROUP BY "date"
     ORDER BY "date" ASC`,
-      {
-        type: QueryTypes.SELECT,
-        replacements: { providerAddress: providerAddress }
-      }
+      { providerAddress: providerAddress }
     );
 
     if (result.length < 2) {
