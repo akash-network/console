@@ -6,6 +6,7 @@ import type { DEPENDENCIES } from "@src/hooks/useSkipOnboarding";
 import { useSkipOnboarding } from "@src/hooks/useSkipOnboarding";
 import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { ErrorHandlerService } from "@src/services/error-handler/error-handler.service";
+import type { FeatureFlag } from "@src/types/feature-flags";
 import { setupQuery } from "../../tests/unit/query-client";
 
 import { act } from "@testing-library/react";
@@ -21,6 +22,26 @@ describe(useSkipOnboarding.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("onboarding_skipped", { category: "onboarding", source: "picker" });
     expect(consoleApiHttpClient.post).toHaveBeenCalledWith("/v1/user/skipOnboarding");
     expect(checkSession).toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith("/new-deployment");
+  });
+
+  it("lands on Projects when the intent-first onboarding and organizations are on", async () => {
+    const { result, push } = setup({ enabledFlags: ["onboarding_intent_first", "organizations"] });
+
+    await act(async () => {
+      await result.current.skip("picker");
+    });
+
+    expect(push).toHaveBeenCalledWith("/projects");
+  });
+
+  it("keeps landing on the new-deployment page while organizations are off", async () => {
+    const { result, push } = setup({ enabledFlags: ["onboarding_intent_first"] });
+
+    await act(async () => {
+      await result.current.skip("picker");
+    });
+
     expect(push).toHaveBeenCalledWith("/new-deployment");
   });
 
@@ -93,6 +114,7 @@ describe(useSkipOnboarding.name, () => {
     checkSessionRejects?: boolean;
     checkSession?: () => Promise<void>;
     refreshedOnboardingSkippedAt?: string | null;
+    enabledFlags?: FeatureFlag[];
   }) {
     const consoleApiHttpClient = mock<AxiosInstance>();
     if (input?.postRejects) consoleApiHttpClient.post.mockRejectedValue(new Error("network error"));
@@ -117,7 +139,9 @@ describe(useSkipOnboarding.name, () => {
       });
     const useRouter: typeof DEPENDENCIES.useRouter = () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push });
 
-    const { result } = setupQuery(() => useSkipOnboarding({ useUser, useRouter }), {
+    const useFlag: typeof DEPENDENCIES.useFlag = flag => !!input?.enabledFlags?.includes(flag);
+
+    const { result } = setupQuery(() => useSkipOnboarding({ useUser, useRouter, useFlag }), {
       services: {
         consoleApiHttpClient: () => consoleApiHttpClient,
         analyticsService: () => analyticsService,

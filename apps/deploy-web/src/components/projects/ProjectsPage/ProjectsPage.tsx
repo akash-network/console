@@ -9,6 +9,7 @@ import { NextSeo } from "next-seo";
 
 import Layout from "@src/components/layout/Layout";
 import { canManageProjects } from "@src/components/organizations/organizationAccess";
+import { GetStartedChecklist } from "@src/components/projects/GetStartedChecklist/GetStartedChecklist";
 import { NotFoundPage } from "@src/components/shared/NotFoundPage/NotFoundPage";
 import { TOUR_TARGET } from "@src/components/whats-new/tourTargets";
 import { useActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
@@ -38,7 +39,8 @@ export const DEPENDENCIES = {
   ProjectFolder,
   ProjectFolderMenu,
   RecentActivityFeed,
-  NewProjectModal
+  NewProjectModal,
+  GetStartedChecklist
 };
 
 interface Props {
@@ -113,6 +115,7 @@ function ProjectsPageContent({ dependencies: d }: Required<Props>) {
 
         <div className="md:min-h-0 md:flex-1 md:overflow-y-auto">
           <div className="container p-4 pb-8 sm:p-6">
+            <d.GetStartedChecklist />
             <div className={styles.split}>
               <div className={styles.content}>
                 <section aria-label="All projects">
