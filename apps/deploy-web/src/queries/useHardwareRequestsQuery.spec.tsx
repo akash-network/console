@@ -2,7 +2,14 @@ import { createProxy } from "@akashnetwork/react-query-proxy";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
-import { useHardwareRequestOffersQuery, useHardwareRequestsQuery, useWithdrawHardwareRequestMutation } from "./useHardwareRequestsQuery";
+import {
+  useAcceptHardwareRequestOfferMutation,
+  useDeclineHardwareRequestOfferMutation,
+  useHardwareRequestOffersQuery,
+  useHardwareRequestsQuery,
+  useRequestHardwareRequestOfferApprovalMutation,
+  useWithdrawHardwareRequestMutation
+} from "./useHardwareRequestsQuery";
 
 import { act, waitFor } from "@testing-library/react";
 import { buildGpuRequestOffer, buildHardwareRequest } from "@tests/seeders/hardwareRequest";
@@ -81,4 +88,35 @@ describe(useWithdrawHardwareRequestMutation.name, () => {
 
     return { result, withdrawHardwareRequest, queryClient };
   }
+});
+
+describe("offer decisions", () => {
+  it.each([
+    ["accept", useAcceptHardwareRequestOfferMutation, "acceptHardwareRequestOffer"],
+    ["decline", useDeclineHardwareRequestOfferMutation, "declineHardwareRequestOffer"]
+  ] as const)("refreshes the requests and their offers after an %s, even when refused", async (_, useDecision, operation) => {
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+    queryClient.setQueryData(REQUESTS_KEY, { data: [] });
+    queryClient.setQueryData(["v1", "listHardwareRequestOffers", { id: "request-1" }], { data: [] });
+    const decide = vi.fn().mockRejectedValue(new Error("expired"));
+    const api = createProxy({ v1: { [operation]: decide, listHardwareRequests: vi.fn(), listHardwareRequestOffers: vi.fn() } }) as unknown as ApiService;
+
+    const { result } = setupQuery(() => useDecision(), { services: { api: () => api, queryClient: () => queryClient } });
+    await act(() => result.current.mutateAsync({ id: "request-1", offerId: "offer-1" }).catch(() => undefined));
+
+    expect(decide).toHaveBeenCalledWith({ id: "request-1", offerId: "offer-1" });
+    expect(queryClient.getQueryState(REQUESTS_KEY)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(["v1", "listHardwareRequestOffers", { id: "request-1" }])?.isInvalidated).toBe(true);
+  });
+
+  it("asks for approval on an offer", async () => {
+    const queryClient = new QueryClient();
+    const requestHardwareRequestOfferApproval = vi.fn().mockResolvedValue({ data: buildGpuRequestOffer() });
+    const api = createProxy({ v1: { requestHardwareRequestOfferApproval } }) as unknown as ApiService;
+
+    const { result } = setupQuery(() => useRequestHardwareRequestOfferApprovalMutation(), { services: { api: () => api, queryClient: () => queryClient } });
+    await act(() => result.current.mutateAsync({ id: "request-1", offerId: "offer-1" }));
+
+    expect(requestHardwareRequestOfferApproval).toHaveBeenCalledWith({ id: "request-1", offerId: "offer-1" });
+  });
 });
