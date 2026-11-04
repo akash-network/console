@@ -1,4 +1,4 @@
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import { useState } from "react";
 import { Button } from "@akashnetwork/ui/components";
 import { format } from "date-fns";
@@ -12,9 +12,10 @@ type Props = {
   spec: HardwareRequest["spec"];
   offers: GpuRequestOffer[];
   now: Date;
+  renderActions?: (offer: GpuRequestOffer, label: string) => ReactNode;
 };
 
-export const GpuOffersTable: FC<Props> = ({ spec, offers, now }) => {
+export const GpuOffersTable: FC<Props> = ({ spec, offers, now, renderActions }) => {
   const [sort, setSort] = useState<OfferSort>("price");
   const attributes = describeOfferAttributes(spec, format(now, "yyyy-MM-dd"));
   const labels = labelOffers(offers);
@@ -61,6 +62,11 @@ export const GpuOffersTable: FC<Props> = ({ spec, offers, now }) => {
                   {attribute.label}
                 </th>
               ))}
+              {renderActions && (
+                <th scope="col" className="px-3 py-2">
+                  <span className="sr-only">Actions</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -73,6 +79,7 @@ export const GpuOffersTable: FC<Props> = ({ spec, offers, now }) => {
                   <OfferCell value={attribute.request} />
                 </td>
               ))}
+              {renderActions && <td />}
             </tr>
             {shown.map(offer => (
               <tr key={offer.id} className="border-b last:border-b-0">
@@ -85,6 +92,7 @@ export const GpuOffersTable: FC<Props> = ({ spec, offers, now }) => {
                     <OfferCell value={attribute.offer(offer)} />
                   </td>
                 ))}
+                {renderActions && <td className="px-3 py-2.5 align-top">{renderActions(offer, labels.get(offer.id)!)}</td>}
               </tr>
             ))}
           </tbody>

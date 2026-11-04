@@ -55,8 +55,8 @@ describe("gpuRequestStatus", () => {
       ["submitted", "Got it. We'll start reviewing your request shortly."],
       ["in_review", "We're reviewing your request. If anything's unclear, we'll reach out by email."],
       ["sourcing", "We're talking to providers who can supply this hardware."],
-      ["offers", "We have offers for you and will email you to go over them."],
-      ["accepted", "You accepted an offer. We're getting it ready with the provider."],
+      ["offers", "We have offers for you. Compare them below and pick the one that fits."],
+      ["accepted", "You accepted an offer. Our team is setting up the deployment with the provider and will email you."],
       ["fulfilled", "Your GPUs are ready."],
       ["withdrawn", "You withdrew this request."],
       ["closed", "This request is closed."]
