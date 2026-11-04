@@ -29,6 +29,10 @@ export const HardwareRequestQueueQuerySchema = z.object({
     .transform(value => value === "true")
     .optional(),
   gpuModel: z.string().trim().min(1).optional(),
+  responseTarget: z
+    .enum(["at_risk", "missed"])
+    .optional()
+    .describe("Open requests whose first reply or first offer is due unmet (missed), or reminded about and not yet due (at risk)"),
   order: z.enum(["newest", "oldest"]).default("newest"),
   limit: z.coerce.number().int().min(1).max(MAX_QUEUE_PAGE_SIZE).default(DEFAULT_QUEUE_PAGE_SIZE),
   offset: z.coerce.number().int().min(0).default(0)
