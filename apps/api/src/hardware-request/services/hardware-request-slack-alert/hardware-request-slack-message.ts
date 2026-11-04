@@ -1,3 +1,9 @@
+import {
+  describeAccount,
+  describeLane,
+  type HardwareRequestAlertContext,
+  salesOwnerOf
+} from "@src/hardware-request/lib/hardware-request-alert-summary/hardware-request-alert-summary";
 import { describeSpec } from "@src/hardware-request/lib/hardware-request-spec-summary/hardware-request-spec-summary";
 import { hardwareRequestTitle } from "@src/hardware-request/lib/hardware-request-title/hardware-request-title";
 import type { HardwareRequestOutput } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
@@ -32,6 +38,13 @@ function quote(text: string | null): string[] {
     .map(line => `> ${line}`);
 }
 
+function describeRouting(hardwareRequest: HardwareRequestOutput, context: HardwareRequestAlertContext): string {
+  const owner = salesOwnerOf(hardwareRequest, context);
+  const mention = owner && (owner.slackUserId ? `<@${owner.slackUserId}>` : escapeSlackText(owner.name));
+
+  return [`*${escapeSlackText(describeLane(hardwareRequest))}*`, mention].filter(Boolean).join(" · ");
+}
+
 function describeSpecLines(hardwareRequest: HardwareRequestOutput): string[] {
   return hardwareRequest.spec ? describeSpec(hardwareRequest.spec).map(line => `• ${escapeSlackText(line)}`) : [];
 }
@@ -58,12 +71,15 @@ function describeLinks(userId: string, links: { amplitudeProjectUrl?: string; ad
 export function buildHardwareRequestSlackMessage(input: {
   hardwareRequest: HardwareRequestOutput;
   requesterEmail: string | null | undefined;
+  context: HardwareRequestAlertContext;
   amplitudeProjectUrl?: string;
   adminUrl?: string;
 }): HardwareRequestSlackMessage {
   const { hardwareRequest } = input;
   const messageLines = [
     `:inbox_tray: *${escapeSlackText(hardwareRequestTitle(hardwareRequest))}*`,
+    describeRouting(hardwareRequest, input.context),
+    escapeSlackText(describeAccount(hardwareRequest, input.context)),
     describeRequester(hardwareRequest, input.requesterEmail),
     ...describeSpecLines(hardwareRequest),
     ...quote(hardwareRequest.details),

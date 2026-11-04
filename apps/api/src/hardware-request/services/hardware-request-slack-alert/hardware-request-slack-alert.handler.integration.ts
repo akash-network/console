@@ -4,12 +4,14 @@ import nock from "nock";
 import { container } from "tsyringe";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
-import { JOB_NAME } from "@src/core";
+import { type ApiPgDatabase, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { HARDWARE_REQUEST_CONFIG, type HardwareRequestConfig } from "@src/hardware-request/providers/config.provider";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { UserRepository } from "@src/user/repositories";
 import { HardwareRequestSlackAlertHandler, HardwareRequestSlackAlertJob } from "./hardware-request-slack-alert.handler";
 
+import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 
 const SLACK_ORIGIN = "https://hooks.slack.test";
@@ -24,6 +26,7 @@ const jobWorkers = useJobWorkers(() => [container.resolve(HardwareRequestSlackAl
 describe(HardwareRequestSlackAlertHandler.name, () => {
   afterEach(() => {
     nock.cleanAll();
+    vi.restoreAllMocks();
   });
 
   it("posts the request, its requester and links to the user, run the way a worker runs it", async () => {
@@ -35,11 +38,42 @@ describe(HardwareRequestSlackAlertHandler.name, () => {
       {
         text: [
           ":inbox_tray: *GPU request: 8× B200*",
+          "*Automated lane · value unknown*",
+          "Trial · via the request form",
           `${user.email} · reply to ${hardwareRequest.contactEmail}`,
           "> Training run for 3 months",
           `<${AMPLITUDE_PROJECT_URL}/search/user_id%3D${user.id}|Amplitude sessions> · <${CONSOLE_ADMIN_URL}/users/${user.id}?tab=hardware-requests|Admin>`
         ].join("\n")
       }
+    ]);
+  });
+
+  it("mentions the sales owner and shows the team's name and card on a sales-lane request", async () => {
+    vi.spyOn(container.resolve(FeatureFlagsService), "getVariantPayload").mockReturnValue(
+      JSON.stringify({ owners: [{ name: "Remington", slackUserId: "U0123", match: { gpuClass: "data_center" } }] })
+    );
+    const { slackPosts, alertFor } = await setup();
+    const { organization, user } = await seedOrganizationWithOwner({ name: "Acme" });
+    await seedCard({ userId: user.id, organizationId: organization.id });
+    const hardwareRequest = await container.resolve(HardwareRequestRepository).create({
+      userId: user.id,
+      organizationId: organization.id,
+      category: "gpu_model",
+      gpuModel: "B200",
+      quantity: 8,
+      contactEmail: faker.internet.email(),
+      source: "gpu_menu",
+      lane: "sales",
+      laneReason: "monthly_value",
+      estimatedMonthlyUsd: 29_200,
+      owner: "Remington"
+    });
+
+    await alertFor(hardwareRequest.id);
+
+    expect(slackPosts[0].text.split("\n").slice(1, 3)).toEqual([
+      "*Sales lane (monthly value) · est. $29,200/month* · <@U0123>",
+      "Acme · Paying · via GPU menu"
     ]);
   });
 
@@ -133,6 +167,13 @@ describe(HardwareRequestSlackAlertHandler.name, () => {
     }
 
     return { user, hardwareRequest, slackPosts, enqueueAlertFor, alertFor };
+  }
+
+  async function seedCard(owner: { userId: string; organizationId: string }) {
+    await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .insert(resolveTable("PaymentMethods"))
+      .values({ ...owner, fingerprint: `fp_${faker.string.alphanumeric(16)}`, paymentMethodId: `pm_${faker.string.alphanumeric(24)}` });
   }
 
   function overrideSlackSettings(settings: SlackSettings) {
