@@ -15,7 +15,9 @@ describe(GpuRequestCard.name, () => {
     });
 
     const card = screen.getByRole("article", { name: "16× H200 · 2 servers" });
-    expect(card).toHaveTextContent("Sent Nov 2, 2026");
+    expect(card).toHaveTextContent(
+      `Sent ${new Date("2026-11-02T12:00:00.000Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+    );
     expect(card).toHaveTextContent("Anywhere · 1 TB NVMe · 6 months · Open to offers");
     expect(card).toHaveTextContent("We're talking to providers who can supply this hardware.");
     expect(
@@ -25,6 +27,18 @@ describe(GpuRequestCard.name, () => {
     ).toEqual(["Submitted (done)", "In review (done)", "Sourcing (current step)", "Offers (not started)", "Accepted (not started)"]);
     expect(within(card).getByRole("listitem", { current: "step" })).toHaveTextContent("Sourcing");
     expect(screen.queryByText("Withdrawn")).not.toBeInTheDocument();
+  });
+
+  it("shows the notes of a quote request under its answers", () => {
+    setup({ spec: buildHardwareRequestSpec(), details: "Need it for a demo on Friday" });
+
+    expect(screen.getByText("Need it for a demo on Friday")).toBeInTheDocument();
+  });
+
+  it("shows no notes line for a quote request without notes", () => {
+    setup({ spec: buildHardwareRequestSpec({ gpu: { model: "A100", count: 1, interconnect: "none" } }), details: null });
+
+    expect(screen.getByRole("article").querySelectorAll("p")).toHaveLength(3);
   });
 
   it("shows a withdrawn request as an end state without a tracker", () => {
