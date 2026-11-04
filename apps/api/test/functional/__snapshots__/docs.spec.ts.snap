@@ -25803,6 +25803,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
+                        "agentSetupCopiedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "bio": {
                           "nullable": true,
                           "type": "string",
@@ -25814,6 +25819,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "boolean",
                         },
                         "fairUsePolicyAcceptedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "getStartedDismissedAt": {
                           "format": "date-time",
                           "nullable": true,
                           "type": "string",
@@ -27288,6 +27298,72 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/user/markAgentSetupCopied": {
+      "post": {
+        "operationId": "markAgentSetupCopied",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "Agent setup copy recorded",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Record that the user copied the agent setup",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
+    "/v1/user/markGetStartedDismissed": {
+      "post": {
+        "operationId": "markGetStartedDismissed",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader",
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader",
+          },
+        ],
+        "responses": {
+          "204": {
+            "description": "Get started checklist dismissed",
+          },
+          "401": {
+            "description": "Unauthorized",
+          },
+        },
+        "security": [
+          {
+            "BearerAuth": [],
+          },
+          {
+            "ApiKeyAuth": [],
+          },
+        ],
+        "summary": "Dismiss the Get started checklist",
+        "tags": [
+          "Users",
+        ],
+      },
+    },
     "/v1/user/me": {
       "get": {
         "parameters": [
@@ -27306,6 +27382,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                   "properties": {
                     "data": {
                       "properties": {
+                        "agentSetupCopiedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
                         "bio": {
                           "nullable": true,
                           "type": "string",
@@ -27322,6 +27403,11 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "type": "boolean",
                         },
                         "fairUsePolicyAcceptedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string",
+                        },
+                        "getStartedDismissedAt": {
                           "format": "date-time",
                           "nullable": true,
                           "type": "string",

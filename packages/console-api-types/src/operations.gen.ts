@@ -114,6 +114,22 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    markGetStartedDismissed: {
+      path: "/v1/user/markGetStartedDismissed",
+      method: "post",
+      operationId: "markGetStartedDismissed",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
+    markAgentSetupCopied: {
+      path: "/v1/user/markAgentSetupCopied",
+      method: "post",
+      operationId: "markAgentSetupCopied",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
     createAccountDeletionRequest: {
       path: "/v1/user/me/initiate-deletion",
       method: "post",

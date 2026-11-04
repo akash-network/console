@@ -273,6 +273,14 @@ export class UserService {
   async acceptFairUsePolicy(userId: string) {
     await this.userRepository.updateBy({ id: userId, fairUsePolicyAcceptedAt: null }, { fairUsePolicyAcceptedAt: new Date() });
   }
+
+  async markGetStartedDismissed(userId: string) {
+    await this.userRepository.updateBy({ id: userId, getStartedDismissedAt: null }, { getStartedDismissedAt: new Date() });
+  }
+
+  async markAgentSetupCopied(userId: string) {
+    await this.userRepository.updateBy({ id: userId, agentSetupCopiedAt: null }, { agentSetupCopiedAt: new Date() });
+  }
 }
 
 function adjustUsername(wantedUsername: string) {

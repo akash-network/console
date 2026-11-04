@@ -743,6 +743,13 @@
       "when": 1793411018835,
       "tag": "0105_payment_credits",
       "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1793752892896,
+      "tag": "0106_get_started_progress",
+      "breakpoints": true
     }
   ]
 }

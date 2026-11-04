@@ -91,4 +91,16 @@ export class UserController {
     const userId = this.authService.currentUser.id;
     await this.userService.acceptFairUsePolicy(userId);
   }
+
+  async markGetStartedDismissed() {
+    assert(this.authService.currentUser?.id, 401);
+    const userId = this.authService.currentUser.id;
+    await this.userService.markGetStartedDismissed(userId);
+  }
+
+  async markAgentSetupCopied() {
+    assert(this.authService.currentUser?.id, 401);
+    const userId = this.authService.currentUser.id;
+    await this.userService.markAgentSetupCopied(userId);
+  }
 }
