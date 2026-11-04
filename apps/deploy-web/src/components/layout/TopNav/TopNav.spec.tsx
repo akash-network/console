@@ -172,6 +172,12 @@ describe(TopNav.name, () => {
       expect(screen.getByRole("button", { name: "Switch organization" }).closest(".hidden")).toBeNull();
     });
 
+    it("leaves organization creation out of the onboarding header's switcher so it only shows to team members", () => {
+      const { organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: true, minimal: true });
+
+      expect(organizationSwitcher.mock.calls[0][0]).toEqual(expect.objectContaining({ onCreateOrganization: undefined }));
+    });
+
     it("keeps the header switcher visible at every width, next to the copy in the mobile menu", () => {
       const { organizationSwitcher } = setup({ isAuthenticated: true, isOrganizationsEnabled: true });
 

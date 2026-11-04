@@ -101,6 +101,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const showNavLinks = isAuthenticated && !minimal;
   const isCommandMenuEnabled = d.useFlag("ui_command_menu");
   const showOrganizationSwitcher = isAuthenticated && !!openCreateOrganization;
+  const createOrganizationFromSwitcher = minimal ? undefined : openCreateOrganization;
 
   return (
     <header ref={headerRef} className={cn("fixed left-0 right-0 top-0 z-50 border-b border-border bg-header", REMOVE_SCROLL_CLASS_NAMES.zeroRight)}>
@@ -152,7 +153,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
 
           {showNavLinks && <d.ActivityBell />}
 
-          {showOrganizationSwitcher && <d.OrganizationSwitcher onCreateOrganization={openCreateOrganization} />}
+          {showOrganizationSwitcher && <d.OrganizationSwitcher onCreateOrganization={createOrganizationFromSwitcher} />}
 
           <div className={cn({ "hidden md:block": showNavLinks })}>
             <d.TopNavAccountMenu minimal={minimal} onCreateOrganization={openCreateOrganization} onOpenWhatsNew={replayWhatsNew} />
