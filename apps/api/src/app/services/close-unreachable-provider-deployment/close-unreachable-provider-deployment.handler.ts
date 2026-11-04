@@ -9,6 +9,7 @@ import { CloseUnreachableProviderDeploymentCommand } from "@src/deployment/comma
 import type { DarkDeployment } from "@src/deployment/lib/dark-deployment/dark-deployment";
 import { DeploymentSettingRepository } from "@src/deployment/repositories/deployment-setting/deployment-setting.repository";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
+import { DeploymentContactsService } from "@src/deployment/services/deployment-contacts/deployment-contacts.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
 import { SystemCloseActivityService } from "@src/deployment/services/system-close-activity/system-close-activity.service";
 import {
@@ -16,6 +17,7 @@ import {
   UnreachableProviderDeploymentsCloserService
 } from "@src/deployment/services/unreachable-provider-deployments-closer/unreachable-provider-deployments-closer.service";
 import { NotificationJob } from "@src/notifications/services/notification-handler/notification.handler";
+import type { UserOutput } from "@src/user/repositories";
 
 /** How long a close the chain is not ready to settle waits before it is tried again. */
 const RETRY_DELAY_MS = minutesToMilliseconds(15);
@@ -42,6 +44,7 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
     private readonly txService: TxService,
     private readonly config: DeploymentConfigService,
     private readonly systemCloseActivityService: SystemCloseActivityService,
+    private readonly deploymentContactsService: DeploymentContactsService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: CloseUnreachableProviderDeploymentHandler.name });
@@ -101,7 +104,8 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
     const filingUserId = wallet.userId ?? setting?.userId;
 
     if (filingUserId) {
-      await this.#recordAndNotify(deployment, { id: wallet.id, userId: filingUserId, organizationId: wallet.organizationId }, { closedByUs });
+      const recipients = await this.deploymentContactsService.findFor({ wallet, filingUserId });
+      await this.#recordAndNotify(deployment, { id: wallet.id, userId: filingUserId, organizationId: wallet.organizationId }, { closedByUs, recipients });
     } else {
       this.logger.warn({ event: "UNREACHABLE_PROVIDER_DEPLOYMENT_CLOSE_UNNOTIFIED", reason: "NO_FILING_USER", dseq, owner });
     }
@@ -123,7 +127,7 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
   async #recordAndNotify(
     deployment: DarkDeployment,
     wallet: { id: number; userId: string; organizationId: string | null },
-    { closedByUs }: { closedByUs: boolean }
+    { closedByUs, recipients }: { closedByUs: boolean; recipients: UserOutput[] }
   ): Promise<void> {
     await this.txService.transaction(async () => {
       await this.deploymentSettingRepository.markClosed({
@@ -133,20 +137,22 @@ export class CloseUnreachableProviderDeploymentHandler implements JobHandler<Clo
         consoleCloseReason: closedByUs ? "provider_unreachable" : undefined
       });
 
-      await this.jobQueueService.enqueue(
-        new NotificationJob({
-          template: "providerUnreachableClosed",
-          userId: wallet.userId,
-          vars: {
-            dseq: deployment.dseq,
-            owner: deployment.owner,
-            hostUri: deployment.hostUri,
-            downForDays: differenceInDays(new Date(), new Date(deployment.downSince)),
-            redeployUrl: `${this.config.get("DEPLOY_WEB_BASE_URL")}/new-deployment`
-          }
-        }),
-        { singletonKey: `notification.providerUnreachableClosed.${deployment.dseq}.${wallet.id}` }
-      );
+      for (const recipient of recipients) {
+        await this.jobQueueService.enqueue(
+          new NotificationJob({
+            template: "providerUnreachableClosed",
+            userId: recipient.id,
+            vars: {
+              dseq: deployment.dseq,
+              owner: deployment.owner,
+              hostUri: deployment.hostUri,
+              downForDays: differenceInDays(new Date(), new Date(deployment.downSince)),
+              redeployUrl: `${this.config.get("DEPLOY_WEB_BASE_URL")}/new-deployment`
+            }
+          }),
+          { singletonKey: `notification.providerUnreachableClosed.${deployment.dseq}.${wallet.id}.${recipient.id}` }
+        );
+      }
     });
   }
 

@@ -22,7 +22,7 @@ describe(providerUnreachableNotification.name, () => {
       deploymentUrl: DEPLOYMENT_URL
     });
 
-    expect(result.notificationId).toBe(`providerUnreachable.${downSince.toISOString()}.654321.akash1owner`);
+    expect(result.notificationId).toBe(`providerUnreachable.${downSince.toISOString()}.654321.akash1owner.user-123`);
     expect(result.payload.summary).toBe("Your Akash deployment's provider is unreachable");
     expect(result.payload.description).toContain("<strong>654321</strong>");
     expect(result.payload.description).toContain("<strong>provider.akash.cmolls.de</strong>");

@@ -173,14 +173,31 @@ export class OrganizationMemberRepository extends OrgScopedRepository<Table, Org
 
   /** Who hears about a team's billing: its owners and billing members, read without an organization context since jobs send it. */
   async findBillingContacts(organizationId: OrganizationMemberOutput["organizationId"]): Promise<UserOutput[]> {
-    const contacts = await this.cursor
+    return await this.#findUsers(and(eq(this.table.organizationId, organizationId), inArray(this.table.role, BILLING_CONTACT_ROLES)));
+  }
+
+  async findOwners(organizationId: OrganizationMemberOutput["organizationId"]): Promise<UserOutput[]> {
+    return await this.#findUsers(and(eq(this.table.organizationId, organizationId), eq(this.table.role, "owner")));
+  }
+
+  async findMemberUser(
+    organizationId: OrganizationMemberOutput["organizationId"],
+    userId: OrganizationMemberOutput["userId"]
+  ): Promise<UserOutput | undefined> {
+    const [user] = await this.#findUsers(and(eq(this.table.organizationId, organizationId), eq(this.table.userId, userId)));
+
+    return user;
+  }
+
+  async #findUsers(where: SQL | undefined): Promise<UserOutput[]> {
+    const members = await this.cursor
       .select({ user: Users })
       .from(this.table)
       .innerJoin(Users, eq(Users.id, this.table.userId))
-      .where(this.whereAccessibleBy(and(eq(this.table.organizationId, organizationId), inArray(this.table.role, BILLING_CONTACT_ROLES))))
+      .where(this.whereAccessibleBy(where))
       .orderBy(asc(this.table.createdAt));
 
-    return contacts.map(({ user }) => user);
+    return members.map(({ user }) => user);
   }
 
   async findActiveMembership(userId: OrganizationMemberOutput["userId"], lookup: OrganizationLookup): Promise<MembershipWithProjectAccess | undefined> {

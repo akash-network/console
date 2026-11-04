@@ -22,6 +22,7 @@ import { CloseUnreachableProviderDeploymentHandler } from "./close-unreachable-p
 import { createAkashAddress, createDeployment, createDeploymentGroup, createLease, createProvider } from "@test/seeders";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
 import { seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { expectJobCompleted, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
 import { interceptNotifications } from "@test/services/notifications-intercept";
 
@@ -41,14 +42,58 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
   });
 
   it("closes a still fully dark deployment, records it and tells the owner", async () => {
-    const { closeUnreachable, awaitClosedNotice, close, findSetting, sentNotifications, deployment } = await setup();
+    const { closeUnreachable, awaitClosedNotice, close, findSetting, sentNotifications, deployment, user } = await setup();
 
     await closeUnreachable();
     await awaitClosedNotice();
 
     expect(close).toHaveBeenCalledWith(expect.objectContaining({ address: deployment.owner }), deployment.dseq, { reason: "provider_unreachable" });
     expect((await findSetting())?.closed).toBe(true);
-    expect(sentNotifications()).toHaveLength(1);
+    expect(sentNotifications().map(({ userId }) => userId)).toEqual([user.id]);
+  });
+
+  it("tells the member who filed a team deployment while they still belong to the team, and nobody else", async () => {
+    const { closeUnreachable, awaitClosedNotice, findClosedNotices, sentNotifications, user } = await setup({ inTeam: true });
+
+    await closeUnreachable();
+    await awaitClosedNotice();
+
+    expect(sentNotifications().map(({ userId }) => userId)).toEqual([user.id]);
+    expect(await findClosedNotices()).toHaveLength(1);
+  });
+
+  it("tells the team's owners instead of a filer who has left the team", async () => {
+    const { closeUnreachable, awaitClosedNotice, findClosedNotices, findSetting, sentNotifications, teamOwners } = await setup({
+      inTeam: true,
+      filerLeftTeam: true
+    });
+    const [owner] = teamOwners;
+
+    await closeUnreachable();
+    await awaitClosedNotice(owner.id);
+
+    expect(sentNotifications().map(({ userId }) => userId)).toEqual([owner.id]);
+    expect(await findClosedNotices()).toHaveLength(1);
+    expect((await findSetting())?.closed).toBe(true);
+  });
+
+  it("tells each owner of a team the filer has left exactly once", async () => {
+    const { closeUnreachable, awaitClosedNotice, findClosedNotices, sentNotifications, teamOwners } = await setup({
+      inTeam: true,
+      filerLeftTeam: true,
+      teamOwnerCount: 2
+    });
+    const ownerIds = teamOwners.map(({ id }) => id);
+
+    await closeUnreachable();
+    for (const ownerId of ownerIds) await awaitClosedNotice(ownerId);
+
+    expect(
+      sentNotifications()
+        .map(({ userId }) => userId)
+        .sort()
+    ).toEqual([...ownerIds].sort());
+    expect(await findClosedNotices()).toHaveLength(ownerIds.length);
   });
 
   it("records the close in the owner's feed as Console's, because the provider stopped responding", async () => {
@@ -165,13 +210,24 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     expect(await findActivities()).toEqual([]);
   });
 
-  async function setup(input: { alsoOnHealthyProvider?: boolean; leaseAlreadyClosed?: boolean; alreadyClosedOnChain?: boolean; inTeam?: boolean } = {}) {
+  async function setup(
+    input: {
+      alsoOnHealthyProvider?: boolean;
+      leaseAlreadyClosed?: boolean;
+      alreadyClosedOnChain?: boolean;
+      inTeam?: boolean;
+      filerLeftTeam?: boolean;
+      teamOwnerCount?: number;
+    } = {}
+  ) {
     const { enqueue, startWorkers } = await jobWorkers();
     const deploymentSettingRepository = container.resolve(DeploymentSettingRepository);
 
     const owner = createAkashAddress();
     const user = await container.resolve(UserRepository).create({ userId: faker.string.uuid(), email: "owner@example.com" });
-    const wallet = input.inTeam ? await seedTeamWalletFiledBy(user.id, owner) : await seedPersonalWallet(user.id, owner);
+    const { wallet, teamOwners } = input.inTeam
+      ? await seedTeamWallet(owner, { memberId: input.filerLeftTeam ? undefined : user.id, ownerCount: input.teamOwnerCount ?? 1 })
+      : { wallet: await seedPersonalWallet(user.id, owner), teamOwners: [] };
 
     const darkProvider = await createProvider();
     const deployment = await createDeployment({ owner, dseq: faker.string.numeric(10) });
@@ -193,18 +249,23 @@ describe(CloseUnreachableProviderDeploymentHandler.name, () => {
     const close = vi.spyOn(container.resolve(DeploymentWriterService), "close").mockResolvedValue(!input.alreadyClosedOnChain);
     const sentNotifications = interceptNotifications();
     const commandKey = UnreachableProviderDeploymentsCloserService.singletonKey({ owner, dseq: deployment.dseq });
-    const noticeKey = `notification.providerUnreachableClosed.${deployment.dseq}.${wallet.id}`;
+    const noticeKeyPrefix = `notification.providerUnreachableClosed.${deployment.dseq}.${wallet.id}`;
+    const findClosedNotices = () => findJobRows(NotificationJob[JOB_NAME], { singletonKeyLike: `${noticeKeyPrefix}.%` });
 
     return {
       deployment,
+      user,
+      teamOwners,
       close,
       sentNotifications,
       findSetting: () => deploymentSettingRepository.findOneBy({ userId: user.id, dseq: deployment.dseq }),
       findActivities: () => container.resolve(ActivityRepository).find({ userId: user.id }),
-      findClosedNotice: async () => (await findJobRows(NotificationJob[JOB_NAME], { singletonKey: noticeKey }))[0],
+      findClosedNotices,
+      findClosedNotice: async () => (await findClosedNotices())[0],
       findPendingCloseJob: async () =>
         (await findJobRows(CloseUnreachableProviderDeploymentCommand[JOB_NAME], { singletonKey: commandKey, state: "created" }))[0],
-      awaitClosedNotice: () => expectJobCompleted(NotificationJob[JOB_NAME], { singletonKey: noticeKey }),
+      awaitClosedNotice: (recipientId: string = user.id) =>
+        expectJobCompleted(NotificationJob[JOB_NAME], { singletonKey: `${noticeKeyPrefix}.${recipientId}` }),
       failNoticeEnqueue: () => {
         const jobQueue = container.resolve(JobQueueService);
         const passThrough = jobQueue.enqueue.bind(jobQueue);
@@ -241,16 +302,27 @@ async function seedPersonalWallet(userId: string, address: string) {
   return wallet;
 }
 
-async function seedTeamWalletFiledBy(memberId: string, address: string) {
-  const { organization } = await seedOrganizationWithOwner();
-  await seedOrganizationMember({ organizationId: organization.id, userId: memberId });
+async function seedTeamWallet(address: string, { memberId, ownerCount }: { memberId?: string; ownerCount: number }) {
+  const { organization, user: firstOwner } = await seedOrganizationWithOwner({ user: { email: faker.internet.email() } });
+  const teamOwners = [firstOwner];
+
+  while (teamOwners.length < ownerCount) {
+    const owner = await seedUser({ email: faker.internet.email() });
+    await seedOrganizationMember({ organizationId: organization.id, userId: owner.id, role: "owner" });
+    teamOwners.push(owner);
+  }
+
+  if (memberId) {
+    await seedOrganizationMember({ organizationId: organization.id, userId: memberId });
+  }
+
   const [wallet] = await container
     .resolve<ApiPgDatabase>(POSTGRES_DB)
     .insert(resolveTable("UserWallets"))
     .values({ userId: null, organizationId: organization.id, address, isTrialing: false })
     .returning();
 
-  return wallet;
+  return { wallet, teamOwners };
 }
 
 async function seedLease(deployment: { id: string; owner: string; dseq: string }, providerAddress: string, gseq: number, closedHeight?: number) {
