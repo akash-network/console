@@ -1,3 +1,4 @@
+import { asc, eq } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -32,6 +33,12 @@ export class HardwareRequestEventRepository extends BaseRepository<Table, Hardwa
 
   async record<T extends HardwareRequestEventType>(event: HardwareRequestEventRecord<T>): Promise<HardwareRequestEventOutput> {
     return await this.create(event);
+  }
+
+  async findOldestFirst(hardwareRequestId: string): Promise<HardwareRequestEventOutput[]> {
+    const rows = await this.cursor.select().from(this.table).where(eq(this.table.hardwareRequestId, hardwareRequestId)).orderBy(asc(this.table.createdAt));
+
+    return this.toOutputList(rows);
   }
 
   protected toOutput(payload: Table["$inferSelect"]): HardwareRequestEventOutput {

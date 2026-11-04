@@ -90,6 +90,14 @@ export class HardwareRequestRepository extends OrgScopedRepository<Table, Hardwa
     return rows.map(row => this.#toQueued(row));
   }
 
+  async findQueuedById(id: string): Promise<QueuedHardwareRequest | undefined> {
+    const [row] = await this.#selectQueued()
+      .where(this.whereAccessibleBy(eq(this.table.id, id)))
+      .limit(1);
+
+    return row && this.#toQueued(row);
+  }
+
   /** A reply is anything the team sent the tenant, which notes and ownership changes are not. */
   #selectQueued() {
     const lastRepliedAt: SQL<Date | null> = sql`(select max(${HardwareRequestEvents.createdAt}) from ${HardwareRequestEvents} where ${HardwareRequestEvents.hardwareRequestId} = ${this.table.id} and ${HardwareRequestEvents.type} in ('status_changed', 'offer_published'))`;
