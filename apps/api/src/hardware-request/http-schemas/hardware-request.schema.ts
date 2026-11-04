@@ -88,7 +88,7 @@ const sharedFields = {
   source: z.enum(hardwareRequestSourceEnum.enumValues).optional()
 };
 
-const HardwareRequestInputSchema = z.discriminatedUnion("category", [
+export const HardwareRequestInputSchema = z.discriminatedUnion("category", [
   z.object({ category: z.literal("gpu_model"), gpuModel: requiredText(MAX_GPU_MODEL_LENGTH), quantity: QuantitySchema, ...sharedFields }),
   z.object({ category: z.literal("capacity"), gpuModel: requiredText(MAX_GPU_MODEL_LENGTH).optional(), quantity: QuantitySchema, ...sharedFields }),
   z.object({ category: z.literal("region"), region: requiredText(MAX_REGION_LENGTH), ...sharedFields }),

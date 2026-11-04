@@ -9,6 +9,7 @@ import {
   hardwareRequestStatusEnum,
   MAX_ACTOR_LENGTH
 } from "@src/hardware-request/model-schemas";
+import { HardwareRequestInputSchema } from "./hardware-request.schema";
 
 const MAX_QUEUE_PAGE_SIZE = 200;
 const MAX_NOTE_LENGTH = 4000;
@@ -81,6 +82,14 @@ export const ChangeHardwareRequestStatusRequestSchema = z.object({
     })
 });
 
+export const CreateHardwareRequestOnBehalfRequestSchema = z.object({
+  data: z.object({
+    actor: ActorSchema,
+    organizationId: z.string().uuid().describe("The organization the request is filed for, in the name of its oldest owner"),
+    request: HardwareRequestInputSchema
+  })
+});
+
 export const AddHardwareRequestNoteRequestSchema = z.object({
   data: z.object({ actor: ActorSchema, text: z.string().trim().min(1).max(MAX_NOTE_LENGTH) })
 });
@@ -96,5 +105,6 @@ export type HardwareRequestQueueResponse = z.infer<typeof HardwareRequestQueueRe
 export type AssignHardwareRequestOwnerRequest = z.infer<typeof AssignHardwareRequestOwnerRequestSchema>;
 export type SwitchHardwareRequestLaneRequest = z.infer<typeof SwitchHardwareRequestLaneRequestSchema>;
 export type ChangeHardwareRequestStatusRequest = z.infer<typeof ChangeHardwareRequestStatusRequestSchema>;
+export type CreateHardwareRequestOnBehalfRequest = z.infer<typeof CreateHardwareRequestOnBehalfRequestSchema>;
 export type AddHardwareRequestNoteRequest = z.infer<typeof AddHardwareRequestNoteRequestSchema>;
 export type HardwareRequestWithTimelineResponse = z.infer<typeof HardwareRequestWithTimelineResponseSchema>;
