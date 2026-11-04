@@ -17,16 +17,12 @@ export class BoundedChainQueryService {
     this.#config = config;
   }
 
-  /** Sets the timeout inside its own transaction so the pooled connection goes back with the database's default. */
+  /** Postgres runs a multi-statement query as one implicit transaction, so the timeout ends with it and a dropped connection is still retried on a fresh one. */
   async select<T extends object>(sql: string, replacements: Record<string, unknown>): Promise<T[]> {
     try {
-      return await this.#chainDb.transaction(async transaction => {
-        await this.#chainDb.query("SET LOCAL statement_timeout = :timeoutMs", {
-          transaction,
-          replacements: { timeoutMs: this.#config.get("BOUNDED_CHAIN_QUERY_TIMEOUT_MS") }
-        });
-
-        return await this.#chainDb.query<T>(sql, { type: QueryTypes.SELECT, replacements, transaction });
+      return await this.#chainDb.query<T>(`SET LOCAL statement_timeout = :boundedChainQueryTimeoutMs; ${sql}`, {
+        type: QueryTypes.SELECT,
+        replacements: { ...replacements, boundedChainQueryTimeoutMs: this.#config.get("BOUNDED_CHAIN_QUERY_TIMEOUT_MS") }
       });
     } catch (error) {
       if (isQueryCanceled(error)) throw createError(503, "Chain data query timed out");
