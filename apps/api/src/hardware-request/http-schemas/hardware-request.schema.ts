@@ -166,11 +166,16 @@ const TenantHardwareRequestOfferSchema = z.object({
   publishedAt: z.string().datetime().nullable()
 }) satisfies z.ZodType<TenantHardwareRequestOffer>;
 
+export const HardwareRequestOfferIdParamsSchema = z.object({ id: z.string().uuid(), offerId: z.string().uuid() });
+
+export const TenantHardwareRequestOfferResponseSchema = z.object({ data: TenantHardwareRequestOfferSchema });
+
 export const ListHardwareRequestOffersResponseSchema = z.object({ data: z.array(TenantHardwareRequestOfferSchema) });
 
 export type HardwareRequestInput = z.infer<typeof HardwareRequestInputSchema>;
 export type CreateHardwareRequestRequest = z.infer<typeof CreateHardwareRequestRequestSchema>;
 export type CreateHardwareRequestResponse = z.infer<typeof CreateHardwareRequestResponseSchema>;
+export type TenantHardwareRequestOfferResponse = z.infer<typeof TenantHardwareRequestOfferResponseSchema>;
 export type ListHardwareRequestOffersResponse = z.infer<typeof ListHardwareRequestOffersResponseSchema>;
 export type HardwareRequestResponse = z.infer<typeof HardwareRequestResponseSchema>;
 export type ListHardwareRequestsResponse = z.infer<typeof ListHardwareRequestsResponseSchema>;

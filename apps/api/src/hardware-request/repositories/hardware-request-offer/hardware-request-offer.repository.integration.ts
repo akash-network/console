@@ -33,6 +33,26 @@ describe(HardwareRequestOfferRepository.name, () => {
     });
   });
 
+  describe("closeOthers", () => {
+    it("closes the request's other open offers and leaves settled ones and other requests alone", async () => {
+      const { repository, hardwareRequest, otherRequest } = await setup();
+      const expiresAt = new Date("2026-12-15T00:00:00.000Z");
+      const [accepted, draft, published, declined, elsewhere] = await Promise.all([
+        repository.create({ ...anOffer(hardwareRequest.id), expiresAt, status: "accepted" }),
+        repository.create({ ...anOffer(hardwareRequest.id), expiresAt, status: "draft" }),
+        repository.create({ ...anOffer(hardwareRequest.id), expiresAt, status: "published" }),
+        repository.create({ ...anOffer(hardwareRequest.id), expiresAt, status: "declined" }),
+        repository.create({ ...anOffer(otherRequest.id), expiresAt, status: "published" })
+      ]);
+
+      await repository.closeOthers(hardwareRequest.id, accepted.id);
+
+      const statuses = Object.fromEntries((await repository.findOldestFirst(hardwareRequest.id)).map(offer => [offer.id, offer.status]));
+      expect(statuses).toEqual({ [accepted.id]: "accepted", [draft.id]: "closed", [published.id]: "closed", [declined.id]: "declined" });
+      expect(await repository.findById(elsewhere.id)).toMatchObject({ status: "published" });
+    });
+  });
+
   function anOffer(hardwareRequestId: string) {
     return { hardwareRequestId, providerAddress: "akash1provider", providerAudited: true, providerUptime7d: 0.99, usdPerGpuHour: 2.4, terms: TERMS };
   }

@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -33,6 +33,14 @@ export class HardwareRequestOfferRepository extends BaseRepository<Table, Hardwa
     const rows = await this.cursor.select().from(this.table).where(eq(this.table.hardwareRequestId, hardwareRequestId)).orderBy(asc(this.table.createdAt));
 
     return this.toOutputList(rows);
+  }
+
+  /** Closes every other offer still open on the request, once one of its offers is accepted. */
+  async closeOthers(hardwareRequestId: string, acceptedOfferId: string): Promise<void> {
+    await this.updateWhere(
+      and(eq(this.table.hardwareRequestId, hardwareRequestId), ne(this.table.id, acceptedOfferId), inArray(this.table.status, ["draft", "published"])),
+      { status: "closed", updatedAt: new Date() }
+    );
   }
 
   protected toOutput(row: Row): HardwareRequestOfferOutput {
