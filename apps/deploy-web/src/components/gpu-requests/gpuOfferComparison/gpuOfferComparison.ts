@@ -1,4 +1,5 @@
 import type { paths } from "@akashnetwork/console-api-types";
+import { addDays, format } from "date-fns";
 
 import { TERMS } from "../gpuQuoteDraft/gpuQuoteCatalog";
 import type { HardwareRequest } from "../gpuRequestStatus/gpuRequestStatus";
@@ -31,6 +32,8 @@ const INTERCONNECT_LABELS: Record<Interconnect, string> = { none: "None", server
 const INTERCONNECT_RANKS: Record<Interconnect, number> = { none: 0, server: 1, cluster: 2 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+const MAX_ASAP_LEAD_DAYS = 7;
 
 const usd = (amount: number) => `$${amount.toFixed(2)}`;
 
@@ -107,7 +110,7 @@ export function describeOfferAttributes(spec: RequestSpec | null, today: string)
       request: { main: spec ? describeStart(spec.start) : "—" },
       offer: ({ terms: { availableFrom } }) => ({
         main: availableFrom <= today ? "Now" : formatDate(availableFrom),
-        mismatch: spec?.start.kind === "date" && availableFrom > spec.start.date ? "After your start date" : undefined
+        mismatch: availabilityMismatch(availableFrom, spec, today)
       })
     },
     {
@@ -170,6 +173,14 @@ export function describeOfferAttributes(spec: RequestSpec | null, today: string)
 function priceMismatch(offer: GpuRequestOffer, spec: RequestSpec | null): string | undefined {
   const max = spec?.targetPrice?.maxUsdPerGpuHour;
   return max && offer.usdPerGpuHour > max ? `${usd(offer.usdPerGpuHour - max)} over your range` : undefined;
+}
+
+function availabilityMismatch(availableFrom: string, spec: RequestSpec | null, today: string): string | undefined {
+  if (spec?.start.kind === "date") return availableFrom > spec.start.date ? "After your start date" : undefined;
+  if (spec?.start.kind !== "asap") return undefined;
+
+  const latestAsapDate = format(addDays(new Date(`${today}T00:00:00`), MAX_ASAP_LEAD_DAYS), "yyyy-MM-dd");
+  return availableFrom > latestAsapDate ? `More than ${MAX_ASAP_LEAD_DAYS} days away` : undefined;
 }
 
 function gpuMismatch({ terms: { gpu } }: GpuRequestOffer, spec: RequestSpec | null): string | undefined {

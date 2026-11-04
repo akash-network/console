@@ -9,7 +9,7 @@ const MAX_CONTACT_FIELD_LENGTH = 100;
 const MAX_NOTES_LENGTH = 2000;
 
 export function RegionField({ draft, onChange, asksUplink }: DraftFieldProps & { asksUplink: boolean }) {
-  const areasLabel = draft.regionMode === "only" ? "Where can they run?" : "Where can't they run?";
+  const areasLabel = draft.regionMode === "only" ? "Regions to run in" : "Regions to leave out";
 
   return (
     <div className="flex flex-col gap-6">
@@ -139,6 +139,8 @@ function PriceInput({ id, label, value, onChange }: { id: string; label: string;
       inputMode="decimal"
       placeholder="0.00"
       startIcon={<span className="text-sm text-muted-foreground">$</span>}
+      startIconClassName="pl-3"
+      inputClassName="pl-7"
       value={value}
       onChange={event => onChange(event.target.value.replace(/[^0-9.]/g, ""))}
     />

@@ -50,51 +50,53 @@ export const GpuOffersTable: FC<Props> = ({ spec, offers, now, renderActions }) 
         )}
       </div>
       <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[72rem] border-collapse text-left text-sm">
+        <table className="w-full border-collapse text-left text-sm">
           <caption className="sr-only">Offers compared with your request</caption>
           <thead>
             <tr className="border-b">
-              <th scope="col" className="px-3 py-2 font-mono text-xs font-normal uppercase tracking-wider text-muted-foreground">
-                Offer
+              <th scope="col" className="w-40 px-3 py-2.5">
+                <span className="sr-only">Compared on</span>
               </th>
-              {attributes.map(attribute => (
-                <th key={attribute.id} scope="col" className="px-3 py-2 font-mono text-xs font-normal uppercase tracking-wider text-muted-foreground">
-                  {attribute.label}
-                </th>
-              ))}
-              {renderActions && (
-                <th scope="col" className="px-3 py-2">
-                  <span className="sr-only">Actions</span>
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-b bg-muted/50 text-muted-foreground">
-              <th scope="row" className="px-3 py-2.5 align-top font-semibold">
+              <th scope="col" className="min-w-[12rem] bg-muted/50 px-3 py-2.5 align-top font-semibold text-muted-foreground">
                 Your request
               </th>
-              {attributes.map(attribute => (
-                <td key={attribute.id} className="px-3 py-2.5 align-top">
-                  <OfferCell value={attribute.request} />
-                </td>
-              ))}
-              {renderActions && <td />}
-            </tr>
-            {shown.map(offer => (
-              <tr key={offer.id} className="border-b last:border-b-0">
-                <th scope="row" className="px-3 py-2.5 align-top">
+              {shown.map(offer => (
+                <th key={offer.id} scope="col" className="min-w-[12rem] px-3 py-2.5 align-top">
                   <span className="block font-semibold">{labels.get(offer.id)}</span>
                   <span className="block text-xs font-normal text-muted-foreground">{describeOfferState(offer, now)}</span>
                 </th>
-                {attributes.map(attribute => (
-                  <td key={attribute.id} className="px-3 py-2.5 align-top">
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {attributes.map(attribute => (
+              <tr key={attribute.id} className="border-b last:border-b-0">
+                <th scope="row" className="whitespace-nowrap px-3 py-2 align-top font-mono text-xs font-normal uppercase tracking-wider text-muted-foreground">
+                  {attribute.label}
+                </th>
+                <td className="bg-muted/50 px-3 py-2 align-top text-muted-foreground">
+                  <OfferCell value={attribute.request} />
+                </td>
+                {shown.map(offer => (
+                  <td key={offer.id} className="px-3 py-2 align-top">
                     <OfferCell value={attribute.offer(offer)} />
                   </td>
                 ))}
-                {renderActions && <td className="px-3 py-2.5 align-top">{renderActions(offer, labels.get(offer.id)!)}</td>}
               </tr>
             ))}
+            {renderActions && (
+              <tr>
+                <th scope="row" className="px-3 py-2.5">
+                  <span className="sr-only">Actions</span>
+                </th>
+                <td className="bg-muted/50" />
+                {shown.map(offer => (
+                  <td key={offer.id} className="px-3 py-2.5 align-top">
+                    {renderActions(offer, labels.get(offer.id)!)}
+                  </td>
+                ))}
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

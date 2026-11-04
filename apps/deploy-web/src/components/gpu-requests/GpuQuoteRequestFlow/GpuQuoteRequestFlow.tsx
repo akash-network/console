@@ -102,8 +102,8 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
   const { enqueueSnackbar } = d.useSnackbar();
   const queryClient = useQueryClient();
   const createHardwareRequest = api.v1.createHardwareRequest.useMutation({ meta: SKIP_REPORTING_REQUEST_LIMIT });
-  const configurationPoint = configuration && configurationStartingPoint(configuration.hardware);
-  const configurationKey = configuration && JSON.stringify(configuration.hardware);
+  const configurationPoint = configuration && configurationStartingPoint(configuration.hardware, configuration.summary.summary);
+  const configurationKey = configuration && JSON.stringify([configuration.hardware, configuration.summary.summary]);
   const startingPoints = [...(configurationPoint ? [configurationPoint] : []), ...STARTER_PACKAGES, CUSTOM_STARTING_POINT];
   const [draft, setDraft] = useState(() => createInitialDraft({ email: user?.email ?? "", configurationPoint, initialAnswers }));
   const questionId = useId();
@@ -128,7 +128,8 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
   useEffect(
     function followConfigurationEdits() {
       if (!configurationKey) return;
-      const editedPoint = configurationStartingPoint(JSON.parse(configurationKey));
+      const [hardware, summary] = JSON.parse(configurationKey);
+      const editedPoint = configurationStartingPoint(hardware, summary);
       setDraft(current => (current.startingPoint === editedPoint.id ? applyStartingPoint(current, editedPoint) : current));
     },
     [configurationKey]

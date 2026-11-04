@@ -122,7 +122,7 @@ describe("gpuOfferComparison", () => {
       });
       const offer = buildGpuRequestOffer({
         usdPerGpuHour: 9,
-        terms: buildGpuRequestOfferTerms({ gpu: { model: "H100", count: 4, interconnect: "none" }, availableFrom: "2026-12-01", sla: null, uplinkGbps: null })
+        terms: buildGpuRequestOfferTerms({ gpu: { model: "H100", count: 4, interconnect: "none" }, availableFrom: "2026-11-11", sla: null, uplinkGbps: null })
       });
 
       expect(compare(spec, offer).filter(attribute => attribute.offer.mismatch)).toEqual([]);
@@ -130,7 +130,21 @@ describe("gpuOfferComparison", () => {
       expect(requestOf(spec, "Internet")).toBe("No preference");
       expect(requestOf(spec, "Storage per server")).toBe("None");
       expect(requestOf(spec, "Available")).toBe("As soon as possible");
-      expect(valueOf(spec, offer, "Available").main).toBe("Dec 1");
+      expect(valueOf(spec, offer, "Available").main).toBe("Nov 11");
+    });
+
+    it("flags hardware more than a week away when the request wants it as soon as possible", () => {
+      const spec = buildHardwareRequestSpec({ start: { kind: "asap" } });
+      const offer = buildGpuRequestOffer({ terms: buildGpuRequestOfferTerms({ availableFrom: "2026-11-12" }) });
+
+      expect(valueOf(spec, offer, "Available")).toEqual({ main: "Nov 12", mismatch: "More than 7 days away" });
+    });
+
+    it("never flags the availability of a request with a flexible start", () => {
+      const spec = buildHardwareRequestSpec({ start: { kind: "flexible" } });
+      const offer = buildGpuRequestOffer({ terms: buildGpuRequestOfferTerms({ availableFrom: "2027-06-01" }) });
+
+      expect(valueOf(spec, offer, "Available").mismatch).toBeUndefined();
     });
 
     it("shows hardware that is ready by today as available now", () => {

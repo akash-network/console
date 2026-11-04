@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { GpuQuoteDraft } from "./gpuQuoteDraft";
+import type { GpuQuoteDraft, StartingPoint } from "./gpuQuoteDraft";
 import {
   answersForGpuModel,
   applyStartingPoint,
@@ -23,6 +23,7 @@ import {
 } from "./gpuQuoteDraft";
 
 const TODAY = "2026-11-04";
+const SUMMARY = "1 vCPU · 1 GiB memory · 1 GiB storage";
 
 describe("gpuQuoteDraft", () => {
   describe(snapGpuCount.name, () => {
@@ -49,46 +50,65 @@ describe("gpuQuoteDraft", () => {
 
   describe(configurationStartingPoint.name, () => {
     it("answers the GPU, storage and region the configuration asks for", () => {
-      const startingPoint = configurationStartingPoint({
-        gpuCount: 3,
-        gpuModels: ["h100", "a100"],
-        storageBytes: 1.5 * 1024 ** 4,
-        regions: ["us-east", "eu-central"]
-      });
+      const startingPoint = configurationStartingPoint(
+        {
+          gpuCount: 3,
+          gpuModels: ["h100", "a100"],
+          storageBytes: 1.5 * 1024 ** 4,
+          regions: ["us-east", "eu-central"]
+        },
+        "8 vCPU · 3× H100 · 64 GiB memory · 1.5 TiB storage"
+      );
 
       expect(startingPoint).toEqual({
         id: "configuration",
         name: "Your configuration",
         use: "What you set up on the Configure page",
+        detail: "8 vCPU · 3× H100 · 64 GiB memory · 1.5 TiB storage",
         answers: { gpuCount: 4, gpuModel: "h100", otherGpuModel: "", storageTbPerNode: 2, regionMode: "only", areas: ["us", "eu"] }
       });
     });
 
     it("keeps a model the catalog doesn't list as free text", () => {
-      const { answers } = configurationStartingPoint({ gpuCount: 1, gpuModels: ["gaudi3"], storageBytes: 0, regions: [] });
+      const { answers } = configurationStartingPoint({ gpuCount: 1, gpuModels: ["gaudi3"], storageBytes: 0, regions: [] }, SUMMARY);
 
-      expect(answers).toEqual({ gpuCount: 1, gpuModel: "other", otherGpuModel: "gaudi3", storageTbPerNode: 1 });
+      expect(answers).toEqual({ gpuCount: 1, gpuModel: "other", otherGpuModel: "gaudi3" });
     });
 
     it("matches a variant of a catalog model to that model", () => {
-      const { answers } = configurationStartingPoint({ gpuCount: 1, gpuModels: ["RTX-5090"], storageBytes: 0, regions: [] });
+      const { answers } = configurationStartingPoint({ gpuCount: 1, gpuModels: ["RTX-5090"], storageBytes: 0, regions: [] }, SUMMARY);
 
       expect(answers.gpuModel).toBe("rtx5090");
     });
 
     it("leaves the GPU open when the configuration has no GPU", () => {
-      const { answers } = configurationStartingPoint({ gpuCount: 0, gpuModels: [], storageBytes: 0, regions: [] });
+      const { answers } = configurationStartingPoint({ gpuCount: 0, gpuModels: [], storageBytes: 2 * 1024 ** 4, regions: [] }, SUMMARY);
 
-      expect(answers).toEqual({ storageTbPerNode: 1 });
+      expect(answers).toEqual({ storageTbPerNode: 2 });
+    });
+
+    it.each([0, 10 * 1024 ** 3, 1024 ** 4 - 1])("leaves the storage question open for %i bytes, less than a terabyte", storageBytes => {
+      const { answers } = configurationStartingPoint({ gpuCount: 1, gpuModels: ["h100"], storageBytes, regions: [] }, SUMMARY);
+
+      expect(answers).not.toHaveProperty("storageTbPerNode");
+    });
+
+    it("answers one terabyte for exactly one terabyte of storage", () => {
+      const { answers } = configurationStartingPoint({ gpuCount: 1, gpuModels: ["h100"], storageBytes: 1024 ** 4, regions: [] }, SUMMARY);
+
+      expect(answers.storageTbPerNode).toBe(1);
     });
 
     it("maps each provider region to its area once and skips unknown ones", () => {
-      const { answers } = configurationStartingPoint({
-        gpuCount: 0,
-        gpuModels: [],
-        storageBytes: 0,
-        regions: ["US-West", "na-ca-east", "uk-south", "ap-northeast", "as-southeast", "me-central", "sa-east", "moon-base", "us-east"]
-      });
+      const { answers } = configurationStartingPoint(
+        {
+          gpuCount: 0,
+          gpuModels: [],
+          storageBytes: 0,
+          regions: ["US-West", "na-ca-east", "uk-south", "ap-northeast", "as-southeast", "me-central", "sa-east", "moon-base", "us-east"]
+        },
+        SUMMARY
+      );
 
       expect(answers.areas).toEqual(["us", "ca", "uk", "apac", "me", "latam"]);
     });
@@ -476,14 +496,19 @@ describe("gpuQuoteDraft", () => {
       ]);
     });
 
-    it("names the configuration's GPU, storage and regions", () => {
-      const startingPoint = configurationStartingPoint({ gpuCount: 2, gpuModels: ["gaudi3"], storageBytes: 0, regions: ["eu-west", "us-east"] });
+    it("describes the configuration by what was set up, rather than by the answers it fills in", () => {
+      const startingPoint = configurationStartingPoint(
+        { gpuCount: 0, gpuModels: [], storageBytes: 10 * 1024 ** 3, regions: [] },
+        "384 vCPU · 512 GiB memory · 10 GiB storage"
+      );
 
-      expect(describeStartingPoint(startingPoint)).toBe("2× gaudi3 · 1 TB · United States, Europe");
+      expect(describeStartingPoint(startingPoint)).toBe("384 vCPU · 512 GiB memory · 10 GiB storage");
     });
 
-    it("says any GPU when the configuration names no model, and nothing for custom", () => {
-      expect(describeStartingPoint(configurationStartingPoint({ gpuCount: 1, gpuModels: [], storageBytes: 0, regions: [] }))).toBe("1× any GPU · 1 TB");
+    it("names the answered GPU count, storage and regions, saying any GPU without a model, and nothing for custom", () => {
+      const startingPoint = { ...CUSTOM_STARTING_POINT, answers: { gpuCount: 2, storageTbPerNode: 1, areas: ["eu", "us"] } } satisfies StartingPoint;
+
+      expect(describeStartingPoint(startingPoint)).toBe("2× any GPU · 1 TB · United States, Europe");
       expect(describeStartingPoint(CUSTOM_STARTING_POINT)).toBe("");
     });
   });

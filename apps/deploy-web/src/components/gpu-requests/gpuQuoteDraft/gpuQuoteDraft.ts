@@ -52,7 +52,7 @@ export type DraftAnswers = Partial<
   >
 >;
 
-export type StartingPoint = { id: StartingPointId; name: string; use: string; answers: DraftAnswers };
+export type StartingPoint = { id: StartingPointId; name: string; use: string; answers: DraftAnswers; detail?: string };
 
 export const STARTER_PACKAGES: StartingPoint[] = [
   {
@@ -145,17 +145,19 @@ export function isWholeNodes(gpuCount: number): boolean {
   return gpuCount >= GPUS_PER_NODE;
 }
 
-export function configurationStartingPoint(hardware: ConfigurationHardware): StartingPoint {
+/** Storage is asked in whole terabytes, so a configuration with less than one leaves the storage question to the user. */
+export function configurationStartingPoint(hardware: ConfigurationHardware, summary: string): StartingPoint {
   const areas = [...new Set(hardware.regions.flatMap(region => areaOfRegion(region) ?? []))];
 
   return {
     id: "configuration",
     name: "Your configuration",
     use: "What you set up on the Configure page",
+    detail: summary,
     answers: {
       ...(hardware.gpuCount > 0 ? { gpuCount: snapGpuCount(hardware.gpuCount) } : {}),
       ...(hardware.gpuModels.length > 0 ? gpuModelAnswers(hardware.gpuModels[0]) : {}),
-      storageTbPerNode: Math.max(1, Math.ceil(hardware.storageBytes / BYTES_PER_TB)),
+      ...(hardware.storageBytes >= BYTES_PER_TB ? { storageTbPerNode: Math.ceil(hardware.storageBytes / BYTES_PER_TB) } : {}),
       ...(areas.length > 0 ? { regionMode: "only", areas } : {})
     }
   };
@@ -285,8 +287,10 @@ export function describeReviewLines(draft: GpuQuoteDraft): ReviewLine[] {
   return lines.filter((line): line is ReviewLine => line !== false);
 }
 
-/** The card line for a starting point, naming only what it answers. */
-export function describeStartingPoint({ answers }: StartingPoint): string {
+/** The card line for a starting point, naming only what it answers unless it describes itself. */
+export function describeStartingPoint({ answers, detail }: StartingPoint): string {
+  if (detail) return detail;
+
   const model = answers.gpuModel === undefined ? "any GPU" : describeGpuModel({ gpuModel: answers.gpuModel, otherGpuModel: answers.otherGpuModel ?? "" });
   const interconnectNames: Record<Interconnect, string> = { none: "PCIe only", server: "Linked in each server", cluster: "Linked across servers" };
 

@@ -38,7 +38,7 @@ export const GpuOfferActions: FC<Props> = ({ requestId, offer, label, decisions,
     );
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       {decisions.canAccept && (
         <Button type="button" size="sm" aria-label={`Accept ${label}`} onClick={() => setDecision("accept")}>
           Accept
