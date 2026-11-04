@@ -926,6 +926,52 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
   });
 
+  describe("when auto reload is turned off or the team deleted after the check read them", () => {
+    it("charges nothing once auto reload was turned off", async () => {
+      const { handler, walletSettingRepository, walletSetting, stripeTransactionService, instrumentationService, job, jobMeta } = setup({ balance: 10.0 });
+      walletSettingRepository.findById.mockResolvedValue({ ...walletSetting, autoReloadEnabled: false });
+
+      await handler.handle(job, jobMeta);
+
+      expect(walletSettingRepository.findById).toHaveBeenCalledWith(walletSetting.id);
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
+      expect(instrumentationService.recordReloadSkipped).toHaveBeenCalledWith(expect.objectContaining({ reason: "no_longer_chargeable" }));
+    });
+
+    it("charges nothing once the wallet's setting is gone", async () => {
+      const { handler, walletSettingRepository, stripeTransactionService, job, jobMeta } = setup({ balance: 10.0 });
+      walletSettingRepository.findById.mockResolvedValue(undefined);
+
+      await handler.handle(job, jobMeta);
+
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
+    });
+
+    it("charges nothing once the team was deleted", async () => {
+      const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
+      const wallet = createOrganizationWallet({ organizationId: team.id });
+      const { handler, organizationRepository, stripeTransactionService, instrumentationService, jobMeta } = setup({ balance: 10.0, wallet, team });
+      organizationRepository.findById.mockResolvedValueOnce(team).mockResolvedValue({ ...team, deletedAt: new Date() });
+
+      await handler.handle({ walletId: wallet.id, version: 1 }, jobMeta);
+
+      expect(organizationRepository.findById).toHaveBeenLastCalledWith(team.id);
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
+      expect(instrumentationService.recordReloadSkipped).toHaveBeenCalledWith(expect.objectContaining({ reason: "no_longer_chargeable" }));
+    });
+
+    it("charges nothing once the team is gone", async () => {
+      const team = createOrganization({ type: "team", stripeCustomerId: "cus_team" });
+      const wallet = createOrganizationWallet({ organizationId: team.id });
+      const { handler, organizationRepository, stripeTransactionService, jobMeta } = setup({ balance: 10.0, wallet, team });
+      organizationRepository.findById.mockResolvedValueOnce(team).mockResolvedValue(undefined);
+
+      await handler.handle({ walletId: wallet.id, version: 1 }, jobMeta);
+
+      expect(stripeTransactionService.createPaymentIntent).not.toHaveBeenCalled();
+    });
+  });
+
   describe("when a charge goes through", () => {
     it("clears the declines the card had accumulated", async () => {
       const { handler, walletSettingRepository, walletSetting, job, jobMeta } = setup({ balance: 10.0, autoReloadFailureCount: 2 });
@@ -1051,6 +1097,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
 
     const walletSettingRepository = mock<WalletSettingRepository>();
     const claim = { id: walletSetting.id, claimedAt: "2026-09-01 12:00:00" };
+    walletSettingRepository.findById.mockResolvedValue(walletSetting);
     walletSettingRepository.claimForCharge.mockResolvedValue(
       input?.chargeClaimWon === false ? { won: false, secondsUntilWindowReopen: input?.secondsUntilWindowReopen ?? 0 } : { won: true, claim }
     );

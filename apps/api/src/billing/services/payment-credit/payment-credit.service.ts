@@ -45,7 +45,7 @@ export class PaymentCreditService {
   }
 
   async creditOnce({ transactionId, wallet, amountCents, bonusCents }: PaymentCredit): Promise<void> {
-    if (await this.#hasLanded(transactionId)) {
+    if (await this.hasLanded(transactionId)) {
       this.logger.info({ event: "PAYMENT_CREDIT_ALREADY_LANDED", transactionId });
       return;
     }
@@ -82,8 +82,8 @@ export class PaymentCreditService {
     }
   }
 
-  /** A credit an earlier attempt left pending is looked up by its hash; while it may still land, the retry is refused rather than granted twice. */
-  async #hasLanded(transactionId: string): Promise<boolean> {
+  /** Settles a credit an earlier attempt left pending by its hash, and refuses to answer while that credit may still land. */
+  async hasLanded(transactionId: string): Promise<boolean> {
     const credit = await this.paymentCreditRepository.findByTransactionId(transactionId);
 
     if (!credit) return false;

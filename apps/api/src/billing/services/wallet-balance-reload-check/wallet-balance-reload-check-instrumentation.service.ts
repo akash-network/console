@@ -107,7 +107,9 @@ export class WalletBalanceReloadCheckInstrumentationService {
     });
   }
 
-  recordReloadSkipped(input: ReloadMetricInput & { reason: "zero_cost" | "sufficient_balance" | "no_active_deployments" | "charge_rate_limited" }): void {
+  recordReloadSkipped(
+    input: ReloadMetricInput & { reason: "zero_cost" | "sufficient_balance" | "no_active_deployments" | "charge_rate_limited" | "no_longer_chargeable" }
+  ): void {
     this.reloadsSkipped.add(1, {
       mode: input.mode,
       triggered_by_deployment: String(input.triggeredByDeployment),

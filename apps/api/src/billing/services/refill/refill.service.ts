@@ -14,6 +14,8 @@ import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.p
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 
+export const ORGANIZATION_DELETED_ERROR_CODE = "organization_deleted";
+
 export interface PaymentAnalyticsContext {
   currency?: string;
   cardBrand?: string;
@@ -203,7 +205,7 @@ export class RefillService {
   async #assertTeamNotDeleted(organizationId: string): Promise<void> {
     const team = await this.organizationRepository.findById(organizationId);
 
-    assert(!team?.deletedAt, 409, "The team organization was deleted, so its wallet takes no more credits", { errorCode: "organization_deleted" });
+    assert(!team?.deletedAt, 409, "The team organization was deleted, so its wallet takes no more credits", { errorCode: ORGANIZATION_DELETED_ERROR_CODE });
   }
 
   /**

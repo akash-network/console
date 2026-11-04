@@ -17,11 +17,13 @@ import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories";
 
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
+import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { findJobRows } from "@test/services/job-queue-harness";
 
 describe("Stripe webhook", () => {
   const userWalletsTable = resolveTable("UserWallets");
   const stripeTransactionsTable = resolveTable("StripeTransactions");
+  const paymentCreditsTable = resolveTable("PaymentCredits");
   const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
   const userWalletsQuery = db.query.UserWallets;
   const stripeTransactionRepository = container.resolve(StripeTransactionRepository);
@@ -611,6 +613,57 @@ describe("Stripe webhook", () => {
       });
     });
 
+    describe("when the team that paid was deleted before the payment was credited", () => {
+      it("refunds the payment once however often Stripe delivers its success", async () => {
+        const { transaction, payload, refundRequests } = await seedDeletedTeamPayment();
+
+        const responses = [await getWebhookResponse(payload), await getWebhookResponse(payload), await getWebhookResponse(payload)];
+
+        expect(responses.map(response => response.status)).toEqual([200, 200, 200]);
+        expect(refundRequests()).toBe(1);
+        expect(await stripeTransactionRepository.findById(transaction.id)).toMatchObject({ status: "refunded", amountRefunded: transaction.amount });
+        expect(await db.query.PaymentCredits.findFirst({ where: eq(paymentCreditsTable.transactionId, transaction.id) })).toBeUndefined();
+      });
+
+      it.each([
+        { credit: "landed", expectedStatus: 409 },
+        { credit: "pending", expectedStatus: 503 }
+      ] as const)("refunds nothing while the payment's credit is $credit", async ({ credit, expectedStatus }) => {
+        const { transaction, payload, refundRequests } = await seedDeletedTeamPayment({ credit });
+
+        const response = await getWebhookResponse(payload);
+
+        expect(response.status).toBe(expectedStatus);
+        expect(refundRequests()).toBe(0);
+        expect(await stripeTransactionRepository.findById(transaction.id)).toMatchObject({ status: "created", amountRefunded: 0 });
+      });
+
+      it("takes nothing back when Stripe reports the refund it made", async () => {
+        const { transaction, payload, stripeCustomerId, paymentIntentId } = await seedDeletedTeamPayment();
+        const reduceWalletBalance = vi.spyOn(container.resolve(RefillService), "reduceWalletBalance");
+        await getWebhookResponse(payload);
+
+        const response = await getWebhookResponse(
+          JSON.stringify({
+            data: {
+              object: {
+                id: `ch_${faker.string.alphanumeric(24)}`,
+                customer: stripeCustomerId,
+                payment_intent: paymentIntentId,
+                amount_refunded: transaction.amount,
+                refunded: true
+              }
+            },
+            type: "charge.refunded"
+          })
+        );
+
+        expect(response.status).toBe(200);
+        expect(reduceWalletBalance).not.toHaveBeenCalled();
+        expect(await stripeTransactionRepository.findById(transaction.id)).toMatchObject({ status: "refunded", amountRefunded: transaction.amount });
+      });
+    });
+
     describe("payment_intent.payment_failed", () => {
       it("updates transaction status to failed", async () => {
         const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
@@ -896,6 +949,47 @@ describe("Stripe webhook", () => {
       });
     });
   });
+
+  async function seedDeletedTeamPayment(input: { credit?: "landed" | "pending" } = {}) {
+    const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
+    const paymentIntentId = `pi_${faker.string.alphanumeric(24)}`;
+    const amount = 5000;
+    const { user: owner, organization: team } = await seedOrganizationWithOwner({ stripeCustomerId, deletedAt: new Date() });
+    const [transaction] = await db
+      .insert(stripeTransactionsTable)
+      .values({
+        userId: owner.id,
+        organizationId: team.id,
+        type: "payment_intent",
+        status: "created",
+        amount,
+        currency: "usd",
+        stripePaymentIntentId: paymentIntentId
+      })
+      .returning();
+
+    if (input.credit) {
+      await db.insert(paymentCreditsTable).values({ transactionId: transaction.id, status: input.credit, address: createAkashAddress(), amount });
+    }
+
+    let refundRequestCount = 0;
+    nock("https://api.stripe.com")
+      .matchHeader("idempotency-key", `deleted-team-payment-refund:${paymentIntentId}`)
+      .post("/v1/refunds", body => new URLSearchParams(body).get("payment_intent") === paymentIntentId)
+      .times(3)
+      .reply(() => {
+        refundRequestCount += 1;
+        return [200, { id: `re_${faker.string.alphanumeric(24)}`, object: "refund", amount, status: "succeeded", payment_intent: paymentIntentId }];
+      });
+
+    return {
+      transaction,
+      stripeCustomerId,
+      paymentIntentId,
+      payload: paymentIntentSucceededPayload({ paymentIntentId, stripeCustomerId, amount }),
+      refundRequests: () => refundRequestCount
+    };
+  }
 
   function paymentIntentSucceededPayload({ paymentIntentId, stripeCustomerId, amount }: { paymentIntentId: string; stripeCustomerId: string; amount: number }) {
     return JSON.stringify({

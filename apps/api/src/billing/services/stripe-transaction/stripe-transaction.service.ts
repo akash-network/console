@@ -22,7 +22,8 @@ import {
 } from "@src/billing/repositories";
 import { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import { PayerService, type StripeCustomerOwner } from "@src/billing/services/payer/payer.service";
-import { RefillService, type ToppedUpWallet, type WalletPayer } from "@src/billing/services/refill/refill.service";
+import { PaymentCreditService } from "@src/billing/services/payment-credit/payment-credit.service";
+import { ORGANIZATION_DELETED_ERROR_CODE, RefillService, type ToppedUpWallet, type WalletPayer } from "@src/billing/services/refill/refill.service";
 import { STRIPE_CURRENCY } from "@src/billing/services/stripe/stripe.service";
 import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
@@ -133,6 +134,7 @@ export class StripeTransactionService {
     private readonly analyticsService: AnalyticsService,
     private readonly organizationRepository: OrganizationRepository,
     private readonly featureFlagsService: FeatureFlagsService,
+    private readonly paymentCreditService: PaymentCreditService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: StripeTransactionService.name });
@@ -722,6 +724,11 @@ export class StripeTransactionService {
       return {};
     }
 
+    if (payingTeam.team?.deletedAt && params.transaction.type === "payment_intent" && params.stripePaymentIntentId) {
+      await this.refundPaymentOfDeletedTeam({ transactionId: params.transaction.id, paymentIntentId: params.stripePaymentIntentId });
+      return {};
+    }
+
     let cardBrand: string | undefined;
     let cardLast4: string | undefined;
     let receiptUrl: string | undefined;
@@ -790,6 +797,42 @@ export class StripeTransactionService {
           }
         : undefined
     };
+  }
+
+  /** Never refunds a payment whose credit landed or may still land, and leaves its charge unrecorded so no later refund of that charge debits the team. */
+  @WithTransaction()
+  async refundPaymentOfDeletedTeam(params: { transactionId: string; paymentIntentId: string }): Promise<void> {
+    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId }, { strength: "no key update" });
+
+    if (!transaction || SETTLED_TRANSACTION_STATUSES.has(transaction.status)) {
+      this.loggerService.info({ event: "PAYMENT_ALREADY_PROCESSED", transactionId: params.transactionId, status: transaction?.status });
+      return;
+    }
+
+    if (await this.paymentCreditService.hasLanded(transaction.id)) {
+      this.loggerService.warn({ event: "DELETED_TEAM_PAYMENT_ALREADY_CREDITED", transactionId: transaction.id, organizationId: transaction.organizationId });
+      throw createError(409, "The team organization was deleted after this payment was credited", { errorCode: ORGANIZATION_DELETED_ERROR_CODE });
+    }
+
+    const refund = await this.stripe.refunds.create(
+      { payment_intent: params.paymentIntentId, metadata: { internal_transaction_id: transaction.id } },
+      { idempotencyKey: `deleted-team-payment-refund:${params.paymentIntentId}` }
+    );
+    await this.stripeTransactionRepository.updateById(transaction.id, {
+      status: "refunded",
+      amountRefunded: refund.amount,
+      stripePaymentIntentId: params.paymentIntentId
+    });
+
+    this.loggerService.info({
+      event: "DELETED_TEAM_PAYMENT_REFUNDED",
+      transactionId: transaction.id,
+      organizationId: transaction.organizationId,
+      paymentIntentId: params.paymentIntentId,
+      refundId: refund.id,
+      refundStatus: refund.status,
+      amountRefunded: refund.amount
+    });
   }
 
   @WithTransaction()

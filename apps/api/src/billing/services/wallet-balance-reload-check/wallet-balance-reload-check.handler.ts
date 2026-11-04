@@ -353,6 +353,18 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
       return { nextCheckAt };
     }
 
+    if (!(await this.#isStillChargeable(resources))) {
+      this.instrumentationService.recordReloadSkipped({
+        mode,
+        triggeredByDeployment: resources.triggeredByDeployment,
+        reason: "no_longer_chargeable",
+        coverageRatio,
+        projectedCost,
+        logContext
+      });
+      return;
+    }
+
     try {
       const result = await this.stripeTransactionService.createPaymentIntent({
         userId: resources.payer.user?.id ?? null,
@@ -399,6 +411,18 @@ export class WalletBalanceReloadCheckHandler implements JobHandler<WalletBalance
 
       throw error;
     }
+  }
+
+  /** Read again right before charging, since auto reload may have been turned off or the team deleted after this check first read them. */
+  async #isStillChargeable({ walletSetting, payer }: ReloadContext): Promise<boolean> {
+    const currentSetting = await this.walletSettingRepository.findById(walletSetting.id);
+
+    if (!currentSetting?.autoReloadEnabled) return false;
+    if (!payer.team) return true;
+
+    const currentTeam = await this.organizationRepository.findById(payer.team.id);
+
+    return !!currentTeam && !currentTeam.deletedAt;
   }
 
   /** Stripe is asked to decline these outright, so one that still stalls on authentication is cancelled and reported as the decline it amounts to. */

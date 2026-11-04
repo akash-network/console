@@ -9,6 +9,7 @@ import { mock } from "vitest-mock-extended";
 import type { StripeTransactionRepository } from "@src/billing/repositories";
 import type { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import type { PayerService } from "@src/billing/services/payer/payer.service";
+import type { PaymentCreditService } from "@src/billing/services/payment-credit/payment-credit.service";
 import type { RefillService } from "@src/billing/services/refill/refill.service";
 import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
@@ -587,6 +588,7 @@ describe(StripeTransactionService.name, () => {
       mock<AnalyticsService>(),
       mock<OrganizationRepository>(),
       mock<FeatureFlagsService>(),
+      mock<PaymentCreditService>(),
       () => logger
     );
 
