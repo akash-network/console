@@ -2,18 +2,25 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { AuthService } from "@src/auth/services/auth.service";
+import type { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { HardwareRequestConfig } from "@src/hardware-request/config/env.config";
 import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/hardware-request.schema";
+import type { LaneRoutedRequest, LaneRouting } from "@src/hardware-request/lib/hardware-request-lane/hardware-request-lane";
 import type { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import type { GpuRequestRoutingService } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
+import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserRepository } from "@src/user/repositories";
 import { HardwareRequestService } from "./hardware-request.service";
 
 import { createHardwareRequest, createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
 import { createUser } from "@test/seeders/user.seeder";
+
+const ROUTING: LaneRouting = { lane: "sales", laneReason: "monthly_value", estimatedMonthlyUsd: 35_040 };
+const QUOTE_SPEC = createHardwareRequestSpec();
 
 const NOW = new Date("2026-09-29T12:00:00.000Z").getTime();
 const MINUTE_MS = 60 * 1000;
@@ -40,7 +47,8 @@ describe(HardwareRequestService.name, () => {
         quantity: 8,
         details: "Training run",
         contactEmail: "jane@example.com",
-        userId: user.id
+        userId: user.id,
+        ...ROUTING
       });
     });
 
@@ -58,8 +66,34 @@ describe(HardwareRequestService.name, () => {
         quantity: 16,
         region: "Anywhere except Middle East",
         contactEmail: "jane@example.com",
-        userId: user.id
+        userId: user.id,
+        ...ROUTING
       });
+    });
+
+    it.each([
+      { input: { category: "quote", spec: QUOTE_SPEC, email: "jane@example.com" }, routed: { spec: QUOTE_SPEC, gpuModel: null, quantity: null } },
+      { input: { category: "gpu_model", gpuModel: "B200", quantity: 8, email: "jane@example.com" }, routed: { spec: null, gpuModel: "B200", quantity: 8 } },
+      { input: { category: "capacity", quantity: 4, email: "jane@example.com" }, routed: { spec: null, gpuModel: null, quantity: 4 } },
+      { input: { category: "region", region: "Frankfurt", email: "jane@example.com" }, routed: { spec: null, gpuModel: null, quantity: null } },
+      { input: { category: "other", details: "ARM nodes", email: "jane@example.com" }, routed: { spec: null, gpuModel: null, quantity: null } }
+    ] satisfies { input: HardwareRequestInput; routed: LaneRoutedRequest }[])(
+      "routes a $input.category request by what it asks for, under the active organization",
+      async ({ input, routed }) => {
+        const { service, gpuRequestRoutingService, user } = setup({ organizationId: "org-1" });
+
+        await service.create(input);
+
+        expect(gpuRequestRoutingService.route).toHaveBeenCalledWith(routed, { userId: user.id, organizationId: "org-1" });
+      }
+    );
+
+    it("routes the request without an organization outside organization context", async () => {
+      const { service, gpuRequestRoutingService, user } = setup({ organizationId: undefined });
+
+      await service.create(anInput());
+
+      expect(gpuRequestRoutingService.route).toHaveBeenCalledWith(expect.anything(), { userId: user.id, organizationId: null });
     });
 
     it("creates the request through the current user's create ability", async () => {
@@ -73,7 +107,7 @@ describe(HardwareRequestService.name, () => {
     it("returns the created request", async () => {
       const { service, created } = setup();
 
-      await expect(service.create(anInput())).resolves.toEqual(created);
+      await expect(service.create(anInput())).resolves.toEqual({ ...created, ...ROUTING });
     });
 
     it("queues the email and the Slack alert for the created request in the same transaction", async () => {
@@ -217,7 +251,7 @@ describe(HardwareRequestService.name, () => {
     return { category: "region", region: "Frankfurt", email: "jane@example.com" };
   }
 
-  function setup(input: { creationTimes?: Date[]; config?: Partial<HardwareRequestConfig> } = {}) {
+  function setup(input: { creationTimes?: Date[]; config?: Partial<HardwareRequestConfig>; organizationId?: string } = {}) {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
 
     const user = createUser();
@@ -231,6 +265,12 @@ describe(HardwareRequestService.name, () => {
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());
     const jobQueueService = mock<JobQueueService>();
+    const gpuRequestRoutingService = mock<GpuRequestRoutingService>();
+    gpuRequestRoutingService.route.mockResolvedValue(ROUTING);
+    const executionContextService = mock<ExecutionContextService>();
+    executionContextService.get.mockImplementation(key =>
+      key === "ORGANIZATION_CONTEXT" && input.organizationId ? mock<OrganizationContext>({ organizationId: input.organizationId }) : undefined
+    );
     const config: HardwareRequestConfig = {
       HARDWARE_REQUEST_EMAIL: "support@akash.network",
       HARDWARE_REQUEST_HOURLY_LIMIT: 3,
@@ -238,8 +278,17 @@ describe(HardwareRequestService.name, () => {
       ...input.config
     };
 
-    const service = new HardwareRequestService(hardwareRequestRepository, userRepository, authService, txService, jobQueueService, config);
+    const service = new HardwareRequestService(
+      hardwareRequestRepository,
+      userRepository,
+      authService,
+      txService,
+      jobQueueService,
+      gpuRequestRoutingService,
+      executionContextService,
+      config
+    );
 
-    return { service, hardwareRequestRepository, userRepository, jobQueueService, txService, authService, user, created };
+    return { service, hardwareRequestRepository, userRepository, jobQueueService, txService, authService, gpuRequestRoutingService, user, created };
   }
 });

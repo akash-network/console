@@ -46,6 +46,10 @@ export type SalesLaneReason = (typeof SALES_LANE_REASONS)[number];
 
 export type HardwareRequestLaneReason = SalesLaneReason | "no_payment_method" | "below_thresholds" | "manual";
 
+const MAX_LANE_REASON_LENGTH = 32;
+
+export const hardwareRequestLaneEnum = pgEnum("hardware_request_lane", HARDWARE_REQUEST_LANES);
+
 export type HardwareRequestConfiguration = {
   summary: string;
   cpu: number;
@@ -101,6 +105,9 @@ export const HardwareRequests = pgTable(
     contactEmail: varchar("contact_email", { length: MAX_CONTACT_EMAIL_LENGTH }).notNull(),
     configuration: jsonb("configuration").$type<HardwareRequestConfiguration>(),
     spec: jsonb("spec").$type<HardwareRequestSpec>(),
+    lane: hardwareRequestLaneEnum("lane"),
+    laneReason: varchar("lane_reason", { length: MAX_LANE_REASON_LENGTH }).$type<HardwareRequestLaneReason>(),
+    estimatedMonthlyUsd: integer("estimated_monthly_usd"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
   },

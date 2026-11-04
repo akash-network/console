@@ -2,12 +2,15 @@ import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/hardware-request.schema";
+import type { LaneRouting } from "@src/hardware-request/lib/hardware-request-lane/hardware-request-lane";
 import { describeSpecRegion } from "@src/hardware-request/lib/hardware-request-spec-summary/hardware-request-spec-summary";
 import { HARDWARE_REQUEST_CONFIG, type HardwareRequestConfig } from "@src/hardware-request/providers/config.provider";
 import { type HardwareRequestOutput, HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import { GpuRequestRoutingService } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { UserRepository } from "@src/user/repositories";
@@ -37,6 +40,13 @@ function summaryColumnsOf(input: HardwareRequestInput) {
   return { gpuModel: input.spec.gpu.model, quantity: input.spec.gpu.count, region: describeSpecRegion(input.spec) };
 }
 
+function laneRoutedRequestOf(input: HardwareRequestInput) {
+  if (input.category === "quote") return { spec: input.spec, gpuModel: null, quantity: null };
+  if (input.category === "gpu_model" || input.category === "capacity") return { spec: null, gpuModel: input.gpuModel ?? null, quantity: input.quantity };
+
+  return { spec: null, gpuModel: null, quantity: null };
+}
+
 @singleton()
 export class HardwareRequestService {
   constructor(
@@ -45,10 +55,12 @@ export class HardwareRequestService {
     private readonly authService: AuthService,
     private readonly txService: TxService,
     private readonly jobQueueService: JobQueueService,
+    private readonly gpuRequestRoutingService: GpuRequestRoutingService,
+    private readonly executionContextService: ExecutionContextService,
     @inject(HARDWARE_REQUEST_CONFIG) private readonly config: HardwareRequestConfig
   ) {}
 
-  async create(input: HardwareRequestInput): Promise<HardwareRequestOutput> {
+  async create(input: HardwareRequestInput): Promise<HardwareRequestOutput & LaneRouting> {
     const { email, ...fields } = input;
     const userId = this.authService.currentUser.id;
 
@@ -56,13 +68,15 @@ export class HardwareRequestService {
       await this.userRepository.findOneByAndLock({ id: userId });
       await this.#assertWithinLimits(userId);
 
+      const organizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId ?? null;
+      const routing = await this.gpuRequestRoutingService.route(laneRoutedRequestOf(input), { userId, organizationId });
       const hardwareRequest = await this.hardwareRequestRepository
         .accessibleBy(this.authService.ability, "create")
-        .create({ ...fields, ...summaryColumnsOf(input), contactEmail: email, userId });
+        .create({ ...fields, ...summaryColumnsOf(input), ...routing, contactEmail: email, userId });
       await this.jobQueueService.enqueue(new HardwareRequestEmailJob({ hardwareRequestId: hardwareRequest.id }));
       await this.jobQueueService.enqueue(new HardwareRequestSlackAlertJob({ hardwareRequestId: hardwareRequest.id }));
 
-      return hardwareRequest;
+      return { ...hardwareRequest, ...routing };
     });
   }
 

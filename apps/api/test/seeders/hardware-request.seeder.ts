@@ -17,10 +17,32 @@ export function createHardwareRequest({
   status = "submitted",
   source = null,
   spec = null,
+  lane = null,
+  laneReason = null,
+  estimatedMonthlyUsd = null,
   createdAt = faker.date.recent().toISOString(),
   updatedAt = createdAt
 }: Partial<HardwareRequestOutput> = {}): HardwareRequestOutput {
-  return { id, userId, organizationId, category, status, source, gpuModel, quantity, region, details, contactEmail, configuration, spec, createdAt, updatedAt };
+  return {
+    id,
+    userId,
+    organizationId,
+    category,
+    status,
+    source,
+    gpuModel,
+    quantity,
+    region,
+    details,
+    contactEmail,
+    configuration,
+    spec,
+    lane,
+    laneReason,
+    estimatedMonthlyUsd,
+    createdAt,
+    updatedAt
+  };
 }
 
 export function createHardwareRequestSpec(overrides: Partial<HardwareRequestSpec> = {}): HardwareRequestSpec {

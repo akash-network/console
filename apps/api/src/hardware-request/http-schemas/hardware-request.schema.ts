@@ -3,6 +3,7 @@ import { z } from "@hono/zod-openapi";
 import {
   hardwareRequestCategoryEnum,
   type HardwareRequestConfiguration,
+  hardwareRequestLaneEnum,
   hardwareRequestSourceEnum,
   type HardwareRequestSpec,
   hardwareRequestStatusEnum,
@@ -102,7 +103,8 @@ export const CreateHardwareRequestRequestSchema = z.object({
 export const CreateHardwareRequestResponseSchema = z.object({
   data: z.object({
     id: z.string().uuid(),
-    createdAt: z.string().datetime()
+    createdAt: z.string().datetime(),
+    lane: z.enum(hardwareRequestLaneEnum.enumValues)
   })
 });
 

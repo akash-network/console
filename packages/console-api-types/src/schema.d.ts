@@ -13698,6 +13698,8 @@ export interface operations {
               id: string;
               /** Format: date-time */
               createdAt: string;
+              /** @enum {string} */
+              lane: "sales" | "automated";
             };
           };
         };

@@ -14,15 +14,18 @@ export class HardwareRequestController {
 
   @Protected([{ action: "create", subject: "HardwareRequest" }])
   async create(input: CreateHardwareRequestRequest["data"]): Promise<CreateHardwareRequestResponse> {
-    const { id, createdAt } = await this.hardwareRequestService.create(input);
-    return { data: { id, createdAt } };
+    const { id, createdAt, lane } = await this.hardwareRequestService.create(input);
+    return { data: { id, createdAt, lane } };
   }
 
   @Protected([{ action: "read", subject: "HardwareRequest" }])
   async list(): Promise<ListHardwareRequestsResponse> {
     const hardwareRequests = await this.hardwareRequestService.list();
     return {
-      data: hardwareRequests.map(({ configuration: _configuration, ...hardwareRequest }) => hardwareRequest)
+      data: hardwareRequests.map(
+        ({ configuration: _configuration, lane: _lane, laneReason: _laneReason, estimatedMonthlyUsd: _estimatedMonthlyUsd, ...hardwareRequest }) =>
+          hardwareRequest
+      )
     };
   }
 }

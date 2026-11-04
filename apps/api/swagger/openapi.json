@@ -25693,11 +25693,19 @@
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
+                        },
+                        "lane": {
+                          "type": "string",
+                          "enum": [
+                            "sales",
+                            "automated"
+                          ]
                         }
                       },
                       "required": [
                         "id",
-                        "createdAt"
+                        "createdAt",
+                        "lane"
                       ]
                     }
                   },

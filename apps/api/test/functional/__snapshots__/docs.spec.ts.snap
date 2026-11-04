@@ -16030,10 +16030,18 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
                           "format": "uuid",
                           "type": "string",
                         },
+                        "lane": {
+                          "enum": [
+                            "sales",
+                            "automated",
+                          ],
+                          "type": "string",
+                        },
                       },
                       "required": [
                         "id",
                         "createdAt",
+                        "lane",
                       ],
                       "type": "object",
                     },
