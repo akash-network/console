@@ -20,6 +20,8 @@ import type {
 import type { GpuRequestRoutingService, RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
+import { HardwareRequestWithdrawnNoticeJob } from "@src/hardware-request/services/hardware-request-withdrawn-notice/hardware-request-withdrawn-notice.handler";
+import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import type { OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type {
   OrganizationMemberRepository,
@@ -370,6 +372,86 @@ describe(HardwareRequestService.name, () => {
     });
   });
 
+  describe("withdraw", () => {
+    it("withdraws the requester's own request under a row lock, records who did and tells sales", async () => {
+      const { service, hardwareRequestRepository, hardwareRequestEventRepository, jobQueueService, authService, txService, user } = setup({ role: "viewer" });
+      const own = createHardwareRequest({ userId: user.id, status: "sourcing" });
+      hardwareRequestRepository.findById.mockResolvedValue(own);
+      hardwareRequestRepository.findOneByAndLock.mockResolvedValue(own);
+      hardwareRequestEventRepository.record.mockResolvedValue(mock<HardwareRequestEventOutput>({ id: "event-1" }));
+
+      await service.withdraw(own.id);
+
+      expect(txService.transaction).toHaveBeenCalledTimes(1);
+      expect(hardwareRequestRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
+      expect(hardwareRequestRepository.findOneByAndLock).toHaveBeenCalledWith({ id: own.id });
+      expect(hardwareRequestRepository.updateById).toHaveBeenCalledWith(own.id, { status: "withdrawn", updatedAt: expect.any(Date) }, { returning: true });
+      expect(hardwareRequestEventRepository.record).toHaveBeenCalledWith({
+        hardwareRequestId: own.id,
+        type: "status_changed",
+        actor: null,
+        payload: { from: "sourcing", to: "withdrawn", userId: user.id }
+      });
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new HardwareRequestWithdrawnNoticeJob({ hardwareRequestId: own.id, eventId: "event-1" }));
+    });
+
+    it.each(["owner", "admin"] as const)("lets an organization %s withdraw a member's request", async role => {
+      const { service, hardwareRequestRepository } = setup({ role });
+      const othersRequest = createHardwareRequest({ status: "offers" });
+      hardwareRequestRepository.findById.mockResolvedValue(othersRequest);
+      hardwareRequestRepository.findOneByAndLock.mockResolvedValue(othersRequest);
+
+      await service.withdraw(othersRequest.id);
+
+      expect(hardwareRequestRepository.updateById).toHaveBeenCalled();
+    });
+
+    it.each([
+      { case: "a member", role: "member" },
+      { case: "a caller outside any organization", role: undefined }
+    ] as const)("answers 403 to $case withdrawing someone else's request", async ({ role }) => {
+      const { service, hardwareRequestRepository } = setup({ role });
+      hardwareRequestRepository.findById.mockResolvedValue(createHardwareRequest());
+
+      await expect(service.withdraw("request-1")).rejects.toMatchObject({
+        status: 403,
+        message: "Only the requester or an owner or admin of the organization can withdraw this request"
+      });
+      expect(hardwareRequestRepository.updateById).not.toHaveBeenCalled();
+    });
+
+    it("leaves a request that is already withdrawn as it is", async () => {
+      const { service, hardwareRequestRepository, jobQueueService, user } = setup();
+      const withdrawn = createHardwareRequest({ userId: user.id, status: "withdrawn" });
+      hardwareRequestRepository.findById.mockResolvedValue(withdrawn);
+      hardwareRequestRepository.findOneByAndLock.mockResolvedValue(withdrawn);
+
+      await expect(service.withdraw(withdrawn.id)).resolves.toEqual(withdrawn);
+      expect(hardwareRequestRepository.updateById).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it.each(["accepted", "fulfilled", "closed"] as const)("answers 409 for a %s request", async status => {
+      const { service, hardwareRequestRepository, user } = setup();
+      const settled = createHardwareRequest({ userId: user.id, status });
+      hardwareRequestRepository.findById.mockResolvedValue(settled);
+      hardwareRequestRepository.findOneByAndLock.mockResolvedValue(settled);
+
+      await expect(service.withdraw(settled.id)).rejects.toMatchObject({ status: 409, message: `A ${status} request can no longer be withdrawn` });
+    });
+
+    it.each([
+      { case: "the caller cannot read", readable: false },
+      { case: "is gone once locked", readable: true }
+    ])("answers 404 for a request $case", async ({ readable }) => {
+      const { service, hardwareRequestRepository, user } = setup();
+      hardwareRequestRepository.findById.mockResolvedValue(readable ? createHardwareRequest({ userId: user.id }) : undefined);
+      hardwareRequestRepository.findOneByAndLock.mockResolvedValue(undefined);
+
+      await expect(service.withdraw("request-1")).rejects.toMatchObject({ status: 404, message: "Hardware request not found" });
+    });
+  });
+
   describe("list", () => {
     it("returns the requests the current user can read, newest first", async () => {
       const { service, hardwareRequestRepository, authService } = setup();
@@ -394,7 +476,13 @@ describe(HardwareRequestService.name, () => {
   }
 
   function setup(
-    input: { creationTimes?: Date[]; config?: Partial<HardwareRequestConfig>; organizationId?: string; members?: OrganizationMemberWithUser[] } = {}
+    input: {
+      creationTimes?: Date[];
+      config?: Partial<HardwareRequestConfig>;
+      organizationId?: string;
+      role?: OrganizationRole;
+      members?: OrganizationMemberWithUser[];
+    } = {}
   ) {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
 
@@ -414,7 +502,9 @@ describe(HardwareRequestService.name, () => {
     gpuRequestRoutingService.route.mockResolvedValue(ROUTING);
     const executionContextService = mock<ExecutionContextService>();
     executionContextService.get.mockImplementation(key =>
-      key === "ORGANIZATION_CONTEXT" && input.organizationId ? mock<OrganizationContext>({ organizationId: input.organizationId }) : undefined
+      key === "ORGANIZATION_CONTEXT" && (input.organizationId || input.role)
+        ? mock<OrganizationContext>({ organizationId: input.organizationId, role: input.role })
+        : undefined
     );
     const hardwareRequestEventRepository = mock<HardwareRequestEventRepository>();
     hardwareRequestEventRepository.record.mockResolvedValue(mock<HardwareRequestEventOutput>());

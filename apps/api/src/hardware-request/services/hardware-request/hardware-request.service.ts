@@ -8,6 +8,7 @@ import { TxService } from "@src/core/services/tx/tx.service";
 import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/hardware-request.schema";
 import { describeSpecRegion } from "@src/hardware-request/lib/hardware-request-spec-summary/hardware-request-spec-summary";
 import { isVisibleToTenant, type TenantVisibleOffer } from "@src/hardware-request/lib/hardware-request-tenant-offer/hardware-request-tenant-offer";
+import type { HardwareRequestStatus } from "@src/hardware-request/model-schemas";
 import { HARDWARE_REQUEST_CONFIG, type HardwareRequestConfig } from "@src/hardware-request/providers/config.provider";
 import { type HardwareRequestOutput, HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { HardwareRequestEventRepository } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
@@ -15,6 +16,8 @@ import { HardwareRequestOfferRepository } from "@src/hardware-request/repositori
 import { GpuRequestRoutingService, type RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
+import { HardwareRequestWithdrawnNoticeJob } from "@src/hardware-request/services/hardware-request-withdrawn-notice/hardware-request-withdrawn-notice.handler";
+import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { UserRepository } from "@src/user/repositories";
@@ -25,6 +28,10 @@ const DAY_MS = 24 * HOUR_MS;
 type RequestWindow = { durationMs: number; limit: number; message: string };
 
 type Refusal = { message: string; retryAfterSeconds: number };
+
+const WITHDRAWING_ROLES: OrganizationRole[] = ["owner", "admin"];
+
+const UNWITHDRAWABLE_STATUSES: HardwareRequestStatus[] = ["accepted", "fulfilled", "closed"];
 
 type Requester = { userId: string | null; organizationId: string | null };
 
@@ -147,6 +154,40 @@ export class HardwareRequestService {
     const offers = await this.hardwareRequestOfferRepository.findOldestFirst(hardwareRequestId);
 
     return offers.filter(isVisibleToTenant);
+  }
+
+  /** Open to the requester and to the organization's owners and admins, and tells whoever owns it in sales. */
+  async withdraw(hardwareRequestId: string): Promise<HardwareRequestOutput> {
+    const user = this.authService.currentUser;
+
+    return await this.txService.transaction(async () => {
+      const readable = await this.hardwareRequestRepository.accessibleBy(this.authService.ability, "read").findById(hardwareRequestId);
+
+      if (!readable) throw createError(404, "Hardware request not found");
+
+      const role = this.executionContextService.get("ORGANIZATION_CONTEXT")?.role;
+
+      if (readable.userId !== user.id && !(role && WITHDRAWING_ROLES.includes(role))) {
+        throw createError(403, "Only the requester or an owner or admin of the organization can withdraw this request");
+      }
+
+      const hardwareRequest = await this.hardwareRequestRepository.findOneByAndLock({ id: hardwareRequestId });
+
+      if (!hardwareRequest) throw createError(404, "Hardware request not found");
+      if (hardwareRequest.status === "withdrawn") return hardwareRequest;
+      if (UNWITHDRAWABLE_STATUSES.includes(hardwareRequest.status)) throw createError(409, `A ${hardwareRequest.status} request can no longer be withdrawn`);
+
+      const withdrawn = await this.hardwareRequestRepository.updateById(hardwareRequestId, { status: "withdrawn", updatedAt: new Date() }, { returning: true });
+      const event = await this.hardwareRequestEventRepository.record({
+        hardwareRequestId,
+        type: "status_changed",
+        actor: null,
+        payload: { from: hardwareRequest.status, to: "withdrawn", userId: user.id }
+      });
+      await this.jobQueueService.enqueue(new HardwareRequestWithdrawnNoticeJob({ hardwareRequestId, eventId: event.id }));
+
+      return withdrawn;
+    });
   }
 
   /** A user over both limits is told the later of the two times, since either window can be the one that lifts last. */

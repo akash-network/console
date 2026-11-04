@@ -11,6 +11,7 @@ import { HardwareRequestRepository } from "@src/hardware-request/repositories/ha
 import { HardwareRequestOfferRepository } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
+import { HardwareRequestWithdrawnNoticeJob } from "@src/hardware-request/services/hardware-request-withdrawn-notice/hardware-request-withdrawn-notice.handler";
 import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { app } from "@src/rest-app";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -311,6 +312,54 @@ describe("Hardware requests", () => {
       expect(response.status).toBe(404);
     });
   });
+
+  describe("POST /v1/hardware-requests/{id}/withdraw", () => {
+    it("lets the requester withdraw their request and tells sales", async () => {
+      const { team, headersOf } = await setupOrganization();
+      const hardwareRequest = await seedHardwareRequest({ userId: team.owner.id, organizationId: team.id, status: "sourcing" });
+
+      const response = await withdraw(hardwareRequest.id, headersOf(team.owner));
+
+      expect(response.status).toBe(200);
+      expect(((await response.json()) as { data: unknown }).data).toMatchObject({ id: hardwareRequest.id, status: "withdrawn" });
+      expect(await container.resolve(HardwareRequestRepository).findById(hardwareRequest.id)).toMatchObject({ status: "withdrawn" });
+      expect(await findJobRows(HardwareRequestWithdrawnNoticeJob[JOB_NAME], { data: { hardwareRequestId: hardwareRequest.id } })).toHaveLength(1);
+    });
+
+    it("lets an admin withdraw a member's request", async () => {
+      const { team, headersOf, memberWith } = await setupOrganization();
+      const [admin, member] = [await memberWith("admin"), await memberWith("member")];
+      const hardwareRequest = await seedHardwareRequest({ userId: member.id, organizationId: team.id });
+
+      const response = await withdraw(hardwareRequest.id, headersOf(admin));
+
+      expect(response.status).toBe(200);
+    });
+
+    it("refuses a member withdrawing someone else's request", async () => {
+      const { team, headersOf, memberWith } = await setupOrganization();
+      const member = await memberWith("member");
+      const hardwareRequest = await seedHardwareRequest({ userId: team.owner.id, organizationId: team.id });
+
+      const response = await withdraw(hardwareRequest.id, headersOf(member));
+
+      expect(response.status).toBe(403);
+      expect(await container.resolve(HardwareRequestRepository).findById(hardwareRequest.id)).toMatchObject({ status: "submitted" });
+    });
+
+    it("refuses a request whose offer was already accepted", async () => {
+      const { team, headersOf } = await setupOrganization();
+      const hardwareRequest = await seedHardwareRequest({ userId: team.owner.id, organizationId: team.id, status: "accepted" });
+
+      const response = await withdraw(hardwareRequest.id, headersOf(team.owner));
+
+      expect(response.status).toBe(409);
+    });
+  });
+
+  async function withdraw(id: string, headers: Record<string, string>) {
+    return await app.request(`/v1/hardware-requests/${id}/withdraw`, { method: "POST", headers });
+  }
 
   function anOffer(hardwareRequestId: string) {
     return {

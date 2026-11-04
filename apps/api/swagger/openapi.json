@@ -26356,6 +26356,417 @@
         }
       }
     },
+    "/v1/hardware-requests/{id}/withdraw": {
+      "post": {
+        "operationId": "withdrawHardwareRequest",
+        "summary": "Withdraw a GPU request before an offer is accepted",
+        "description": "Open to the requester and to the organization's owners and admins. Withdrawing twice changes nothing.",
+        "tags": [
+          "Hardware Requests"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The withdrawn request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "uuid"
+                        },
+                        "organizationId": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "uuid"
+                        },
+                        "category": {
+                          "type": "string",
+                          "enum": [
+                            "gpu_model",
+                            "capacity",
+                            "region",
+                            "other",
+                            "quote"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "submitted",
+                            "in_review",
+                            "sourcing",
+                            "offers",
+                            "accepted",
+                            "fulfilled",
+                            "withdrawn",
+                            "closed"
+                          ]
+                        },
+                        "source": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "reserve_capacity",
+                            "configure_reserve",
+                            "no_fit",
+                            "no_bids",
+                            "gpu_menu",
+                            "requests_page"
+                          ]
+                        },
+                        "gpuModel": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "region": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "details": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "contactEmail": {
+                          "type": "string"
+                        },
+                        "spec": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "gpu": {
+                              "type": "object",
+                              "properties": {
+                                "model": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 100
+                                },
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 1000
+                                },
+                                "interconnect": {
+                                  "type": "string",
+                                  "enum": [
+                                    "none",
+                                    "server",
+                                    "cluster"
+                                  ]
+                                },
+                                "fabric": {
+                                  "type": "string",
+                                  "enum": [
+                                    "any",
+                                    "infiniband",
+                                    "roce"
+                                  ]
+                                },
+                                "fabricGbps": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "enum": [
+                                        200
+                                      ]
+                                    },
+                                    {
+                                      "type": "number",
+                                      "enum": [
+                                        400
+                                      ]
+                                    },
+                                    {
+                                      "type": "number",
+                                      "enum": [
+                                        800
+                                      ]
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "model",
+                                "count",
+                                "interconnect"
+                              ]
+                            },
+                            "region": {
+                              "type": "object",
+                              "properties": {
+                                "mode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "any",
+                                    "only",
+                                    "except"
+                                  ]
+                                },
+                                "areas": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "us",
+                                      "ca",
+                                      "eu",
+                                      "uk",
+                                      "apac",
+                                      "me",
+                                      "latam"
+                                    ]
+                                  },
+                                  "maxItems": 7
+                                }
+                              },
+                              "required": [
+                                "mode",
+                                "areas"
+                              ]
+                            },
+                            "uplinkGbps": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    1
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    10
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    25
+                                  ]
+                                },
+                                {
+                                  "nullable": true
+                                }
+                              ]
+                            },
+                            "storage": {
+                              "type": "object",
+                              "properties": {
+                                "tbPerNode": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1000
+                                },
+                                "nvme": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "tbPerNode",
+                                "nvme"
+                              ]
+                            },
+                            "sla": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "99",
+                                "99.5",
+                                "99.9"
+                              ]
+                            },
+                            "targetPrice": {
+                              "type": "object",
+                              "nullable": true,
+                              "properties": {
+                                "minUsdPerGpuHour": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true,
+                                  "maximum": 1000
+                                },
+                                "maxUsdPerGpuHour": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true,
+                                  "maximum": 1000
+                                }
+                              }
+                            },
+                            "term": {
+                              "type": "string",
+                              "enum": [
+                                "month_to_month",
+                                "3_months",
+                                "6_months",
+                                "12_months",
+                                "24_months"
+                              ]
+                            },
+                            "start": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "asap"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "flexible"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "date"
+                                      ]
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "format": "date"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "date"
+                                  ]
+                                }
+                              ]
+                            },
+                            "couldGrow": {
+                              "type": "boolean"
+                            },
+                            "wantsToTalk": {
+                              "type": "boolean"
+                            },
+                            "company": {
+                              "type": "string",
+                              "maxLength": 100
+                            },
+                            "phone": {
+                              "type": "string",
+                              "maxLength": 100
+                            }
+                          },
+                          "required": [
+                            "gpu",
+                            "region",
+                            "uplinkGbps",
+                            "storage",
+                            "sla",
+                            "targetPrice",
+                            "term",
+                            "start",
+                            "couldGrow",
+                            "wantsToTalk"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "organizationId",
+                        "category",
+                        "status",
+                        "source",
+                        "gpuModel",
+                        "quantity",
+                        "region",
+                        "details",
+                        "contactEmail",
+                        "spec",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller is neither the requester nor an owner or admin of the organization"
+          },
+          "404": {
+            "description": "No request the caller can read has this id"
+          },
+          "409": {
+            "description": "The request was already accepted, fulfilled or closed"
+          }
+        }
+      }
+    },
     "/v1/notification-address-confirmations": {
       "post": {
         "operationId": "createNotificationAddressConfirmation",
