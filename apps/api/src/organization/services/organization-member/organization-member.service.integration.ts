@@ -21,7 +21,8 @@ import {
   LAST_OWNER_ERROR_CODE,
   OrganizationMemberService,
   OWNER_CANNOT_LEAVE_ERROR_CODE,
-  OWNER_ROLE_RESTRICTED_ERROR_CODE
+  OWNER_ROLE_RESTRICTED_ERROR_CODE,
+  type RequestOrigin
 } from "./organization-member.service";
 
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
@@ -29,6 +30,8 @@ import { seedOrganizationMember, seedOrganizationWithOwner, seedProject, seedPro
 import { seedUser } from "@test/seeders/db/user-with-wallet.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
 import { findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
+
+const SESSION: RequestOrigin = { authMethod: "bearer" };
 
 const jobWorkers = useJobWorkers(() => [container.resolve(StopTeamAlertsToDepartedMemberHandler)]);
 
@@ -81,11 +84,11 @@ describe(OrganizationMemberService.name, () => {
       const { service, repository, txService, organization, owners, runAs } = await setup();
 
       const first = txService.transaction(async () => {
-        await runAs(owners[0].user, "owner", () => service.update(owners[0].membership.id, { role: "admin" }));
+        await runAs(owners[0].user, "owner", () => service.update(owners[0].membership.id, { role: "admin" }, SESSION));
         await delay(200);
       });
       await delay(50);
-      const second = runAs(owners[1].user, "owner", () => service.update(owners[1].membership.id, { role: "admin" }));
+      const second = runAs(owners[1].user, "owner", () => service.update(owners[1].membership.id, { role: "admin" }, SESSION));
 
       await expect(first).resolves.toBeUndefined();
       await expect(second).rejects.toMatchObject({ status: 409, errorCode: LAST_OWNER_ERROR_CODE });
@@ -97,11 +100,11 @@ describe(OrganizationMemberService.name, () => {
       const { service, repository, txService, organization, owners, runAs } = await setup();
 
       const first = txService.transaction(async () => {
-        await runAs(owners[0].user, "owner", () => service.update(owners[1].membership.id, { role: "admin" }));
+        await runAs(owners[0].user, "owner", () => service.update(owners[1].membership.id, { role: "admin" }, SESSION));
         await delay(200);
       });
       await delay(50);
-      const second = runAs(owners[1].user, "owner", () => service.update(owners[0].membership.id, { role: "admin" }));
+      const second = runAs(owners[1].user, "owner", () => service.update(owners[0].membership.id, { role: "admin" }, SESSION));
 
       await expect(first).resolves.toBeUndefined();
       await expect(second).rejects.toMatchObject({ status: 403, errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE });
@@ -114,7 +117,7 @@ describe(OrganizationMemberService.name, () => {
       const { member, membership, otherProject } = await seedMemberOnSpecificProjects({ organizationId: organization.id, projectId: project.id });
 
       await runAs(owners[0].user, "owner", () =>
-        service.update(membership.id, { role: "viewer", projectAccess: "selected", projectGrants: [{ projectId: otherProject.id, role: "admin" }] })
+        service.update(membership.id, { role: "viewer", projectAccess: "selected", projectGrants: [{ projectId: otherProject.id, role: "admin" }] }, SESSION)
       );
 
       expect(await repository.findById(membership.id)).toMatchObject({ role: "viewer", projectAccess: "selected" });
@@ -134,7 +137,7 @@ describe(OrganizationMemberService.name, () => {
 
       await expect(
         runAs(owners[0].user, "owner", () =>
-          service.update(membership.id, { role: "viewer", projectAccess: "selected", projectGrants: [{ projectId: otherProject.id, role: "admin" }] })
+          service.update(membership.id, { role: "viewer", projectAccess: "selected", projectGrants: [{ projectId: otherProject.id, role: "admin" }] }, SESSION)
         )
       ).rejects.toThrow("activity store unavailable");
 
@@ -149,7 +152,7 @@ describe(OrganizationMemberService.name, () => {
       await seedOrganizationMember({ organizationId: organization.id, userId: admin.id, role: "admin" });
       const membership = await seedOrganizationMember({ organizationId: organization.id, userId: member.id, role: "member" });
 
-      await expect(runAs(admin, "admin", () => service.update(membership.id, { role: "owner" }))).rejects.toMatchObject({
+      await expect(runAs(admin, "admin", () => service.update(membership.id, { role: "owner" }, SESSION))).rejects.toMatchObject({
         status: 403,
         errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE
       });
@@ -238,7 +241,7 @@ describe(OrganizationMemberService.name, () => {
       const membership = await seedOrganizationMember({ organizationId: organization.id, userId: member.id, role: "admin" });
 
       const transfer = txService.transaction(async () => {
-        await runAs(owners[0].user, "owner", () => service.transferOwnership(membership.id));
+        await runAs(owners[0].user, "owner", () => service.transferOwnership(membership.id, SESSION));
         await delay(200);
       });
       await delay(50);
@@ -255,7 +258,7 @@ describe(OrganizationMemberService.name, () => {
       const { service, repository, organization, owners, runAs } = await setup();
       await repository.updateBy({ id: owners[1].membership.id }, { role: "member" });
 
-      const transferred = await runAs(owners[0].user, "owner", () => service.transferOwnership(owners[1].membership.id));
+      const transferred = await runAs(owners[0].user, "owner", () => service.transferOwnership(owners[1].membership.id, SESSION));
 
       expect(transferred).toMatchObject({ id: owners[1].membership.id, role: "owner", username: owners[1].user.username, email: owners[1].user.email });
       expect(await repository.findById(owners[0].membership.id)).toMatchObject({ role: "admin" });

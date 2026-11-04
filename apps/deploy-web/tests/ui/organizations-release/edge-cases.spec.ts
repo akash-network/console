@@ -583,7 +583,7 @@ test.describe("Creations racing each other", () => {
       await test.step("ownership handed to both people at once leaves exactly one owner", async () => {
         const members = await readData<Member[]>(await api.get("v1/organization-members"));
         const targets = [firstEmail, secondEmail].map(email => members.find(member => member.email === email)?.id);
-        const responses = await Promise.all(targets.map(id => api.post(`v1/organization-members/${id}/ownership-transfer`)));
+        const responses = await Promise.all(targets.map(id => page.request.post(`${PROXY_API_URL}/v1/organization-members/${id}/ownership-transfer`)));
         const after = await readData<Member[]>(await api.get("v1/organization-members"));
 
         expect(statusesOf(responses)).toEqual([200, 403]);

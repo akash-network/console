@@ -5,6 +5,7 @@ import { AbilityService } from "@src/auth/services/ability/ability.service";
 import { JobQueueService } from "@src/core";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { OrganizationInvitationRepository } from "@src/organization/repositories/organization-invitation/organization-invitation.repository";
+import type { RequestOrigin } from "@src/organization/services/organization-member/organization-member.service";
 import type { UserOutput } from "@src/user/repositories";
 import {
   INVITATION_LIMIT_REACHED_ERROR_CODE,
@@ -14,6 +15,8 @@ import {
 
 import { seedOrganizationInvitation, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { createOrganizationContext } from "@test/seeders/organization-context.seeder";
+
+const SESSION: RequestOrigin = { authMethod: "bearer" };
 
 describe(OrganizationInvitationService.name, () => {
   afterEach(() => {
@@ -29,7 +32,7 @@ describe(OrganizationInvitationService.name, () => {
 
       const outcomes = await Promise.allSettled(
         ["jane@example.com", "joe@example.com"].map(email =>
-          runAs(owner, () => service.createInvitations({ emails: [email], role: "member", projectAccess: "all" }))
+          runAs(owner, () => service.createInvitations({ emails: [email], role: "member", projectAccess: "all" }, SESSION))
         )
       );
 

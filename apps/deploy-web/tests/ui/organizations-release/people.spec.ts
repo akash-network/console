@@ -595,9 +595,9 @@ test.describe("Teams and people through the API", () => {
         expect(joined).toMatchObject({ name: secondTeam, role: "member" });
       });
 
-      const teammateKey = await test.step("the owner's key hands ownership to the teammate", async () => {
+      const teammateKey = await test.step("the owner's session hands ownership to the teammate", async () => {
         const teammateMember = await findMember(ownerKey, teammateEmail);
-        const transfer = await readData<Member>(await ownerKey.post(`v1/organization-members/${teammateMember?.id}/ownership-transfer`));
+        const transfer = await readData<Member>(await page.request.post(`${PROXY_API_URL}/v1/organization-members/${teammateMember?.id}/ownership-transfer`));
         expect(transfer).toMatchObject({ userId: teammate.id, role: "owner" });
         expect((await readData<Organization[]>(await ownerKey.get("v1/organizations")))[0].role).toBe("admin");
 
@@ -608,10 +608,12 @@ test.describe("Teams and people through the API", () => {
         return key.client;
       });
 
-      await test.step("the teammate's key, now the owner's, hands ownership back", async () => {
+      await test.step("the teammate's session, now the owner's, hands ownership back", async () => {
         const owner = await currentUserOf(page.request);
         const ownerMember = await findMember(teammateKey, owner.email);
-        const transfer = await readData<Member>(await teammateKey.post(`v1/organization-members/${ownerMember?.id}/ownership-transfer`));
+        const transfer = await readData<Member>(
+          await teammatePage.request.post(`${PROXY_API_URL}/v1/organization-members/${ownerMember?.id}/ownership-transfer`)
+        );
         expect(transfer).toMatchObject({ userId: owner.id, role: "owner" });
         expect((await readData<Organization[]>(await ownerKey.get("v1/organizations")))[0].role).toBe("owner");
         expect((await readData<Organization[]>(await teammateKey.get("v1/organizations")))[0].role).toBe("admin");

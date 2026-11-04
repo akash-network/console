@@ -9,7 +9,7 @@ import type {
 } from "@src/organization/http-schemas/organization-member.schema";
 import { effectiveProjectAccessOf } from "@src/organization/lib/project-access/project-access";
 import type { OrganizationMemberWithUser } from "@src/organization/repositories/organization-member/organization-member.repository";
-import { OrganizationMemberService } from "@src/organization/services/organization-member/organization-member.service";
+import { OrganizationMemberService, type RequestOrigin } from "@src/organization/services/organization-member/organization-member.service";
 
 @singleton()
 export class OrganizationMemberController {
@@ -28,8 +28,8 @@ export class OrganizationMemberController {
   }
 
   @Protected([{ action: "update", subject: "OrganizationMember" }])
-  async update(id: string, change: UpdateOrganizationMemberRequest["data"]): Promise<OrganizationMemberResponse> {
-    return { data: toOrganizationMember(await this.organizationMemberService.update(id, change)) };
+  async update(id: string, change: UpdateOrganizationMemberRequest["data"], origin: RequestOrigin): Promise<OrganizationMemberResponse> {
+    return { data: toOrganizationMember(await this.organizationMemberService.update(id, change, origin)) };
   }
 
   @Protected([{ action: "delete", subject: "OrganizationMember" }])
@@ -38,8 +38,8 @@ export class OrganizationMemberController {
   }
 
   @Protected([{ action: "update", subject: "OrganizationMember" }])
-  async transferOwnership(id: string): Promise<OrganizationMemberResponse> {
-    return { data: toOrganizationMember(await this.organizationMemberService.transferOwnership(id)) };
+  async transferOwnership(id: string, origin: RequestOrigin): Promise<OrganizationMemberResponse> {
+    return { data: toOrganizationMember(await this.organizationMemberService.transferOwnership(id, origin)) };
   }
 }
 

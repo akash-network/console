@@ -30392,6 +30392,7 @@
       "patch": {
         "operationId": "updateOrganizationMember",
         "summary": "Change the role, project access and project grants of a member of the active organization, all together or not at all",
+        "description": "Making someone an owner requires a signed-in Console session.",
         "tags": [
           "Organizations"
         ],
@@ -30565,7 +30566,7 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller cannot change this member, the change touches the owner role and the caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
+            "description": "The caller cannot change this member, the change touches the owner role and the caller is not an owner (`owner_role_restricted`), it makes someone an owner from a request that was not made from a signed-in session (`session_required`), or the active organization is a personal one (`personal_organization`)"
           },
           "404": {
             "description": "No such member in the active organization"
@@ -30632,15 +30633,13 @@
       "post": {
         "operationId": "transferOrganizationOwnership",
         "summary": "Make a member an owner of the active organization and step the calling owner down to admin",
+        "description": "Requires a signed-in Console session. A request authenticated with an API key is refused.",
         "tags": [
           "Organizations"
         ],
         "security": [
           {
             "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
           }
         ],
         "parameters": [
@@ -30742,7 +30741,7 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller is not an owner (`owner_role_restricted` when they are an admin), or the active organization is a personal one (`personal_organization`)"
+            "description": "The caller is not an owner (`owner_role_restricted` when they are an admin), the request was not made from a signed-in session (`session_required`), or the active organization is a personal one (`personal_organization`)"
           },
           "404": {
             "description": "No such member in the active organization"
@@ -30893,6 +30892,7 @@
       "post": {
         "operationId": "createOrganizationInvitations",
         "summary": "Invite people to the active organization by email",
+        "description": "Inviting someone as an owner, or renewing an expired owner invitation, requires a signed-in Console session.",
         "tags": [
           "Organizations"
         ],
@@ -31096,7 +31096,7 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller cannot invite members, invites an owner or renews an expired owner invitation without being an owner (`owner_role_restricted`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`)"
+            "description": "The caller cannot invite members, invites an owner or renews an expired owner invitation without being an owner (`owner_role_restricted`) or from a request that was not made from a signed-in session (`session_required`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`)"
           },
           "409": {
             "description": "An address belongs to a member of the organization (`already_member`)"
@@ -31119,6 +31119,7 @@
       "post": {
         "operationId": "resendOrganizationInvitation",
         "summary": "Email a pending invitation again with a new link and a new expiry",
+        "description": "An invitation to become an owner can only be resent from a signed-in Console session.",
         "tags": [
           "Organizations"
         ],
@@ -31260,7 +31261,7 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
+            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`) or the request was not made from a signed-in session (`session_required`), or the active organization is a personal one (`personal_organization`)"
           },
           "404": {
             "description": "No such pending invitation in the active organization"
@@ -31275,6 +31276,7 @@
       "post": {
         "operationId": "createOrganizationInvitationLink",
         "summary": "Issue a new link for a pending invitation, which stops every earlier link from working",
+        "description": "A link to an invitation to become an owner can only be issued from a signed-in Console session.",
         "tags": [
           "Organizations"
         ],
@@ -31338,7 +31340,7 @@
             "description": "Unauthorized"
           },
           "403": {
-            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`)"
+            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`) or the request was not made from a signed-in session (`session_required`), or the active organization is a personal one (`personal_organization`)"
           },
           "404": {
             "description": "No such pending invitation in the active organization"
