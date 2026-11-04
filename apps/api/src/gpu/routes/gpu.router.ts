@@ -13,7 +13,8 @@ import {
   GpuPricesResponseSchema,
   ListGpuModelsResponseSchema,
   ListGpuQuerySchema,
-  ListGpuResponseSchema
+  ListGpuResponseSchema,
+  TrialGpuAvailabilityResponseSchema
 } from "@src/gpu/http-schemas/gpu.schema";
 import { isValidBech32Address } from "@src/utils/addresses";
 
@@ -199,3 +200,26 @@ const handleGetGpuPrices = async <E extends Env>(
 };
 gpuRouter.openapi(getGpuPricesRoute, handleGetGpuPrices<AppEnv>);
 export const getGpuPricesInternalRouter = new OpenAPIHono().openapi(getGpuPricesRoute, handleGetGpuPrices<Env>);
+
+const listTrialGpuAvailabilityRoute = createRoute({
+  method: "get",
+  path: "/v1/trial-gpu-availability",
+  summary: "Get the gpu models a free trial deployment may request and how many units of each are free right now on the providers it can lease from.",
+  operationId: "listTrialGpuAvailability",
+  tags: ["Gpu"],
+  security: SECURITY_NONE,
+  cache: { maxAge: 60, staleWhileRevalidate: 60 },
+  responses: {
+    200: {
+      description: "Gpu models allowed on the free trial that have at least one free unit, most free first. An empty list means none are free.",
+      content: {
+        "application/json": {
+          schema: TrialGpuAvailabilityResponseSchema
+        }
+      }
+    }
+  }
+});
+gpuRouter.openapi(listTrialGpuAvailabilityRoute, async function routeListTrialGpuAvailability(c) {
+  return c.json(await container.resolve(GpuController).listTrialGpuAvailability(), 200);
+});

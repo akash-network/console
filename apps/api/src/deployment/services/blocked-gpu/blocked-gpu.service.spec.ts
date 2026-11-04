@@ -100,6 +100,26 @@ describe(BlockedGpuService.name, () => {
     });
   });
 
+  describe("isBlocked", () => {
+    it("returns true when the GPU is on the blocked list", () => {
+      const { service } = setup({ blockedGpuModels: ["nvidia/h100"] });
+
+      expect(service.isBlocked({ vendor: "nvidia", model: "h100" })).toBe(true);
+    });
+
+    it("returns false when the GPU is not on the blocked list", () => {
+      const { service } = setup({ blockedGpuModels: ["nvidia/h100"] });
+
+      expect(service.isBlocked({ vendor: "nvidia", model: "v100" })).toBe(false);
+    });
+
+    it("returns false when the blocked list is empty", () => {
+      const { service } = setup({ blockedGpuModels: [] });
+
+      expect(service.isBlocked({ vendor: "nvidia", model: "h100" })).toBe(false);
+    });
+  });
+
   describe("formatList", () => {
     it("renders a comma-separated label list", () => {
       const { service } = setup({ blockedGpuModels: [] });

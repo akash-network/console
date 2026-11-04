@@ -26705,6 +26705,60 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
     },
+    "/v1/trial-gpu-availability": {
+      "get": {
+        "operationId": "listTrialGpuAvailability",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "freeUnits": {
+                            "example": 8,
+                            "exclusiveMinimum": true,
+                            "minimum": 0,
+                            "type": "integer",
+                          },
+                          "model": {
+                            "example": "v100",
+                            "type": "string",
+                          },
+                          "vendor": {
+                            "example": "nvidia",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "vendor",
+                          "model",
+                          "freeUnits",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                  },
+                  "required": [
+                    "data",
+                  ],
+                  "type": "object",
+                },
+              },
+            },
+            "description": "Gpu models allowed on the free trial that have at least one free unit, most free first. An empty list means none are free.",
+          },
+        },
+        "security": [],
+        "summary": "Get the gpu models a free trial deployment may request and how many units of each are free right now on the providers it can lease from.",
+        "tags": [
+          "Gpu",
+        ],
+      },
+    },
     "/v1/tx": {
       "post": {
         "parameters": [

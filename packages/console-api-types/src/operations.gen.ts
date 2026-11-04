@@ -270,6 +270,14 @@ export const operations = {
     listProviders: { path: "/v1/providers", method: "get", operationId: "listProviders", pathParams: [], queryParams: ["scope", "addresses"], hasBody: false },
     getBlock: { path: "/v1/blocks/{height}", method: "get", operationId: "getBlock", pathParams: ["height"], queryParams: [], hasBody: false },
     listGpuPrices: { path: "/v1/gpu-prices", method: "get", operationId: "listGpuPrices", pathParams: [], queryParams: [], hasBody: false },
+    listTrialGpuAvailability: {
+      path: "/v1/trial-gpu-availability",
+      method: "get",
+      operationId: "listTrialGpuAvailability",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
     screenProviders: { path: "/v1/bid-screening", method: "post", operationId: "screenProviders", pathParams: [], queryParams: [], hasBody: true },
     listPlacementOptions: {
       path: "/v1/placement-options",

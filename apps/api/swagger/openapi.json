@@ -23071,6 +23071,60 @@
         }
       }
     },
+    "/v1/trial-gpu-availability": {
+      "get": {
+        "summary": "Get the gpu models a free trial deployment may request and how many units of each are free right now on the providers it can lease from.",
+        "operationId": "listTrialGpuAvailability",
+        "tags": [
+          "Gpu"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Gpu models allowed on the free trial that have at least one free unit, most free first. An empty list means none are free.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "vendor": {
+                            "type": "string",
+                            "example": "nvidia"
+                          },
+                          "model": {
+                            "type": "string",
+                            "example": "v100"
+                          },
+                          "freeUnits": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "exclusiveMinimum": true,
+                            "example": 8
+                          }
+                        },
+                        "required": [
+                          "vendor",
+                          "model",
+                          "freeUnits"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/proposals": {
       "get": {
         "tags": [

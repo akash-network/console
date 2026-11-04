@@ -24,14 +24,20 @@ export class GpuRepository {
     providerHostUri,
     vendor,
     model,
-    memorySize
+    memorySize,
+    signedByAnyOf
   }: {
     providerAddress?: string;
     providerHostUri?: string;
     vendor?: string;
     model?: string;
     memorySize?: string;
+    signedByAnyOf?: string[];
   }) {
+    const signedByFilter = signedByAnyOf?.length
+      ? `AND EXISTS (SELECT 1 FROM "providerAttributeSignature" pas WHERE pas.provider = s."owner" AND pas.auditor IN (:signed_by_any_of))`
+      : "";
+
     return await this.#chainDb.query<{
       hostUri: string;
       name: string;
@@ -63,6 +69,7 @@ export class GpuRepository {
         AND (:memory_size IS NULL OR gpu."memorySize" = :memory_size)
         AND (:provider_address IS NULL OR s."owner" = :provider_address)
         AND (:provider_hosturi IS NULL OR s."hostUri" = :provider_hosturi)
+        ${signedByFilter}
   `,
       {
         type: QueryTypes.SELECT,
@@ -72,6 +79,7 @@ export class GpuRepository {
           memory_size: memorySize ?? null,
           provider_address: providerAddress ?? null,
           provider_hosturi: providerHostUri ?? null,
+          signed_by_any_of: signedByAnyOf ?? null,
           grace_date: toUTC(sub(new Date(), { minutes: this.#gpuConfig.PROVIDER_UPTIME_GRACE_PERIOD_MINUTES }))
         }
       }
