@@ -264,6 +264,26 @@ describe("Internal hardware requests", () => {
       expect(status).toBe(400);
     });
 
+    it("refuses an owner longer than the request's owner column holds", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ owner: null });
+
+      const { status } = await act(hardwareRequest.id, "owner", { actor: "Remington", owner: "R".repeat(65) });
+
+      expect(status).toBe(400);
+      expect(await hardwareRequestRepository.findById(hardwareRequest.id)).toMatchObject({ owner: null });
+    });
+
+    it("takes an owner as long as the request's owner column holds", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ owner: null });
+
+      const { status } = await act(hardwareRequest.id, "owner", { actor: "Remington", owner: "R".repeat(64) });
+
+      expect(status).toBe(200);
+      expect(await hardwareRequestRepository.findById(hardwareRequest.id)).toMatchObject({ owner: "R".repeat(64) });
+    });
+
     it("rejects a caller without the token", async () => {
       const response = await app.request(`/internal/hardware-requests/${faker.string.uuid()}/owner`, {
         method: "PUT",
