@@ -6,23 +6,16 @@ import {
   hardwareRequestEventTypeEnum,
   hardwareRequestLaneEnum,
   hardwareRequestOfferStatusEnum,
-  type HardwareRequestOfferTerms,
   hardwareRequestSourceEnum,
   hardwareRequestStatusEnum,
   MAX_ACTOR_LENGTH,
-  MAX_GPU_MODEL_LENGTH,
-  MAX_OFFER_LOCATION_LENGTH,
-  MAX_PROVIDER_ADDRESS_LENGTH,
-  REQUEST_TERMS,
-  UPTIME_SLAS
+  MAX_PROVIDER_ADDRESS_LENGTH
 } from "@src/hardware-request/model-schemas";
-import { HardwareRequestInputSchema } from "./hardware-request.schema";
+import { HardwareRequestInputSchema, HardwareRequestOfferTermsSchema } from "./hardware-request.schema";
 
 const MAX_QUEUE_PAGE_SIZE = 200;
 const MAX_NOTE_LENGTH = 4000;
 const DEFAULT_QUEUE_PAGE_SIZE = 50;
-const MAX_OFFER_GPUS = 1000;
-const MAX_OFFER_STORAGE_TB_PER_NODE = 1000;
 const MAX_OFFER_USD_PER_GPU_HOUR = 1000;
 
 export const HardwareRequestIdParamsSchema = z.object({ id: z.string().uuid() });
@@ -64,20 +57,6 @@ const QueuedHardwareRequestSchema = z.object({
   firstRepliedAt: z.string().datetime().nullable(),
   lastRepliedAt: z.string().datetime().nullable()
 });
-
-const HardwareRequestOfferTermsSchema = z.object({
-  gpu: z.object({
-    model: z.string().trim().min(1).max(MAX_GPU_MODEL_LENGTH),
-    count: z.number().int().min(1).max(MAX_OFFER_GPUS),
-    interconnect: z.enum(["none", "server", "cluster"])
-  }),
-  location: z.string().trim().min(1).max(MAX_OFFER_LOCATION_LENGTH),
-  availableFrom: z.string().date(),
-  term: z.enum(REQUEST_TERMS),
-  sla: z.enum(UPTIME_SLAS).nullable(),
-  storage: z.object({ tbPerNode: z.number().nonnegative().max(MAX_OFFER_STORAGE_TB_PER_NODE), nvme: z.boolean() }),
-  uplinkGbps: z.union([z.literal(1), z.literal(10), z.literal(25)]).nullable()
-}) satisfies z.ZodType<HardwareRequestOfferTerms>;
 
 const HardwareRequestOfferSchema = z.object({
   id: z.string().uuid(),

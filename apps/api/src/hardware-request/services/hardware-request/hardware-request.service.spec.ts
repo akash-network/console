@@ -13,6 +13,10 @@ import type {
   HardwareRequestEventOutput,
   HardwareRequestEventRepository
 } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
+import type {
+  HardwareRequestOfferOutput,
+  HardwareRequestOfferRepository
+} from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import type { GpuRequestRoutingService, RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
@@ -339,6 +343,33 @@ describe(HardwareRequestService.name, () => {
     });
   });
 
+  describe("listOffers", () => {
+    it("lists the offers of a request the caller can read, leaving out drafts and withdrawn ones", async () => {
+      const { service, hardwareRequestRepository, hardwareRequestOfferRepository, authService, created } = setup();
+      const published = mock<HardwareRequestOfferOutput>({ status: "published" });
+      const declined = mock<HardwareRequestOfferOutput>({ status: "declined" });
+      hardwareRequestRepository.findById.mockResolvedValue(created);
+      hardwareRequestOfferRepository.findOldestFirst.mockResolvedValue([
+        published,
+        mock<HardwareRequestOfferOutput>({ status: "draft" }),
+        mock<HardwareRequestOfferOutput>({ status: "withdrawn" }),
+        declined
+      ]);
+
+      await expect(service.listOffers(created.id)).resolves.toEqual([published, declined]);
+      expect(hardwareRequestRepository.accessibleBy).toHaveBeenCalledWith(authService.ability, "read");
+      expect(hardwareRequestOfferRepository.findOldestFirst).toHaveBeenCalledWith(created.id);
+    });
+
+    it("answers 404 for a request the caller cannot read", async () => {
+      const { service, hardwareRequestRepository, hardwareRequestOfferRepository } = setup();
+      hardwareRequestRepository.findById.mockResolvedValue(undefined);
+
+      await expect(service.listOffers("request-1")).rejects.toMatchObject({ status: 404, message: "Hardware request not found" });
+      expect(hardwareRequestOfferRepository.findOldestFirst).not.toHaveBeenCalled();
+    });
+  });
+
   describe("list", () => {
     it("returns the requests the current user can read, newest first", async () => {
       const { service, hardwareRequestRepository, authService } = setup();
@@ -392,6 +423,7 @@ describe(HardwareRequestService.name, () => {
     const organizationMemberRepository = mock<OrganizationMemberRepository>();
     organizationMemberRepository.unscoped.mockReturnValue(organizationMemberRepository);
     organizationMemberRepository.findAllWithUsers.mockResolvedValue(input.members ?? [aMember({ userId: "owner-1", role: "owner" })]);
+    const hardwareRequestOfferRepository = mock<HardwareRequestOfferRepository>();
     const config: HardwareRequestConfig = {
       HARDWARE_REQUEST_EMAIL: "support@akash.network",
       HARDWARE_REQUEST_HOURLY_LIMIT: 3,
@@ -410,6 +442,7 @@ describe(HardwareRequestService.name, () => {
       hardwareRequestEventRepository,
       organizationRepository,
       organizationMemberRepository,
+      hardwareRequestOfferRepository,
       config
     );
 
@@ -419,6 +452,7 @@ describe(HardwareRequestService.name, () => {
       hardwareRequestEventRepository,
       organizationRepository,
       organizationMemberRepository,
+      hardwareRequestOfferRepository,
       userRepository,
       jobQueueService,
       txService,

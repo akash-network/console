@@ -1,7 +1,7 @@
 import { type GpuRequestRoutingPolicy, isDataCenterGpu, isSameGpuModel } from "@src/hardware-request/lib/gpu-request-routing-policy/gpu-request-routing-policy";
 import type { HardwareRequestLane, HardwareRequestLaneReason, HardwareRequestSpec, SalesLaneReason } from "@src/hardware-request/model-schemas";
 
-const HOURS_PER_MONTH = 730;
+export const HOURS_PER_MONTH = 730;
 
 const TERM_MONTHS: Record<HardwareRequestSpec["term"], number> = {
   month_to_month: 1,
