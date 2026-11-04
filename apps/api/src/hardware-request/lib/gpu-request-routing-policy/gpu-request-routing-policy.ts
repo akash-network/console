@@ -43,14 +43,19 @@ const businessHoursSchema = z
   .strict()
   .refine(({ startHour, endHour }) => endHour > startHour, "Business hours must end after they start");
 
-const laneTargetsSchema = z.object({ firstReplyBusinessHours: z.number().positive(), firstOfferBusinessHours: z.number().positive() }).strict();
+/** Keeps every target reachable within the business-hours walk, even on a calendar open one hour a week. */
+const MAX_RESPONSE_TARGET_BUSINESS_HOURS = 40;
+
+const businessHoursTarget = z.number().positive().max(MAX_RESPONSE_TARGET_BUSINESS_HOURS);
+
+const laneTargetsSchema = z.object({ firstReplyBusinessHours: businessHoursTarget, firstOfferBusinessHours: businessHoursTarget }).strict();
 
 /** Targets count business hours, so the 2 business days decided for a sales offer are 16 hours of a 9-to-5 day. */
 const responseTargetsSchema = z
   .object({
     sales: laneTargetsSchema.default({ firstReplyBusinessHours: 4, firstOfferBusinessHours: 16 }),
     automated: laneTargetsSchema.default({ firstReplyBusinessHours: 8, firstOfferBusinessHours: 8 }),
-    reminderLeadBusinessHours: z.number().positive().default(1)
+    reminderLeadBusinessHours: businessHoursTarget.default(1)
   })
   .strict();
 

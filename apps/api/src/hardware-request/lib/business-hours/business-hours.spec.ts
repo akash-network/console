@@ -38,6 +38,18 @@ describe(addBusinessMinutes.name, () => {
     expect(addBusinessMinutes(new Date("2026-03-07T17:00:00.000Z"), 30, sundayNights).toISOString()).toBe("2026-03-08T07:30:00.000Z");
   });
 
+  it("opens at the end of the jump when the opening hour is skipped by daylight saving time", () => {
+    const sundayNights = { ...NEW_YORK_OFFICE, days: [7], startHour: 2, endHour: 5 };
+
+    expect(addBusinessMinutes(new Date("2026-03-07T17:00:00.000Z"), 60, sundayNights).toISOString()).toBe("2026-03-08T08:00:00.000Z");
+  });
+
+  it("walks past a day whose midnight daylight saving time skips", () => {
+    const havanaOffice = { ...NEW_YORK_OFFICE, timeZone: "America/Havana" };
+
+    expect(addBusinessMinutes(new Date("2026-03-06T21:30:00.000Z"), 240, havanaOffice).toISOString()).toBe("2026-03-09T16:30:00.000Z");
+  });
+
   it("refuses a calendar that never opens", () => {
     expect(() => addBusinessMinutes(new Date("2026-11-10T15:00:00.000Z"), 60, { ...NEW_YORK_OFFICE, days: [] })).toThrow(
       "Business hours open on no day within 400 days"

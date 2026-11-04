@@ -22,40 +22,46 @@ export function isTimeZone(timeZone: string): boolean {
 
 /** Counts only the minutes inside the opening hours, so a request filed on Friday evening comes due on Monday. */
 export function addBusinessMinutes(start: Date, minutes: number, hours: BusinessHours): Date {
-  let cursor = start.getTime();
+  const startsAt = start.getTime();
+  const firstDay = zonedParts(startsAt, hours.timeZone);
   let remaining = minutes;
 
-  for (let day = 0; day < MAX_DAYS_WALKED; day++) {
-    const { year, month, day: date } = zonedParts(cursor, hours.timeZone);
+  for (let dayOffset = 0; dayOffset < MAX_DAYS_WALKED; dayOffset++) {
+    const { year, month, date } = calendarDayAfter(firstDay, dayOffset);
     const isOpen = hours.days.includes(isoWeekday(year, month, date));
     const opensAt = zonedInstant(year, month, date, hours.startHour, hours.timeZone);
     const closesAt = zonedInstant(year, month, date, hours.endHour, hours.timeZone);
 
-    if (isOpen && cursor < closesAt) {
-      const from = Math.max(cursor, opensAt);
+    if (isOpen && startsAt < closesAt) {
+      const from = Math.max(startsAt, opensAt);
       const available = (closesAt - from) / MINUTE_MS;
 
       if (remaining <= available) return new Date(from + remaining * MINUTE_MS);
 
       remaining -= available;
     }
-
-    cursor = zonedInstant(year, month, date + 1, 0, hours.timeZone);
   }
 
   throw new Error(`Business hours open on no day within ${MAX_DAYS_WALKED} days`);
+}
+
+function calendarDayAfter({ year, month, day }: { year: number; month: number; day: number }, dayOffset: number) {
+  const calendarDay = new Date(Date.UTC(year, month - 1, day + dayOffset));
+
+  return { year: calendarDay.getUTCFullYear(), month: calendarDay.getUTCMonth() + 1, date: calendarDay.getUTCDate() };
 }
 
 function isoWeekday(year: number, month: number, date: number): number {
   return new Date(Date.UTC(year, month - 1, date)).getUTCDay() || 7;
 }
 
-/** Resolves a wall-clock time in the zone to an instant, re-reading the offset once so a DST change between the guess and the answer is honoured. */
+/** Resolves a wall-clock time in the zone to an instant, moving a time that a daylight saving jump skips forward by the jump. */
 function zonedInstant(year: number, month: number, date: number, hour: number, timeZone: string): number {
   const wallClock = Date.UTC(year, month - 1, date, hour);
-  const guess = wallClock - offsetOf(wallClock, timeZone);
+  const beforeJump = wallClock - offsetOf(wallClock - offsetOf(wallClock, timeZone), timeZone);
+  const afterJump = wallClock - offsetOf(beforeJump, timeZone);
 
-  return wallClock - offsetOf(guess, timeZone);
+  return Math.max(beforeJump, afterJump);
 }
 
 function offsetOf(instant: number, timeZone: string): number {
