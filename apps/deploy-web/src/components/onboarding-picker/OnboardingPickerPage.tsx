@@ -86,7 +86,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   useEffect(() => {
     if (showHackathonEntry && searchParams?.get("redeemCoupon") === "true") {
       setAddCreditsPrompt(HACKATHON_COUPON_PROMPT);
-      router.replace(urlService.onboardingPicker(), { scroll: false });
+      router.replace(urlService.onboardingPicker({ intent: searchParams.get("intent") ?? undefined }), { scroll: false });
     }
   }, [showHackathonEntry, searchParams, router, urlService]);
 

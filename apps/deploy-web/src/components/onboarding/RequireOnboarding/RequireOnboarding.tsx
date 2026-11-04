@@ -15,7 +15,7 @@ const ONBOARDING_ROUTE = "/onboarding";
 
 type GateDecision = "loading" | "render" | "toOnboarding" | "toReturn";
 
-/** A not-yet-onboarded user may stay on these routes (they deploy their first app, fund it, or join and run an organization here). */
+/** A not-yet-onboarded user may stay on these routes (they deploy their first app, fund it, create an API key, or join and run an organization here). */
 const ONBOARDING_ALLOWED_PREFIXES = ["/new-deployment/configure", "/billing", "/invitations", "/members", "/projects", "/user/api-keys"];
 
 export const DEPENDENCIES = {

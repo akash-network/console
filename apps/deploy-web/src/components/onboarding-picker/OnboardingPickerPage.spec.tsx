@@ -550,6 +550,13 @@ describe(OnboardingPickerPage.name, () => {
       expect(sheetProps.initialTab).toBe("coupon");
       expect(replace).toHaveBeenCalledWith(UrlService.onboardingPicker(), { scroll: false });
     });
+
+    it("keeps the picked intent when it strips the coupon deep link", () => {
+      const replace = vi.fn();
+      setup({ isIntentFirst: true, isTrialing: true, isHackathonsEnabled: true, searchParams: "intent=tools&redeemCoupon=true", replace });
+
+      expect(replace).toHaveBeenCalledWith(UrlService.onboardingPicker({ intent: "tools" }), { scroll: false });
+    });
   });
 
   function getIntentFirstPickerProps(IntentFirstPicker: ReturnType<typeof vi.fn>) {
