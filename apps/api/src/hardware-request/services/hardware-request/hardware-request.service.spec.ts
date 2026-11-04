@@ -7,9 +7,9 @@ import type { JobQueueService } from "@src/core/services/job-queue/job-queue.ser
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type { HardwareRequestConfig } from "@src/hardware-request/config/env.config";
 import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/hardware-request.schema";
-import type { LaneRoutedRequest, LaneRouting } from "@src/hardware-request/lib/hardware-request-lane/hardware-request-lane";
+import type { LaneRoutedRequest } from "@src/hardware-request/lib/hardware-request-lane/hardware-request-lane";
 import type { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
-import type { GpuRequestRoutingService } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
+import type { GpuRequestRoutingService, RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
@@ -19,7 +19,7 @@ import { HardwareRequestService } from "./hardware-request.service";
 import { createHardwareRequest, createHardwareRequestSpec } from "@test/seeders/hardware-request.seeder";
 import { createUser } from "@test/seeders/user.seeder";
 
-const ROUTING: LaneRouting = { lane: "sales", laneReason: "monthly_value", estimatedMonthlyUsd: 35_040 };
+const ROUTING: RoutedLane = { lane: "sales", laneReason: "monthly_value", estimatedMonthlyUsd: 35_040, owner: "Remington" };
 const QUOTE_SPEC = createHardwareRequestSpec();
 
 const NOW = new Date("2026-09-29T12:00:00.000Z").getTime();

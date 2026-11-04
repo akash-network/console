@@ -53,6 +53,25 @@ describe(GpuRequestRoutingService.name, () => {
       expect(hardwareRequestAccountService.findAccountType).toHaveBeenCalledWith(requester);
     });
 
+    it("gives a sales-lane request the owner the policy picks for it", async () => {
+      const payload = JSON.stringify({ owners: [{ name: "Remington", match: { gpuClass: "data_center" } }] });
+      const { service, hardwareRequestAccountService } = setup({ payload });
+      hardwareRequestAccountService.findAccountType.mockResolvedValue("paying");
+
+      const routing = await service.route({ spec: createHardwareRequestSpec(), gpuModel: null, quantity: null }, { userId: "user-1", organizationId: null });
+
+      expect(routing).toMatchObject({ lane: "sales", owner: "Remington" });
+    });
+
+    it("leaves an automated-lane request without an owner", async () => {
+      const { service, hardwareRequestAccountService } = setup({ payload: undefined });
+      hardwareRequestAccountService.findAccountType.mockResolvedValue("trial");
+
+      const routing = await service.route({ spec: createHardwareRequestSpec(), gpuModel: null, quantity: null }, { userId: "user-1", organizationId: null });
+
+      expect(routing).toMatchObject({ lane: "automated", owner: null });
+    });
+
     it("routes with the policy of the flag's payload", async () => {
       const { service, hardwareRequestAccountService } = setup({ payload: JSON.stringify({ salesRequiresPaymentMethod: false }) });
       hardwareRequestAccountService.findAccountType.mockResolvedValue("trial");

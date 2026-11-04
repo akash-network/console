@@ -6,7 +6,16 @@ import type {
   CreateHardwareRequestResponse,
   ListHardwareRequestsResponse
 } from "@src/hardware-request/http-schemas/hardware-request.schema";
+import type { HardwareRequestOutput } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { HardwareRequestService } from "@src/hardware-request/services/hardware-request/hardware-request.service";
+
+/** Lists only what the tenant may see, so routing and ownership columns added for the team stay internal. */
+function toTenantView(hardwareRequest: HardwareRequestOutput): ListHardwareRequestsResponse["data"][number] {
+  const { id, userId, organizationId, category, status, source, gpuModel, quantity, region, details, contactEmail, spec, createdAt, updatedAt } =
+    hardwareRequest;
+
+  return { id, userId, organizationId, category, status, source, gpuModel, quantity, region, details, contactEmail, spec, createdAt, updatedAt };
+}
 
 @singleton()
 export class HardwareRequestController {
@@ -21,11 +30,6 @@ export class HardwareRequestController {
   @Protected([{ action: "read", subject: "HardwareRequest" }])
   async list(): Promise<ListHardwareRequestsResponse> {
     const hardwareRequests = await this.hardwareRequestService.list();
-    return {
-      data: hardwareRequests.map(
-        ({ configuration: _configuration, lane: _lane, laneReason: _laneReason, estimatedMonthlyUsd: _estimatedMonthlyUsd, ...hardwareRequest }) =>
-          hardwareRequest
-      )
-    };
+    return { data: hardwareRequests.map(toTenantView) };
   }
 }
