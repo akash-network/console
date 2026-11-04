@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { AnalyticsService } from "@src/services/analytics/analytics.service";
 import type { DEPENDENCIES, OfferDecision } from "./GpuOfferDecisionDialog";
 import { GpuOfferDecisionDialog } from "./GpuOfferDecisionDialog";
 
@@ -21,7 +22,7 @@ describe(GpuOfferDecisionDialog.name, () => {
   });
 
   it("accepts the offer and confirms it", async () => {
-    const { user, accept, decline, enqueueSnackbar, onClose } = setup({ decision: "accept" });
+    const { user, accept, decline, enqueueSnackbar, onClose, analyticsService } = setup({ decision: "accept" });
     accept.mockImplementation((input, options) => options?.onSuccess?.(mock(), input, undefined));
 
     await user.click(screen.getByRole("button", { name: "Accept offer" }));
@@ -33,10 +34,17 @@ describe(GpuOfferDecisionDialog.name, () => {
       { variant: "success" }
     );
     expect(onClose).toHaveBeenCalled();
+    expect(analyticsService.track).toHaveBeenCalledWith("gpu_offer_accepted", {
+      category: "deployments",
+      hardwareRequestId: "request-1",
+      offerId: "offer-1",
+      usdPerGpuHour: 2.4,
+      estimatedMonthlyUsd: 14016
+    });
   });
 
   it("warns that a declined offer can't be accepted later, then declines it", async () => {
-    const { user, accept, decline, enqueueSnackbar } = setup({ decision: "decline" });
+    const { user, accept, decline, enqueueSnackbar, analyticsService } = setup({ decision: "decline" });
     decline.mockImplementation((input, options) => options?.onSuccess?.(mock(), input, undefined));
 
     expect(screen.getByRole("dialog", { name: "Decline Offer 2?" })).toHaveTextContent("You won't be able to accept this offer afterwards.");
@@ -48,10 +56,11 @@ describe(GpuOfferDecisionDialog.name, () => {
       expect.objectContaining({ props: expect.objectContaining({ title: "Offer declined", subTitle: "The team can see you passed on it." }) }),
       { variant: "success" }
     );
+    expect(analyticsService.track).toHaveBeenCalledWith("gpu_offer_declined", expect.objectContaining({ hardwareRequestId: "request-1", offerId: "offer-1" }));
   });
 
   it("reports a refused decision and closes", async () => {
-    const { user, accept, enqueueSnackbar, onClose } = setup({ decision: "accept" });
+    const { user, accept, enqueueSnackbar, onClose, analyticsService } = setup({ decision: "accept" });
     accept.mockImplementation((input, options) => options?.onError?.(new Error("expired"), input, undefined));
 
     await user.click(screen.getByRole("button", { name: "Accept offer" }));
@@ -66,6 +75,7 @@ describe(GpuOfferDecisionDialog.name, () => {
       { variant: "error" }
     );
     expect(onClose).toHaveBeenCalled();
+    expect(analyticsService.track).not.toHaveBeenCalled();
   });
 
   it("stays open on Escape while deciding", async () => {
@@ -100,12 +110,14 @@ describe(GpuOfferDecisionDialog.name, () => {
     const enqueueSnackbar = vi.fn();
     const onClose = vi.fn();
     const isPending = input.isPending ?? false;
+    const analyticsService = mock<AnalyticsService>();
     const dependencies: typeof DEPENDENCIES = {
       useAcceptHardwareRequestOfferMutation: () =>
         mock<ReturnType<typeof DEPENDENCIES.useAcceptHardwareRequestOfferMutation>>({ mutate: accept, isPending: input.decision === "accept" && isPending }),
       useDeclineHardwareRequestOfferMutation: () =>
         mock<ReturnType<typeof DEPENDENCIES.useDeclineHardwareRequestOfferMutation>>({ mutate: decline, isPending: input.decision === "decline" && isPending }),
-      useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar })
+      useSnackbar: () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar }),
+      useServices: () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService })
     };
     const offer = buildGpuRequestOffer({
       id: "offer-1",
@@ -118,6 +130,6 @@ describe(GpuOfferDecisionDialog.name, () => {
       <GpuOfferDecisionDialog decision={input.decision} requestId="request-1" offer={offer} label="Offer 2" onClose={onClose} dependencies={dependencies} />
     );
 
-    return { user: userEvent.setup(), accept, decline, enqueueSnackbar, onClose };
+    return { user: userEvent.setup(), accept, decline, enqueueSnackbar, onClose, analyticsService };
   }
 });

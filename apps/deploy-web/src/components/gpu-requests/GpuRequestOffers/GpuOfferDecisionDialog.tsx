@@ -14,11 +14,12 @@ import {
 } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
+import { useServices } from "@src/context/ServicesProvider";
 import { useAcceptHardwareRequestOfferMutation, useDeclineHardwareRequestOfferMutation } from "@src/queries/useHardwareRequestsQuery";
 import type { GpuRequestOffer } from "../gpuOfferComparison/gpuOfferComparison";
 import { TERMS } from "../gpuQuoteDraft/gpuQuoteCatalog";
 
-export const DEPENDENCIES = { useAcceptHardwareRequestOfferMutation, useDeclineHardwareRequestOfferMutation, useSnackbar };
+export const DEPENDENCIES = { useAcceptHardwareRequestOfferMutation, useDeclineHardwareRequestOfferMutation, useSnackbar, useServices };
 
 export type OfferDecision = "accept" | "decline";
 
@@ -31,13 +32,26 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-const COPY: Record<OfferDecision, { action: string; done: string; doneDetail: string; failed: string }> = {
-  accept: { action: "Accept offer", done: "Offer accepted", doneDetail: "Our team will email you about the setup.", failed: "Couldn't accept this offer" },
-  decline: { action: "Decline offer", done: "Offer declined", doneDetail: "The team can see you passed on it.", failed: "Couldn't decline this offer" }
+const COPY: Record<OfferDecision, { action: string; done: string; doneDetail: string; failed: string; event: "gpu_offer_accepted" | "gpu_offer_declined" }> = {
+  accept: {
+    event: "gpu_offer_accepted",
+    action: "Accept offer",
+    done: "Offer accepted",
+    doneDetail: "Our team will email you about the setup.",
+    failed: "Couldn't accept this offer"
+  },
+  decline: {
+    event: "gpu_offer_declined",
+    action: "Decline offer",
+    done: "Offer declined",
+    doneDetail: "The team can see you passed on it.",
+    failed: "Couldn't decline this offer"
+  }
 };
 
 export const GpuOfferDecisionDialog: FC<Props> = ({ decision, requestId, offer, label, onClose, dependencies: d = DEPENDENCIES }) => {
   const { enqueueSnackbar } = d.useSnackbar();
+  const { analyticsService } = d.useServices();
   const accept = d.useAcceptHardwareRequestOfferMutation();
   const decline = d.useDeclineHardwareRequestOfferMutation();
   const { mutate, isPending } = decision === "accept" ? accept : decline;
@@ -45,6 +59,13 @@ export const GpuOfferDecisionDialog: FC<Props> = ({ decision, requestId, offer, 
   const term = TERMS.find(candidate => candidate.value === offer.terms.term)?.label.toLowerCase();
 
   const confirmDecided = () => {
+    analyticsService.track(copy.event, {
+      category: "deployments",
+      hardwareRequestId: requestId,
+      offerId: offer.id,
+      usdPerGpuHour: offer.usdPerGpuHour,
+      estimatedMonthlyUsd: offer.estimatedMonthlyUsd
+    });
     enqueueSnackbar(<Snackbar title={copy.done} subTitle={copy.doneDetail} iconVariant="success" />, { variant: "success" });
     onClose();
   };
