@@ -7,6 +7,7 @@ import type { CreateLogger } from "@src/core";
 import type { JobQueueService } from "@src/core";
 import type { UserRepository } from "@src/user/repositories";
 import type { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
+import type { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import { LockBlockedDomainWallet } from "@src/workload-abuse/services/lock-blocked-domain-wallet/lock-blocked-domain-wallet.handler";
 import type { WorkloadAbuseConfigService } from "@src/workload-abuse/services/workload-abuse-config/workload-abuse-config.service";
@@ -56,8 +57,8 @@ describe(EmailDomainBlockService.name, () => {
         { reason: "allowlisted", input: { existing: createBlockedEmailDomain({ domain: "attacker.com", status: "allowed" }) } },
         { reason: "domain_has_paid_user", input: { hasPaidUser: true } },
         { reason: "domain_predates_attack", input: { hasEstablishedUser: true } }
-      ])("skips with $reason and writes nothing", async ({ reason, input }) => {
-        const { service, wallet, blockedEmailDomainRepository, instrumentation } = setup({ email: "miner@attacker.com", ...input });
+      ])("skips with $reason and writes nothing, even once another account on the domain is caught", async ({ reason, input }) => {
+        const { service, wallet, blockedEmailDomainRepository, instrumentation } = setup({ email: "miner@attacker.com", anotherAccountCaught: true, ...input });
 
         await service.blockDomainOf(wallet);
 
@@ -116,6 +117,57 @@ describe(EmailDomainBlockService.name, () => {
 
         expect(userRepository.hasEstablishedUserWithEmailDomain).toHaveBeenCalledWith("attacker.com", expect.any(Number), wallet.userId);
         expect(blockedEmailDomainRepository.blockIfAbsent).toHaveBeenCalled();
+      });
+    });
+
+    describe("when no other account on the domain has been caught", () => {
+      it("leaves the domain unblocked and its other trial wallets unlocked", async () => {
+        const { service, wallet, blockedEmailDomainRepository, blockedEmailDomainService, jobQueueService, instrumentation } = setup({
+          email: "miner@attacker.com",
+          anotherAccountCaught: false,
+          siblings: [{ walletId: 7, userId: "user-7" }]
+        });
+
+        await service.blockDomainOf(wallet);
+
+        expect(blockedEmailDomainRepository.blockIfAbsent).not.toHaveBeenCalled();
+        expect(blockedEmailDomainService.rememberBlocked).not.toHaveBeenCalled();
+        expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+        expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "awaiting_second_account");
+      });
+
+      it("records no dry run in detect mode", async () => {
+        const { service, wallet, instrumentation } = setup({ email: "miner@attacker.com", anotherAccountCaught: false, mode: "detect" });
+
+        await service.blockDomainOf(wallet);
+
+        expect(instrumentation.recordDomainBlock).not.toHaveBeenCalledWith("dry_run");
+        expect(instrumentation.recordDomainBlock).toHaveBeenCalledWith("skipped", "awaiting_second_account");
+      });
+    });
+
+    describe("when another account on the domain has been caught", () => {
+      it("looks for it on the normalized domain, apart from the caught wallet's own user", async () => {
+        const { service, wallet, detectionRepository } = setup({ email: "Miner@Attacker.COM" });
+
+        await service.blockDomainOf(wallet);
+
+        expect(detectionRepository.hasEnforcedSignatureMatchByAnotherMailbox).toHaveBeenCalledWith("attacker.com", wallet.userId);
+      });
+
+      it("blocks the domain and locks its other trial wallets", async () => {
+        const { service, wallet, blockedEmailDomainRepository, jobQueueService } = setup({
+          email: "miner@attacker.com",
+          anotherAccountCaught: true,
+          siblings: [{ walletId: 7, userId: "user-7" }]
+        });
+
+        await service.blockDomainOf(wallet);
+
+        expect(blockedEmailDomainRepository.blockIfAbsent).toHaveBeenCalledWith(expect.objectContaining({ domain: "attacker.com" }));
+        expect(jobQueueService.enqueue).toHaveBeenCalledWith(new LockBlockedDomainWallet({ walletId: 7, domain: "attacker.com" }), {
+          singletonKey: "lockBlockedDomainWallet.7"
+        });
       });
     });
 
@@ -297,6 +349,7 @@ describe(EmailDomainBlockService.name, () => {
     existing?: ReturnType<typeof createBlockedEmailDomain>;
     hasPaidUser?: boolean;
     hasEstablishedUser?: boolean;
+    anotherAccountCaught?: boolean;
     siblings?: Array<{ walletId: number; userId: string }>;
     pendingKeys?: string[];
     mode?: "detect" | "enforce";
@@ -325,6 +378,9 @@ describe(EmailDomainBlockService.name, () => {
       blockIfAbsent: vi.fn().mockResolvedValue(input?.raceWinner ? undefined : createBlockedEmailDomain())
     });
     const blockedEmailDomainService = mock<BlockedEmailDomainService>();
+    const detectionRepository = mock<WorkloadAbuseDetectionRepository>({
+      hasEnforcedSignatureMatchByAnotherMailbox: vi.fn().mockResolvedValue(input?.anotherAccountCaught ?? true)
+    });
     const jobQueueService = mock<JobQueueService>({
       findPendingSingletonKeys: vi.fn().mockResolvedValue(new Set(input?.pendingKeys ?? [])),
       enqueue: vi.fn().mockResolvedValue("job-id")
@@ -344,6 +400,7 @@ describe(EmailDomainBlockService.name, () => {
       stripeTransactionRepository,
       blockedEmailDomainRepository,
       blockedEmailDomainService,
+      detectionRepository,
       jobQueueService,
       config,
       instrumentation,
@@ -359,6 +416,7 @@ describe(EmailDomainBlockService.name, () => {
       stripeTransactionRepository,
       blockedEmailDomainRepository,
       blockedEmailDomainService,
+      detectionRepository,
       jobQueueService,
       config,
       instrumentation,

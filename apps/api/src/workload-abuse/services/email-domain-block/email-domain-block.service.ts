@@ -7,6 +7,7 @@ import { UserRepository } from "@src/user/repositories";
 import { extractEmailDomain } from "@src/workload-abuse/lib/email-domain/email-domain";
 import { isPublicEmailProvider } from "@src/workload-abuse/lib/email-domain/public-email-providers";
 import { BlockedEmailDomainRepository } from "@src/workload-abuse/repositories/blocked-email-domain/blocked-email-domain.repository";
+import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
 import {
   LockBlockedDomainWallet,
@@ -17,13 +18,20 @@ import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/service
 
 export const DOMAIN_BLOCK_REASON = "workload_abuse";
 
-type SkipReason = "no_domain" | "public_provider" | "allowlisted" | "already_blocked" | "domain_has_paid_user" | "domain_predates_attack";
+type SkipReason =
+  | "no_domain"
+  | "public_provider"
+  | "allowlisted"
+  | "already_blocked"
+  | "domain_has_paid_user"
+  | "domain_predates_attack"
+  | "awaiting_second_account";
 
 /**
- * Turns one wallet caught mining into a block on the whole email domain it signed up from, so the next
- * account on that domain never gets a trial. Blunt by design, so three guardrails stand in front of it:
+ * Turns a second mailbox caught mining on an email domain into a block on that whole domain, so the next
+ * account on it never gets a trial. Blunt by design, so three guardrails stand in front of it:
  * a public provider, a domain anybody has ever paid from, and a domain older than the attack are all
- * left alone and merely recorded.
+ * left alone and merely recorded. The first caught mailbox only locks its own wallet.
  */
 @singleton()
 export class EmailDomainBlockService {
@@ -35,6 +43,7 @@ export class EmailDomainBlockService {
     private readonly stripeTransactionRepository: StripeTransactionRepository,
     private readonly blockedEmailDomainRepository: BlockedEmailDomainRepository,
     private readonly blockedEmailDomainService: BlockedEmailDomainService,
+    private readonly detectionRepository: WorkloadAbuseDetectionRepository,
     private readonly jobQueueService: JobQueueService,
     private readonly config: WorkloadAbuseConfigService,
     private readonly instrumentation: WorkloadAbuseInstrumentationService,
@@ -69,6 +78,9 @@ export class EmailDomainBlockService {
     const minAccountAgeDays = this.config.get("WORKLOAD_ABUSE_DOMAIN_BLOCK_MIN_ACCOUNT_AGE_DAYS");
     if (await this.userRepository.hasEstablishedUserWithEmailDomain(domain, minAccountAgeDays, wallet.userId))
       return this.#skip("domain_predates_attack", context);
+
+    if (!(await this.detectionRepository.hasEnforcedSignatureMatchByAnotherMailbox(domain, wallet.userId)))
+      return this.#skip("awaiting_second_account", context);
 
     if (!this.#isEnforcing) {
       this.instrumentation.recordDomainBlock("dry_run");
