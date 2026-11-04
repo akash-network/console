@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
-import { JOB_NAME } from "@src/core";
+import { type ApiPgDatabase, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
@@ -63,9 +63,10 @@ describe("Hardware requests", () => {
         email: "jane@example.com",
         configuration: CONFIGURATION
       });
-      const { data } = (await response.json()) as { data: { id: string; createdAt: string } };
+      const { data } = (await response.json()) as { data: { id: string; createdAt: string; lane: string } };
 
       expect(response.status).toBe(201);
+      expect(data.lane).toBe("automated");
       expect(await hardwareRequestRepository.findById(data.id)).toEqual({
         id: data.id,
         userId: user.id,
@@ -80,6 +81,9 @@ describe("Hardware requests", () => {
         status: "submitted",
         source: null,
         spec: null,
+        lane: "automated",
+        laneReason: "no_payment_method",
+        estimatedMonthlyUsd: 8 * 5 * 730,
         createdAt: data.createdAt,
         updatedAt: data.createdAt
       });
@@ -169,6 +173,42 @@ describe("Hardware requests", () => {
       });
     });
 
+    it("sends a large quote request of a team with a card on file to the sales lane and says so", async () => {
+      const { team, headersOf } = await setupOrganization();
+      await seedPaymentMethod({ userId: team.owner.id, organizationId: team.id });
+      const spec = createHardwareRequestSpec({ gpu: { model: "H200", count: 16, interconnect: "cluster" }, targetPrice: { maxUsdPerGpuHour: 3 } });
+
+      const response = await app.request("/v1/hardware-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headersOf(team.owner) },
+        body: JSON.stringify({ data: { category: "quote", spec, email: "jane@example.com" } })
+      });
+      const { data } = (await response.json()) as { data: { id: string; lane: string } };
+
+      expect(response.status).toBe(201);
+      expect(data.lane).toBe("sales");
+      expect(await hardwareRequestRepository.findById(data.id)).toMatchObject({
+        lane: "sales",
+        laneReason: "monthly_value",
+        estimatedMonthlyUsd: 16 * 3 * 730
+      });
+    });
+
+    it("keeps the same request of a team without a card in the automated lane", async () => {
+      const { team, headersOf } = await setupOrganization();
+      const spec = createHardwareRequestSpec({ gpu: { model: "H200", count: 16, interconnect: "cluster" } });
+
+      const response = await app.request("/v1/hardware-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headersOf(team.owner) },
+        body: JSON.stringify({ data: { category: "quote", spec, email: "jane@example.com" } })
+      });
+      const { data } = (await response.json()) as { data: { id: string; lane: string } };
+
+      expect(data.lane).toBe("automated");
+      expect(await hardwareRequestRepository.findById(data.id)).toMatchObject({ lane: "automated", laneReason: "no_payment_method" });
+    });
+
     it.each([
       { case: "an area-restricted region without any area", region: { mode: "only", areas: [] } },
       { case: "the same area twice", region: { mode: "only", areas: ["uk", "uk"] } },
@@ -215,6 +255,8 @@ describe("Hardware requests", () => {
       expect(data.map(({ id }) => id)).toEqual([newer.id, older.id]);
       expect(data[0]).toMatchObject({ status: "submitted", organizationId: team.id });
       expect(data[0]).not.toHaveProperty("configuration");
+      expect(data[0]).not.toHaveProperty("laneReason");
+      expect(data[0]).not.toHaveProperty("estimatedMonthlyUsd");
     });
 
     it("returns 401 to an anonymous caller", async () => {
@@ -223,6 +265,13 @@ describe("Hardware requests", () => {
       expect(response.status).toBe(401);
     });
   });
+
+  async function seedPaymentMethod(owner: { userId: string; organizationId: string }) {
+    await container
+      .resolve<ApiPgDatabase>(POSTGRES_DB)
+      .insert(resolveTable("PaymentMethods"))
+      .values({ ...owner, fingerprint: `fp_${faker.string.alphanumeric(16)}`, paymentMethodId: `pm_${faker.string.alphanumeric(24)}` });
+  }
 
   async function post(token: string | undefined, data: Record<string, unknown>) {
     return await app.request("/v1/hardware-requests", {
