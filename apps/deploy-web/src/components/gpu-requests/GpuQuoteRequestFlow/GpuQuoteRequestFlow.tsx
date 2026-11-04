@@ -14,6 +14,7 @@ import {
   DialogV2Title,
   Snackbar
 } from "@akashnetwork/ui/components";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftIcon, ArrowRightIcon, SendIcon } from "lucide-react";
 import { useSnackbar } from "notistack";
 
@@ -104,6 +105,7 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
   const { api } = useServices();
   const { user } = d.useUser();
   const { enqueueSnackbar } = d.useSnackbar();
+  const queryClient = useQueryClient();
   const createHardwareRequest = api.v1.createHardwareRequest.useMutation({ meta: SKIP_REPORTING_REQUEST_LIMIT });
   const configurationPoint = configuration && configurationStartingPoint(configuration.hardware);
   const configurationKey = configuration && JSON.stringify(configuration.hardware);
@@ -157,6 +159,7 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
       { data: toQuoteRequestData(draft, { source, configuration: configuration?.summary }) },
       {
         onSuccess: function confirmSentAndClose(response) {
+          void queryClient.invalidateQueries({ queryKey: api.v1.listHardwareRequests.getKey() });
           enqueueSnackbar(<Snackbar title="Request sent" subTitle={describeNextStep(laneOf(response.data))} iconVariant="success" />, { variant: "success" });
           onClose();
         },
