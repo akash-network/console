@@ -31,6 +31,10 @@ on:
         description: "The version of the app to deploy"
         required: true
         type: string
+      chartVersion:
+        description: "The chart version resolved by the run awaiting approval. Leave empty to use the pin in .helm/chart-versions.yaml"
+        required: false
+        type: string
       chain:
         description: "The chain to deploy to"
         required: false
@@ -103,6 +107,7 @@ jobs:
     outputs:
       environment: ${{ steps.determine-environment.outputs.environment }}
       require_approval: ${{ steps.approval-status.outputs.require_approval }}
+      chart_version: ${{ steps.chart-version.outputs.version }}
     permissions:
       contents: read
       pull-requests: read
@@ -111,6 +116,29 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+
+      - name: Resolve pinned chart version
+        id: chart-version
+        env:
+          APP: ${{ inputs.app }}
+          CHART_VERSIONS_FILE: .helm/chart-versions.yaml
+          APPROVED_CHART_VERSION: ${{ inputs.chartVersion }}
+        run: | # shell
+          if [[ -n "$APPROVED_CHART_VERSION" ]]; then
+            chart_version="$APPROVED_CHART_VERSION"
+          else
+            chart_version=$(yq -e '.[strenv(APP)]' "$CHART_VERSIONS_FILE") || {
+              echo "❌ No chart version pinned for $APP in $CHART_VERSIONS_FILE" >&2
+              exit 1
+            }
+          fi
+
+          if [[ ! "$chart_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "❌ Chart version for $APP must be an exact version, got: $chart_version" >&2
+            exit 1
+          fi
+
+          echo "version=$chart_version" >> "$GITHUB_OUTPUT"
 
       - name: Display linked workflow run ID
         if: ${{ inputs.linked-workflow-run-id }}
@@ -146,6 +174,7 @@ jobs:
           gh-user-to-slack-user: ${{ vars.GH_USER_TO_SLACK_USER }}
           app: ${{ inputs.app }}
           new-version: ${{ inputs.appVersion }}
+          chart-version: ${{ steps.chart-version.outputs.version }}
           environment: ${{ inputs.environment }}
           chain: ${{ inputs.chain != 'NA' && inputs.chain || '' }}
           linked-workflow-run-id: ${{ github.run_id }}
@@ -163,24 +192,6 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-
-      - name: Resolve pinned chart version
-        id: chart-version
-        env:
-          APP: ${{ inputs.app }}
-          CHART_VERSIONS_FILE: .helm/chart-versions.yaml
-        run: | # shell
-          chart_version=$(yq -e '.[strenv(APP)]' "$CHART_VERSIONS_FILE") || {
-            echo "❌ No chart version pinned for $APP in $CHART_VERSIONS_FILE" >&2
-            exit 1
-          }
-
-          if [[ ! "$chart_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "❌ Chart version for $APP in $CHART_VERSIONS_FILE must be an exact version, got: $chart_version" >&2
-            exit 1
-          fi
-
-          echo "version=$chart_version" >> "$GITHUB_OUTPUT"
 
       - name: Load kubeconfig
         id: op-load-secret
@@ -242,7 +253,7 @@ jobs:
           DEPLOYMENT_ENV: ${{ inputs.environment == 'prod' && 'production' || 'staging' }}
           APP_NAMESPACE: ${{ inputs.environment }}
           APP_VERSION: ${{ inputs.appVersion }}
-          CHART_VERSION: ${{ steps.chart-version.outputs.version }}
+          CHART_VERSION: ${{ needs.deployment-prerequisites.outputs.chart_version }}
         run: | # shell
           echo "$KUBECONFIG" > kubeconfig
 
