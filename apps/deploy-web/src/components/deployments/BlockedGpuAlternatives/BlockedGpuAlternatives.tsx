@@ -11,6 +11,7 @@ import { describeModelGpu } from "@src/components/onboarding-picker/onboarding-c
 import { useTrialRunnableModels } from "@src/components/onboarding-picker/onboarding-catalog/useTrialRunnableModels";
 import { useServices } from "@src/context/ServicesProvider";
 import { useAddCredits } from "@src/hooks/useAddCredits";
+import { useMarkAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
 import { useIsOutOfDeployCredit } from "@src/hooks/useIsOutOfDeployCredit/useIsOutOfDeployCredit";
 import type { AkashMlModel, BlockedGpuPlacement } from "./akashMlModels";
 import { buildAkashMlUrl, findAkashMlModel } from "./akashMlModels";
@@ -20,7 +21,8 @@ export const DEPENDENCIES = {
   useRouter,
   useAddCredits,
   useIsOutOfDeployCredit,
-  useTrialRunnableModels
+  useTrialRunnableModels,
+  useMarkAutoDeployStart
 };
 
 type AlternativeOption = "akashml" | "smaller_model" | "add_credits";
@@ -42,6 +44,7 @@ export function BlockedGpuAlternatives({ templateId, placement, dependencies: d 
   const openAddCredits = d.useAddCredits();
   const isOutOfCredit = d.useIsOutOfDeployCredit();
   const { models } = d.useTrialRunnableModels();
+  const markAutoDeployStart = d.useMarkAutoDeployStart();
   const akashMlModel = findAkashMlModel(templateId);
   const smallerModel = isOutOfCredit ? undefined : models[0];
 
@@ -57,6 +60,7 @@ export function BlockedGpuAlternatives({ templateId, placement, dependencies: d 
   function deploySmallerModel(model: RunnableModel) {
     trackAlternativeClick("smaller_model");
     analyticsService.flush();
+    markAutoDeployStart(model.template.templateId);
     router.push(urlService.configureDeployment({ templateId: model.template.templateId, sdlStrategy: "default", bidStrategy: "auto" }));
   }
 

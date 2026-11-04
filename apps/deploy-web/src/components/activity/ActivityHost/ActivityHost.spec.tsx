@@ -462,8 +462,6 @@ describe(ActivityHost.name, () => {
   });
 
   describe("for a one-click deploy Console finishes on its own", () => {
-    const DEPLOY_AGAIN_HREF = "/new-deployment/configure?templateId=hello-world&sdl-strategy=default&bid-strategy=auto";
-
     it("announces no provider to choose once the create succeeds, as Console picks one itself, but refreshes its data", () => {
       const pending = buildActivity({ type: "deployment_create", status: "pending", meta: { dseq: "1234" } });
       const { enqueueSnackbar, queryClient, receive, api } = setup({ activities: [pending] });
@@ -500,7 +498,7 @@ describe(ActivityHost.name, () => {
     });
 
     it("tells why Console gave up picking a provider, offering to deploy again from the deployment it closed", async () => {
-      const { enqueueSnackbar, receive, followToastAction, push } = setup({ activities: [matching()], names: { "1234": "web" } });
+      const { enqueueSnackbar, receive, followToastAction, push, markAutoDeployStart } = setup({ activities: [matching()], names: { "1234": "web" } });
 
       receive([unmatched("no_provider_bids", "No provider bid on this deployment in time, so it was closed.")]);
       await followToastAction("Deploy again");
@@ -516,24 +514,27 @@ describe(ActivityHost.name, () => {
         { variant: "error" }
       );
       expect(push).toHaveBeenCalledWith("/deployments/1234?tab=UPDATE");
+      expect(markAutoDeployStart).not.toHaveBeenCalled();
     });
 
-    it("runs a one-click deploy this tab sent again from the toast", async () => {
-      const { receive, followToastAction, push } = setup({ activities: [matching()], oneClickDeploys: { "1234": DEPLOY_AGAIN_HREF } });
+    it("runs a one-click deploy this tab sent again from the toast, marking its template for the configure screen", async () => {
+      const { receive, followToastAction, push, markAutoDeployStart } = setup({ activities: [matching()], oneClickDeploys: { "1234": "hello-world" } });
 
       receive([unmatched("no_reachable_provider", "No provider that bid on this deployment answered in time, so it was closed.")]);
       await followToastAction("Deploy again");
 
-      expect(push).toHaveBeenCalledWith(DEPLOY_AGAIN_HREF);
+      expect(markAutoDeployStart).toHaveBeenCalledExactlyOnceWith("hello-world");
+      expect(push).toHaveBeenCalledWith("/new-deployment/configure?templateId=hello-world&sdl-strategy=default&bid-strategy=auto");
     });
 
     it("keeps the link of any other failed deploy, even for a one-click deploy this tab sent", async () => {
-      const { receive, followToastAction, push } = setup({ activities: [matching()], oneClickDeploys: { "1234": DEPLOY_AGAIN_HREF } });
+      const { receive, followToastAction, push, markAutoDeployStart } = setup({ activities: [matching()], oneClickDeploys: { "1234": "hello-world" } });
 
       receive([unmatched("lease_not_created", "The bid was closed.")]);
       await followToastAction("Choose a provider");
 
       expect(push).toHaveBeenCalledWith("/new-deployment/configure/1234");
+      expect(markAutoDeployStart).not.toHaveBeenCalled();
     });
 
     it("announces nothing once the user closed the deployment while Console was picking its provider", () => {
@@ -1090,6 +1091,7 @@ describe(ActivityHost.name, () => {
         useHandledActivityOutcomes: () => ({ isOutcomeHandled: () => false, isFollowedOnItsPage: () => false, forgetHandledOutcome: vi.fn() }),
         useTakeHeldActivityEvents: () => () => ({}),
         useOneClickDeploys: () => new Map(),
+        useMarkAutoDeployStart: () => vi.fn(),
         useSnackbar: () => ({ enqueueSnackbar, closeSnackbar: vi.fn() }),
         useQueryClient: () => queryClient,
         useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>()
@@ -1148,6 +1150,7 @@ describe(ActivityHost.name, () => {
     const enqueueSnackbar = vi.fn().mockReturnValue(TOAST_KEY);
     const closeSnackbar = vi.fn();
     const push = vi.fn();
+    const markAutoDeployStart = vi.fn();
     const takeHeldActivityEvents = vi.fn((activityId: string) => input.heldEvents?.[activityId] ?? {});
     const analyticsService = mock<AnalyticsService>();
     const queryClient = mock<ReturnType<typeof DEPENDENCIES.useQueryClient>>();
@@ -1165,6 +1168,7 @@ describe(ActivityHost.name, () => {
       useHandledActivityOutcomes: () => ({ isOutcomeHandled, isFollowedOnItsPage, forgetHandledOutcome }),
       useTakeHeldActivityEvents: () => takeHeldActivityEvents,
       useOneClickDeploys: () => new Map(Object.entries(input.oneClickDeploys ?? {})),
+      useMarkAutoDeployStart: () => markAutoDeployStart,
       useSnackbar: () => ({ enqueueSnackbar, closeSnackbar }),
       useQueryClient: () => queryClient,
       useRouter: () => mock<ReturnType<typeof DEPENDENCIES.useRouter>>({ push })
@@ -1196,6 +1200,7 @@ describe(ActivityHost.name, () => {
       enqueueSnackbar,
       closeSnackbar,
       push,
+      markAutoDeployStart,
       queryClient,
       api,
       user,

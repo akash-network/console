@@ -11,10 +11,11 @@ import { useRouter } from "next/navigation";
 import { useOnboardingApiKey } from "@src/components/onboarding-picker/ApiKeySetup/useOnboardingApiKey";
 import { AI_AGENTS_DOCS_URL, AKASH_SKILL_INSTALL_COMMAND, AKT_DOCS_URL, API_REFERENCE_URL } from "@src/config/agent-setup.config";
 import { useServices } from "@src/context/ServicesProvider";
+import { useMarkAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
 import { useGetStartedChecklist } from "./useGetStartedChecklist";
 import { useGetStartedQuickPicks } from "./useGetStartedQuickPicks";
 
-export const DEPENDENCIES = { useGetStartedChecklist, useGetStartedQuickPicks, useOnboardingApiKey, useRouter, useServices };
+export const DEPENDENCIES = { useGetStartedChecklist, useGetStartedQuickPicks, useMarkAutoDeployStart, useOnboardingApiKey, useRouter, useServices };
 
 export const AKASHML_URL = "https://playground.akashml.com/?utm_source=akash-console&utm_medium=get-started&utm_campaign=trial-onboarding";
 
@@ -52,6 +53,7 @@ export function GetStartedChecklist({ dependencies: d = DEPENDENCIES }: { depend
   const { isVisible, steps, hasSetUpTools, doneCount, stepCount, isComplete, dismiss, markAgentSetupCopied } = d.useGetStartedChecklist();
   const router = d.useRouter();
   const [quickPick] = d.useGetStartedQuickPicks();
+  const markAutoDeployStart = d.useMarkAutoDeployStart();
   const { urlService, analyticsService } = d.useServices();
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isCreatedKeyReleased, setIsCreatedKeyReleased] = useState(false);
@@ -68,6 +70,7 @@ export function GetStartedChecklist({ dependencies: d = DEPENDENCIES }: { depend
 
   const deployQuickPick = () => {
     trackStepClick("deploy", quickPick.templateId);
+    markAutoDeployStart(quickPick.templateId);
     router.push(urlService.configureDeployment({ templateId: quickPick.templateId, sdlStrategy: "default", bidStrategy: "auto" }));
   };
 

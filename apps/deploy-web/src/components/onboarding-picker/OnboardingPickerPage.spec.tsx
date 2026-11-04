@@ -43,23 +43,25 @@ describe(OnboardingPickerPage.name, () => {
     expect(container).toHaveTextContent("Plus, get 10% in bonus credits on your first purchase, up to $100.");
   });
 
-  it("redirects to the configure view with the hello-world auto-deploy intent when its card deploys", () => {
+  it("marks hello-world and redirects to the configure view with its auto-deploy intent when its card deploys", () => {
     const push = vi.fn();
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
-    setup({ push, dependencies: { DeploymentTemplatePickerCard } });
+    const { markAutoDeployStart } = setup({ push, dependencies: { DeploymentTemplatePickerCard } });
 
     act(() => getCard(DeploymentTemplatePickerCard, "Hello world").onDeploy!());
 
+    expect(markAutoDeployStart).toHaveBeenCalledWith(HELLO_WORLD_ID);
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: HELLO_WORLD_ID, sdlStrategy: "default", bidStrategy: "auto" }));
   });
 
-  it("redirects to the configure view with the space-agent auto-deploy intent when its card deploys", () => {
+  it("marks space-agent and redirects to the configure view with its auto-deploy intent when its card deploys", () => {
     const push = vi.fn();
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
-    setup({ push, dependencies: { DeploymentTemplatePickerCard } });
+    const { markAutoDeployStart } = setup({ push, dependencies: { DeploymentTemplatePickerCard } });
 
     act(() => getCard(DeploymentTemplatePickerCard, "Space Agent").onDeploy!());
 
+    expect(markAutoDeployStart).toHaveBeenCalledWith(SPACE_AGENT_ID);
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId: SPACE_AGENT_ID, sdlStrategy: "default", bidStrategy: "auto" }));
   });
 
@@ -409,11 +411,13 @@ describe(OnboardingPickerPage.name, () => {
     const push = vi.fn();
     const DeploymentTemplatePickerCard = vi.fn(ComponentMock);
     const AddCreditsSheet = vi.fn(ComponentMock);
-    setup({ isOutOfCredit: true, push, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
+    const { markAutoDeployStart } = setup({ isOutOfCredit: true, push, dependencies: { DeploymentTemplatePickerCard, AddCreditsSheet } });
 
     act(() => getCard(DeploymentTemplatePickerCard, title).onDeploy!());
+    expect(markAutoDeployStart).not.toHaveBeenCalled();
     act(() => (AddCreditsSheet.mock.calls.at(-1)![0] as SheetProps).onDone(100));
 
+    expect(markAutoDeployStart).toHaveBeenCalledWith(templateId);
     expect(push).toHaveBeenCalledWith(UrlService.configureDeployment({ templateId, sdlStrategy: "default", bidStrategy: "auto" }));
   });
 
@@ -602,6 +606,7 @@ describe(OnboardingPickerPage.name, () => {
   ) {
     const push = input.push ?? vi.fn();
     const replace = input.replace ?? vi.fn();
+    const markAutoDeployStart = vi.fn();
     const isTrialing = input.isTrialing ?? true;
     const isHackathonsEnabled = input.isHackathonsEnabled ?? false;
     const trialCreditsAmount = input.trialCreditsAmount ?? 100;
@@ -636,6 +641,7 @@ describe(OnboardingPickerPage.name, () => {
           useSearchParams,
           useEnsureTrialStarted,
           useIsOutOfDeployCredit,
+          useMarkAutoDeployStart: () => markAutoDeployStart,
           useWallet,
           useFlag,
           useServices,
@@ -644,6 +650,6 @@ describe(OnboardingPickerPage.name, () => {
       />
     );
 
-    return { ...result, analyticsService };
+    return { ...result, analyticsService, markAutoDeployStart };
   }
 });

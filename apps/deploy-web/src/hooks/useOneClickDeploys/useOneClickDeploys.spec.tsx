@@ -13,15 +13,15 @@ describe(useOneClickDeploys.name, () => {
     expect(result.current.oneClickDeploys.size).toBe(0);
   });
 
-  it("keeps the link that runs each recorded deploy again, by deployment", () => {
+  it("keeps the template each recorded deploy ran, by deployment", () => {
     const { result } = setup();
 
-    act(() => result.current.record("1000", "/new-deployment/configure?templateId=hello-world"));
-    act(() => result.current.record("2000", "/new-deployment/configure?templateId=llama"));
+    act(() => result.current.record("1000", "hello-world"));
+    act(() => result.current.record("2000", "llama"));
 
     expect([...result.current.oneClickDeploys]).toEqual([
-      ["1000", "/new-deployment/configure?templateId=hello-world"],
-      ["2000", "/new-deployment/configure?templateId=llama"]
+      ["1000", "hello-world"],
+      ["2000", "llama"]
     ]);
   });
 

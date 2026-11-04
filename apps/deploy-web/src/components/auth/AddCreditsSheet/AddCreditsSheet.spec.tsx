@@ -294,6 +294,31 @@ describe(AddCreditsSheet.name, () => {
       expect(onOpenChange).toHaveBeenCalledWith(false);
     });
 
+    it("marks Hello World as the deploy the configure screen may start when Deploy now is clicked", () => {
+      const { purchase, markAutoDeployStart } = setup({ open: true, suggestFirstDeployment: true });
+      purchase(100);
+      const link = screen.getByRole("link", { name: "Deploy now" });
+      link.addEventListener("click", event => event.preventDefault());
+
+      fireEvent.click(link);
+
+      expect(markAutoDeployStart).toHaveBeenCalledExactlyOnceWith("hello-world");
+    });
+
+    it.each([
+      { name: "Deploy with your API key or agent", role: "link" as const },
+      { name: "Done", role: "button" as const }
+    ])("marks no deploy when $name is clicked", ({ name, role }) => {
+      const { purchase, markAutoDeployStart } = setup({ open: true, suggestFirstDeployment: true, apiKeys: { data: [buildApiKey()] } });
+      purchase(100);
+      const target = screen.getByRole(role, { name });
+      target.addEventListener("click", event => event.preventDefault());
+
+      fireEvent.click(target);
+
+      expect(markAutoDeployStart).not.toHaveBeenCalled();
+    });
+
     it("tracks done and closes the sheet with the purchase when the offer is declined", () => {
       const onDone = vi.fn();
       const { purchase, analyticsService } = setup({ open: true, suggestFirstDeployment: true, context: "billing_page", onDone });
@@ -422,6 +447,7 @@ describe(AddCreditsSheet.name, () => {
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const analyticsService = mock<AnalyticsService>();
+    const markAutoDeployStart = vi.fn();
     const useServices = (() => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService })) as typeof DEPENDENCIES.useServices;
     const useWalletBalance: typeof DEPENDENCIES.useWalletBalance = () =>
       mock<ReturnType<typeof DEPENDENCIES.useWalletBalance>>({
@@ -443,6 +469,7 @@ describe(AddCreditsSheet.name, () => {
       useLeaseExistenceQuery,
       useUserApiKeys,
       useCanManageBilling: () => input.canManageBilling ?? true,
+      useMarkAutoDeployStart: () => markAutoDeployStart,
       ...input.dependencies
     });
 
@@ -466,6 +493,7 @@ describe(AddCreditsSheet.name, () => {
     return {
       dependencies,
       analyticsService,
+      markAutoDeployStart,
       rerender: (open: boolean) => view.rerender(renderSheet(open)),
       purchase: (amount: number, bonusAmount?: number) => act(() => dependencies.AddCreditsTabs.mock.calls.at(-1)![0].onDone(amount, bonusAmount))
     };

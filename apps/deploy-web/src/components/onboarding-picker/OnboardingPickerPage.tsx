@@ -16,14 +16,15 @@ import { IntentFirstPicker } from "@src/components/onboarding-picker/IntentFirst
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useMarkAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
 import { useEnsureTrialStarted } from "@src/hooks/useEnsureTrialStarted";
 import { useFlag } from "@src/hooks/useFlag";
 import { useIsOutOfDeployCredit } from "@src/hooks/useIsOutOfDeployCredit/useIsOutOfDeployCredit";
 
 /**
- * Template ids the picker cards deploy. Each card redirects to the bid-screening (configure) view carrying its
- * `templateId`; that view resolves the SDL and — because the redirect also carries `sdl-strategy=default` and
- * `bid-strategy=auto` — starts the deployment automatically. The space-agent and chatbot ids are public gallery
+ * Template ids the picker cards deploy. Each card marks its template and redirects to the bid-screening (configure) view
+ * carrying its `templateId`, `sdl-strategy=default` and `bid-strategy=auto`; that view resolves the SDL and, because the
+ * card marked it, starts the deployment automatically. The space-agent and chatbot ids are public gallery
  * templates; hello-world is a hardcoded template resolved by code on the configure side.
  */
 const TEMPLATE_IDS = {
@@ -49,6 +50,7 @@ export const DEPENDENCIES = {
   useWallet,
   useEnsureTrialStarted,
   useIsOutOfDeployCredit,
+  useMarkAutoDeployStart,
   useServices,
   useFlag,
   DeploymentTemplatePickerCard,
@@ -72,6 +74,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
   const templateIdToDeployAfterCredits = addCreditsPrompt && "templateId" in addCreditsPrompt ? addCreditsPrompt.templateId : undefined;
   const { isWalletReady } = d.useEnsureTrialStarted();
   const isOutOfCredit = d.useIsOutOfDeployCredit();
+  const markAutoDeployStart = d.useMarkAutoDeployStart();
   const starterTemplateCta = isOutOfCredit ? ADD_CREDITS_TO_DEPLOY_CTA : DEPLOY_CTA;
   const isHackathonsEnabled = d.useFlag("hackathons");
   const isIntentFirst = d.useFlag("onboarding_intent_first");
@@ -92,6 +95,7 @@ export function OnboardingPickerPage({ dependencies: d = DEPENDENCIES }: Onboard
 
   /** Redirects to the bid-screening view, which auto-starts the deployment from the intent params. */
   function redirectToConfigure(templateId: string) {
+    markAutoDeployStart(templateId);
     router.push(urlService.configureDeployment({ templateId, sdlStrategy: "default", bidStrategy: "auto" }));
   }
 

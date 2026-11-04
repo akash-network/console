@@ -8,6 +8,7 @@ import Link from "next/link";
 import { type AddCreditsTab, AddCreditsTabs } from "@src/components/billing-usage/AddCreditsTabs/AddCreditsTabs";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useMarkAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
 import { useCanManageBilling } from "@src/hooks/useCanManageBilling";
 import { useWalletBalance } from "@src/hooks/useWalletBalance";
 import { useUserApiKeys } from "@src/queries/useApiKeysQuery";
@@ -27,7 +28,8 @@ export const DEPENDENCIES = {
   useWallet,
   useLeaseExistenceQuery,
   useUserApiKeys,
-  useCanManageBilling
+  useCanManageBilling,
+  useMarkAutoDeployStart
 };
 
 type NextStepChoice = "deploy_now" | "api_key" | "done";
@@ -72,6 +74,7 @@ export function AddCreditsSheet({
 }: AddCreditsSheetProps) {
   const { analyticsService } = d.useServices();
   const canManageBilling = d.useCanManageBilling();
+  const markAutoDeployStart = d.useMarkAutoDeployStart();
   const [isProcessing, setIsProcessing] = useState(false);
   const [purchase, setPurchase] = useState<{ amount: number; bonusAmount?: number } | null>(null);
   const purchaseDismissedRef = useRef(false);
@@ -118,6 +121,7 @@ export function AddCreditsSheet({
 
   const continueWithNextStep = (choice: NextStepChoice) => {
     analyticsService.track("add_credits_next_step_clicked", { category: "billing", context, choice });
+    if (choice === "deploy_now") markAutoDeployStart(helloWorldTemplate.code);
     requestOpenChange(false);
   };
 

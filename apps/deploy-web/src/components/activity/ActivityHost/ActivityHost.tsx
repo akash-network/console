@@ -17,6 +17,7 @@ import { deploymentLabelOf, listOf, systemCloseOf } from "@src/components/activi
 import { ActivityToast } from "@src/components/activity/ActivityToast/ActivityToast";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
+import { useMarkAutoDeployStart } from "@src/hooks/useAutoDeployStart/useAutoDeployStart";
 import { useCloseBatchesBeingSent } from "@src/hooks/useCloseBatches/useCloseBatches";
 import { useDeploymentNames } from "@src/hooks/useDeploymentNames/useDeploymentNames";
 import { CLOSED_WHILE_MATCHING } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
@@ -26,6 +27,7 @@ import { type OneClickDeploys, useOneClickDeploys } from "@src/hooks/useOneClick
 import { useUser } from "@src/hooks/useUser";
 import { QueryKeys } from "@src/queries/queryKeys";
 import { type Activity, useLatestActivitiesQuery } from "@src/queries/useLatestActivitiesQuery";
+import { UrlService } from "@src/utils/urlUtils";
 
 export const DEPENDENCIES = {
   useUser,
@@ -36,6 +38,7 @@ export const DEPENDENCIES = {
   useHandledActivityOutcomes,
   useTakeHeldActivityEvents,
   useOneClickDeploys,
+  useMarkAutoDeployStart,
   useSnackbar,
   useQueryClient,
   useRouter
@@ -44,6 +47,8 @@ export const DEPENDENCIES = {
 type FinishedActivity = Activity & { type: Exclude<Activity["type"], `${string}_alert`>; status: "succeeded" | "failed" };
 
 type Announcement = { title: string; subTitle: string; variant: "success" | "info" | "warning" | "error" };
+
+type ToastDestination = ActivityDestination & { autoDeployTemplateId?: string };
 
 type LabelDeployment = (dseq: string | undefined) => string;
 
@@ -131,6 +136,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
   const { isOutcomeHandled, isFollowedOnItsPage, forgetHandledOutcome } = d.useHandledActivityOutcomes();
   const takeHeldActivityEvents = d.useTakeHeldActivityEvents();
   const oneClickDeploys = d.useOneClickDeploys();
+  const markAutoDeployStart = d.useMarkAutoDeployStart();
   const lastSeenStatuses = useRef<Map<string, Activity["status"]>>();
   const batchesToSumUp = useRef(new Set<string>());
   /** Only actions started after this read get a progress toast, so one stuck pending for hours doesn't greet the user with a spinner on every page load. */
@@ -224,14 +230,15 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
         if (announcement) announce(announcement, toastDestinationOf(activity, oneClickDeploys));
       }
 
-      function announce({ title, subTitle, variant }: Announcement, destination: ActivityDestination) {
+      function announce({ title, subTitle, variant }: Announcement, destination: ToastDestination) {
         const key = enqueueSnackbar(
           <ActivityToast title={title} subTitle={subTitle} iconVariant={variant} actionLabel={destination.label} onAction={() => follow(destination, key)} />,
           { variant }
         );
       }
 
-      function follow({ href }: ActivityDestination, key: SnackbarKey) {
+      function follow({ href, autoDeployTemplateId }: ToastDestination, key: SnackbarKey) {
+        if (autoDeployTemplateId) markAutoDeployStart(autoDeployTemplateId);
         router.push(href);
         closeSnackbar(key);
       }
@@ -266,6 +273,7 @@ export function ActivityHost({ dependencies: d = DEPENDENCIES }: { dependencies?
       forgetHandledOutcome,
       takeHeldActivityEvents,
       oneClickDeploys,
+      markAutoDeployStart,
       address,
       api,
       analyticsService,
@@ -286,11 +294,16 @@ function isLeasedByConsole(dseq: string | undefined, activities: Activity[]): bo
 }
 
 /** A toast's action is a click the user chose, so it may run a one-click deploy this tab sent again on its own, which a link in the feed never does. */
-function toastDestinationOf(activity: Activity, oneClickDeploys: OneClickDeploys): ActivityDestination {
+function toastDestinationOf(activity: Activity, oneClickDeploys: OneClickDeploys): ToastDestination {
   const destination = activityDestinationOf(activity);
-  const deployAgainHref = activity.meta.dseq ? oneClickDeploys.get(activity.meta.dseq) : undefined;
+  const templateId = activity.meta.dseq ? oneClickDeploys.get(activity.meta.dseq) : undefined;
+  if (destination.label !== DEPLOY_AGAIN_LABEL || !templateId) return destination;
 
-  return destination.label === DEPLOY_AGAIN_LABEL && deployAgainHref ? { ...destination, href: deployAgainHref } : destination;
+  return {
+    ...destination,
+    href: UrlService.configureDeployment({ templateId, sdlStrategy: "default", bidStrategy: "auto" }),
+    autoDeployTemplateId: templateId
+  };
 }
 
 /** The code alone, since the message of a failure can echo what the user typed. */
