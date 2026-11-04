@@ -9,6 +9,7 @@ import { CustomSnackbarProvider, PopupProvider } from "@akashnetwork/ui/context"
 import { cn } from "@akashnetwork/ui/utils";
 import { AppCacheProvider } from "@mui/material-nextjs/v14-pagesRouter";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import { Provider as JotaiProvider } from "jotai";
 import type { AppProps } from "next/app";
@@ -113,7 +114,7 @@ const LocalNoteManager = dynamic(() => import("@src/components/LocalNoteManager/
 function AppRoot(props: Props & { children: React.ReactNode }) {
   const { queryClient } = useRootContainer();
   return (
-    <main className={cn("h-full bg-background font-sans antialiased", GeistSans.variable)}>
+    <main className={cn("h-full bg-background font-sans antialiased", GeistSans.variable, GeistMono.variable)}>
       <PageHead pageSeo={props.pageProps.seo} />
 
       <RootContainerProvider>

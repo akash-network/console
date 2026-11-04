@@ -23,21 +23,30 @@ describe(useGetStartedChecklist.name, () => {
     expect(result.current.isVisible).toBe(true);
     expect(result.current.steps).toEqual({ hasDeployed: false, hasApiKey: false, hasConnectedAgent: false });
     expect(result.current.doneCount).toBe(0);
-    expect(result.current.stepCount).toBe(3);
+    expect(result.current.stepCount).toBe(2);
     expect(result.current.isComplete).toBe(false);
   });
 
-  it("checks each step from what the user already did", () => {
+  it("reads each fact from what the user already did, leaving the tools step open until a setup command is copied", () => {
     const { result } = setup({ hasLease: true, apiKeyCount: 1 });
 
     expect(result.current.steps).toEqual({ hasDeployed: true, hasApiKey: true, hasConnectedAgent: false });
-    expect(result.current.doneCount).toBe(2);
+    expect(result.current.hasSetUpTools).toBe(false);
+    expect(result.current.doneCount).toBe(1);
   });
 
-  it("checks the agent step once the user copied the setup on any device", () => {
+  it("leaves the tools step open after a copy until the user also has a key", () => {
     const { result } = setup({ agentSetupCopiedAt: "2026-11-01T00:00:00Z" });
 
     expect(result.current.steps.hasConnectedAgent).toBe(true);
+    expect(result.current.hasSetUpTools).toBe(false);
+    expect(result.current.doneCount).toBe(0);
+  });
+
+  it("checks the tools step once the user has a key and copied a setup command on any device", () => {
+    const { result } = setup({ apiKeyCount: 1, agentSetupCopiedAt: "2026-11-01T00:00:00Z" });
+
+    expect(result.current.hasSetUpTools).toBe(true);
     expect(result.current.doneCount).toBe(1);
   });
 
