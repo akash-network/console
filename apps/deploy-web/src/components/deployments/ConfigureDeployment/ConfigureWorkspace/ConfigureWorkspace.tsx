@@ -4,8 +4,11 @@ import type { FieldErrors } from "react-hook-form";
 import { useFormContext, useFormState, useWatch } from "react-hook-form";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 
+import type { QuoteRequestSource } from "@src/components/gpu-requests/gpuQuoteDraft/gpuQuoteCatalog";
+import { GpuQuoteRequestFlow } from "@src/components/gpu-requests/GpuQuoteRequestFlow/GpuQuoteRequestFlow";
 import { isLogCollectorService } from "@src/components/sdl/LogCollectorControl/LogCollectorControl";
 import { useServices } from "@src/context/ServicesProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import { useHasPlacementWithoutProviders, useScreenedProviders } from "@src/queries/useScreenedProviders";
 import type { PlacementType, SdlBuilderFormValuesType, ServiceType } from "@src/types";
@@ -15,7 +18,7 @@ import { AvailabilityPane } from "../AvailabilityPane/AvailabilityPane";
 import { ConfigureEditor } from "../ConfigureEditor/ConfigureEditor";
 import { ResetConfigurationButton } from "../ConfigureEditor/ResetConfigurationButton/ResetConfigurationButton";
 import { deployCtaState } from "../deployCtaState/deployCtaState";
-import { describeCurrentConfiguration, describeRequestedGpuModels } from "../HardwareRequestDialog/currentConfiguration";
+import { describeCurrentConfiguration, describeQuotePrefill, describeRequestedGpuModels } from "../HardwareRequestDialog/currentConfiguration";
 import { HardwareRequestDialog } from "../HardwareRequestDialog/HardwareRequestDialog";
 import type { HardwareRequestCategory, HardwareRequestConfiguration } from "../HardwareRequestDialog/hardwareRequestForm";
 import type { ImportedDeploymentState } from "../importDeploymentState/importDeploymentState";
@@ -60,6 +63,7 @@ export const DEPENDENCIES = {
   ResetConfigurationButton,
   SdlPreviewPane,
   HardwareRequestDialog,
+  GpuQuoteRequestFlow,
   SshKeyStepDialog,
   useSdlPreviewPanel,
   useGpuModels,
@@ -70,14 +74,22 @@ export const DEPENDENCIES = {
   useConfigurationStatus,
   useScreenedProviders,
   useHasPlacementWithoutProviders,
-  useServices
+  useServices,
+  useFlag
 };
 
 const PANEL_TRANSITION = { duration: 0.3, ease: "easeOut" } as const;
 
 type View = "configure" | "pick";
 
-type ComputeRequestSource = "footer" | "no_bids_notice" | "not_bidding_notice";
+type ComputeRequestSource = "footer" | "no_fit_notice" | "no_bids_notice" | "not_bidding_notice";
+
+const QUOTE_SOURCE_OF: Record<ComputeRequestSource, QuoteRequestSource> = {
+  footer: "configure_reserve",
+  no_fit_notice: "no_fit",
+  no_bids_notice: "no_bids",
+  not_bidding_notice: "no_bids"
+};
 
 type HardwareRequest = { configuration: HardwareRequestConfiguration; category: HardwareRequestCategory; gpuModel: string };
 
@@ -136,7 +148,9 @@ export const ConfigureWorkspace: FC<Props> = ({
   const requestQuotes = d.useRequestQuotes({ flow, deploymentName: typedDeploymentName, onInvalid: revealFirstInvalidService });
   const { data: gpuCatalog } = d.useGpuModels();
   const hasPlacementWithoutProviders = d.useHasPlacementWithoutProviders(sdl, placements);
+  const isQuoteFlowEnabled = d.useFlag("gpu_quote_requests");
   const [hardwareRequest, setHardwareRequest] = useState<HardwareRequest | null>(null);
+  const [quoteSource, setQuoteSource] = useState<QuoteRequestSource | null>(null);
   const [isProvidersSheetOpen, setIsProvidersSheetOpen] = useState(false);
   const [sshKeyStep, setSshKeyStep] = useState<SshKeyStep | null>(() => (flow.phase === "configuring" ? sshKeyStepFor("setup", getValues("services")) : null));
   const panelsRef = useRef<HTMLDivElement>(null);
@@ -181,6 +195,10 @@ export const ConfigureWorkspace: FC<Props> = ({
   function requestCompute(source: ComputeRequestSource, category: HardwareRequestCategory) {
     setIsProvidersSheetOpen(false);
     analyticsService.track("configure_request_compute_clicked", { category: "deployments", source });
+    if (isQuoteFlowEnabled) {
+      setQuoteSource(QUOTE_SOURCE_OF[source]);
+      return;
+    }
     const values = getValues();
     const serviceIndex = values.services.findIndex(service => service.id === selectedServiceId);
     setHardwareRequest({
@@ -214,6 +232,7 @@ export const ConfigureWorkspace: FC<Props> = ({
       onChooseProvider={chooseProvider}
       onRequestCompute={() => requestCompute("footer", "gpu_model")}
       onRequestComputeForUnlikelyBids={() => requestCompute("not_bidding_notice", "capacity")}
+      onRequestComputeForNoFit={() => requestCompute("no_fit_notice", "capacity")}
     />
   );
 
@@ -317,7 +336,14 @@ export const ConfigureWorkspace: FC<Props> = ({
                     selectedPlacementId={selectedPlacement.id}
                     selectedBidId={flow.selections[selectedPlacement.id]}
                     onSelectProvider={onSelectProvider}
-                    notice={flow.noBidsReceived ? <d.NoBidsNotice onRequestCompute={() => requestCompute("no_bids_notice", "capacity")} /> : undefined}
+                    notice={
+                      flow.noBidsReceived ? (
+                        <d.NoBidsNotice
+                          requestLabel={isQuoteFlowEnabled ? "Request this hardware" : "Request compute"}
+                          onRequestCompute={() => requestCompute("no_bids_notice", "capacity")}
+                        />
+                      ) : undefined
+                    }
                   />
                 </motion.div>
               ) : (
@@ -363,6 +389,17 @@ export const ConfigureWorkspace: FC<Props> = ({
           initialCategory={hardwareRequest.category}
           configuration={hardwareRequest.configuration}
           onClose={() => setHardwareRequest(null)}
+        />
+      )}
+      {quoteSource && (
+        <d.GpuQuoteRequestFlow
+          source={quoteSource}
+          configuration={describeQuotePrefill(
+            getValues(),
+            services.findIndex(service => service.id === selectedServiceId),
+            gpuCatalog
+          )}
+          onClose={() => setQuoteSource(null)}
         />
       )}
       {sshKeyStep && (
