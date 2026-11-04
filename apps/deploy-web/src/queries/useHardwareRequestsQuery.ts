@@ -23,3 +23,33 @@ export function useWithdrawHardwareRequestMutation() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: api.v1.listHardwareRequests.getKey() })
   });
 }
+
+function useRefreshRequestsAndOffers() {
+  const { api } = useServices();
+  const queryClient = useQueryClient();
+
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: api.v1.listHardwareRequests.getKey() }),
+      queryClient.invalidateQueries({ queryKey: api.v1.listHardwareRequestOffers.getKey() })
+    ]);
+}
+
+/** Accepting closes the other offers and moves the request on, so both lists refresh. */
+export function useAcceptHardwareRequestOfferMutation() {
+  const { api } = useServices();
+
+  return api.v1.acceptHardwareRequestOffer.useMutation({ onSettled: useRefreshRequestsAndOffers() });
+}
+
+export function useDeclineHardwareRequestOfferMutation() {
+  const { api } = useServices();
+
+  return api.v1.declineHardwareRequestOffer.useMutation({ onSettled: useRefreshRequestsAndOffers() });
+}
+
+export function useRequestHardwareRequestOfferApprovalMutation() {
+  const { api } = useServices();
+
+  return api.v1.requestHardwareRequestOfferApproval.useMutation();
+}
