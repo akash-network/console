@@ -12,6 +12,7 @@ import {
   MAX_ACTOR_LENGTH,
   MAX_GPU_MODEL_LENGTH,
   MAX_OFFER_LOCATION_LENGTH,
+  MAX_PROVIDER_ADDRESS_LENGTH,
   REQUEST_TERMS,
   UPTIME_SLAS
 } from "@src/hardware-request/model-schemas";
@@ -22,6 +23,7 @@ const MAX_NOTE_LENGTH = 4000;
 const DEFAULT_QUEUE_PAGE_SIZE = 50;
 const MAX_OFFER_GPUS = 1000;
 const MAX_OFFER_STORAGE_TB_PER_NODE = 1000;
+const MAX_OFFER_USD_PER_GPU_HOUR = 1000;
 
 export const HardwareRequestIdParamsSchema = z.object({ id: z.string().uuid() });
 
@@ -133,6 +135,22 @@ export const CreateHardwareRequestOnBehalfRequestSchema = z.object({
   })
 });
 
+export const HardwareRequestOfferParamsSchema = z.object({ id: z.string().uuid(), offerId: z.string().uuid() });
+
+export const HardwareRequestOfferDraftRequestSchema = z.object({
+  data: z.object({
+    providerAddress: z.string().trim().min(1).max(MAX_PROVIDER_ADDRESS_LENGTH).describe("Never shown to the tenant"),
+    usdPerGpuHour: z.number().positive().max(MAX_OFFER_USD_PER_GPU_HOUR),
+    terms: HardwareRequestOfferTermsSchema,
+    expiresAt: z
+      .string()
+      .datetime()
+      .refine(expiresAt => new Date(expiresAt).getTime() > Date.now(), { message: "An offer must expire in the future" })
+  })
+});
+
+export const HardwareRequestOfferResponseSchema = z.object({ data: HardwareRequestOfferSchema });
+
 export const AddHardwareRequestNoteRequestSchema = z.object({
   data: z.object({ actor: ActorSchema, text: z.string().trim().min(1).max(MAX_NOTE_LENGTH) })
 });
@@ -149,5 +167,7 @@ export type AssignHardwareRequestOwnerRequest = z.infer<typeof AssignHardwareReq
 export type SwitchHardwareRequestLaneRequest = z.infer<typeof SwitchHardwareRequestLaneRequestSchema>;
 export type ChangeHardwareRequestStatusRequest = z.infer<typeof ChangeHardwareRequestStatusRequestSchema>;
 export type CreateHardwareRequestOnBehalfRequest = z.infer<typeof CreateHardwareRequestOnBehalfRequestSchema>;
+export type HardwareRequestOfferDraftRequest = z.infer<typeof HardwareRequestOfferDraftRequestSchema>;
+export type HardwareRequestOfferResponse = z.infer<typeof HardwareRequestOfferResponseSchema>;
 export type AddHardwareRequestNoteRequest = z.infer<typeof AddHardwareRequestNoteRequestSchema>;
 export type HardwareRequestWithTimelineResponse = z.infer<typeof HardwareRequestWithTimelineResponseSchema>;
