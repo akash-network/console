@@ -8,6 +8,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import { DEPENDENCIES, IntentFirstPicker } from "./IntentFirstPicker";
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { ComponentMock, MockComponents } from "@tests/unit/mocks";
 
 type PickerCardProps = Parameters<typeof DEPENDENCIES.DeploymentTemplatePickerCard>[0];
@@ -65,19 +66,36 @@ describe(IntentFirstPicker.name, () => {
     expect(screen.getByText("Start from a template or your own Docker image.")).toBeInTheDocument();
   });
 
-  it("switches to another intent and tracks it as a switch", () => {
+  it("switches to another intent and tracks it as a switch", async () => {
     const { push, analyticsService } = setup({ searchParams: "intent=app" });
 
-    fireEvent.click(screen.getByRole("tab", { name: "Connect my agent or code" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Connect my agent or code" }));
 
     expect(push).toHaveBeenCalledWith(UrlService.onboardingPicker({ intent: "tools" }), { scroll: false });
     expect(analyticsService.track).toHaveBeenCalledWith("onboarding_intent_selected", { category: "onboarding", intent: "tools", via: "switch" });
   });
 
-  it("does nothing when the selected tab is clicked again", () => {
+  it("switches intent with the arrow keys", async () => {
+    const { push } = setup({ searchParams: "intent=app" });
+
+    screen.getByRole("tab", { name: "Deploy an app" }).focus();
+    await userEvent.keyboard("{ArrowRight}");
+
+    expect(push).toHaveBeenCalledWith(UrlService.onboardingPicker({ intent: "tools" }), { scroll: false });
+  });
+
+  it("keeps the coupon deep link when an intent is picked", () => {
+    const { push } = setup({ searchParams: "redeemCoupon=true" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Connect my agent or code/ }));
+
+    expect(push).toHaveBeenCalledWith(UrlService.onboardingPicker({ intent: "tools", redeemCoupon: true }), { scroll: false });
+  });
+
+  it("does nothing when the selected tab is clicked again", async () => {
     const { push, analyticsService } = setup({ searchParams: "intent=app" });
 
-    fireEvent.click(screen.getByRole("tab", { name: "Deploy an app" }));
+    await userEvent.click(screen.getByRole("tab", { name: "Deploy an app" }));
 
     expect(push).not.toHaveBeenCalled();
     expect(analyticsService.track).not.toHaveBeenCalled();

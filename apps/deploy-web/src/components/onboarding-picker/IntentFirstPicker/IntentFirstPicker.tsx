@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@akashnetwork/ui/components";
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
 import type { LucideIcon } from "lucide-react";
 import { ArrowRight, Container, KeyRound, LayoutTemplate, Sparkles, Terminal } from "lucide-react";
@@ -59,7 +59,8 @@ export function IntentFirstPicker({ isOutOfCredit, onDeployTemplate, onDeployIma
 
   function selectIntent(intent: OnboardingIntentId, via: "question" | "switch") {
     analyticsService.track("onboarding_intent_selected", { category: "onboarding", intent, via });
-    router.push(urlService.onboardingPicker({ intent }), { scroll: false });
+    const isRedeemingCoupon = searchParams?.get("redeemCoupon") === "true";
+    router.push(urlService.onboardingPicker({ intent, redeemCoupon: isRedeemingCoupon || undefined }), { scroll: false });
   }
 
   if (!selectedIntent) {
@@ -82,33 +83,30 @@ export function IntentFirstPicker({ isOutOfCredit, onDeployTemplate, onDeployIma
   return (
     <div className="mx-auto w-full max-w-[1080px] px-6 pb-14 pt-12">
       <h1 className="text-2xl font-bold tracking-tight text-foreground">{QUESTION}</h1>
-      <div role="tablist" aria-label={QUESTION} className="mt-[18px] flex flex-wrap gap-2">
-        {intents.map(intent => (
-          <IntentTab
-            key={intent.id}
-            intent={intent}
-            isSelected={intent.id === selectedIntent.id}
-            onSelect={() => intent.id !== selectedIntent.id && selectIntent(intent.id, "switch")}
-          />
-        ))}
-      </div>
-      <div role="tabpanel" id="onboarding-intent-panel" aria-labelledby={`onboarding-intent-tab-${selectedIntent.id}`} className="mt-7">
-        <p className="mb-4 text-sm text-muted-foreground">{selectedIntent.description}</p>
-        {selectedIntent.id === "app" && (
-          <DeployAppPath isOutOfCredit={isOutOfCredit} onDeployTemplate={onDeployTemplate} onDeployImage={onDeployImage} dependencies={d} />
-        )}
-        {selectedIntent.id === "tools" && (
-          <div className="flex flex-col gap-6">
-            <Button className="gap-2 self-start" asChild>
-              <Link href={urlService.userApiKeys()}>
-                <KeyRound className="h-4 w-4" />
-                Create an API key
-              </Link>
-            </Button>
-            <d.ApiKeyUsageGuide />
-          </div>
-        )}
-      </div>
+      <Tabs value={selectedIntent.id} onValueChange={value => selectIntent(value as OnboardingIntentId, "switch")}>
+        <TabsList aria-label={QUESTION} className="mt-[18px] flex h-auto flex-wrap gap-2 bg-transparent p-0">
+          {intents.map(intent => (
+            <IntentTab key={intent.id} intent={intent} />
+          ))}
+        </TabsList>
+        <TabsContent value={selectedIntent.id} className="mt-7">
+          <p className="mb-4 text-sm text-muted-foreground">{selectedIntent.description}</p>
+          {selectedIntent.id === "app" && (
+            <DeployAppPath isOutOfCredit={isOutOfCredit} onDeployTemplate={onDeployTemplate} onDeployImage={onDeployImage} dependencies={d} />
+          )}
+          {selectedIntent.id === "tools" && (
+            <div className="flex flex-col gap-6">
+              <Button className="gap-2 self-start" asChild>
+                <Link href={urlService.userApiKeys()}>
+                  <KeyRound className="h-4 w-4" />
+                  Create an API key
+                </Link>
+              </Button>
+              <d.ApiKeyUsageGuide />
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
       {footer}
     </div>
   );
@@ -139,23 +137,15 @@ function IntentChoice({ intent, onSelect }: { intent: OnboardingIntent; onSelect
   );
 }
 
-function IntentTab({ intent, isSelected, onSelect }: { intent: OnboardingIntent; isSelected: boolean; onSelect: () => void }) {
+function IntentTab({ intent }: { intent: OnboardingIntent }) {
   return (
-    <button
-      type="button"
-      role="tab"
-      id={`onboarding-intent-tab-${intent.id}`}
-      aria-selected={isSelected}
-      aria-controls="onboarding-intent-panel"
-      onClick={onSelect}
-      className={cn(
-        "inline-flex h-[38px] items-center gap-2 whitespace-nowrap rounded-full border pl-3 pr-[15px] text-[13.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        isSelected ? "border-foreground bg-foreground text-background" : "border-border bg-background text-muted-foreground hover:text-foreground"
-      )}
+    <TabsTrigger
+      value={intent.id}
+      className="h-[38px] gap-2 rounded-full border border-border bg-background py-0 pl-3 pr-[15px] text-[13.5px] text-muted-foreground transition-colors data-[state=active]:border-foreground data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-none hover:text-foreground focus-visible:ring-offset-0"
     >
       <intent.Icon className="h-3.5 w-3.5" />
       {intent.title}
-    </button>
+    </TabsTrigger>
   );
 }
 
