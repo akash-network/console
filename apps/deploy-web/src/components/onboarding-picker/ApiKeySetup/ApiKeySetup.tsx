@@ -45,8 +45,8 @@ export function ApiKeySetup({ createdApiKey, isCreating, isLoadingTrialProject, 
               {createdApiKey ? describeApiKey(createdApiKey) : "Shown once, then filled into the commands below."}
             </p>
             {!secret && (
-              <LoadingButton className="gap-2" loading={isCreating} disabled={isLoadingTrialProject} onClick={onCreate}>
-                <KeyRound className="h-4 w-4" aria-hidden />
+              <LoadingButton loading={isCreating} disabled={isLoadingTrialProject} onClick={onCreate}>
+                <KeyRound className="mr-2 h-4 w-4" aria-hidden />
                 Create key
               </LoadingButton>
             )}

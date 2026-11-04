@@ -105,7 +105,11 @@ export const ApiKeyUsageGuide: FC<Props> = ({ title = "Using your keys", apiKey,
             <SetupStep
               index={2}
               title="Connect it to your account"
-              description="Creates a context that deploys through Console, then asks for your key and stores it."
+              description={
+                apiKey
+                  ? "Creates a context that deploys through Console, then stores your key for it."
+                  : "Creates a context that deploys through Console, then asks for your key and stores it."
+              }
             >
               <CommandBlock
                 label="akt login commands"

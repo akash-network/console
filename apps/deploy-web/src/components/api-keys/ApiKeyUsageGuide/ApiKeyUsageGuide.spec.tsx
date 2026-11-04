@@ -44,6 +44,7 @@ describe("ApiKeyUsageGuide", () => {
 
     expect(screen.getByLabelText("akt install command")).toHaveTextContent("brew install akash-network/tap/akt");
     expect(screen.getByLabelText("akt login commands").textContent).toBe("akt context create console --deploy-via console --set-current\nakt console login");
+    expect(screen.getByText("Creates a context that deploys through Console, then asks for your key and stores it.")).toBeInTheDocument();
     expect(screen.getByLabelText("akt deploy commands").textContent).toBe("akt sdl init web > deploy.yaml\nakt deploy deploy.yaml");
     expect(screen.queryByLabelText("skill install command")).not.toBeInTheDocument();
   });
@@ -97,6 +98,7 @@ describe("ApiKeyUsageGuide", () => {
     expect(screen.getByLabelText("akt login commands").textContent).toBe(
       `akt context create console --deploy-via console --set-current\nakt console login ${API_KEY}`
     );
+    expect(screen.getByText("Creates a context that deploys through Console, then stores your key for it.")).toBeInTheDocument();
   });
 
   it("fills the given key into the REST API script", async () => {
