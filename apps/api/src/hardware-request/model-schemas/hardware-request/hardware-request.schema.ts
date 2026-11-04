@@ -36,6 +36,16 @@ export const hardwareRequestSourceEnum = pgEnum("hardware_request_source", [
 
 export type HardwareRequestSource = (typeof hardwareRequestSourceEnum.enumValues)[number];
 
+export const HARDWARE_REQUEST_LANES = ["sales", "automated"] as const;
+
+export type HardwareRequestLane = (typeof HARDWARE_REQUEST_LANES)[number];
+
+export const SALES_LANE_REASONS = ["monthly_value", "multi_node", "interconnect", "long_term_data_center", "could_grow", "wants_to_talk"] as const;
+
+export type SalesLaneReason = (typeof SALES_LANE_REASONS)[number];
+
+export type HardwareRequestLaneReason = SalesLaneReason | "no_payment_method" | "below_thresholds" | "manual";
+
 export type HardwareRequestConfiguration = {
   summary: string;
   cpu: number;
