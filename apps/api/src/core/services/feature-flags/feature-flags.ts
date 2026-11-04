@@ -10,7 +10,8 @@ export const FeatureFlags = {
   ORGANIZATIONS_ENFORCE: "organizations_enforce",
   INVOICES: "invoices",
   BACKGROUND_AUTO_LEASE: "background_auto_lease",
-  TEAM_DATA_KEYS: "team_data_keys"
+  TEAM_DATA_KEYS: "team_data_keys",
+  GPU_REQUEST_ROUTING: "gpu_request_routing"
 } as const;
 
 export type FeatureFlagValue = (typeof FeatureFlags)[keyof typeof FeatureFlags];

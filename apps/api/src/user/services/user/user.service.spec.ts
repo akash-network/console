@@ -11,6 +11,7 @@ import type { WalletInitializerService } from "@src/billing/services/wallet-init
 import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
+import type { HardwareRequestClaimService } from "@src/hardware-request/services/hardware-request-claim/hardware-request-claim.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { PersonalOrganizationService } from "@src/organization/services/personal-organization/personal-organization.service";
 import type { DataKeyService } from "@src/secret/services/data-key/data-key.service";
@@ -92,6 +93,37 @@ describe(UserService.name, () => {
       await service.registerUser(createRegisterInput());
 
       expect(userRepository.findByUserId).not.toHaveBeenCalled();
+    });
+
+    it("hands a verified account the GPU requests the team filed for its email", async () => {
+      const user = createUser({ emailVerified: true, email: "test@example.com" });
+      const { service, userRepository, hardwareRequestClaimService } = setup({ signInEmail: { email: user.email!, emailVerified: true } });
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+
+      await service.registerUser(createRegisterInput());
+
+      expect(hardwareRequestClaimService.claimForVerifiedEmail).toHaveBeenCalledWith(user);
+    });
+
+    it("leaves the GPU requests filed for an unverified email unclaimed", async () => {
+      const user = createUser({ emailVerified: false, email: "test@example.com" });
+      const { service, userRepository, hardwareRequestClaimService } = setup({ signInEmail: { email: user.email!, emailVerified: false } });
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+
+      await service.registerUser(createRegisterInput());
+
+      expect(hardwareRequestClaimService.claimForVerifiedEmail).not.toHaveBeenCalled();
+    });
+
+    it("registers the user even when the GPU requests cannot be claimed", async () => {
+      const user = createUser({ emailVerified: true, email: "test@example.com" });
+      const { service, userRepository, hardwareRequestClaimService, logger } = setup({ signInEmail: { email: user.email!, emailVerified: true } });
+      userRepository.upsertOnExternalIdConflict.mockResolvedValue({ user, wasInserted: true });
+      const error = new Error("database unavailable");
+      hardwareRequestClaimService.claimForVerifiedEmail.mockRejectedValue(error);
+
+      await expect(service.registerUser(createRegisterInput())).resolves.toMatchObject({ id: user.id });
+      expect(logger.error).toHaveBeenCalledWith({ event: "FAILED_TO_CLAIM_HARDWARE_REQUESTS", id: user.id, error });
     });
 
     it("sends verification code when Auth0 has not verified the address", async () => {
@@ -628,6 +660,7 @@ describe(UserService.name, () => {
       getEmail: vi.fn().mockResolvedValue(input.signInEmail === undefined ? { email: faker.internet.email(), emailVerified: true } : input.signInEmail)
     });
 
+    const hardwareRequestClaimService = mock<HardwareRequestClaimService>({ claimForVerifiedEmail: vi.fn().mockResolvedValue(undefined) });
     const service = new UserService(
       userRepository,
       analyticsService,
@@ -640,10 +673,12 @@ describe(UserService.name, () => {
       blockedEmailDomainService,
       personalOrganizationService,
       txService,
-      verifiedEmailService
+      verifiedEmailService,
+      hardwareRequestClaimService
     );
 
     return {
+      hardwareRequestClaimService,
       blockedEmailDomainService,
       service,
       userRepository,

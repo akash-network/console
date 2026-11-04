@@ -6964,6 +6964,103 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/hardware-requests/{id}/offers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the offers the Akash team published for a GPU request, oldest first */
+    get: operations["listHardwareRequestOffers"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/hardware-requests/{id}/withdraw": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Withdraw a GPU request before an offer is accepted
+     * @description Open to the requester and to the organization's owners and admins. Withdrawing twice changes nothing.
+     */
+    post: operations["withdrawHardwareRequest"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/hardware-requests/{id}/offers/{offerId}/accept": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Accept an offer for a GPU request
+     * @description Open to the organization's owners and admins. Closes the request's other offers and tells the Akash team, who set up the capacity.
+     */
+    post: operations["acceptHardwareRequestOffer"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/hardware-requests/{id}/offers/{offerId}/decline": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Decline an offer for a GPU request
+     * @description Open to the requester and to the organization's owners and admins. Declining twice changes nothing.
+     */
+    post: operations["declineHardwareRequestOffer"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/hardware-requests/{id}/offers/{offerId}/request-approval": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Ask the organization's owners and admins to accept an offer
+     * @description Open to members who can't accept offers themselves. Emails every owner and admin; asking twice for the same offer sends nothing more.
+     */
+    post: operations["requestHardwareRequestOfferApproval"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/notification-address-confirmations": {
     parameters: {
       query?: never;
@@ -13434,7 +13531,7 @@ export interface operations {
               /** Format: uuid */
               id: string;
               /** Format: uuid */
-              userId: string;
+              userId: string | null;
               /** Format: uuid */
               organizationId: string | null;
               /** @enum {string} */
@@ -13698,6 +13795,13 @@ export interface operations {
               id: string;
               /** Format: date-time */
               createdAt: string;
+              /** @enum {string} */
+              lane: "sales" | "automated";
+              /**
+               * Format: date-time
+               * @description When the team promises its first reply, counted in business hours for the request's lane
+               */
+              firstReplyDueAt: string | null;
             };
           };
         };
@@ -13718,6 +13822,498 @@ export interface operations {
       };
       /** @description Too many requests sent recently */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  listHardwareRequestOffers: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The request's offers, without the provider behind each */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** @enum {string} */
+              status: "published" | "accepted" | "declined" | "closed";
+              /** @description A published offer past its expiry, which can no longer be accepted */
+              expired: boolean;
+              providerAudited: boolean;
+              /** @description The provider's uptime over the 7 days before the offer was written, from 0 to 1 */
+              providerUptime7d: number | null;
+              usdPerGpuHour: number;
+              /** @description The price per GPU-hour for every GPU in the offer, over 730 hours */
+              estimatedMonthlyUsd: number;
+              terms: {
+                gpu: {
+                  model: string;
+                  count: number;
+                  /** @enum {string} */
+                  interconnect: "none" | "server" | "cluster";
+                };
+                location: string;
+                /** Format: date */
+                availableFrom: string;
+                /** @enum {string} */
+                term: "month_to_month" | "3_months" | "6_months" | "12_months" | "24_months";
+                /** @enum {string|null} */
+                sla: "99" | "99.5" | "99.9" | null;
+                storage: {
+                  tbPerNode: number;
+                  nvme: boolean;
+                };
+                uplinkGbps: 1 | 10 | 25 | unknown;
+              };
+              /** Format: date-time */
+              expiresAt: string;
+              /** Format: date-time */
+              publishedAt: string | null;
+            }[];
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No request the caller can read has this id */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  withdrawHardwareRequest: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The withdrawn request */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** Format: uuid */
+              userId: string | null;
+              /** Format: uuid */
+              organizationId: string | null;
+              /** @enum {string} */
+              category: "gpu_model" | "capacity" | "region" | "other" | "quote";
+              /** @enum {string} */
+              status: "submitted" | "in_review" | "sourcing" | "offers" | "accepted" | "fulfilled" | "withdrawn" | "closed";
+              /** @enum {string|null} */
+              source: "reserve_capacity" | "configure_reserve" | "no_fit" | "no_bids" | "gpu_menu" | "requests_page" | null;
+              gpuModel: string | null;
+              quantity: number | null;
+              region: string | null;
+              details: string | null;
+              contactEmail: string;
+              spec: {
+                gpu: {
+                  model: string;
+                  count: number;
+                  /** @enum {string} */
+                  interconnect: "none" | "server" | "cluster";
+                  /** @enum {string} */
+                  fabric?: "any" | "infiniband" | "roce";
+                  fabricGbps?: 200 | 400 | 800;
+                };
+                region: {
+                  /** @enum {string} */
+                  mode: "any" | "only" | "except";
+                  areas: ("us" | "ca" | "eu" | "uk" | "apac" | "me" | "latam")[];
+                };
+                uplinkGbps: 1 | 10 | 25 | unknown;
+                storage: {
+                  tbPerNode: number;
+                  nvme: boolean;
+                };
+                /** @enum {string|null} */
+                sla: "99" | "99.5" | "99.9" | null;
+                targetPrice: {
+                  minUsdPerGpuHour?: number;
+                  maxUsdPerGpuHour?: number;
+                } | null;
+                /** @enum {string} */
+                term: "month_to_month" | "3_months" | "6_months" | "12_months" | "24_months";
+                start:
+                  | {
+                      /** @enum {string} */
+                      kind: "asap";
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "flexible";
+                    }
+                  | {
+                      /** @enum {string} */
+                      kind: "date";
+                      /** Format: date */
+                      date: string;
+                    };
+                couldGrow: boolean;
+                wantsToTalk: boolean;
+                company?: string;
+                phone?: string;
+              } | null;
+              /** Format: date-time */
+              createdAt: string;
+              /** Format: date-time */
+              updatedAt: string;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is neither the requester nor an owner or admin of the organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No request the caller can read has this id */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The request was already accepted, fulfilled or closed */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  acceptHardwareRequestOffer: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+        offerId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The offer after the decision */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** @enum {string} */
+              status: "published" | "accepted" | "declined" | "closed";
+              /** @description A published offer past its expiry, which can no longer be accepted */
+              expired: boolean;
+              providerAudited: boolean;
+              /** @description The provider's uptime over the 7 days before the offer was written, from 0 to 1 */
+              providerUptime7d: number | null;
+              usdPerGpuHour: number;
+              /** @description The price per GPU-hour for every GPU in the offer, over 730 hours */
+              estimatedMonthlyUsd: number;
+              terms: {
+                gpu: {
+                  model: string;
+                  count: number;
+                  /** @enum {string} */
+                  interconnect: "none" | "server" | "cluster";
+                };
+                location: string;
+                /** Format: date */
+                availableFrom: string;
+                /** @enum {string} */
+                term: "month_to_month" | "3_months" | "6_months" | "12_months" | "24_months";
+                /** @enum {string|null} */
+                sla: "99" | "99.5" | "99.9" | null;
+                storage: {
+                  tbPerNode: number;
+                  nvme: boolean;
+                };
+                uplinkGbps: 1 | 10 | 25 | unknown;
+              };
+              /** Format: date-time */
+              expiresAt: string;
+              /** Format: date-time */
+              publishedAt: string | null;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not an owner or admin of the organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No request the caller can read, or no offer on it, has this id */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The offer is not open, has expired, or the request is already settled */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  declineHardwareRequestOffer: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+        offerId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The offer after the decision */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** @enum {string} */
+              status: "published" | "accepted" | "declined" | "closed";
+              /** @description A published offer past its expiry, which can no longer be accepted */
+              expired: boolean;
+              providerAudited: boolean;
+              /** @description The provider's uptime over the 7 days before the offer was written, from 0 to 1 */
+              providerUptime7d: number | null;
+              usdPerGpuHour: number;
+              /** @description The price per GPU-hour for every GPU in the offer, over 730 hours */
+              estimatedMonthlyUsd: number;
+              terms: {
+                gpu: {
+                  model: string;
+                  count: number;
+                  /** @enum {string} */
+                  interconnect: "none" | "server" | "cluster";
+                };
+                location: string;
+                /** Format: date */
+                availableFrom: string;
+                /** @enum {string} */
+                term: "month_to_month" | "3_months" | "6_months" | "12_months" | "24_months";
+                /** @enum {string|null} */
+                sla: "99" | "99.5" | "99.9" | null;
+                storage: {
+                  tbPerNode: number;
+                  nvme: boolean;
+                };
+                uplinkGbps: 1 | 10 | 25 | unknown;
+              };
+              /** Format: date-time */
+              expiresAt: string;
+              /** Format: date-time */
+              publishedAt: string | null;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is neither the requester nor an owner or admin of the organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No request the caller can read, or no offer on it, has this id */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The offer was already accepted or closed, or the request is already settled */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  requestHardwareRequestOfferApproval: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+        offerId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The offer the approval was asked for */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** @enum {string} */
+              status: "published" | "accepted" | "declined" | "closed";
+              /** @description A published offer past its expiry, which can no longer be accepted */
+              expired: boolean;
+              providerAudited: boolean;
+              /** @description The provider's uptime over the 7 days before the offer was written, from 0 to 1 */
+              providerUptime7d: number | null;
+              usdPerGpuHour: number;
+              /** @description The price per GPU-hour for every GPU in the offer, over 730 hours */
+              estimatedMonthlyUsd: number;
+              terms: {
+                gpu: {
+                  model: string;
+                  count: number;
+                  /** @enum {string} */
+                  interconnect: "none" | "server" | "cluster";
+                };
+                location: string;
+                /** Format: date */
+                availableFrom: string;
+                /** @enum {string} */
+                term: "month_to_month" | "3_months" | "6_months" | "12_months" | "24_months";
+                /** @enum {string|null} */
+                sla: "99" | "99.5" | "99.9" | null;
+                storage: {
+                  tbPerNode: number;
+                  nvme: boolean;
+                };
+                uplinkGbps: 1 | 10 | 25 | unknown;
+              };
+              /** Format: date-time */
+              expiresAt: string;
+              /** Format: date-time */
+              publishedAt: string | null;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller is not acting for the request's organization */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No request the caller can read, or no offer on it, has this id */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The caller can accept the offer, the offer is not open or has expired, or the request is already settled */
+      409: {
         headers: {
           [name: string]: unknown;
         };
@@ -13773,7 +14369,8 @@ export interface operations {
           | "wallet_balance_alert"
           | "deployment_closed_alert"
           | "deployment_reclaim_alert"
-          | "deployment_rename";
+          | "deployment_rename"
+          | "gpu_request_update";
       };
       header?: {
         /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
@@ -13799,7 +14396,7 @@ export interface operations {
                 /** Format: uuid */
                 id: string;
                 /**
-                 * @description What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`.
+                 * @description What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along.
                  * @enum {string}
                  */
                 type:
@@ -13810,7 +14407,8 @@ export interface operations {
                   | "wallet_balance_alert"
                   | "deployment_closed_alert"
                   | "deployment_reclaim_alert"
-                  | "deployment_rename";
+                  | "deployment_rename"
+                  | "gpu_request_update";
                 /**
                  * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome.
                  * @enum {string}
@@ -13876,6 +14474,13 @@ export interface operations {
                       settings?: ("command" | "args" | "credentials" | "expose" | "storage")[];
                     }[];
                   };
+                  /**
+                   * Format: uuid
+                   * @description The GPU request a `gpu_request_update` is about.
+                   */
+                  hardwareRequestId?: string;
+                  /** @description The status the GPU request moved to, on a `gpu_request_update`. */
+                  hardwareRequestStatus?: string;
                 };
                 /**
                  * Format: date-time
@@ -13943,7 +14548,7 @@ export interface operations {
               /** Format: uuid */
               id: string;
               /**
-               * @description What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`.
+               * @description What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along.
                * @enum {string}
                */
               type:
@@ -13954,7 +14559,8 @@ export interface operations {
                 | "wallet_balance_alert"
                 | "deployment_closed_alert"
                 | "deployment_reclaim_alert"
-                | "deployment_rename";
+                | "deployment_rename"
+                | "gpu_request_update";
               /**
                * @description `pending` while the action is still being confirmed, then `succeeded` or `failed`. `info` for an alert that fired, which has no outcome.
                * @enum {string}
@@ -14020,6 +14626,13 @@ export interface operations {
                     settings?: ("command" | "args" | "credentials" | "expose" | "storage")[];
                   }[];
                 };
+                /**
+                 * Format: uuid
+                 * @description The GPU request a `gpu_request_update` is about.
+                 */
+                hardwareRequestId?: string;
+                /** @description The status the GPU request moved to, on a `gpu_request_update`. */
+                hardwareRequestStatus?: string;
               };
               /**
                * Format: date-time

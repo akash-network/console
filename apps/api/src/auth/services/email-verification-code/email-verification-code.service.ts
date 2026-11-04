@@ -6,6 +6,7 @@ import { EmailVerificationCodeRepository } from "@src/auth/repositories/email-ve
 import { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
+import { HardwareRequestClaimService } from "@src/hardware-request/services/hardware-request-claim/hardware-request-claim.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { emailVerificationCodeNotification } from "@src/notifications/services/notification-templates/email-verification-code-notification";
 import { UserRepository } from "@src/user/repositories/user/user.repository";
@@ -18,6 +19,11 @@ function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");
 }
 
+/** The account's address can change after a code was sent, and only the address the code reached was proven. */
+function isSameAddress(codeEmail: string, accountEmail: string | null): boolean {
+  return codeEmail.trim().toLowerCase() === accountEmail?.trim().toLowerCase();
+}
+
 @singleton()
 export class EmailVerificationCodeService {
   private readonly logger: ReturnType<CreateLogger>;
@@ -28,7 +34,8 @@ export class EmailVerificationCodeService {
     private readonly notificationService: NotificationService,
     private readonly userRepository: UserRepository,
     private readonly trialActivationJobService: TrialActivationJobService,
-    @inject(LOGGER_FACTORY) createLogger: CreateLogger
+    @inject(LOGGER_FACTORY) createLogger: CreateLogger,
+    private readonly hardwareRequestClaimService: HardwareRequestClaimService
   ) {
     this.logger = createLogger({ context: EmailVerificationCodeService.name });
   }
@@ -82,6 +89,11 @@ export class EmailVerificationCodeService {
     await this.trialActivationJobService.schedule(userInternalId).catch(error => {
       this.logger.error({ event: "FAILED_TO_SCHEDULE_TRIAL_ACTIVATION", userId: userInternalId, error });
     });
+    if (isSameAddress(record.email, user.email)) {
+      await this.hardwareRequestClaimService.claimForVerifiedEmail({ id: user.id, email: record.email }).catch(error => {
+        this.logger.error({ event: "FAILED_TO_CLAIM_HARDWARE_REQUESTS", userId: userInternalId, error });
+      });
+    }
 
     try {
       await this.auth0Service.markEmailVerified(user.userId);

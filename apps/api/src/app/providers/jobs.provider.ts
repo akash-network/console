@@ -30,8 +30,13 @@ import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-
 import { RecordLeaseGpuOffersHandler } from "@src/deployment/services/record-lease-gpu-offers/record-lease-gpu-offers.handler";
 import { RecordUserGpuBidsHandler } from "@src/deployment/services/record-user-gpu-bids/record-user-gpu-bids.handler";
 import { ScreenUserGpuDeploymentHandler } from "@src/deployment/services/screen-user-gpu-deployment/screen-user-gpu-deployment.handler";
+import { HardwareRequestAcceptedNoticeHandler } from "@src/hardware-request/services/hardware-request-accepted-notice/hardware-request-accepted-notice.handler";
+import { HardwareRequestApprovalRequestHandler } from "@src/hardware-request/services/hardware-request-approval-request/hardware-request-approval-request.handler";
 import { HardwareRequestEmailHandler } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
+import { HardwareRequestResponseTargetHandler } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target.handler";
 import { HardwareRequestSlackAlertHandler } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
+import { HardwareRequestStatusNotificationHandler } from "@src/hardware-request/services/hardware-request-status-notification/hardware-request-status-notification.handler";
+import { HardwareRequestWithdrawnNoticeHandler } from "@src/hardware-request/services/hardware-request-withdrawn-notice/hardware-request-withdrawn-notice.handler";
 import { NotificationHandler } from "@src/notifications/services/notification-handler/notification.handler";
 import { AdminAccessRequestEmailHandler } from "@src/organization/services/admin-access-request-email/admin-access-request-email.handler";
 import { StopTeamAlertsToDepartedMemberHandler } from "@src/organization/services/departed-member-alerts/stop-team-alerts-to-departed-member.handler";
@@ -107,6 +112,11 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(BlockEmailDomainOfWalletHandler),
     container.resolve(HardwareRequestEmailHandler),
     container.resolve(HardwareRequestSlackAlertHandler),
+    container.resolve(HardwareRequestStatusNotificationHandler),
+    container.resolve(HardwareRequestWithdrawnNoticeHandler),
+    container.resolve(HardwareRequestAcceptedNoticeHandler),
+    container.resolve(HardwareRequestApprovalRequestHandler),
+    container.resolve(HardwareRequestResponseTargetHandler),
     container.resolve(PurgeDeletedAccountHandler),
     container.resolve(ExpireConfigureDraftHandler),
     container.resolve(OrganizationInvitationEmailHandler),

@@ -11,6 +11,7 @@ import type { Auth0Service } from "@src/auth/services/auth0/auth0.service";
 import { EmailVerificationCodeService } from "@src/auth/services/email-verification-code/email-verification-code.service";
 import type { TrialActivationJobService } from "@src/billing/services/trial-activation-job/trial-activation-job.service";
 import type { CreateLogger } from "@src/core/providers/logging.provider";
+import type { HardwareRequestClaimService } from "@src/hardware-request/services/hardware-request-claim/hardware-request-claim.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { UserRepository } from "@src/user/repositories/user/user.repository";
 
@@ -121,6 +122,80 @@ describe(EmailVerificationCodeService.name, () => {
       expect(emailVerificationCodeRepository.claimAttempt).toHaveBeenCalledWith(record.id, 5);
       expect(auth0Service.markEmailVerified).toHaveBeenCalledWith(user.userId);
       expect(userRepository.updateById).toHaveBeenCalledWith(user.id, { emailVerified: true });
+    });
+
+    it("hands the verified account the GPU requests the team filed for its email", async () => {
+      const code = "123456";
+      const user = createUser({ userId: "auth0|123", emailVerified: false, email: "jane@example.com" });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0, email: "jane@example.com" });
+      const { service, emailVerificationCodeRepository, userRepository, hardwareRequestClaimService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
+
+      await service.verifyCode(user.id, code);
+
+      expect(hardwareRequestClaimService.claimForVerifiedEmail).toHaveBeenCalledWith({ id: user.id, email: record.email });
+      expect(userRepository.updateById.mock.invocationCallOrder[0]).toBeLessThan(hardwareRequestClaimService.claimForVerifiedEmail.mock.invocationCallOrder[0]);
+    });
+
+    it("claims nothing when the account's address changed after the code was sent", async () => {
+      const code = "123456";
+      const user = createUser({ userId: "auth0|123", emailVerified: false, email: "new@example.com" });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0, email: "old@example.com" });
+      const { service, emailVerificationCodeRepository, userRepository, hardwareRequestClaimService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
+
+      await service.verifyCode(user.id, code);
+
+      expect(hardwareRequestClaimService.claimForVerifiedEmail).not.toHaveBeenCalled();
+    });
+
+    it("claims when the account's address differs from the code's only in case and padding", async () => {
+      const code = "123456";
+      const user = createUser({ userId: "auth0|123", emailVerified: false, email: " Jane@Example.com" });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0, email: "JANE@example.com " });
+      const { service, emailVerificationCodeRepository, userRepository, hardwareRequestClaimService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
+
+      await service.verifyCode(user.id, code);
+
+      expect(hardwareRequestClaimService.claimForVerifiedEmail).toHaveBeenCalledWith({ id: user.id, email: "JANE@example.com " });
+    });
+
+    it("claims nothing for an account without an email", async () => {
+      const code = "123456";
+      const user = createUser({ userId: "auth0|123", emailVerified: false, email: null });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0 });
+      const { service, emailVerificationCodeRepository, userRepository, hardwareRequestClaimService } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
+
+      await service.verifyCode(user.id, code);
+
+      expect(hardwareRequestClaimService.claimForVerifiedEmail).not.toHaveBeenCalled();
+    });
+
+    it("verifies the email even when the GPU requests cannot be claimed", async () => {
+      const code = "123456";
+      const user = createUser({ userId: "auth0|123", emailVerified: false, email: "jane@example.com" });
+      const record = createVerificationCodeOutput({ userId: user.id, code: hashCode(code), attempts: 0, email: "jane@example.com" });
+      const { service, emailVerificationCodeRepository, userRepository, hardwareRequestClaimService, logger, auth0Service } = setup();
+      userRepository.findById.mockResolvedValue(user);
+      emailVerificationCodeRepository.findByUserId.mockResolvedValue(record);
+      emailVerificationCodeRepository.claimAttempt.mockResolvedValue({ ...record, attempts: 1 });
+      const error = new Error("database unavailable");
+      hardwareRequestClaimService.claimForVerifiedEmail.mockRejectedValue(error);
+
+      await service.verifyCode(user.id, code);
+
+      expect(logger.error).toHaveBeenCalledWith({ event: "FAILED_TO_CLAIM_HARDWARE_REQUESTS", userId: user.id, error });
+      expect(auth0Service.markEmailVerified).toHaveBeenCalledWith(user.userId);
     });
 
     it("confirms the verified email on the user's notification channels", async () => {
@@ -289,6 +364,7 @@ describe(EmailVerificationCodeService.name, () => {
     const trialActivationJobService = mock<TrialActivationJobService>({ schedule: vi.fn().mockResolvedValue(undefined) });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
+    const hardwareRequestClaimService = mock<HardwareRequestClaimService>({ claimForVerifiedEmail: vi.fn().mockResolvedValue(undefined) });
 
     const service = new EmailVerificationCodeService(
       emailVerificationCodeRepository,
@@ -296,7 +372,8 @@ describe(EmailVerificationCodeService.name, () => {
       notificationService,
       userRepository,
       trialActivationJobService,
-      createLogger
+      createLogger,
+      hardwareRequestClaimService
     );
 
     return {
@@ -306,7 +383,8 @@ describe(EmailVerificationCodeService.name, () => {
       notificationService,
       userRepository,
       logger,
-      createLogger
+      createLogger,
+      hardwareRequestClaimService
     };
   }
 });

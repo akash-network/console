@@ -7,7 +7,12 @@ import { HardwareRequestController } from "../controllers/hardware-request/hardw
 import {
   CreateHardwareRequestRequestSchema,
   CreateHardwareRequestResponseSchema,
-  ListHardwareRequestsResponseSchema
+  HardwareRequestIdParamsSchema,
+  HardwareRequestOfferIdParamsSchema,
+  HardwareRequestResponseSchema,
+  ListHardwareRequestOffersResponseSchema,
+  ListHardwareRequestsResponseSchema,
+  TenantHardwareRequestOfferResponseSchema
 } from "../http-schemas/hardware-request.schema";
 
 export const hardwareRequestRouter = new OpenApiHonoHandler();
@@ -73,5 +78,134 @@ const listHardwareRequestsRoute = createRoute({
 
 hardwareRequestRouter.openapi(listHardwareRequestsRoute, async function routeListHardwareRequests(c) {
   const result = await container.resolve(HardwareRequestController).list();
+  return c.json(result, 200);
+});
+
+const listHardwareRequestOffersRoute = createRoute({
+  method: "get",
+  operationId: "listHardwareRequestOffers",
+  path: "/v1/hardware-requests/{id}/offers",
+  summary: "List the offers the Akash team published for a GPU request, oldest first",
+  tags: ["Hardware Requests"],
+  security: SECURITY_BEARER,
+  request: { params: HardwareRequestIdParamsSchema },
+  responses: {
+    200: {
+      description: "The request's offers, without the provider behind each",
+      content: {
+        "application/json": {
+          schema: ListHardwareRequestOffersResponseSchema
+        }
+      }
+    },
+    401: { description: "Unauthorized" },
+    404: { description: "No request the caller can read has this id" }
+  }
+});
+
+hardwareRequestRouter.openapi(listHardwareRequestOffersRoute, async function routeListHardwareRequestOffers(c) {
+  const result = await container.resolve(HardwareRequestController).listOffers(c.req.valid("param").id);
+  return c.json(result, 200);
+});
+
+const withdrawHardwareRequestRoute = createRoute({
+  method: "post",
+  operationId: "withdrawHardwareRequest",
+  path: "/v1/hardware-requests/{id}/withdraw",
+  summary: "Withdraw a GPU request before an offer is accepted",
+  description: "Open to the requester and to the organization's owners and admins. Withdrawing twice changes nothing.",
+  tags: ["Hardware Requests"],
+  security: SECURITY_BEARER,
+  request: { params: HardwareRequestIdParamsSchema },
+  responses: {
+    200: {
+      description: "The withdrawn request",
+      content: {
+        "application/json": {
+          schema: HardwareRequestResponseSchema
+        }
+      }
+    },
+    401: { description: "Unauthorized" },
+    403: { description: "The caller is neither the requester nor an owner or admin of the organization" },
+    404: { description: "No request the caller can read has this id" },
+    409: { description: "The request was already accepted, fulfilled or closed" }
+  }
+});
+
+hardwareRequestRouter.openapi(withdrawHardwareRequestRoute, async function routeWithdrawHardwareRequest(c) {
+  const result = await container.resolve(HardwareRequestController).withdraw(c.req.valid("param").id);
+  return c.json(result, 200);
+});
+
+const acceptHardwareRequestOfferRoute = createRoute({
+  method: "post",
+  operationId: "acceptHardwareRequestOffer",
+  path: "/v1/hardware-requests/{id}/offers/{offerId}/accept",
+  summary: "Accept an offer for a GPU request",
+  description: "Open to the organization's owners and admins. Closes the request's other offers and tells the Akash team, who set up the capacity.",
+  tags: ["Hardware Requests"],
+  security: SECURITY_BEARER,
+  request: { params: HardwareRequestOfferIdParamsSchema },
+  responses: {
+    200: { description: "The offer after the decision", content: { "application/json": { schema: TenantHardwareRequestOfferResponseSchema } } },
+    401: { description: "Unauthorized" },
+    403: { description: "The caller is not an owner or admin of the organization" },
+    404: { description: "No request the caller can read, or no offer on it, has this id" },
+    409: { description: "The offer is not open, has expired, or the request is already settled" }
+  }
+});
+
+hardwareRequestRouter.openapi(acceptHardwareRequestOfferRoute, async function routeAcceptHardwareRequestOffer(c) {
+  const { id, offerId } = c.req.valid("param");
+  const result = await container.resolve(HardwareRequestController).acceptOffer(id, offerId);
+  return c.json(result, 200);
+});
+
+const declineHardwareRequestOfferRoute = createRoute({
+  method: "post",
+  operationId: "declineHardwareRequestOffer",
+  path: "/v1/hardware-requests/{id}/offers/{offerId}/decline",
+  summary: "Decline an offer for a GPU request",
+  description: "Open to the requester and to the organization's owners and admins. Declining twice changes nothing.",
+  tags: ["Hardware Requests"],
+  security: SECURITY_BEARER,
+  request: { params: HardwareRequestOfferIdParamsSchema },
+  responses: {
+    200: { description: "The offer after the decision", content: { "application/json": { schema: TenantHardwareRequestOfferResponseSchema } } },
+    401: { description: "Unauthorized" },
+    403: { description: "The caller is neither the requester nor an owner or admin of the organization" },
+    404: { description: "No request the caller can read, or no offer on it, has this id" },
+    409: { description: "The offer was already accepted or closed, or the request is already settled" }
+  }
+});
+
+hardwareRequestRouter.openapi(declineHardwareRequestOfferRoute, async function routeDeclineHardwareRequestOffer(c) {
+  const { id, offerId } = c.req.valid("param");
+  const result = await container.resolve(HardwareRequestController).declineOffer(id, offerId);
+  return c.json(result, 200);
+});
+
+const requestHardwareRequestOfferApprovalRoute = createRoute({
+  method: "post",
+  operationId: "requestHardwareRequestOfferApproval",
+  path: "/v1/hardware-requests/{id}/offers/{offerId}/request-approval",
+  summary: "Ask the organization's owners and admins to accept an offer",
+  description: "Open to members who can't accept offers themselves. Emails every owner and admin; asking twice for the same offer sends nothing more.",
+  tags: ["Hardware Requests"],
+  security: SECURITY_BEARER,
+  request: { params: HardwareRequestOfferIdParamsSchema },
+  responses: {
+    200: { description: "The offer the approval was asked for", content: { "application/json": { schema: TenantHardwareRequestOfferResponseSchema } } },
+    401: { description: "Unauthorized" },
+    403: { description: "The caller is not acting for the request's organization" },
+    404: { description: "No request the caller can read, or no offer on it, has this id" },
+    409: { description: "The caller can accept the offer, the offer is not open or has expired, or the request is already settled" }
+  }
+});
+
+hardwareRequestRouter.openapi(requestHardwareRequestOfferApprovalRoute, async function routeRequestHardwareRequestOfferApproval(c) {
+  const { id, offerId } = c.req.valid("param");
+  const result = await container.resolve(HardwareRequestController).requestOfferApproval(id, offerId);
   return c.json(result, 200);
 });

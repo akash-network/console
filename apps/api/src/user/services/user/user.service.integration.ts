@@ -14,6 +14,8 @@ import type { CreateLogger } from "@src/core/providers/logging.provider";
 import type { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { SdlSecretsSealingKeyService } from "@src/deployment/services/sdl-secrets-sealing-key/sdl-secrets-sealing-key.service";
+import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import { HardwareRequestClaimService } from "@src/hardware-request/services/hardware-request-claim/hardware-request-claim.service";
 import type { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
@@ -26,6 +28,7 @@ import type { BlockedEmailDomainService } from "@src/workload-abuse/services/blo
 import type { RegisterUserInput } from "./user.service";
 import { UserService } from "./user.service";
 
+import { seedHardwareRequest } from "@test/seeders/db/hardware-request.seeder";
 import { createAdoptedRowCounts } from "@test/seeders/organization.seeder";
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
 
@@ -90,6 +93,27 @@ describe(UserService.name, () => {
           email: user.email
         })
       );
+    });
+
+    it("hands a verified sign-in the GPU requests the team filed for its email, in its personal organization", async () => {
+      const email = faker.internet.email();
+      const filedForThem = await seedHardwareRequest({ userId: null, contactEmail: email.toUpperCase() });
+      const filedForSomeoneElse = await seedHardwareRequest({ userId: null, contactEmail: faker.internet.email() });
+      const { service } = setup({ signInEmail: { email, emailVerified: true } });
+
+      const user = await service.registerUser({
+        userId: faker.string.uuid(),
+        wantedUsername: `test-user-${Date.now()}`,
+        subscribedToNewsletter: false,
+        ip: faker.internet.ipv4(),
+        userAgent: faker.string.alphanumeric(32),
+        fingerprint: faker.string.alphanumeric(16)
+      });
+
+      const personalOrganization = await container.resolve(OrganizationRepository).findPersonalByUserId(user.id);
+      const hardwareRequests = container.resolve(HardwareRequestRepository);
+      expect(await hardwareRequests.findById(filedForThem.id)).toMatchObject({ userId: user.id, organizationId: personalOrganization?.id });
+      expect(await hardwareRequests.findById(filedForSomeoneElse.id)).toMatchObject({ userId: null, organizationId: null });
     });
 
     it("resolves username collision by adjusting username", async () => {
@@ -591,7 +615,8 @@ describe(UserService.name, () => {
       mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(input?.isBlockedEmail ?? false) }),
       personalOrganizationService,
       container.resolve(TxService),
-      new VerifiedEmailService(auth0Service)
+      new VerifiedEmailService(auth0Service),
+      container.resolve(HardwareRequestClaimService)
     );
 
     return {

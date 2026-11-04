@@ -1,4 +1,4 @@
-import type { Unleash, UnleashConfig } from "unleash-client";
+import { PayloadType, type Unleash, type UnleashConfig, type Variant } from "unleash-client";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -200,6 +200,49 @@ describe(FeatureFlagsService.name, () => {
     });
   });
 
+  describe("getVariantPayload", () => {
+    it("returns the payload of the enabled variant, sticky to the flag rather than the caller", async () => {
+      const client = createUnleashMockClient({ variant: { name: "rules", enabled: true, payload: { type: PayloadType.JSON, value: '{"minUsd":1}' } } });
+      const config = { DEPLOYMENT_ENV: "production", NETWORK: "mainnet" } as const;
+      const service = await setup({ config, createClient: () => client, currentUser: { id: "caller" }, unleashSessionId: "caller-session" });
+
+      expect(service.getVariantPayload(FeatureFlags.GPU_REQUEST_ROUTING)).toBe('{"minUsd":1}');
+      expect(client.getVariant).toHaveBeenCalledWith(FeatureFlags.GPU_REQUEST_ROUTING, {
+        currentTime: expect.any(Date),
+        userId: undefined,
+        sessionId: FeatureFlags.GPU_REQUEST_ROUTING,
+        environment: config.DEPLOYMENT_ENV,
+        properties: { chainNetwork: config.NETWORK }
+      });
+    });
+
+    it("returns nothing when the variant is disabled", async () => {
+      const client = createUnleashMockClient({ variant: { name: "disabled", enabled: false, payload: { type: PayloadType.JSON, value: "{}" } } });
+      const service = await setup({ createClient: () => client });
+
+      expect(service.getVariantPayload(FeatureFlags.GPU_REQUEST_ROUTING)).toBeUndefined();
+    });
+
+    it("returns nothing when the variant carries no payload", async () => {
+      const client = createUnleashMockClient({ variant: { name: "rules", enabled: true } });
+      const service = await setup({ createClient: () => client });
+
+      expect(service.getVariantPayload(FeatureFlags.GPU_REQUEST_ROUTING)).toBeUndefined();
+    });
+
+    it("returns nothing without a client when FEATURE_FLAGS_ENABLE_ALL is true", async () => {
+      const service = await setup({ config: { FEATURE_FLAGS_ENABLE_ALL: true }, skipInitialization: true });
+
+      expect(service.getVariantPayload(FeatureFlags.GPU_REQUEST_ROUTING)).toBeUndefined();
+    });
+
+    it("throws when the service was not initialized", async () => {
+      const service = await setup({ skipInitialization: true });
+
+      expect(() => service.getVariantPayload(FeatureFlags.GPU_REQUEST_ROUTING)).toThrow(/was not initialized/);
+    });
+  });
+
   async function setup(input: {
     config?: Partial<CoreConfig>;
     createClient?: (config: UnleashConfig) => Unleash;
@@ -257,7 +300,7 @@ describe(FeatureFlagsService.name, () => {
     return service;
   }
 
-  function createUnleashMockClient(input?: { isEnabledFeatureFlag?: (featureFlag: FeatureFlagValue) => boolean }) {
+  function createUnleashMockClient(input?: { isEnabledFeatureFlag?: (featureFlag: FeatureFlagValue) => boolean; variant?: Variant }) {
     return mock<Unleash>({
       once(event, callback) {
         if (event === "synchronized") {
@@ -265,7 +308,8 @@ describe(FeatureFlagsService.name, () => {
         }
         return this as Unleash;
       },
-      isEnabled: input?.isEnabledFeatureFlag ? input.isEnabledFeatureFlag : () => false
+      isEnabled: input?.isEnabledFeatureFlag ? input.isEnabledFeatureFlag : () => false,
+      getVariant: vi.fn(() => ({ featureEnabled: true, ...(input?.variant ?? { name: "disabled", enabled: false }) }))
     });
   }
 });

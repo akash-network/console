@@ -1,11 +1,12 @@
 import { faker } from "@faker-js/faker";
 import nock from "nock";
 import { container } from "tsyringe";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { JOB_NAME } from "@src/core";
+import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { HARDWARE_REQUEST_CONFIG } from "@src/hardware-request/providers/config.provider";
-import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import { type HardwareRequestInput, HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { emailRecipientUserId } from "@src/notifications/lib/email-recipient-user-id/email-recipient-user-id";
 import { NOTIFICATIONS_CONFIG } from "@src/notifications/providers/notifications-config.provider";
 import { UserRepository } from "@src/user/repositories";
@@ -23,6 +24,7 @@ type SentRequest = { userId: string | undefined; body: Record<string, unknown> }
 describe(HardwareRequestEmailHandler.name, () => {
   afterEach(() => {
     nock.cleanAll();
+    vi.restoreAllMocks();
   });
 
   it("emails the request to the support mailbox, run the way a worker runs it", async () => {
@@ -43,6 +45,22 @@ describe(HardwareRequestEmailHandler.name, () => {
           recipient: mailboxEmail
         }
       }
+    ]);
+  });
+
+  it("also emails the owner of a sales-lane request", async () => {
+    vi.spyOn(container.resolve(FeatureFlagsService), "getVariantPayload").mockReturnValue(
+      JSON.stringify({ fallbackOwner: { name: "Remington", email: "remington@example.com" } })
+    );
+    const { mailboxEmail, answerNotificationsWith, sendEmailFor, seedRequest } = await setup();
+    const hardwareRequest = await seedRequest({ lane: "sales", laneReason: "wants_to_talk", owner: "Remington" });
+    const notifications = answerNotificationsWith(204);
+
+    await sendEmailFor(hardwareRequest.id);
+
+    expect(notifications.map(({ userId, body }) => [userId, body.recipient, body.notificationId])).toEqual([
+      [emailRecipientUserId(mailboxEmail), mailboxEmail, `hardwareRequest.${hardwareRequest.id}`],
+      [emailRecipientUserId("remington@example.com"), "remington@example.com", `hardwareRequest.${hardwareRequest.id}.owner`]
     ]);
   });
 
@@ -84,13 +102,16 @@ describe(HardwareRequestEmailHandler.name, () => {
     const mailboxEmail = container.resolve(HARDWARE_REQUEST_CONFIG).HARDWARE_REQUEST_EMAIL;
 
     const user = await container.resolve(UserRepository).create({ email: faker.internet.email(), username: `user-${faker.string.alphanumeric(12)}` });
-    const hardwareRequest = await container.resolve(HardwareRequestRepository).create({
-      userId: user.id,
-      category: "gpu_model",
-      gpuModel: "B200",
-      quantity: 8,
-      contactEmail: faker.internet.email()
-    });
+    const seedRequest = async (overrides: HardwareRequestInput = {}) =>
+      await container.resolve(HardwareRequestRepository).create({
+        userId: user.id,
+        category: "gpu_model",
+        gpuModel: "B200",
+        quantity: 8,
+        contactEmail: faker.internet.email(),
+        ...overrides
+      });
+    const hardwareRequest = await seedRequest();
 
     function answerNotificationsWith(status: number) {
       const sent: SentRequest[] = [];
@@ -111,6 +132,6 @@ describe(HardwareRequestEmailHandler.name, () => {
       await expectJobCompleted(HardwareRequestEmailJob[JOB_NAME], { data: { hardwareRequestId } });
     }
 
-    return { hardwareRequest, mailboxEmail, notificationsBaseUrl, answerNotificationsWith, sendEmailFor };
+    return { hardwareRequest, mailboxEmail, notificationsBaseUrl, answerNotificationsWith, sendEmailFor, seedRequest };
   }
 });

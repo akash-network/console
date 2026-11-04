@@ -319,6 +319,46 @@ export const operations = {
       queryParams: [],
       hasBody: false
     },
+    listHardwareRequestOffers: {
+      path: "/v1/hardware-requests/{id}/offers",
+      method: "get",
+      operationId: "listHardwareRequestOffers",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
+    withdrawHardwareRequest: {
+      path: "/v1/hardware-requests/{id}/withdraw",
+      method: "post",
+      operationId: "withdrawHardwareRequest",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: false
+    },
+    acceptHardwareRequestOffer: {
+      path: "/v1/hardware-requests/{id}/offers/{offerId}/accept",
+      method: "post",
+      operationId: "acceptHardwareRequestOffer",
+      pathParams: ["id", "offerId"],
+      queryParams: [],
+      hasBody: false
+    },
+    declineHardwareRequestOffer: {
+      path: "/v1/hardware-requests/{id}/offers/{offerId}/decline",
+      method: "post",
+      operationId: "declineHardwareRequestOffer",
+      pathParams: ["id", "offerId"],
+      queryParams: [],
+      hasBody: false
+    },
+    requestHardwareRequestOfferApproval: {
+      path: "/v1/hardware-requests/{id}/offers/{offerId}/request-approval",
+      method: "post",
+      operationId: "requestHardwareRequestOfferApproval",
+      pathParams: ["id", "offerId"],
+      queryParams: [],
+      hasBody: false
+    },
     createNotificationAddressConfirmation: {
       path: "/v1/notification-address-confirmations",
       method: "post",

@@ -5,6 +5,7 @@ import { SLACK_WEBHOOK_HTTP_CLIENT } from "@src/billing/providers/slack-webhook-
 import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
 import { HARDWARE_REQUEST_CONFIG, type HardwareRequestConfig } from "@src/hardware-request/providers/config.provider";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import { HardwareRequestAlertContextService } from "@src/hardware-request/services/hardware-request-alert-context/hardware-request-alert-context.service";
 import { UserRepository } from "@src/user/repositories";
 import { buildHardwareRequestSlackMessage } from "./hardware-request-slack-message";
 
@@ -25,6 +26,7 @@ export class HardwareRequestSlackAlertHandler implements JobHandler<HardwareRequ
   constructor(
     private readonly hardwareRequestRepository: HardwareRequestRepository,
     private readonly userRepository: UserRepository,
+    private readonly hardwareRequestAlertContextService: HardwareRequestAlertContextService,
     @inject(HARDWARE_REQUEST_CONFIG) private readonly config: HardwareRequestConfig,
     @inject(SLACK_WEBHOOK_HTTP_CLIENT) private readonly slackWebhookClient: HttpClient,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
@@ -51,10 +53,11 @@ export class HardwareRequestSlackAlertHandler implements JobHandler<HardwareRequ
       return;
     }
 
-    const requester = await this.userRepository.findById(hardwareRequest.userId);
+    const requester = hardwareRequest.userId ? await this.userRepository.findById(hardwareRequest.userId) : undefined;
     const message = buildHardwareRequestSlackMessage({
       hardwareRequest,
       requesterEmail: requester?.email,
+      context: await this.hardwareRequestAlertContextService.load(hardwareRequest),
       amplitudeProjectUrl: this.config.AMPLITUDE_PROJECT_URL,
       adminUrl: this.config.CONSOLE_ADMIN_URL
     });

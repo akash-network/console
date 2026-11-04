@@ -764,6 +764,55 @@
       "when": 1793775782237,
       "tag": "0108_hardware_requests_structured",
       "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1793777905851,
+      "tag": "0109_hardware_requests_lane",
+      "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1793779168942,
+      "tag": "0110_hardware_requests_owner",
+      "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1793779698857,
+      "tag": "0111_hardware_request_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1793780374636,
+      "tag": "0112_activity_type_gpu_request_update",
+      "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1793781814683,
+      "tag": "0113_hardware_requests_nullable_user",
+      "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1793782659553,
+      "tag": "0114_hardware_request_offers",
+      "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1793787761339,
+      "tag": "0115_hardware_request_response_due_dates",
+      "breakpoints": true
     }
   ]
 }

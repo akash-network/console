@@ -3,24 +3,34 @@ import { faker } from "@faker-js/faker";
 import type { HardwareRequestSpec } from "@src/hardware-request/model-schemas";
 import type { HardwareRequestOutput } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 
-export function createHardwareRequest({
-  id = faker.string.uuid(),
-  userId = faker.string.uuid(),
-  organizationId = faker.string.uuid(),
-  category = "gpu_model",
-  gpuModel = "B200",
-  quantity = faker.number.int({ min: 1, max: 16 }),
-  region = null,
-  details = faker.lorem.sentence(),
-  contactEmail = faker.internet.email(),
-  configuration = null,
-  status = "submitted",
-  source = null,
-  spec = null,
-  createdAt = faker.date.recent().toISOString(),
-  updatedAt = createdAt
-}: Partial<HardwareRequestOutput> = {}): HardwareRequestOutput {
-  return { id, userId, organizationId, category, status, source, gpuModel, quantity, region, details, contactEmail, configuration, spec, createdAt, updatedAt };
+export function createHardwareRequest(overrides: Partial<HardwareRequestOutput> = {}): HardwareRequestOutput {
+  const createdAt = overrides.createdAt ?? faker.date.recent().toISOString();
+
+  return {
+    id: faker.string.uuid(),
+    userId: faker.string.uuid(),
+    organizationId: faker.string.uuid(),
+    category: "gpu_model",
+    status: "submitted",
+    source: null,
+    gpuModel: "B200",
+    quantity: faker.number.int({ min: 1, max: 16 }),
+    region: null,
+    details: faker.lorem.sentence(),
+    contactEmail: faker.internet.email(),
+    configuration: null,
+    spec: null,
+    lane: null,
+    laneReason: null,
+    estimatedMonthlyUsd: null,
+    owner: null,
+    firstRepliedAt: null,
+    firstReplyDueAt: null,
+    firstOfferDueAt: null,
+    createdAt,
+    updatedAt: createdAt,
+    ...overrides
+  };
 }
 
 export function createHardwareRequestSpec(overrides: Partial<HardwareRequestSpec> = {}): HardwareRequestSpec {

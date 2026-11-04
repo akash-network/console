@@ -2,14 +2,31 @@ import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { AuthService } from "@src/auth/services/auth.service";
+import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
 import { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import { TxService } from "@src/core/services/tx/tx.service";
 import type { HardwareRequestInput } from "@src/hardware-request/http-schemas/hardware-request.schema";
+import {
+  RESPONSE_TARGETS,
+  type ResponseSchedule,
+  responseScheduleOf
+} from "@src/hardware-request/lib/hardware-request-response-schedule/hardware-request-response-schedule";
 import { describeSpecRegion } from "@src/hardware-request/lib/hardware-request-spec-summary/hardware-request-spec-summary";
+import { isVisibleToTenant, type TenantVisibleOffer } from "@src/hardware-request/lib/hardware-request-tenant-offer/hardware-request-tenant-offer";
+import type { HardwareRequestStatus } from "@src/hardware-request/model-schemas";
 import { HARDWARE_REQUEST_CONFIG, type HardwareRequestConfig } from "@src/hardware-request/providers/config.provider";
 import { type HardwareRequestOutput, HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
+import { HardwareRequestEventRepository } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
+import { HardwareRequestOfferRepository } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
+import { GpuRequestRoutingService, type RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
+import { HardwareRequestResponseTargetJob } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target.handler";
+import type { ResponseTargetStage } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target-notice";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
+import { HardwareRequestWithdrawnNoticeJob } from "@src/hardware-request/services/hardware-request-withdrawn-notice/hardware-request-withdrawn-notice.handler";
+import type { OrganizationRole } from "@src/organization/model-schemas/organization-member/organization-member.schema";
+import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { UserRepository } from "@src/user/repositories";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -18,6 +35,16 @@ const DAY_MS = 24 * HOUR_MS;
 type RequestWindow = { durationMs: number; limit: number; message: string };
 
 type Refusal = { message: string; retryAfterSeconds: number };
+
+const WITHDRAWING_ROLES: OrganizationRole[] = ["owner", "admin"];
+
+const UNWITHDRAWABLE_STATUSES: HardwareRequestStatus[] = ["accepted", "fulfilled", "closed"];
+
+type Requester = { userId: string | null; organizationId: string | null };
+
+export type HardwareRequestOnBehalfInput = { actor: string; organizationId?: string; request: HardwareRequestInput };
+
+type HardwareRequestRepositoryCursor = Pick<HardwareRequestRepository, "create">;
 
 /** Waits on the request `limit` places before the newest, since a window a lowered limit left over-full needs more than its oldest to leave. */
 function refusalIn({ durationMs, limit, message }: RequestWindow, creationTimes: Date[], now: number): Refusal | undefined {
@@ -37,6 +64,13 @@ function summaryColumnsOf(input: HardwareRequestInput) {
   return { gpuModel: input.spec.gpu.model, quantity: input.spec.gpu.count, region: describeSpecRegion(input.spec) };
 }
 
+function laneRoutedRequestOf(input: HardwareRequestInput) {
+  if (input.category === "quote") return { spec: input.spec, gpuModel: null, quantity: null };
+  if (input.category === "gpu_model" || input.category === "capacity") return { spec: null, gpuModel: input.gpuModel ?? null, quantity: input.quantity };
+
+  return { spec: null, gpuModel: null, quantity: null };
+}
+
 @singleton()
 export class HardwareRequestService {
   constructor(
@@ -45,22 +79,40 @@ export class HardwareRequestService {
     private readonly authService: AuthService,
     private readonly txService: TxService,
     private readonly jobQueueService: JobQueueService,
+    private readonly gpuRequestRoutingService: GpuRequestRoutingService,
+    private readonly executionContextService: ExecutionContextService,
+    private readonly hardwareRequestEventRepository: HardwareRequestEventRepository,
+    private readonly organizationRepository: OrganizationRepository,
+    private readonly organizationMemberRepository: OrganizationMemberRepository,
+    private readonly hardwareRequestOfferRepository: HardwareRequestOfferRepository,
     @inject(HARDWARE_REQUEST_CONFIG) private readonly config: HardwareRequestConfig
   ) {}
 
-  async create(input: HardwareRequestInput): Promise<HardwareRequestOutput> {
-    const { email, ...fields } = input;
+  async create(input: HardwareRequestInput): Promise<HardwareRequestOutput & RoutedLane> {
     const userId = this.authService.currentUser.id;
 
     return await this.txService.transaction(async () => {
       await this.userRepository.findOneByAndLock({ id: userId });
       await this.#assertWithinLimits(userId);
 
-      const hardwareRequest = await this.hardwareRequestRepository
-        .accessibleBy(this.authService.ability, "create")
-        .create({ ...fields, ...summaryColumnsOf(input), contactEmail: email, userId });
-      await this.jobQueueService.enqueue(new HardwareRequestEmailJob({ hardwareRequestId: hardwareRequest.id }));
-      await this.jobQueueService.enqueue(new HardwareRequestSlackAlertJob({ hardwareRequestId: hardwareRequest.id }));
+      const organizationId = this.executionContextService.get("ORGANIZATION_CONTEXT")?.organizationId ?? null;
+
+      return await this.#file(this.hardwareRequestRepository.accessibleBy(this.authService.ability, "create"), input, { userId, organizationId });
+    });
+  }
+
+  /** Files a request the team took offline, for an organization's oldest owner or for an email with no account yet, without the tenant's rate limits. */
+  async createOnBehalf({ actor, organizationId, request }: HardwareRequestOnBehalfInput): Promise<HardwareRequestOutput & RoutedLane> {
+    const requester = organizationId ? await this.#oldestOwnerOf(organizationId) : await this.#unclaimedRequester(request.email);
+
+    return await this.txService.transaction(async () => {
+      const hardwareRequest = await this.#file(this.hardwareRequestRepository.unscoped("gpu-request-broker"), request, requester);
+      await this.hardwareRequestEventRepository.record({
+        hardwareRequestId: hardwareRequest.id,
+        type: "created_on_behalf",
+        actor,
+        payload: organizationId ? { organizationId, email: null } : { organizationId: null, email: request.email }
+      });
 
       return hardwareRequest;
     });
@@ -68,6 +120,106 @@ export class HardwareRequestService {
 
   async list(): Promise<HardwareRequestOutput[]> {
     return await this.hardwareRequestRepository.accessibleBy(this.authService.ability, "read").findNewestFirst();
+  }
+
+  async #file(repository: HardwareRequestRepositoryCursor, input: HardwareRequestInput, requester: Requester): Promise<HardwareRequestOutput & RoutedLane> {
+    const { email, ...fields } = input;
+    const routing = await this.gpuRequestRoutingService.route(laneRoutedRequestOf(input), requester);
+    const filedAt = new Date();
+    const schedule = responseScheduleOf(filedAt, routing.lane, this.gpuRequestRoutingService.getPolicy());
+    const hardwareRequest = await repository.create({
+      ...fields,
+      ...summaryColumnsOf(input),
+      ...routing,
+      contactEmail: email,
+      ...requester,
+      createdAt: filedAt,
+      updatedAt: filedAt,
+      firstReplyDueAt: schedule.first_reply.dueAt,
+      firstOfferDueAt: schedule.first_offer.dueAt
+    });
+    await this.jobQueueService.enqueue(new HardwareRequestEmailJob({ hardwareRequestId: hardwareRequest.id }));
+    await this.jobQueueService.enqueue(new HardwareRequestSlackAlertJob({ hardwareRequestId: hardwareRequest.id }));
+    await this.#scheduleResponseTargets(hardwareRequest.id, schedule);
+
+    return { ...hardwareRequest, ...routing };
+  }
+
+  async #scheduleResponseTargets(hardwareRequestId: string, schedule: ResponseSchedule): Promise<void> {
+    for (const target of RESPONSE_TARGETS) {
+      const { remindAt, dueAt } = schedule[target];
+      const job = (stage: ResponseTargetStage) => new HardwareRequestResponseTargetJob({ hardwareRequestId, target, stage, dueAt: dueAt.toISOString() });
+
+      await this.jobQueueService.enqueue(job("reminder"), { startAfter: remindAt.toISOString() });
+      await this.jobQueueService.enqueue(job("escalation"), { startAfter: dueAt.toISOString() });
+    }
+  }
+
+  async #unclaimedRequester(email: string): Promise<Requester> {
+    if (await this.userRepository.hasVerifiedEmail(email)) {
+      throw createError(409, "An account already uses this email, so file the request for one of its organizations");
+    }
+
+    return { userId: null, organizationId: null };
+  }
+
+  async #oldestOwnerOf(organizationId: string): Promise<Requester> {
+    const organization = await this.organizationRepository.findById(organizationId);
+
+    if (!organization || organization.deletedAt) throw createError(404, "Organization not found");
+
+    const members = await this.organizationMemberRepository.unscoped("gpu-request-broker").findAllWithUsers(organizationId);
+    const owner = members.find(member => member.role === "owner");
+
+    if (!owner) throw createError(422, "The organization has no owner to file the request for");
+
+    return { userId: owner.userId, organizationId };
+  }
+
+  async listOffers(hardwareRequestId: string): Promise<TenantVisibleOffer[]> {
+    const hardwareRequest = await this.hardwareRequestRepository.accessibleBy(this.authService.ability, "read").findById(hardwareRequestId);
+
+    if (!hardwareRequest) throw createError(404, "Hardware request not found");
+
+    const offers = await this.hardwareRequestOfferRepository.findOldestFirst(hardwareRequestId);
+
+    return offers.filter(isVisibleToTenant);
+  }
+
+  /** Open to the requester and to the organization's owners and admins, and tells whoever owns it in sales. */
+  async withdraw(hardwareRequestId: string): Promise<HardwareRequestOutput> {
+    const user = this.authService.currentUser;
+
+    return await this.txService.transaction(async () => {
+      const readable = await this.hardwareRequestRepository.accessibleBy(this.authService.ability, "read").findById(hardwareRequestId);
+
+      if (!readable) throw createError(404, "Hardware request not found");
+
+      const organizationContext = this.executionContextService.get("ORGANIZATION_CONTEXT");
+      const actsForRequestOrganization = (organizationContext?.organizationId ?? null) === readable.organizationId;
+      const role = organizationContext?.role;
+
+      if (!actsForRequestOrganization || (readable.userId !== user.id && !(role && WITHDRAWING_ROLES.includes(role)))) {
+        throw createError(403, "Only the requester or an owner or admin of the organization can withdraw this request");
+      }
+
+      const hardwareRequest = await this.hardwareRequestRepository.findOneByAndLock({ id: hardwareRequestId });
+
+      if (!hardwareRequest) throw createError(404, "Hardware request not found");
+      if (hardwareRequest.status === "withdrawn") return hardwareRequest;
+      if (UNWITHDRAWABLE_STATUSES.includes(hardwareRequest.status)) throw createError(409, `A ${hardwareRequest.status} request can no longer be withdrawn`);
+
+      const withdrawn = await this.hardwareRequestRepository.updateById(hardwareRequestId, { status: "withdrawn", updatedAt: new Date() }, { returning: true });
+      const event = await this.hardwareRequestEventRepository.record({
+        hardwareRequestId,
+        type: "status_changed",
+        actor: null,
+        payload: { from: hardwareRequest.status, to: "withdrawn", userId: user.id }
+      });
+      await this.jobQueueService.enqueue(new HardwareRequestWithdrawnNoticeJob({ hardwareRequestId, eventId: event.id }));
+
+      return withdrawn;
+    });
   }
 
   /** A user over both limits is told the later of the two times, since either window can be the one that lifts last. */

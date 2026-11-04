@@ -25693,11 +25693,26 @@
                         "createdAt": {
                           "type": "string",
                           "format": "date-time"
+                        },
+                        "lane": {
+                          "type": "string",
+                          "enum": [
+                            "sales",
+                            "automated"
+                          ]
+                        },
+                        "firstReplyDueAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time",
+                          "description": "When the team promises its first reply, counted in business hours for the request's lane"
                         }
                       },
                       "required": [
                         "id",
-                        "createdAt"
+                        "createdAt",
+                        "lane",
+                        "firstReplyDueAt"
                       ]
                     }
                   },
@@ -25757,7 +25772,8 @@
                           },
                           "userId": {
                             "type": "string",
-                            "format": "uuid"
+                            "format": "uuid",
+                            "nullable": true
                           },
                           "organizationId": {
                             "type": "string",
@@ -26120,6 +26136,1364 @@
         ]
       }
     },
+    "/v1/hardware-requests/{id}/offers": {
+      "get": {
+        "operationId": "listHardwareRequestOffers",
+        "summary": "List the offers the Akash team published for a GPU request, oldest first",
+        "tags": [
+          "Hardware Requests"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request's offers, without the provider behind each",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "published",
+                              "accepted",
+                              "declined",
+                              "closed"
+                            ]
+                          },
+                          "expired": {
+                            "type": "boolean",
+                            "description": "A published offer past its expiry, which can no longer be accepted"
+                          },
+                          "providerAudited": {
+                            "type": "boolean"
+                          },
+                          "providerUptime7d": {
+                            "type": "number",
+                            "nullable": true,
+                            "description": "The provider's uptime over the 7 days before the offer was written, from 0 to 1"
+                          },
+                          "usdPerGpuHour": {
+                            "type": "number"
+                          },
+                          "estimatedMonthlyUsd": {
+                            "type": "integer",
+                            "description": "The price per GPU-hour for every GPU in the offer, over 730 hours"
+                          },
+                          "terms": {
+                            "type": "object",
+                            "properties": {
+                              "gpu": {
+                                "type": "object",
+                                "properties": {
+                                  "model": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 100
+                                  },
+                                  "count": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 1000
+                                  },
+                                  "interconnect": {
+                                    "type": "string",
+                                    "enum": [
+                                      "none",
+                                      "server",
+                                      "cluster"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "model",
+                                  "count",
+                                  "interconnect"
+                                ]
+                              },
+                              "location": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 100
+                              },
+                              "availableFrom": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "term": {
+                                "type": "string",
+                                "enum": [
+                                  "month_to_month",
+                                  "3_months",
+                                  "6_months",
+                                  "12_months",
+                                  "24_months"
+                                ]
+                              },
+                              "sla": {
+                                "type": "string",
+                                "nullable": true,
+                                "enum": [
+                                  "99",
+                                  "99.5",
+                                  "99.9"
+                                ]
+                              },
+                              "storage": {
+                                "type": "object",
+                                "properties": {
+                                  "tbPerNode": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1000
+                                  },
+                                  "nvme": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "tbPerNode",
+                                  "nvme"
+                                ]
+                              },
+                              "uplinkGbps": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                    "enum": [
+                                      1
+                                    ]
+                                  },
+                                  {
+                                    "type": "number",
+                                    "enum": [
+                                      10
+                                    ]
+                                  },
+                                  {
+                                    "type": "number",
+                                    "enum": [
+                                      25
+                                    ]
+                                  },
+                                  {
+                                    "nullable": true
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "gpu",
+                              "location",
+                              "availableFrom",
+                              "term",
+                              "sla",
+                              "storage",
+                              "uplinkGbps"
+                            ]
+                          },
+                          "expiresAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "publishedAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "status",
+                          "expired",
+                          "providerAudited",
+                          "providerUptime7d",
+                          "usdPerGpuHour",
+                          "estimatedMonthlyUsd",
+                          "terms",
+                          "expiresAt",
+                          "publishedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "No request the caller can read has this id"
+          }
+        }
+      }
+    },
+    "/v1/hardware-requests/{id}/withdraw": {
+      "post": {
+        "operationId": "withdrawHardwareRequest",
+        "summary": "Withdraw a GPU request before an offer is accepted",
+        "description": "Open to the requester and to the organization's owners and admins. Withdrawing twice changes nothing.",
+        "tags": [
+          "Hardware Requests"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The withdrawn request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "userId": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "uuid"
+                        },
+                        "organizationId": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "uuid"
+                        },
+                        "category": {
+                          "type": "string",
+                          "enum": [
+                            "gpu_model",
+                            "capacity",
+                            "region",
+                            "other",
+                            "quote"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "submitted",
+                            "in_review",
+                            "sourcing",
+                            "offers",
+                            "accepted",
+                            "fulfilled",
+                            "withdrawn",
+                            "closed"
+                          ]
+                        },
+                        "source": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "reserve_capacity",
+                            "configure_reserve",
+                            "no_fit",
+                            "no_bids",
+                            "gpu_menu",
+                            "requests_page"
+                          ]
+                        },
+                        "gpuModel": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "region": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "details": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "contactEmail": {
+                          "type": "string"
+                        },
+                        "spec": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "gpu": {
+                              "type": "object",
+                              "properties": {
+                                "model": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 100
+                                },
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 1000
+                                },
+                                "interconnect": {
+                                  "type": "string",
+                                  "enum": [
+                                    "none",
+                                    "server",
+                                    "cluster"
+                                  ]
+                                },
+                                "fabric": {
+                                  "type": "string",
+                                  "enum": [
+                                    "any",
+                                    "infiniband",
+                                    "roce"
+                                  ]
+                                },
+                                "fabricGbps": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "enum": [
+                                        200
+                                      ]
+                                    },
+                                    {
+                                      "type": "number",
+                                      "enum": [
+                                        400
+                                      ]
+                                    },
+                                    {
+                                      "type": "number",
+                                      "enum": [
+                                        800
+                                      ]
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "model",
+                                "count",
+                                "interconnect"
+                              ]
+                            },
+                            "region": {
+                              "type": "object",
+                              "properties": {
+                                "mode": {
+                                  "type": "string",
+                                  "enum": [
+                                    "any",
+                                    "only",
+                                    "except"
+                                  ]
+                                },
+                                "areas": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "us",
+                                      "ca",
+                                      "eu",
+                                      "uk",
+                                      "apac",
+                                      "me",
+                                      "latam"
+                                    ]
+                                  },
+                                  "maxItems": 7
+                                }
+                              },
+                              "required": [
+                                "mode",
+                                "areas"
+                              ]
+                            },
+                            "uplinkGbps": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    1
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    10
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    25
+                                  ]
+                                },
+                                {
+                                  "nullable": true
+                                }
+                              ]
+                            },
+                            "storage": {
+                              "type": "object",
+                              "properties": {
+                                "tbPerNode": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1000
+                                },
+                                "nvme": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "tbPerNode",
+                                "nvme"
+                              ]
+                            },
+                            "sla": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "99",
+                                "99.5",
+                                "99.9"
+                              ]
+                            },
+                            "targetPrice": {
+                              "type": "object",
+                              "nullable": true,
+                              "properties": {
+                                "minUsdPerGpuHour": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true,
+                                  "maximum": 1000
+                                },
+                                "maxUsdPerGpuHour": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true,
+                                  "maximum": 1000
+                                }
+                              }
+                            },
+                            "term": {
+                              "type": "string",
+                              "enum": [
+                                "month_to_month",
+                                "3_months",
+                                "6_months",
+                                "12_months",
+                                "24_months"
+                              ]
+                            },
+                            "start": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "asap"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "flexible"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": [
+                                        "date"
+                                      ]
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "format": "date"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "date"
+                                  ]
+                                }
+                              ]
+                            },
+                            "couldGrow": {
+                              "type": "boolean"
+                            },
+                            "wantsToTalk": {
+                              "type": "boolean"
+                            },
+                            "company": {
+                              "type": "string",
+                              "maxLength": 100
+                            },
+                            "phone": {
+                              "type": "string",
+                              "maxLength": 100
+                            }
+                          },
+                          "required": [
+                            "gpu",
+                            "region",
+                            "uplinkGbps",
+                            "storage",
+                            "sla",
+                            "targetPrice",
+                            "term",
+                            "start",
+                            "couldGrow",
+                            "wantsToTalk"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "userId",
+                        "organizationId",
+                        "category",
+                        "status",
+                        "source",
+                        "gpuModel",
+                        "quantity",
+                        "region",
+                        "details",
+                        "contactEmail",
+                        "spec",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller is neither the requester nor an owner or admin of the organization"
+          },
+          "404": {
+            "description": "No request the caller can read has this id"
+          },
+          "409": {
+            "description": "The request was already accepted, fulfilled or closed"
+          }
+        }
+      }
+    },
+    "/v1/hardware-requests/{id}/offers/{offerId}/accept": {
+      "post": {
+        "operationId": "acceptHardwareRequestOffer",
+        "summary": "Accept an offer for a GPU request",
+        "description": "Open to the organization's owners and admins. Closes the request's other offers and tells the Akash team, who set up the capacity.",
+        "tags": [
+          "Hardware Requests"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "offerId",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The offer after the decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "published",
+                            "accepted",
+                            "declined",
+                            "closed"
+                          ]
+                        },
+                        "expired": {
+                          "type": "boolean",
+                          "description": "A published offer past its expiry, which can no longer be accepted"
+                        },
+                        "providerAudited": {
+                          "type": "boolean"
+                        },
+                        "providerUptime7d": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "The provider's uptime over the 7 days before the offer was written, from 0 to 1"
+                        },
+                        "usdPerGpuHour": {
+                          "type": "number"
+                        },
+                        "estimatedMonthlyUsd": {
+                          "type": "integer",
+                          "description": "The price per GPU-hour for every GPU in the offer, over 730 hours"
+                        },
+                        "terms": {
+                          "type": "object",
+                          "properties": {
+                            "gpu": {
+                              "type": "object",
+                              "properties": {
+                                "model": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 100
+                                },
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 1000
+                                },
+                                "interconnect": {
+                                  "type": "string",
+                                  "enum": [
+                                    "none",
+                                    "server",
+                                    "cluster"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "model",
+                                "count",
+                                "interconnect"
+                              ]
+                            },
+                            "location": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100
+                            },
+                            "availableFrom": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "term": {
+                              "type": "string",
+                              "enum": [
+                                "month_to_month",
+                                "3_months",
+                                "6_months",
+                                "12_months",
+                                "24_months"
+                              ]
+                            },
+                            "sla": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "99",
+                                "99.5",
+                                "99.9"
+                              ]
+                            },
+                            "storage": {
+                              "type": "object",
+                              "properties": {
+                                "tbPerNode": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1000
+                                },
+                                "nvme": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "tbPerNode",
+                                "nvme"
+                              ]
+                            },
+                            "uplinkGbps": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    1
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    10
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    25
+                                  ]
+                                },
+                                {
+                                  "nullable": true
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "gpu",
+                            "location",
+                            "availableFrom",
+                            "term",
+                            "sla",
+                            "storage",
+                            "uplinkGbps"
+                          ]
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "publishedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "expired",
+                        "providerAudited",
+                        "providerUptime7d",
+                        "usdPerGpuHour",
+                        "estimatedMonthlyUsd",
+                        "terms",
+                        "expiresAt",
+                        "publishedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller is not an owner or admin of the organization"
+          },
+          "404": {
+            "description": "No request the caller can read, or no offer on it, has this id"
+          },
+          "409": {
+            "description": "The offer is not open, has expired, or the request is already settled"
+          }
+        }
+      }
+    },
+    "/v1/hardware-requests/{id}/offers/{offerId}/decline": {
+      "post": {
+        "operationId": "declineHardwareRequestOffer",
+        "summary": "Decline an offer for a GPU request",
+        "description": "Open to the requester and to the organization's owners and admins. Declining twice changes nothing.",
+        "tags": [
+          "Hardware Requests"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "offerId",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The offer after the decision",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "published",
+                            "accepted",
+                            "declined",
+                            "closed"
+                          ]
+                        },
+                        "expired": {
+                          "type": "boolean",
+                          "description": "A published offer past its expiry, which can no longer be accepted"
+                        },
+                        "providerAudited": {
+                          "type": "boolean"
+                        },
+                        "providerUptime7d": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "The provider's uptime over the 7 days before the offer was written, from 0 to 1"
+                        },
+                        "usdPerGpuHour": {
+                          "type": "number"
+                        },
+                        "estimatedMonthlyUsd": {
+                          "type": "integer",
+                          "description": "The price per GPU-hour for every GPU in the offer, over 730 hours"
+                        },
+                        "terms": {
+                          "type": "object",
+                          "properties": {
+                            "gpu": {
+                              "type": "object",
+                              "properties": {
+                                "model": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 100
+                                },
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 1000
+                                },
+                                "interconnect": {
+                                  "type": "string",
+                                  "enum": [
+                                    "none",
+                                    "server",
+                                    "cluster"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "model",
+                                "count",
+                                "interconnect"
+                              ]
+                            },
+                            "location": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100
+                            },
+                            "availableFrom": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "term": {
+                              "type": "string",
+                              "enum": [
+                                "month_to_month",
+                                "3_months",
+                                "6_months",
+                                "12_months",
+                                "24_months"
+                              ]
+                            },
+                            "sla": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "99",
+                                "99.5",
+                                "99.9"
+                              ]
+                            },
+                            "storage": {
+                              "type": "object",
+                              "properties": {
+                                "tbPerNode": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1000
+                                },
+                                "nvme": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "tbPerNode",
+                                "nvme"
+                              ]
+                            },
+                            "uplinkGbps": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    1
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    10
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    25
+                                  ]
+                                },
+                                {
+                                  "nullable": true
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "gpu",
+                            "location",
+                            "availableFrom",
+                            "term",
+                            "sla",
+                            "storage",
+                            "uplinkGbps"
+                          ]
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "publishedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "expired",
+                        "providerAudited",
+                        "providerUptime7d",
+                        "usdPerGpuHour",
+                        "estimatedMonthlyUsd",
+                        "terms",
+                        "expiresAt",
+                        "publishedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller is neither the requester nor an owner or admin of the organization"
+          },
+          "404": {
+            "description": "No request the caller can read, or no offer on it, has this id"
+          },
+          "409": {
+            "description": "The offer was already accepted or closed, or the request is already settled"
+          }
+        }
+      }
+    },
+    "/v1/hardware-requests/{id}/offers/{offerId}/request-approval": {
+      "post": {
+        "operationId": "requestHardwareRequestOfferApproval",
+        "summary": "Ask the organization's owners and admins to accept an offer",
+        "description": "Open to members who can't accept offers themselves. Emails every owner and admin; asking twice for the same offer sends nothing more.",
+        "tags": [
+          "Hardware Requests"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "offerId",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The offer the approval was asked for",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "published",
+                            "accepted",
+                            "declined",
+                            "closed"
+                          ]
+                        },
+                        "expired": {
+                          "type": "boolean",
+                          "description": "A published offer past its expiry, which can no longer be accepted"
+                        },
+                        "providerAudited": {
+                          "type": "boolean"
+                        },
+                        "providerUptime7d": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "The provider's uptime over the 7 days before the offer was written, from 0 to 1"
+                        },
+                        "usdPerGpuHour": {
+                          "type": "number"
+                        },
+                        "estimatedMonthlyUsd": {
+                          "type": "integer",
+                          "description": "The price per GPU-hour for every GPU in the offer, over 730 hours"
+                        },
+                        "terms": {
+                          "type": "object",
+                          "properties": {
+                            "gpu": {
+                              "type": "object",
+                              "properties": {
+                                "model": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 100
+                                },
+                                "count": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 1000
+                                },
+                                "interconnect": {
+                                  "type": "string",
+                                  "enum": [
+                                    "none",
+                                    "server",
+                                    "cluster"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "model",
+                                "count",
+                                "interconnect"
+                              ]
+                            },
+                            "location": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100
+                            },
+                            "availableFrom": {
+                              "type": "string",
+                              "format": "date"
+                            },
+                            "term": {
+                              "type": "string",
+                              "enum": [
+                                "month_to_month",
+                                "3_months",
+                                "6_months",
+                                "12_months",
+                                "24_months"
+                              ]
+                            },
+                            "sla": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "99",
+                                "99.5",
+                                "99.9"
+                              ]
+                            },
+                            "storage": {
+                              "type": "object",
+                              "properties": {
+                                "tbPerNode": {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 1000
+                                },
+                                "nvme": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "tbPerNode",
+                                "nvme"
+                              ]
+                            },
+                            "uplinkGbps": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    1
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    10
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "enum": [
+                                    25
+                                  ]
+                                },
+                                {
+                                  "nullable": true
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "gpu",
+                            "location",
+                            "availableFrom",
+                            "term",
+                            "sla",
+                            "storage",
+                            "uplinkGbps"
+                          ]
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "publishedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "expired",
+                        "providerAudited",
+                        "providerUptime7d",
+                        "usdPerGpuHour",
+                        "estimatedMonthlyUsd",
+                        "terms",
+                        "expiresAt",
+                        "publishedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "The caller is not acting for the request's organization"
+          },
+          "404": {
+            "description": "No request the caller can read, or no offer on it, has this id"
+          },
+          "409": {
+            "description": "The caller can accept the offer, the offer is not open or has expired, or the request is already settled"
+          }
+        }
+      }
+    },
     "/v1/notification-address-confirmations": {
       "post": {
         "operationId": "createNotificationAddressConfirmation",
@@ -26230,9 +27604,10 @@
                 "wallet_balance_alert",
                 "deployment_closed_alert",
                 "deployment_reclaim_alert",
-                "deployment_rename"
+                "deployment_rename",
+                "gpu_request_update"
               ],
-              "description": "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
+              "description": "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along."
             },
             "required": false,
             "name": "type",
@@ -26275,9 +27650,10 @@
                                   "wallet_balance_alert",
                                   "deployment_closed_alert",
                                   "deployment_reclaim_alert",
-                                  "deployment_rename"
+                                  "deployment_rename",
+                                  "gpu_request_update"
                                 ],
-                                "description": "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
+                                "description": "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along."
                               },
                               "status": {
                                 "type": "string",
@@ -26439,6 +27815,15 @@
                                       }
                                     },
                                     "description": "What an update or a rename changed, on `deployment_update` and `deployment_rename`. Names variables and never their values. Absent on an update that only replaced secret values."
+                                  },
+                                  "hardwareRequestId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "description": "The GPU request a `gpu_request_update` is about."
+                                  },
+                                  "hardwareRequestStatus": {
+                                    "type": "string",
+                                    "description": "The status the GPU request moved to, on a `gpu_request_update`."
                                   }
                                 }
                               },
@@ -26578,9 +27963,10 @@
                             "wallet_balance_alert",
                             "deployment_closed_alert",
                             "deployment_reclaim_alert",
-                            "deployment_rename"
+                            "deployment_rename",
+                            "gpu_request_update"
                           ],
-                          "description": "What the action was, or which kind of alert fired: `wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`."
+                          "description": "What the action was, which kind of alert fired (`wallet_balance_alert`, `deployment_closed_alert` or `deployment_reclaim_alert`), or `gpu_request_update` when the team moved one of the user's GPU requests along."
                         },
                         "status": {
                           "type": "string",
@@ -26742,6 +28128,15 @@
                                 }
                               },
                               "description": "What an update or a rename changed, on `deployment_update` and `deployment_rename`. Names variables and never their values. Absent on an update that only replaced secret values."
+                            },
+                            "hardwareRequestId": {
+                              "type": "string",
+                              "format": "uuid",
+                              "description": "The GPU request a `gpu_request_update` is about."
+                            },
+                            "hardwareRequestStatus": {
+                              "type": "string",
+                              "description": "The status the GPU request moved to, on a `gpu_request_update`."
                             }
                           }
                         },
