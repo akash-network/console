@@ -12,7 +12,7 @@ describe(useTrialRunnableModels.name, () => {
   it("is checking until the availability answers", () => {
     const { result } = setup({ availability: new Promise(() => {}) });
 
-    expect(result.current).toEqual({ models: [], isChecking: true });
+    expect(result.current).toEqual({ models: [], isChecking: true, hasCheckFailed: false });
   });
 
   it("answers the models whose gpu has free units", async () => {
@@ -27,12 +27,13 @@ describe(useTrialRunnableModels.name, () => {
 
     await vi.waitFor(() => expect(result.current.isChecking).toBe(false));
     expect(result.current.models).toEqual([]);
+    expect(result.current.hasCheckFailed).toBe(false);
   });
 
-  it("answers no models when the availability check fails", async () => {
+  it("answers no models and reports the failure when the availability check fails", async () => {
     const { result } = setup({ availability: Promise.reject(new Error("Internal Server Error")) });
 
-    await vi.waitFor(() => expect(result.current.isChecking).toBe(false));
+    await vi.waitFor(() => expect(result.current.hasCheckFailed).toBe(true));
     expect(result.current.models).toEqual([]);
   });
 

@@ -136,7 +136,7 @@ describe(BlockedGpuAlternatives.name, () => {
           useRouter,
           useAddCredits: () => openAddCredits,
           useIsOutOfDeployCredit: () => input.isOutOfCredit ?? false,
-          useTrialRunnableModels: () => ({ models: input.models, isChecking: false })
+          useTrialRunnableModels: () => ({ models: input.models, isChecking: false, hasCheckFailed: false })
         })}
       />
     );

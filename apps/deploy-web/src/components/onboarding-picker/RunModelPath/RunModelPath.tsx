@@ -26,7 +26,7 @@ type RunModelPathProps = {
 
 export function RunModelPath({ isOutOfCredit, onDeployTemplate, dependencies: d = DEPENDENCIES }: RunModelPathProps) {
   const { analyticsService } = d.useServices();
-  const { models, isChecking } = d.useTrialRunnableModels();
+  const { models, isChecking, hasCheckFailed } = d.useTrialRunnableModels();
   const hasNoRunnableModel = !isChecking && models.length === 0;
 
   function trackAkashMlClick() {
@@ -38,7 +38,7 @@ export function RunModelPath({ isOutOfCredit, onDeployTemplate, dependencies: d 
       {hasNoRunnableModel && (
         <p className="mb-4 flex items-start gap-2 rounded-[10px] border border-border bg-card px-3 py-2.5 text-[13px] leading-5 text-muted-foreground">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          None of the GPUs your trial can use are free right now.
+          {hasCheckFailed ? "We couldn't check which GPUs your trial can use right now." : "None of the GPUs your trial can use are free right now."}
         </p>
       )}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
