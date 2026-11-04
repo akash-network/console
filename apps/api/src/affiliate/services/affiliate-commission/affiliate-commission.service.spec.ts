@@ -500,6 +500,40 @@ describe(AffiliateCommissionService.name, () => {
         expect(refillService.topUpWallet).toHaveBeenCalledWith(200, expect.anything(), expect.anything());
       });
 
+      it("never credits more than the hold was already trimmed to", async () => {
+        const { service, payment, commission, stripeTransactionRepository, refillService } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          commissionAmountRefunded: 200
+        });
+
+        await service.syncCommission(payment.id, "release");
+
+        expect(stripeTransactionRepository.updateById).toHaveBeenCalledWith(commission.id, { status: "succeeded", amountRefunded: 200 });
+        expect(refillService.topUpWallet).toHaveBeenCalledWith(300, expect.anything(), expect.anything());
+      });
+
+      it("checks the affiliate program flag for the affiliate who holds the commission", async () => {
+        const { service, payment, affiliate, featureFlagsService } = setup({ hasCommission: true, commissionStatus: "pending" });
+
+        await service.syncCommission(payment.id, "release");
+
+        expect(featureFlagsService.isEnabled).toHaveBeenCalledWith(FeatureFlags.AFFILIATE_PROGRAM, { userId: affiliate.userId });
+      });
+
+      it("reports only what the hold still kept when it cancels a trimmed commission", async () => {
+        const { service, payment, affiliate, analyticsService } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          commissionAmountRefunded: 200,
+          isProgramEnabled: false
+        });
+
+        await service.syncCommission(payment.id, "release");
+
+        expect(analyticsService.track).toHaveBeenCalledWith(affiliate.userId, "affiliate_commission_canceled", expect.objectContaining({ amount_cents: 300 }));
+      });
+
       it("looks up the affiliate who holds the commission", async () => {
         const { service, payment, affiliate, affiliateRepository } = setup({ hasCommission: true, commissionStatus: "pending" });
 
@@ -593,6 +627,20 @@ describe(AffiliateCommissionService.name, () => {
           amountCents: 300,
           reason: "refund"
         });
+      });
+
+      it("keeps a held commission trimmed below the payer's share still paid as it is", async () => {
+        const { service, payment, stripeTransactionRepository } = setup({
+          hasCommission: true,
+          commissionStatus: "pending",
+          paymentAmount: 10000,
+          paymentAmountRefunded: 1000,
+          commissionAmountRefunded: 200
+        });
+
+        await service.syncCommission(payment.id, "refund");
+
+        expect(stripeTransactionRepository.updateById).not.toHaveBeenCalled();
       });
 
       it("leaves the held commission as it is when a later sync finds the refund already applied", async () => {
