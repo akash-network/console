@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import {
+  CLOSE_REASONS,
   hardwareRequestCategoryEnum,
   hardwareRequestEventTypeEnum,
   hardwareRequestLaneEnum,
@@ -71,6 +72,15 @@ export const SwitchHardwareRequestLaneRequestSchema = z.object({
   data: z.object({ actor: ActorSchema, lane: z.enum(hardwareRequestLaneEnum.enumValues) })
 });
 
+export const ChangeHardwareRequestStatusRequestSchema = z.object({
+  data: z
+    .object({ actor: ActorSchema, status: z.enum(hardwareRequestStatusEnum.enumValues), closeReason: z.enum(CLOSE_REASONS).optional() })
+    .refine(({ status, closeReason }) => (status === "closed") === (closeReason !== undefined), {
+      message: "A closed request needs a close reason, and only a closed request takes one",
+      path: ["closeReason"]
+    })
+});
+
 export const AddHardwareRequestNoteRequestSchema = z.object({
   data: z.object({ actor: ActorSchema, text: z.string().trim().min(1).max(MAX_NOTE_LENGTH) })
 });
@@ -85,5 +95,6 @@ export type HardwareRequestQueueQuery = z.infer<typeof HardwareRequestQueueQuery
 export type HardwareRequestQueueResponse = z.infer<typeof HardwareRequestQueueResponseSchema>;
 export type AssignHardwareRequestOwnerRequest = z.infer<typeof AssignHardwareRequestOwnerRequestSchema>;
 export type SwitchHardwareRequestLaneRequest = z.infer<typeof SwitchHardwareRequestLaneRequestSchema>;
+export type ChangeHardwareRequestStatusRequest = z.infer<typeof ChangeHardwareRequestStatusRequestSchema>;
 export type AddHardwareRequestNoteRequest = z.infer<typeof AddHardwareRequestNoteRequestSchema>;
 export type HardwareRequestWithTimelineResponse = z.infer<typeof HardwareRequestWithTimelineResponseSchema>;

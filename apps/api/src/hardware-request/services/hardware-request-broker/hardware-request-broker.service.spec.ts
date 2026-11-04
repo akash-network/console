@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { JobQueueService } from "@src/core/services/job-queue/job-queue.service";
 import type { TxService } from "@src/core/services/tx/tx.service";
 import type {
   HardwareRequestOutput,
@@ -12,6 +13,7 @@ import type {
   HardwareRequestEventOutput,
   HardwareRequestEventRepository
 } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
+import { HardwareRequestStatusNotificationJob } from "@src/hardware-request/services/hardware-request-status-notification/hardware-request-status-notification.handler";
 import { HardwareRequestBrokerService } from "./hardware-request-broker.service";
 
 import { createHardwareRequest } from "@test/seeders/hardware-request.seeder";
@@ -105,6 +107,63 @@ describe(HardwareRequestBrokerService.name, () => {
     });
   });
 
+  describe("changeStatus", () => {
+    it("moves the request, dates its first reply and tells the tenant in the same transaction", async () => {
+      const { service, hardwareRequestRepository, hardwareRequestEventRepository, jobQueueService, txService, locked } = setup({
+        status: "submitted",
+        firstRepliedAt: null
+      });
+
+      await service.changeStatus(locked.id, { actor: "Remington", status: "sourcing" });
+
+      expect(txService.transaction).toHaveBeenCalledTimes(1);
+      expect(hardwareRequestRepository.updateById).toHaveBeenCalledWith(locked.id, {
+        status: "sourcing",
+        updatedAt: expect.any(Date),
+        firstRepliedAt: expect.any(Date)
+      });
+      expect(hardwareRequestEventRepository.record).toHaveBeenCalledWith({
+        hardwareRequestId: locked.id,
+        type: "status_changed",
+        actor: "Remington",
+        payload: { from: "submitted", to: "sourcing" }
+      });
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new HardwareRequestStatusNotificationJob({ hardwareRequestId: locked.id, eventId: "recorded-event", status: "sourcing", closeReason: undefined })
+      );
+    });
+
+    it("keeps the first reply of a request already answered", async () => {
+      const { service, hardwareRequestRepository, locked } = setup({ status: "in_review", firstRepliedAt: "2026-11-01T00:00:00.000Z" });
+
+      await service.changeStatus(locked.id, { actor: "Remington", status: "sourcing" });
+
+      expect(hardwareRequestRepository.updateById).toHaveBeenCalledWith(locked.id, { status: "sourcing", updatedAt: expect.any(Date) });
+    });
+
+    it("records why a request was closed", async () => {
+      const { service, hardwareRequestEventRepository, jobQueueService, locked } = setup({ status: "sourcing" });
+
+      await service.changeStatus(locked.id, { actor: "Remington", status: "closed", closeReason: "no_supply" });
+
+      expect(hardwareRequestEventRepository.record).toHaveBeenCalledWith(
+        expect.objectContaining({ payload: { from: "sourcing", to: "closed", closeReason: "no_supply" } })
+      );
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new HardwareRequestStatusNotificationJob({ hardwareRequestId: locked.id, eventId: "recorded-event", status: "closed", closeReason: "no_supply" })
+      );
+    });
+
+    it("neither records nor notifies when the request already has that status", async () => {
+      const { service, hardwareRequestRepository, jobQueueService, locked } = setup({ status: "sourcing" });
+
+      await service.changeStatus(locked.id, { actor: "Remington", status: "sourcing" });
+
+      expect(hardwareRequestRepository.updateById).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+  });
+
   describe("addNote", () => {
     it("records the note without touching the request", async () => {
       const { service, hardwareRequestRepository, hardwareRequestEventRepository, locked, queued, events } = setup();
@@ -120,7 +179,7 @@ describe(HardwareRequestBrokerService.name, () => {
     });
   });
 
-  function setup(input: Partial<Pick<HardwareRequestOutput, "owner" | "lane">> = {}) {
+  function setup(input: Partial<Pick<HardwareRequestOutput, "owner" | "lane" | "status" | "firstRepliedAt">> = {}) {
     const locked = createHardwareRequest(input);
     const queued: QueuedHardwareRequest = { ...locked, organizationName: "Acme", lastRepliedAt: null };
     const events = [mock<HardwareRequestEventOutput>({ id: "event-1" })];
@@ -131,10 +190,12 @@ describe(HardwareRequestBrokerService.name, () => {
     hardwareRequestRepository.findOneByAndLock.mockResolvedValue(locked);
     const hardwareRequestEventRepository = mock<HardwareRequestEventRepository>();
     hardwareRequestEventRepository.findOldestFirst.mockResolvedValue(events);
+    hardwareRequestEventRepository.record.mockResolvedValue(mock<HardwareRequestEventOutput>({ id: "recorded-event" }));
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());
-    const service = new HardwareRequestBrokerService(hardwareRequestRepository, hardwareRequestEventRepository, txService);
+    const jobQueueService = mock<JobQueueService>();
+    const service = new HardwareRequestBrokerService(hardwareRequestRepository, hardwareRequestEventRepository, txService, jobQueueService);
 
-    return { service, hardwareRequestRepository, hardwareRequestEventRepository, txService, locked, queued, events };
+    return { service, hardwareRequestRepository, hardwareRequestEventRepository, txService, jobQueueService, locked, queued, events };
   }
 });

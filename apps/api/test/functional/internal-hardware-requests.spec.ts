@@ -1,14 +1,18 @@
 import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { startJobQueues } from "@src/app/providers/jobs.provider";
+import { JOB_NAME } from "@src/core";
 import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { HardwareRequestRepository } from "@src/hardware-request/repositories/hardware-request/hardware-request.repository";
 import { HardwareRequestEventRepository } from "@src/hardware-request/repositories/hardware-request-event/hardware-request-event.repository";
+import { HardwareRequestStatusNotificationJob } from "@src/hardware-request/services/hardware-request-status-notification/hardware-request-status-notification.handler";
 import { app } from "@src/rest-app";
 
 import { seedHardwareRequest } from "@test/seeders/db/hardware-request.seeder";
 import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { findJobRows } from "@test/services/job-queue-harness";
 
 type QueueItem = { id: string; organizationName: string | null; lastRepliedAt: string | null; owner: string | null };
 
@@ -16,6 +20,10 @@ describe("Internal hardware requests", () => {
   const internalToken = container.resolve(CORE_CONFIG).INTERNAL_API_TOKEN;
   const eventRepository = container.resolve(HardwareRequestEventRepository);
   const hardwareRequestRepository = container.resolve(HardwareRequestRepository);
+
+  beforeAll(async () => {
+    await startJobQueues();
+  }, 20_000);
 
   afterAll(async () => {
     await container.dispose();
@@ -185,6 +193,45 @@ describe("Internal hardware requests", () => {
 
       expect(data).toMatchObject({ lane: "sales", laneReason: "manual" });
       expect(data.events).toMatchObject([{ type: "lane_changed", payload: { from: "automated", to: "sales" } }]);
+    });
+  });
+
+  describe("PUT /internal/hardware-requests/{id}/status", () => {
+    it("moves the request, dates its first reply and queues the tenant's notification", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ status: "submitted" });
+
+      const { status, data } = await act(hardwareRequest.id, "status", { actor: "Remington", status: "sourcing" });
+
+      expect(status).toBe(200);
+      expect(data).toMatchObject({ status: "sourcing", firstRepliedAt: expect.any(String), lastRepliedAt: expect.any(String) });
+      expect(data.events).toMatchObject([{ type: "status_changed", actor: "Remington", payload: { from: "submitted", to: "sourcing" } }]);
+      expect(await findJobRows(HardwareRequestStatusNotificationJob[JOB_NAME], { data: { hardwareRequestId: hardwareRequest.id } })).toMatchObject([
+        { data: { status: "sourcing" } }
+      ]);
+    });
+
+    it("closes a request with its reason", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ status: "sourcing" });
+
+      const { data } = await act(hardwareRequest.id, "status", { actor: "Remington", status: "closed", closeReason: "went_silent" });
+
+      expect(data.events).toMatchObject([{ payload: { from: "sourcing", to: "closed", closeReason: "went_silent" } }]);
+    });
+
+    it.each([
+      { case: "a close without a reason", body: { actor: "Remington", status: "closed" } },
+      { case: "a reason on a status other than closed", body: { actor: "Remington", status: "sourcing", closeReason: "price" } },
+      { case: "an unknown reason", body: { actor: "Remington", status: "closed", closeReason: "bored" } }
+    ])("refuses $case", async ({ body }) => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ status: "sourcing" });
+
+      const { status } = await act(hardwareRequest.id, "status", body);
+
+      expect(status).toBe(400);
+      expect(await hardwareRequestRepository.findById(hardwareRequest.id)).toMatchObject({ status: "sourcing" });
     });
   });
 
