@@ -2,20 +2,25 @@ import dns from "node:dns";
 import { BlockList } from "node:net";
 
 export const PRIVATE_NETWORK_BLOCK_LIST = new BlockList();
-// IPv4
 PRIVATE_NETWORK_BLOCK_LIST.addSubnet("0.0.0.0", 8, "ipv4");
 PRIVATE_NETWORK_BLOCK_LIST.addSubnet("10.0.0.0", 8, "ipv4");
 PRIVATE_NETWORK_BLOCK_LIST.addSubnet("100.64.0.0", 10, "ipv4");
 PRIVATE_NETWORK_BLOCK_LIST.addSubnet("127.0.0.0", 8, "ipv4");
 PRIVATE_NETWORK_BLOCK_LIST.addSubnet("169.254.0.0", 16, "ipv4");
 PRIVATE_NETWORK_BLOCK_LIST.addSubnet("172.16.0.0", 12, "ipv4");
+PRIVATE_NETWORK_BLOCK_LIST.addSubnet("192.0.0.0", 24, "ipv4");
 PRIVATE_NETWORK_BLOCK_LIST.addSubnet("192.168.0.0", 16, "ipv4");
-PRIVATE_NETWORK_BLOCK_LIST.addAddress("255.255.255.255", "ipv4");
-// IPv6
+PRIVATE_NETWORK_BLOCK_LIST.addSubnet("198.18.0.0", 15, "ipv4");
+PRIVATE_NETWORK_BLOCK_LIST.addSubnet("224.0.0.0", 4, "ipv4");
+PRIVATE_NETWORK_BLOCK_LIST.addSubnet("240.0.0.0", 4, "ipv4");
 PRIVATE_NETWORK_BLOCK_LIST.addAddress("::", "ipv6");
 PRIVATE_NETWORK_BLOCK_LIST.addAddress("::1", "ipv6");
+PRIVATE_NETWORK_BLOCK_LIST.addSubnet("64:ff9b::", 96, "ipv6");
+PRIVATE_NETWORK_BLOCK_LIST.addSubnet("64:ff9b:1::", 48, "ipv6");
+PRIVATE_NETWORK_BLOCK_LIST.addSubnet("2002::", 16, "ipv6");
 PRIVATE_NETWORK_BLOCK_LIST.addSubnet("fc00::", 7, "ipv6");
 PRIVATE_NETWORK_BLOCK_LIST.addSubnet("fe80::", 10, "ipv6");
+PRIVATE_NETWORK_BLOCK_LIST.addSubnet("ff00::", 8, "ipv6");
 
 export function createForbidPrivateNetworkLookup(baseLookup: BaseLookup = dns.lookup, blockList: BlockList = PRIVATE_NETWORK_BLOCK_LIST): NetworkLookup {
   return function forbidPrivateNetworkLookup(hostname: string, options: dns.LookupOptions, callback: LookupCallback) {

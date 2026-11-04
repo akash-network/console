@@ -13,11 +13,16 @@ describe(createForbidPrivateNetworkLookup.name, () => {
       ["127.0.0.0/8 (loopback)", "127.0.0.1"],
       ["169.254.0.0/16 (link-local)", "169.254.169.254"],
       ["172.16.0.0/12 (RFC1918)", "172.20.0.1"],
+      ["192.0.0.0/24 (IETF protocol assignments)", "192.0.0.8"],
       ["192.168.0.0/16 (RFC1918)", "192.168.1.1"],
+      ["198.18.0.0/15 (benchmarking)", "198.19.255.254"],
+      ["224.0.0.0/4 (multicast)", "224.0.0.1"],
+      ["224.0.0.0/4 (multicast)", "239.255.255.250"],
+      ["240.0.0.0/4 (reserved)", "240.0.0.1"],
       ["255.255.255.255 (broadcast)", "255.255.255.255"]
     ] as const;
 
-    it.each(FORBIDDEN_IPV4)("rejects %s — %s", async (_label, address) => {
+    it.each(FORBIDDEN_IPV4)("rejects %s at %s", async (_label, address) => {
       const { lookup } = setup({ resolvedAs: [{ address, family: 4 }] });
       const result = await lookup("evil.example.com");
 
@@ -30,12 +35,16 @@ describe(createForbidPrivateNetworkLookup.name, () => {
     const FORBIDDEN_IPV6 = [
       ["unspecified ::", "::"],
       ["loopback ::1", "::1"],
+      ["NAT64 64:ff9b::/96", "64:ff9b::7f00:1"],
+      ["local-use NAT64 64:ff9b:1::/48", "64:ff9b:1::a00:1"],
+      ["6to4 2002::/16", "2002:7f00:1::1"],
       ["ULA fc00::/7", "fc00::1"],
       ["ULA fd00::/8 (within fc00::/7)", "fd12:3456:789a::1"],
-      ["link-local fe80::/10", "fe80::1"]
+      ["link-local fe80::/10", "fe80::1"],
+      ["multicast ff00::/8", "ff02::1"]
     ] as const;
 
-    it.each(FORBIDDEN_IPV6)("rejects %s — %s", async (_label, address) => {
+    it.each(FORBIDDEN_IPV6)("rejects %s at %s", async (_label, address) => {
       const { lookup } = setup({ resolvedAs: [{ address, family: 6 }] });
       const result = await lookup("evil.example.com");
 
@@ -45,6 +54,23 @@ describe(createForbidPrivateNetworkLookup.name, () => {
   });
 
   describe("passes public addresses through", () => {
+    it.each([
+      ["1.1.1.1", 4],
+      ["8.8.8.8", 4],
+      ["192.0.1.1", 4],
+      ["198.20.0.1", 4],
+      ["223.5.5.5", 4],
+      ["2001:4860:4860::8888", 6],
+      ["2003::1", 6],
+      ["2606:4700:4700::1111", 6]
+    ] as const)("passes %s through", async (address, family) => {
+      const { lookup } = setup({ resolvedAs: [{ address, family }] });
+      const result = await lookup("provider.example.com");
+
+      expect(result.err).toBeNull();
+      expect(result.address).toBe(address);
+    });
+
     it("forwards a public IPv4 address to the callback in single-result mode", async () => {
       const { lookup } = setup({ resolvedAs: [{ address: "1.1.1.1", family: 4 }] });
       const result = await lookup("one.one.one.one");
