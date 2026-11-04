@@ -292,6 +292,56 @@ describe(ConfigureDeployment.name, () => {
     );
   });
 
+  it("auto deploys, on a fresh flow, the template already shown when Deploy now marks it over a manual screen that hasn't started deploying", () => {
+    const { AutoDeployFlow, ConfigureDeploymentForm, markAutoDeployStart, navigate } = setup({ templateId: helloWorldTemplate.code });
+    const formFlow = ConfigureDeploymentForm.mock.lastCall?.[0].flow;
+
+    markAutoDeployStart(helloWorldTemplate.code);
+    navigate({ templateId: helloWorldTemplate.code, sdlStrategy: "default", bidStrategy: "auto" });
+
+    expect(AutoDeployFlow).toHaveBeenLastCalledWith(expect.objectContaining({ sdl: helloWorldTemplate.content }), expect.anything());
+    expect(AutoDeployFlow.mock.lastCall?.[0].flow).not.toBe(formFlow);
+  });
+
+  it("doesn't start a second deployment when Deploy again marks the template the screen is deploying", () => {
+    const { AutoDeployFlow, markAutoDeployStart, navigate } = setup({
+      templateId: helloWorldTemplate.code,
+      sdlStrategy: "default",
+      bidStrategy: "auto",
+      autoDeployStart: helloWorldTemplate.code
+    });
+    const deployingFlow = AutoDeployFlow.mock.lastCall?.[0].flow;
+
+    markAutoDeployStart(helloWorldTemplate.code);
+    navigate({ templateId: helloWorldTemplate.code, sdlStrategy: "default", bidStrategy: "auto" });
+
+    expect(AutoDeployFlow.mock.lastCall?.[0].flow).toBe(deployingFlow);
+  });
+
+  it.each([
+    { state: "has a deployment being created", flow: { phase: "creating" } },
+    { state: "is still closing a cancelled deployment", flow: { pendingClose: mock<NonNullable<DeploymentFlow["pendingClose"]>>() } }
+  ] as const)("keeps the form when the shown template is marked over a manual screen that $state", ({ flow }) => {
+    const { AutoDeployFlow, markAutoDeployStart, navigate } = setup({ templateId: helloWorldTemplate.code, flow });
+
+    markAutoDeployStart(helloWorldTemplate.code);
+    navigate({ templateId: helloWorldTemplate.code, sdlStrategy: "default", bidStrategy: "auto" });
+
+    expect(AutoDeployFlow).not.toHaveBeenCalled();
+  });
+
+  it("keeps the form when the shown template is marked after the manual flow began creating a deployment", () => {
+    const { AutoDeployFlow, ConfigureDeploymentForm, markAutoDeployStart, navigate } = setup({ templateId: helloWorldTemplate.code });
+    const formFlow = ConfigureDeploymentForm.mock.lastCall?.[0].flow as DeploymentFlow;
+    formFlow.phase = "creating";
+    navigate({ templateId: helloWorldTemplate.code });
+
+    markAutoDeployStart(helloWorldTemplate.code);
+    navigate({ templateId: helloWorldTemplate.code, sdlStrategy: "default", bidStrategy: "auto" });
+
+    expect(AutoDeployFlow).not.toHaveBeenCalled();
+  });
+
   it("keeps the form when a deploy button marks another template than the one the URL moves to", () => {
     const { AutoDeployFlow, ConfigureDeploymentForm, markAutoDeployStart, navigate } = setup({
       templateId: "tpl-1",
@@ -529,6 +579,7 @@ describe(ConfigureDeployment.name, () => {
     dseq?: string;
     autoDeployStart?: string;
     deployButtonInForm?: string;
+    flow?: Partial<DeploymentFlow>;
   }) {
     const store = createStore();
     store.set(sdlStore.deploySdl, input.deploySdl ?? null);
@@ -550,7 +601,7 @@ describe(ConfigureDeployment.name, () => {
     );
     const AutoDeployFlow = vi.fn<typeof DEPENDENCIES.AutoDeployFlow>(() => <div data-testid="auto-mock" />);
     const DeploymentFlowProvider = vi.fn(function FlowProviderMock({ children }) {
-      const [flow] = useState(() => mock<DeploymentFlow>());
+      const [flow] = useState(() => mock<DeploymentFlow>({ phase: "configuring", pendingClose: null, ...input.flow }));
       return <>{children({ flow })}</>;
     });
     const enqueueSnackbar = vi.fn();

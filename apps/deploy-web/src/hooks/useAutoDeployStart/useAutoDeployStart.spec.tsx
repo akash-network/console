@@ -6,7 +6,11 @@ import { useMarkAutoDeployStart, useTakeAutoDeployStart } from "./useAutoDeployS
 
 import { act, renderHook } from "@testing-library/react";
 
-type Location = { templateId?: string; dseq?: string };
+type Location = Parameters<typeof useTakeAutoDeployStart>[0];
+
+type ScreenState = Parameters<typeof useTakeAutoDeployStart>[1];
+
+const CONSOLE_START_URL = { sdlStrategy: "default", bidStrategy: "auto" } as const;
 
 describe(useTakeAutoDeployStart.name, () => {
   it("starts the template a deploy button marked before the screen opened", () => {
@@ -69,7 +73,7 @@ describe(useTakeAutoDeployStart.name, () => {
 
     act(() => {
       markHook.result.current("hello-world");
-      screen.rerender({ location: { templateId: "hello-world" } });
+      screen.rerender({ location: { templateId: "hello-world" }, state: { hasStartedDeploying: false } });
     });
 
     expect(screen.result.current).toEqual({ templateId: "hello-world", key: 1 });
@@ -125,15 +129,80 @@ describe(useTakeAutoDeployStart.name, () => {
     expect(screen.result.current).toEqual({ templateId: null, key: 0 });
   });
 
-  it("keeps the screen when its own template is marked again", () => {
+  it("keeps the screen when the template it is deploying is marked again", () => {
     const { mark, openScreen } = setup();
     mark("hello-world");
-    const screen = openScreen({ templateId: "hello-world" });
+    const screen = openScreen({ templateId: "hello-world", ...CONSOLE_START_URL });
 
     mark("hello-world");
-    screen.navigate({ templateId: "hello-world" });
+    screen.navigate({ templateId: "hello-world", ...CONSOLE_START_URL });
 
     expect(screen.result.current).toEqual({ templateId: "hello-world", key: 0 });
+  });
+
+  it("starts afresh the template already on a screen that hasn't started deploying, once the click's push lands", () => {
+    const { mark, openScreen } = setup();
+    const screen = openScreen({ templateId: "hello-world", draftId: "draft-1" });
+
+    mark("hello-world");
+    screen.navigate({ templateId: "hello-world", ...CONSOLE_START_URL });
+
+    expect(screen.result.current).toEqual({ templateId: "hello-world", key: 1 });
+  });
+
+  it("starts the template already on screen when the mark and the push land together", () => {
+    const { markHook, openScreen } = setup();
+    const screen = openScreen({ templateId: "hello-world", draftId: "draft-1" });
+
+    act(() => {
+      markHook.result.current("hello-world");
+      screen.rerender({ location: { templateId: "hello-world", ...CONSOLE_START_URL }, state: { hasStartedDeploying: false } });
+    });
+
+    expect(screen.result.current).toEqual({ templateId: "hello-world", key: 1 });
+  });
+
+  it("waits for the click's push before starting the template already on screen", () => {
+    const { mark, openScreen } = setup();
+    const screen = openScreen({ templateId: "hello-world", draftId: "draft-1", ...CONSOLE_START_URL });
+
+    mark("hello-world");
+
+    expect(screen.result.current).toEqual({ templateId: null, key: 0 });
+  });
+
+  it.each([
+    { url: "the form strategy", location: { templateId: "hello-world", sdlStrategy: "edit", bidStrategy: "auto" } },
+    { url: "the manual bid strategy", location: { templateId: "hello-world", sdlStrategy: "default", bidStrategy: "select" } },
+    { url: "a draft id", location: { templateId: "hello-world", draftId: "draft-2", ...CONSOLE_START_URL } }
+  ] as const)("doesn't start the template already on screen for a URL carrying $url", ({ location }) => {
+    const { mark, openScreen } = setup();
+    const screen = openScreen({ templateId: "hello-world", draftId: "draft-1" });
+
+    mark("hello-world");
+    screen.navigate(location);
+
+    expect(screen.result.current).toEqual({ templateId: null, key: 0 });
+  });
+
+  it("doesn't start the template already on a screen that has started deploying", () => {
+    const { mark, openScreen } = setup();
+    const screen = openScreen({ templateId: "hello-world", draftId: "draft-1" }, { hasStartedDeploying: true });
+
+    mark("hello-world");
+    screen.navigate({ templateId: "hello-world", ...CONSOLE_START_URL }, { hasStartedDeploying: true });
+
+    expect(screen.result.current).toEqual({ templateId: null, key: 0 });
+  });
+
+  it("doesn't start the template already on screen for a mark of another template", () => {
+    const { mark, openScreen } = setup();
+    const screen = openScreen({ templateId: "hello-world", draftId: "draft-1" });
+
+    mark("llama");
+    screen.navigate({ templateId: "hello-world", ...CONSOLE_START_URL });
+
+    expect(screen.result.current).toEqual({ templateId: null, key: 0 });
   });
 
   function setup() {
@@ -144,9 +213,12 @@ describe(useTakeAutoDeployStart.name, () => {
     return {
       markHook,
       mark: (templateId: string) => act(() => markHook.result.current(templateId)),
-      openScreen: (location: Location) => {
-        const screen = renderHook(({ location }: { location: Location }) => useTakeAutoDeployStart(location), { initialProps: { location }, wrapper });
-        return { ...screen, navigate: (next: Location) => screen.rerender({ location: next }) };
+      openScreen: (location: Location, state: ScreenState = { hasStartedDeploying: false }) => {
+        const screen = renderHook(({ location, state }: { location: Location; state: ScreenState }) => useTakeAutoDeployStart(location, state), {
+          initialProps: { location, state },
+          wrapper
+        });
+        return { ...screen, navigate: (next: Location, nextState: ScreenState = state) => screen.rerender({ location: next, state: nextState }) };
       }
     };
   }

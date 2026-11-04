@@ -22,6 +22,7 @@ import { ResumeDeploymentGuard } from "../ResumeDeploymentGuard/ResumeDeployment
 import { useConfigureDraft } from "../useConfigureDraft/useConfigureDraft";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import { parseDeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
+import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
 export const DEPENDENCIES = {
   Layout,
@@ -63,20 +64,30 @@ export const ConfigureDeployment: FC<Props> = ({ dependencies: d = DEPENDENCIES 
   const routeParams = d.useParams();
   const dseqSegment = Array.isArray(routeParams?.dseq) ? routeParams.dseq[0] : (routeParams?.dseq as string | undefined);
   const intent = parseDeploymentIntent({ dseqSegment, searchParams: new URLSearchParams(searchParams?.toString() ?? "") });
-  const autoDeployStart = d.useTakeAutoDeployStart(intent);
+  const [hasStartedDeploying, setHasStartedDeploying] = useState(false);
+  const autoDeployStart = d.useTakeAutoDeployStart(intent, { hasStartedDeploying });
 
-  return <ConfigureDeploymentScreen key={autoDeployStart.key} intent={intent} isStartedByConsole={autoDeployStart.templateId !== null} dependencies={d} />;
+  return (
+    <ConfigureDeploymentScreen
+      key={autoDeployStart.key}
+      intent={intent}
+      isStartedByConsole={autoDeployStart.templateId !== null}
+      onDeployStartedChange={setHasStartedDeploying}
+      dependencies={d}
+    />
+  );
 };
 
 type ScreenProps = {
   intent: DeploymentIntent;
   /** The URL alone never deploys: any arrival other than a console deploy button for this template, a reload included, opens the form. */
   isStartedByConsole: boolean;
+  onDeployStartedChange: (hasStartedDeploying: boolean) => void;
   dependencies: typeof DEPENDENCIES;
 };
 
 /** Remounted for each console start, so its draft, resume guard and flow begin afresh for the template that start deploys. */
-const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole, dependencies: d }) => {
+const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole, onDeployStartedChange, dependencies: d }) => {
   const draft = d.useConfigureDraft(intent);
   const templateId = intent.templateId;
   const deploySdl = useAtomValue(sdlStore.deploySdl);
@@ -173,18 +184,21 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole
 
           return (
             <d.DeploymentFlowProvider key={draft.draftId} intent={resolvedIntent}>
-              {({ flow }) =>
-                isAutoDeploy && initialSdl ? (
-                  <d.AutoDeployFlow templateName={templateName} sdl={initialSdl} resume={resume} flow={flow} />
-                ) : (
-                  <d.ConfigureDeploymentForm
-                    initialSdl={initialSdl ?? resume.recordedDefinition?.sdl}
-                    initialName={initialName ?? resume.recordedDefinition?.name}
-                    intent={resolvedIntent}
-                    flow={flow}
-                  />
-                )
-              }
+              {({ flow }) => (
+                <>
+                  <ReportDeployStarted flow={flow} onChange={onDeployStartedChange} />
+                  {isAutoDeploy && initialSdl ? (
+                    <d.AutoDeployFlow templateName={templateName} sdl={initialSdl} resume={resume} flow={flow} />
+                  ) : (
+                    <d.ConfigureDeploymentForm
+                      initialSdl={initialSdl ?? resume.recordedDefinition?.sdl}
+                      initialName={initialName ?? resume.recordedDefinition?.name}
+                      intent={resolvedIntent}
+                      flow={flow}
+                    />
+                  )}
+                </>
+              )}
             </d.DeploymentFlowProvider>
           );
         }}
@@ -192,3 +206,17 @@ const ConfigureDeploymentScreen: FC<ScreenProps> = ({ intent, isStartedByConsole
     </d.DeployTargetGate>
   );
 };
+
+/** A cancelled deployment still closing counts too, since a fresh start would never close it. */
+function ReportDeployStarted({ flow, onChange }: { flow: DeploymentFlow; onChange: (hasStartedDeploying: boolean) => void }) {
+  const hasStartedDeploying = flow.phase !== "configuring" || !!flow.pendingClose;
+
+  useEffect(
+    function reportDeployStarted() {
+      onChange(hasStartedDeploying);
+    },
+    [hasStartedDeploying, onChange]
+  );
+
+  return null;
+}
