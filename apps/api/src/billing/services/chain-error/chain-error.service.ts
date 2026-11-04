@@ -7,6 +7,7 @@ import { singleton } from "tsyringe";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
 import { isTxOutcomeError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import { isUnreachableUpstreamError } from "@src/core/lib/unreachable-upstream/unreachable-upstream";
 
 const ESCROW_SETTLEMENT_UNDERFLOW_MESSAGE = "negative decimal coin amount" as const;
 
@@ -14,9 +15,6 @@ const DEPLOYMENT_EXISTS_MESSAGE = "deployment exists" as const;
 
 /** cosmos-sdk reworded this between v0.45 ("%s not allowed to pay fees from %s") and v0.53 ("%s does not allow to pay fees for %s"); mainnet emits the latter. */
 const FEE_GRANT_REFUSED_MESSAGE = "does not allow to pay fees";
-
-/** A signer that refused the connection or never resolved carries no response to read a status from, yet it is as much a dependency outage as a 5xx from one. */
-const UNREACHABLE_UPSTREAM_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "EHOSTUNREACH", "ENETUNREACH"]);
 
 /** Carries no host, address or upstream text, because the error handler echoes `message` to the caller for every `http-errors` instance regardless of `expose`. */
 const UPSTREAM_FAILURE_MESSAGE = "Service temporarily unavailable";
@@ -113,7 +111,7 @@ export class ChainErrorService {
     const clue = clues.find(clue => error.message.toLowerCase().includes(clue.toLowerCase()));
 
     if (!clue) {
-      if (this.isUnreachableUpstreamCause(error)) {
+      if (isUnreachableUpstreamError(error)) {
         return createError(503, UPSTREAM_FAILURE_MESSAGE, { originalError: error });
       }
 
@@ -138,11 +136,6 @@ export class ChainErrorService {
     const { code, message } = this.ERRORS["bid not open"];
 
     return createError(code, `${this.MESSAGE_ERROR_TITLES["/akash.market.v1beta5.MsgCreateLease"]}: ${message}`);
-  }
-
-  private isUnreachableUpstreamCause(error: Error): boolean {
-    const { cause } = error;
-    return axios.isAxiosError(cause) && !cause.response && UNREACHABLE_UPSTREAM_CODES.has(cause.code ?? "");
   }
 
   private getUpstreamStatusFromCause(error: Error): number | undefined {
