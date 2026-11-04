@@ -29,7 +29,13 @@ describe("GPU request routing policy", () => {
         "RTX 4090": 0.45
       },
       owners: [],
-      fallbackOwner: { name: "Sales" }
+      fallbackOwner: { name: "Sales" },
+      businessHours: { timeZone: "America/New_York", days: [1, 2, 3, 4, 5], startHour: 9, endHour: 17 },
+      responseTargets: {
+        sales: { firstReplyBusinessHours: 4, firstOfferBusinessHours: 16 },
+        automated: { firstReplyBusinessHours: 8, firstOfferBusinessHours: 8 },
+        reminderLeadBusinessHours: 1
+      }
     });
   });
 
@@ -52,9 +58,37 @@ describe("GPU request routing policy", () => {
     { payload: { owners: [{ name: "Remington", match: { areas: ["mars"] } }] } },
     { payload: { owners: [{ name: "Remington", match: { areas: [] } }] } },
     { payload: { owners: [{ name: " ", match: {} }] } },
-    { payload: { fallbackOwner: { name: "Sales", email: "not-an-email" } } }
+    { payload: { fallbackOwner: { name: "Sales", email: "not-an-email" } } },
+    { payload: { salesLead: { name: "" } } },
+    { payload: { businessHours: { timeZone: "Mars/Olympus_Mons" } } },
+    { payload: { businessHours: { days: [] } } },
+    { payload: { businessHours: { days: [0] } } },
+    { payload: { businessHours: { days: [8] } } },
+    { payload: { businessHours: { startHour: -1 } } },
+    { payload: { businessHours: { startHour: 24, endHour: 24 } } },
+    { payload: { businessHours: { endHour: 25 } } },
+    { payload: { businessHours: { endHour: 0 } } },
+    { payload: { businessHours: { startHour: 9.5 } } },
+    { payload: { businessHours: { startHour: 17, endHour: 17 } } },
+    { payload: { responseTargets: { sales: { firstReplyBusinessHours: 0, firstOfferBusinessHours: 16 } } } },
+    { payload: { responseTargets: { automated: { firstReplyBusinessHours: 8, firstOfferBusinessHours: -1 } } } },
+    { payload: { responseTargets: { reminderLeadBusinessHours: 0 } } }
   ])("rejects $payload", ({ payload }) => {
     expect(gpuRequestRoutingPolicySchema.safeParse(payload).success).toBe(false);
+  });
+
+  it("takes business hours, targets and a sales lead the team sets", () => {
+    const payload = {
+      salesLead: { name: "Lead", slackUserId: "U123", email: "lead@akash.network" },
+      businessHours: { timeZone: "Europe/Berlin", days: [1, 2, 3, 4, 5, 6], startHour: 0, endHour: 24 },
+      responseTargets: {
+        sales: { firstReplyBusinessHours: 2, firstOfferBusinessHours: 8 },
+        automated: { firstReplyBusinessHours: 0.5, firstOfferBusinessHours: 1 },
+        reminderLeadBusinessHours: 0.25
+      }
+    };
+
+    expect(gpuRequestRoutingPolicySchema.parse(payload)).toMatchObject(payload);
   });
 
   describe(isDataCenterGpu.name, () => {

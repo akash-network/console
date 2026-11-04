@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isTimeZone } from "@src/hardware-request/lib/business-hours/business-hours";
 import { REGION_AREAS } from "@src/hardware-request/model-schemas";
 
 const DATA_CENTER_GPU_MODELS = ["B300", "B200", "H200", "H100", "A100", "L40S", "MI355X", "MI325X", "MI300X"];
@@ -27,6 +28,24 @@ const ownerRuleSchema = salesOwnerSchema.extend({
   match: z.object({ gpuClass: z.enum(["data_center", "other"]).optional(), areas: z.array(z.enum(REGION_AREAS)).min(1).optional() }).default({})
 });
 
+const businessHoursSchema = z
+  .object({
+    timeZone: z.string().refine(isTimeZone, "Unknown time zone").default("America/New_York"),
+    days: z.array(z.number().int().min(1).max(7)).min(1).default([1, 2, 3, 4, 5]),
+    startHour: z.number().int().min(0).max(23).default(9),
+    endHour: z.number().int().min(1).max(24).default(17)
+  })
+  .refine(({ startHour, endHour }) => endHour > startHour, "Business hours must end after they start");
+
+const laneTargetsSchema = z.object({ firstReplyBusinessHours: z.number().positive(), firstOfferBusinessHours: z.number().positive() });
+
+/** Targets count business hours, so the 2 business days decided for a sales offer are 16 hours of a 9-to-5 day. */
+const responseTargetsSchema = z.object({
+  sales: laneTargetsSchema.default({ firstReplyBusinessHours: 4, firstOfferBusinessHours: 16 }),
+  automated: laneTargetsSchema.default({ firstReplyBusinessHours: 8, firstOfferBusinessHours: 8 }),
+  reminderLeadBusinessHours: z.number().positive().default(1)
+});
+
 export const gpuRequestRoutingPolicySchema = z.object({
   salesRules: z
     .object({
@@ -42,7 +61,10 @@ export const gpuRequestRoutingPolicySchema = z.object({
   dataCenterGpuModels: z.array(z.string()).default(DATA_CENTER_GPU_MODELS),
   referenceUsdPerGpuHour: z.record(z.string(), z.number().positive()).default(REFERENCE_USD_PER_GPU_HOUR),
   owners: z.array(ownerRuleSchema).default([]),
-  fallbackOwner: salesOwnerSchema.default({ name: "Sales" })
+  fallbackOwner: salesOwnerSchema.default({ name: "Sales" }),
+  salesLead: salesOwnerSchema.optional(),
+  businessHours: businessHoursSchema.default({}),
+  responseTargets: responseTargetsSchema.default({})
 });
 
 export type GpuRequestRoutingPolicy = z.infer<typeof gpuRequestRoutingPolicySchema>;
