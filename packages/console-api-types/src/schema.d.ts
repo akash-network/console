@@ -6384,6 +6384,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/trial-gpu-availability": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the gpu models a free trial deployment may request and how many units of each are free right now on the providers it can lease from. */
+    get: operations["listTrialGpuAvailability"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/proposals": {
     parameters: {
       query?: never;
@@ -12773,6 +12790,35 @@ export interface operations {
                 weightedAverage: number;
                 med: number;
               } | null;
+            }[];
+          };
+        };
+      };
+    };
+  };
+  listTrialGpuAvailability: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Gpu models allowed on the free trial that have at least one free unit, most free first. An empty list means none are free. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @example nvidia */
+              vendor: string;
+              /** @example v100 */
+              model: string;
+              /** @example 8 */
+              freeUnits: number;
             }[];
           };
         };

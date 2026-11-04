@@ -32,6 +32,10 @@ export class BlockedGpuService {
     return this.match(extractRequestedGpusFromBid(bid));
   }
 
+  isBlocked(gpu: RequestedGpu): boolean {
+    return this.match([gpu]).length > 0;
+  }
+
   formatList(gpus: RequestedGpu[]): string {
     return gpus.map(formatGpuLabel).join(", ");
   }

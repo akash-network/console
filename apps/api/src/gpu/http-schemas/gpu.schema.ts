@@ -141,3 +141,14 @@ export const GpuPricesResponseSchema = z.object({
   )
 });
 export type GpuPricesResponse = z.infer<typeof GpuPricesResponseSchema>;
+
+export const TrialGpuAvailabilityResponseSchema = z.object({
+  data: z.array(
+    z.object({
+      vendor: z.string().openapi({ example: "nvidia" }),
+      model: z.string().openapi({ example: "v100" }),
+      freeUnits: z.number().int().positive().openapi({ example: 8 })
+    })
+  )
+});
+export type TrialGpuAvailability = z.infer<typeof TrialGpuAvailabilityResponseSchema>["data"][number];
