@@ -6,7 +6,7 @@ import { CORE_CONFIG } from "@src/core/providers/config.provider";
 import { INTERNAL_TOKEN_HEADER } from "@src/middlewares/internal-token/internal-token.middleware";
 import { app } from "@src/rest-app";
 
-const secretToken = container.resolve(CORE_CONFIG).SECRET_TOKEN;
+const { SECRET_TOKEN: secretToken, INTERNAL_API_TOKEN: internalToken } = container.resolve(CORE_CONFIG);
 
 describe("GET /dashboard/stats", () => {
   it("rejects a caller without the private token", async () => {
@@ -23,6 +23,12 @@ describe("GET /dashboard/stats", () => {
 
   it("rejects a caller with the wrong private token in the header", async () => {
     const response = await app.request("/dashboard/stats", { headers: { [INTERNAL_TOKEN_HEADER]: faker.string.alphanumeric(32) } });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("rejects a caller with the internal api token in the header", async () => {
+    const response = await app.request("/dashboard/stats", { headers: { [INTERNAL_TOKEN_HEADER]: internalToken! } });
 
     expect(response.status).toBe(401);
   });
