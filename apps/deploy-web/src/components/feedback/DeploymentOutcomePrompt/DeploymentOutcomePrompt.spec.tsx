@@ -36,6 +36,16 @@ describe("DeploymentOutcomePrompt", () => {
     expect(useFeedbackOutcomePromptQuery).toHaveBeenCalledWith("11", { enabled: false });
   });
 
+  it("takes the card down when the feedback loop is switched off after it was shown", () => {
+    const { useFlag, rerenderPrompt } = setup({ outcome: { outcome: "live" } });
+    expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
+
+    useFlag.mockReturnValue(false);
+    rerenderPrompt();
+
+    expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
+  });
+
   it("shows nothing without an outcome", () => {
     const { useFeedbackOutcomePromptQuery } = setup({ outcome: undefined });
 
@@ -176,8 +186,10 @@ describe("DeploymentOutcomePrompt", () => {
       DeploymentOutcomeCard
     });
 
-    render(<DeploymentOutcomePrompt dseq="11" outcome={input.outcome} deploymentName={input.deploymentName} dependencies={dependencies} />);
+    const renderPrompt = () => <DeploymentOutcomePrompt dseq="11" outcome={input.outcome} deploymentName={input.deploymentName} dependencies={dependencies} />;
+    const { rerender } = render(renderPrompt());
+    const rerenderPrompt = () => rerender(renderPrompt());
 
-    return { markPrompted, createFeedback, enqueueSnackbar, useFeedbackOutcomePromptQuery, useFlag, DeploymentOutcomeCard };
+    return { rerenderPrompt, markPrompted, createFeedback, enqueueSnackbar, useFeedbackOutcomePromptQuery, useFlag, DeploymentOutcomeCard };
   }
 });

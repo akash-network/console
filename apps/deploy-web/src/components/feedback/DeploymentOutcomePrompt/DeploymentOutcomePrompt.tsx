@@ -54,7 +54,7 @@ export const DeploymentOutcomePrompt: FC<Props> = ({ dseq, outcome, deploymentNa
     [isAskable, prompt, dseq, outcome, markPrompted]
   );
 
-  if (!shownOutcome || isClosed) return null;
+  if (!isEnabled || !shownOutcome || isClosed) return null;
 
   const feedbackBase = { kind: "deployment_outcome" as const, dseq, outcome: shownOutcome.outcome, failureReason: shownOutcome.failureReason, page };
 
