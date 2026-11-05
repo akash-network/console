@@ -176,6 +176,14 @@ describe("OpenApiDocsService", () => {
     expect(publicDocs.paths["/v1/test-hidden"]).toBeUndefined();
   });
 
+  it("keeps every method of a path that several handlers declare", async () => {
+    const { service } = setup({});
+
+    const docs = await service.generateDocs(buildSharedPathHandlers(), { scope: "console" });
+
+    expect(Object.keys(docs.paths["/v1/test-shared-path"]).sort()).toEqual(["get", "post"]);
+  });
+
   describe("organization context headers", () => {
     const ORGANIZATION_CONTEXT_PARAMETER_REFS = [{ $ref: "#/components/parameters/OrganizationIdHeader" }, { $ref: "#/components/parameters/ProjectIdHeader" }];
 
@@ -375,6 +383,34 @@ describe("OpenApiDocsService", () => {
     handler.openapi(route, c => c.json({}, 200));
 
     return handler;
+  }
+
+  function buildSharedPathHandlers() {
+    const listRoute = createRoute({
+      method: "get",
+      path: "/v1/test-shared-path",
+      operationId: "listTestSharedPath",
+      summary: "Route sharing its path with another handler",
+      tags: ["Test"],
+      security: SECURITY_NONE,
+      responses: { 200: { description: "OK" } }
+    });
+    const createTestRoute = createRoute({
+      method: "post",
+      path: "/v1/test-shared-path",
+      operationId: "createTestSharedPath",
+      summary: "Route sharing its path with another handler",
+      tags: ["Test"],
+      security: SECURITY_NONE,
+      responses: { 200: { description: "OK" } }
+    });
+
+    const listHandler = new OpenApiHonoHandler();
+    listHandler.openapi(listRoute, c => c.body(null, 200));
+    const createHandler = new OpenApiHonoHandler();
+    createHandler.openapi(createTestRoute, c => c.body(null, 200));
+
+    return [listHandler, createHandler];
   }
 
   function buildHandler() {

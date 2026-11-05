@@ -7829,9 +7829,78 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    post?: never;
+    /** Start an assistant conversation */
+    post: operations["createAssistantConversation"];
     /** Delete every assistant conversation stored for the user, along with their quotes in feedback themes */
     delete: operations["deleteAssistantConversations"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/assistant/conversations/{id}/messages": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Send a message to the assistant and stream its answer */
+    post: operations["sendAssistantMessage"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/assistant/conversations/{id}/client-tool-results": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Return what the browser read for the assistant and stream the rest of the turn */
+    post: operations["submitAssistantClientToolResults"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/assistant/conversations/{id}/end": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** End an assistant conversation and say whether it helped */
+    post: operations["endAssistantConversation"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/assistant/conversations/{id}/action-results": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Record whether the user confirmed a proposed action, and how it ended */
+    post: operations["createAssistantActionResult"];
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -19152,6 +19221,74 @@ export interface operations {
       };
     };
   };
+  createAssistantConversation: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description The consent copy version the client showed */
+            copyVersion: string;
+            context?: {
+              /** @description The Console path the assistant was opened on */
+              page?: string;
+              /** @description The deployment the user was looking at */
+              dseq?: string;
+            };
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The conversation, and whether the API stores it */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** @description True when the user allowed review, so the API keeps the history. When false the API keeps nothing, and the client sends `history` with each message. */
+              stored: boolean;
+            };
+          };
+        };
+      };
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description `assistant_consent_required` when the user never agreed to the assistant. `assistant_consent_outdated` when the copy version differs from the one agreed to */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   deleteAssistantConversations: {
     parameters: {
       query?: never;
@@ -19181,6 +19318,1021 @@ export interface operations {
       };
       /** @description Unauthorized */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  sendAssistantMessage: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            content: string;
+            /** @description The earlier messages of a conversation the API does not store, oldest first. Ignored for a stored conversation. */
+            history?: {
+              /** @enum {string} */
+              role: "user" | "assistant";
+              content: string;
+            }[];
+            context?: {
+              /** @description The Console path the assistant was opened on */
+              page?: string;
+              /** @description The deployment the user was looking at */
+              dseq?: string;
+            };
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description A server-sent event stream of the assistant turn. Each event's `event` field is its `type`, and its `data` is the event as JSON. The stream ends after `done` or `error`. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/event-stream":
+            | {
+                /** @enum {string} */
+                type: "text_delta";
+                text: string;
+              }
+            | {
+                /** @enum {string} */
+                type: "tool_started";
+                toolCallId: string;
+                name: string;
+              }
+            | {
+                /** @enum {string} */
+                type: "tool_result_summary";
+                toolCallId: string;
+                name: string;
+                ok: boolean;
+                /** @description What the assistant read, shown under the answer */
+                summary: string;
+              }
+            | {
+                /** @enum {string} */
+                type: "client_tool_request";
+                toolCallId: string;
+                /** @enum {string} */
+                name: "read_logs" | "read_events";
+                arguments: {
+                  dseq: string;
+                  service?: string;
+                  tailLines?: number;
+                };
+                /** @description The longest `content` the API accepts for this result */
+                maxLength: number;
+              }
+            | {
+                /** @enum {string} */
+                type: "action_proposal";
+                /** Format: uuid */
+                proposalId: string;
+                /** @description An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`). */
+                action:
+                  | {
+                      /** @enum {string} */
+                      type: "create_deployment";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      templateId: string | null;
+                      /** @description Validated with the same checks a create runs before the card is shown. */
+                      sdl: string;
+                      name: string | null;
+                      runtimeLimitHours: number | null;
+                      services: {
+                        service: string;
+                        image: string | null;
+                        resources: {
+                          cpu: number | null;
+                          memory: string | null;
+                          storage: string[];
+                          gpu: {
+                            units: number;
+                            models: string[];
+                          } | null;
+                          /** @description Replicas */
+                          count: number | null;
+                        };
+                      }[];
+                      /** @description Providers bid screening expects could bid on every group now, or null when screening did not answer. */
+                      providersAbleToBid: number | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "choose_bid";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      choices: {
+                        gseq: number;
+                        oseq: number;
+                        provider: string;
+                        /** @description The bid's own price per block, as the bid list returns it. */
+                        price: {
+                          denom: string;
+                          amount: string;
+                        };
+                      }[];
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "update_deployment";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      name: string | null;
+                      /** @description Send as `ifManifestVersion`, so the patch is refused when the deployment changed since the card was shown. */
+                      manifestVersion: string;
+                      services: {
+                        service: string;
+                        before: {
+                          image: string | null;
+                          command: string[] | null;
+                          args: string[] | null;
+                          /** @description Names of the variables the service declares today. Values are never included. */
+                          envKeys: string[];
+                          expose: {
+                            port: number;
+                            as: number | null;
+                            accept: string[];
+                            global: boolean;
+                          }[];
+                          storage: {
+                            volume: string;
+                            mount: string | null;
+                            readOnly: boolean;
+                          }[];
+                        };
+                        patch: {
+                          image?: string;
+                          command?: string[] | null;
+                          args?: string[] | null;
+                          /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Written values are sealed unless the request carries `sealedSecrets`. */
+                          env?: {
+                            [key: string]: string | null;
+                          };
+                          /** @description Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create. A random-port endpoint whose numbers change gets a new public port from the provider, and so can the service's other random-port endpoints when a container port move reorders them. */
+                          expose?: {
+                            [key: string]: {
+                              /** @description Moves the container port the workload listens on. The entry is still addressed by the port it declares today. Refused onto a port the service already exposes, and on an endpoint reached through a leased IP. */
+                              port?: number;
+                              /** @description Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP. */
+                              as?: number;
+                              /** @description Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed. */
+                              accept?: string[];
+                              httpOptions?: {
+                                maxBodySize?: number;
+                                readTimeout?: number;
+                                sendTimeout?: number;
+                                nextTries?: number;
+                                nextTimeout?: number;
+                                /** @description Conditions the proxy retries on. Replaces the existing list; "off" disables retrying and stands alone. */
+                                nextCases?: ("error" | "timeout" | "500" | "502" | "503" | "504" | "403" | "404" | "429" | "off")[];
+                              };
+                            };
+                          };
+                          /** @description Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create. */
+                          storage?: {
+                            [key: string]: {
+                              mount?: string;
+                              readOnly?: boolean;
+                            };
+                          };
+                        };
+                      }[];
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "set_secret";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      service: string;
+                      /** @description The variable name. The value is typed into the card's secure input and sealed in the browser. */
+                      name: string;
+                      replacesExisting: boolean;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "set_registry_credentials";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      service: string;
+                      image: string | null;
+                      host: string;
+                      /** @description Prefills the username field. The password is typed into the card's secure input. */
+                      usernameHint: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "redeploy_with_resources";
+                      /** @enum {string} */
+                      tier: "deep_link";
+                      dseq: string;
+                      reason: string;
+                      services: {
+                        service: string;
+                        before: {
+                          cpu: number | null;
+                          memory: string | null;
+                          storage: string[];
+                          gpu: {
+                            units: number;
+                            models: string[];
+                          } | null;
+                          /** @description Replicas */
+                          count: number | null;
+                        };
+                        after: {
+                          cpu: number | null;
+                          memory: string | null;
+                          storage: string[];
+                          gpu: {
+                            units: number;
+                            models: string[];
+                          } | null;
+                          /** @description Replicas */
+                          count: number | null;
+                        };
+                      }[];
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "rename_deployment";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      from: string | null;
+                      to: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "move_deployment";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      /** Format: uuid */
+                      projectId: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "add_runtime_hours";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      hours: number;
+                      currentLimitHours: number;
+                      /** @description Send as `runtimeLimitHours`, which takes the new total. */
+                      newLimitHours: number;
+                      runtimeEndsAt: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "remove_runtime_limit";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      currentLimitHours: number;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "send_manifest_again";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "close_deployment";
+                      /** @enum {string} */
+                      tier: "destructive";
+                      dseq: string;
+                      name: string | null;
+                      /** @enum {string} */
+                      reason:
+                        | "no_longer_needed"
+                        | "cost_or_budget"
+                        | "migrating_elsewhere"
+                        | "performance_or_reliability"
+                        | "testing_or_project_complete"
+                        | "other";
+                      reasonDetails: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "create_alert";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      /** @enum {string} */
+                      alert: "deployment_balance" | "deployment_closed" | "wallet_balance";
+                      dseq: string | null;
+                      thresholdUsd: number | null;
+                      /** @enum {string} */
+                      channel: "email";
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "redeem_coupon";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      code: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "save_as_template";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      title: string;
+                      description: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "favorite_provider";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      provider: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "request_hardware";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      gpuModel: string;
+                      gpuCount: number;
+                      /** @enum {string} */
+                      interconnect: "none" | "server" | "cluster";
+                      notes: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "buy_credits";
+                      /** @enum {string} */
+                      tier: "deep_link";
+                      amountUsd: number | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "configure_auto_recharge";
+                      /** @enum {string} */
+                      tier: "deep_link";
+                      thresholdUsd: number | null;
+                      amountUsd: number | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "open_in_editor";
+                      /** @enum {string} */
+                      tier: "deep_link";
+                      dseq: string | null;
+                      templateId: string | null;
+                      sdl: string | null;
+                    };
+              }
+            | {
+                /** @enum {string} */
+                type: "done";
+                /**
+                 * @description `awaiting_client_tool`: the turn is paused until the browser posts the requested results to `client-tool-results`
+                 * @enum {string}
+                 */
+                reason: "stop" | "length" | "awaiting_client_tool";
+              }
+            | {
+                /** @enum {string} */
+                type: "error";
+                /** @enum {string} */
+                code: "assistant_unavailable" | "assistant_timeout" | "assistant_error";
+                message: string;
+              };
+        };
+      };
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description `assistant_consent_required` when the user never agreed to the assistant. `assistant_consent_outdated` when the copy version differs from the one agreed to. `assistant_conversation_ended` when the conversation already ended */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description `assistant_rate_limited` (too many messages this minute) or `assistant_daily_limit` (too many today) */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description `assistant_unavailable`: the assistant is off or over its budget. Point the user to Discord */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  submitAssistantClientToolResults: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            results: {
+              toolCallId: string;
+              /** @description The excerpt the browser read, or why it could not read it */
+              content: string;
+              /** @default true */
+              ok?: boolean;
+            }[];
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description A server-sent event stream of the assistant turn. Each event's `event` field is its `type`, and its `data` is the event as JSON. The stream ends after `done` or `error`. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/event-stream":
+            | {
+                /** @enum {string} */
+                type: "text_delta";
+                text: string;
+              }
+            | {
+                /** @enum {string} */
+                type: "tool_started";
+                toolCallId: string;
+                name: string;
+              }
+            | {
+                /** @enum {string} */
+                type: "tool_result_summary";
+                toolCallId: string;
+                name: string;
+                ok: boolean;
+                /** @description What the assistant read, shown under the answer */
+                summary: string;
+              }
+            | {
+                /** @enum {string} */
+                type: "client_tool_request";
+                toolCallId: string;
+                /** @enum {string} */
+                name: "read_logs" | "read_events";
+                arguments: {
+                  dseq: string;
+                  service?: string;
+                  tailLines?: number;
+                };
+                /** @description The longest `content` the API accepts for this result */
+                maxLength: number;
+              }
+            | {
+                /** @enum {string} */
+                type: "action_proposal";
+                /** Format: uuid */
+                proposalId: string;
+                /** @description An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`). */
+                action:
+                  | {
+                      /** @enum {string} */
+                      type: "create_deployment";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      templateId: string | null;
+                      /** @description Validated with the same checks a create runs before the card is shown. */
+                      sdl: string;
+                      name: string | null;
+                      runtimeLimitHours: number | null;
+                      services: {
+                        service: string;
+                        image: string | null;
+                        resources: {
+                          cpu: number | null;
+                          memory: string | null;
+                          storage: string[];
+                          gpu: {
+                            units: number;
+                            models: string[];
+                          } | null;
+                          /** @description Replicas */
+                          count: number | null;
+                        };
+                      }[];
+                      /** @description Providers bid screening expects could bid on every group now, or null when screening did not answer. */
+                      providersAbleToBid: number | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "choose_bid";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      choices: {
+                        gseq: number;
+                        oseq: number;
+                        provider: string;
+                        /** @description The bid's own price per block, as the bid list returns it. */
+                        price: {
+                          denom: string;
+                          amount: string;
+                        };
+                      }[];
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "update_deployment";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      name: string | null;
+                      /** @description Send as `ifManifestVersion`, so the patch is refused when the deployment changed since the card was shown. */
+                      manifestVersion: string;
+                      services: {
+                        service: string;
+                        before: {
+                          image: string | null;
+                          command: string[] | null;
+                          args: string[] | null;
+                          /** @description Names of the variables the service declares today. Values are never included. */
+                          envKeys: string[];
+                          expose: {
+                            port: number;
+                            as: number | null;
+                            accept: string[];
+                            global: boolean;
+                          }[];
+                          storage: {
+                            volume: string;
+                            mount: string | null;
+                            readOnly: boolean;
+                          }[];
+                        };
+                        patch: {
+                          image?: string;
+                          command?: string[] | null;
+                          args?: string[] | null;
+                          /** @description Merged into the service's env, keyed by environment variable name. A null value removes the variable. A patched variable is re-appended, so the order of the stored env list may change. Written values are sealed unless the request carries `sealedSecrets`. */
+                          env?: {
+                            [key: string]: string | null;
+                          };
+                          /** @description Keyed by the container port the stored SDL declares. Port numbers, hosts and http options are patchable; protocol, routing, endpoint kind and count are fixed at create. A random-port endpoint whose numbers change gets a new public port from the provider, and so can the service's other random-port endpoints when a container port move reorders them. */
+                          expose?: {
+                            [key: string]: {
+                              /** @description Moves the container port the workload listens on. The entry is still addressed by the port it declares today. Refused onto a port the service already exposes, and on an endpoint reached through a leased IP. */
+                              port?: number;
+                              /** @description Moves the port the endpoint is reached on. Refused when it would change the endpoint's kind (a public TCP endpoint moving onto or off port 80), onto a port another endpoint of the service uses, and on an endpoint reached through a leased IP. */
+                              as?: number;
+                              /** @description Custom domains. Replaces the existing list. Emptying it is rejected by providers that do not generate a hostname of their own, which leaves the patch recorded but undeployed. */
+                              accept?: string[];
+                              httpOptions?: {
+                                maxBodySize?: number;
+                                readTimeout?: number;
+                                sendTimeout?: number;
+                                nextTries?: number;
+                                nextTimeout?: number;
+                                /** @description Conditions the proxy retries on. Replaces the existing list; "off" disables retrying and stands alone. */
+                                nextCases?: ("error" | "timeout" | "500" | "502" | "503" | "504" | "403" | "404" | "429" | "off")[];
+                              };
+                            };
+                          };
+                          /** @description Keyed by volume name. Mount point and read-only flag only — sizes are fixed at create. */
+                          storage?: {
+                            [key: string]: {
+                              mount?: string;
+                              readOnly?: boolean;
+                            };
+                          };
+                        };
+                      }[];
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "set_secret";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      service: string;
+                      /** @description The variable name. The value is typed into the card's secure input and sealed in the browser. */
+                      name: string;
+                      replacesExisting: boolean;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "set_registry_credentials";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      service: string;
+                      image: string | null;
+                      host: string;
+                      /** @description Prefills the username field. The password is typed into the card's secure input. */
+                      usernameHint: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "redeploy_with_resources";
+                      /** @enum {string} */
+                      tier: "deep_link";
+                      dseq: string;
+                      reason: string;
+                      services: {
+                        service: string;
+                        before: {
+                          cpu: number | null;
+                          memory: string | null;
+                          storage: string[];
+                          gpu: {
+                            units: number;
+                            models: string[];
+                          } | null;
+                          /** @description Replicas */
+                          count: number | null;
+                        };
+                        after: {
+                          cpu: number | null;
+                          memory: string | null;
+                          storage: string[];
+                          gpu: {
+                            units: number;
+                            models: string[];
+                          } | null;
+                          /** @description Replicas */
+                          count: number | null;
+                        };
+                      }[];
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "rename_deployment";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      from: string | null;
+                      to: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "move_deployment";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      /** Format: uuid */
+                      projectId: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "add_runtime_hours";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      hours: number;
+                      currentLimitHours: number;
+                      /** @description Send as `runtimeLimitHours`, which takes the new total. */
+                      newLimitHours: number;
+                      runtimeEndsAt: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "remove_runtime_limit";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      currentLimitHours: number;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "send_manifest_again";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "close_deployment";
+                      /** @enum {string} */
+                      tier: "destructive";
+                      dseq: string;
+                      name: string | null;
+                      /** @enum {string} */
+                      reason:
+                        | "no_longer_needed"
+                        | "cost_or_budget"
+                        | "migrating_elsewhere"
+                        | "performance_or_reliability"
+                        | "testing_or_project_complete"
+                        | "other";
+                      reasonDetails: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "create_alert";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      /** @enum {string} */
+                      alert: "deployment_balance" | "deployment_closed" | "wallet_balance";
+                      dseq: string | null;
+                      thresholdUsd: number | null;
+                      /** @enum {string} */
+                      channel: "email";
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "redeem_coupon";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      code: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "save_as_template";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      dseq: string;
+                      title: string;
+                      description: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "favorite_provider";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      provider: string;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "request_hardware";
+                      /** @enum {string} */
+                      tier: "confirm";
+                      gpuModel: string;
+                      gpuCount: number;
+                      /** @enum {string} */
+                      interconnect: "none" | "server" | "cluster";
+                      notes: string | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "buy_credits";
+                      /** @enum {string} */
+                      tier: "deep_link";
+                      amountUsd: number | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "configure_auto_recharge";
+                      /** @enum {string} */
+                      tier: "deep_link";
+                      thresholdUsd: number | null;
+                      amountUsd: number | null;
+                    }
+                  | {
+                      /** @enum {string} */
+                      type: "open_in_editor";
+                      /** @enum {string} */
+                      tier: "deep_link";
+                      dseq: string | null;
+                      templateId: string | null;
+                      sdl: string | null;
+                    };
+              }
+            | {
+                /** @enum {string} */
+                type: "done";
+                /**
+                 * @description `awaiting_client_tool`: the turn is paused until the browser posts the requested results to `client-tool-results`
+                 * @enum {string}
+                 */
+                reason: "stop" | "length" | "awaiting_client_tool";
+              }
+            | {
+                /** @enum {string} */
+                type: "error";
+                /** @enum {string} */
+                code: "assistant_unavailable" | "assistant_timeout" | "assistant_error";
+                message: string;
+              };
+        };
+      };
+      /** @description Invalid request body, or `assistant_tool_results_mismatch` when the results do not answer each requested call exactly once */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description `assistant_consent_required` when the user never agreed to the assistant. `assistant_consent_outdated` when the copy version differs from the one agreed to. `assistant_no_pending_tool_request` when no turn waits on the browser, or it expired */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description `assistant_unavailable`: the assistant is off or over its budget. Point the user to Discord */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  endAssistantConversation: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            resolvedByUser?: boolean;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description How the conversation ended */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** @enum {string} */
+              status: "resolved" | "unresolved";
+            };
+          };
+        };
+      };
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  createAssistantActionResult: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** Format: uuid */
+            proposalId: string;
+            /** @enum {string} */
+            actionType:
+              | "create_deployment"
+              | "choose_bid"
+              | "update_deployment"
+              | "set_secret"
+              | "set_registry_credentials"
+              | "redeploy_with_resources"
+              | "rename_deployment"
+              | "move_deployment"
+              | "add_runtime_hours"
+              | "remove_runtime_limit"
+              | "send_manifest_again"
+              | "close_deployment"
+              | "create_alert"
+              | "redeem_coupon"
+              | "save_as_template"
+              | "favorite_provider"
+              | "request_hardware"
+              | "buy_credits"
+              | "configure_auto_recharge"
+              | "open_in_editor";
+            /** @enum {string} */
+            decision: "confirmed" | "cancelled";
+            /**
+             * @description How the confirmed request ended
+             * @enum {string}
+             */
+            outcome?: "succeeded" | "failed";
+            error?: string;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description Whether the result was stored */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description False for a conversation the API does not store */
+              recorded: boolean;
+            };
+          };
+        };
+      };
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description `assistant_proposal_not_found` when the stored conversation holds no such proposal */
+      404: {
         headers: {
           [name: string]: unknown;
         };

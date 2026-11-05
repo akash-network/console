@@ -767,6 +767,46 @@ export const operations = {
       pathParams: [],
       queryParams: [],
       hasBody: false
+    },
+    createAssistantConversation: {
+      path: "/v1/assistant/conversations",
+      method: "post",
+      operationId: "createAssistantConversation",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
+    sendAssistantMessage: {
+      path: "/v1/assistant/conversations/{id}/messages",
+      method: "post",
+      operationId: "sendAssistantMessage",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
+    },
+    submitAssistantClientToolResults: {
+      path: "/v1/assistant/conversations/{id}/client-tool-results",
+      method: "post",
+      operationId: "submitAssistantClientToolResults",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
+    },
+    endAssistantConversation: {
+      path: "/v1/assistant/conversations/{id}/end",
+      method: "post",
+      operationId: "endAssistantConversation",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
+    },
+    createAssistantActionResult: {
+      path: "/v1/assistant/conversations/{id}/action-results",
+      method: "post",
+      operationId: "createAssistantActionResult",
+      pathParams: ["id"],
+      queryParams: [],
+      hasBody: true
     }
   },
   v2: {
