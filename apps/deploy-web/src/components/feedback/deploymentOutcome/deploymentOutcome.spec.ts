@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import type { DeploymentFlow } from "@src/components/deployments/ConfigureDeployment/useDeploymentFlow/useDeploymentFlow";
 import {
-  DEPLOY_ERRORED_REASON,
+  ATTEMPT_ABANDONED_REASON,
   deployFlowOutcomeOf,
   LAUNCH_FAILED_REASON,
   LEASE_CLOSED_EARLY_REASON,
@@ -9,6 +10,11 @@ import {
   observedDeploymentOutcomeOf,
   promptableOutcomeOf
 } from "./deploymentOutcome";
+
+type FlowState = Pick<
+  DeploymentFlow,
+  "phase" | "dseq" | "autoLeasedDseq" | "deploySucceeded" | "isDeployedInBackground" | "deployError" | "noBidsReceived" | "error"
+>;
 
 describe(deployFlowOutcomeOf.name, () => {
   it("reads a deploy the page finished itself as live", () => {
@@ -23,16 +29,15 @@ describe(deployFlowOutcomeOf.name, () => {
     expect(deployFlowOutcomeOf(flow({ autoLeasedDseq: "12" }), null)).toEqual({ dseq: "12", outcome: "unknown" });
   });
 
-  it("reads a deploy error as a failure carrying its message", () => {
-    expect(deployFlowOutcomeOf(flow({ dseq: "11", deployError: { message: "The selected bid is no longer open" } }), "11")).toEqual({
-      dseq: "11",
-      outcome: "failed",
-      failureReason: "The selected bid is no longer open"
-    });
+  it("reads nothing from a deploy error the user can still recover from", () => {
+    expect(deployFlowOutcomeOf(flow({ dseq: "11", deployError: { message: "The selected bid is no longer open" } }), "11")).toBeUndefined();
   });
 
-  it("falls back to a generic reason for a deploy error without a message", () => {
-    expect(deployFlowOutcomeOf(flow({ dseq: "11", deployError: {} }), "11")).toEqual({ dseq: "11", outcome: "failed", failureReason: DEPLOY_ERRORED_REASON });
+  it("reads a deploy that succeeded after an earlier error as live", () => {
+    expect(deployFlowOutcomeOf(flow({ dseq: "11", deploySucceeded: true, deployError: { message: "The selected bid is no longer open" } }), "11")).toEqual({
+      dseq: "11",
+      outcome: "live"
+    });
   });
 
   it("reads a bid window that closed without bids as a failure", () => {
@@ -56,11 +61,11 @@ describe(deployFlowOutcomeOf.name, () => {
   });
 
   it("falls back to a generic reason for an abandoned attempt without a message", () => {
-    expect(deployFlowOutcomeOf(flow({ phase: "error" }), "11")).toEqual({ dseq: "11", outcome: "failed", failureReason: DEPLOY_ERRORED_REASON });
+    expect(deployFlowOutcomeOf(flow({ phase: "error" }), "11")).toEqual({ dseq: "11", outcome: "failed", failureReason: ATTEMPT_ABANDONED_REASON });
   });
 
   it("falls back to a generic reason for an errored flow without a message", () => {
-    expect(deployFlowOutcomeOf(flow({ dseq: "11", phase: "error" }), "11")).toEqual({ dseq: "11", outcome: "failed", failureReason: DEPLOY_ERRORED_REASON });
+    expect(deployFlowOutcomeOf(flow({ dseq: "11", phase: "error" }), "11")).toEqual({ dseq: "11", outcome: "failed", failureReason: ATTEMPT_ABANDONED_REASON });
   });
 
   it("reads nothing from an error that left no deployment", () => {
@@ -75,7 +80,7 @@ describe(deployFlowOutcomeOf.name, () => {
     expect(deployFlowOutcomeOf(flow({ phase: "configuring" }), "11")).toBeUndefined();
   });
 
-  function flow(input: Partial<Parameters<typeof deployFlowOutcomeOf>[0]>): Parameters<typeof deployFlowOutcomeOf>[0] {
+  function flow(input: Partial<FlowState>): FlowState {
     return {
       phase: "quoting",
       dseq: null,

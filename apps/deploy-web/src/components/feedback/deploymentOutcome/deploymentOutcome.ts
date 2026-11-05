@@ -8,25 +8,21 @@ import { averageBlockTime } from "@src/utils/priceUtils";
 const BLOCKS_IN_AN_HOUR = Math.round(3600 / averageBlockTime);
 
 export const NO_BIDS_REASON = "No bids arrived in the bid window";
-export const DEPLOY_ERRORED_REASON = "The deploy flow errored";
+export const ATTEMPT_ABANDONED_REASON = "The deploy attempt was abandoned";
 export const LAUNCH_FAILED_REASON = "The lease never started";
 export const LEASE_CLOSED_EARLY_REASON = "The lease closed within its first hour";
 
 export type DeployFlowOutcome = Omit<RecordedDeploymentOutcome, "isPrompted"> & { dseq: string };
 
-type FlowSnapshot = Pick<
-  DeploymentFlow,
-  "phase" | "dseq" | "autoLeasedDseq" | "deploySucceeded" | "isDeployedInBackground" | "deployError" | "noBidsReceived" | "error"
->;
+type FlowSnapshot = Pick<DeploymentFlow, "phase" | "dseq" | "autoLeasedDseq" | "deploySucceeded" | "isDeployedInBackground" | "noBidsReceived" | "error">;
 
-/** `lastDseq` names the deployment an abandoned attempt closed, since closing it clears the flow's own dseq. */
+/** Only an end the flow can't recover from is a failure; `lastDseq` names the deployment an abandoned attempt closed. */
 export function deployFlowOutcomeOf(flow: FlowSnapshot, lastDseq: string | null): DeployFlowOutcome | undefined {
   if (flow.autoLeasedDseq) return { dseq: flow.autoLeasedDseq, outcome: "unknown" };
-  if (!flow.dseq) return flow.phase === "error" && lastDseq ? failedOutcome(lastDseq, flow.error?.message ?? DEPLOY_ERRORED_REASON) : undefined;
+  if (!flow.dseq) return flow.phase === "error" && lastDseq ? failedOutcome(lastDseq, flow.error?.message ?? ATTEMPT_ABANDONED_REASON) : undefined;
   if (flow.deploySucceeded) return { dseq: flow.dseq, outcome: flow.isDeployedInBackground ? "unknown" : "live" };
-  if (flow.deployError) return failedOutcome(flow.dseq, flow.deployError.message ?? DEPLOY_ERRORED_REASON);
   if (flow.noBidsReceived) return failedOutcome(flow.dseq, NO_BIDS_REASON);
-  if (flow.phase === "error") return failedOutcome(flow.dseq, flow.error?.message ?? DEPLOY_ERRORED_REASON);
+  if (flow.phase === "error") return failedOutcome(flow.dseq, flow.error?.message ?? ATTEMPT_ABANDONED_REASON);
 
   return undefined;
 }

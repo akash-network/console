@@ -23,6 +23,13 @@ describe(useDeployFlowOutcome.name, () => {
     expect(result.current).toEqual({ dseq: "11", outcome: "failed", failureReason: NO_BIDS_REASON });
   });
 
+  it("records nothing for a deploy error the user can still recover from", () => {
+    const { result, recordOutcome } = setup({ flow: flowWith({ dseq: "11", deployError: { message: "The selected bid is no longer open" } }) });
+
+    expect(recordOutcome).not.toHaveBeenCalled();
+    expect(result.current).toBeUndefined();
+  });
+
   it("records nothing while the deployment is still quoting", () => {
     const { result, recordOutcome } = setup({ flow: flowWith({ dseq: "11" }) });
 
