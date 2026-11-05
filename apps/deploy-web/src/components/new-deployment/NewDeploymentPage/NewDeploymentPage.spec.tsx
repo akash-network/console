@@ -129,24 +129,22 @@ describe(NewDeploymentPage.name, () => {
   });
 
   describe("when gpu quote requests are on", () => {
-    it("offers to reserve capacity and opens the quote request from there", async () => {
-      const { GpuQuoteRequestFlow } = setup({ isQuoteFlowEnabled: true });
+    it("offers enterprises to reserve capacity beside starting from scratch, and opens the quote request from there", async () => {
+      const { GpuQuoteRequestFlow, ReserveCapacityCard } = setup({ isQuoteFlowEnabled: true });
 
+      expect(screen.getByRole("region", { name: "For enterprises" })).toContainElement(screen.getByText("Reserve capacity"));
+      expect(screen.getByRole("region", { name: "Start from scratch" })).toContainElement(screen.getByRole("button", { name: "Spin up a Linux machine" }));
       expect(GpuQuoteRequestFlow).not.toHaveBeenCalled();
-      const reserveCapacity = screen.getByRole("button", { name: "Reserve capacity" });
-      expect(reserveCapacity).toHaveAccessibleDescription("Reserve GPUs for a term. Tell us what you need and we'll come back with offers.");
-      expect(reserveCapacity).toHaveTextContent("Get a quote");
-      expect(reserveCapacity).not.toHaveTextContent("$");
 
-      await userEvent.click(reserveCapacity);
+      act(() => ReserveCapacityCard.mock.lastCall![0].onRequestQuote());
 
       expect(screen.getByText("GPU quote request")).toBeInTheDocument();
       expect(GpuQuoteRequestFlow).toHaveBeenLastCalledWith(expect.objectContaining({ source: "reserve_capacity" }), expect.anything());
     });
 
-    it("closes the quote request when it asks to", async () => {
-      const { GpuQuoteRequestFlow } = setup({ isQuoteFlowEnabled: true });
-      await userEvent.click(screen.getByRole("button", { name: "Reserve capacity" }));
+    it("closes the quote request when it asks to", () => {
+      const { GpuQuoteRequestFlow, ReserveCapacityCard } = setup({ isQuoteFlowEnabled: true });
+      act(() => ReserveCapacityCard.mock.lastCall![0].onRequestQuote());
 
       act(() => GpuQuoteRequestFlow.mock.lastCall![0].onClose());
 
@@ -155,9 +153,11 @@ describe(NewDeploymentPage.name, () => {
   });
 
   it("hides the reserve capacity card while gpu quote requests are off", () => {
-    setup({});
+    const { ReserveCapacityCard } = setup({});
 
-    expect(screen.queryByRole("button", { name: "Reserve capacity" })).not.toBeInTheDocument();
+    expect(ReserveCapacityCard).not.toHaveBeenCalled();
+    expect(screen.queryByRole("region", { name: "For enterprises" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Start from scratch" })).toContainElement(screen.getByRole("button", { name: "Spin up a Linux machine" }));
   });
 
   it("shows six popular templates, promoted first, badging the popular ones", () => {
@@ -250,6 +250,7 @@ describe(NewDeploymentPage.name, () => {
     const TemplateCard = vi.fn<typeof DEPENDENCIES.TemplateCard>(() => null);
     const Skeleton = vi.fn<typeof DEPENDENCIES.Skeleton>(() => <div />);
     const GpuQuoteRequestFlow = vi.fn<typeof DEPENDENCIES.GpuQuoteRequestFlow>(() => <div>GPU quote request</div>);
+    const ReserveCapacityCard = vi.fn<typeof DEPENDENCIES.ReserveCapacityCard>(() => <div>Reserve capacity</div>);
     const dependencies = MockComponents(DEPENDENCIES, {
       useRouter: () => router,
       useTemplates: () => templatesResult,
@@ -266,6 +267,7 @@ describe(NewDeploymentPage.name, () => {
       TemplateCard,
       Skeleton,
       GpuQuoteRequestFlow,
+      ReserveCapacityCard,
       useFlag: flag => flag === "gpu_quote_requests" && !!input.isQuoteFlowEnabled
     });
 
@@ -289,6 +291,7 @@ describe(NewDeploymentPage.name, () => {
       TemplateCard,
       Skeleton,
       GpuQuoteRequestFlow,
+      ReserveCapacityCard,
       CustomNextSeo: dependencies.CustomNextSeo
     };
   }

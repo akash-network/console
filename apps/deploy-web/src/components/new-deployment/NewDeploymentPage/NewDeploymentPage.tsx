@@ -2,8 +2,7 @@
 import type { FC, ReactNode } from "react";
 import { useId, useState } from "react";
 import { Skeleton } from "@akashnetwork/ui/components";
-import { cn } from "@akashnetwork/ui/utils";
-import { ArrowLeft, ArrowRight, CalendarClock, Container, Terminal } from "lucide-react";
+import { ArrowLeft, ArrowRight, Container, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -23,8 +22,9 @@ import { AgentModePanel } from "../AgentModePanel/AgentModePanel";
 import { ImportSdlButton } from "../ImportSdlButton/ImportSdlButton";
 import { LastConfigurationCard } from "../LastConfigurationCard/LastConfigurationCard";
 import { LegacyBuilderRedirect } from "../LegacyBuilderRedirect/LegacyBuilderRedirect";
+import { ReserveCapacityCard } from "../ReserveCapacityCard/ReserveCapacityCard";
 import { StartFromScratchCard } from "../StartFromScratchCard/StartFromScratchCard";
-import { ContainerSdlSnippet, ReservableGpusSnippet, SshSessionSnippet } from "../StartFromScratchSnippets/StartFromScratchSnippets";
+import { ContainerSdlSnippet, SshSessionSnippet } from "../StartFromScratchSnippets/StartFromScratchSnippets";
 import { useLastConfiguration } from "../useLastConfiguration/useLastConfiguration";
 
 const POPULAR_TEMPLATE_COUNT = 6;
@@ -49,6 +49,7 @@ export const DEPENDENCIES = {
   ImportSdlButton,
   LastConfigurationCard,
   StartFromScratchCard,
+  ReserveCapacityCard,
   TemplateCard,
   Skeleton,
   DeployTargetChip,
@@ -84,6 +85,27 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
     analyticsService.track("launch_container_vm_btn_clk", "Amplitude");
     router.push(UrlService.configureDeployment({ vm: true }));
   };
+
+  const startFromScratchCards = (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <d.StartFromScratchCard
+        title="Bring your own container"
+        description="Run any Docker image from any registry. Configure ports, variables, and resources."
+        previewLabel="deploy.yaml"
+        previewIcon={Container}
+        preview={<ContainerSdlSnippet />}
+        onSelect={startFromOwnContainer}
+      />
+      <d.StartFromScratchCard
+        title="Spin up a Linux machine"
+        description="A clean Linux server with SSH access. Choose Ubuntu, CentOS Stream, Debian, or SuSE Leap."
+        previewLabel="ssh"
+        previewIcon={Terminal}
+        preview={<SshSessionSnippet />}
+        onSelect={startFromLinuxMachine}
+      />
+    </div>
+  );
 
   return (
     <d.LegacyBuilderRedirect>
@@ -125,37 +147,20 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
             </PageSection>
           )}
 
-          <PageSection title="Start from scratch" className="mt-10">
-            <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-2", isQuoteFlowEnabled && "min-[1100px]:grid-cols-3")}>
-              <d.StartFromScratchCard
-                title="Bring your own container"
-                description="Run any Docker image from any registry. Configure ports, variables, and resources."
-                previewLabel="deploy.yaml"
-                previewIcon={Container}
-                preview={<ContainerSdlSnippet />}
-                onSelect={startFromOwnContainer}
-              />
-              <d.StartFromScratchCard
-                title="Spin up a Linux machine"
-                description="A clean Linux server with SSH access. Choose Ubuntu, CentOS Stream, Debian, or SuSE Leap."
-                previewLabel="ssh"
-                previewIcon={Terminal}
-                preview={<SshSessionSnippet />}
-                onSelect={startFromLinuxMachine}
-              />
-              {isQuoteFlowEnabled && (
-                <d.StartFromScratchCard
-                  title="Reserve capacity"
-                  description="Reserve GPUs for a term. Tell us what you need and we'll come back with offers."
-                  previewLabel="gpus"
-                  previewIcon={CalendarClock}
-                  preview={<ReservableGpusSnippet />}
-                  actionLabel="Get a quote"
-                  onSelect={() => setIsRequestingQuote(true)}
-                />
-              )}
+          {isQuoteFlowEnabled ? (
+            <div className="mt-10 grid grid-cols-1 gap-x-4 gap-y-10 min-[1100px]:grid-cols-3">
+              <PageSection title="Start from scratch" className="min-[1100px]:col-span-2">
+                {startFromScratchCards}
+              </PageSection>
+              <PageSection title="For enterprises" className="flex flex-col">
+                <d.ReserveCapacityCard onRequestQuote={() => setIsRequestingQuote(true)} />
+              </PageSection>
             </div>
-          </PageSection>
+          ) : (
+            <PageSection title="Start from scratch" className="mt-10">
+              {startFromScratchCards}
+            </PageSection>
+          )}
 
           <PageSection
             title="Popular templates"
