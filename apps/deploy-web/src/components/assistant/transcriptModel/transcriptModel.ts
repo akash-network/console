@@ -1,4 +1,11 @@
-import type { AssistantAction, AssistantClientToolRequest, AssistantHistoryMessage, AssistantStreamEvent } from "@src/types/assistant";
+import type {
+  AssistantAction,
+  AssistantClientToolRequest,
+  AssistantDiagnosis,
+  AssistantHistoryMessage,
+  AssistantLiveHelpReason,
+  AssistantStreamEvent
+} from "@src/types/assistant";
 
 export interface AssistantReadChip {
   id: string;
@@ -9,6 +16,7 @@ export interface AssistantReadChip {
 export interface AssistantProposal {
   proposalId: string;
   action: AssistantAction;
+  diagnosis?: AssistantDiagnosis;
 }
 
 export interface AssistantTranscriptMessage {
@@ -17,6 +25,7 @@ export interface AssistantTranscriptMessage {
   text: string;
   reads: AssistantReadChip[];
   proposals: AssistantProposal[];
+  liveHelpReason: AssistantLiveHelpReason | null;
 }
 
 /** The api keeps no more of an unstored conversation than this, so older messages are dropped before they are sent. */
@@ -29,7 +38,7 @@ const DEFAULT_TAIL_LINES = 200;
 const TOOL_NAME_VERB = /^(get|list|read|search)_/;
 
 export function createTranscriptMessage(id: string, role: AssistantTranscriptMessage["role"], text = ""): AssistantTranscriptMessage {
-  return { id, role, text, reads: [], proposals: [] };
+  return { id, role, text, reads: [], proposals: [], liveHelpReason: null };
 }
 
 export function applyAssistantEvent(message: AssistantTranscriptMessage, event: AssistantStreamEvent): AssistantTranscriptMessage {
@@ -43,7 +52,9 @@ export function applyAssistantEvent(message: AssistantTranscriptMessage, event: 
     case "client_tool_request":
       return { ...message, reads: [...message.reads, { id: event.toolCallId, label: readLabelOfClientTool(event), ok: true }] };
     case "action_proposal":
-      return { ...message, proposals: [...message.proposals, { proposalId: event.proposalId, action: event.action }] };
+      return { ...message, proposals: [...message.proposals, { proposalId: event.proposalId, action: event.action, diagnosis: event.diagnosis }] };
+    case "live_help_suggested":
+      return { ...message, liveHelpReason: event.reason };
     default:
       return message;
   }
@@ -65,11 +76,6 @@ export function historyOf(messages: AssistantTranscriptMessage[]): AssistantHist
     .filter(message => message.text.trim().length > 0)
     .slice(-MAX_HISTORY_MESSAGES)
     .map(message => ({ role: message.role, content: message.text.slice(0, MAX_HISTORY_MESSAGE_LENGTH) }));
-}
-
-/** The assistant points to live help only when it cannot answer, so naming the support link or Discord is the signal to offer it. */
-export function isUnableToHelpAnswer(text: string, supportUrl: string): boolean {
-  return text.includes(supportUrl) || /discord/i.test(text);
 }
 
 function readLabelOfTool(name: string): string {

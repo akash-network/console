@@ -13,20 +13,30 @@ describe(ActionCard.name, () => {
     const { registered, useActionCardDecision, decision, GenericActionCard } = setup({ action: { type: "send_manifest_again", tier: "confirm", dseq: "42" } });
 
     expect(screen.getByText("registered card")).toBeInTheDocument();
-    expect(registered).toHaveBeenCalledWith({ action: { type: "send_manifest_again", tier: "confirm", dseq: "42" }, decision }, expect.anything());
+    expect(registered).toHaveBeenCalledWith(
+      { action: { type: "send_manifest_again", tier: "confirm", dseq: "42" }, decision, continueConversation: undefined },
+      expect.anything()
+    );
     expect(useActionCardDecision).toHaveBeenCalledWith({ conversationId: "c-1", proposalId: "p-1", actionType: "send_manifest_again" });
     expect(GenericActionCard).not.toHaveBeenCalled();
   });
 
+  it("lets the card continue the conversation", () => {
+    const continueConversation = vi.fn();
+    const { registered } = setup({ action: { type: "send_manifest_again", tier: "confirm", dseq: "42" }, continueConversation });
+
+    expect(registered).toHaveBeenCalledWith(expect.objectContaining({ continueConversation }), expect.anything());
+  });
+
   it("falls back to the generic card for an action without one", () => {
-    const action: AssistantAction = { type: "favorite_provider", tier: "confirm", provider: "akash1provider" };
+    const action: AssistantAction = { type: "open_in_editor", tier: "deep_link", dseq: "42", templateId: null, sdl: null };
     const { GenericActionCard, decision } = setup({ action });
 
     expect(screen.getByText("generic card")).toBeInTheDocument();
     expect(GenericActionCard).toHaveBeenCalledWith({ action, decision }, expect.anything());
   });
 
-  function setup(input: { action: AssistantAction }) {
+  function setup(input: { action: AssistantAction; continueConversation?: (message: string) => void }) {
     const decision = mock<ActionCardDecision>({ status: "pending" });
     const useActionCardDecision = vi.fn(() => decision);
     const GenericActionCard = vi.fn(() => <p>generic card</p>);
@@ -39,6 +49,7 @@ describe(ActionCard.name, () => {
         proposalId="p-1"
         action={input.action}
         registry={registry}
+        continueConversation={input.continueConversation}
         dependencies={{ ...DEPENDENCIES, useActionCardDecision, GenericActionCard }}
       />
     );

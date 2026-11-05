@@ -3,15 +3,14 @@ import type { FC } from "react";
 import { Button } from "@akashnetwork/ui/components";
 import { LoaderCircle } from "lucide-react";
 
-import { useServices } from "@src/context/ServicesProvider";
 import { ActionCard } from "../action-cards/ActionCard/ActionCard";
 import { AssistantMarkdown } from "../AssistantMarkdown/AssistantMarkdown";
+import { DiagnosisBlock } from "../DiagnosisBlock/DiagnosisBlock";
 import { DiscordHelpCard } from "../DiscordHelpCard/DiscordHelpCard";
-import type { AssistantReadChip, AssistantTranscriptMessage } from "../transcriptModel/transcriptModel";
-import { isUnableToHelpAnswer } from "../transcriptModel/transcriptModel";
+import type { AssistantProposal, AssistantReadChip, AssistantTranscriptMessage } from "../transcriptModel/transcriptModel";
 import type { AssistantConversation, AssistantProblem } from "../useAssistantConversation/useAssistantConversation";
 
-export const DEPENDENCIES = { ActionCard, AssistantMarkdown, DiscordHelpCard };
+export const DEPENDENCIES = { ActionCard, AssistantMarkdown, DiagnosisBlock, DiscordHelpCard };
 
 export const FOLLOW_UP_ANSWERS = [
   { label: "Deploy something new", message: "I was trying to deploy something new." },
@@ -31,14 +30,14 @@ type Props = {
 };
 
 export const AssistantTranscript: FC<Props> = ({ conversation, dependencies: d = DEPENDENCIES }) => {
-  const { publicConfig } = useServices();
   const { messages, isAnswering, problem, endedAs } = conversation;
   const lastMessage = messages.at(-1);
   const lastQuestion = messages.findLast(message => message.role === "user");
-  const lastAnswerText = lastMessage?.role === "assistant" ? lastMessage.text : "";
+  const lastAnswer = lastMessage?.role === "assistant" ? lastMessage : undefined;
+  const lastAnswerText = lastAnswer?.text ?? "";
   const isWaitingForText = isAnswering && !lastAnswerText;
   const isFollowUpAnswer = FOLLOW_UP_ANSWERS.some(answer => answer.message === lastQuestion?.text);
-  const showsFollowUp = !isAnswering && !endedAs && !isFollowUpAnswer && isUnableToHelpAnswer(lastAnswerText, publicConfig.NEXT_PUBLIC_CONTACT_SUPPORT_URL);
+  const showsFollowUp = !isAnswering && !endedAs && !isFollowUpAnswer && !!lastAnswer?.liveHelpReason;
   const canAskIfHelped = !isAnswering && !endedAs && !problem && !!lastAnswerText;
 
   return (
@@ -49,7 +48,13 @@ export const AssistantTranscript: FC<Props> = ({ conversation, dependencies: d =
             {message.text}
           </p>
         ) : (
-          <AssistantAnswer key={message.id} message={message} conversationId={conversation.conversationId} dependencies={d} />
+          <AssistantAnswer
+            key={message.id}
+            message={message}
+            conversationId={conversation.conversationId}
+            continueConversation={conversation.send}
+            dependencies={d}
+          />
         )
       )}
 
@@ -62,7 +67,7 @@ export const AssistantTranscript: FC<Props> = ({ conversation, dependencies: d =
 
       {showsFollowUp && (
         <div className="flex flex-col gap-3">
-          <d.DiscordHelpCard />
+          <d.DiscordHelpCard reason={lastAnswer?.liveHelpReason} />
           <p className="text-sm">Before you go, what were you trying to do? It helps us fix this for everyone.</p>
           <div className="flex flex-wrap gap-2">
             {FOLLOW_UP_ANSWERS.map(answer => (
@@ -111,11 +116,14 @@ export const AssistantTranscript: FC<Props> = ({ conversation, dependencies: d =
   );
 };
 
-const AssistantAnswer: FC<{ message: AssistantTranscriptMessage; conversationId: string | null; dependencies: typeof DEPENDENCIES }> = ({
-  message,
-  conversationId,
-  dependencies: d
-}) => (
+type AnswerProps = {
+  message: AssistantTranscriptMessage;
+  conversationId: string | null;
+  continueConversation: (message: string) => void;
+  dependencies: typeof DEPENDENCIES;
+};
+
+const AssistantAnswer: FC<AnswerProps> = ({ message, conversationId, continueConversation, dependencies: d }) => (
   <div className="flex flex-col gap-3">
     {message.reads.length > 0 && (
       <ul aria-label="What the assistant read" className="flex flex-wrap gap-1.5">
@@ -126,10 +134,29 @@ const AssistantAnswer: FC<{ message: AssistantTranscriptMessage; conversationId:
     )}
     {message.text && <d.AssistantMarkdown>{message.text}</d.AssistantMarkdown>}
     {message.proposals.map(proposal => (
-      <d.ActionCard key={proposal.proposalId} conversationId={conversationId} proposalId={proposal.proposalId} action={proposal.action} />
+      <ProposalCard
+        key={proposal.proposalId}
+        proposal={proposal}
+        conversationId={conversationId}
+        continueConversation={continueConversation}
+        dependencies={d}
+      />
     ))}
   </div>
 );
+
+const ProposalCard: FC<Omit<AnswerProps, "message"> & { proposal: AssistantProposal }> = ({
+  proposal,
+  conversationId,
+  continueConversation,
+  dependencies: d
+}) => {
+  const card = (
+    <d.ActionCard conversationId={conversationId} proposalId={proposal.proposalId} action={proposal.action} continueConversation={continueConversation} />
+  );
+
+  return proposal.diagnosis ? <d.DiagnosisBlock diagnosis={proposal.diagnosis}>{card}</d.DiagnosisBlock> : card;
+};
 
 const ReadChip: FC<{ read: AssistantReadChip }> = ({ read }) => (
   <li data-ok={read.ok} className="group flex items-center gap-1.5 rounded-md border bg-muted px-2 py-1 font-mono text-xs text-muted-foreground">

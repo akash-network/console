@@ -3,8 +3,20 @@ import type { FC } from "react";
 import { DiscordLogo } from "@akashnetwork/ui/components";
 
 import { useServices } from "@src/context/ServicesProvider";
+import type { AssistantLiveHelpReason } from "@src/types/assistant";
 
-export const DiscordHelpCard: FC = () => {
+export const LIVE_HELP_REASON_MESSAGES: Record<AssistantLiveHelpReason, string> = {
+  provider_side_issue: "This needs someone who can look at the provider side",
+  not_supported_here: "The assistant can't do this from Console",
+  no_confident_answer: "The assistant isn't sure about this one",
+  user_asked_for_a_person: "Talk to the Akash team and community"
+};
+
+const DEFAULT_SUBTITLE = "The Akash community and team are there";
+
+type Props = { reason?: AssistantLiveHelpReason | null };
+
+export const DiscordHelpCard: FC<Props> = ({ reason }) => {
   const { publicConfig } = useServices();
 
   return (
@@ -19,7 +31,7 @@ export const DiscordHelpCard: FC = () => {
       </span>
       <span className="flex min-w-0 flex-col">
         <span className="text-sm font-semibold">Get live help on Discord</span>
-        <span className="text-xs text-muted-foreground">The Akash community and team are there</span>
+        <span className="text-xs text-muted-foreground">{reason ? LIVE_HELP_REASON_MESSAGES[reason] : DEFAULT_SUBTITLE}</span>
       </span>
     </a>
   );

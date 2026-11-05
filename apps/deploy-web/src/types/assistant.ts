@@ -12,6 +12,10 @@ export type AssistantActionType = AssistantAction["type"];
 
 export type AssistantActionOf<T extends AssistantActionType> = Extract<AssistantAction, { type: T }>;
 
+export type AssistantDiagnosis = NonNullable<AssistantStreamEventOf<"action_proposal">["diagnosis"]>;
+
+export type AssistantLiveHelpReason = AssistantStreamEventOf<"live_help_suggested">["reason"];
+
 export type AssistantClientToolRequest = AssistantStreamEventOf<"client_tool_request">;
 
 export type AssistantStreamErrorCode = AssistantStreamEventOf<"error">["code"];

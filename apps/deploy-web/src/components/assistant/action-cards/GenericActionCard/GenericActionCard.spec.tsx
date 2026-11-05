@@ -64,12 +64,12 @@ describe(GenericActionCard.name, () => {
       });
 
       expect(rows).toEqual([
-        { label: "Gpu model", value: "H100" },
-        { label: "Gpu count", value: "8" },
+        { label: "GPU model", value: "H100" },
+        { label: "GPU count", value: "8" },
         { label: "Interconnect", value: "cluster" }
       ]);
       expect(summaryRowsOf({ type: "open_in_editor", tier: "deep_link", dseq: null, templateId: "t", sdl: "version: 2" })).toEqual([
-        { label: "Template id", value: "t" }
+        { label: "Template ID", value: "t" }
       ]);
       expect(
         summaryRowsOf({ type: "add_runtime_hours", tier: "confirm", dseq: "1", hours: 2, currentLimitHours: 4, newLimitHours: 6, runtimeEndsAt: null })
@@ -86,10 +86,7 @@ describe(GenericActionCard.name, () => {
       expect(consoleHrefOf({ type: "buy_credits", tier: "deep_link", amountUsd: 20 })).toBe(UrlService.billing());
       expect(consoleHrefOf({ type: "configure_auto_recharge", tier: "deep_link", thresholdUsd: null, amountUsd: null })).toBe(UrlService.billing());
       expect(consoleHrefOf({ type: "redeem_coupon", tier: "confirm", code: null })).toBe(UrlService.billing());
-      expect(consoleHrefOf({ type: "create_alert", tier: "confirm", alert: "wallet_balance", dseq: null, thresholdUsd: 5, channel: "email" })).toBe(
-        UrlService.alerts()
-      );
-      expect(consoleHrefOf({ type: "create_alert", tier: "confirm", alert: "deployment_closed", dseq: "7", thresholdUsd: null, channel: "email" })).toBe(
+      expect(consoleHrefOf({ type: "create_alert", tier: "confirm", alert: "deployment_closed", dseq: "7", channel: "email" })).toBe(
         UrlService.deploymentDetails("7")
       );
       expect(consoleHrefOf({ type: "favorite_provider", tier: "confirm", provider: "akash1p" })).toBe(UrlService.providerDetail("akash1p"));
