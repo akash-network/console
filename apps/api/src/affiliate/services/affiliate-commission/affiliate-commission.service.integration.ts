@@ -20,7 +20,7 @@ describe(AffiliateCommissionService.name, () => {
     it("credits the affiliate once when two syncs of the same payment race", async () => {
       const { service, payment, affiliateUser, topUpWallet } = await setup();
 
-      await Promise.all([service.syncCommission(payment.id), service.syncCommission(payment.id)]);
+      await Promise.all([service.syncCommission(payment.id, "settlement"), service.syncCommission(payment.id, "settlement")]);
 
       const commissions = await container.resolve(StripeTransactionRepository).find({ sourceTransactionId: payment.id });
       expect(commissions).toEqual([expect.objectContaining({ userId: affiliateUser.id, type: "affiliate_commission", amount: 500 })]);
