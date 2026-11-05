@@ -6,11 +6,27 @@ const AffiliateTermsSchema = z.object({
   referralTrialCreditsUsd: z.number()
 });
 
+const AffiliateStatsSchema = z.object({
+  signups: z.number(),
+  payingUsers: z.number(),
+  totalCommissionUsd: z.number(),
+  monthCommissionUsd: z.number()
+});
+
+const AffiliateCommissionSchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  amountUsd: z.number(),
+  reversedUsd: z.number()
+});
+
 export const AffiliateProfileResponseSchema = z.object({
   data: z
     .object({
       code: z.string(),
-      terms: AffiliateTermsSchema
+      terms: AffiliateTermsSchema,
+      stats: AffiliateStatsSchema,
+      commissions: z.array(AffiliateCommissionSchema)
     })
     .nullable()
 });
