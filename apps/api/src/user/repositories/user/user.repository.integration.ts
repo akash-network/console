@@ -279,6 +279,22 @@ describe(UserRepository.name, () => {
     });
   });
 
+  describe("findIdsWithVerifiedEmail", () => {
+    it("finds the account that verified an address, whatever its case and padding", async () => {
+      const { userRepository, domain } = setupDomain();
+      const user = await userRepository.create({ userId: faker.string.uuid(), email: `Jane@${domain.toUpperCase()}`, emailVerified: true });
+
+      await expect(userRepository.findIdsWithVerifiedEmail(` jane@${domain} `)).resolves.toEqual([{ id: user.id }]);
+    });
+
+    it("leaves out an account that never verified the address", async () => {
+      const { userRepository, domain } = setupDomain();
+      await userRepository.create({ userId: faker.string.uuid(), email: `jane@${domain}`, emailVerified: false });
+
+      await expect(userRepository.findIdsWithVerifiedEmail(`jane@${domain}`)).resolves.toEqual([]);
+    });
+  });
+
   function setupDomain() {
     const userRepository = container.resolve(UserRepository);
     const domain = `${faker.string.alphanumeric(16).toLowerCase()}.com`;

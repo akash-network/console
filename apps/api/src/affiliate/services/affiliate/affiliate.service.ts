@@ -82,8 +82,8 @@ export class AffiliateService {
 
     if (!email) throw createError(400, "Provide a userId or an email", { errorCode: "affiliate_user_required" });
 
-    const users = await this.userRepository.find({ email });
-    if (users.length === 0) throw createError(404, "No user with this email was found", { errorCode: "affiliate_user_not_found" });
+    const users = await this.userRepository.findIdsWithVerifiedEmail(email);
+    if (users.length === 0) throw createError(404, "No user has verified this email", { errorCode: "affiliate_user_not_found" });
     if (users.length > 1) throw createError(409, "Several users share this email; approve by userId instead", { errorCode: "affiliate_email_ambiguous" });
 
     return users[0].id;

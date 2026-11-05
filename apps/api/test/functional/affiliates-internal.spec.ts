@@ -25,6 +25,23 @@ describe("POST /internal/affiliates", () => {
     expect(response.status).toBe(401);
   });
 
+  it("approves by email the account that verified it", async () => {
+    const user = await seedUser({ emailVerified: true });
+
+    const response = await approve({ email: user.email, actor: "ops@akash.network" });
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({ data: { userId: user.id } });
+  });
+
+  it("refuses to approve by email an account that never verified it", async () => {
+    const user = await seedUser({ emailVerified: false });
+
+    const response = await approve({ email: user.email, actor: "ops@akash.network" });
+
+    expect(response.status).toBe(404);
+  });
+
   it("approves a user as an affiliate with a generated code", async () => {
     const user = await seedUser();
 
@@ -89,8 +106,8 @@ describe("POST /internal/affiliates", () => {
     expect(text).not.toContain("revokeAffiliate");
   });
 
-  async function seedUser() {
-    return userRepository.create({ email: faker.internet.email(), username: faker.internet.userName() });
+  async function seedUser(overrides: { emailVerified?: boolean } = {}) {
+    return userRepository.create({ email: faker.internet.email(), username: faker.internet.userName(), ...overrides });
   }
 
   async function approve(body: Record<string, unknown>, options: { token?: string } = { token: internalToken }) {

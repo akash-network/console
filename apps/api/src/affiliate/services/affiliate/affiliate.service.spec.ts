@@ -40,30 +40,31 @@ describe(AffiliateService.name, () => {
       });
     });
 
-    it("resolves the user by email when it matches exactly one user", async () => {
+    it("resolves the user by email when exactly one user has verified it", async () => {
       const { service, affiliateRepository, userRepository } = setup();
       const user = createUser();
-      userRepository.find.mockResolvedValue([user]);
+      userRepository.findIdsWithVerifiedEmail.mockResolvedValue([{ id: user.id }]);
 
       await service.approve({ email: user.email!, actor: "ops@akash.network" });
 
+      expect(userRepository.findIdsWithVerifiedEmail).toHaveBeenCalledWith(user.email);
       expect(affiliateRepository.findByUserId).toHaveBeenCalledWith(user.id);
     });
 
-    it("rejects with 404 when no user matches the email", async () => {
+    it("rejects with 404 when no user has verified the email", async () => {
       const { service, userRepository } = setup();
-      userRepository.find.mockResolvedValue([]);
+      userRepository.findIdsWithVerifiedEmail.mockResolvedValue([]);
 
       await expect(service.approve({ email: "nobody@example.com", actor: "ops@akash.network" })).rejects.toMatchObject({
         status: 404,
-        message: "No user with this email was found",
+        message: "No user has verified this email",
         errorCode: "affiliate_user_not_found"
       });
     });
 
     it("rejects with 409 when several users share the email", async () => {
       const { service, userRepository } = setup();
-      userRepository.find.mockResolvedValue([createUser(), createUser()]);
+      userRepository.findIdsWithVerifiedEmail.mockResolvedValue([{ id: createUser().id }, { id: createUser().id }]);
 
       await expect(service.approve({ email: "shared@example.com", actor: "ops@akash.network" })).rejects.toMatchObject({
         status: 409,
