@@ -270,6 +270,17 @@ describe(AssistantConversationService.name, () => {
       expect(transcriptService.record).not.toHaveBeenCalled();
     });
 
+    it("stops storing a paused stored conversation once the user turned review off", async () => {
+      const { service, pendingTurnRepository, transcriptService, turnService } = setup({ consent: consent({ reviewOptIn: false }) });
+      pendingTurnRepository.take.mockResolvedValue(pendingTurn({ clientToolCalls: [toolCall("c1", "read_logs")], stored: true }));
+
+      const run = await service.prepareClientToolResults(CONVERSATION_ID, { results: [{ toolCallId: "c1", content: "logs", ok: true }] });
+      await run(vi.fn(), new AbortController().signal);
+
+      expect(transcriptService.record).not.toHaveBeenCalled();
+      expect(turnService.run.mock.calls[0][0]).toMatchObject({ stored: false });
+    });
+
     it("refuses when no turn waits on the browser", async () => {
       const { service, pendingTurnRepository } = setup();
       pendingTurnRepository.take.mockResolvedValue(undefined);
@@ -366,6 +377,16 @@ describe(AssistantConversationService.name, () => {
       const { service, transcriptService } = setup();
 
       expect(await service.recordActionResult(CONVERSATION_ID, input)).toEqual({ recorded: false });
+      expect(transcriptService.record).not.toHaveBeenCalled();
+    });
+
+    it.each([[consent({ reviewOptIn: false })], [undefined]])("records nothing once the user no longer allows review (%j)", async latest => {
+      const { service, conversationRepository, consentRepository, messageRepository, transcriptService } = setup();
+      conversationRepository.findOneBy.mockResolvedValue(conversation());
+      consentRepository.findLatestByUserId.mockResolvedValue(latest);
+
+      expect(await service.recordActionResult(CONVERSATION_ID, input)).toEqual({ recorded: false });
+      expect(messageRepository.findProposal).not.toHaveBeenCalled();
       expect(transcriptService.record).not.toHaveBeenCalled();
     });
 

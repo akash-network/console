@@ -113,7 +113,7 @@ export class AssistantConversationService {
 
   /** Each requested call must be answered once, so a resumed turn never shows the model a result it did not ask for. */
   async prepareClientToolResults(conversationId: string, { results }: SubmitClientToolResultsRequest["data"]): Promise<RunAssistantTurn> {
-    await this.#admit({ countsAsMessage: false });
+    const { consent } = await this.#admit({ countsAsMessage: false });
     const userId = this.authService.currentUser.id;
 
     const turn = await this.txService.transaction(async () => {
@@ -132,6 +132,7 @@ export class AssistantConversationService {
     });
 
     const { state } = turn;
+    const stored = state.stored && consent.reviewOptIn;
     const toolMessages: ChatMessage[] = state.clientToolCalls.map(call => {
       const result = results.find(({ toolCallId }) => toolCallId === call.id)!;
       const excerpt = redactSecrets(excerptOf(result.content));
@@ -140,7 +141,7 @@ export class AssistantConversationService {
       return { role: "tool", tool_call_id: call.id, content: toolContentOf(call.function.name, payload) };
     });
 
-    if (state.stored) {
+    if (stored) {
       for (const call of state.clientToolCalls) {
         const ok = results.find(({ toolCallId }) => toolCallId === call.id)!.ok;
         await this.transcriptService.record(conversationId, {
@@ -157,7 +158,7 @@ export class AssistantConversationService {
         {
           conversationId,
           userId,
-          stored: state.stored,
+          stored,
           isTrialing: state.isTrialing,
           messages: [...state.messages, ...toolMessages],
           roundsUsed: state.roundsUsed
@@ -195,7 +196,7 @@ export class AssistantConversationService {
 
   async recordActionResult(conversationId: string, input: RecordAssistantActionResultRequest["data"]): Promise<{ recorded: boolean }> {
     const conversation = await this.#ownConversation(conversationId);
-    if (!conversation) return { recorded: false };
+    if (!conversation || !(await this.#latestConsent())?.reviewOptIn) return { recorded: false };
 
     const proposal = await this.assistantMessageRepository.findProposal(conversation.id, input.proposalId);
     if (!proposal) throw createError(404, "No such proposal in this conversation.", { errorCode: ASSISTANT_ERROR_CODES.proposalNotFound });
@@ -229,12 +230,16 @@ export class AssistantConversationService {
   }
 
   async #currentConsent(): Promise<AssistantConsentOutput> {
-    const consent = await this.assistantConsentRepository.accessibleBy(this.authService.ability, "read").findLatestByUserId(this.authService.currentUser.id);
+    const consent = await this.#latestConsent();
     if (!consent) {
       throw createError(409, "Agree to the assistant terms before starting a conversation.", { errorCode: ASSISTANT_ERROR_CODES.consentRequired });
     }
 
     return consent;
+  }
+
+  async #latestConsent(): Promise<AssistantConsentOutput | undefined> {
+    return await this.assistantConsentRepository.accessibleBy(this.authService.ability, "read").findLatestByUserId(this.authService.currentUser.id);
   }
 
   async #ownConversation(conversationId: string): Promise<AssistantConversationOutput | undefined> {
