@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { GpuQuoteDraft } from "../gpuQuoteDraft/gpuQuoteDraft";
-import { createBlankDraft, CUSTOM_STARTING_POINT, STARTER_PACKAGES } from "../gpuQuoteDraft/gpuQuoteDraft";
+import { configurationStartingPoint, createBlankDraft, CUSTOM_STARTING_POINT, STARTER_PACKAGES } from "../gpuQuoteDraft/gpuQuoteDraft";
 import { GpuField, InterconnectField, StartingPointField, StorageField } from "./HardwareFields";
 
 import { render, screen, within } from "@testing-library/react";
@@ -9,16 +9,28 @@ import userEvent from "@testing-library/user-event";
 
 describe("HardwareFields", () => {
   describe(StartingPointField.name, () => {
-    it("shows each starting point with what it answers and picks one", async () => {
+    it("shows each package as its GPUs and specs, and picks one", async () => {
       const onPick = vi.fn();
       render(<StartingPointField startingPoints={[...STARTER_PACKAGES, CUSTOM_STARTING_POINT]} value="custom" onPick={onPick} />);
 
       expect(screen.getByRole("radio", { name: /Custom/ })).toBeChecked();
-      expect(screen.getByText("8× H200 · Linked in each server · 8 TB NVMe")).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: /Full server/ }).closest("label")).toHaveTextContent(
+        "Full serverFine-tuning and large modelsNVIDIA · 141 GB8×H200Nodes1 × 8 GPUsLinkNVLinkStorage8 TB / nodeInternet10 Gbps"
+      );
+      expect(screen.getByRole("radiogroup", { name: "Starting point" })).toHaveClass("sm:grid-cols-3");
 
       await userEvent.click(screen.getByRole("radio", { name: /Training cluster/ }));
 
       expect(onPick).toHaveBeenCalledWith(STARTER_PACKAGES[1]);
+    });
+
+    it("shows what the configuration was set up with and lays four packages out two by two", () => {
+      const configuration = configurationStartingPoint({ gpuCount: 1, gpuModels: ["h100"], storageBytes: 0, regions: [] }, "4 vCPU · 1× H100");
+      render(<StartingPointField startingPoints={[configuration, ...STARTER_PACKAGES, CUSTOM_STARTING_POINT]} value="configuration" onPick={vi.fn()} />);
+
+      expect(screen.getByRole("radio", { name: /Your configuration/ })).toBeChecked();
+      expect(screen.getByText("4 vCPU · 1× H100")).toBeInTheDocument();
+      expect(screen.getByRole("radiogroup", { name: "Starting point" })).toHaveClass("sm:grid-cols-2");
     });
   });
 

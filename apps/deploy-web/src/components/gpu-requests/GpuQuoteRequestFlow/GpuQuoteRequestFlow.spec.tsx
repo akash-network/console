@@ -11,7 +11,7 @@ import type { DraftAnswers } from "../gpuQuoteDraft/gpuQuoteDraft";
 import type { ConfigurationPrefill, DEPENDENCIES } from "./GpuQuoteRequestFlow";
 import { GpuQuoteRequestFlow } from "./GpuQuoteRequestFlow";
 
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
 
@@ -26,7 +26,7 @@ describe("GpuQuoteRequestFlow", () => {
   it("sends a package request after changing only the region and term", async () => {
     const { user, createHardwareRequest, enqueueSnackbar, onClose, queryClient, analyticsService } = setup({ source: "reserve_capacity" });
 
-    expect(screen.getByText("Reserve GPUs for a term.")).toBeInTheDocument();
+    expect(screen.getByText("Commit to a term for guaranteed GPUs at a lower rate.")).toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: /Full server/ }));
     await user.click(continueButton());
 
@@ -150,7 +150,7 @@ describe("GpuQuoteRequestFlow", () => {
     questions.push(describeQuestion());
 
     expect(questions).toEqual([
-      "What are you looking for? Pick a common setup, or Custom to choose every detail. Step 1 of 10",
+      "What are you looking for? Pick a common setup, or choose Custom to set every detail. Step 1 of 10",
       "Which GPU, and how many? Step 2 of 11",
       "Do the GPUs need to work together? This decides how GPUs connect inside a server and between servers. Step 3 of 11",
       "Where can they run? Step 4 of 11",
@@ -169,8 +169,8 @@ describe("GpuQuoteRequestFlow", () => {
     ["no_fit", "No provider can host this configuration right now."],
     ["no_bids", "No provider bid on this configuration."],
     ["gpu_menu", "Looking for a GPU that isn't listed?"],
-    ["reserve_capacity", "Reserve GPUs for a term."],
-    ["configure_reserve", "Reserve GPUs for a term."]
+    ["reserve_capacity", "Commit to a term for guaranteed GPUs at a lower rate."],
+    ["configure_reserve", "Commit to a term for guaranteed GPUs at a lower rate."]
   ] as const)("explains where a %s request comes from on the first step only", async (source, note) => {
     const { user } = setup({ source });
 
@@ -290,6 +290,73 @@ describe("GpuQuoteRequestFlow", () => {
     await waitFor(() => expect(enqueueSnackbar).toHaveBeenCalledWith(expect.anything(), { variant: "error" }));
     expect(snackbarProps(enqueueSnackbar).title).toBe("Couldn't send your request");
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("opens as a full page titled with its progress, focused on the question", async () => {
+    const { user } = setup({ source: "requests_page" });
+
+    expect(screen.getByRole("dialog", { name: "Request GPUs" })).toHaveAccessibleDescription("Step 1 of 10");
+    expect(screen.getByRole("progressbar", { name: "Request progress" })).toHaveAttribute("aria-valuenow", "10");
+    expect(question()).toHaveFocus();
+    expect(screen.getByText("Press")).toBeInTheDocument();
+
+    await user.click(continueButton());
+
+    expect(screen.getByRole("progressbar", { name: "Request progress" })).toHaveAttribute("aria-valuenow", "20");
+    expect(question()).toHaveFocus();
+  });
+
+  it("continues on Enter from the question and from a picked package", async () => {
+    const { user } = setup({ source: "requests_page" });
+
+    await user.keyboard("{Enter}");
+    expect(question()).toHaveTextContent("Which GPU, and how many?");
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    await user.click(screen.getByRole("radio", { name: /Inference fleet/ }));
+    await user.keyboard("{Enter}");
+
+    expect(question()).toHaveTextContent("Where can they run?");
+  });
+
+  it("leaves Enter to buttons, notes and text being composed, and ignores other keys", async () => {
+    const { user } = setup({ source: "requests_page", initialAnswers: { gpuModel: "h100" } });
+
+    await user.keyboard("x");
+    expect(question()).toHaveTextContent("What are you looking for?");
+    fireEvent.keyDown(question(), { key: "Enter", isComposing: true });
+    expect(question()).toHaveTextContent("What are you looking for?");
+
+    await user.click(continueButton());
+    screen.getByRole("button", { name: "Back" }).focus();
+    await user.keyboard("{Enter}");
+    expect(question()).toHaveTextContent("What are you looking for?");
+
+    await continueTo(user, "How should we reach you?");
+    await user.click(screen.getByRole("textbox", { name: /Anything else we should know/ }));
+    await user.keyboard("{Enter}");
+    expect(question()).toHaveTextContent("How should we reach you?");
+  });
+
+  it("sends once on Enter from the review while the request is on its way", async () => {
+    const { user, createHardwareRequest } = setup({ source: "requests_page", initialAnswers: { gpuModel: "h100" }, response: new Promise(() => undefined) });
+
+    await continueTo(user, "Check your request");
+    expect(screen.queryByText("Press")).not.toBeInTheDocument();
+    question().focus();
+    await user.keyboard("{Enter}");
+    await user.keyboard("{Enter}");
+
+    expect(createHardwareRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes on Escape without sending", async () => {
+    const { user, onClose, createHardwareRequest } = setup({ source: "requests_page" });
+
+    await user.keyboard("{Escape}");
+
+    expect(onClose).toHaveBeenCalled();
+    expect(createHardwareRequest).not.toHaveBeenCalled();
   });
 
   it("closes without sending", async () => {

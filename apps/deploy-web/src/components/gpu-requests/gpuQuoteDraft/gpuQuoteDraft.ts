@@ -2,6 +2,7 @@ import { differenceInCalendarDays } from "date-fns";
 import { z } from "zod";
 
 import type {
+  CatalogGpu,
   Fabric,
   FabricGbps,
   Interconnect,
@@ -15,7 +16,18 @@ import type {
   UplinkGbps,
   UptimeSla
 } from "./gpuQuoteCatalog";
-import { FABRICS, GPU_CATALOG, GPUS_PER_NODE, MAX_USD_PER_GPU_HOUR, OTHER_GPU_MODEL, REGION_AREAS, SMALL_GPU_COUNTS, TERMS, UPLINKS } from "./gpuQuoteCatalog";
+import {
+  FABRICS,
+  GPU_CATALOG,
+  GPUS_PER_NODE,
+  MAX_USD_PER_GPU_HOUR,
+  OTHER_GPU_MODEL,
+  REGION_AREAS,
+  SERVER_LINKS,
+  SMALL_GPU_COUNTS,
+  TERMS,
+  UPLINKS
+} from "./gpuQuoteCatalog";
 
 export type StartingPointId = "configuration" | "full_server" | "training_cluster" | "inference_fleet" | "custom";
 
@@ -93,9 +105,17 @@ export type MissingAnswer = { step: QuoteStepId; label: string };
 
 export type ReviewLine = { step: QuoteStepId; label: string; value: string | null };
 
+export type StartingPointSpec = { label: "Nodes" | "Link" | "Storage" | "Internet"; value: string };
+
+export type StartingPointCard = { gpuCount?: number; model: string; memory: string | null; specs: StartingPointSpec[] };
+
 export type ConfigurationHardware = { gpuCount: number; gpuModels: string[]; storageBytes: number; regions: string[] };
 
 const BYTES_PER_TB = 1024 ** 4;
+
+const UNANSWERED_SPEC = "—";
+
+const FABRIC_SHORT_NAMES: Record<Fabric, string> = { any: "InfiniBand or RoCE", infiniband: "InfiniBand", roce: "RoCE" };
 
 const AREA_PATTERNS: [RegionArea, RegExp][] = [
   ["us", /^(na-)?us/],
@@ -291,24 +311,21 @@ export function describeReviewLines(draft: GpuQuoteDraft): ReviewLine[] {
   return lines.filter((line): line is ReviewLine => line !== false);
 }
 
-/** The card line for a starting point, naming only what it answers unless it describes itself. */
-export function describeStartingPoint({ answers, detail }: StartingPoint): string {
-  if (detail) return detail;
+/** A spec the starting point leaves open shows a dash, because a later step asks it. */
+export function describeStartingPointCard({ answers }: StartingPoint): StartingPointCard {
+  const gpu = GPU_CATALOG.find(catalogGpu => catalogGpu.id === answers.gpuModel);
 
-  const model = answers.gpuModel === undefined ? "any GPU" : describeGpuModel({ gpuModel: answers.gpuModel, otherGpuModel: answers.otherGpuModel ?? "" });
-  const interconnectNames: Record<Interconnect, string> = { none: "PCIe only", server: "Linked in each server", cluster: "Linked across servers" };
-
-  return [
-    answers.gpuCount !== undefined && `${answers.gpuCount}× ${model}`,
-    answers.interconnect && interconnectNames[answers.interconnect],
-    answers.storageTbPerNode !== undefined && `${answers.storageTbPerNode} TB${answers.nvme ? " NVMe" : ""}`,
-    answers.areas &&
-      REGION_AREAS.filter(area => answers.areas?.includes(area.value))
-        .map(area => area.label)
-        .join(", ")
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  return {
+    gpuCount: answers.gpuCount,
+    model: describeGpuModel({ gpuModel: answers.gpuModel ?? null, otherGpuModel: answers.otherGpuModel ?? "" }) ?? "Any GPU",
+    memory: gpu ? `${gpu.vendor} · ${gpu.memory}` : null,
+    specs: [
+      { label: "Nodes", value: answers.gpuCount === undefined ? UNANSWERED_SPEC : describeNodes(answers.gpuCount) },
+      { label: "Link", value: describeStartingPointLink(answers, gpu) },
+      { label: "Storage", value: answers.storageTbPerNode === undefined ? UNANSWERED_SPEC : `${answers.storageTbPerNode} TB / node` },
+      { label: "Internet", value: UPLINKS.find(uplink => uplink.value === answers.uplinkGbps)?.spec ?? UNANSWERED_SPEC }
+    ]
+  };
 }
 
 const REPLY_PROMISES: Record<QuoteRequestReceipt["lane"], { replier: string; window: string }> = {
@@ -328,6 +345,20 @@ function describeReplyTime(dueAt: Date, now: Date): string {
   if (daysAway === 0) return `${time} today`;
   if (daysAway === 1) return `${time} tomorrow`;
   return `${dueAt.toLocaleDateString("en-US", { weekday: "long" })} ${time}`;
+}
+
+function describeNodes(gpuCount: number): string {
+  const [nodes, gpusPerNode] = isWholeNodes(gpuCount) ? [gpuCount / GPUS_PER_NODE, GPUS_PER_NODE] : [1, gpuCount];
+  return `${nodes} × ${gpusPerNode} ${gpusPerNode === 1 ? "GPU" : "GPUs"}`;
+}
+
+function describeStartingPointLink({ gpuCount, interconnect, fabric }: DraftAnswers, gpu: CatalogGpu | undefined): string {
+  const serverLink = gpu ? SERVER_LINKS[gpu.vendor] : "NVLink or Infinity Fabric";
+
+  if (interconnect === "server") return serverLink;
+  if (interconnect === "cluster") return `${serverLink} + ${FABRIC_SHORT_NAMES[fabric ?? "any"]}`;
+  if (interconnect === "none" || (gpuCount !== undefined && !isWholeNodes(gpuCount))) return "PCIe only";
+  return UNANSWERED_SPEC;
 }
 
 function describeGpus(draft: GpuQuoteDraft): string | null {

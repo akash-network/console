@@ -1,9 +1,10 @@
-import { Input, QuantityStepper, Switch } from "@akashnetwork/ui/components";
+import { Input, QuantityStepper, RadioGroup, RadioGroupItem, Switch } from "@akashnetwork/ui/components";
+import { cn } from "@akashnetwork/ui/utils";
 
 import type { Interconnect } from "../gpuQuoteDraft/gpuQuoteCatalog";
 import { FABRIC_SPEEDS, FABRICS, GPU_CATALOG, GPUS_PER_NODE, MAX_STORAGE_TB_PER_NODE, OTHER_GPU_MODEL } from "../gpuQuoteDraft/gpuQuoteCatalog";
 import type { GpuQuoteDraft, StartingPoint, StartingPointId } from "../gpuQuoteDraft/gpuQuoteDraft";
-import { describeStartingPoint, isWholeNodes } from "../gpuQuoteDraft/gpuQuoteDraft";
+import { CUSTOM_STARTING_POINT, describeStartingPointCard, isWholeNodes } from "../gpuQuoteDraft/gpuQuoteDraft";
 import type { Choice, Option } from "./ChoiceControls";
 import { ChoiceChips, FieldGroup, OptionCards } from "./ChoiceControls";
 
@@ -12,6 +13,20 @@ export type DraftFieldProps = { draft: GpuQuoteDraft; onChange: (patch: Partial<
 const MAX_SERVERS = 125;
 const MAX_GPU_MODEL_LENGTH = 100;
 const WHOLE_SERVERS = "servers";
+
+const MAX_PACKAGES_PER_ROW = 3;
+
+const ONE_ROW_PACKAGES_CLASSES = "grid-cols-1 gap-2.5 sm:grid-cols-3";
+
+const TWO_COLUMN_PACKAGES_CLASSES = "grid-cols-1 gap-2.5 sm:grid-cols-2";
+
+const PICKABLE_CARD_CLASSES =
+  "cursor-pointer rounded-xl border bg-background shadow-sm transition-[border-color,box-shadow] hover:border-foreground/35 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[[data-state=checked]]:border-foreground has-[[data-state=checked]]:ring-1 has-[[data-state=checked]]:ring-foreground";
+
+/** Each package spans the six rows of its column's subgrid, so the same spec lines up across the cards beside it. */
+const PACKAGE_CARD_CLASSES = cn(PICKABLE_CARD_CLASSES, "row-span-6 grid min-w-0 grid-rows-subgrid gap-y-0 overflow-hidden");
+
+const CUSTOM_CARD_CLASSES = cn(PICKABLE_CARD_CLASSES, "col-span-full flex items-start gap-3 px-3.5 py-3");
 
 const GPU_GROUPS: { name: string; choices: Choice<string>[] }[] = [
   ...[...new Set(GPU_CATALOG.map(gpu => gpu.group))].map(group => ({
@@ -55,18 +70,56 @@ export function StartingPointField({
   value: StartingPointId | null;
   onPick: (startingPoint: StartingPoint) => void;
 }) {
+  const packages = startingPoints.filter(startingPoint => startingPoint.id !== CUSTOM_STARTING_POINT.id);
+
   return (
-    <OptionCards
-      label="Starting point"
-      options={startingPoints.map(startingPoint => ({
-        value: startingPoint.id,
-        title: startingPoint.name,
-        description: startingPoint.use,
-        detail: describeStartingPoint(startingPoint)
-      }))}
-      value={value}
-      onChange={id => onPick(startingPoints.find(startingPoint => startingPoint.id === id)!)}
-    />
+    <RadioGroup
+      aria-label="Starting point"
+      value={value ?? ""}
+      onValueChange={id => onPick(startingPoints.find(startingPoint => startingPoint.id === id)!)}
+      className={packages.length > MAX_PACKAGES_PER_ROW ? TWO_COLUMN_PACKAGES_CLASSES : ONE_ROW_PACKAGES_CLASSES}
+    >
+      {packages.map(startingPoint => (
+        <PackageCard key={startingPoint.id} startingPoint={startingPoint} />
+      ))}
+      <label className={CUSTOM_CARD_CLASSES}>
+        <RadioGroupItem value={CUSTOM_STARTING_POINT.id} className="mt-0.5 shrink-0" />
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-sm font-semibold">{CUSTOM_STARTING_POINT.name}</span>
+          <span className="text-[13px] text-muted-foreground">{CUSTOM_STARTING_POINT.use}</span>
+        </span>
+      </label>
+    </RadioGroup>
+  );
+}
+
+function PackageCard({ startingPoint }: { startingPoint: StartingPoint }) {
+  const { gpuCount, model, memory, specs } = describeStartingPointCard(startingPoint);
+
+  return (
+    <label className={PACKAGE_CARD_CLASSES}>
+      <span className="flex min-w-0 items-start gap-2 px-3.5 pb-3 pt-3.5">
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="text-sm font-semibold">{startingPoint.name}</span>
+          <span className="text-[13px] leading-snug text-muted-foreground">{startingPoint.use}</span>
+          {startingPoint.detail && <span className="font-mono text-xs text-muted-foreground">{startingPoint.detail}</span>}
+        </span>
+        <RadioGroupItem value={startingPoint.id} className="mt-0.5 shrink-0" />
+      </span>
+      <span className="flex min-w-0 flex-col gap-1 border-t px-3.5 pb-3 pt-3">
+        {memory && <span className="truncate font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-muted-foreground">{memory}</span>}
+        <span className="flex min-w-0 items-baseline gap-1">
+          {gpuCount !== undefined && <span className="shrink-0 font-mono text-sm font-semibold text-muted-foreground">{gpuCount}×</span>}
+          <span className="truncate text-2xl font-bold tracking-tight">{model}</span>
+        </span>
+      </span>
+      {specs.map(spec => (
+        <span key={spec.label} className="flex min-w-0 items-baseline justify-between gap-2.5 border-t px-3.5 py-2 last:pb-3">
+          <span className="shrink-0 text-xs text-muted-foreground">{spec.label}</span>
+          <span className="min-w-0 text-right font-mono text-xs [overflow-wrap:anywhere]">{spec.value}</span>
+        </span>
+      ))}
+    </label>
   );
 }
 
