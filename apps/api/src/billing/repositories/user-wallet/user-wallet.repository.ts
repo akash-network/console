@@ -271,6 +271,17 @@ export class UserWalletRepository extends OrgScopedRepository<ApiPgTables["UserW
     await this.updateById(id, { deploymentAllowance: 0, feeAllowance: 0, isTrialing: false, abuseLockedAt: new Date(), abuseLockedReason: reason });
   }
 
+  /** Activated as well as locked, so a payment settles on it and lifts the lock just as it does for a wallet locked during its trial. */
+  async activateLockedForAbuse(id: UserWalletOutput["id"], reason: string): Promise<UserWalletOutput> {
+    const now = new Date();
+
+    return await this.updateById(
+      id,
+      { deploymentAllowance: 0, feeAllowance: 0, isTrialing: false, activatedAt: now, abuseLockedAt: now, abuseLockedReason: reason },
+      { returning: true }
+    );
+  }
+
   /** Re-checks the lock in SQL so a lock applied after the payer read the wallet is still cleared by that payment. */
   async clearAbuseLock(id: UserWalletOutput["id"]): Promise<boolean> {
     const [cleared] = await this.cursor

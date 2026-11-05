@@ -10,16 +10,11 @@ import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.se
 import { type CreateLogger, LOGGER_FACTORY, TxService } from "@src/core";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { ABUSE_LOCK_REASON, type AbuseLockReason } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 import { sanitizeEvidenceText } from "@src/workload-abuse/lib/evidence-scanner/evidence-scanner";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import { TrialWorkloadProbeJobService } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { WorkloadAbuseInstrumentationService } from "@src/workload-abuse/services/workload-abuse-instrumentation/workload-abuse-instrumentation.service";
-
-export const ABUSE_LOCK_REASON = "workload_abuse";
-
-export const BLOCKED_DOMAIN_LOCK_REASON = "blocked_domain";
-
-export type AbuseLockReason = typeof ABUSE_LOCK_REASON | typeof BLOCKED_DOMAIN_LOCK_REASON;
 
 export type EnforcementOutcome = {
   depositGrantRevoked: boolean;

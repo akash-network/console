@@ -10,6 +10,7 @@ import { ManagedSignerService } from "@src/billing/services/managed-signer/manag
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { type ApiPgDatabase, JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 import { DeploymentWriterService } from "@src/deployment/services/deployment-writer/deployment-writer.service";
+import { ABUSE_LOCK_REASON } from "@src/workload-abuse/lib/abuse-lock-reason/abuse-lock-reason";
 import { WorkloadAbuseDetectionRepository } from "@src/workload-abuse/repositories/workload-abuse-detection/workload-abuse-detection.repository";
 import {
   BlockEmailDomainOfWallet,
@@ -17,7 +18,6 @@ import {
   blockEmailDomainOfWalletKeyFor
 } from "@src/workload-abuse/services/block-email-domain-of-wallet/block-email-domain-of-wallet.handler";
 import { ProbeTrialDeploymentHandler } from "@src/workload-abuse/services/probe-trial-deployment/probe-trial-deployment.handler";
-import { ABUSE_LOCK_REASON } from "@src/workload-abuse/services/trial-abuse-enforcement/trial-abuse-enforcement.service";
 import { ProbeTrialDeployment, probeTrialDeploymentKeyFor } from "@src/workload-abuse/services/trial-workload-probe-job/trial-workload-probe-job.service";
 import { EnforceTrialAbuse, EnforceTrialAbuseHandler, enforceTrialAbuseKeyFor } from "./enforce-trial-abuse.handler";
 

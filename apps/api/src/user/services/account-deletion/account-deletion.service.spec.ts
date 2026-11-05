@@ -29,6 +29,7 @@ import type {
 import { PURGE_DELETED_ACCOUNT_RETRY_OPTIONS, PurgeDeletedAccount } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
 import type { TeamRecordRetentionService } from "@src/user/services/team-record-retention/team-record-retention.service";
 import type { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
+import type { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
 import { AccountDeletionService, DELETION_LINK_TTL_MINUTES } from "./account-deletion.service";
 
 import { mockConfigService } from "@test/mocks/config-service.mock";
@@ -330,6 +331,16 @@ describe(AccountDeletionService.name, () => {
 
       expect(feedbackErasureService.eraseAccountFeedback).toHaveBeenCalledWith(user.id);
       expect(feedbackErasureService.eraseAccountFeedback.mock.invocationCallOrder[0]).toBeLessThan(userRepository.deleteById.mock.invocationCallOrder[0]);
+    });
+
+    it("remembers the abuse lock of the account's wallet before the user row goes", async () => {
+      const wallet = createUserWallet({ abuseLockedAt: new Date(), abuseLockedReason: "workload_abuse" });
+      const { service, user, userRepository, deletedAccountAbuseLockService } = setup({ wallet, storedToken: {} });
+
+      await service.confirm({ token: "link-token" });
+
+      expect(deletedAccountAbuseLockService.rememberLockOf).toHaveBeenCalledWith(user, wallet);
+      expect(deletedAccountAbuseLockService.rememberLockOf.mock.invocationCallOrder[0]).toBeLessThan(userRepository.deleteById.mock.invocationCallOrder[0]);
     });
 
     it("checks the team owners once the user row is locked, inside the erasing transaction", async () => {
@@ -702,6 +713,7 @@ describe(AccountDeletionService.name, () => {
     const teamsOf = (owned: TeamReference[]) => ({ goingWithAccount: input.teamsGoingWithAccount ?? [], toTransfer: owned });
     accountTeamsService.assess.mockImplementation(async owned => teamsOf(owned));
     accountTeamsService.lockAndAssess.mockImplementation(async owned => teamsOf(owned));
+    const deletedAccountAbuseLockService = mock<DeletedAccountAbuseLockService>();
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
 
@@ -724,6 +736,7 @@ describe(AccountDeletionService.name, () => {
       featureFlagsService,
       deploymentConfig,
       accountTeamsService,
+      deletedAccountAbuseLockService,
       createLogger
     );
 
@@ -748,6 +761,7 @@ describe(AccountDeletionService.name, () => {
       analyticsService,
       featureFlagsService,
       accountTeamsService,
+      deletedAccountAbuseLockService,
       logger,
       createLogger
     };

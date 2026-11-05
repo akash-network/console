@@ -16,6 +16,7 @@ import { ProviderJwtTokenService } from "@src/provider/services/provider-jwt-tok
 import type { UserOutput } from "@src/user/repositories";
 import { UserRepository } from "@src/user/repositories";
 import { BlockedEmailDomainService } from "@src/workload-abuse/services/blocked-email-domain/blocked-email-domain.service";
+import { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
 import { UserWalletRepository } from "../../repositories/user-wallet/user-wallet.repository";
 import { TrialActivationInstrumentationService } from "../activate-trial/trial-activation-instrumentation.service";
 import { ManagedSignerService } from "../managed-signer/managed-signer.service";
@@ -239,6 +240,55 @@ describe(WalletInitializerService.name, () => {
       expect(di.resolve(TrialActivationInstrumentationService).recordActivated).not.toHaveBeenCalled();
     });
 
+    it("activates the wallet locked for abuse instead of granting a trial when a deleted account's lock matches the user", async () => {
+      const user = createUser({ emailVerified: true });
+      const wallet = createUserWallet({ userId: user.id, activatedAt: null });
+      const activateLockedForAbuse = vi.fn(async (_id: number, reason: string) => ({
+        ...wallet,
+        isTrialing: false,
+        activatedAt: new Date(),
+        abuseLockedAt: new Date(),
+        abuseLockedReason: reason
+      }));
+      const updateWalletById = vi.fn();
+      const di = setup({
+        user,
+        deletedAccountLockReason: "workload_abuse",
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet, isNew: false }),
+        activateLockedForAbuse,
+        updateWalletById
+      });
+
+      const result = await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
+
+      expect(di.resolve(DeletedAccountAbuseLockService).findLockReasonOf).toHaveBeenCalledWith(user);
+      expect(activateLockedForAbuse).toHaveBeenCalledWith(wallet.id, "workload_abuse");
+      expect(result).toMatchObject({ id: wallet.id, address: wallet.address, isTrialing: false });
+      expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).not.toHaveBeenCalled();
+      expect(updateWalletById).not.toHaveBeenCalled();
+      expect(di.resolve(DomainEventsService).publish).not.toHaveBeenCalled();
+      expect(di.resolve(TrialActivationInstrumentationService).recordActivated).not.toHaveBeenCalled();
+    });
+
+    it("looks for a deleted account's lock only once the wallet row is held", async () => {
+      const user = createUser({ emailVerified: true });
+      const wallet = createUserWallet({ userId: user.id, activatedAt: null });
+      const findWalletAndLock = vi.fn().mockResolvedValue(wallet);
+      const di = setup({
+        user,
+        getOrCreateWallet: vi.fn().mockResolvedValue({ wallet, isNew: false }),
+        findWalletAndLock,
+        updateWalletById: vi.fn().mockImplementation(async (id, patch) => ({ ...wallet, ...patch }))
+      });
+      vi.mocked(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).mockResolvedValue(createChainWallet());
+
+      await di.resolve(WalletInitializerService).initializeAndGrantTrialLimits(user.id);
+
+      const findLockReasonOf = vi.mocked(di.resolve(DeletedAccountAbuseLockService).findLockReasonOf);
+      expect(findWalletAndLock.mock.invocationCallOrder[0]).toBeLessThan(findLockReasonOf.mock.invocationCallOrder[0]);
+      expect(di.resolve(ManagedUserWalletService).createAndAuthorizeTrialSpending).toHaveBeenCalled();
+    });
+
     it("records activation instrumentation on successful activation", async () => {
       const userId = "test-user-id";
       const wallet = createUserWallet({ userId, activatedAt: null });
@@ -365,12 +415,14 @@ describe(WalletInitializerService.name, () => {
     updateWalletById?: UserWalletRepository["updateById"];
     findWalletAndLock?: UserWalletRepository["findOneByAndLock"];
     deleteWalletById?: UserWalletRepository["deleteById"];
+    activateLockedForAbuse?: UserWalletRepository["activateLockedForAbuse"];
     userId?: string;
     user?: UserOutput;
     isProduction?: boolean;
     hasDuplicateFingerprint?: boolean;
     isFingerprintCheckEnabled?: boolean;
     isBlockedEmailDomain?: boolean;
+    deletedAccountLockReason?: string;
   }) {
     const di = container.createChildContainer();
     di.registerInstance(TYPE_REGISTRY, new Registry());
@@ -383,6 +435,7 @@ describe(WalletInitializerService.name, () => {
         updateById: input?.updateWalletById,
         findOneByAndLock: input?.findWalletAndLock ?? lockEnsuredWallet(input?.getOrCreateWallet),
         deleteById: input?.deleteWalletById ?? vi.fn(),
+        activateLockedForAbuse: input?.activateLockedForAbuse,
         accessibleBy() {
           return this as unknown as UserWalletRepository;
         },
@@ -436,6 +489,10 @@ describe(WalletInitializerService.name, () => {
     di.registerInstance(
       BlockedEmailDomainService,
       mock<BlockedEmailDomainService>({ isBlockedEmail: vi.fn().mockResolvedValue(input?.isBlockedEmailDomain ?? false) })
+    );
+    di.registerInstance(
+      DeletedAccountAbuseLockService,
+      mock<DeletedAccountAbuseLockService>({ findLockReasonOf: vi.fn().mockResolvedValue(input?.deletedAccountLockReason) })
     );
 
     container.clearInstances();

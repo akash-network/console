@@ -4,7 +4,7 @@ import { envSchema } from "./env.config";
 
 describe("workload abuse env config", () => {
   it("defaults to probing disabled with no signatures", () => {
-    const config = envSchema.parse({});
+    const config = setup();
 
     expect(config.WORKLOAD_ABUSE_PROBE_ENABLED).toBe(false);
     expect(config.WORKLOAD_ABUSE_SIGNATURES).toEqual([]);
@@ -12,7 +12,7 @@ describe("workload abuse env config", () => {
   });
 
   it("compiles the signature document into case-insensitive regexes tagged with their bucket", () => {
-    const config = envSchema.parse({
+    const config = setup({
       WORKLOAD_ABUSE_PROBE_ENABLED: "true",
       WORKLOAD_ABUSE_SIGNATURES: JSON.stringify({
         hard: [{ category: "stratum-url", pattern: "stratum\\+tcp://" }],
@@ -28,7 +28,7 @@ describe("workload abuse env config", () => {
   });
 
   it("defaults behavioural signals to off with no relay endpoints", () => {
-    const config = envSchema.parse({});
+    const config = setup();
 
     expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED).toBe(false);
     expect(config.WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS).toEqual([]);
@@ -37,7 +37,7 @@ describe("workload abuse env config", () => {
   });
 
   it("defaults behavioural enforcement to off behind a multi-probe agreement", () => {
-    const config = envSchema.parse({});
+    const config = setup();
 
     expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_ENFORCEMENT_ENABLED).toBe(false);
     expect(config.WORKLOAD_ABUSE_BEHAVIOURAL_AGREEMENT_PROBES).toBe(3);
@@ -45,44 +45,44 @@ describe("workload abuse env config", () => {
   });
 
   it("parses the relay endpoint list", () => {
-    const config = envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: JSON.stringify(["10.0.0.7", "10.0.0.8:443"]) });
+    const config = setup({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: JSON.stringify(["10.0.0.7", "10.0.0.8:443"]) });
 
     expect(config.WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS).toEqual(["10.0.0.7", "10.0.0.8:443"]);
   });
 
   it("falls back to no relay endpoints when the variable is set but blank", () => {
-    const config = envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: "  " });
+    const config = setup({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: "  " });
 
     expect(config.WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS).toEqual([]);
   });
 
   it("rejects a relay endpoint list that is not a JSON array of strings", () => {
-    expect(() => envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: "10.0.0.7" })).toThrow(/ip or ip:port/);
-    expect(() => envSchema.parse({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: JSON.stringify([443]) })).toThrow(/ip or ip:port/);
+    expect(() => setup({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: "10.0.0.7" })).toThrow(/ip or ip:port/);
+    expect(() => setup({ WORKLOAD_ABUSE_SIGNAL_RELAY_ENDPOINTS: JSON.stringify([443]) })).toThrow(/ip or ip:port/);
   });
 
   it("rejects a signature document that is not JSON", () => {
-    expect(() => envSchema.parse({ WORKLOAD_ABUSE_SIGNATURES: "not json" })).toThrow(/valid signature document/);
+    expect(() => setup({ WORKLOAD_ABUSE_SIGNATURES: "not json" })).toThrow(/valid signature document/);
   });
 
   it("rejects a signature whose pattern is not a valid regex", () => {
     const document = JSON.stringify({ hard: [{ category: "broken", pattern: "(" }] });
 
-    expect(() => envSchema.parse({ WORKLOAD_ABUSE_SIGNATURES: document })).toThrow(/invalid pattern for hard\/broken/);
+    expect(() => setup({ WORKLOAD_ABUSE_SIGNATURES: document })).toThrow(/invalid pattern for hard\/broken/);
   });
 
   it("parses the initial delay list and rejects negative or blank entries", () => {
-    expect(envSchema.parse({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: "2, 10" }).WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN).toEqual([2, 10]);
-    expect(() => envSchema.parse({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: "2,-1" })).toThrow(/non-negative integers/);
-    expect(() => envSchema.parse({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: "1,,2" })).toThrow(/non-negative integers/);
+    expect(setup({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: "2, 10" }).WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN).toEqual([2, 10]);
+    expect(() => setup({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: "2,-1" })).toThrow(/non-negative integers/);
+    expect(() => setup({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: "1,,2" })).toThrow(/non-negative integers/);
   });
 
   it("falls back to the default schedule when the initial delay setting is blank", () => {
-    expect(envSchema.parse({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: " " }).WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN).toEqual([5, 20, 60]);
+    expect(setup({ WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN: " " }).WORKLOAD_ABUSE_PROBE_INITIAL_DELAYS_MIN).toEqual([5, 20, 60]);
   });
 
   it("falls back to the behavioural signal defaults when those variables are set but blank", () => {
-    const config = envSchema.parse({
+    const config = setup({
       WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED: "",
       WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB: "",
       WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB: " "
@@ -94,7 +94,7 @@ describe("workload abuse env config", () => {
   });
 
   it("falls back to the enforcement defaults when those variables are set but blank", () => {
-    const config = envSchema.parse({
+    const config = setup({
       WORKLOAD_ABUSE_BEHAVIOURAL_ENFORCEMENT_ENABLED: "",
       WORKLOAD_ABUSE_BEHAVIOURAL_AGREEMENT_PROBES: "",
       WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES: " "
@@ -106,7 +106,7 @@ describe("workload abuse env config", () => {
   });
 
   it("still reads the enforcement variables when they carry a value", () => {
-    const config = envSchema.parse({
+    const config = setup({
       WORKLOAD_ABUSE_BEHAVIOURAL_ENFORCEMENT_ENABLED: "true",
       WORKLOAD_ABUSE_BEHAVIOURAL_AGREEMENT_PROBES: "5",
       WORKLOAD_ABUSE_BEHAVIOURAL_MIN_WINDOW_MINUTES: "240"
@@ -118,7 +118,7 @@ describe("workload abuse env config", () => {
   });
 
   it("still reads the behavioural signal variables when they carry a value", () => {
-    const config = envSchema.parse({
+    const config = setup({
       WORKLOAD_ABUSE_BEHAVIOURAL_SIGNALS_ENABLED: "true",
       WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB: "2048",
       WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB: "512"
@@ -128,4 +128,16 @@ describe("workload abuse env config", () => {
     expect(config.WORKLOAD_ABUSE_SIGNAL_ACCEL_MIN_VRAM_MB).toBe(2048);
     expect(config.WORKLOAD_ABUSE_SIGNAL_ARTIFACT_MIN_MB).toBe(512);
   });
+
+  it("requires an account hash secret of at least 32 characters", () => {
+    const secret = "s".repeat(32);
+
+    expect(setup({ WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET: secret }).WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET).toBe(secret);
+    expect(() => setup({ WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET: "s".repeat(31) })).toThrow(/WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET/);
+    expect(() => setup({ WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET: " " })).toThrow(/WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET/);
+  });
+
+  function setup(input: Record<string, string> = {}) {
+    return envSchema.parse({ WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET: "a".repeat(32), ...input });
+  }
 });

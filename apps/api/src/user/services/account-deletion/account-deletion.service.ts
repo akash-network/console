@@ -33,6 +33,7 @@ import {
 import { PURGE_DELETED_ACCOUNT_RETRY_OPTIONS, PurgeDeletedAccount } from "@src/user/services/purge-deleted-account/purge-deleted-account.handler";
 import { TeamRecordRetentionService } from "@src/user/services/team-record-retention/team-record-retention.service";
 import { WorkloadProbeEvidenceRepository } from "@src/workload-abuse/repositories/workload-probe-evidence/workload-probe-evidence.repository";
+import { DeletedAccountAbuseLockService } from "@src/workload-abuse/services/deleted-account-abuse-lock/deleted-account-abuse-lock.service";
 
 export const DELETION_LINK_TTL_MINUTES = 15;
 export const DELETION_LINK_RESEND_COOLDOWN_SECONDS = 60;
@@ -68,6 +69,7 @@ export class AccountDeletionService {
     private readonly featureFlagsService: FeatureFlagsService,
     private readonly deploymentConfig: DeploymentConfigService,
     private readonly accountTeamsService: AccountTeamsService,
+    private readonly deletedAccountAbuseLockService: DeletedAccountAbuseLockService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: AccountDeletionService.name });
@@ -244,6 +246,7 @@ export class AccountDeletionService {
       if (wallet) await this.workloadProbeEvidenceRepository.deleteByWalletId(wallet.id);
       await this.departedMemberAlertsService.stopEveryTeamAlertTo(user.id);
       await this.feedbackErasureService.eraseAccountFeedback(user.id);
+      await this.deletedAccountAbuseLockService.rememberLockOf(lockedUser, wallet);
       await this.userRepository.deleteById(user.id);
       if (wallet) await userWallets.detachFromOrganization(wallet.id);
       if (personalOrganization) await this.organizationRepository.deleteById(personalOrganization.id);
