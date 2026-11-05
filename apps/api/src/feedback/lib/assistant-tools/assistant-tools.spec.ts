@@ -2,7 +2,16 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { CLIENT_TOOL_ARGUMENTS, PROPOSAL_TOOL_ARGUMENTS, READ_TOOL_ARGUMENTS } from "./assistant-tool-arguments";
-import { assistantChatTools, isClientToolName, isReadToolName, jsonSchemaOf, proposalActionTypeOf, proposalToolNameOf } from "./assistant-tools";
+import {
+  assistantChatTools,
+  isClientToolName,
+  isLiveHelpToolName,
+  isReadToolName,
+  jsonSchemaOf,
+  proposalActionTypeOf,
+  proposalToolNameOf,
+  splitProposalArguments
+} from "./assistant-tools";
 
 describe("assistant tools", () => {
   it("names proposal tools after their action and reads them back", () => {
@@ -29,6 +38,20 @@ describe("assistant tools", () => {
     });
   });
 
+  it("recognizes only the live help tool as live help", () => {
+    expect(isLiveHelpToolName("suggest_live_help")).toBe(true);
+    expect(isLiveHelpToolName("propose_suggest_live_help")).toBe(false);
+  });
+
+  it("splits a proposal's diagnosis from the action's arguments", () => {
+    const diagnosis = { summary: "Out of memory", evidence: ["OOMKilled"] };
+
+    expect(splitProposalArguments({ dseq: "42", diagnosis })).toEqual({ actionArguments: { dseq: "42" }, diagnosis });
+    expect(splitProposalArguments({ dseq: "42" })).toEqual({ actionArguments: { dseq: "42" }, diagnosis: undefined });
+    expect(splitProposalArguments(["42"])).toEqual({ actionArguments: ["42"], diagnosis: undefined });
+    expect(splitProposalArguments(null)).toEqual({ actionArguments: null, diagnosis: undefined });
+  });
+
   it("offers every read, client and proposal tool once, with a description and no references", () => {
     const tools = assistantChatTools();
     const names = tools.map(({ function: { name } }) => name);
@@ -36,11 +59,36 @@ describe("assistant tools", () => {
     expect(names).toEqual([
       ...Object.keys(READ_TOOL_ARGUMENTS),
       ...Object.keys(CLIENT_TOOL_ARGUMENTS),
-      ...Object.keys(PROPOSAL_TOOL_ARGUMENTS).map(type => `propose_${type}`)
+      ...Object.keys(PROPOSAL_TOOL_ARGUMENTS).map(type => `propose_${type}`),
+      "suggest_live_help"
     ]);
     expect(tools.every(({ type, function: { description, parameters } }) => type === "function" && !!description && parameters.type === "object")).toBe(true);
     expect(JSON.stringify(tools)).not.toContain("$ref");
     expect(assistantChatTools()).toBe(tools);
+  });
+
+  it("lets every proposal carry an optional diagnosis next to its own arguments", () => {
+    const parameters = assistantChatTools().find(tool => tool.function.name === "propose_close_deployment")!.function.parameters;
+
+    expect(parameters.required).toEqual(["dseq", "reason"]);
+    expect(parameters.properties).toMatchObject({
+      dseq: expect.objectContaining({ type: "string" }),
+      diagnosis: {
+        type: "object",
+        description: expect.stringContaining("diagnosed"),
+        properties: { summary: expect.objectContaining({ maxLength: 300 }), evidence: expect.objectContaining({ type: "array", maxItems: 6 }) },
+        required: ["summary", "evidence"]
+      }
+    });
+  });
+
+  it("asks for a typed reason when offering live help", () => {
+    const parameters = assistantChatTools().find(tool => tool.function.name === "suggest_live_help")!.function.parameters;
+
+    expect(parameters).toMatchObject({
+      required: ["reason"],
+      properties: { reason: { type: "string", enum: ["provider_side_issue", "not_supported_here", "no_confident_answer", "user_asked_for_a_person"] } }
+    });
   });
 
   it("offers no shell, deletion, role or key tools", () => {

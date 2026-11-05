@@ -1,9 +1,12 @@
 import { OpenAPIHono, type z } from "@hono/zod-openapi";
 
+import { AssistantDiagnosisSchema } from "@src/feedback/http-schemas/assistant-action.schema";
 import type { ChatTool } from "@src/feedback/services/akashml-client/akashml.client";
 import {
   CLIENT_TOOL_ARGUMENTS,
   type ClientToolName,
+  LIVE_HELP_TOOL_ARGUMENTS,
+  LIVE_HELP_TOOL_NAME,
   PROPOSAL_TOOL_ARGUMENTS,
   type ProposalActionType,
   READ_TOOL_ARGUMENTS,
@@ -42,7 +45,8 @@ const PROPOSAL_TOOL_DESCRIPTIONS: Record<ProposalActionType, string> = {
   remove_runtime_limit: "Proposes removing a deployment's runtime limit so it runs until closed.",
   send_manifest_again: "Proposes sending the deployment's manifest to its provider again. It does not restart containers.",
   close_deployment: "Proposes closing one deployment. Closing cannot be undone. Ask the user for the reason first.",
-  create_alert: "Proposes an email alert: a deployment's low balance, a deployment closing, or a low wallet balance.",
+  create_alert:
+    "Proposes an email alert sent when a deployment closes, or updates the existing one. Console has no per-deployment balance or wallet balance alert to set up.",
   redeem_coupon: "Proposes redeeming a coupon code.",
   save_as_template: "Proposes saving a deployment's SDL as a personal template.",
   favorite_provider: "Proposes adding a provider to the user's favorites.",
@@ -51,6 +55,11 @@ const PROPOSAL_TOOL_DESCRIPTIONS: Record<ProposalActionType, string> = {
   configure_auto_recharge: "Proposes opening the auto recharge settings.",
   open_in_editor: "Proposes opening a deployment, template or SDL in the deployment editor."
 };
+
+const LIVE_HELP_TOOL_DESCRIPTION =
+  "Shows the user a card offering live help on Discord. Call it whenever you cannot solve the problem yourself, and still say so in your answer.";
+
+const DIAGNOSIS_PARAMETER = "diagnosis";
 
 export function proposalToolNameOf(type: ProposalActionType): string {
   return `${PROPOSAL_TOOL_PREFIX}${type}`;
@@ -71,6 +80,18 @@ export function isClientToolName(name: string): name is ClientToolName {
   return Object.hasOwn(CLIENT_TOOL_ARGUMENTS, name);
 }
 
+export function isLiveHelpToolName(name: string): boolean {
+  return name === LIVE_HELP_TOOL_NAME;
+}
+
+/** Splits the optional diagnosis every proposal tool accepts from the action's own arguments, which are validated apart. */
+export function splitProposalArguments(args: unknown): { actionArguments: unknown; diagnosis: unknown } {
+  if (typeof args !== "object" || args === null || Array.isArray(args)) return { actionArguments: args, diagnosis: undefined };
+
+  const { [DIAGNOSIS_PARAMETER]: diagnosis, ...actionArguments } = args as Record<string, unknown>;
+  return { actionArguments, diagnosis };
+}
+
 /** Reuses the OpenAPI 3.1 generator the routes already rely on, whose schemas are JSON Schema the model's tool calling accepts. */
 export function jsonSchemaOf(schema: z.ZodTypeAny): Record<string, unknown> {
   const generator = new OpenAPIHono();
@@ -84,15 +105,27 @@ function toolOf(name: string, description: string, schema: z.ZodTypeAny): ChatTo
   return { type: "function", function: { name, description, parameters: jsonSchemaOf(schema) } };
 }
 
+function proposalToolOf(type: ProposalActionType): ChatTool {
+  const tool = toolOf(proposalToolNameOf(type), PROPOSAL_TOOL_DESCRIPTIONS[type], PROPOSAL_TOOL_ARGUMENTS[type]);
+  const { properties, ...parameters } = tool.function.parameters;
+
+  return {
+    ...tool,
+    function: {
+      ...tool.function,
+      parameters: { ...parameters, properties: { ...(properties as Record<string, unknown>), [DIAGNOSIS_PARAMETER]: jsonSchemaOf(AssistantDiagnosisSchema) } }
+    }
+  };
+}
+
 let chatTools: ChatTool[] | undefined;
 
 export function assistantChatTools(): ChatTool[] {
   chatTools ??= [
     ...Object.entries(READ_TOOL_ARGUMENTS).map(([name, schema]) => toolOf(name, READ_TOOL_DESCRIPTIONS[name as ReadToolName], schema)),
     ...Object.entries(CLIENT_TOOL_ARGUMENTS).map(([name, schema]) => toolOf(name, CLIENT_TOOL_DESCRIPTIONS[name as ClientToolName], schema)),
-    ...Object.entries(PROPOSAL_TOOL_ARGUMENTS).map(([type, schema]) =>
-      toolOf(proposalToolNameOf(type as ProposalActionType), PROPOSAL_TOOL_DESCRIPTIONS[type as ProposalActionType], schema)
-    )
+    ...Object.keys(PROPOSAL_TOOL_ARGUMENTS).map(type => proposalToolOf(type as ProposalActionType)),
+    toolOf(LIVE_HELP_TOOL_NAME, LIVE_HELP_TOOL_DESCRIPTION, LIVE_HELP_TOOL_ARGUMENTS)
   ];
 
   return chatTools;

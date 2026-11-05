@@ -1,22 +1,30 @@
 import { isHttpError } from "http-errors";
 import { randomUUID } from "node:crypto";
 import { inject, singleton } from "tsyringe";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
-import type { AssistantAction } from "@src/feedback/http-schemas/assistant-action.schema";
+import { type AssistantAction, type AssistantDiagnosis, AssistantDiagnosisSchema } from "@src/feedback/http-schemas/assistant-action.schema";
+import type { AssistantLiveHelpReason } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { assistantKnowledge } from "@src/feedback/lib/assistant-knowledge/assistant-knowledge";
 import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
 import {
   CLIENT_TOOL_ARGUMENTS,
   type ClientToolArguments,
   type ClientToolName,
+  LIVE_HELP_TOOL_ARGUMENTS,
   PROPOSAL_TOOL_ARGUMENTS,
   READ_TOOL_ARGUMENTS,
   type ReadToolArguments,
   type ReadToolName
 } from "@src/feedback/lib/assistant-tools/assistant-tool-arguments";
-import { isClientToolName, isReadToolName, proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import {
+  isClientToolName,
+  isLiveHelpToolName,
+  isReadToolName,
+  proposalActionTypeOf,
+  splitProposalArguments
+} from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { redactSecrets } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
 import { AssistantAccountToolsService } from "@src/feedback/services/assistant-account-tools/assistant-account-tools.service";
@@ -26,13 +34,15 @@ import { AssistantProposalService, type ProposalContext } from "@src/feedback/se
 
 export const MAX_TOOL_RESULT_LENGTH = 8_000;
 const TRUNCATION_MARK = "...[truncated]";
+const DiagnosisArgumentSchema = z.object({ diagnosis: AssistantDiagnosisSchema.optional() });
 const FAILED_TOOL_MESSAGE = "The tool failed. Tell the user this data could not be read right now.";
 
 export type ClientToolCall = { [K in ClientToolName]: { id: string; name: K; arguments: ClientToolArguments<K> } }[ClientToolName];
 
 export type ToolOutcome =
   | { kind: "result"; content: string; summary: string; ok: boolean }
-  | { kind: "proposal"; content: string; summary: string; ok: true; proposalId: string; action: AssistantAction }
+  | { kind: "proposal"; content: string; summary: string; ok: true; proposalId: string; action: AssistantAction; diagnosis?: AssistantDiagnosis }
+  | { kind: "live_help"; content: string; reason: AssistantLiveHelpReason }
   | { kind: "client"; call: ClientToolCall };
 
 export function truncated(text: string, maxLength: number): string {
@@ -56,6 +66,12 @@ function summaryOf(name: ReadToolName, args: Record<string, unknown>): string {
   };
 
   return summaries[name];
+}
+
+/** Evidence is quoted from logs and events the user's workload wrote, so it is redacted like any tool result before the user or the team sees it. */
+function redactedDiagnosisOf(diagnosis: unknown): AssistantDiagnosis | undefined {
+  const parsed = DiagnosisArgumentSchema.parse({ diagnosis }).diagnosis;
+  return parsed && { summary: redactSecrets(parsed.summary), evidence: parsed.evidence.map(redactSecrets) };
 }
 
 function parsedArguments(call: ChatToolCall): unknown {
@@ -103,10 +119,23 @@ export class AssistantToolRunnerService {
       return { kind: "client", call: { id: call.id, name, arguments: CLIENT_TOOL_ARGUMENTS[name].parse(args) } as ClientToolCall };
     }
 
+    if (isLiveHelpToolName(name)) {
+      const { reason } = LIVE_HELP_TOOL_ARGUMENTS.parse(args);
+      return {
+        kind: "live_help",
+        content: toolContentOf(name, {
+          data: { shownToUser: true, note: "The user now sees a Discord card. Ask one or two short questions about what they were trying to do." }
+        }),
+        reason
+      };
+    }
+
     const type = proposalActionTypeOf(name);
     if (!type) throw new AssistantToolError(`There is no tool named ${name}.`);
 
-    const action = await this.proposalService.propose(type, PROPOSAL_TOOL_ARGUMENTS[type].parse(args), context);
+    const { actionArguments, diagnosis } = splitProposalArguments(args);
+    const redactedDiagnosis = redactedDiagnosisOf(diagnosis);
+    const action = await this.proposalService.propose(type, PROPOSAL_TOOL_ARGUMENTS[type].parse(actionArguments), context);
     const proposalId = randomUUID();
 
     return {
@@ -115,7 +144,8 @@ export class AssistantToolRunnerService {
       summary: `Proposed ${type.replaceAll("_", " ")}`,
       ok: true,
       proposalId,
-      action
+      action,
+      ...(redactedDiagnosis && { diagnosis: redactedDiagnosis })
     };
   }
 

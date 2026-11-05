@@ -36309,19 +36309,12 @@
                                 "alert": {
                                   "type": "string",
                                   "enum": [
-                                    "deployment_balance",
-                                    "deployment_closed",
-                                    "wallet_balance"
+                                    "deployment_closed"
                                   ]
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "nullable": true,
                                   "pattern": "^[1-9]\\d{0,19}$"
-                                },
-                                "thresholdUsd": {
-                                  "type": "number",
-                                  "nullable": true
                                 },
                                 "channel": {
                                   "type": "string",
@@ -36335,7 +36328,6 @@
                                 "tier",
                                 "alert",
                                 "dseq",
-                                "thresholdUsd",
                                 "channel"
                               ]
                             },
@@ -36564,12 +36556,62 @@
                             }
                           ],
                           "description": "An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`)."
+                        },
+                        "diagnosis": {
+                          "type": "object",
+                          "properties": {
+                            "summary": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300,
+                              "description": "What is wrong, in one or two plain sentences"
+                            },
+                            "evidence": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "maxLength": 300
+                              },
+                              "maxItems": 6,
+                              "description": "The log or event lines the diagnosis rests on, quoted as read and redacted"
+                            }
+                          },
+                          "required": [
+                            "summary",
+                            "evidence"
+                          ],
+                          "description": "Why the assistant proposes this action, when it answers a problem it diagnosed"
                         }
                       },
                       "required": [
                         "type",
                         "proposalId",
                         "action"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "live_help_suggested"
+                          ]
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "provider_side_issue",
+                            "not_supported_here",
+                            "no_confident_answer",
+                            "user_asked_for_a_person"
+                          ],
+                          "description": "Why the assistant cannot solve this itself; the client offers live help on Discord"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "reason"
                       ]
                     },
                     {
@@ -37786,19 +37828,12 @@
                                 "alert": {
                                   "type": "string",
                                   "enum": [
-                                    "deployment_balance",
-                                    "deployment_closed",
-                                    "wallet_balance"
+                                    "deployment_closed"
                                   ]
                                 },
                                 "dseq": {
                                   "type": "string",
-                                  "nullable": true,
                                   "pattern": "^[1-9]\\d{0,19}$"
-                                },
-                                "thresholdUsd": {
-                                  "type": "number",
-                                  "nullable": true
                                 },
                                 "channel": {
                                   "type": "string",
@@ -37812,7 +37847,6 @@
                                 "tier",
                                 "alert",
                                 "dseq",
-                                "thresholdUsd",
                                 "channel"
                               ]
                             },
@@ -38041,12 +38075,62 @@
                             }
                           ],
                           "description": "An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`)."
+                        },
+                        "diagnosis": {
+                          "type": "object",
+                          "properties": {
+                            "summary": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300,
+                              "description": "What is wrong, in one or two plain sentences"
+                            },
+                            "evidence": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "maxLength": 300
+                              },
+                              "maxItems": 6,
+                              "description": "The log or event lines the diagnosis rests on, quoted as read and redacted"
+                            }
+                          },
+                          "required": [
+                            "summary",
+                            "evidence"
+                          ],
+                          "description": "Why the assistant proposes this action, when it answers a problem it diagnosed"
                         }
                       },
                       "required": [
                         "type",
                         "proposalId",
                         "action"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "live_help_suggested"
+                          ]
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "provider_side_issue",
+                            "not_supported_here",
+                            "no_confident_answer",
+                            "user_asked_for_a_person"
+                          ],
+                          "description": "Why the assistant cannot solve this itself; the client offers live help on Discord"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "reason"
                       ]
                     },
                     {

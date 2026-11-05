@@ -3,7 +3,7 @@ import { inject, singleton } from "tsyringe";
 
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core";
 import { type AssistantStreamEvent, MAX_CLIENT_TOOL_RESULT_LENGTH } from "@src/feedback/http-schemas/assistant-conversation.schema";
-import { assistantChatTools } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { assistantChatTools, isLiveHelpToolName } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import {
@@ -23,6 +23,8 @@ export const MAX_TOOL_ROUNDS = 6;
 export const MAX_COMPLETION_TOKENS = 1_200;
 export const TURN_TIMEOUT_MS = 90_000;
 export const PENDING_TURN_TTL_MS = 5 * 60_000;
+
+const LIVE_HELP_SUMMARY = "Suggested live help on Discord";
 
 export type EmitAssistantEvent = (event: AssistantStreamEvent) => Promise<void>;
 
@@ -123,7 +125,8 @@ export class AssistantTurnService {
 
     for (const call of toolCalls) {
       const name = call.function.name;
-      await emit({ type: "tool_started", toolCallId: call.id, name });
+      const showsAsRead = !isLiveHelpToolName(name);
+      if (showsAsRead) await emit({ type: "tool_started", toolCallId: call.id, name });
       const outcome = await this.toolRunner.run(call, { isTrialing: turn.isTrialing });
 
       if (outcome.kind === "client") {
@@ -140,18 +143,29 @@ export class AssistantTurnService {
 
       messages.push({ role: "tool", tool_call_id: call.id, content: outcome.content });
 
-      if (outcome.kind === "proposal") {
-        await emit({ type: "action_proposal", proposalId: outcome.proposalId, action: outcome.action });
+      if (outcome.kind === "live_help") {
+        await emit({ type: "live_help_suggested", reason: outcome.reason });
+        await this.#record(turn, { role: "tool", content: LIVE_HELP_SUMMARY, toolName: name, toolPayload: { toolCallId: call.id, reason: outcome.reason } });
+        continue;
       }
 
-      await emit({ type: "tool_result_summary", toolCallId: call.id, name, ok: outcome.ok, summary: outcome.summary });
+      if (outcome.kind === "proposal") {
+        await emit({
+          type: "action_proposal",
+          proposalId: outcome.proposalId,
+          action: outcome.action,
+          ...(outcome.diagnosis && { diagnosis: outcome.diagnosis })
+        });
+      }
+
+      if (showsAsRead) await emit({ type: "tool_result_summary", toolCallId: call.id, name, ok: outcome.ok, summary: outcome.summary });
       await this.#record(turn, {
         role: "tool",
         content: outcome.summary,
         toolName: name,
         toolPayload:
           outcome.kind === "proposal"
-            ? { toolCallId: call.id, proposalId: outcome.proposalId, action: outcome.action }
+            ? { toolCallId: call.id, proposalId: outcome.proposalId, action: outcome.action, diagnosis: outcome.diagnosis }
             : { toolCallId: call.id, ok: outcome.ok }
       });
     }

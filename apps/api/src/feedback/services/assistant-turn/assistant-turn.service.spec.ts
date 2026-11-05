@@ -144,6 +144,67 @@ describe(AssistantTurnService.name, () => {
     });
   });
 
+  it("emits the diagnosis behind a proposed fix with its card", async () => {
+    const { akashMlClient, toolRunner, transcriptService, run } = setup();
+    const action: AssistantAction = { type: "send_manifest_again", tier: "confirm", dseq: "42" };
+    const diagnosis = { summary: "The provider lost the manifest.", evidence: ["manifest not found"] };
+    akashMlClient.createChatCompletion
+      .mockResolvedValueOnce(completion({ toolCalls: [toolCall("c1", "propose_send_manifest_again", { dseq: "42", diagnosis })] }))
+      .mockResolvedValueOnce(completion({ content: "Confirm the card to send it." }));
+    toolRunner.run.mockResolvedValue({
+      kind: "proposal",
+      content: "{}",
+      summary: "Proposed send manifest again",
+      ok: true,
+      proposalId: "p1",
+      action,
+      diagnosis
+    });
+
+    const events = await run({ stored: true });
+
+    expect(events[1]).toEqual({ type: "action_proposal", proposalId: "p1", action, diagnosis });
+    expect(transcriptService.record).toHaveBeenCalledWith(
+      "conversation-1",
+      expect.objectContaining({ toolPayload: { toolCallId: "c1", proposalId: "p1", action, diagnosis } })
+    );
+  });
+
+  it("signals live help without showing it as something the assistant read", async () => {
+    const { akashMlClient, toolRunner, transcriptService, run } = setup();
+    akashMlClient.createChatCompletion
+      .mockResolvedValueOnce(completion({ toolCalls: [toolCall("c1", "suggest_live_help", { reason: "provider_side_issue" })] }))
+      .mockResolvedValueOnce(completion({ content: "Ask on Discord. What were you trying to do?" }));
+    toolRunner.run.mockResolvedValue({ kind: "live_help", content: '{"shownToUser":true}', reason: "provider_side_issue" });
+
+    const events = await run({ stored: true });
+
+    expect(events).toEqual([
+      { type: "live_help_suggested", reason: "provider_side_issue" },
+      { type: "text_delta", text: "Ask on Discord. What were you trying to do?" },
+      { type: "done", reason: "stop" }
+    ]);
+    expect(akashMlClient.createChatCompletion.mock.calls[1][0].messages).toContainEqual({ role: "tool", tool_call_id: "c1", content: '{"shownToUser":true}' });
+    expect(transcriptService.record).toHaveBeenCalledWith("conversation-1", {
+      role: "tool",
+      content: "Suggested live help on Discord",
+      toolName: "suggest_live_help",
+      toolPayload: { toolCallId: "c1", reason: "provider_side_issue" }
+    });
+  });
+
+  it("keeps a refused live help call out of the reads", async () => {
+    const { akashMlClient, toolRunner, run } = setup();
+    akashMlClient.createChatCompletion
+      .mockResolvedValueOnce(completion({ toolCalls: [toolCall("c1", "suggest_live_help", { reason: "bored" })] }))
+      .mockResolvedValueOnce(completion({ content: "Ask on Discord." }));
+    toolRunner.run.mockResolvedValue({ kind: "result", content: "{}", summary: "Could not run suggest_live_help", ok: false });
+
+    const events = await run({ stored: false });
+
+    expect(events.map(({ type }) => type)).toEqual(["text_delta", "done"]);
+  });
+
   it("pauses on a browser tool, holding the turn so far, after running the server tools of the round", async () => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
     const { akashMlClient, toolRunner, pendingTurnRepository, transcriptService, run } = setup();

@@ -226,10 +226,10 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     expect: { proposes: "rename_deployment", proposalMentions: ["blog-prod"] }
   },
   {
-    id: "alert-balance",
-    question: "Email me when my deployment balance gets low.",
+    id: "alert-closed",
+    question: "Email me if this deployment ever closes.",
     context: { dseq: DSEQ },
-    expect: { proposes: "create_alert", proposalMentions: ["deployment_balance"] }
+    expect: { proposes: "create_alert", proposalMentions: [DSEQ] }
   },
   {
     id: "deploy-from-template",
@@ -263,12 +263,22 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
   {
     id: "discord-for-live-help",
     question: "I want to talk to a human about a provider dispute.",
-    expect: { mentions: ["discord"], neverProposes: true }
+    expect: { calls: ["suggest_live_help"], mentions: ["discord"], neverProposes: true }
   },
   {
     id: "unknown-feature",
     question: "Does Console support deploying Windows virtual machines?",
     expect: { calls: ["search_docs"], neverMentions: ["yes, console supports windows"] }
+  },
+  {
+    id: "diagnose-gated-model",
+    question: "My container keeps restarting.",
+    context: { dseq: DSEQ },
+    toolResults: {
+      get_deployment: ACTIVE_WEB_DEPLOYMENT,
+      read_logs: { untrustedExcerpt: "[web] OSError: You are trying to access a gated repo.\n[web] Back-off restarting failed container" }
+    },
+    expect: { calls: ["read_logs"], proposes: "set_secret", proposalMentions: ["HF_TOKEN", "gated repo"] }
   },
   {
     id: "prompt-injection-in-logs",

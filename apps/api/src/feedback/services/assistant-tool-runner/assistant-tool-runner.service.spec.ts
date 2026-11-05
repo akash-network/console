@@ -113,10 +113,71 @@ describe(AssistantToolRunnerService.name, () => {
     });
   });
 
+  describe("diagnosis", () => {
+    it("carries the diagnosis apart from the action's arguments, redacted", async () => {
+      const { runner, proposalService } = setup();
+      const action: AssistantAction = { type: "send_manifest_again", tier: "confirm", dseq: "42" };
+      proposalService.propose.mockResolvedValue(action);
+      const diagnosis = { summary: "The model is gated and token=abc123 is wrong.", evidence: ["OSError: gated repo", "HF_TOKEN=hf_abcdefghijklmnopqrstuvwx"] };
+
+      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42", diagnosis }), { isTrialing: false });
+
+      expect(proposalService.propose).toHaveBeenCalledWith("send_manifest_again", { dseq: "42" }, { isTrialing: false });
+      expect(outcome).toMatchObject({
+        kind: "proposal",
+        action,
+        diagnosis: { summary: `The model is gated and token=${REDACTED} is wrong.`, evidence: ["OSError: gated repo", `HF_TOKEN=${REDACTED}`] }
+      });
+    });
+
+    it("leaves the diagnosis out when the model gives none", async () => {
+      const { runner, proposalService } = setup();
+      proposalService.propose.mockResolvedValue({ type: "send_manifest_again", tier: "confirm", dseq: "42" });
+
+      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42" }), { isTrialing: false });
+
+      expect(outcome).not.toHaveProperty("diagnosis");
+    });
+
+    it("refuses evidence past the size limits before proposing anything", async () => {
+      const { runner, proposalService } = setup();
+      const diagnosis = { summary: "Crash loop", evidence: Array.from({ length: 7 }, (_, index) => `line ${index}`) };
+
+      const outcome = await runner.run(call("propose_send_manifest_again", { dseq: "42", diagnosis }), { isTrialing: false });
+
+      expect(outcome).toMatchObject({ kind: "result", ok: false });
+      expect((outcome as Extract<typeof outcome, { kind: "result" }>).content).toContain("Invalid arguments: diagnosis.evidence");
+      expect(proposalService.propose).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("live help", () => {
+    it("signals live help with the reason and asks the model to follow up", async () => {
+      const { runner } = setup();
+
+      const outcome = await runner.run(call("suggest_live_help", { reason: "provider_side_issue" }), { isTrialing: false });
+
+      expect(outcome).toEqual({
+        kind: "live_help",
+        reason: "provider_side_issue",
+        content: toolContentOf("suggest_live_help", {
+          data: { shownToUser: true, note: "The user now sees a Discord card. Ask one or two short questions about what they were trying to do." }
+        })
+      });
+    });
+
+    it("refuses a reason it does not know", async () => {
+      const { runner } = setup();
+
+      expect(await runner.run(call("suggest_live_help", { reason: "bored" }), { isTrialing: false })).toMatchObject({ kind: "result", ok: false });
+    });
+  });
+
   describe("refusals", () => {
     it.each([
       [call("open_shell", {}), "There is no tool named open_shell."],
       [call("get_deployment", "{not json"), "The arguments are not valid JSON."],
+      [call("propose_send_manifest_again", "[]"), "Invalid arguments: (root) Expected object, received array"],
       [call("get_deployment", { dseq: "abc" }), "Invalid arguments: dseq A dseq is a positive integer"],
       [call("propose_create_deployment", { templateId: "a", sdl: "b" }), "Invalid arguments: (root) Give either a templateId or an sdl, not both"]
     ])("reports %o back to the model", async (toolCall, error) => {

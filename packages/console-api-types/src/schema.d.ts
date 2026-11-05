@@ -19645,9 +19645,8 @@ export interface operations {
                       /** @enum {string} */
                       tier: "confirm";
                       /** @enum {string} */
-                      alert: "deployment_balance" | "deployment_closed" | "wallet_balance";
-                      dseq: string | null;
-                      thresholdUsd: number | null;
+                      alert: "deployment_closed";
+                      dseq: string;
                       /** @enum {string} */
                       channel: "email";
                     }
@@ -19709,6 +19708,22 @@ export interface operations {
                       templateId: string | null;
                       sdl: string | null;
                     };
+                /** @description Why the assistant proposes this action, when it answers a problem it diagnosed */
+                diagnosis?: {
+                  /** @description What is wrong, in one or two plain sentences */
+                  summary: string;
+                  /** @description The log or event lines the diagnosis rests on, quoted as read and redacted */
+                  evidence: string[];
+                };
+              }
+            | {
+                /** @enum {string} */
+                type: "live_help_suggested";
+                /**
+                 * @description Why the assistant cannot solve this itself; the client offers live help on Discord
+                 * @enum {string}
+                 */
+                reason: "provider_side_issue" | "not_supported_here" | "no_confident_answer" | "user_asked_for_a_person";
               }
             | {
                 /** @enum {string} */
@@ -20079,9 +20094,8 @@ export interface operations {
                       /** @enum {string} */
                       tier: "confirm";
                       /** @enum {string} */
-                      alert: "deployment_balance" | "deployment_closed" | "wallet_balance";
-                      dseq: string | null;
-                      thresholdUsd: number | null;
+                      alert: "deployment_closed";
+                      dseq: string;
                       /** @enum {string} */
                       channel: "email";
                     }
@@ -20143,6 +20157,22 @@ export interface operations {
                       templateId: string | null;
                       sdl: string | null;
                     };
+                /** @description Why the assistant proposes this action, when it answers a problem it diagnosed */
+                diagnosis?: {
+                  /** @description What is wrong, in one or two plain sentences */
+                  summary: string;
+                  /** @description The log or event lines the diagnosis rests on, quoted as read and redacted */
+                  evidence: string[];
+                };
+              }
+            | {
+                /** @enum {string} */
+                type: "live_help_suggested";
+                /**
+                 * @description Why the assistant cannot solve this itself; the client offers live help on Discord
+                 * @enum {string}
+                 */
+                reason: "provider_side_issue" | "not_supported_here" | "no_confident_answer" | "user_asked_for_a_person";
               }
             | {
                 /** @enum {string} */

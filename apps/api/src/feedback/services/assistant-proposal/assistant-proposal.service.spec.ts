@@ -359,6 +359,21 @@ describe(AssistantProposalService.name, () => {
       deploymentController.findByDseq.mockResolvedValue({ data: createGetDeploymentResponseData({ dseq: "42", state: "closed" }) });
       await expect(propose(service, "send_manifest_again", { dseq: "42" })).rejects.toThrow(AssistantToolError);
     });
+
+    it("proposes the deployment closed email alert only for an active deployment", async () => {
+      const { service, deploymentController } = setup();
+
+      expect(await propose(service, "create_alert", { dseq: "42" })).toEqual({
+        type: "create_alert",
+        tier: "confirm",
+        alert: "deployment_closed",
+        dseq: "42",
+        channel: "email"
+      });
+
+      deploymentController.findByDseq.mockResolvedValue({ data: createGetDeploymentResponseData({ dseq: "42", state: "closed" }) });
+      await expect(propose(service, "create_alert", { dseq: "42" })).rejects.toThrow(new AssistantToolError("Deployment 42 is closed, not active."));
+    });
   });
 
   describe("close_deployment", () => {
@@ -398,31 +413,6 @@ describe(AssistantProposalService.name, () => {
 
     it.each<[ProposalActionType, Record<string, unknown>, Record<string, unknown>]>([
       ["move_deployment", { dseq: "42", projectId }, { type: "move_deployment", tier: "confirm", dseq: "42", projectId }],
-      [
-        "create_alert",
-        { alert: "deployment_balance", dseq: "42", thresholdUsd: 5 },
-        { type: "create_alert", tier: "confirm", alert: "deployment_balance", dseq: "42", thresholdUsd: 5, channel: "email" }
-      ],
-      [
-        "create_alert",
-        { alert: "deployment_closed", dseq: "42", thresholdUsd: 5 },
-        { type: "create_alert", tier: "confirm", alert: "deployment_closed", dseq: "42", thresholdUsd: null, channel: "email" }
-      ],
-      [
-        "create_alert",
-        { alert: "wallet_balance", dseq: "42", thresholdUsd: 10 },
-        { type: "create_alert", tier: "confirm", alert: "wallet_balance", dseq: null, thresholdUsd: 10, channel: "email" }
-      ],
-      [
-        "create_alert",
-        { alert: "deployment_balance", dseq: "42" },
-        { type: "create_alert", tier: "confirm", alert: "deployment_balance", dseq: "42", thresholdUsd: null, channel: "email" }
-      ],
-      [
-        "create_alert",
-        { alert: "wallet_balance" },
-        { type: "create_alert", tier: "confirm", alert: "wallet_balance", dseq: null, thresholdUsd: null, channel: "email" }
-      ],
       ["redeem_coupon", {}, { type: "redeem_coupon", tier: "confirm", code: null }],
       ["redeem_coupon", { code: "WELCOME" }, { type: "redeem_coupon", tier: "confirm", code: "WELCOME" }],
       ["save_as_template", { dseq: "42", title: "Site" }, { type: "save_as_template", tier: "confirm", dseq: "42", title: "Site", description: null }],
