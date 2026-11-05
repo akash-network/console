@@ -87,21 +87,11 @@ describe(DeletedAccountAbuseLockService.name, () => {
       ["an unlocked wallet", createUserWallet({ abuseLockedAt: null, abuseLockedReason: null })],
       ["a wallet locked for its email domain", lockedWallet(BLOCKED_DOMAIN_LOCK_REASON)],
       ["no wallet", undefined]
-    ])("keeps nothing for an account with %s, even without a secret", async (_, wallet) => {
-      const { service, repository } = setup({ secret: undefined });
+    ])("keeps nothing for an account with %s", async (_, wallet) => {
+      const { service, repository } = setup();
 
       await service.rememberLockOf(createUser(), wallet);
 
-      expect(repository.create).not.toHaveBeenCalled();
-    });
-
-    it("refuses to forget a locked account when the secret is not configured", async () => {
-      const { service, repository } = setup({ secret: undefined });
-
-      await expect(service.rememberLockOf(createUser(), lockedWallet(ABUSE_LOCK_REASON))).rejects.toMatchObject({
-        status: 503,
-        message: "The account hash secret is not configured"
-      });
       expect(repository.create).not.toHaveBeenCalled();
     });
   });
@@ -140,13 +130,6 @@ describe(DeletedAccountAbuseLockService.name, () => {
       await expect(service.findLockReasonOf(createUser())).resolves.toBeUndefined();
       expect(logger.info).not.toHaveBeenCalled();
     });
-
-    it("refuses to answer when the secret is not configured", async () => {
-      const { service, repository } = setup({ secret: undefined });
-
-      await expect(service.findLockReasonOf(createUser())).rejects.toMatchObject({ status: 503 });
-      expect(repository.findByAnyHash).not.toHaveBeenCalled();
-    });
   });
 
   it("creates the logger with the service context", () => {
@@ -163,9 +146,9 @@ describe(DeletedAccountAbuseLockService.name, () => {
     return createHmac("sha256", SECRET).update(value).digest("hex");
   }
 
-  function setup(input: { secret?: string } = { secret: SECRET }) {
+  function setup() {
     const repository = mock<DeletedAccountAbuseLockRepository>();
-    const config = mockConfigService<WorkloadAbuseConfigService>({ WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET: input.secret });
+    const config = mockConfigService<WorkloadAbuseConfigService>({ WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET: SECRET });
     const logger = mock<ReturnType<CreateLogger>>();
     const createLogger = vi.fn<CreateLogger>(() => logger);
     const service = new DeletedAccountAbuseLockService(repository, config, createLogger);

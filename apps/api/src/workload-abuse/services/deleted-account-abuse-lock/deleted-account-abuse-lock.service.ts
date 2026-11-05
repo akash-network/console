@@ -1,4 +1,3 @@
-import assert from "http-assert";
 import { createHmac } from "node:crypto";
 import { inject, singleton } from "tsyringe";
 
@@ -51,7 +50,6 @@ export class DeletedAccountAbuseLockService {
 
   #hashesOf(account: Account): AccountHashes {
     const secret = this.workloadAbuseConfigService.get("WORKLOAD_ABUSE_ACCOUNT_HASH_SECRET");
-    assert(secret, 503, "The account hash secret is not configured");
 
     const email = normalizeEmailAddress(account.email);
 
