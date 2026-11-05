@@ -124,7 +124,7 @@ flowchart LR
 
 ## Deployment topology
 
-Apps are deployed to Kubernetes via Helm, with one values file per environment in [`.helm/`](../.helm). Environments are matrixed across prod / staging by mainnet / sandbox / testnet.
+Apps are deployed to Kubernetes via Helm, with one values file per environment in [`.helm/`](../.helm). Environments are matrixed across prod / staging by mainnet / sandbox.
 
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{'fontFamily':'Geist, Inter, system-ui, sans-serif','fontSize':'14px','background':'#171717','primaryColor':'#242422','primaryTextColor':'#e7e3da','primaryBorderColor':'#45423c','lineColor':'#8f8f8f','textColor':'#d9d5cd','clusterBkg':'#1a1a1a','clusterBorder':'#3a3a3a','titleColor':'#f5f2ec','edgeLabelBackground':'#1a1a1a'},'flowchart':{'curve':'basis','nodeSpacing':45,'rankSpacing':60}}}%%
@@ -148,7 +148,7 @@ flowchart TB
     C5["mint-act · 06:00"]:::env
   end
   A --- cron
-  ENVS["Environments · prod / staging × mainnet / sandbox / testnet"]:::env
+  ENVS["Environments · prod / staging × mainnet / sandbox"]:::env
   k8s --- ENVS
   subgraph providers["Akash provider clusters"]
     LC["log-collector"]:::svc

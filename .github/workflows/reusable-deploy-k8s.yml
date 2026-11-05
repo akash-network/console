@@ -16,7 +16,6 @@ on:
         type: choice
         options:
           - console-web
-          - console-web-testnet
           - console-api
           - tx-signer
           - indexer
@@ -44,7 +43,6 @@ on:
           - NA
           - mainnet
           - sandbox
-          - testnet
       force-rollout:
         type: boolean
         required: false
@@ -152,7 +150,7 @@ jobs:
           DEPLOYMENT_ENVIRONMENT: ${{ inputs.environment == 'prod' && 'production' || 'beta' }}
         run: |
           case "$BLOCKCHAIN_NAME" in
-            "" | mainnet | sandbox | testnet) ;;
+            "" | mainnet | sandbox) ;;
             *)
               echo "❌ Unsupported chain: $BLOCKCHAIN_NAME" >&2
               exit 1
