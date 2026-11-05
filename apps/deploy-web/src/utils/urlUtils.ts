@@ -61,6 +61,7 @@ export const UrlService = {
   usage: () => "/usage",
   billing: ({ openPayment, setupAutoTopUp }: { openPayment?: boolean; setupAutoTopUp?: boolean } = {}) =>
     `/billing${appendSearchParams({ openPayment, setupAutoTopUp })}`,
+  referrals: () => "/referrals",
   /** @deprecated use .newLogin instead */
   login: () => "/api/auth/login",
   /** @deprecated use .newSignup instead */

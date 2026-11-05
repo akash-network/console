@@ -183,7 +183,8 @@ function userKeyedRules(user: RuleUser): AbilityRule[] {
     { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } },
     { action: ["create", "read"], subject: "FeedbackSubmission", conditions: { userId: user.id } },
     { action: ["create", "read"], subject: "AssistantConsent", conditions: { userId: user.id } },
-    { action: ["read", "delete"], subject: "AssistantConversation", conditions: { userId: user.id } }
+    { action: ["read", "delete"], subject: "AssistantConversation", conditions: { userId: user.id } },
+    { action: "read", subject: "Affiliate", conditions: { userId: user.id } }
   ];
 }
 
