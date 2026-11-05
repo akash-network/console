@@ -6,6 +6,7 @@ import { JOB_NAME } from "@src/core";
 import { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import { FeedbackThemeRepository } from "@src/feedback/repositories/feedback-theme/feedback-theme.repository";
 import { AkashMlClient, type ChatCompletion } from "@src/feedback/services/akashml-client/akashml.client";
+import { MAX_CLASSIFICATION_ATTEMPTS } from "@src/feedback/services/feedback-classification/feedback-classification.service";
 import { ClassifyFeedback, ClassifyFeedbackHandler, classifyFeedbackOptionsFor } from "./classify-feedback.handler";
 
 import { seedFeedbackSubmission, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
@@ -70,6 +71,22 @@ describe(ClassifyFeedbackHandler.name, () => {
     expect(await findSubmission(submission.id)).toMatchObject({ classifiedAt: null, themeId: null });
   });
 
+  it("gives up on a submission whose last attempt the model answered unusably", async () => {
+    const { submission, classify, answerWith, findSubmission } = await setup({
+      message: "logs never load",
+      classificationAttempts: MAX_CLASSIFICATION_ATTEMPTS - 1
+    });
+    answerWith({ content: "not json at all", toolCalls: [], finishReason: "stop", usage: null });
+
+    await classify();
+
+    expect(await findSubmission(submission.id)).toMatchObject({
+      classifiedAt: null,
+      classificationAttempts: MAX_CLASSIFICATION_ATTEMPTS,
+      classificationFailedAt: expect.any(Date)
+    });
+  });
+
   it("queues one job per submission while it is still waiting", async () => {
     const { submission, enqueue } = await setup({ message: "anything" });
     const notYetDue = { ...classifyFeedbackOptionsFor(submission.id), startAfter: addHours(new Date(), 1).toISOString() };
@@ -80,10 +97,18 @@ describe(ClassifyFeedbackHandler.name, () => {
     expect(await findJobRows(ClassifyFeedback[JOB_NAME], { data: { feedbackSubmissionId: submission.id } })).toHaveLength(1);
   });
 
-  async function setup(input: { message: string; isAvailable?: boolean }) {
+  async function setup(input: { message: string; isAvailable?: boolean; classificationAttempts?: number }) {
     const { enqueue, startWorkers } = await jobWorkers();
     const { user } = await seedUserWithWallet();
-    const submission = await seedFeedbackSubmission({ userId: user.id, kind: "general", outcome: null, dseq: null, category: "other", message: input.message });
+    const submission = await seedFeedbackSubmission({
+      userId: user.id,
+      kind: "general",
+      outcome: null,
+      dseq: null,
+      category: "other",
+      message: input.message,
+      classificationAttempts: input.classificationAttempts
+    });
     const akashMlClient = container.resolve(AkashMlClient);
     vi.spyOn(akashMlClient, "isAvailable").mockReturnValue(input.isAvailable ?? true);
     const createChatCompletion = vi.spyOn(akashMlClient, "createChatCompletion").mockRejectedValue(new Error("Unexpected model call"));

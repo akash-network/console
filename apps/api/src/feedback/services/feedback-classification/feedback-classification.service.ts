@@ -11,12 +11,13 @@ import {
   hasTextToClassify
 } from "@src/feedback/lib/feedback-classification-prompt/feedback-classification-prompt";
 import type { ItemToMatch, ThemeMatch } from "@src/feedback/lib/feedback-theme-match-prompt/feedback-theme-match-prompt";
+import type { FailedClassification } from "@src/feedback/model-schemas";
 import { FEEDBACK_CONFIG, type FeedbackConfig } from "@src/feedback/providers/config.provider";
 import { AssistantConversationRepository } from "@src/feedback/repositories/assistant-conversation/assistant-conversation.repository";
 import { AssistantMessageRepository } from "@src/feedback/repositories/assistant-message/assistant-message.repository";
 import { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import { FeedbackThemeRepository } from "@src/feedback/repositories/feedback-theme/feedback-theme.repository";
-import { AkashMlClient, type ChatMessage } from "@src/feedback/services/akashml-client/akashml.client";
+import { AkashMlClient, AkashMlOutputError, type ChatMessage } from "@src/feedback/services/akashml-client/akashml.client";
 import { FeedbackThemeAssignmentService } from "@src/feedback/services/feedback-theme-assignment/feedback-theme-assignment.service";
 import { FeedbackThemeScoreService } from "@src/feedback/services/feedback-theme-score/feedback-theme-score.service";
 
@@ -29,7 +30,13 @@ type ClassifiedFields = {
   themeId: string | null;
 };
 
-type SaveClassification = (fields: ClassifiedFields) => Promise<unknown>;
+interface ClassificationTarget {
+  logContext: Record<string, string>;
+  save(fields: ClassifiedFields): Promise<unknown>;
+  recordFailure(maxAttempts: number): Promise<FailedClassification | undefined>;
+}
+
+export const MAX_CLASSIFICATION_ATTEMPTS = 5;
 
 function itemToMatchOf(classification: FeedbackClassification): ItemToMatch | null {
   return classification.type && classification.summary ? { type: classification.type, summary: classification.summary } : null;
@@ -57,43 +64,58 @@ export class FeedbackClassificationService {
 
   async classifySubmission(feedbackSubmissionId: string): Promise<void> {
     const submission = await this.feedbackSubmissionRepository.findById(feedbackSubmissionId);
-    if (!submission || submission.dismissed || submission.classifiedAt) return;
+    if (!submission || submission.dismissed || submission.classifiedAt || submission.classificationFailedAt) return;
 
-    const save: SaveClassification = fields => this.feedbackSubmissionRepository.updateById(feedbackSubmissionId, fields);
+    const target: ClassificationTarget = {
+      logContext: { feedbackSubmissionId },
+      save: fields => this.feedbackSubmissionRepository.updateById(feedbackSubmissionId, fields),
+      recordFailure: maxAttempts => this.feedbackSubmissionRepository.recordFailedClassification(feedbackSubmissionId, maxAttempts)
+    };
 
     if (!hasTextToClassify(submission)) {
-      await this.#store(classifyWithoutText(submission.rating), null, save);
+      await this.#store(classifyWithoutText(submission.rating), null, target);
       return;
     }
 
-    if (!this.#isModelAvailable({ feedbackSubmissionId })) return;
+    if (!this.#isModelAvailable(target)) return;
 
-    await this.#classifyWithModel(buildSubmissionClassificationMessages(submission), save);
+    await this.#classifyWithModel(buildSubmissionClassificationMessages(submission), target);
   }
 
   async classifyConversation(conversationId: string): Promise<void> {
     const conversation = await this.assistantConversationRepository.findById(conversationId);
-    if (!conversation || conversation.classifiedAt || !this.#isModelAvailable({ conversationId })) return;
+    if (!conversation || conversation.classifiedAt || conversation.classificationFailedAt) return;
+
+    const target: ClassificationTarget = {
+      logContext: { conversationId },
+      save: fields => this.assistantConversationRepository.updateById(conversationId, fields),
+      recordFailure: maxAttempts => this.assistantConversationRepository.recordFailedClassification(conversationId, maxAttempts)
+    };
+    if (!this.#isModelAvailable(target)) return;
 
     const messages = await this.assistantMessageRepository.findAllOf(conversationId);
-    const save: SaveClassification = fields => this.assistantConversationRepository.updateById(conversationId, fields);
 
     if (!messages.some(({ role }) => role === "user")) {
-      await this.#store(classifyWithoutText(null), null, save);
+      await this.#store(classifyWithoutText(null), null, target);
       return;
     }
 
-    await this.#classifyWithModel(buildConversationClassificationMessages({ ...conversation, messages }), save);
+    await this.#classifyWithModel(buildConversationClassificationMessages({ ...conversation, messages }), target);
   }
 
-  #isModelAvailable(item: Record<string, string>): boolean {
+  #isModelAvailable(target: ClassificationTarget): boolean {
     if (this.akashMlClient.isAvailable()) return true;
 
-    this.#logger.info({ event: "FEEDBACK_CLASSIFICATION_DEFERRED", reason: "model_unavailable", ...item });
+    this.#logger.info({ event: "FEEDBACK_CLASSIFICATION_DEFERRED", reason: "model_unavailable", ...target.logContext });
     return false;
   }
 
-  async #classifyWithModel(messages: ChatMessage[], save: SaveClassification): Promise<void> {
+  async #classifyWithModel(messages: ChatMessage[], target: ClassificationTarget): Promise<void> {
+    const classified = await this.#askModel(messages).catch(error => this.#recordFailure(target, error));
+    if (classified) await this.#store(classified.classification, classified.match, target);
+  }
+
+  async #askModel(messages: ChatMessage[]) {
     const classification = await this.akashMlClient.completeJson({
       model: this.config.FEEDBACK_CLASSIFIER_MODEL,
       messages,
@@ -103,15 +125,26 @@ export class FeedbackClassificationService {
     const item = itemToMatchOf(classification);
     const match = item ? { item, theme: await this.feedbackThemeAssignmentService.findMatch(item) } : null;
 
-    await this.#store(classification, match, save);
+    return { classification, match };
+  }
+
+  /** Only unusable model answers use up attempts, since an outage says nothing about the item. */
+  async #recordFailure(target: ClassificationTarget, error: unknown): Promise<undefined> {
+    if (!(error instanceof AkashMlOutputError)) throw error;
+
+    const failure = await target.recordFailure(MAX_CLASSIFICATION_ATTEMPTS);
+    if (!failure) return;
+    if (!failure.abandoned) throw error;
+
+    this.#logger.warn({ event: "FEEDBACK_CLASSIFICATION_ABANDONED", ...target.logContext, attempts: failure.attempts, reason: error.message });
   }
 
   /** Model calls happen before this point, so the transaction only spans the writes. */
-  async #store(classification: FeedbackClassification, match: { item: ItemToMatch; theme: ThemeMatch } | null, save: SaveClassification): Promise<void> {
+  async #store(classification: FeedbackClassification, match: { item: ItemToMatch; theme: ThemeMatch } | null, target: ClassificationTarget): Promise<void> {
     await this.txService.transaction(async () => {
       const themeId = match ? await this.feedbackThemeAssignmentService.themeIdFor(match.theme, match.item) : null;
 
-      await save({
+      await target.save({
         classificationType: classification.type,
         classificationSummary: classification.summary,
         sentimentScore: classification.sentimentScore,

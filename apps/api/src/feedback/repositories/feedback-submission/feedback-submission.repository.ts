@@ -1,9 +1,10 @@
-import { and, asc, count, eq, gt, isNull, max } from "drizzle-orm";
+import { and, asc, count, eq, gt, isNull, max, sql } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
 import { type AbilityParams, BaseRepository } from "@src/core/repositories/base.repository";
 import { TxService } from "@src/core/services";
+import type { FailedClassification } from "@src/feedback/model-schemas";
 
 type Table = ApiPgTables["FeedbackSubmissions"];
 export type FeedbackSubmissionInsert = Table["$inferInsert"];
@@ -60,10 +61,24 @@ export class FeedbackSubmissionRepository extends BaseRepository<Table, Feedback
     const rows = await this.cursor
       .select({ id: this.table.id })
       .from(this.table)
-      .where(and(isNull(this.table.classifiedAt), eq(this.table.dismissed, false)))
+      .where(and(isNull(this.table.classifiedAt), isNull(this.table.classificationFailedAt), eq(this.table.dismissed, false)))
       .orderBy(asc(this.table.createdAt))
       .limit(limit);
 
     return rows.map(({ id }) => id);
+  }
+
+  /** Counts a classification attempt the model could not answer, and gives up on the item once it has used them all. */
+  async recordFailedClassification(id: string, maxAttempts: number): Promise<FailedClassification | undefined> {
+    const [row] = await this.cursor
+      .update(this.table)
+      .set({
+        classificationAttempts: sql`${this.table.classificationAttempts} + 1`,
+        classificationFailedAt: sql`CASE WHEN ${this.table.classificationAttempts} + 1 >= ${maxAttempts} THEN now() END`
+      })
+      .where(eq(this.table.id, id))
+      .returning({ attempts: this.table.classificationAttempts, failedAt: this.table.classificationFailedAt });
+
+    return row && { attempts: row.attempts, abandoned: row.failedAt !== null };
   }
 }

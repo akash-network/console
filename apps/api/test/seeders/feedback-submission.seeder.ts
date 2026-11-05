@@ -20,6 +20,8 @@ export function createFeedbackSubmission(overrides: Partial<FeedbackSubmissionOu
     sentimentScore: null,
     endedStuck: null,
     classifiedAt: null,
+    classificationAttempts: 0,
+    classificationFailedAt: null,
     themeId: null,
     createdAt: faker.date.recent(),
     ...overrides

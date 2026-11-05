@@ -45,6 +45,7 @@ describe(AssistantConversationRepository.name, () => {
       });
       const active = await seedAssistantConversation({ userId, lastMessageAt: new Date("2026-11-04T12:30:00.000Z") });
       const classified = await seedAssistantConversation({ userId, endedAt: new Date(), classifiedAt: new Date() });
+      const givenUp = await seedAssistantConversation({ userId, endedAt: new Date(), classificationFailedAt: new Date() });
 
       const ids = await repository.findUnclassifiedIds(idleSince, 1000);
 
@@ -52,6 +53,7 @@ describe(AssistantConversationRepository.name, () => {
       expect(ids.indexOf(quiet.id)).toBeLessThan(ids.indexOf(ended.id));
       expect(ids).not.toContain(active.id);
       expect(ids).not.toContain(classified.id);
+      expect(ids).not.toContain(givenUp.id);
     });
 
     it("answers at most the given number of conversations", async () => {
@@ -60,6 +62,23 @@ describe(AssistantConversationRepository.name, () => {
       await seedAssistantConversation({ userId, endedAt: new Date() });
 
       expect(await repository.findUnclassifiedIds(new Date(), 1)).toHaveLength(1);
+    });
+  });
+
+  describe("recordFailedClassification", () => {
+    it("counts each failed attempt and gives up on the one that reaches the maximum", async () => {
+      const { repository, userId } = await setup();
+      const conversation = await seedAssistantConversation({ userId });
+
+      expect(await repository.recordFailedClassification(conversation.id, 2)).toEqual({ attempts: 1, abandoned: false });
+      expect(await repository.recordFailedClassification(conversation.id, 2)).toEqual({ attempts: 2, abandoned: true });
+      expect(await repository.findById(conversation.id)).toMatchObject({ classificationAttempts: 2, classificationFailedAt: expect.any(Date) });
+    });
+
+    it("answers nothing for a conversation that is gone", async () => {
+      const { repository } = await setup();
+
+      expect(await repository.recordFailedClassification("00000000-0000-0000-0000-000000000000", 2)).toBeUndefined();
     });
   });
 

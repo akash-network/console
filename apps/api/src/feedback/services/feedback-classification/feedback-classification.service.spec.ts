@@ -14,10 +14,10 @@ import type { AssistantConversationRepository } from "@src/feedback/repositories
 import type { AssistantMessageOutput, AssistantMessageRepository } from "@src/feedback/repositories/assistant-message/assistant-message.repository";
 import type { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
 import type { FeedbackThemeRepository } from "@src/feedback/repositories/feedback-theme/feedback-theme.repository";
-import type { AkashMlClient } from "@src/feedback/services/akashml-client/akashml.client";
+import { type AkashMlClient, AkashMlOutputError } from "@src/feedback/services/akashml-client/akashml.client";
 import type { FeedbackThemeAssignmentService } from "@src/feedback/services/feedback-theme-assignment/feedback-theme-assignment.service";
 import type { FeedbackThemeScoreService } from "@src/feedback/services/feedback-theme-score/feedback-theme-score.service";
-import { FeedbackClassificationService } from "./feedback-classification.service";
+import { FeedbackClassificationService, MAX_CLASSIFICATION_ATTEMPTS } from "./feedback-classification.service";
 
 import { createAssistantConversation } from "@test/seeders/assistant-conversation.seeder";
 import { createFeedbackSubmission } from "@test/seeders/feedback-submission.seeder";
@@ -134,7 +134,8 @@ describe(FeedbackClassificationService.name, () => {
     it.each([
       { name: "a deleted submission", submission: undefined },
       { name: "a dismissed prompt", submission: createFeedbackSubmission({ dismissed: true, message: "x" }) },
-      { name: "a classified submission", submission: createFeedbackSubmission({ classifiedAt: new Date(), message: "x" }) }
+      { name: "a classified submission", submission: createFeedbackSubmission({ classifiedAt: new Date(), message: "x" }) },
+      { name: "a submission given up on", submission: createFeedbackSubmission({ classificationFailedAt: new Date(), message: "x" }) }
     ])("skips $name", async ({ submission }) => {
       const { service, akashMlClient, feedbackSubmissionRepository } = setup({ submission });
 
@@ -151,6 +152,58 @@ describe(FeedbackClassificationService.name, () => {
 
       await expect(service.classifySubmission(submission.id)).rejects.toThrow("AkashML answered 503");
       expect(feedbackSubmissionRepository.updateById).not.toHaveBeenCalled();
+      expect(feedbackSubmissionRepository.recordFailedClassification).not.toHaveBeenCalled();
+    });
+
+    it("counts an unusable answer against the submission and fails so the job retries", async () => {
+      const submission = createFeedbackSubmission({ message: "logs never load" });
+      const { service, akashMlClient, feedbackSubmissionRepository, logger } = setup({ submission });
+      const unusable = new AkashMlOutputError("AkashML answered with malformed JSON");
+      akashMlClient.completeJson.mockRejectedValue(unusable);
+      feedbackSubmissionRepository.recordFailedClassification.mockResolvedValue({ attempts: 2, abandoned: false });
+
+      await expect(service.classifySubmission(submission.id)).rejects.toBe(unusable);
+      expect(feedbackSubmissionRepository.recordFailedClassification).toHaveBeenCalledWith(submission.id, MAX_CLASSIFICATION_ATTEMPTS);
+      expect(feedbackSubmissionRepository.updateById).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it("counts an unusable theme match against the submission", async () => {
+      const submission = createFeedbackSubmission({ message: "logs never load" });
+      const { service, feedbackThemeAssignmentService, feedbackSubmissionRepository } = setup({ submission });
+      feedbackThemeAssignmentService.findMatch.mockRejectedValue(new AkashMlOutputError("AkashML answered outside the schema: themeKey"));
+      feedbackSubmissionRepository.recordFailedClassification.mockResolvedValue({ attempts: 1, abandoned: false });
+
+      await expect(service.classifySubmission(submission.id)).rejects.toThrow("outside the schema");
+      expect(feedbackSubmissionRepository.recordFailedClassification).toHaveBeenCalled();
+    });
+
+    it("gives up on a submission that used its last attempt and says so", async () => {
+      const submission = createFeedbackSubmission({ message: "logs never load" });
+      const { service, akashMlClient, feedbackSubmissionRepository, logger } = setup({ submission });
+      akashMlClient.completeJson.mockRejectedValue(new AkashMlOutputError("AkashML answered with malformed JSON"));
+      feedbackSubmissionRepository.recordFailedClassification.mockResolvedValue({ attempts: MAX_CLASSIFICATION_ATTEMPTS, abandoned: true });
+
+      await service.classifySubmission(submission.id);
+
+      expect(feedbackSubmissionRepository.updateById).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "FEEDBACK_CLASSIFICATION_ABANDONED",
+        feedbackSubmissionId: submission.id,
+        attempts: MAX_CLASSIFICATION_ATTEMPTS,
+        reason: "AkashML answered with malformed JSON"
+      });
+    });
+
+    it("stops quietly when the submission was deleted while the model answered", async () => {
+      const submission = createFeedbackSubmission({ message: "logs never load" });
+      const { service, akashMlClient, feedbackSubmissionRepository, logger } = setup({ submission });
+      akashMlClient.completeJson.mockRejectedValue(new AkashMlOutputError("AkashML answered with malformed JSON"));
+      feedbackSubmissionRepository.recordFailedClassification.mockResolvedValue(undefined);
+
+      await service.classifySubmission(submission.id);
+
+      expect(logger.warn).not.toHaveBeenCalled();
     });
   });
 
@@ -201,6 +254,23 @@ describe(FeedbackClassificationService.name, () => {
       });
     });
 
+    it("counts an unusable answer against the conversation and gives up after the last attempt", async () => {
+      const conversation = createAssistantConversation();
+      const { service, akashMlClient, assistantConversationRepository, logger } = setup({ conversation, messages: [message("user", "help")] });
+      akashMlClient.completeJson.mockRejectedValue(new AkashMlOutputError("AkashML answered without a JSON object"));
+      assistantConversationRepository.recordFailedClassification.mockResolvedValue({ attempts: MAX_CLASSIFICATION_ATTEMPTS, abandoned: true });
+
+      await service.classifyConversation(conversation.id);
+
+      expect(assistantConversationRepository.recordFailedClassification).toHaveBeenCalledWith(conversation.id, MAX_CLASSIFICATION_ATTEMPTS);
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "FEEDBACK_CLASSIFICATION_ABANDONED",
+        conversationId: conversation.id,
+        attempts: MAX_CLASSIFICATION_ATTEMPTS,
+        reason: "AkashML answered without a JSON object"
+      });
+    });
+
     it("defers a conversation while the model is unavailable", async () => {
       const conversation = createAssistantConversation();
       const { service, assistantMessageRepository, logger } = setup({ conversation, isAvailable: false });
@@ -213,7 +283,8 @@ describe(FeedbackClassificationService.name, () => {
 
     it.each([
       { name: "a deleted conversation", conversation: undefined },
-      { name: "a classified conversation", conversation: createAssistantConversation({ classifiedAt: new Date() }) }
+      { name: "a classified conversation", conversation: createAssistantConversation({ classifiedAt: new Date() }) },
+      { name: "a conversation given up on", conversation: createAssistantConversation({ classificationFailedAt: new Date() }) }
     ])("skips $name", async ({ conversation }) => {
       const { service, assistantMessageRepository, akashMlClient } = setup({ conversation });
 

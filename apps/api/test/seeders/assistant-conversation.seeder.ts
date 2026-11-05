@@ -17,6 +17,8 @@ export function createAssistantConversation(overrides: Partial<AssistantConversa
     sentimentScore: null,
     endedStuck: null,
     classifiedAt: null,
+    classificationAttempts: 0,
+    classificationFailedAt: null,
     themeId: null,
     startedAt,
     lastMessageAt: startedAt,
