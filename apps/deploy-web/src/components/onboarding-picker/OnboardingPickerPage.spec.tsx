@@ -45,6 +45,12 @@ describe(OnboardingPickerPage.name, () => {
     expect(screen.getByText("$5 in free trial credits")).toBeInTheDocument();
   });
 
+  it.each([true, false])("looks up the referral only while the affiliate program is on (%s)", isAffiliateProgramEnabled => {
+    const { useReferralQuery } = setup({ isAffiliateProgramEnabled });
+
+    expect(useReferralQuery).toHaveBeenCalledWith({ enabled: isAffiliateProgramEnabled });
+  });
+
   it("does not render the trial credit amount while the referral lookup is loading", () => {
     const { container } = setup({ trialCreditsAmount: 1, referral: undefined, isReferralLoading: true });
 
@@ -620,6 +626,7 @@ describe(OnboardingPickerPage.name, () => {
       trialCreditsAmount?: number;
       referral?: { trialCreditsUsd: number };
       isReferralLoading?: boolean;
+      isAffiliateProgramEnabled?: boolean;
       dependencies?: Partial<typeof DEPENDENCIES>;
     } = {}
   ) {
@@ -642,11 +649,13 @@ describe(OnboardingPickerPage.name, () => {
     const useIsOutOfDeployCredit: typeof DEPENDENCIES.useIsOutOfDeployCredit = () => input.isOutOfCredit ?? false;
     const flags: Partial<Record<Parameters<typeof DEPENDENCIES.useFlag>[0], boolean>> = {
       hackathons: isHackathonsEnabled,
-      onboarding_intent_first: input.isIntentFirst ?? false
+      onboarding_intent_first: input.isIntentFirst ?? false,
+      affiliate_program: input.isAffiliateProgramEnabled ?? true
     };
     const useFlag: typeof DEPENDENCIES.useFlag = flag => flags[flag] ?? false;
-    const useReferralQuery: typeof DEPENDENCIES.useReferralQuery = () =>
-      mock<ReturnType<typeof DEPENDENCIES.useReferralQuery>>(input.isReferralLoading ? { isLoading: true } : { data: input.referral, isLoading: false });
+    const useReferralQuery = vi.fn<typeof DEPENDENCIES.useReferralQuery>(() =>
+      mock<ReturnType<typeof DEPENDENCIES.useReferralQuery>>(input.isReferralLoading ? { isLoading: true } : { data: input.referral, isLoading: false })
+    );
     const analyticsService = mock<AnalyticsService>();
     const useServices: typeof DEPENDENCIES.useServices = () =>
       mock<ReturnType<typeof DEPENDENCIES.useServices>>({
@@ -672,6 +681,6 @@ describe(OnboardingPickerPage.name, () => {
       />
     );
 
-    return { ...result, analyticsService, markAutoDeployStart };
+    return { ...result, analyticsService, markAutoDeployStart, useReferralQuery };
   }
 });
