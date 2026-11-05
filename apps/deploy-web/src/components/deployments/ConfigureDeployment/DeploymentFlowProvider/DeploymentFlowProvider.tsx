@@ -4,13 +4,23 @@ import { createContext, useContext, useEffect, useMemo } from "react";
 import { Snackbar } from "@akashnetwork/ui/components";
 import { useSnackbar } from "notistack";
 
+import { DeploymentOutcomePrompt } from "@src/components/feedback/DeploymentOutcomePrompt/DeploymentOutcomePrompt";
+import { useDeployFlowOutcome } from "@src/components/feedback/useDeployFlowOutcome/useDeployFlowOutcome";
 import { useUnlockAppOnFirstCreate } from "@src/hooks/useUnlockAppOnFirstCreate/useUnlockAppOnFirstCreate";
 import { useWarnBeforeUnload } from "@src/hooks/useWarnBeforeUnload/useWarnBeforeUnload";
 import type { DeploymentIntent } from "../useDeploymentFlow/deploymentIntent";
 import type { DeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 import { useDeploymentFlow } from "../useDeploymentFlow/useDeploymentFlow";
 
-export const DEPENDENCIES = { useDeploymentFlow, useWarnBeforeUnload, useUnlockAppOnFirstCreate, useSnackbar, Snackbar };
+export const DEPENDENCIES = {
+  useDeploymentFlow,
+  useWarnBeforeUnload,
+  useUnlockAppOnFirstCreate,
+  useDeployFlowOutcome,
+  useSnackbar,
+  Snackbar,
+  DeploymentOutcomePrompt
+};
 
 /** The shared flow state machine both configure branches need. */
 export type DeploymentFlowContext = {
@@ -77,6 +87,7 @@ export const DeploymentFlowProvider: FC<Props> = ({ intent, children, dependenci
     [isCreating, holdsUnleasedDeployment, isLeaseInFlight, keepsDeployingWithoutPage, discard]
   );
   const { enqueueSnackbar } = d.useSnackbar();
+  const failedOutcome = d.useDeployFlowOutcome(flow);
 
   useEffect(
     function announceDeployFinishingInBackground() {
@@ -88,7 +99,12 @@ export const DeploymentFlowProvider: FC<Props> = ({ intent, children, dependenci
     [flow.isDeployedInBackground, enqueueSnackbar, d]
   );
 
-  return <DeploymentLeaveGuardContext.Provider value={leaveGuard}>{children({ flow })}</DeploymentLeaveGuardContext.Provider>;
+  return (
+    <DeploymentLeaveGuardContext.Provider value={leaveGuard}>
+      {children({ flow })}
+      {failedOutcome && <d.DeploymentOutcomePrompt key={failedOutcome.dseq} dseq={failedOutcome.dseq} outcome={failedOutcome} />}
+    </DeploymentLeaveGuardContext.Provider>
+  );
 };
 
 /** The auto flow's no-providers error keeps its deployment open, and a close that failed leaves one open in any phase. */

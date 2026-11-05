@@ -10,10 +10,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { NextSeo } from "next-seo";
 
 import { createConfigureDraft } from "@src/components/deployments/ConfigureDeployment/useConfigureDraft/useConfigureDraft";
+import { observedDeploymentOutcomeOf, promptableOutcomeOf } from "@src/components/feedback/deploymentOutcome/deploymentOutcome";
+import { DeploymentOutcomePrompt } from "@src/components/feedback/DeploymentOutcomePrompt/DeploymentOutcomePrompt";
 import { useServices } from "@src/context/ServicesProvider";
 import { useWallet } from "@src/context/WalletProvider";
 import { useCanManageDeployment } from "@src/hooks/useCanManageDeployment/useCanManageDeployment";
 import { isUsableDeploymentDefinition, sdlToRedeploy, useDeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
+import { useDeploymentOutcomes } from "@src/hooks/useDeploymentOutcomes/useDeploymentOutcomes";
 import { deploymentLaunchOf, useDeploymentActivity } from "@src/hooks/useDeploymentStatus/useDeploymentStatus";
 import { useDeploymentTemplate } from "@src/hooks/useDeploymentTemplate/useDeploymentTemplate";
 import { useLeaseGpus, withLeaseGpus } from "@src/hooks/useLeaseGpus/useLeaseGpus";
@@ -58,6 +61,7 @@ export const DEPENDENCIES = {
   useCanManageDeployment,
   useProjectsUi,
   useDeploymentLocationQuery,
+  useDeploymentOutcomes,
   NextSeo,
   Layout,
   ReclamationBanner,
@@ -71,6 +75,7 @@ export const DEPENDENCIES = {
   DeploymentSettings,
   DeploymentTemplateGuide,
   DeploymentUpdate,
+  DeploymentOutcomePrompt,
   // eslint-disable-next-line akash/dependencies-component-or-hook
   createConfigureDraft
 };
@@ -147,6 +152,9 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
   const showsPageSkeleton = !isDeploymentNotFound && !deploymentError && !isLeasesError && (!deployment || !isLeasesLoaded);
   /** The placement cards read their services off the definition, so rendering them before it lands shows "0 services" and then corrects itself. */
   const showsPlacementsSkeleton = definition.source === "resolving";
+  const { outcomes: recordedOutcomes } = d.useDeploymentOutcomes();
+  const observedOutcome = deployment && leases ? observedDeploymentOutcomeOf({ createdHeight: deployment.createdAt, leases, launch }) : undefined;
+  const promptableOutcome = promptableOutcomeOf(recordedOutcomes[dseq], observedOutcome);
 
   useEffect(() => {
     if (deployment) {
@@ -252,6 +260,8 @@ export const DeploymentDetail: FC<DeploymentDetailProps> = ({ dseq, dependencies
       )}
 
       {showsPageSkeleton && <DeploymentDetailSkeleton />}
+
+      <d.DeploymentOutcomePrompt dseq={dseq} outcome={promptableOutcome} deploymentName={definition.name || undefined} />
 
       {!showsPageSkeleton && deployment && isLeasesLoaded && (
         <>

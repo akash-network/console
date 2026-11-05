@@ -106,6 +106,24 @@ describe(TopNavAccountMenu.name, () => {
     expect(screen.queryByText("What's new")).not.toBeInTheDocument();
   });
 
+  it("opens the feedback form when Send feedback is selected", async () => {
+    const { onSendFeedback } = setup({ username: "alice", onSendFeedback: vi.fn() });
+
+    await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
+    await userEvent.click(await screen.findByText("Send feedback"));
+
+    expect(onSendFeedback).toHaveBeenCalledOnce();
+  });
+
+  it("leaves Send feedback out when the entry is not enabled", async () => {
+    setup({ username: "alice" });
+
+    await userEvent.click(screen.getByRole("button", { name: /account menu/i }));
+
+    await screen.findByText("Profile");
+    expect(screen.queryByText("Send feedback")).not.toBeInTheDocument();
+  });
+
   it("shows sign up and sign in when signed out", async () => {
     setup({});
 
@@ -195,6 +213,21 @@ describe(TopNavAccountMenu.name, () => {
 
       expect(screen.queryByText("What's new")).not.toBeInTheDocument();
     });
+
+    it("opens the feedback form and closes the sheet", async () => {
+      const { onSendFeedback, onNavigate } = setup({ username: "alice", variant: "inline", onSendFeedback: vi.fn() });
+
+      await userEvent.click(screen.getByText("Send feedback"));
+
+      expect(onSendFeedback).toHaveBeenCalledOnce();
+      expect(onNavigate).toHaveBeenCalledOnce();
+    });
+
+    it("leaves Send feedback out when the entry is not enabled", () => {
+      setup({ username: "alice", variant: "inline" });
+
+      expect(screen.queryByText("Send feedback")).not.toBeInTheDocument();
+    });
   });
 
   function setup(input: {
@@ -204,6 +237,7 @@ describe(TopNavAccountMenu.name, () => {
     variant?: "dropdown" | "inline";
     onCreateOrganization?: () => void;
     onOpenWhatsNew?: () => void;
+    onSendFeedback?: () => void;
   }) {
     const push = vi.fn();
     const onNavigate = vi.fn();
@@ -228,10 +262,20 @@ describe(TopNavAccountMenu.name, () => {
           onNavigate={onNavigate}
           onCreateOrganization={input.onCreateOrganization}
           onOpenWhatsNew={input.onOpenWhatsNew}
+          onSendFeedback={input.onSendFeedback}
         />
       </TestContainerProvider>
     );
 
-    return { authService, push, windowOpen, onNavigate, onCreateOrganization: input.onCreateOrganization, onOpenWhatsNew: input.onOpenWhatsNew, container };
+    return {
+      authService,
+      push,
+      windowOpen,
+      onNavigate,
+      onCreateOrganization: input.onCreateOrganization,
+      onOpenWhatsNew: input.onOpenWhatsNew,
+      onSendFeedback: input.onSendFeedback,
+      container
+    };
   }
 });

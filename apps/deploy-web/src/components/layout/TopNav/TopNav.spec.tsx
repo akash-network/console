@@ -260,6 +260,41 @@ describe(TopNav.name, () => {
     });
   });
 
+  describe("send feedback", () => {
+    it("opens the feedback form from the account menu and closes it again", async () => {
+      const { accountMenu } = setup({ isAuthenticated: true, isFeedbackEnabled: true });
+
+      act(() => accountMenu.mock.calls[0][0]?.onSendFeedback?.());
+
+      expect(screen.getByRole("dialog", { name: "Send feedback dialog" })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Close feedback" }));
+      expect(screen.queryByRole("dialog", { name: "Send feedback dialog" })).not.toBeInTheDocument();
+    });
+
+    it("offers the feedback form in the mobile menu's account items", async () => {
+      const { accountMenu } = setup({ isAuthenticated: true, isFeedbackEnabled: true });
+
+      await userEvent.click(screen.getByRole("button", { name: "Open navigation menu" }));
+      const inlineMenuProps = accountMenu.mock.calls.find(call => call[0]?.variant === "inline")?.[0];
+      act(() => inlineMenuProps?.onSendFeedback?.());
+
+      expect(screen.getByRole("dialog", { name: "Send feedback dialog", hidden: true })).toBeInTheDocument();
+    });
+
+    it("leaves the feedback form out while the feedback loop is off", () => {
+      const { accountMenu, useFlag } = setup({ isAuthenticated: true, isFeedbackEnabled: false });
+
+      expect(useFlag).toHaveBeenCalledWith("user_feedback_loop");
+      expect(accountMenu.mock.calls[0][0]).toEqual(expect.objectContaining({ onSendFeedback: undefined }));
+    });
+
+    it("leaves the feedback form out for a signed-out visitor", () => {
+      const { accountMenu } = setup({ isAuthenticated: false, isFeedbackEnabled: true });
+
+      expect(accountMenu.mock.calls[0][0]).toEqual(expect.objectContaining({ onSendFeedback: undefined }));
+    });
+  });
+
   function setup(input: {
     isAuthenticated?: boolean;
     minimal?: boolean;
@@ -267,17 +302,30 @@ describe(TopNav.name, () => {
     isCommandMenuEnabled?: boolean;
     isOrganizationsEnabled?: boolean;
     projectsEnabled?: boolean;
+    isFeedbackEnabled?: boolean;
   }) {
     const accountMenu = vi.fn<typeof DEPENDENCIES.TopNavAccountMenu>(() => <></>);
     const openWhatsNew = vi.fn<ReturnType<typeof DEPENDENCIES.useOpenWhatsNew>>();
     const whatsNewAutoOpen = vi.fn<typeof DEPENDENCIES.WhatsNewAutoOpen>(() => null);
-    const enabledFlags = { ui_command_menu: input.isCommandMenuEnabled ?? false, organizations: input.isOrganizationsEnabled ?? false };
+    const enabledFlags = {
+      ui_command_menu: input.isCommandMenuEnabled ?? false,
+      organizations: input.isOrganizationsEnabled ?? false,
+      user_feedback_loop: input.isFeedbackEnabled ?? false
+    };
     const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag => enabledFlags[flag as keyof typeof enabledFlags] ?? false);
     const organizationSwitcher = vi.fn<typeof DEPENDENCIES.OrganizationSwitcher>(() => <button type="button">Switch organization</button>);
     const createOrganizationDialog = vi.fn<typeof DEPENDENCIES.CreateOrganizationDialog>(({ onClose }) => (
       <div role="dialog" aria-label="Create organization dialog">
         <button type="button" onClick={onClose}>
           Close dialog
+        </button>
+      </div>
+    ));
+
+    const sendFeedbackDialog = vi.fn<typeof DEPENDENCIES.SendFeedbackDialog>(({ onClose }) => (
+      <div role="dialog" aria-label="Send feedback dialog">
+        <button type="button" onClick={onClose}>
+          Close feedback
         </button>
       </div>
     ));
@@ -301,6 +349,7 @@ describe(TopNav.name, () => {
       ActivityBell: () => <button type="button">Activity</button>,
       OrganizationSwitcher: organizationSwitcher,
       CreateOrganizationDialog: createOrganizationDialog,
+      SendFeedbackDialog: sendFeedbackDialog,
       useOpenWhatsNew: () => openWhatsNew,
       WhatsNewAutoOpen: whatsNewAutoOpen
     });
