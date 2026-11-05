@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { readBrowserTimezone } from "@src/lib/browser-timezone/browser-timezone-cookie";
 import { defineApiHandler } from "@src/lib/nextjs/defineApiHandler/defineApiHandler";
+import { readReferralCode } from "@src/lib/referral/referral-cookie";
 
 const LOWER_LETTER_REGEX = /\p{Ll}/u;
 const UPPER_LETTER_REGEX = /\p{Lu}/u;
@@ -43,7 +44,8 @@ export default defineApiHandler({
       password: req.body.password,
       captchaToken: body.captchaToken,
       testingClientToken: req.headers["x-testing-client-token"] as string | undefined,
-      timezone: readBrowserTimezone(req)
+      timezone: readBrowserTimezone(req),
+      referralCode: readReferralCode(req.cookies)
     });
 
     if (result.ok) {
