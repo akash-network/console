@@ -9,6 +9,7 @@ import { useSnackbar } from "notistack";
 import { useServices } from "@src/context/ServicesProvider";
 import { useDeploymentMetrics } from "@src/hooks/useDeploymentMetrics";
 import { useHasDeploymentStopped } from "@src/hooks/useHasDeploymentStopped";
+import { useRuntimeLimitCeiling } from "@src/hooks/useRuntimeLimitCeiling";
 import { useTickingNow } from "@src/hooks/useTickingNow";
 import { useDeploymentSettingQuery, useUpdateDeploymentSettingMutation } from "@src/queries/deploymentSettingsQuery";
 import type { AppError } from "@src/types";
@@ -25,6 +26,7 @@ export const DEPENDENCIES = {
   useDeploymentSettingQuery,
   useDeploymentMetrics,
   useUpdateDeploymentSettingMutation,
+  useRuntimeLimitCeiling,
   useTickingNow,
   useSnackbar,
   Snackbar,
@@ -53,6 +55,8 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
   const runtimeLimitHours = deploymentSetting.data?.runtimeLimitHours ?? null;
   const runtimeEndsAt = deploymentSetting.data?.runtimeEndsAt ?? null;
   const isRuntimeLimited = !!runtimeLimitHours;
+  const { maxTotalHours } = d.useRuntimeLimitCeiling();
+  const canAddHours = isActive && !!runtimeLimitHours && runtimeLimitHours < maxTotalHours;
   const hasStopped = useHasDeploymentStopped({ deployment, leases });
   const now = d.useTickingNow(!!runtimeEndsAt && !hasStopped);
   const runtimeLimitCountdown = runtimeLimitHours ? getRuntimeLimitCountdown({ runtimeLimitHours, runtimeEndsAt, hasStopped, now }) : null;
@@ -122,7 +126,7 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
             </div>
           )}
         </div>
-        {isActive && isRuntimeLimited && (
+        {canAddHours && (
           <Button variant="outline" size="md" onClick={openAddHoursModal}>
             Add hours
           </Button>
@@ -150,6 +154,7 @@ export const DeploymentBillingSection: FC<DeploymentBillingSectionProps> = ({ de
       {isAddingHours && isRuntimeLimited && (
         <d.AddRuntimeHoursModal
           currentLimitHours={runtimeLimitHours}
+          maxLimitHours={maxTotalHours}
           costPerBlockUdenom={costPerBlockUdenom}
           denom={escrowDenom}
           isSubmitting={updateSetting.isPending}

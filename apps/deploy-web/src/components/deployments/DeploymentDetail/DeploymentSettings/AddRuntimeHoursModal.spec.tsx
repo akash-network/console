@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { MAX_RUNTIME_LIMIT_HOURS } from "@src/utils/runtimeLimitUtils";
 import type { DEPENDENCIES } from "./AddRuntimeHoursModal";
 import { AddRuntimeHoursModal } from "./AddRuntimeHoursModal";
 
@@ -49,6 +50,21 @@ describe(AddRuntimeHoursModal.name, () => {
     expect(screen.getByLabelText("Hours to add")).toHaveValue(10);
   });
 
+  it("caps the added hours at a trial's ceiling", () => {
+    setup({ currentLimitHours: 12, maxLimitHours: 24 });
+
+    fireEvent.change(screen.getByLabelText("Hours to add"), { target: { value: "48" } });
+
+    expect(screen.getByLabelText("Hours to add")).toHaveValue(12);
+    expect(screen.getByText("This deployment closes automatically after 12h. Add up to 12 more hours now.")).toBeInTheDocument();
+  });
+
+  it("invites adding more later while the ceiling is beyond this extension", () => {
+    setup({ currentLimitHours: 12 });
+
+    expect(screen.getByText("This deployment closes automatically after 12h. Add up to 48 more hours now, and add more again later.")).toBeInTheDocument();
+  });
+
   it("blocks submission when no hours are added", async () => {
     const { onSubmit } = setup({ currentLimitHours: 12 });
 
@@ -74,7 +90,7 @@ describe(AddRuntimeHoursModal.name, () => {
     expect(onCancel).toHaveBeenCalled();
   });
 
-  function setup(input: { currentLimitHours: number; costPerBlockUdenom?: number; isSubmitting?: boolean }) {
+  function setup(input: { currentLimitHours: number; maxLimitHours?: number; costPerBlockUdenom?: number; isSubmitting?: boolean }) {
     const onSubmit = vi.fn();
     const onCancel = vi.fn();
     const usePricing: typeof DEPENDENCIES.usePricing = () =>
@@ -83,6 +99,7 @@ describe(AddRuntimeHoursModal.name, () => {
     render(
       <AddRuntimeHoursModal
         currentLimitHours={input.currentLimitHours}
+        maxLimitHours={input.maxLimitHours ?? MAX_RUNTIME_LIMIT_HOURS}
         costPerBlockUdenom={input.costPerBlockUdenom ?? 100}
         denom="uact"
         isSubmitting={input.isSubmitting}

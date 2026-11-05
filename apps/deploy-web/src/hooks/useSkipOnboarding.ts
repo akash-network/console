@@ -7,7 +7,7 @@ import { useFlag } from "@src/hooks/useFlag";
 import { useUser } from "@src/hooks/useUser";
 import { SKIP_REPORTING_HANDLED_BY_CALLER } from "@src/services/query-error-policy/query-error-policy";
 
-export type SkipOnboardingSource = "picker" | "auto_deploy" | "api_key";
+export type SkipOnboardingSource = "picker" | "auto_deploy" | "api_key" | "billing";
 
 export const DEPENDENCIES = {
   useUser,
