@@ -54,6 +54,9 @@ export interface ChainDef {
   customModels?: ModelCtor<Model<any, any>>[];
 }
 
+/** Kept out of akash-network/net because the address is temporary, so the published sandbox nodes must stay in the list beside it. */
+const TEMPORARY_SANDBOX_ARCHIVAL_RPC_NODE = "http://23.147.152.118:26657";
+
 export const chainDefinitions: { [key: string]: ChainDef } = {
   akash: {
     code: "akash",
@@ -131,7 +134,7 @@ export const chainDefinitions: { [key: string]: ChainDef } = {
   },
   akashSandbox: {
     code: "akash-sandbox",
-    rpcNodes: netConfig.getAllBaseRpcUrls("sandbox"),
+    rpcNodes: [...netConfig.getAllBaseRpcUrls("sandbox"), TEMPORARY_SANDBOX_ARCHIVAL_RPC_NODE],
     cosmosDirectoryId: "akash",
     connectionString: process.env.AKASH_SANDBOX_DATABASE_CS,
     genesisFileUrl: `https://raw.githubusercontent.com/akash-network/net/main/${netConfig.mapped("sandbox")}/genesis.json`,
