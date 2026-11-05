@@ -133,8 +133,8 @@ const AssistantQuestion: FC<{ message: AssistantTranscriptMessage; canAddSecretS
     <p className="whitespace-pre-wrap rounded-xl border bg-muted px-4 py-2.5 text-sm">{message.text}</p>
     {message.redactedSecretCount > 0 && (
       <div className="flex flex-col items-end gap-2">
-        <p role="note" className="flex items-start gap-1.5 text-right text-xs text-muted-foreground">
-          <ShieldAlert className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <p role="note" className="text-right text-xs text-muted-foreground">
+          <ShieldAlert className="mr-1 inline h-3.5 w-3.5 align-[-3px]" aria-hidden="true" />
           {SECRET_REDACTED_NOTICE}
         </p>
         {canAddSecretSecurely && (
