@@ -142,12 +142,13 @@ describe(EmailSenderService.name, () => {
 
     it("leaves the subject out of the log for an email that carries a code", async () => {
       const { service, loggerService } = await setup();
+      const code = faker.string.numeric(6);
       const params = {
         addresses: [faker.internet.email()],
-        subject: "418902 is your Akash Console verification code",
+        subject: `${code} is your Akash Console verification code`,
         content: faker.lorem.paragraph(),
         userId: faker.string.uuid(),
-        code: "418902",
+        code,
         notificationId: `emailVerificationCode.${faker.string.uuid()}`
       };
 

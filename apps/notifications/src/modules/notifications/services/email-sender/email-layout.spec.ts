@@ -91,11 +91,12 @@ describe(renderEmailLayout.name, () => {
   });
 
   it("puts the verification code in a hidden preheader ahead of the card", () => {
-    const { html } = setup({ code: "418902" });
+    const code = faker.string.numeric(6);
+    const { html } = setup({ code });
 
     const preheader = html.match(/<div class="preheader" style="([^"]*)">([^<]*)<\/div>/);
     expect(preheader?.[1]).toContain("display:none");
-    expect(preheader?.[2]).toBe("Your verification code is 418902");
+    expect(preheader?.[2]).toBe(`Your verification code is ${code}`);
     expect(html.indexOf('class="preheader"')).toBeLessThan(html.indexOf('class="card"'));
   });
 
