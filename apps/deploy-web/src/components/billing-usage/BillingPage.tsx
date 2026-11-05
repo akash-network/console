@@ -15,10 +15,12 @@ import { useBillingBackgroundLoading } from "@src/components/billing-usage/useBi
 import Layout from "@src/components/layout/Layout";
 import { SettingsLayout } from "@src/components/layout/SettingsLayout/SettingsLayout";
 import { useFlag } from "@src/hooks/useFlag";
+import { useSkipOnboardingOnVisit } from "@src/hooks/useSkipOnboardingOnVisit";
 
 export const BillingPage: FC = () => {
   const isAutoCreditReloadEnabled = useFlag("auto_credit_reload");
   const isBackgroundLoading = useBillingBackgroundLoading();
+  useSkipOnboardingOnVisit("billing");
 
   return (
     <Layout background="dots" isLoading={isBackgroundLoading} disableContainer containerClassName="flex h-full flex-col justify-between">

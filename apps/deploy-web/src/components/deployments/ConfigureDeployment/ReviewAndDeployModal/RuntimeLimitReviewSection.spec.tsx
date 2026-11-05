@@ -2,7 +2,7 @@ import { TooltipProvider } from "@akashnetwork/ui/components";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/utils/runtimeLimitUtils";
+import { MAX_RUNTIME_LIMIT_HOURS, MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/utils/runtimeLimitUtils";
 import type { DEPENDENCIES } from "./RuntimeLimitReviewSection";
 import { RuntimeLimitReviewSection } from "./RuntimeLimitReviewSection";
 import type { ReviewRow } from "./useReviewRows";
@@ -70,6 +70,19 @@ describe(RuntimeLimitReviewSection.name, () => {
     expect(onChange).toHaveBeenCalledWith(MAX_RUNTIME_LIMIT_INCREMENT_HOURS);
   });
 
+  it("caps the input at a trial's ceiling", () => {
+    const { onChange } = setup({ value: 12, maxInitialHours: 24 });
+    fireEvent.change(screen.getByLabelText("Runtime limit in hours"), { target: { value: "48" } });
+    expect(onChange).toHaveBeenCalledWith(24);
+    expect(screen.getByLabelText("Runtime limit in hours")).toHaveAttribute("max", "24");
+  });
+
+  it("proposes no more than the ceiling when switched on", () => {
+    const { onChange } = setup({ maxInitialHours: 6 });
+    fireEvent.click(screen.getByRole("switch", { name: "Runtime limit" }));
+    expect(onChange).toHaveBeenCalledWith(6);
+  });
+
   it("quotes the requested hours off the API's blocks per hour", () => {
     setup({ value: 2, rows: [pricedRow("100"), pricedRow("50")] });
     expect(screen.getByText("About $0.18 for 2h")).toBeInTheDocument();
@@ -84,11 +97,15 @@ describe(RuntimeLimitReviewSection.name, () => {
     return { placementId: `p-${amount}`, placementName: `placement-${amount}`, providerName: "Dune Networks", price: { amount, denom: "uakt" } };
   }
 
-  function setup(input: { value?: number; isLimited?: boolean; rows?: ReviewRow[] }) {
+  function setup(input: { value?: number; isLimited?: boolean; rows?: ReviewRow[]; maxInitialHours?: number }) {
     const onChange = vi.fn();
     const onLimitedChange = vi.fn();
     const usePricing: typeof DEPENDENCIES.usePricing = () =>
       mock<ReturnType<typeof DEPENDENCIES.usePricing>>({ udenomToUsd: (amount: string | number) => Number(amount) / 1_000_000 });
+    const useRuntimeLimitCeiling: typeof DEPENDENCIES.useRuntimeLimitCeiling = () => ({
+      maxInitialHours: input.maxInitialHours ?? MAX_RUNTIME_LIMIT_INCREMENT_HOURS,
+      maxTotalHours: MAX_RUNTIME_LIMIT_HOURS
+    });
 
     render(
       <TooltipProvider>
@@ -98,7 +115,7 @@ describe(RuntimeLimitReviewSection.name, () => {
           value={input.value}
           onChange={onChange}
           rows={input.rows ?? [pricedRow("100")]}
-          dependencies={{ usePricing }}
+          dependencies={{ usePricing, useRuntimeLimitCeiling }}
         />
       </TooltipProvider>
     );

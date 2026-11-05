@@ -18,6 +18,7 @@ import { useSnackbar } from "notistack";
 
 import { PricePerTimeUnit } from "@src/components/shared/PricePerTimeUnit";
 import { useFlag } from "@src/hooks/useFlag";
+import { useRuntimeLimitCeiling } from "@src/hooks/useRuntimeLimitCeiling";
 import { useDeploymentSettingQuery, useUpdateDeploymentSettingMutation } from "@src/queries/deploymentSettingsQuery";
 import type { AppError, PlacementType } from "@src/types";
 import { extractErrorMessage } from "@src/utils/errorUtils";
@@ -37,6 +38,7 @@ export const DEPENDENCIES = {
   RuntimeLimitReviewSection,
   useFlag,
   useTrialGate,
+  useRuntimeLimitCeiling,
   useDeploymentSettingQuery,
   useUpdateDeploymentSettingMutation,
   useSnackbar,
@@ -93,7 +95,8 @@ export const ReviewAndDeployModal: FC<Props> = ({
   const isRuntimeLimitEnabled = d.useFlag("deployment_runtime_limit");
   const { isWalletReady } = d.useTrialGate();
   const isRuntimeLimitOffered = isRuntimeLimitEnabled && isWalletReady;
-  const effectiveRuntimeLimitHours = isRuntimeLimitOffered && runtimeLimitHours ? runtimeLimitHours : undefined;
+  const { maxInitialHours } = d.useRuntimeLimitCeiling();
+  const effectiveRuntimeLimitHours = isRuntimeLimitOffered && runtimeLimitHours ? Math.min(runtimeLimitHours, maxInitialHours) : undefined;
   /**
    * Read only while a limit is on offer. With the feature off nothing here may touch the stored setting,
    * so a deployment nobody asked to limit cannot have one removed, and a read that fails cannot block a
@@ -226,7 +229,7 @@ export const ReviewAndDeployModal: FC<Props> = ({
             <d.RuntimeLimitReviewSection
               isLimited={isRuntimeLimitOn}
               onLimitedChange={setIsRuntimeLimitOn}
-              value={runtimeLimitHours}
+              value={effectiveRuntimeLimitHours}
               onChange={onRuntimeLimitHoursChange}
               rows={rows}
             />

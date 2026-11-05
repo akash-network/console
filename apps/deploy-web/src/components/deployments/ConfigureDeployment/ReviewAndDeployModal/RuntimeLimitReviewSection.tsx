@@ -3,11 +3,11 @@ import { CustomTooltip, Input, Switch } from "@akashnetwork/ui/components";
 import { Info } from "lucide-react";
 
 import { usePricing } from "@src/hooks/usePricing/usePricing";
+import { useRuntimeLimitCeiling } from "@src/hooks/useRuntimeLimitCeiling";
 import { API_BLOCKS_PER_HOUR } from "@src/utils/deploymentUtils";
-import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/utils/runtimeLimitUtils";
 import type { ReviewRow } from "./useReviewRows";
 
-export const DEPENDENCIES = { usePricing };
+export const DEPENDENCIES = { usePricing, useRuntimeLimitCeiling };
 
 /** What the switch fills in, so turning it on shows a concrete limit instead of an empty field that means nothing. */
 const DEFAULT_RUNTIME_LIMIT_HOURS = 24;
@@ -30,15 +30,16 @@ type Props = {
  */
 export const RuntimeLimitReviewSection: FC<Props> = ({ isLimited, onLimitedChange, value, onChange, rows, dependencies: d = DEPENDENCIES }) => {
   const { udenomToUsd } = d.usePricing();
+  const { maxInitialHours } = d.useRuntimeLimitCeiling();
 
   const toggleRuntimeLimit = (enabled: boolean) => {
     onLimitedChange(enabled);
-    onChange(enabled ? DEFAULT_RUNTIME_LIMIT_HOURS : undefined);
+    onChange(enabled ? Math.min(DEFAULT_RUNTIME_LIMIT_HOURS, maxInitialHours) : undefined);
   };
 
   const applyRuntimeLimitInput = (event: ChangeEvent<HTMLInputElement>) => {
     const hours = Math.floor(Number(event.target.value));
-    onChange(hours >= 1 ? Math.min(hours, MAX_RUNTIME_LIMIT_INCREMENT_HOURS) : undefined);
+    onChange(hours >= 1 ? Math.min(hours, maxInitialHours) : undefined);
   };
 
   const estimatedCostUsd = value ? estimateRuntimeCostUsd(rows, value, udenomToUsd) : null;
@@ -65,7 +66,7 @@ export const RuntimeLimitReviewSection: FC<Props> = ({ isLimited, onLimitedChang
               type="number"
               aria-label="Runtime limit in hours"
               min={1}
-              max={MAX_RUNTIME_LIMIT_INCREMENT_HOURS}
+              max={maxInitialHours}
               step={1}
               value={value ?? ""}
               onChange={applyRuntimeLimitInput}

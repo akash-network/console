@@ -6,12 +6,13 @@ import { Input, Popup } from "@akashnetwork/ui/components";
 
 import { usePricing } from "@src/hooks/usePricing/usePricing";
 import { API_BLOCKS_PER_HOUR } from "@src/utils/deploymentUtils";
-import { MAX_RUNTIME_LIMIT_HOURS, MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/utils/runtimeLimitUtils";
+import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/utils/runtimeLimitUtils";
 
 export const DEPENDENCIES = { usePricing };
 
 export interface AddRuntimeHoursModalProps {
   currentLimitHours: number;
+  maxLimitHours: number;
   costPerBlockUdenom: number;
   denom: string;
   onSubmit: (totalHours: number) => void;
@@ -29,6 +30,7 @@ const DEFAULT_ADDED_HOURS = 12;
  */
 export const AddRuntimeHoursModal: FC<AddRuntimeHoursModalProps> = ({
   currentLimitHours,
+  maxLimitHours,
   costPerBlockUdenom,
   denom,
   onSubmit,
@@ -37,7 +39,8 @@ export const AddRuntimeHoursModal: FC<AddRuntimeHoursModalProps> = ({
   dependencies: d = DEPENDENCIES
 }) => {
   const { udenomToUsd } = d.usePricing();
-  const maxAddedHours = Math.min(MAX_RUNTIME_LIMIT_INCREMENT_HOURS, MAX_RUNTIME_LIMIT_HOURS - currentLimitHours);
+  const maxAddedHours = Math.min(MAX_RUNTIME_LIMIT_INCREMENT_HOURS, maxLimitHours - currentLimitHours);
+  const canAddMoreLater = currentLimitHours + maxAddedHours < maxLimitHours;
   const [addedHours, setAddedHours] = useState(Math.min(DEFAULT_ADDED_HOURS, maxAddedHours));
 
   const applyAddedHoursInput = (event: ChangeEvent<HTMLInputElement>) => {
@@ -67,7 +70,8 @@ export const AddRuntimeHoursModal: FC<AddRuntimeHoursModalProps> = ({
     <Popup fullWidth open variant="custom" actions={actions} onClose={onCancel} enableCloseOnBackdropClick title="Add runtime hours">
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          This deployment closes automatically after {currentLimitHours}h. Add up to {maxAddedHours} more hours now, and add more again later.
+          This deployment closes automatically after {currentLimitHours}h. Add up to {maxAddedHours} more hours now
+          {canAddMoreLater ? ", and add more again later." : "."}
         </p>
 
         <Input
