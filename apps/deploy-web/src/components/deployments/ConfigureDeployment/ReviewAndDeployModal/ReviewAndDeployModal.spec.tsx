@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
 import type { PlacementType } from "@src/types";
+import { MAX_RUNTIME_LIMIT_HOURS, MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/utils/runtimeLimitUtils";
 import type { DEPENDENCIES } from "./ReviewAndDeployModal";
 import { ReviewAndDeployModal } from "./ReviewAndDeployModal";
 import type { ReviewRow } from "./useReviewRows";
@@ -281,6 +282,19 @@ describe(ReviewAndDeployModal.name, () => {
 
       expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: 24 }]]);
     });
+
+    it("caps a restored limit above the runtime ceiling in what it shows and what it patches", async () => {
+      const onConfirm = vi.fn();
+      const { mutateAsync } = setup({ onConfirm, runtimeLimitHours: 48, maxInitialHours: 24 });
+
+      expect(screen.getByTestId("runtime-limit-value")).toHaveTextContent("24");
+      expect(screen.getByTestId("funding-impact-section")).toHaveTextContent("1 rows · limit 24");
+
+      await userEvent.click(screen.getByRole("button", { name: /confirm and deploy/i }));
+
+      expect(mutateAsync.mock.calls).toEqual([[{ runtimeLimitHours: 24 }]]);
+      await waitFor(() => expect(onConfirm).toHaveBeenCalled());
+    });
   });
 
   function setup(input: {
@@ -301,6 +315,7 @@ describe(ReviewAndDeployModal.name, () => {
     isRuntimeLimitEnabled?: boolean;
     isTrialing?: boolean;
     isWalletReady?: boolean;
+    maxInitialHours?: number;
     isPatchPending?: boolean;
     patchError?: Error;
     secondPatchError?: Error;
@@ -315,16 +330,18 @@ describe(ReviewAndDeployModal.name, () => {
     });
     const PricePerTimeUnit: typeof DEPENDENCIES.PricePerTimeUnit = ({ showAsHourly }) => <span data-testid="price">{showAsHourly ? "hourly" : "monthly"}</span>;
     const useDeploymentHasGpu: typeof DEPENDENCIES.useDeploymentHasGpu = () => input.hasGpu ?? false;
-    const RuntimeLimitReviewSection: typeof DEPENDENCIES.RuntimeLimitReviewSection = ({ isLimited, onLimitedChange, onChange }) => (
-      <button
-        data-testid="runtime-limit-section"
-        onClick={() => {
-          onLimitedChange(!isLimited);
-          onChange(isLimited ? undefined : 24);
-        }}
-      >
-        {isLimited ? "Turn off runtime limit" : "Turn on runtime limit"}
-      </button>
+    const RuntimeLimitReviewSection: typeof DEPENDENCIES.RuntimeLimitReviewSection = ({ isLimited, onLimitedChange, value, onChange }) => (
+      <div data-testid="runtime-limit-section">
+        <button
+          onClick={() => {
+            onLimitedChange(!isLimited);
+            onChange(isLimited ? undefined : 24);
+          }}
+        >
+          {isLimited ? "Turn off runtime limit" : "Turn on runtime limit"}
+        </button>
+        <span data-testid="runtime-limit-value">{value}</span>
+      </div>
     );
     const FundingImpactReviewSection: typeof DEPENDENCIES.FundingImpactReviewSection = ({ rows: fundingRows, runtimeLimitHours }) => (
       <div data-testid="funding-impact-section">
@@ -335,6 +352,10 @@ describe(ReviewAndDeployModal.name, () => {
     const useTrialGate: typeof DEPENDENCIES.useTrialGate = () => ({
       isRestricted: input.isTrialing ?? false,
       isWalletReady: input.isWalletReady ?? true
+    });
+    const useRuntimeLimitCeiling: typeof DEPENDENCIES.useRuntimeLimitCeiling = () => ({
+      maxInitialHours: input.maxInitialHours ?? MAX_RUNTIME_LIMIT_INCREMENT_HOURS,
+      maxTotalHours: MAX_RUNTIME_LIMIT_HOURS
     });
 
     let patchCalls = 0;
@@ -387,6 +408,7 @@ describe(ReviewAndDeployModal.name, () => {
           RuntimeLimitReviewSection,
           useFlag,
           useTrialGate,
+          useRuntimeLimitCeiling,
           useDeploymentSettingQuery,
           useUpdateDeploymentSettingMutation,
           useSnackbar,
