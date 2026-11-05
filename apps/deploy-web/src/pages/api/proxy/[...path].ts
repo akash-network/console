@@ -1,5 +1,7 @@
 import {
   ACTIVE_ORGANIZATION_HEADER_NAME,
+  expireActiveOrganizationCookie,
+  hasDuplicateActiveOrganizationCookie,
   readActiveOrganizationCookie,
   readActiveOrganizationHeader
 } from "@src/lib/active-organization/active-organization-cookie";
@@ -39,7 +41,14 @@ export default defineApiHandler({
       headers.authorization = `Bearer ${session.accessToken}`;
     }
 
-    const activeOrganizationId = readActiveOrganizationHeader(req.headers[ACTIVE_ORGANIZATION_HEADER_NAME]) ?? readActiveOrganizationCookie(req.headers.cookie);
+    const consoleLocation = new URL(services.privateConfig.AUTH0_BASE_URL);
+    if (hasDuplicateActiveOrganizationCookie(req.headers.cookie, consoleLocation)) {
+      services.logger.warn({ event: "DUPLICATE_ACTIVE_ORGANIZATION_COOKIE_REFUSED" });
+      expireActiveOrganizationCookie(res, consoleLocation);
+    }
+
+    const activeOrganizationId =
+      readActiveOrganizationHeader(req.headers[ACTIVE_ORGANIZATION_HEADER_NAME]) ?? readActiveOrganizationCookie(req.headers.cookie, consoleLocation);
     if (activeOrganizationId) {
       headers[ACTIVE_ORGANIZATION_HEADER_NAME] = activeOrganizationId;
     }

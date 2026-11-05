@@ -5,10 +5,12 @@ import type { InternalAxiosRequestConfig } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { ACTIVE_ORGANIZATION_COOKIE_NAME } from "@src/lib/active-organization/active-organization-cookie";
+import { getActiveOrganizationCookieName } from "@src/lib/active-organization/active-organization-cookie";
 import type { ApiUrlService } from "@src/services/api-url/api-url.service";
 import { withUserToken } from "@src/services/auth/auth/interceptors";
 import { createAppRootContainer } from "./app-di-container";
+
+const ACTIVE_ORGANIZATION_COOKIE_NAME = getActiveOrganizationCookieName(window.location);
 
 describe(createAppRootContainer.name, () => {
   it("creates the managed wallet service from the http-sdk", () => {

@@ -7,8 +7,8 @@ import { setSession } from "@src/lib/auth0/setSession/setSession";
 import { proxyRequest } from "@src/lib/nextjs/proxyRequest/proxyRequest";
 import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 import {
-  activeOrganizationForwardingInterceptor,
-  createActiveOrganizationForwardingFetch
+  createActiveOrganizationForwardingFetch,
+  createActiveOrganizationForwardingInterceptor
 } from "../active-organization-forwarding/active-organization-forwarding.interceptor";
 import { ApiUrlService } from "../api-url/api-url.service";
 import { clientIpForwardingInterceptor } from "../client-ip-forwarding/client-ip-forwarding.interceptor";
@@ -41,10 +41,13 @@ export const services = createChildContainer(rootContainer, {
   api: () =>
     createApiSdk({
       baseUrl: services.apiUrlService.getBaseApiUrlFor(services.privateConfig.NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID),
-      fetch: createActiveOrganizationForwardingFetch()
+      fetch: createActiveOrganizationForwardingFetch(getConsoleLocation)
     }),
   privateConfig: () => Object.freeze(serverEnvConfig),
-  consoleApiHttpClient: () => services.applyAxiosInterceptors(services.createAxios(), { request: [activeOrganizationForwardingInterceptor] }),
+  consoleApiHttpClient: () =>
+    services.applyAxiosInterceptors(services.createAxios(), {
+      request: [createActiveOrganizationForwardingInterceptor(getConsoleLocation)]
+    }),
   sessionApiHttpClient: () =>
     services.applyAxiosInterceptors(
       services.createAxios({
@@ -56,16 +59,12 @@ export const services = createChildContainer(rootContainer, {
       })
     ),
   sessionService: () =>
-    new SessionService(
-      services.externalApiHttpClient,
-      services.sessionApiHttpClient,
-      {
-        ISSUER_BASE_URL: services.privateConfig.AUTH0_ISSUER_BASE_URL,
-        CLIENT_ID: services.privateConfig.AUTH0_CLIENT_ID,
-        CLIENT_SECRET: services.privateConfig.AUTH0_CLIENT_SECRET,
-        AUDIENCE: services.privateConfig.AUTH0_AUDIENCE
-      }
-    ),
+    new SessionService(services.externalApiHttpClient, services.sessionApiHttpClient, {
+      ISSUER_BASE_URL: services.privateConfig.AUTH0_ISSUER_BASE_URL,
+      CLIENT_ID: services.privateConfig.AUTH0_CLIENT_ID,
+      CLIENT_SECRET: services.privateConfig.AUTH0_CLIENT_SECRET,
+      AUDIENCE: services.privateConfig.AUTH0_AUDIENCE
+    }),
   captchaVerifier: () =>
     new TurnstileVerifierService(services.externalApiHttpClient, {
       secretKey: services.privateConfig.TURNSTILE_SECRET_KEY,
@@ -75,3 +74,8 @@ export const services = createChildContainer(rootContainer, {
 });
 
 export type AppServices = typeof services;
+
+/** The Auth0 SDK marks its session cookie Secure from the same URL, so the console cookies follow one rule. */
+function getConsoleLocation() {
+  return new URL(services.privateConfig.AUTH0_BASE_URL);
+}

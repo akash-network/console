@@ -2,7 +2,7 @@ import type { APIRequestContext, APIResponse, Page } from "@playwright/test";
 
 import { acceptFairUsePolicyIfPrompted } from "../actions/fair-use-policy";
 import {
-  ACTIVE_ORGANIZATION_COOKIE,
+  activeOrganizationCookieName,
   createApiKey,
   createNames,
   createProjects,
@@ -603,7 +603,7 @@ test.describe("Projects and organization boundaries", () => {
 
 /** The app's proxy runs a request in the organization this cookie names, whatever organization the user last worked in. */
 async function enterOrganization(page: Page, organizationId: string) {
-  await page.context().addCookies([{ name: ACTIVE_ORGANIZATION_COOKIE, value: organizationId, url: testEnvConfig.BASE_URL }]);
+  await page.context().addCookies([{ name: activeOrganizationCookieName(testEnvConfig.BASE_URL), value: organizationId, url: testEnvConfig.BASE_URL }]);
 }
 
 function findOrganizationNamed(organizations: OrganizationList, name: string): Organization {

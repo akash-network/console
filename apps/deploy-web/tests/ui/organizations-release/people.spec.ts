@@ -3,7 +3,7 @@ import type { APIRequestContext, APIResponse, Page } from "@playwright/test";
 import { signInPasswordless } from "../actions/auth";
 import { acceptFairUsePolicyIfPrompted } from "../actions/fair-use-policy";
 import {
-  ACTIVE_ORGANIZATION_COOKIE,
+  activeOrganizationCookieName,
   createApiKey,
   createNames,
   createProjects,
@@ -809,12 +809,12 @@ async function createTeamThroughSession(page: Page, name: string): Promise<Organ
 }
 
 async function workIn(page: Page, organizationId: string) {
-  await page.context().addCookies([{ name: ACTIVE_ORGANIZATION_COOKIE, value: organizationId, url: testEnvConfig.BASE_URL }]);
+  await page.context().addCookies([{ name: activeOrganizationCookieName(testEnvConfig.BASE_URL), value: organizationId, url: testEnvConfig.BASE_URL }]);
 }
 
 /** What the app falls back to once the team its cookie names no longer has the person, whose every proxied request it would otherwise refuse. */
 async function workInPersonalAccount(page: Page) {
-  await page.context().clearCookies({ name: ACTIVE_ORGANIZATION_COOKIE });
+  await page.context().clearCookies({ name: activeOrganizationCookieName(testEnvConfig.BASE_URL) });
 }
 
 async function inviteThroughKey(api: APIRequestContext, invitation: InvitationRequest): Promise<Invitation> {

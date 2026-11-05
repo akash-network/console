@@ -4,6 +4,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 import type { Session } from "@src/lib/auth0";
 import { clearSessionCookies } from "@src/lib/auth0/clearSessionCookies/clearSessionCookies";
+import { hasAmbiguousSessionCookies } from "@src/lib/auth0/hasAmbiguousSessionCookies/hasAmbiguousSessionCookies";
 import { isAccessTokenExpired } from "@src/lib/auth0/isAccessTokenExpired/isAccessTokenExpired";
 import type { setSession } from "@src/lib/auth0/setSession/setSession";
 import type { RefreshedTokens, SessionService } from "@src/services/session/session.service";
@@ -45,6 +46,12 @@ export function createGetSessionWithRefresh(deps: GetSessionWithRefreshDependenc
   }
 
   return async function getSessionWithRefresh(req, res) {
+    if (hasAmbiguousSessionCookies(req.headers.cookie)) {
+      deps.logger.warn({ event: "AMBIGUOUS_SESSION_COOKIES_REFUSED" });
+      clearSessionCookies(req as NextApiRequest, res as NextApiResponse);
+      return null;
+    }
+
     const session = await deps.getSession(req, res);
     if (!session || !isAccessTokenExpired(session) || !session.refreshToken) {
       return session;

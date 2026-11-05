@@ -38,7 +38,7 @@ export class StaleOrganizationRecovery {
     if (typeof document === "undefined" || !isOrganizationForbiddenError(error)) return false;
     if (call.isDropped) return true;
 
-    const cookieOrganizationId = readActiveOrganizationCookie(document.cookie);
+    const cookieOrganizationId = readActiveOrganizationCookie(document.cookie, window.location);
     const refusedOrganizationId = this.#tabOrganization.organizationId ?? cookieOrganizationId;
     if (!refusedOrganizationId) return false;
 

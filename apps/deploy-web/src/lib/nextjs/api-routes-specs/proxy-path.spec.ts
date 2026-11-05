@@ -42,38 +42,67 @@ describe("proxy [...path] handler", () => {
     expect(getForwardedHeaders(proxyRequest)["cf-connecting-ip"]).toBe("127.0.0.1");
   });
 
-  it("forwards the console_org cookie as x-organization-id", async () => {
-    const { proxyRequest } = await setup({ session: null, headers: { cookie: "theme=dark; console_org=acme-corp" } });
+  it("forwards the host-bound organization cookie as x-organization-id", async () => {
+    const { proxyRequest } = await setup({ session: null, headers: { cookie: "theme=dark; __Host-console_org=acme-corp" } });
 
     expect(getForwardedHeaders(proxyRequest)["x-organization-id"]).toBe("acme-corp");
   });
 
-  it("sends no x-organization-id when there is no console_org cookie", async () => {
+  it("forwards the console_org cookie of a console served over plain http", async () => {
+    const { proxyRequest } = await setup({ session: null, headers: { cookie: "console_org=acme-corp" }, consoleUrl: "http://localhost:3000" });
+
+    expect(getForwardedHeaders(proxyRequest)["x-organization-id"]).toBe("acme-corp");
+  });
+
+  it("ignores an unprefixed console_org cookie on a console served over https", async () => {
+    const { proxyRequest } = await setup({ session: null, headers: { cookie: "console_org=acme-corp" } });
+
+    expect(getForwardedHeaders(proxyRequest)["x-organization-id"]).toBeUndefined();
+  });
+
+  it("sends no x-organization-id when there is no organization cookie", async () => {
     const { proxyRequest } = await setup({ session: null, headers: { cookie: "theme=dark" } });
 
     expect(getForwardedHeaders(proxyRequest)["x-organization-id"]).toBeUndefined();
   });
 
-  it("drops a console_org cookie whose value is not an organization id", async () => {
-    const { proxyRequest } = await setup({ session: null, headers: { cookie: "console_org=Acme%20Corp" } });
+  it("drops an organization cookie whose value is not an organization id", async () => {
+    const { proxyRequest } = await setup({ session: null, headers: { cookie: "__Host-console_org=Acme%20Corp" } });
 
     expect(getForwardedHeaders(proxyRequest)["x-organization-id"]).toBeUndefined();
   });
 
-  it("sends the organization the tab names instead of the one the console_org cookie holds", async () => {
-    const { upstreamFetch } = await setup({ session: null, headers: { cookie: "console_org=acme-corp", "x-organization-id": "globex" } });
+  it("treats an organization cookie sent twice as no organization and expires it", async () => {
+    const { proxyRequest, res, logger } = await setup({
+      session: null,
+      headers: { cookie: "__Host-console_org=globex; __Host-console_org=acme-corp" }
+    });
+
+    expect(getForwardedHeaders(proxyRequest)["x-organization-id"]).toBeUndefined();
+    expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", ["__Host-console_org=; Path=/; Max-Age=0; SameSite=Lax; Secure"]);
+    expect(logger.warn).toHaveBeenCalledWith({ event: "DUPLICATE_ACTIVE_ORGANIZATION_COOKIE_REFUSED" });
+  });
+
+  it("leaves an organization cookie sent once in place", async () => {
+    const { res } = await setup({ session: null, headers: { cookie: "__Host-console_org=acme-corp" } });
+
+    expect(res.setHeader).not.toHaveBeenCalledWith("Set-Cookie", expect.anything());
+  });
+
+  it("sends the organization the tab names instead of the one the organization cookie holds", async () => {
+    const { upstreamFetch } = await setup({ session: null, headers: { cookie: "__Host-console_org=acme-corp", "x-organization-id": "globex" } });
 
     expect(getUpstreamHeaders(upstreamFetch).get("x-organization-id")).toBe("globex");
   });
 
-  it("sends the organization the tab names when there is no console_org cookie", async () => {
+  it("sends the organization the tab names when there is no organization cookie", async () => {
     const { upstreamFetch } = await setup({ session: null, headers: { "x-organization-id": "globex" } });
 
     expect(getUpstreamHeaders(upstreamFetch).get("x-organization-id")).toBe("globex");
   });
 
-  it("falls back to the console_org cookie when the tab names something that is not an organization id", async () => {
-    const { upstreamFetch } = await setup({ session: null, headers: { cookie: "console_org=acme-corp", "x-organization-id": "Globex Inc" } });
+  it("falls back to the organization cookie when the tab names something that is not an organization id", async () => {
+    const { upstreamFetch } = await setup({ session: null, headers: { cookie: "__Host-console_org=acme-corp", "x-organization-id": "Globex Inc" } });
 
     expect(getUpstreamHeaders(upstreamFetch).get("x-organization-id")).toBe("acme-corp");
   });
@@ -103,7 +132,7 @@ describe("proxy [...path] handler", () => {
     return upstreamFetch.mock.calls[0]![1]!.headers as Headers;
   }
 
-  async function setup(input: { session: Session | null; headers?: Record<string, string> }) {
+  async function setup(input: { session: Session | null; headers?: Record<string, string>; consoleUrl?: string }) {
     const upstreamFetch = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }));
     const proxyRequest = vi.fn<typeof services.proxyRequest>((req, res, options) => forwardRequest(req, res, { ...options, fetch: upstreamFetch }));
     const getSession = vi.fn().mockResolvedValue(input.session);
@@ -128,7 +157,10 @@ describe("proxy [...path] handler", () => {
       proxyRequest,
       logger,
       apiUrlService,
-      privateConfig: { NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: "mainnet" } as typeof services.privateConfig,
+      privateConfig: {
+        NEXT_PUBLIC_MANAGED_WALLET_NETWORK_ID: "mainnet",
+        AUTH0_BASE_URL: input.consoleUrl ?? "https://console.test"
+      } as typeof services.privateConfig,
       userTracker: mock<typeof services.userTracker>()
     };
 
