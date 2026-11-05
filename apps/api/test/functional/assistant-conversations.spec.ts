@@ -150,12 +150,16 @@ describe("Assistant conversations", () => {
 
       expect(response.status).toBe(200);
       expect(response.headers.get("content-type")).toContain("text/event-stream");
-      expect(await eventsOf(response)).toEqual([
+      const events = await eventsOf(response);
+      expect(events).toEqual([
+        { type: "secret_redacted", count: 1 },
         { type: "tool_started", toolCallId: "call-1", name: "search_docs" },
         { type: "tool_result_summary", toolCallId: "call-1", name: "search_docs", ok: true, summary: expect.any(String) },
         { type: "text_delta", text: "Add a persistent storage volume to the profile." },
         { type: "done", reason: "stop" }
       ]);
+      expect(JSON.stringify(events)).not.toContain(FAKE_TOKEN);
+      expect(JSON.stringify(events)).not.toMatch(/ghp|github/i);
       expect(JSON.stringify(completions.bodies[0])).not.toContain(FAKE_TOKEN);
       expect(JSON.stringify(completions.bodies[0])).toContain(REDACTED);
       expect(await assistantMessageRepository.findAllOf(conversation.id)).toMatchObject([

@@ -19727,6 +19727,12 @@ export interface operations {
               }
             | {
                 /** @enum {string} */
+                type: "secret_redacted";
+                /** @description How many secrets were removed from the user's message before it reached the model. Never says which or what kind. */
+                count: number;
+              }
+            | {
+                /** @enum {string} */
                 type: "done";
                 /**
                  * @description `awaiting_client_tool`: the turn is paused until the browser posts the requested results to `client-tool-results`
@@ -20173,6 +20179,12 @@ export interface operations {
                  * @enum {string}
                  */
                 reason: "provider_side_issue" | "not_supported_here" | "no_confident_answer" | "user_asked_for_a_person";
+              }
+            | {
+                /** @enum {string} */
+                type: "secret_redacted";
+                /** @description How many secrets were removed from the user's message before it reached the model. Never says which or what kind. */
+                count: number;
               }
             | {
                 /** @enum {string} */

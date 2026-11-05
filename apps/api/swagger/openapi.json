@@ -36620,6 +36620,27 @@
                         "type": {
                           "type": "string",
                           "enum": [
+                            "secret_redacted"
+                          ]
+                        },
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "description": "How many secrets were removed from the user's message before it reached the model. Never says which or what kind."
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "count"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
                             "done"
                           ]
                         },
@@ -38131,6 +38152,27 @@
                       "required": [
                         "type",
                         "reason"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "secret_redacted"
+                          ]
+                        },
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "description": "How many secrets were removed from the user's message before it reached the model. Never says which or what kind."
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "count"
                       ]
                     },
                     {

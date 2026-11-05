@@ -182,6 +182,31 @@ describe(AssistantConversationService.name, () => {
       expect(turn.messages[0].content).toContain("free trial");
     });
 
+    it("tells the browser how many secrets it removed before the turn, without the value or its kind", async () => {
+      const { service, turnService } = setup();
+      const emit = vi.fn(async () => undefined);
+      turnService.run.mockImplementation(async () => {
+        expect(emit).toHaveBeenCalledTimes(1);
+      });
+
+      const run = await service.prepareMessage(CONVERSATION_ID, { content: `token ${FAKE_TOKEN} and password=hunter22` });
+      await run(emit, new AbortController().signal);
+
+      expect(emit).toHaveBeenCalledWith({ type: "secret_redacted", count: 2 });
+      expect(JSON.stringify(emit.mock.calls)).not.toContain(FAKE_TOKEN);
+      expect(turnService.run).toHaveBeenCalled();
+    });
+
+    it("emits nothing extra for a message without secrets", async () => {
+      const { service } = setup();
+      const emit = vi.fn(async () => undefined);
+
+      const run = await service.prepareMessage(CONVERSATION_ID, { content: "why no bids?" });
+      await run(emit, new AbortController().signal);
+
+      expect(emit).not.toHaveBeenCalled();
+    });
+
     it("uses the client's history and stores nothing for a conversation the API does not hold", async () => {
       const { service, messageRepository, transcriptService, turnService } = setup();
 
