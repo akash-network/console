@@ -25,7 +25,9 @@ import { OrganizationInvitationEmailJob } from "@src/organization/services/organ
 import {
   OWNER_ROLE_RESTRICTED_ERROR_CODE,
   PERSONAL_ORGANIZATION_ERROR_CODE,
-  PROJECT_ACCESS_REQUIRED_ERROR_CODE
+  PROJECT_ACCESS_REQUIRED_ERROR_CODE,
+  type RequestOrigin,
+  SESSION_REQUIRED_ERROR_CODE
 } from "@src/organization/services/organization-member/organization-member.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import {
@@ -41,6 +43,8 @@ import { createOrganizationContext } from "@test/seeders/organization-context.se
 import { createUser } from "@test/seeders/user.seeder";
 
 const DEPLOY_WEB_BASE_URL = "https://console.example.com";
+
+const SESSION: RequestOrigin = { authMethod: "bearer" };
 
 describe(OrganizationInvitationService.name, () => {
   afterEach(() => {
@@ -72,7 +76,7 @@ describe(OrganizationInvitationService.name, () => {
       const created = [createOrganizationInvitation({ email: "jane@example.com" }), createOrganizationInvitation({ email: "joe@example.com" })];
       repositories.create.createUnlessPending.mockResolvedValue(created);
 
-      await service.createInvitations({ emails: [" Jane@Example.com ", "joe@example.com", "JANE@example.com"], role: "member", projectAccess: "all" });
+      await service.createInvitations({ emails: [" Jane@Example.com ", "joe@example.com", "JANE@example.com"], role: "member", projectAccess: "all" }, SESSION);
 
       expect(invitationRepository.accessibleBy).toHaveBeenCalledWith(ability, "create");
       expect(repositories.create.createUnlessPending).toHaveBeenCalledWith(
@@ -95,7 +99,7 @@ describe(OrganizationInvitationService.name, () => {
     it("gives every new invitation a token of its own", async () => {
       const { service, repositories } = setup({});
 
-      await service.createInvitations({ emails: ["jane@example.com", "joe@example.com"], role: "member", projectAccess: "all" });
+      await service.createInvitations({ emails: ["jane@example.com", "joe@example.com"], role: "member", projectAccess: "all" }, SESSION);
 
       const [[inputs]] = repositories.create.createUnlessPending.mock.calls;
       expect(new Set(inputs.map(input => input.tokenHash)).size).toBe(2);
@@ -104,7 +108,7 @@ describe(OrganizationInvitationService.name, () => {
     it("locks the organization before reading its pending invitations", async () => {
       const { service, context, invitationRepository, organizationRepository } = setup({});
 
-      await service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" });
+      await service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" }, SESSION);
 
       expect(organizationRepository.findOneByAndLock).toHaveBeenCalledWith({ id: context.organizationId }, { strength: "no key update" });
       expect(organizationRepository.findOneByAndLock.mock.invocationCallOrder[0]).toBeLessThan(
@@ -119,7 +123,7 @@ describe(OrganizationInvitationService.name, () => {
       const { service, context, caller, repositories, invitationRepository, emailLimiter, jobQueueService } = setup({ updated: renewed });
       invitationRepository.findPendingWithInviters.mockResolvedValue([expired]);
 
-      await service.createInvitations({ emails: ["jane@example.com", "joe@example.com"], role: "admin" });
+      await service.createInvitations({ emails: ["jane@example.com", "joe@example.com"], role: "admin" }, SESSION);
 
       expect(repositories.update.updateBy).toHaveBeenCalledWith(
         { id: expired.id, status: "pending" },
@@ -146,7 +150,7 @@ describe(OrganizationInvitationService.name, () => {
       invitationRepository.findPendingWithInviters.mockResolvedValue([expired, stillPending]);
       repositories.create.createUnlessPending.mockResolvedValue([created]);
 
-      await service.createInvitations({ emails: ["jane@example.com", "joe@example.com", "jim@example.com"], role: "admin" });
+      await service.createInvitations({ emails: ["jane@example.com", "joe@example.com", "jim@example.com"], role: "admin" }, SESSION);
 
       expect(organizationActivityService.record.mock.calls).toEqual([
         [{ organizationId: context.organizationId, type: "member_invited", actorUserId: caller.id, payload: { email: "joe@example.com", role: "admin" } }],
@@ -158,7 +162,7 @@ describe(OrganizationInvitationService.name, () => {
       const { service, invitationRepository, organizationActivityService } = setup({});
       invitationRepository.findPendingWithInviters.mockResolvedValue([createOrganizationInvitationWithInviter({ email: "jane@example.com" })]);
 
-      await service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" });
+      await service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" }, SESSION);
 
       expect(organizationActivityService.record).not.toHaveBeenCalled();
     });
@@ -169,11 +173,38 @@ describe(OrganizationInvitationService.name, () => {
         createOrganizationInvitationWithInviter({ email: "jane@example.com", role: "owner", expiresAt: new Date(Date.now() - 1000) })
       ]);
 
-      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" })).rejects.toMatchObject({
+      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" }, SESSION)).rejects.toMatchObject({
         status: 403,
         errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE
       });
       expect(repositories.update.updateBy).not.toHaveBeenCalled();
+    });
+
+    it("refuses an owner's API key to renew an expired invitation to become an owner", async () => {
+      const { service, repositories, invitationRepository, jobQueueService } = setup({ context: createOrganizationContext({ role: "owner" }) });
+      invitationRepository.findPendingWithInviters.mockResolvedValue([
+        createOrganizationInvitationWithInviter({ email: "jane@example.com", role: "owner", expiresAt: new Date(Date.now() - 1000) })
+      ]);
+
+      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "admin" }, { authMethod: "api_key" })).rejects.toMatchObject({
+        status: 403,
+        errorCode: SESSION_REQUIRED_ERROR_CODE
+      });
+      expect(repositories.update.updateBy).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("lets an owner's API key renew an expired invitation below owner", async () => {
+      const expired = createOrganizationInvitationWithInviter({ email: "jane@example.com", role: "viewer", expiresAt: new Date(Date.now() - 1000) });
+      const { service, repositories, invitationRepository } = setup({
+        context: createOrganizationContext({ role: "owner" }),
+        updated: createOrganizationInvitation({ id: expired.id, email: "jane@example.com", role: "viewer" })
+      });
+      invitationRepository.findPendingWithInviters.mockResolvedValue([expired]);
+
+      await service.createInvitations({ emails: ["jane@example.com"], role: "admin" }, { authMethod: "api_key" });
+
+      expect(repositories.update.updateBy).toHaveBeenCalledWith({ id: expired.id, status: "pending" }, expect.any(Object), { returning: true });
     });
 
     it("returns the invitations in the order the addresses were given, keeping an address's pending invitation", async () => {
@@ -183,7 +214,7 @@ describe(OrganizationInvitationService.name, () => {
       invitationRepository.findPendingWithInviters.mockResolvedValue([pending]);
       repositories.read.findPendingWithInviters.mockResolvedValue([created, pending]);
 
-      const invitations = await service.createInvitations({ emails: ["jane@example.com", "joe@example.com"], role: "admin" });
+      const invitations = await service.createInvitations({ emails: ["jane@example.com", "joe@example.com"], role: "admin" }, SESSION);
 
       expect(invitations).toEqual([pending, created]);
       expect(invitationRepository.findPendingWithInviters).toHaveBeenCalledWith(context.organizationId, { emails: ["jane@example.com", "joe@example.com"] });
@@ -198,7 +229,7 @@ describe(OrganizationInvitationService.name, () => {
       repositories.create.createUnlessPending.mockResolvedValue([createOrganizationInvitation()]);
       txService.transaction.mockImplementation(async () => undefined);
 
-      await service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" });
+      await service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" }, SESSION);
 
       expect(repositories.create.createUnlessPending).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
@@ -208,15 +239,35 @@ describe(OrganizationInvitationService.name, () => {
     it("lets an owner invite someone as an owner", async () => {
       const { service, repositories } = setup({ context: createOrganizationContext({ role: "owner" }) });
 
-      await service.createInvitations({ emails: ["jane@example.com"], role: "owner" });
+      await service.createInvitations({ emails: ["jane@example.com"], role: "owner" }, SESSION);
 
       expect(repositories.create.createUnlessPending).toHaveBeenCalledWith([expect.objectContaining({ role: "owner" })]);
+    });
+
+    it.each(["api_key", "none", undefined] as const)("refuses an owner's request authenticated with %s to invite someone as an owner", async authMethod => {
+      const { service, repositories, jobQueueService } = setup({ context: createOrganizationContext({ role: "owner" }) });
+
+      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "owner" }, { authMethod })).rejects.toMatchObject({
+        status: 403,
+        errorCode: SESSION_REQUIRED_ERROR_CODE,
+        message: "The owner role can only be granted from a signed-in Console session."
+      });
+      expect(repositories.create.createUnlessPending).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("lets an owner's API key invite someone below owner", async () => {
+      const { service, repositories } = setup({ context: createOrganizationContext({ role: "owner" }) });
+
+      await service.createInvitations({ emails: ["jane@example.com"], role: "admin" }, { authMethod: "api_key" });
+
+      expect(repositories.create.createUnlessPending).toHaveBeenCalledWith([expect.objectContaining({ role: "admin" })]);
     });
 
     it.each<OrganizationRole>(["admin", "member", "billing", "viewer"])("refuses to let a caller with role %s invite someone as an owner", async role => {
       const { service, repositories } = setup({ context: createOrganizationContext({ role }) });
 
-      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "owner" })).rejects.toMatchObject({
+      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "owner" }, SESSION)).rejects.toMatchObject({
         status: 403,
         errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE
       });
@@ -226,7 +277,7 @@ describe(OrganizationInvitationService.name, () => {
     it("lets an admin invite someone as an admin", async () => {
       const { service, repositories } = setup({ context: createOrganizationContext({ role: "admin" }) });
 
-      await service.createInvitations({ emails: ["jane@example.com"], role: "admin" });
+      await service.createInvitations({ emails: ["jane@example.com"], role: "admin" }, SESSION);
 
       expect(repositories.create.createUnlessPending).toHaveBeenCalledWith([expect.objectContaining({ role: "admin" })]);
     });
@@ -234,7 +285,7 @@ describe(OrganizationInvitationService.name, () => {
     it("refuses to invite into a personal organization", async () => {
       const { service, repositories } = setup({ context: createOrganizationContext({ organizationType: "personal" }) });
 
-      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" })).rejects.toMatchObject({
+      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" }, SESSION)).rejects.toMatchObject({
         status: 403,
         errorCode: PERSONAL_ORGANIZATION_ERROR_CODE,
         message: "A personal organization cannot invite members"
@@ -246,7 +297,9 @@ describe(OrganizationInvitationService.name, () => {
       const { service, context, repositories, organizationMemberRepository, organizationActivityService } = setup({});
       organizationMemberRepository.findEmailsOfMembers.mockResolvedValue(["jane@example.com"]);
 
-      await expect(service.createInvitations({ emails: ["Jane@example.com", "joe@example.com"], role: "member", projectAccess: "all" })).rejects.toMatchObject({
+      await expect(
+        service.createInvitations({ emails: ["Jane@example.com", "joe@example.com"], role: "member", projectAccess: "all" }, SESSION)
+      ).rejects.toMatchObject({
         status: 409,
         errorCode: ALREADY_MEMBER_ERROR_CODE,
         message: "An address belongs to a member of the organization"
@@ -264,7 +317,7 @@ describe(OrganizationInvitationService.name, () => {
       ];
       projectRepository.findActiveIdsAmong.mockResolvedValue(projectGrants.map(grant => grant.projectId));
 
-      await service.createInvitations({ emails: ["jane@example.com"], role: "member", projectGrants });
+      await service.createInvitations({ emails: ["jane@example.com"], role: "member", projectGrants }, SESSION);
 
       expect(projectRepository.findActiveIdsAmong).toHaveBeenCalledWith(
         context.organizationId,
@@ -278,8 +331,8 @@ describe(OrganizationInvitationService.name, () => {
       const projectGrants = [{ projectId: faker.string.uuid(), role: "viewer" as const }];
       projectRepository.findActiveIdsAmong.mockResolvedValue([projectGrants[0].projectId]);
 
-      await service.createInvitations({ emails: ["jane@example.com"], role, projectAccess: "all" });
-      await service.createInvitations({ emails: ["joe@example.com"], role, projectAccess: "selected", projectGrants });
+      await service.createInvitations({ emails: ["jane@example.com"], role, projectAccess: "all" }, SESSION);
+      await service.createInvitations({ emails: ["joe@example.com"], role, projectAccess: "selected", projectGrants }, SESSION);
 
       expect(repositories.create.createUnlessPending.mock.calls).toEqual([
         [[expect.objectContaining({ role, projectAccess: "all", projectGrants: [] })]],
@@ -290,7 +343,7 @@ describe(OrganizationInvitationService.name, () => {
     it.each<OrganizationRole>(["member", "viewer"])("refuses a %s invitation stating neither its project access nor a project grant", async role => {
       const { service, repositories } = setup({});
 
-      await expect(service.createInvitations({ emails: ["jane@example.com"], role })).rejects.toMatchObject({
+      await expect(service.createInvitations({ emails: ["jane@example.com"], role }, SESSION)).rejects.toMatchObject({
         status: 400,
         errorCode: PROJECT_ACCESS_REQUIRED_ERROR_CODE,
         message: "Choose whether a member or viewer invitation reaches every project or specific ones"
@@ -302,7 +355,7 @@ describe(OrganizationInvitationService.name, () => {
       const { service, repositories } = setup({});
       const projectGrants = [{ projectId: faker.string.uuid(), role: "member" as const }];
 
-      await expect(service.createInvitations({ emails: ["jane@example.com"], role, projectAccess: "all", projectGrants })).rejects.toMatchObject({
+      await expect(service.createInvitations({ emails: ["jane@example.com"], role, projectAccess: "all", projectGrants }, SESSION)).rejects.toMatchObject({
         status: 400,
         message: "Project grants cannot be combined with access to every project"
       });
@@ -312,7 +365,9 @@ describe(OrganizationInvitationService.name, () => {
     it.each<OrganizationRole>(["member", "viewer"])("refuses a %s invitation with access to specific projects but no project grant", async role => {
       const { service, repositories } = setup({});
 
-      await expect(service.createInvitations({ emails: ["jane@example.com"], role, projectAccess: "selected", projectGrants: [] })).rejects.toMatchObject({
+      await expect(
+        service.createInvitations({ emails: ["jane@example.com"], role, projectAccess: "selected", projectGrants: [] }, SESSION)
+      ).rejects.toMatchObject({
         status: 400,
         message: "Specific project access needs at least one project grant"
       });
@@ -322,7 +377,7 @@ describe(OrganizationInvitationService.name, () => {
     it.each<OrganizationRole>(["owner", "admin", "billing"])("gives a %s invitation access to every project whatever it asks for", async role => {
       const { service, repositories } = setup({});
 
-      await service.createInvitations({ emails: ["jane@example.com"], role, projectAccess: "selected" });
+      await service.createInvitations({ emails: ["jane@example.com"], role, projectAccess: "selected" }, SESSION);
 
       expect(repositories.create.createUnlessPending).toHaveBeenCalledWith([expect.objectContaining({ role, projectAccess: "all" })]);
     });
@@ -331,7 +386,7 @@ describe(OrganizationInvitationService.name, () => {
       const { service, repositories, projectRepository } = setup({});
       const projectGrants = [{ projectId: faker.string.uuid(), role: "member" as const }];
 
-      await expect(service.createInvitations({ emails: ["jane@example.com"], role, projectGrants })).rejects.toMatchObject({
+      await expect(service.createInvitations({ emails: ["jane@example.com"], role, projectGrants }, SESSION)).rejects.toMatchObject({
         status: 400,
         message: "Project grants only apply to a member or viewer invitation"
       });
@@ -347,7 +402,7 @@ describe(OrganizationInvitationService.name, () => {
       ];
       projectRepository.findActiveIdsAmong.mockResolvedValue([projectGrants[0].projectId]);
 
-      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "member", projectGrants })).rejects.toMatchObject({
+      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "member", projectGrants }, SESSION)).rejects.toMatchObject({
         status: 400,
         message: "Project grants must name projects of the active organization"
       });
@@ -357,7 +412,7 @@ describe(OrganizationInvitationService.name, () => {
     it("skips the project lookup without project grants", async () => {
       const { service, projectRepository } = setup({});
 
-      await service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" });
+      await service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" }, SESSION);
 
       expect(projectRepository.findActiveIdsAmong).not.toHaveBeenCalled();
     });
@@ -366,7 +421,7 @@ describe(OrganizationInvitationService.name, () => {
       const { service, context, repositories, invitationRepository } = setup({});
       invitationRepository.countPending.mockResolvedValue(MAX_PENDING_INVITATIONS_PER_ORGANIZATION - 2);
 
-      await service.createInvitations({ emails: ["jane@example.com", "joe@example.com"], role: "member", projectAccess: "all" });
+      await service.createInvitations({ emails: ["jane@example.com", "joe@example.com"], role: "member", projectAccess: "all" }, SESSION);
 
       expect(invitationRepository.countPending).toHaveBeenCalledWith(context.organizationId);
       expect(repositories.create.createUnlessPending).toHaveBeenCalled();
@@ -376,7 +431,9 @@ describe(OrganizationInvitationService.name, () => {
       const { service, repositories, invitationRepository, organizationActivityService } = setup({});
       invitationRepository.countPending.mockResolvedValue(MAX_PENDING_INVITATIONS_PER_ORGANIZATION - 1);
 
-      await expect(service.createInvitations({ emails: ["jane@example.com", "joe@example.com"], role: "member", projectAccess: "all" })).rejects.toMatchObject({
+      await expect(
+        service.createInvitations({ emails: ["jane@example.com", "joe@example.com"], role: "member", projectAccess: "all" }, SESSION)
+      ).rejects.toMatchObject({
         status: 403,
         errorCode: INVITATION_LIMIT_REACHED_ERROR_CODE
       });
@@ -389,7 +446,7 @@ describe(OrganizationInvitationService.name, () => {
       invitationRepository.findPendingWithInviters.mockResolvedValue([createOrganizationInvitationWithInviter({ email: "jane@example.com" })]);
       invitationRepository.countPending.mockResolvedValue(MAX_PENDING_INVITATIONS_PER_ORGANIZATION);
 
-      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" })).resolves.toBeDefined();
+      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" }, SESSION)).resolves.toBeDefined();
       expect(invitationRepository.countPending).not.toHaveBeenCalled();
     });
 
@@ -399,7 +456,7 @@ describe(OrganizationInvitationService.name, () => {
       invitationRepository.findPendingWithInviters.mockResolvedValue([createOrganizationInvitationWithInviter({ email: "jane@example.com" })]);
       repositories.create.createUnlessPending.mockResolvedValue([created]);
 
-      await service.createInvitations({ emails: ["jane@example.com", "joe@example.com"], role: "member", projectAccess: "all" });
+      await service.createInvitations({ emails: ["jane@example.com", "joe@example.com"], role: "member", projectAccess: "all" }, SESSION);
 
       expect(emailLimiter.assertWithinLimits).toHaveBeenCalledWith({
         organizationId: context.organizationId,
@@ -413,7 +470,7 @@ describe(OrganizationInvitationService.name, () => {
       const { service, repositories, emailLimiter, jobQueueService, organizationActivityService } = setup({});
       emailLimiter.assertWithinLimits.mockRejectedValue(new Error("limit reached"));
 
-      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" })).rejects.toThrow("limit reached");
+      await expect(service.createInvitations({ emails: ["jane@example.com"], role: "member", projectAccess: "all" }, SESSION)).rejects.toThrow("limit reached");
       expect(repositories.create.createUnlessPending).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
       expect(organizationActivityService.record).not.toHaveBeenCalled();
@@ -427,7 +484,7 @@ describe(OrganizationInvitationService.name, () => {
       const { service, context, caller, repositories, emailLimiter } = setup({ invitation, updated: renewed });
       repositories.read.findPendingWithInviters.mockResolvedValue([createOrganizationInvitationWithInviter({ id: invitation.id })]);
 
-      await service.resendInvitation(invitation.id);
+      await service.resendInvitation(invitation.id, SESSION);
 
       expect(emailLimiter.assertWithinLimits).toHaveBeenCalledWith({
         organizationId: context.organizationId,
@@ -441,7 +498,7 @@ describe(OrganizationInvitationService.name, () => {
       const { service, repositories, emailLimiter, jobQueueService } = setup({ invitation: createOrganizationInvitation() });
       emailLimiter.assertWithinLimits.mockRejectedValue(new Error("limit reached"));
 
-      await expect(service.resendInvitation(faker.string.uuid())).rejects.toThrow("limit reached");
+      await expect(service.resendInvitation(faker.string.uuid(), SESSION)).rejects.toThrow("limit reached");
       expect(repositories.update.updateBy).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
@@ -457,7 +514,7 @@ describe(OrganizationInvitationService.name, () => {
       });
       repositories.read.findPendingWithInviters.mockResolvedValue([listed]);
 
-      await expect(service.resendInvitation(invitation.id)).resolves.toEqual(listed);
+      await expect(service.resendInvitation(invitation.id, SESSION)).resolves.toEqual(listed);
       expect(organizationActivityService.record).not.toHaveBeenCalled();
 
       expect(repositories.read.findOneBy).toHaveBeenCalledWith({ id: invitation.id, organizationId: context.organizationId, status: "pending" });
@@ -475,7 +532,7 @@ describe(OrganizationInvitationService.name, () => {
     it("answers not found when the invitation stopped being pending before it was renewed", async () => {
       const { service, jobQueueService } = setup({ invitation: createOrganizationInvitation() });
 
-      await expect(service.resendInvitation(faker.string.uuid())).rejects.toMatchObject({ status: 404 });
+      await expect(service.resendInvitation(faker.string.uuid(), SESSION)).rejects.toMatchObject({ status: 404 });
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
     });
 
@@ -483,13 +540,13 @@ describe(OrganizationInvitationService.name, () => {
       const invitation = createOrganizationInvitation();
       const { service } = setup({ invitation, updated: invitation });
 
-      await expect(service.resendInvitation(invitation.id)).rejects.toMatchObject({ status: 404, message: "Organization invitation not found" });
+      await expect(service.resendInvitation(invitation.id, SESSION)).rejects.toMatchObject({ status: 404, message: "Organization invitation not found" });
     });
 
     it("answers not found for an invitation that is not pending in the active organization", async () => {
       const { service, repositories } = setup({ invitation: undefined });
 
-      await expect(service.resendInvitation(faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Organization invitation not found" });
+      await expect(service.resendInvitation(faker.string.uuid(), SESSION)).rejects.toMatchObject({ status: 404, message: "Organization invitation not found" });
       expect(repositories.update.updateBy).not.toHaveBeenCalled();
     });
 
@@ -499,14 +556,44 @@ describe(OrganizationInvitationService.name, () => {
         context: createOrganizationContext({ role: "admin" })
       });
 
-      await expect(service.resendInvitation(faker.string.uuid())).rejects.toMatchObject({ status: 403, errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE });
+      await expect(service.resendInvitation(faker.string.uuid(), SESSION)).rejects.toMatchObject({ status: 403, errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE });
       expect(repositories.update.updateBy).not.toHaveBeenCalled();
+    });
+
+    it.each(["api_key", "none", undefined] as const)(
+      "refuses an owner's request authenticated with %s to resend an invitation to become an owner",
+      async authMethod => {
+        const { service, repositories, emailLimiter, jobQueueService } = setup({
+          invitation: createOrganizationInvitation({ role: "owner" }),
+          context: createOrganizationContext({ role: "owner" })
+        });
+
+        await expect(service.resendInvitation(faker.string.uuid(), { authMethod })).rejects.toMatchObject({
+          status: 403,
+          errorCode: SESSION_REQUIRED_ERROR_CODE,
+          message: "The owner role can only be granted from a signed-in Console session."
+        });
+        expect(repositories.update.updateBy).not.toHaveBeenCalled();
+        expect(emailLimiter.recordSends).not.toHaveBeenCalled();
+        expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      }
+    );
+
+    it("lets an owner's API key resend an invitation below owner", async () => {
+      const invitation = createOrganizationInvitation({ role: "admin" });
+      const renewed = createOrganizationInvitation({ id: invitation.id, role: "admin" });
+      const { service, caller, repositories, emailLimiter } = setup({ invitation, updated: renewed });
+      repositories.read.findPendingWithInviters.mockResolvedValue([createOrganizationInvitationWithInviter({ id: invitation.id })]);
+
+      await service.resendInvitation(invitation.id, { authMethod: "api_key" });
+
+      expect(emailLimiter.recordSends).toHaveBeenCalledWith([renewed], caller.id);
     });
 
     it("refuses a personal organization", async () => {
       const { service } = setup({ context: createOrganizationContext({ organizationType: "personal" }) });
 
-      await expect(service.resendInvitation(faker.string.uuid())).rejects.toMatchObject({ status: 403, errorCode: PERSONAL_ORGANIZATION_ERROR_CODE });
+      await expect(service.resendInvitation(faker.string.uuid(), SESSION)).rejects.toMatchObject({ status: 403, errorCode: PERSONAL_ORGANIZATION_ERROR_CODE });
     });
   });
 
@@ -518,7 +605,7 @@ describe(OrganizationInvitationService.name, () => {
         updated: invitation
       });
 
-      const url = await service.createInvitationLink(invitation.id);
+      const url = await service.createInvitationLink(invitation.id, SESSION);
 
       const token = url.replace(`${DEPLOY_WEB_BASE_URL}/invitations#token=`, "");
       expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
@@ -537,7 +624,7 @@ describe(OrganizationInvitationService.name, () => {
       const invitation = createOrganizationInvitation({ expiresAt: new Date("2026-10-01T00:00:00Z") });
       const { service, caller, repositories } = setup({ invitation, updated: invitation });
 
-      await service.createInvitationLink(invitation.id);
+      await service.createInvitationLink(invitation.id, SESSION);
 
       expect(repositories.update.updateBy).toHaveBeenCalledWith(
         { id: invitation.id, status: "pending" },
@@ -549,7 +636,10 @@ describe(OrganizationInvitationService.name, () => {
     it("answers not found when the invitation stopped being pending before the token was replaced", async () => {
       const { service } = setup({ invitation: createOrganizationInvitation() });
 
-      await expect(service.createInvitationLink(faker.string.uuid())).rejects.toMatchObject({ status: 404, message: "Organization invitation not found" });
+      await expect(service.createInvitationLink(faker.string.uuid(), SESSION)).rejects.toMatchObject({
+        status: 404,
+        message: "Organization invitation not found"
+      });
     });
 
     it("refuses to let an admin link to an invitation to become an owner", async () => {
@@ -558,8 +648,40 @@ describe(OrganizationInvitationService.name, () => {
         context: createOrganizationContext({ role: "admin" })
       });
 
-      await expect(service.createInvitationLink(faker.string.uuid())).rejects.toMatchObject({ status: 403, errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE });
+      await expect(service.createInvitationLink(faker.string.uuid(), SESSION)).rejects.toMatchObject({
+        status: 403,
+        errorCode: OWNER_ROLE_RESTRICTED_ERROR_CODE
+      });
       expect(repositories.update.updateBy).not.toHaveBeenCalled();
+    });
+
+    it.each(["api_key", "none", undefined] as const)(
+      "refuses an owner's request authenticated with %s to link to an invitation to become an owner",
+      async authMethod => {
+        const { service, repositories } = setup({
+          invitation: createOrganizationInvitation({ role: "owner" }),
+          context: createOrganizationContext({ role: "owner" })
+        });
+
+        await expect(service.createInvitationLink(faker.string.uuid(), { authMethod })).rejects.toMatchObject({
+          status: 403,
+          errorCode: SESSION_REQUIRED_ERROR_CODE,
+          message: "The owner role can only be granted from a signed-in Console session."
+        });
+        expect(repositories.update.updateBy).not.toHaveBeenCalled();
+      }
+    );
+
+    it("lets an owner's API key link to an invitation below owner", async () => {
+      const invitation = createOrganizationInvitation({ role: "admin" });
+      const { service, repositories } = setup({ invitation, updated: invitation });
+
+      const url = await service.createInvitationLink(invitation.id, { authMethod: "api_key" });
+
+      const linkPrefix = `${DEPLOY_WEB_BASE_URL}/invitations#token=`;
+      expect(url.startsWith(linkPrefix)).toBe(true);
+      expect(url.slice(linkPrefix.length)).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(repositories.update.updateBy).toHaveBeenCalledTimes(1);
     });
   });
 

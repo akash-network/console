@@ -5,6 +5,7 @@ import { singleton } from "tsyringe";
 import { AuthService } from "@src/auth/services/auth.service";
 import { TxService } from "@src/core/services";
 import { ExecutionContextService } from "@src/core/services/execution-context/execution-context.service";
+import type { AuthMethod } from "@src/core/types/app-context";
 import { effectiveProjectAccessOf } from "@src/organization/lib/project-access/project-access";
 import type { OrganizationRole, ProjectAccess } from "@src/organization/model-schemas/organization-member/organization-member.schema";
 import { GRANT_HOLDING_ORGANIZATION_ROLES } from "@src/organization/model-schemas/project-member/project-member.schema";
@@ -24,12 +25,15 @@ export const OWNER_ROLE_RESTRICTED_ERROR_CODE = "owner_role_restricted";
 export const PERSONAL_ORGANIZATION_ERROR_CODE = "personal_organization";
 export const OWNER_CANNOT_LEAVE_ERROR_CODE = "owner_cannot_leave";
 export const PROJECT_ACCESS_REQUIRED_ERROR_CODE = "project_access_required";
+export const SESSION_REQUIRED_ERROR_CODE = "session_required";
 
 const NO_PROJECT_GRANT_MESSAGE = "A member or viewer with access to specific projects needs at least one project grant";
 
 type MemberAction = "read" | "update" | "delete";
 
 type MemberAccess = { role: OrganizationRole; projectAccess: ProjectAccess; projectGrants?: ProjectGrantOfMember[] };
+
+export type RequestOrigin = { authMethod?: AuthMethod };
 
 export interface MemberChange {
   role?: OrganizationRole;
@@ -64,7 +68,7 @@ export class OrganizationMemberService {
   }
 
   /** Changes the role, the project access and the grants together, so a failure leaves all three as they were. */
-  async update(id: OrganizationMemberOutput["id"], change: MemberChange): Promise<OrganizationMemberWithUser> {
+  async update(id: OrganizationMemberOutput["id"], change: MemberChange, origin: RequestOrigin): Promise<OrganizationMemberWithUser> {
     const { organizationId } = this.#activeTeamOrganization();
 
     return await this.txService.transaction(async () => {
@@ -72,6 +76,7 @@ export class OrganizationMemberService {
       const member = await this.#findMember(id);
       const role = change.role ?? member.role;
       this.#assertOwnerRoleUntouchedByNonOwner(owners, [member.role, role]);
+      assertOwnerRoleGrantedFromSession(change.role, origin);
 
       if (member.role === "owner" && role !== "owner") {
         await this.assertAnotherOwnerRemains(organizationId, member.userId);
@@ -133,7 +138,7 @@ export class OrganizationMemberService {
     });
   }
 
-  async transferOwnership(id: OrganizationMemberOutput["id"]): Promise<OrganizationMemberWithUser> {
+  async transferOwnership(id: OrganizationMemberOutput["id"], origin: RequestOrigin): Promise<OrganizationMemberWithUser> {
     const { organizationId } = this.#activeTeamOrganization();
 
     await this.txService.transaction(async () => {
@@ -146,6 +151,7 @@ export class OrganizationMemberService {
 
       const member = await this.#findMember(id);
       assert(member.id !== callerMembership.id, 400, "Ownership can only be transferred to another member");
+      assertOwnerRoleGrantedFromSession("owner", origin);
 
       const repository = this.#repositoryFor("update");
       await repository.updateById(member.id, { role: "owner" });
@@ -258,6 +264,14 @@ export class OrganizationMemberService {
 
 export function projectAccessRequired(message: string) {
   return createError(400, message, { errorCode: PROJECT_ACCESS_REQUIRED_ERROR_CODE });
+}
+
+export function assertOwnerRoleGrantedFromSession(role: OrganizationRole | undefined, origin: RequestOrigin): void {
+  if (role === "owner") {
+    assert(origin.authMethod === "bearer", 403, "The owner role can only be granted from a signed-in Console session.", {
+      errorCode: SESSION_REQUIRED_ERROR_CODE
+    });
+  }
 }
 
 /** Moving someone into member or viewer from a role that ignores project access must say how far they reach, so access is never silently widened or emptied. */

@@ -7338,7 +7338,10 @@ export interface paths {
     delete: operations["deleteOrganizationMember"];
     options?: never;
     head?: never;
-    /** Change the role, project access and project grants of a member of the active organization, all together or not at all */
+    /**
+     * Change the role, project access and project grants of a member of the active organization, all together or not at all
+     * @description Making someone an owner requires a signed-in Console session.
+     */
     patch: operations["updateOrganizationMember"];
     trace?: never;
   };
@@ -7351,7 +7354,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Make a member an owner of the active organization and step the calling owner down to admin */
+    /**
+     * Make a member an owner of the active organization and step the calling owner down to admin
+     * @description Requires a signed-in Console session. A request authenticated with an API key is refused.
+     */
     post: operations["transferOrganizationOwnership"];
     delete?: never;
     options?: never;
@@ -7369,7 +7375,10 @@ export interface paths {
     /** List the pending invitations of the active organization */
     get: operations["listOrganizationInvitations"];
     put?: never;
-    /** Invite people to the active organization by email */
+    /**
+     * Invite people to the active organization by email
+     * @description Inviting someone as an owner, or renewing an expired owner invitation, requires a signed-in Console session.
+     */
     post: operations["createOrganizationInvitations"];
     delete?: never;
     options?: never;
@@ -7386,7 +7395,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Email a pending invitation again with a new link and a new expiry */
+    /**
+     * Email a pending invitation again with a new link and a new expiry
+     * @description An invitation to become an owner can only be resent from a signed-in Console session.
+     */
     post: operations["resendOrganizationInvitation"];
     delete?: never;
     options?: never;
@@ -7403,7 +7415,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Issue a new link for a pending invitation, which stops every earlier link from working */
+    /**
+     * Issue a new link for a pending invitation, which stops every earlier link from working
+     * @description A link to an invitation to become an owner can only be issued from a signed-in Console session.
+     */
     post: operations["createOrganizationInvitationLink"];
     delete?: never;
     options?: never;
@@ -16184,7 +16199,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller cannot change this member, the change touches the owner role and the caller is not an owner (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`) */
+      /** @description The caller cannot change this member, the change touches the owner role and the caller is not an owner (`owner_role_restricted`), it makes someone an owner from a request that was not made from a signed-in session (`session_required`), or the active organization is a personal one (`personal_organization`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -16266,7 +16281,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller is not an owner (`owner_role_restricted` when they are an admin), or the active organization is a personal one (`personal_organization`) */
+      /** @description The caller is not an owner (`owner_role_restricted` when they are an admin), the request was not made from a signed-in session (`session_required`), or the active organization is a personal one (`personal_organization`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -16435,7 +16450,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller cannot invite members, invites an owner or renews an expired owner invitation without being an owner (`owner_role_restricted`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`) */
+      /** @description The caller cannot invite members, invites an owner or renews an expired owner invitation without being an owner (`owner_role_restricted`) or from a request that was not made from a signed-in session (`session_required`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -16525,7 +16540,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`) */
+      /** @description The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`) or the request was not made from a signed-in session (`session_required`), or the active organization is a personal one (`personal_organization`) */
       403: {
         headers: {
           [name: string]: unknown;
@@ -16592,7 +16607,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`), or the active organization is a personal one (`personal_organization`) */
+      /** @description The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`) or the request was not made from a signed-in session (`session_required`), or the active organization is a personal one (`personal_organization`) */
       403: {
         headers: {
           [name: string]: unknown;

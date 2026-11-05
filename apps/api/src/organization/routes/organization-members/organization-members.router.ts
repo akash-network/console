@@ -3,7 +3,7 @@ import { container } from "tsyringe";
 import { createRoute } from "@src/core/lib/create-route/create-route";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
-import { SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
+import { SECURITY_BEARER, SECURITY_BEARER_OR_API_KEY } from "@src/core/services/openapi-docs/openapi-security";
 import { OrganizationMemberController } from "@src/organization/controllers/organization-member/organization-member.controller";
 import {
   ListOrganizationMemberProjectGrantsResponseSchema,
@@ -81,6 +81,7 @@ const updateOrganizationMemberRoute = createRoute({
   path: "/v1/organization-members/{id}",
   operationId: "updateOrganizationMember",
   summary: "Change the role, project access and project grants of a member of the active organization, all together or not at all",
+  description: "Making someone an owner requires a signed-in Console session.",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.ORGANIZATIONS,
@@ -91,6 +92,10 @@ const updateOrganizationMemberRoute = createRoute({
   responses: {
     200: { description: "The updated member", content: { "application/json": { schema: OrganizationMemberResponseSchema } } },
     ...memberWriteErrorResponses,
+    403: {
+      description:
+        "The caller cannot change this member, the change touches the owner role and the caller is not an owner (`owner_role_restricted`), it makes someone an owner from a request that was not made from a signed-in session (`session_required`), or the active organization is a personal one (`personal_organization`)"
+    },
     400: {
       description:
         "The request is invalid, someone becoming a member or viewer has no project access stated (`project_access_required`), a member or viewer on specific projects would hold no grant, the grants name a project that is not live or someone they do not apply to, or the organization header names another organization than the API key's (`organization_mismatch`)"
@@ -102,7 +107,7 @@ organizationMembersRouter.openapi(updateOrganizationMemberRoute, async function 
   const { id } = c.req.valid("param");
   const { data } = c.req.valid("json");
 
-  return c.json(await container.resolve(OrganizationMemberController).update(id, data), 200);
+  return c.json(await container.resolve(OrganizationMemberController).update(id, data, { authMethod: c.get("authMethod") }), 200);
 });
 
 const deleteOrganizationMemberRoute = createRoute({
@@ -138,8 +143,9 @@ const transferOrganizationOwnershipRoute = createRoute({
   path: "/v1/organization-members/{id}/ownership-transfer",
   operationId: "transferOrganizationOwnership",
   summary: "Make a member an owner of the active organization and step the calling owner down to admin",
+  description: "Requires a signed-in Console session. A request authenticated with an API key is refused.",
   tags: ["Organizations"],
-  security: SECURITY_BEARER_OR_API_KEY,
+  security: SECURITY_BEARER,
   featureFlag: FeatureFlags.ORGANIZATIONS,
   request: {
     params: OrganizationMemberParamsSchema
@@ -153,7 +159,7 @@ const transferOrganizationOwnershipRoute = createRoute({
     },
     403: {
       description:
-        "The caller is not an owner (`owner_role_restricted` when they are an admin), or the active organization is a personal one (`personal_organization`)"
+        "The caller is not an owner (`owner_role_restricted` when they are an admin), the request was not made from a signed-in session (`session_required`), or the active organization is a personal one (`personal_organization`)"
     }
   }
 });
@@ -161,5 +167,5 @@ const transferOrganizationOwnershipRoute = createRoute({
 organizationMembersRouter.openapi(transferOrganizationOwnershipRoute, async function routeTransferOrganizationOwnership(c) {
   const { id } = c.req.valid("param");
 
-  return c.json(await container.resolve(OrganizationMemberController).transferOwnership(id), 200);
+  return c.json(await container.resolve(OrganizationMemberController).transferOwnership(id, { authMethod: c.get("authMethod") }), 200);
 });

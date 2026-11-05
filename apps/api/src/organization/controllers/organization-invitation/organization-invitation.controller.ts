@@ -9,6 +9,7 @@ import type {
 } from "@src/organization/http-schemas/organization-invitation.schema";
 import type { OrganizationInvitationWithInviter } from "@src/organization/repositories/organization-invitation/organization-invitation.repository";
 import { OrganizationInvitationService } from "@src/organization/services/organization-invitation/organization-invitation.service";
+import type { RequestOrigin } from "@src/organization/services/organization-member/organization-member.service";
 
 @singleton()
 export class OrganizationInvitationController {
@@ -22,20 +23,20 @@ export class OrganizationInvitationController {
   }
 
   @Protected([{ action: "create", subject: "OrganizationInvitation" }])
-  async create(input: CreateOrganizationInvitationsRequest["data"]): Promise<ListOrganizationInvitationsResponse> {
-    const invitations = await this.organizationInvitationService.createInvitations(input);
+  async create(input: CreateOrganizationInvitationsRequest["data"], origin: RequestOrigin): Promise<ListOrganizationInvitationsResponse> {
+    const invitations = await this.organizationInvitationService.createInvitations(input, origin);
 
     return { data: invitations.map(toOrganizationInvitation) };
   }
 
   @Protected([{ action: "update", subject: "OrganizationInvitation" }])
-  async resend(id: string): Promise<OrganizationInvitationResponse> {
-    return { data: toOrganizationInvitation(await this.organizationInvitationService.resendInvitation(id)) };
+  async resend(id: string, origin: RequestOrigin): Promise<OrganizationInvitationResponse> {
+    return { data: toOrganizationInvitation(await this.organizationInvitationService.resendInvitation(id, origin)) };
   }
 
   @Protected([{ action: "update", subject: "OrganizationInvitation" }])
-  async createLink(id: string): Promise<OrganizationInvitationLinkResponse> {
-    return { data: { url: await this.organizationInvitationService.createInvitationLink(id) } };
+  async createLink(id: string, origin: RequestOrigin): Promise<OrganizationInvitationLinkResponse> {
+    return { data: { url: await this.organizationInvitationService.createInvitationLink(id, origin) } };
   }
 
   @Protected([{ action: "delete", subject: "OrganizationInvitation" }])

@@ -23,9 +23,11 @@ import { InvitationEmailLimiter } from "@src/organization/services/invitation-em
 import { OrganizationActivityService } from "@src/organization/services/organization-activity/organization-activity.service";
 import { OrganizationInvitationEmailJob } from "@src/organization/services/organization-invitation-email/organization-invitation-email.handler";
 import {
+  assertOwnerRoleGrantedFromSession,
   OWNER_ROLE_RESTRICTED_ERROR_CODE,
   PERSONAL_ORGANIZATION_ERROR_CODE,
-  projectAccessRequired
+  projectAccessRequired,
+  type RequestOrigin
 } from "@src/organization/services/organization-member/organization-member.service";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 
@@ -67,16 +69,15 @@ export class OrganizationInvitationService {
   }
 
   /** An address with a live pending invitation gets it back unchanged; an expired one is renewed and emailed again. */
-  async createInvitations({
-    emails: rawEmails,
-    role,
-    projectAccess: requestedAccess,
-    projectGrants = []
-  }: CreateInvitationsInput): Promise<OrganizationInvitationWithInviter[]> {
+  async createInvitations(
+    { emails: rawEmails, role, projectAccess: requestedAccess, projectGrants = [] }: CreateInvitationsInput,
+    origin: RequestOrigin
+  ): Promise<OrganizationInvitationWithInviter[]> {
     const context = this.#activeTeamOrganization();
     const { organizationId } = context;
     const senderId = this.authService.currentUser.id;
     this.#assertCanInviteAs(context, role);
+    assertOwnerRoleGrantedFromSession(role, origin);
     const projectAccess = projectAccessOfInvitation(role, requestedAccess, projectGrants);
     const emails = [...new Set(rawEmails.map(email => email.trim().toLowerCase()))];
     await this.#assertProjectsInOrganization(organizationId, projectGrants);
@@ -88,7 +89,10 @@ export class OrganizationInvitationService {
       const pendingEmails = new Set(pending.map(invitation => invitation.email));
       const newEmails = emails.filter(email => !pendingEmails.has(email));
       const expired = pending.filter(invitation => hasExpired(invitation));
-      expired.forEach(invitation => this.#assertCanInviteAs(context, invitation.role));
+      expired.forEach(invitation => {
+        this.#assertCanInviteAs(context, invitation.role);
+        assertOwnerRoleGrantedFromSession(invitation.role, origin);
+      });
       await this.emailLimiter.assertWithinLimits({ organizationId, senderId, emails: [...newEmails, ...expired.map(invitation => invitation.email)] });
       await this.#assertRoomForInvitations(organizationId, newEmails.length);
 
@@ -120,12 +124,13 @@ export class OrganizationInvitationService {
     return emails.flatMap(email => invitations.filter(invitation => invitation.email === email));
   }
 
-  async resendInvitation(id: OrganizationInvitationOutput["id"]): Promise<OrganizationInvitationWithInviter> {
+  async resendInvitation(id: OrganizationInvitationOutput["id"], origin: RequestOrigin): Promise<OrganizationInvitationWithInviter> {
     const context = this.#activeTeamOrganization();
 
     await this.txService.transaction(async () => {
       const senderId = this.authService.currentUser.id;
       const invitation = await this.#findPendingInvitation(context, id);
+      assertOwnerRoleGrantedFromSession(invitation.role, origin);
       await this.emailLimiter.assertWithinLimits({ organizationId: context.organizationId, senderId, emails: [invitation.email] });
       await this.#sendEmails([await this.#renew(id, senderId)], senderId);
     });
@@ -137,9 +142,10 @@ export class OrganizationInvitationService {
   }
 
   /** An expired invitation gets a new expiry too, so the link works when it is shared. */
-  async createInvitationLink(id: OrganizationInvitationOutput["id"]): Promise<string> {
+  async createInvitationLink(id: OrganizationInvitationOutput["id"], origin: RequestOrigin): Promise<string> {
     const context = this.#activeTeamOrganization();
     const invitation = await this.#findPendingInvitation(context, id);
+    assertOwnerRoleGrantedFromSession(invitation.role, origin);
     const token = createInvitationToken();
     const updated = await this.#repositoryFor("update").updateBy(
       { id, status: "pending" },
