@@ -11,6 +11,8 @@ import { isLeaseLive } from "@src/utils/leaseUtils";
 
 export const DEPENDENCIES = { useServices, useSnackbar, useQueryClient, useMarkActivityOutcomes };
 
+type SendableLease = Pick<LeaseDto, "gseq" | "oseq" | "provider" | "state">;
+
 /** Requests the deployment's live leases again, which the api answers by sending their providers the deployment they never received. */
 export function useSendDeploymentAgain(dependencies: typeof DEPENDENCIES = DEPENDENCIES) {
   const { api } = dependencies.useServices();
@@ -19,22 +21,34 @@ export function useSendDeploymentAgain(dependencies: typeof DEPENDENCIES = DEPEN
   const { enqueueSnackbar } = dependencies.useSnackbar();
   const { forgetEarlierOutcomes, markOutcomeHandled } = dependencies.useMarkActivityOutcomes();
 
-  const sendAgain = useCallback(
-    async ({ dseq, leases }: { dseq: string; leases: LeaseDto[] }) => {
+  /** Rejects when the api refuses, for a caller that shows the failure itself. */
+  const requestAgain = useCallback(
+    async ({ dseq, leases }: { dseq: string; leases: SendableLease[] }) => {
       forgetEarlierOutcomes("lease_create", dseq);
       try {
         await requestLeases({ async: "true", leases: leases.filter(isLeaseLive).map(({ gseq, oseq, provider }) => ({ dseq, gseq, oseq, provider })) });
         await queryClient.invalidateQueries({ queryKey: api.v1.listActivities.getKey() });
       } catch (error) {
         markOutcomeHandled("lease_create", dseq, "failed");
+        throw error;
+      }
+    },
+    [requestLeases, queryClient, api, forgetEarlierOutcomes, markOutcomeHandled]
+  );
+
+  const sendAgain = useCallback(
+    async (input: { dseq: string; leases: SendableLease[] }) => {
+      try {
+        await requestAgain(input);
+      } catch (error) {
         enqueueSnackbar(
           <Snackbar title="Couldn't send the deployment" subTitle={extractApiErrorMessage(error) ?? "Try again in a moment."} iconVariant="error" />,
           { variant: "error" }
         );
       }
     },
-    [requestLeases, queryClient, api, enqueueSnackbar, forgetEarlierOutcomes, markOutcomeHandled]
+    [requestAgain, enqueueSnackbar]
   );
 
-  return { sendAgain, isSending };
+  return { sendAgain, requestAgain, isSending };
 }

@@ -3,6 +3,7 @@ import { createProxy } from "@akashnetwork/react-query-proxy";
 import { browserEnvConfig } from "@src/config/browser-env.config";
 import { createApiSdk } from "@src/services/api-sdk/createApiSdk";
 import { ApiUrlService } from "@src/services/api-url/api-url.service";
+import { AssistantConversationClient } from "@src/services/assistant-conversation/assistant-conversation-client";
 import { AuthService } from "../auth/auth/auth.service";
 import { PROXY_API_BASE_URL, withUserToken } from "../auth/auth/interceptors";
 import { BrowserFavoriteProvidersService } from "../browser-favorite-providers/browser-favorite-providers.service";
@@ -29,6 +30,11 @@ export const services = createChildContainer(rootContainer, {
         baseUrl: PROXY_API_BASE_URL,
         fetch: createTabOrganizationFetch(services.tabOrganization, createSessionExpiryFetch(services.sessionExpiryNotifier))
       })
+    ),
+  assistantConversation: () =>
+    new AssistantConversationClient(
+      createTabOrganizationFetch(services.tabOrganization, createSessionExpiryFetch(services.sessionExpiryNotifier)),
+      PROXY_API_BASE_URL
     ),
   internalApiHttpClient: () => services.createAxios(),
   consoleApiHttpClient: () =>

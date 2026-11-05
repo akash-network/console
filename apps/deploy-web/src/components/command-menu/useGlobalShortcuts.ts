@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import type { CommandPage, DeploymentStartCommand } from "./commandMenuCatalog";
-import { COMMAND_PAGES, DEPLOYMENT_START_COMMANDS, GO_KEY, SHOW_SHORTCUTS_SHORTCUT } from "./commandMenuCatalog";
+import { COMMAND_PAGES, DEPLOYMENT_START_COMMANDS, GO_KEY, OPEN_ASSISTANT_SHORTCUT, SHOW_SHORTCUTS_SHORTCUT } from "./commandMenuCatalog";
 import { detectMac, isMenuToggleKey, isShortcutKey } from "./platformKeys";
 
 export interface GlobalShortcutHandlers {
@@ -9,6 +9,8 @@ export interface GlobalShortcutHandlers {
   onShowShortcuts: () => void;
   onStartDeployment: (command: DeploymentStartCommand) => void;
   onGoTo: (page: CommandPage) => void;
+  /** Binds the assistant shortcut only while the assistant is available. */
+  onOpenAssistant?: () => void;
 }
 
 const GO_SEQUENCE_WINDOW_MS = 1200;
@@ -37,6 +39,11 @@ export function useGlobalShortcuts(handlers: GlobalShortcutHandlers) {
       }
       if (isShortcutKey(event, SHOW_SHORTCUTS_SHORTCUT.keys)) {
         handlersRef.current.onShowShortcuts();
+        return true;
+      }
+      const { onOpenAssistant } = handlersRef.current;
+      if (onOpenAssistant && isShortcutKey(event, OPEN_ASSISTANT_SHORTCUT.keys)) {
+        onOpenAssistant();
         return true;
       }
       return false;

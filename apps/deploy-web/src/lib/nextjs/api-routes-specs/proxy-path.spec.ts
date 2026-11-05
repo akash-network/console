@@ -124,6 +124,24 @@ describe("proxy [...path] handler", () => {
     expect(upstreamFetch).not.toHaveBeenCalled();
   });
 
+  it("gives an assistant turn longer than the default timeout to stream", async () => {
+    const { proxyRequest } = await setup({ session: null, requestUrl: "/api/proxy/v1/assistant/conversations/c-1/messages" });
+
+    expect(proxyRequest.mock.calls[0]![2].timeout).toBe(150_000);
+  });
+
+  it("keeps the default timeout for assistant calls that do not stream", async () => {
+    const { proxyRequest } = await setup({ session: null, requestUrl: "/api/proxy/v1/assistant/conversations/c-1/end" });
+
+    expect(proxyRequest.mock.calls[0]![2].timeout).toBeUndefined();
+  });
+
+  it("gives the browser tool results the same streaming timeout", async () => {
+    const { proxyRequest } = await setup({ session: null, requestUrl: "/api/proxy/v1/assistant/conversations/c-1/client-tool-results" });
+
+    expect(proxyRequest.mock.calls[0]![2].timeout).toBe(150_000);
+  });
+
   function getForwardedHeaders(proxyRequest: Mock): Record<string, string> {
     return proxyRequest.mock.calls[0]![2].headers as Record<string, string>;
   }
@@ -132,7 +150,7 @@ describe("proxy [...path] handler", () => {
     return upstreamFetch.mock.calls[0]![1]!.headers as Headers;
   }
 
-  async function setup(input: { session: Session | null; headers?: Record<string, string>; consoleUrl?: string }) {
+  async function setup(input: { session: Session | null; headers?: Record<string, string>; consoleUrl?: string; requestUrl?: string }) {
     const upstreamFetch = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }));
     const proxyRequest = vi.fn<typeof services.proxyRequest>((req, res, options) => forwardRequest(req, res, { ...options, fetch: upstreamFetch }));
     const getSession = vi.fn().mockResolvedValue(input.session);
@@ -143,7 +161,7 @@ describe("proxy [...path] handler", () => {
     });
 
     const req = mock<NextApiRequestWithServices>({
-      url: "/api/proxy/v1/tx",
+      url: input.requestUrl ?? "/api/proxy/v1/tx",
       method: "POST",
       cookies: {},
       socket: mock<Socket>({ remoteAddress: "127.0.0.1" })

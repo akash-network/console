@@ -18,7 +18,7 @@ describe(ProfilePage.name, () => {
   });
 
   it("hands each setting the profile it edits", () => {
-    const { user, UsernameSetting, ProductUpdatesSetting, TimezoneSetting, DeleteAccountSection } = setup({
+    const { user, UsernameSetting, ProductUpdatesSetting, TimezoneSetting, DeleteAccountSection, AssistantPrivacySection } = setup({
       user: { username: "alice", email: "alice@example.com", timezone: "Europe/Paris" }
     });
 
@@ -26,6 +26,7 @@ describe(ProfilePage.name, () => {
     expect(ProductUpdatesSetting.mock.lastCall?.[0]).toEqual(expect.objectContaining({ user }));
     expect(TimezoneSetting.mock.lastCall?.[0]).toEqual(expect.objectContaining({ user }));
     expect(DeleteAccountSection.mock.lastCall?.[0]).toEqual(expect.objectContaining({ email: "alice@example.com" }));
+    expect(AssistantPrivacySection).toHaveBeenCalled();
   });
 
   it("titles the page Profile and shows the layout loader while the profile loads", () => {
@@ -50,7 +51,8 @@ describe(ProfilePage.name, () => {
       UsernameSetting: vi.mocked(dependencies.UsernameSetting),
       ProductUpdatesSetting: vi.mocked(dependencies.ProductUpdatesSetting),
       TimezoneSetting: vi.mocked(dependencies.TimezoneSetting),
-      DeleteAccountSection: vi.mocked(dependencies.DeleteAccountSection)
+      DeleteAccountSection: vi.mocked(dependencies.DeleteAccountSection),
+      AssistantPrivacySection: vi.mocked(dependencies.AssistantPrivacySection)
     };
   }
 });

@@ -14,6 +14,35 @@ describe(ProviderProxyService.name, () => {
     vi.useRealTimers();
   });
 
+  describe("readLogs", () => {
+    it("reads the requested tail of the selected services without following, one formatted line each", async () => {
+      const { service, websocket } = setup();
+
+      const promise = service.readLogs({
+        type: "logs",
+        providerBaseUrl: "https://provider.akash.network",
+        providerAddress: "akash1provider",
+        ensureToken: () => Promise.resolve("jwt-token"),
+        dseq: "123",
+        gseq: 1,
+        oseq: 1,
+        tail: 200,
+        services: ["web"]
+      });
+
+      await dispatchWsEvent(websocket, new Event("open"));
+      await dispatchWsEvent(websocket, new MessageEvent("message", { data: JSON.stringify({}) }));
+      await dispatchWsEvent(
+        websocket,
+        new MessageEvent("message", { data: JSON.stringify({ message: JSON.stringify({ name: "web-abc", message: "Listening", service: "web" }) }) })
+      );
+      await dispatchWsEvent(websocket, new Event("close"));
+
+      expect(await promise).toBe("[web]: Listening\n");
+      expect(websocket.send).toHaveBeenCalledWith(expect.stringContaining("follow=false&tail=200&service=web"));
+    });
+  });
+
   describe("downloadLogs", () => {
     it("downloads logs successfully and saves file", async () => {
       const { service, saveFile, websocket } = setup();

@@ -23,6 +23,7 @@ import { ActivityHost } from "@src/components/activity/ActivityHost/ActivityHost
 import { DeploymentReadyHost } from "@src/components/activity/DeploymentReadyHost/DeploymentReadyHost";
 import { AccountCreatedTracker } from "@src/components/analytics/AccountCreatedTracker/AccountCreatedTracker";
 import { AppBootstrap } from "@src/components/AppBootstrap/AppBootstrap";
+import { AssistantHost } from "@src/components/assistant/AssistantHost/AssistantHost";
 import { RequireAuth } from "@src/components/auth/RequireAuth/RequireAuth";
 import { AddCreditsHost } from "@src/components/billing-usage/AddCreditsHost/AddCreditsHost";
 import { CloseDeploymentConfirmHost } from "@src/components/deployments/CloseDeploymentConfirmHost/CloseDeploymentConfirmHost";
@@ -86,6 +87,7 @@ const App: React.FunctionComponent<Props> = props => {
                     <ActivityHost />
                     <DeploymentReadyHost />
                     <WhatsNewHost />
+                    <AssistantHost />
                     <NavigationGuardProvider>
                       <RequireOnboarding isPublic={isPublic}>
                         <WaitForFeatureFlags>

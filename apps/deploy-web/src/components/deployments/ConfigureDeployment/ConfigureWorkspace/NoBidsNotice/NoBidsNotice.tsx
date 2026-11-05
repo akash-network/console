@@ -2,12 +2,20 @@ import type { FC } from "react";
 import { Button } from "@akashnetwork/ui/components";
 import { CircleAlertIcon, MessageSquareIcon } from "lucide-react";
 
+import { AskAssistantButton } from "@src/components/assistant/AskAssistantButton/AskAssistantButton";
+
+export const DEPENDENCIES = { AskAssistantButton };
+
+export const WHY_NO_BIDS_QUESTION = "Why isn't my deployment getting any bids?";
+
 type Props = {
   requestLabel?: string;
+  dseq: string | null;
   onRequestCompute: () => void;
+  dependencies?: typeof DEPENDENCIES;
 };
 
-export const NoBidsNotice: FC<Props> = ({ requestLabel = "Request compute", onRequestCompute }) => (
+export const NoBidsNotice: FC<Props> = ({ requestLabel = "Request compute", dseq, onRequestCompute, dependencies: d = DEPENDENCIES }) => (
   <div className="flex items-start gap-3 rounded-lg border border-zinc-300 bg-muted/40 p-4 dark:border-zinc-700">
     <CircleAlertIcon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
     <div className="flex min-w-0 flex-col gap-3">
@@ -23,6 +31,7 @@ export const NoBidsNotice: FC<Props> = ({ requestLabel = "Request compute", onRe
           <MessageSquareIcon className="h-4 w-4" aria-hidden="true" />
           {requestLabel}
         </Button>
+        {dseq && <d.AskAssistantButton dseq={dseq} question={WHY_NO_BIDS_QUESTION} label="Why no bids?" />}
         <p className="text-xs text-muted-foreground">A late bid still shows up here. To change your configuration, use Close and Edit.</p>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { NextSeo } from "next-seo";
 import Layout from "@src/components/layout/Layout";
 import { SettingsCard, SettingsRow } from "@src/components/layout/SettingsCard/SettingsCard";
 import { SettingsSection } from "@src/components/layout/SettingsSection/SettingsSection";
+import { AssistantPrivacySection } from "@src/components/user/AssistantPrivacySection/AssistantPrivacySection";
 import { DeleteAccountSection } from "@src/components/user/DeleteAccount/DeleteAccountSection";
 import { ProductUpdatesSetting } from "@src/components/user/ProductUpdatesSetting/ProductUpdatesSetting";
 import { TimezoneSetting } from "@src/components/user/TimezoneSetting/TimezoneSetting";
@@ -12,7 +13,16 @@ import { UsernameSetting } from "@src/components/user/UsernameSetting/UsernameSe
 import { useCustomUser } from "@src/hooks/useCustomUser";
 import type { CustomUserProfile } from "@src/types/user";
 
-export const DEPENDENCIES = { Layout, NextSeo, UsernameSetting, ProductUpdatesSetting, TimezoneSetting, DeleteAccountSection, useCustomUser };
+export const DEPENDENCIES = {
+  Layout,
+  NextSeo,
+  UsernameSetting,
+  ProductUpdatesSetting,
+  TimezoneSetting,
+  AssistantPrivacySection,
+  DeleteAccountSection,
+  useCustomUser
+};
 
 type Props = {
   user: CustomUserProfile;
@@ -48,6 +58,8 @@ export const ProfilePage: FC<Props> = ({ user, dependencies: d = DEPENDENCIES })
                 <d.TimezoneSetting user={user} />
               </SettingsCard>
             </SettingsSection>
+
+            <d.AssistantPrivacySection />
 
             <d.DeleteAccountSection email={user.email} />
           </div>

@@ -14,6 +14,7 @@ export type CommandAction =
   | "add_funds"
   | "toggle_theme"
   | "keyboard_shortcuts"
+  | "open_assistant"
   | "open_deployment"
   | `go_to_${CommandPageId}`;
 
@@ -75,6 +76,8 @@ export const DEPLOYMENT_START_COMMANDS: DeploymentStartCommand[] = [
 export const MENU_TOGGLE_SHORTCUT: Shortcut = { keys: ["mod", "K"] };
 
 export const SHOW_SHORTCUTS_SHORTCUT: Shortcut = { keys: ["?"] };
+
+export const OPEN_ASSISTANT_SHORTCUT: Shortcut = { keys: ["shift", "A"] };
 
 export const GO_KEY = "G";
 

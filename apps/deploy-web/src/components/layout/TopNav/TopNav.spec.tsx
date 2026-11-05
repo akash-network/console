@@ -83,6 +83,34 @@ describe(TopNav.name, () => {
     expect(screen.queryByRole("button", { name: "Search or run a command" })).not.toBeInTheDocument();
   });
 
+  describe("assistant", () => {
+    it("opens the assistant from the header for a signed-in user when it is on", async () => {
+      const { openAssistant, useFlag } = setup({ isAuthenticated: true, isFeedbackLoopEnabled: true });
+
+      await userEvent.click(screen.getByRole("button", { name: "Ask the assistant" }));
+
+      expect(useFlag).toHaveBeenCalledWith("user_feedback_loop");
+      expect(openAssistant).toHaveBeenCalledWith();
+    });
+
+    it("binds the assistant shortcut through the command menu", () => {
+      const { commandMenu, openAssistant } = setup({ isAuthenticated: true, isFeedbackLoopEnabled: true, isCommandMenuEnabled: true });
+
+      commandMenu.mock.lastCall![0].onOpenAssistant!();
+
+      expect(openAssistant).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves the assistant out while it is off, when signed out and in minimal mode", () => {
+      const { commandMenu } = setup({ isAuthenticated: true, isFeedbackLoopEnabled: false, isCommandMenuEnabled: true });
+      expect(commandMenu.mock.lastCall![0].onOpenAssistant).toBeUndefined();
+      setup({ isAuthenticated: false, isFeedbackLoopEnabled: true });
+      setup({ isAuthenticated: true, minimal: true, isFeedbackLoopEnabled: true });
+
+      expect(screen.queryByRole("button", { name: "Ask the assistant" })).not.toBeInTheDocument();
+    });
+  });
+
   it("hides nav links when signed out", () => {
     setup({ isAuthenticated: false });
 
@@ -262,7 +290,7 @@ describe(TopNav.name, () => {
 
   describe("send feedback", () => {
     it("opens the feedback form from the account menu and closes it again", async () => {
-      const { accountMenu } = setup({ isAuthenticated: true, isFeedbackEnabled: true });
+      const { accountMenu } = setup({ isAuthenticated: true, isFeedbackLoopEnabled: true });
 
       act(() => accountMenu.mock.calls[0][0]?.onSendFeedback?.());
 
@@ -272,7 +300,7 @@ describe(TopNav.name, () => {
     });
 
     it("offers the feedback form in the mobile menu's account items", async () => {
-      const { accountMenu } = setup({ isAuthenticated: true, isFeedbackEnabled: true });
+      const { accountMenu } = setup({ isAuthenticated: true, isFeedbackLoopEnabled: true });
 
       await userEvent.click(screen.getByRole("button", { name: "Open navigation menu" }));
       const inlineMenuProps = accountMenu.mock.calls.find(call => call[0]?.variant === "inline")?.[0];
@@ -282,14 +310,14 @@ describe(TopNav.name, () => {
     });
 
     it("leaves the feedback form out while the feedback loop is off", () => {
-      const { accountMenu, useFlag } = setup({ isAuthenticated: true, isFeedbackEnabled: false });
+      const { accountMenu, useFlag } = setup({ isAuthenticated: true, isFeedbackLoopEnabled: false });
 
       expect(useFlag).toHaveBeenCalledWith("user_feedback_loop");
       expect(accountMenu.mock.calls[0][0]).toEqual(expect.objectContaining({ onSendFeedback: undefined }));
     });
 
     it("leaves the feedback form out for a signed-out visitor", () => {
-      const { accountMenu } = setup({ isAuthenticated: false, isFeedbackEnabled: true });
+      const { accountMenu } = setup({ isAuthenticated: false, isFeedbackLoopEnabled: true });
 
       expect(accountMenu.mock.calls[0][0]).toEqual(expect.objectContaining({ onSendFeedback: undefined }));
     });
@@ -302,7 +330,7 @@ describe(TopNav.name, () => {
     isCommandMenuEnabled?: boolean;
     isOrganizationsEnabled?: boolean;
     projectsEnabled?: boolean;
-    isFeedbackEnabled?: boolean;
+    isFeedbackLoopEnabled?: boolean;
   }) {
     const accountMenu = vi.fn<typeof DEPENDENCIES.TopNavAccountMenu>(() => <></>);
     const openWhatsNew = vi.fn<ReturnType<typeof DEPENDENCIES.useOpenWhatsNew>>();
@@ -310,8 +338,10 @@ describe(TopNav.name, () => {
     const enabledFlags = {
       ui_command_menu: input.isCommandMenuEnabled ?? false,
       organizations: input.isOrganizationsEnabled ?? false,
-      user_feedback_loop: input.isFeedbackEnabled ?? false
+      user_feedback_loop: input.isFeedbackLoopEnabled ?? false
     };
+    const openAssistant = vi.fn();
+    const commandMenu = vi.fn<typeof DEPENDENCIES.CommandMenu>(() => <button type="button">Search or run a command</button>);
     const useFlag = vi.fn<typeof DEPENDENCIES.useFlag>(flag => enabledFlags[flag as keyof typeof enabledFlags] ?? false);
     const organizationSwitcher = vi.fn<typeof DEPENDENCIES.OrganizationSwitcher>(() => <button type="button">Switch organization</button>);
     const createOrganizationDialog = vi.fn<typeof DEPENDENCIES.CreateOrganizationDialog>(({ onClose }) => (
@@ -338,7 +368,8 @@ describe(TopNav.name, () => {
       usePathname: () => input.pathname ?? "/",
       useCookieTheme: () => "light",
       useFlag,
-      CommandMenu: () => <button type="button">Search or run a command</button>,
+      CommandMenu: commandMenu,
+      useAssistantPanel: () => ({ isOpen: false, request: {}, openedAt: 0, open: openAssistant, close: vi.fn() }),
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
           organizations: [],
@@ -356,6 +387,6 @@ describe(TopNav.name, () => {
 
     render(<TopNav dependencies={dependencies} minimal={input.minimal} />);
 
-    return { accountMenu, useFlag, organizationSwitcher, openWhatsNew, whatsNewAutoOpen };
+    return { accountMenu, useFlag, organizationSwitcher, openWhatsNew, whatsNewAutoOpen, openAssistant, commandMenu };
   }
 });

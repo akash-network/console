@@ -28,6 +28,19 @@ describe(ShortcutsSheet.name, () => {
     expect(rowLabels("In the command menu")).toEqual(["Move selection", "Open", "Cycle filter", "Actions only", "Deployments only", "Pages only"]);
   });
 
+  it("lists the assistant shortcut only while the assistant is available", () => {
+    setup({ hasAssistant: true });
+
+    expect(rowLabels("Assistant")).toEqual(["Ask the assistant"]);
+    expect(keysOf("Assistant", "Ask the assistant")).toEqual(["Shift", "A"]);
+  });
+
+  it("leaves the assistant group out while the assistant is off", () => {
+    setup({});
+
+    expect(screen.queryByRole("region", { name: "Assistant" })).not.toBeInTheDocument();
+  });
+
   it("prints each row's keys", () => {
     setup({});
 
@@ -95,12 +108,12 @@ describe(ShortcutsSheet.name, () => {
     return [...row(title, label).querySelectorAll("kbd")].map(kbd => kbd.textContent);
   }
 
-  function setup(input: { isOpen?: boolean; platform?: string }) {
+  function setup(input: { isOpen?: boolean; platform?: string; hasAssistant?: boolean }) {
     const platform = vi.spyOn(navigator, "platform", "get").mockReturnValue(input.platform ?? "Win32");
     onTestFinished(() => platform.mockRestore());
     const onOpenChange = vi.fn();
 
-    render(<ShortcutsSheet isOpen={input.isOpen ?? true} onOpenChange={onOpenChange} />);
+    render(<ShortcutsSheet isOpen={input.isOpen ?? true} onOpenChange={onOpenChange} hasAssistant={input.hasAssistant} />);
 
     return { onOpenChange };
   }
