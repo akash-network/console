@@ -468,7 +468,9 @@ describe("Organization billing", () => {
       .get(uri => uri.endsWith(`/cosmos/feegrant/v1beta1/allowances/${address}`))
       .reply(200, { allowances: [createFeeAllowanceResponse({ grantee: address, amount: "5000000" })], pagination: { next_key: null, total: "1" } })
       .get(uri => uri.includes("/cosmos/authz/v1beta1/grants") && uri.includes(address))
-      .reply(200, createDeploymentGrantResponseSeed({ grantee: address, amount: "50000000", grantType: "/akash.escrow.v1.DepositAuthorization" }));
+      .reply(200, createDeploymentGrantResponseSeed({ grantee: address, amount: "50000000", grantType: "/akash.escrow.v1.DepositAuthorization" }))
+      .get("/cosmos/base/tendermint/v1beta1/blocks/latest")
+      .reply(200, { block: { header: { height: "1000" } } });
     nock(container.resolve(BILLING_CONFIG).TX_SIGNER_BASE_URL)
       .persist()
       .post("/v1/tx/funding", body => {

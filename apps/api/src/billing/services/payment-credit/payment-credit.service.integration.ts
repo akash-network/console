@@ -7,20 +7,46 @@ import { PaymentCreditRepository } from "@src/billing/repositories/payment-credi
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { TxOutcomeUnknownError } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
+import { ReconcileDeploymentAllowanceHandler } from "@src/billing/services/reconcile-deployment-allowance/reconcile-deployment-allowance.handler";
+import { ReconcileDeploymentAllowance } from "@src/billing/services/reconcile-deployment-allowance/reconcile-deployment-allowance.job";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { TxPresenceService } from "@src/chain/services/tx-presence/tx-presence.service";
+import { JOB_NAME } from "@src/core";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { PAYMENT_CREDIT_UNDECIDED_ERROR_CODE, PaymentCreditService } from "./payment-credit.service";
 
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { deleteQueuedJobs, findJobRows, useJobWorkers } from "@test/services/job-queue-harness";
+
+const CHECK = ReconcileDeploymentAllowance[JOB_NAME];
+
+const jobWorkers = useJobWorkers(() => [container.resolve(ReconcileDeploymentAllowanceHandler)]);
 
 describe(PaymentCreditService.name, () => {
   const paidCents = 100_00;
   const bonusCents = 10_00;
   const initialLimit = 500_000_000;
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.restoreAllMocks();
+    await deleteQueuedJobs(CHECK);
+  });
+
+  it("has the landed grant checked for what it overwrote since the allowance was read", async () => {
+    const { chain, wallet, settle } = await setup();
+
+    await settle();
+
+    expect(await findJobRows(CHECK, { singletonKey: `${CHECK}.GRANT_HASH.0`, state: "created" })).toEqual([
+      expect.objectContaining({
+        data: expect.objectContaining({
+          wallet: { id: wallet.id, address: wallet.address },
+          write: expect.objectContaining({ txHash: "GRANT_HASH", readHeight: chain.height, readLimit: initialLimit }),
+          adjustment: 0,
+          round: 0
+        })
+      })
+    ]);
   });
 
   describe("when a settlement fails after its credit landed and Stripe redelivers it", () => {
@@ -107,7 +133,8 @@ describe(PaymentCreditService.name, () => {
   }
 
   async function setup() {
-    const { user } = await seedUserWithWallet({ activatedAt: new Date() });
+    await jobWorkers();
+    const { user, wallet } = await seedUserWithWallet({ activatedAt: new Date() });
     const createPurchase = () =>
       container.resolve(StripeTransactionRepository).create({
         userId: user.id,
@@ -117,12 +144,12 @@ describe(PaymentCreditService.name, () => {
         currency: "usd"
       });
     const transaction = await createPurchase();
-    const chain = { limit: initialLimit };
+    const chain = { limit: initialLimit, height: faker.number.int({ min: 1_000, max: 1_000_000 }) };
     const balancesService = container.resolve(BalancesService);
     const managedUserWalletService = container.resolve(ManagedUserWalletService);
 
     vi.spyOn(container.resolve(AnalyticsService), "track").mockReturnValue(undefined);
-    vi.spyOn(balancesService, "retrieveDeploymentLimit").mockImplementation(async () => chain.limit);
+    vi.spyOn(balancesService, "retrieveDeploymentLimitAtLatestHeight").mockImplementation(async () => ({ limit: chain.limit, height: chain.height }));
     const fakes = {
       refreshUserWalletLimits: vi.spyOn(balancesService, "refreshUserWalletLimits").mockResolvedValue(undefined),
       authorizeSpending: vi.spyOn(managedUserWalletService, "authorizeSpending").mockResolvedValue(undefined),
@@ -150,6 +177,6 @@ describe(PaymentCreditService.name, () => {
     const settle = () => settlePurchase(transaction);
     const findCredit = () => container.resolve(PaymentCreditRepository).findByTransactionId(transaction.id);
 
-    return { chain, fakes, transaction, settle, findCredit, createPurchase, settlePurchase };
+    return { chain, wallet, fakes, transaction, settle, findCredit, createPurchase, settlePurchase };
   }
 });

@@ -6,6 +6,7 @@ import type { BillingConfig } from "@src/billing/providers";
 import type { UserWalletInput, UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import type { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
+import type { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import type { StatsService } from "@src/dashboard/services/stats/stats.service";
 
 import { createUserWallet } from "@test/seeders/user-wallet.seeder";
@@ -82,6 +83,37 @@ describe(BalancesService.name, () => {
     });
   });
 
+  describe("retrieveDeploymentLimitAtLatestHeight", () => {
+    it("reads the deployment limit pinned to the latest height and returns both", async () => {
+      const { service, txManagerService, authzHttpService, blockHttpService } = setup({ denom: "uact" });
+      txManagerService.getFundingWalletAddress.mockResolvedValue("akash1funding");
+      blockHttpService.getFreshCurrentHeight.mockResolvedValue(1234);
+      authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue({
+        authorization: {
+          "@type": "/akash.escrow.v1.DepositAuthorization",
+          spend_limits: [
+            { denom: "uakt", amount: "7" },
+            { denom: "uact", amount: "5000000" }
+          ]
+        },
+        expiration: ""
+      });
+
+      const result = await service.retrieveDeploymentLimitAtLatestHeight({ address: "akash1grantee" });
+
+      expect(authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee).toHaveBeenCalledWith("akash1funding", "akash1grantee", { height: 1234 });
+      expect(result).toEqual({ limit: 5_000_000, height: 1234 });
+    });
+
+    it("reads a limit of zero when the wallet holds no deposit grant at that height", async () => {
+      const { service, authzHttpService, blockHttpService } = setup({ denom: "uact" });
+      blockHttpService.getFreshCurrentHeight.mockResolvedValue(1234);
+      authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee.mockResolvedValue(undefined);
+
+      expect(await service.retrieveDeploymentLimitAtLatestHeight({ address: "akash1grantee" })).toEqual({ limit: 0, height: 1234 });
+    });
+  });
+
   describe("toFiatAmount", () => {
     it("converts uakt amount using market price", async () => {
       const { service, statsService } = setup({ denom: "uakt" });
@@ -121,7 +153,17 @@ describe(BalancesService.name, () => {
     const deploymentHttpService = mock<DeploymentHttpService>();
     const statsService = mock<StatsService>();
 
-    const service = new BalancesService(billingConfig, userWalletRepository, txManagerService, authzHttpService, deploymentHttpService, statsService);
+    const blockHttpService = mock<BlockHttpService>();
+
+    const service = new BalancesService(
+      billingConfig,
+      userWalletRepository,
+      txManagerService,
+      authzHttpService,
+      deploymentHttpService,
+      statsService,
+      blockHttpService
+    );
 
     vi.spyOn(service, "getFreshLimitsUpdate").mockResolvedValue(input?.limitsUpdate ?? {});
 
@@ -133,6 +175,6 @@ describe(BalancesService.name, () => {
       vi.spyOn(service, "toFiatAmount").mockResolvedValue(input.fiatAmount);
     }
 
-    return { service, userWalletRepository, statsService };
+    return { service, userWalletRepository, statsService, txManagerService, authzHttpService, blockHttpService };
   }
 });

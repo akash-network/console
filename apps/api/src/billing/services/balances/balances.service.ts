@@ -1,4 +1,4 @@
-import { AuthzHttpService, DeploymentHttpService, DeploymentInfo } from "@akashnetwork/http-sdk";
+import { AuthzHttpService, DeploymentHttpService, DeploymentInfo, type ExactDepositDeploymentGrant } from "@akashnetwork/http-sdk";
 import { Trace } from "@akashnetwork/instrumentation";
 import { singleton } from "tsyringe";
 
@@ -8,6 +8,7 @@ import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers"
 import { type UserWalletInput, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { TxManagerService } from "@src/billing/services/tx-manager/tx-manager.service";
 import { Memoize } from "@src/caching/helpers";
+import { BlockHttpService } from "@src/chain/services/block-http/block-http.service";
 import { StatsService } from "@src/dashboard/services/stats/stats.service";
 import { averageBlockTime } from "@src/utils/constants";
 
@@ -19,7 +20,8 @@ export class BalancesService {
     private txManagerService: TxManagerService,
     private readonly authzHttpService: AuthzHttpService,
     private readonly deploymentHttpService: DeploymentHttpService,
-    private readonly statsService: StatsService
+    private readonly statsService: StatsService,
+    private readonly blockHttpService: BlockHttpService
   ) {}
 
   @Trace()
@@ -72,8 +74,21 @@ export class BalancesService {
   @Trace()
   async retrieveDeploymentLimit(userWallet: Pick<UserWalletOutput, "address">): Promise<number> {
     const fundingWalletAddress = await this.txManagerService.getFundingWalletAddress();
-    const depositDeploymentGrant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!);
-    const limit = depositDeploymentGrant?.authorization.spend_limits.find(limit => limit.denom === this.config.DEPLOYMENT_GRANT_DENOM);
+
+    return this.#deploymentLimitOf(await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!));
+  }
+
+  /** The height is where a write based on this limit starts overwriting what lands after it. */
+  @Trace()
+  async retrieveDeploymentLimitAtLatestHeight(userWallet: Pick<UserWalletOutput, "address">): Promise<{ limit: number; height: number }> {
+    const [fundingWalletAddress, height] = await Promise.all([this.txManagerService.getFundingWalletAddress(), this.blockHttpService.getFreshCurrentHeight()]);
+    const grant = await this.authzHttpService.getValidDepositDeploymentGrantsForGranterAndGrantee(fundingWalletAddress, userWallet.address!, { height });
+
+    return { limit: this.#deploymentLimitOf(grant), height };
+  }
+
+  #deploymentLimitOf(grant: ExactDepositDeploymentGrant | undefined): number {
+    const limit = grant?.authorization.spend_limits.find(limit => limit.denom === this.config.DEPLOYMENT_GRANT_DENOM);
 
     return limit ? parseInt(limit.amount, 10) : 0;
   }

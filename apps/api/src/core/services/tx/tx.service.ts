@@ -37,6 +37,11 @@ export class TxService {
     else run();
   }
 
+  /** Runs `cb` on connections of its own even inside a transaction, for a record that must survive the rollback of the transaction around it. */
+  async outsideTransaction<T>(cb: () => Promise<T>): Promise<T> {
+    return await this.storage.exit(cb);
+  }
+
   getPgTx() {
     return this.storage.getStore()?.tx;
   }

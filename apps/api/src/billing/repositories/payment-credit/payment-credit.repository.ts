@@ -22,6 +22,13 @@ export class PaymentCreditRepository {
     return credit;
   }
 
+  async findPendingByAddress(address: string): Promise<PaymentCreditOutput[]> {
+    return await this.pg
+      .select()
+      .from(this.table)
+      .where(and(eq(this.table.address, address), eq(this.table.status, "pending")));
+  }
+
   async createPending(input: Pick<PaymentCreditInput, "transactionId" | "address" | "amount" | "bonusAmount">): Promise<void> {
     await this.pg.insert(this.table).values({ ...input, status: "pending" });
   }

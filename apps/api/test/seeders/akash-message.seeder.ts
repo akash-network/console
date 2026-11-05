@@ -9,7 +9,7 @@ export const createAkashMessage = async (input: Partial<CreationAttributes<Akash
     height: input.height || faker.number.int({ min: 0, max: 10000000 }),
     type: input.type || "/cosmos.bank.v1beta1.MsgSend",
     typeCategory: input.typeCategory || "cosmos",
-    index: input.index || faker.number.int({ min: 0, max: 10000000 }),
+    index: input.index ?? faker.number.int({ min: 0, max: 10000000 }),
     indexInBlock: input.indexInBlock || faker.number.int({ min: 0, max: 10000000 }),
     isProcessed: input.isProcessed || faker.datatype.boolean(),
     isNotificationProcessed: input.isNotificationProcessed || faker.datatype.boolean(),
