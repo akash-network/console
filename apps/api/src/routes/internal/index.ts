@@ -1,4 +1,5 @@
 import { internalActivityRouter } from "@src/activity";
+import { approveAffiliateRouter, revokeAffiliateRouter } from "@src/affiliate";
 import type { OpenApiHonoHandler } from "@src/core/services/open-api-hono-handler/open-api-hono-handler";
 import { leasesDurationInternalRouter } from "@src/dashboard";
 import { internalDeploymentNameRouter } from "@src/deployment/routes/deployment-name/internal-deployment-name.router";
@@ -11,7 +12,9 @@ export const internalOpenApiHonoHandlers: OpenApiHonoHandler[] = [
   emailDomainCheck,
   internalActivityRouter,
   internalDeploymentNameRouter,
-  internalHardwareRequestRouter
+  internalHardwareRequestRouter,
+  approveAffiliateRouter,
+  revokeAffiliateRouter
 ];
 
 export default [listGpusInternalRouter, listGpuModelsInternalRouter, leasesDurationInternalRouter, getGpuPricesInternalRouter, financial];
