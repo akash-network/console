@@ -2503,6 +2503,10 @@
                     "type": "string",
                     "description": "The browser's IANA timezone, kept on the account until the user picks one in their profile. A value that names no zone is ignored.",
                     "example": "Europe/Paris"
+                  },
+                  "referralCode": {
+                    "type": "string",
+                    "maxLength": 64
                   }
                 },
                 "required": [

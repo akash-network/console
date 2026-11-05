@@ -28086,6 +28086,10 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "application/json": {
               "schema": {
                 "properties": {
+                  "referralCode": {
+                    "maxLength": 64,
+                    "type": "string",
+                  },
                   "subscribedToNewsletter": {
                     "type": "boolean",
                   },

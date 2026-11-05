@@ -13,7 +13,8 @@ const registerUserInputSchema = z.object({
   timezone: z.string().optional().openapi({
     description: "The browser's IANA timezone, kept on the account until the user picks one in their profile. A value that names no zone is ignored.",
     example: "Europe/Paris"
-  })
+  }),
+  referralCode: z.string().max(64).optional()
 });
 export type RegisterUserInput = z.infer<typeof registerUserInputSchema>;
 
