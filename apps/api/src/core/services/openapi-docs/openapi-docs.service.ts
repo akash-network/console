@@ -165,7 +165,6 @@ export class OpenApiDocsService {
     }
   }
 
-  /** The auth interceptor resolves the organization and project of every signed-in request from these headers, whichever route it reaches. */
   /** Two handlers may declare different methods on one path, so a later handler must not replace the methods of an earlier one. */
   #mergePaths(target: PathsObject, paths: PathsObject): void {
     for (const [path, pathItem] of Object.entries(paths)) {
@@ -173,6 +172,7 @@ export class OpenApiDocsService {
     }
   }
 
+  /** The auth interceptor resolves the organization and project of every signed-in request from these headers, whichever route it reaches. */
   #documentOrganizationContextHeaders(paths: PathsObject, appliesTo: (operation: OperationObject) => boolean): PathsObject {
     for (const pathItem of Object.values(paths)) {
       for (const operation of Object.values(pathItem ?? {}) as OperationObject[]) {
