@@ -723,6 +723,39 @@ describe(GpuCard.name, () => {
       expect(screen.getByText("Hardware request dialog")).toBeInTheDocument();
     });
 
+    describe("when gpu quote requests are on", () => {
+      it("requests the searched gpu with this service's configuration instead of the old dialog", async () => {
+        const { user, GpuQuoteRequestFlow, HardwareRequestDialog } = setup({ hasGpu: true, isQuoteFlowEnabled: true });
+
+        await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+        await user.type(await screen.findByRole("combobox", { name: "Search GPU models" }), " b300 ");
+        await user.click(screen.getByRole("button", { name: "Looking for a GPU that isn't listed? Request it" }));
+
+        expect(screen.getByText("GPU quote request")).toBeInTheDocument();
+        expect(HardwareRequestDialog).not.toHaveBeenCalled();
+        expect(GpuQuoteRequestFlow).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            source: "gpu_menu",
+            initialAnswers: { gpuModel: "b300", otherGpuModel: "" },
+            configuration: expect.objectContaining({ hardware: { gpuCount: 1, gpuModels: [], storageBytes: 1024 ** 3, regions: [] } })
+          }),
+          expect.anything()
+        );
+      });
+
+      it("prefills no model before anything is searched and closes when the request asks to", async () => {
+        const { user, GpuQuoteRequestFlow } = setup({ hasGpu: true, isQuoteFlowEnabled: true });
+
+        await user.click(screen.getByRole("combobox", { name: "GPU model" }));
+        await user.click(await screen.findByRole("button", { name: /Request it/ }));
+        expect(GpuQuoteRequestFlow).toHaveBeenLastCalledWith(expect.objectContaining({ initialAnswers: undefined }), expect.anything());
+
+        act(() => GpuQuoteRequestFlow.mock.lastCall![0].onClose());
+
+        expect(screen.queryByText("GPU quote request")).not.toBeInTheDocument();
+      });
+    });
+
     it("closes the hardware request dialog when it asks to", async () => {
       const { user, HardwareRequestDialog } = setup({ hasGpu: true });
 
@@ -1189,6 +1222,7 @@ describe(GpuCard.name, () => {
     isError?: boolean;
     locked?: boolean;
     screened?: Record<string, Partial<ScreenedProviderCount>>;
+    isQuoteFlowEnabled?: boolean;
     dependencies?: Partial<typeof DEPENDENCIES>;
   }) {
     const values = defaultServiceWithPlacement({
@@ -1217,6 +1251,8 @@ describe(GpuCard.name, () => {
     const analyticsService = mock<AnalyticsService>();
     const useServices: typeof DEPENDENCIES.useServices = () => mock<ReturnType<typeof DEPENDENCIES.useServices>>({ analyticsService });
     const HardwareRequestDialog = vi.fn<typeof DEPENDENCIES.HardwareRequestDialog>(() => <div>Hardware request dialog</div>);
+    const GpuQuoteRequestFlow = vi.fn<typeof DEPENDENCIES.GpuQuoteRequestFlow>(() => <div>GPU quote request</div>);
+    const useFlag: typeof DEPENDENCIES.useFlag = flag => flag === "gpu_quote_requests" && !!input.isQuoteFlowEnabled;
     const useScreenedGpuModelCounts = vi.fn<typeof DEPENDENCIES.useScreenedGpuModelCounts>((_serviceIndex, models) =>
       models.map(model => {
         const offered = input.availableGpus?.find(vendor => vendor.vendor === model.vendor)?.models.find(candidate => candidate.name === model.name);
@@ -1245,6 +1281,8 @@ describe(GpuCard.name, () => {
             useFieldError,
             useServices,
             HardwareRequestDialog,
+            GpuQuoteRequestFlow,
+            useFlag,
             useScreenedGpuModelCounts,
             CustomTooltip,
             ...input.dependencies
@@ -1255,6 +1293,6 @@ describe(GpuCard.name, () => {
 
     const user = userEvent.setup();
 
-    return { user, getValues: () => getValues(), analyticsService, HardwareRequestDialog, useScreenedGpuModelCounts, CustomTooltip };
+    return { user, getValues: () => getValues(), analyticsService, HardwareRequestDialog, GpuQuoteRequestFlow, useScreenedGpuModelCounts, CustomTooltip };
   }
 });

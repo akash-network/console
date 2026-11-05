@@ -170,7 +170,12 @@ export type AnalyticsEvent =
   | "command_menu_action_ran"
   | "whats_new_opened"
   | "whats_new_tour_started"
-  | "whats_new_tour_ended";
+  | "whats_new_tour_ended"
+  | "gpu_request_form_opened"
+  | "gpu_request_sent"
+  | "gpu_request_withdrawn"
+  | "gpu_offer_accepted"
+  | "gpu_offer_declined";
 
 export type AnalyticsCategory = "user" | "billing" | "deployments" | "wallet" | "sdl_builder" | "transactions" | "profile" | "settings" | "onboarding";
 

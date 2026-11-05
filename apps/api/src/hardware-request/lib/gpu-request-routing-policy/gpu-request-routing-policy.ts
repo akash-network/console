@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { isTimeZone } from "@src/hardware-request/lib/business-hours/business-hours";
-import { REGION_AREAS } from "@src/hardware-request/model-schemas";
+import { MAX_OWNER_LENGTH, REGION_AREAS } from "@src/hardware-request/model-schemas";
 
 const DATA_CENTER_GPU_MODELS = ["B300", "B200", "H200", "H100", "A100", "L40S", "MI355X", "MI325X", "MI300X"];
 
@@ -23,7 +23,11 @@ const REFERENCE_USD_PER_GPU_HOUR: Record<string, number> = {
 const toggle = z.object({ enabled: z.boolean().default(true) }).strict();
 
 const salesOwnerSchema = z
-  .object({ name: z.string().trim().min(1), slackUserId: z.string().trim().min(1).optional(), email: z.string().email().optional() })
+  .object({
+    name: z.string().trim().min(1).max(MAX_OWNER_LENGTH),
+    slackUserId: z.string().trim().min(1).optional(),
+    email: z.string().email().optional()
+  })
   .strict();
 
 const ownerRuleSchema = salesOwnerSchema.extend({

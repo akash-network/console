@@ -20,9 +20,12 @@ import {
 } from "@akashnetwork/ui/components";
 import { ArrowRightIcon, GpuIcon, LockIcon, MessageSquareIcon, PlusIcon, TrashIcon, TriangleAlertIcon, XIcon } from "lucide-react";
 
+import { answersForGpuModel } from "@src/components/gpu-requests/gpuQuoteDraft/gpuQuoteDraft";
+import { GpuQuoteRequestFlow } from "@src/components/gpu-requests/GpuQuoteRequestFlow/GpuQuoteRequestFlow";
 import type { SearchableSelectOption } from "@src/components/shared/SearchableSelect/SearchableSelect";
 import { SearchableSelect } from "@src/components/shared/SearchableSelect/SearchableSelect";
 import { useServices } from "@src/context/ServicesProvider";
+import { useFlag } from "@src/hooks/useFlag";
 import { useGpuModels } from "@src/queries/useGpuQuery";
 import type { AvailableGpuVendor } from "@src/queries/usePlacementOptions";
 import { usePlacementOptions } from "@src/queries/usePlacementOptions";
@@ -44,7 +47,7 @@ import {
 import { validationConfig } from "@src/utils/akash/units";
 import { describeGpuAvailability, describeNotBiddingProviders } from "@src/utils/providerUtils";
 import { defaultGpuModel } from "@src/utils/sdl/data";
-import { describeCurrentConfiguration } from "../../HardwareRequestDialog/currentConfiguration";
+import { describeCurrentConfiguration, describeQuotePrefill } from "../../HardwareRequestDialog/currentConfiguration";
 import { HardwareRequestDialog } from "../../HardwareRequestDialog/HardwareRequestDialog";
 import { gpuTooltip } from "../cardTooltips";
 import { GpuInterconnectFields } from "../GpuInterconnectFields/GpuInterconnectFields";
@@ -64,8 +67,10 @@ export const DEPENDENCIES = {
   GpuModelFields,
   GpuInterconnectFields,
   HardwareRequestDialog,
+  GpuQuoteRequestFlow,
   useScreenedGpuModelCounts,
-  CustomTooltip
+  CustomTooltip,
+  useFlag
 };
 
 type Props = {
@@ -94,6 +99,7 @@ export const GpuCard: FC<Props> = ({
 }) => {
   const { control, getValues } = useFormContext<SdlBuilderFormValuesType>();
   const [requestedGpuModel, setRequestedGpuModel] = useState<string | null>(null);
+  const isQuoteFlowEnabled = d.useFlag("gpu_quote_requests");
   const { data: gpuCatalog, isLoading: isLoadingModels, isError: isModelsError } = d.useGpuModels();
   const { data: placementOptions } = d.usePlacementOptions();
   const availableVendors = narrowGpuVendorsToAvailable(gpuCatalog, placementOptions?.gpus);
@@ -184,7 +190,15 @@ export const GpuCard: FC<Props> = ({
         </fieldset>
       </d.CollapsibleCard>
 
-      {requestedGpuModel !== null && (
+      {requestedGpuModel !== null && isQuoteFlowEnabled && (
+        <d.GpuQuoteRequestFlow
+          source="gpu_menu"
+          configuration={describeQuotePrefill(getValues(), serviceIndex, gpuCatalog)}
+          initialAnswers={answersForGpuModel(requestedGpuModel)}
+          onClose={() => setRequestedGpuModel(null)}
+        />
+      )}
+      {requestedGpuModel !== null && !isQuoteFlowEnabled && (
         <d.HardwareRequestDialog
           initialGpuModel={requestedGpuModel}
           configuration={describeCurrentConfiguration(getValues(), serviceIndex, gpuCatalog)}
@@ -371,6 +385,7 @@ function GpuModelFields({
       emptyTriggerLabel={isGpuOn ? undefined : "Select"}
       useScreenedGpuModelCounts={d.useScreenedGpuModelCounts}
       CustomTooltip={d.CustomTooltip}
+      useFlag={d.useFlag}
     />
   );
 
@@ -520,6 +535,7 @@ function FirstGpuModelPicker({
           emptyTriggerLabel="Select"
           useScreenedGpuModelCounts={d.useScreenedGpuModelCounts}
           CustomTooltip={d.CustomTooltip}
+          useFlag={d.useFlag}
         />
         {countField}
       </div>
@@ -541,6 +557,7 @@ type GpuModelControlProps = {
   emptyTriggerLabel?: string;
   useScreenedGpuModelCounts: typeof DEPENDENCIES.useScreenedGpuModelCounts;
   CustomTooltip: typeof DEPENDENCIES.CustomTooltip;
+  useFlag: typeof DEPENDENCIES.useFlag;
 };
 
 function GpuModelControl({
@@ -554,9 +571,11 @@ function GpuModelControl({
   disabled,
   emptyTriggerLabel,
   useScreenedGpuModelCounts,
-  CustomTooltip
+  CustomTooltip,
+  useFlag
 }: GpuModelControlProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const isQuoteFlowEnabled = useFlag("gpu_quote_requests");
   const screened = useScreenedModelOptions({ serviceIndex, choices, isOpen, useScreenedGpuModelCounts, CustomTooltip });
 
   if (isLoading) {
@@ -605,6 +624,7 @@ function GpuModelControl({
           renderValue={modelName => choices.listedModels.find(model => model.name === modelName)?.displayName ?? modelName}
           renderFooter={(search, { close }) => (
             <GpuRequestLink
+              isQuoteFlowEnabled={isQuoteFlowEnabled}
               onClick={() => {
                 close();
                 onRequestGpu(search.trim());
@@ -620,7 +640,7 @@ function GpuModelControl({
   );
 }
 
-function GpuRequestLink({ onClick }: { onClick: () => void }) {
+function GpuRequestLink({ isQuoteFlowEnabled, onClick }: { isQuoteFlowEnabled: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -628,9 +648,15 @@ function GpuRequestLink({ onClick }: { onClick: () => void }) {
       className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
     >
       <MessageSquareIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-      <span>
-        Don&apos;t see the GPU you need? <span className="font-medium text-foreground">Contact us</span>
-      </span>
+      {isQuoteFlowEnabled ? (
+        <span>
+          Looking for a GPU that isn&apos;t listed? <span className="font-medium text-foreground">Request it</span>
+        </span>
+      ) : (
+        <span>
+          Don&apos;t see the GPU you need? <span className="font-medium text-foreground">Contact us</span>
+        </span>
+      )}
       <ArrowRightIcon className="ml-auto h-4 w-4 shrink-0" aria-hidden="true" />
     </button>
   );

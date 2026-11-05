@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ServiceType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import { defaultServiceWithPlacement } from "@src/utils/sdl/data";
-import { describeCurrentConfiguration, describeRequestedGpuModels } from "./currentConfiguration";
+import { describeCurrentConfiguration, describeQuotePrefill, describeRequestedGpuModels } from "./currentConfiguration";
 import { MAX_GPU_MODEL_LENGTH, MAX_REGION_LENGTH } from "./hardwareRequestForm";
 
 const GIB = 1024 ** 3;
@@ -211,4 +211,32 @@ describe(describeRequestedGpuModels.name, () => {
   function catalogVendor(name: string, models: Array<[string, string]>): GpuVendor {
     return { name, models: models.map(([modelName, displayName]) => ({ name: modelName, displayName, memory: [], interface: [] })) };
   }
+});
+
+describe(describeQuotePrefill.name, () => {
+  it("prefills the quote with one replica's GPUs, storage and regions", () => {
+    const values = defaultServiceWithPlacement({ count: 3 });
+    const service = values.services[0];
+    service.profile = {
+      ...service.profile,
+      hasGpu: true,
+      gpu: 2,
+      gpuModels: [{ vendor: "nvidia", name: "h100", memory: "", interface: "" }],
+      storage: [{ ...service.profile.storage[0], size: 2, unit: "Gi", isPersistent: false }]
+    };
+    values.placements[0].regions = ["us-west"];
+
+    const prefill = describeQuotePrefill(values, 0, undefined);
+
+    expect(prefill.hardware).toEqual({ gpuCount: 2, gpuModels: ["h100"], storageBytes: 2 * GIB, regions: ["us-west"] });
+    expect(prefill.summary).toEqual(describeCurrentConfiguration(values, 0, undefined));
+  });
+
+  it("prefills no GPU and no region for a CPU-only service anywhere", () => {
+    const values = defaultServiceWithPlacement({ count: 1 });
+    values.services[0].profile = { ...values.services[0].profile, hasGpu: false, gpu: 0 };
+    values.placements[0].regions = undefined;
+
+    expect(describeQuotePrefill(values, 0, undefined).hardware).toMatchObject({ gpuCount: 0, gpuModels: [], regions: [] });
+  });
 });

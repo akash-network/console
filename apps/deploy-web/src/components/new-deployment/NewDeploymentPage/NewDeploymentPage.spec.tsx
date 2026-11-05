@@ -11,7 +11,7 @@ import { UrlService } from "@src/utils/urlUtils";
 import type { LastConfiguration } from "../useLastConfiguration/useLastConfiguration";
 import { DEPENDENCIES, NewDeploymentPage } from "./NewDeploymentPage";
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockComponents } from "@tests/unit/mocks";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
@@ -128,6 +128,38 @@ describe(NewDeploymentPage.name, () => {
     expect(analyticsService.track).toHaveBeenCalledWith("launch_container_vm_btn_clk", "Amplitude");
   });
 
+  describe("when gpu quote requests are on", () => {
+    it("offers to reserve capacity and opens the quote request from there", async () => {
+      const { GpuQuoteRequestFlow } = setup({ isQuoteFlowEnabled: true });
+
+      expect(GpuQuoteRequestFlow).not.toHaveBeenCalled();
+      const reserveCapacity = screen.getByRole("button", { name: "Reserve capacity" });
+      expect(reserveCapacity).toHaveAccessibleDescription("Reserve GPUs for a term. Tell us what you need and we'll come back with offers.");
+      expect(reserveCapacity).toHaveTextContent("Get a quote");
+      expect(reserveCapacity).not.toHaveTextContent("$");
+
+      await userEvent.click(reserveCapacity);
+
+      expect(screen.getByText("GPU quote request")).toBeInTheDocument();
+      expect(GpuQuoteRequestFlow).toHaveBeenLastCalledWith(expect.objectContaining({ source: "reserve_capacity" }), expect.anything());
+    });
+
+    it("closes the quote request when it asks to", async () => {
+      const { GpuQuoteRequestFlow } = setup({ isQuoteFlowEnabled: true });
+      await userEvent.click(screen.getByRole("button", { name: "Reserve capacity" }));
+
+      act(() => GpuQuoteRequestFlow.mock.lastCall![0].onClose());
+
+      expect(screen.queryByText("GPU quote request")).not.toBeInTheDocument();
+    });
+  });
+
+  it("hides the reserve capacity card while gpu quote requests are off", () => {
+    setup({});
+
+    expect(screen.queryByRole("button", { name: "Reserve capacity" })).not.toBeInTheDocument();
+  });
+
   it("shows six popular templates, promoted first, badging the popular ones", () => {
     const templates = [
       template("plain-1"),
@@ -192,6 +224,7 @@ describe(NewDeploymentPage.name, () => {
     requestedProjectId?: string;
     targetProject?: Project;
     lastConfiguration?: LastConfiguration | null;
+    isQuoteFlowEnabled?: boolean;
   }) {
     const push = vi.fn();
     const replace = vi.fn();
@@ -216,6 +249,7 @@ describe(NewDeploymentPage.name, () => {
     const LastConfigurationCard = vi.fn<typeof DEPENDENCIES.LastConfigurationCard>(() => null);
     const TemplateCard = vi.fn<typeof DEPENDENCIES.TemplateCard>(() => null);
     const Skeleton = vi.fn<typeof DEPENDENCIES.Skeleton>(() => <div />);
+    const GpuQuoteRequestFlow = vi.fn<typeof DEPENDENCIES.GpuQuoteRequestFlow>(() => <div>GPU quote request</div>);
     const dependencies = MockComponents(DEPENDENCIES, {
       useRouter: () => router,
       useTemplates: () => templatesResult,
@@ -230,7 +264,9 @@ describe(NewDeploymentPage.name, () => {
       LastConfigurationCard,
       StartFromScratchCard: DEPENDENCIES.StartFromScratchCard,
       TemplateCard,
-      Skeleton
+      Skeleton,
+      GpuQuoteRequestFlow,
+      useFlag: flag => flag === "gpu_quote_requests" && !!input.isQuoteFlowEnabled
     });
 
     render(
@@ -252,6 +288,7 @@ describe(NewDeploymentPage.name, () => {
       LastConfigurationCard,
       TemplateCard,
       Skeleton,
+      GpuQuoteRequestFlow,
       CustomNextSeo: dependencies.CustomNextSeo
     };
   }

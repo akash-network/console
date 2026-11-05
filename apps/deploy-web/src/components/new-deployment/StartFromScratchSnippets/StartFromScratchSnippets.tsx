@@ -2,6 +2,7 @@
 import type { FC } from "react";
 import { useEffect, useState } from "react";
 
+import { GPU_CATALOG } from "@src/components/gpu-requests/gpuQuoteDraft/gpuQuoteCatalog";
 import type { SSH_VM_IMAGES } from "@src/utils/sdl/vmImages";
 
 const TOKEN_CLASSES = {
@@ -20,6 +21,21 @@ const WELCOME_BANNERS: string[] = Object.values({
 } satisfies Record<keyof typeof SSH_VM_IMAGES, string>);
 
 export const WELCOME_BANNER_ROTATION_MS = 2600;
+
+const RESERVABLE_GPUS = GPU_CATALOG.filter(gpu => ["h200", "b200", "h100", "a100"].includes(gpu.id));
+
+export const ReservableGpusSnippet: FC = () => (
+  <>
+    {RESERVABLE_GPUS.map(gpu => (
+      <span key={gpu.id} className="block">
+        <span className={TOKEN_CLASSES.value}>
+          {gpu.vendor} {gpu.label}
+        </span>{" "}
+        <span className={TOKEN_CLASSES.dim}>· {gpu.memory}</span>
+      </span>
+    ))}
+  </>
+);
 
 export const ContainerSdlSnippet: FC = () => (
   <>

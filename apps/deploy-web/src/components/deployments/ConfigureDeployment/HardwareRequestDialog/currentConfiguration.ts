@@ -1,3 +1,4 @@
+import type { ConfigurationPrefill } from "@src/components/gpu-requests/GpuQuoteRequestFlow/GpuQuoteRequestFlow";
 import type { SdlBuilderFormValuesType } from "@src/types";
 import type { GpuVendor } from "@src/types/gpu";
 import { roundDecimal } from "@src/utils/mathHelpers";
@@ -34,6 +35,22 @@ export function describeCurrentConfiguration(
     storageBytes: Math.round(storageBytes),
     region,
     gpu: gpuCount > 0 ? { count: gpuCount, models: (service.profile.gpuModels ?? []).flatMap(model => (model.name ? [model.name] : [])) } : undefined
+  };
+}
+
+/** The quote request starts from one replica of the selected service, like the summary sent with it. */
+export function describeQuotePrefill(values: SdlBuilderFormValuesType, serviceIndex: number, gpuCatalog: GpuVendor[] | undefined): ConfigurationPrefill {
+  const summary = describeCurrentConfiguration(values, serviceIndex, gpuCatalog);
+  const service = values.services[serviceIndex];
+
+  return {
+    summary,
+    hardware: {
+      gpuCount: summary.gpu?.count ?? 0,
+      gpuModels: summary.gpu?.models ?? [],
+      storageBytes: summary.storageBytes,
+      regions: values.placements.find(placement => placement.id === service.placementId)?.regions ?? []
+    }
   };
 }
 

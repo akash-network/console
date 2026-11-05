@@ -264,6 +264,26 @@ describe("Internal hardware requests", () => {
       expect(status).toBe(400);
     });
 
+    it("refuses an owner longer than the request's owner column holds", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ owner: null });
+
+      const { status } = await act(hardwareRequest.id, "owner", { actor: "Remington", owner: "R".repeat(65) });
+
+      expect(status).toBe(400);
+      expect(await hardwareRequestRepository.findById(hardwareRequest.id)).toMatchObject({ owner: null });
+    });
+
+    it("takes an owner as long as the request's owner column holds", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ owner: null });
+
+      const { status } = await act(hardwareRequest.id, "owner", { actor: "Remington", owner: "R".repeat(64) });
+
+      expect(status).toBe(200);
+      expect(await hardwareRequestRepository.findById(hardwareRequest.id)).toMatchObject({ owner: "R".repeat(64) });
+    });
+
     it("rejects a caller without the token", async () => {
       const response = await app.request(`/internal/hardware-requests/${faker.string.uuid()}/owner`, {
         method: "PUT",
@@ -469,6 +489,35 @@ describe("Internal hardware requests", () => {
       expect(status).toBe(200);
       expect(data).toMatchObject({ id: offer.id, status: "withdrawn" });
       expect((await getRequest(hardwareRequest.id)).events).toMatchObject([{ type: "offer_withdrawn", actor: "Remington", payload: { offerId: offer.id } }]);
+    });
+
+    it("takes the request back to sourcing when its only published offer is withdrawn", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ status: "sourcing" });
+      const { data: offer } = await draftOffer(hardwareRequest.id);
+      await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${offer.id}/publish`, { actor: "Remington" });
+
+      const { status } = await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${offer.id}/withdraw`, { actor: "Remington" });
+
+      expect(status).toBe(200);
+      const withdrawnRequest = await getRequest(hardwareRequest.id);
+      expect(withdrawnRequest).toMatchObject({ status: "sourcing" });
+      expect(withdrawnRequest.events).toContainEqual(
+        expect.objectContaining({ type: "status_changed", actor: "Remington", payload: { from: "offers", to: "sourcing" } })
+      );
+    });
+
+    it("keeps the request with offers while another published offer is left", async () => {
+      const { seed } = await setup();
+      const hardwareRequest = await seed({ status: "sourcing" });
+      const { data: first } = await draftOffer(hardwareRequest.id);
+      const { data: second } = await draftOffer(hardwareRequest.id);
+      await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${first.id}/publish`, { actor: "Remington" });
+      await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${second.id}/publish`, { actor: "Remington" });
+
+      await offerRequest("POST", `/internal/hardware-requests/${hardwareRequest.id}/offers/${first.id}/withdraw`, { actor: "Remington" });
+
+      expect(await getRequest(hardwareRequest.id)).toMatchObject({ status: "offers" });
     });
   });
 

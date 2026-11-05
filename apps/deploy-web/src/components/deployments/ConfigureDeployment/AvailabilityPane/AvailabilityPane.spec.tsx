@@ -331,6 +331,58 @@ describe(AvailabilityPane.name, () => {
     expect(requestCompute).toHaveAccessibleDescription("Don't see what you need?");
   });
 
+  describe("when gpu quote requests are on", () => {
+    it("offers to reserve capacity beside the provider choice", async () => {
+      const { onRequestCompute } = setup({ isQuoteFlowEnabled: true });
+
+      const [reserveCapacity, chooseProvider] = screen.getAllByRole("button").slice(-2);
+      expect(chooseProvider).toHaveAccessibleName("Choose a provider");
+      expect(reserveCapacity).toHaveAccessibleName("Reserve capacity");
+      expect(reserveCapacity).toHaveAccessibleDescription("Get a quote");
+      expect(screen.queryByRole("button", { name: "Request compute" })).not.toBeInTheDocument();
+
+      await userEvent.click(reserveCapacity);
+
+      expect(onRequestCompute).toHaveBeenCalled();
+    });
+
+    it("offers to source the hardware when no provider can host the configuration", async () => {
+      const { onRequestComputeForNoFit, onRequestCompute } = setup({
+        isQuoteFlowEnabled: true,
+        hasPlacementWithoutProviders: true,
+        gpuAvailability: { requestsGpu: true }
+      });
+
+      const noFit = screen.getByRole("region", { name: "We can source this for you" });
+      expect(noFit).toHaveTextContent("No provider can host this configuration right now.");
+      expect(screen.queryByText(/Change the resources or request compute/)).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Request this hardware" }));
+
+      expect(onRequestComputeForNoFit).toHaveBeenCalled();
+      expect(onRequestCompute).not.toHaveBeenCalled();
+    });
+
+    it("says no provider can host every placement once the deployment has several", () => {
+      setup({ isQuoteFlowEnabled: true, hasPlacementWithoutProviders: true, placementCount: 2, gpuAvailability: { requestsGpu: true } });
+
+      expect(screen.getByRole("region", { name: "We can source this for you" })).toHaveTextContent("No provider can host every placement right now.");
+    });
+
+    it("points at the resources instead of a GPU request when the configuration asks for no GPU", () => {
+      setup({ isQuoteFlowEnabled: true, hasPlacementWithoutProviders: true, gpuAvailability: { requestsGpu: false } });
+
+      expect(screen.queryByRole("region", { name: "We can source this for you" })).not.toBeInTheDocument();
+      expect(screen.getByText("No provider can host this configuration right now. Change the resources or widen the region.")).toBeInTheDocument();
+    });
+
+    it("hides the sourcing offer while a provider can host the configuration", () => {
+      setup({ isQuoteFlowEnabled: true, hasPlacementWithoutProviders: false, gpuAvailability: { requestsGpu: true } });
+
+      expect(screen.queryByRole("region", { name: "We can source this for you" })).not.toBeInTheDocument();
+    });
+  });
+
   function setup(input: {
     eligibleCount?: number;
     networkCount?: number | null;
@@ -348,9 +400,11 @@ describe(AvailabilityPane.name, () => {
     gpuQuantities?: GpuQuantityAvailability[];
     canSelect?: GpuSelectionActions["canSelect"];
     notBiddingCount?: number;
+    isQuoteFlowEnabled?: boolean;
   }) {
     const onChooseProvider = vi.fn();
     const onRequestCompute = vi.fn();
+    const onRequestComputeForNoFit = vi.fn();
     const onRequestComputeForUnlikelyBids = vi.fn();
     const useScreenedProviders = vi.fn(() => ({
       providers: Array.from({ length: input.eligibleCount ?? 3 }, (_, index) => ({
@@ -389,7 +443,8 @@ describe(AvailabilityPane.name, () => {
       useGpuSelection,
       CustomTooltip: CustomTooltip as never,
       InvalidSpecReasons: () => <p>Settings to fix</p>,
-      NotBiddingNotice
+      NotBiddingNotice,
+      useFlag: flag => flag === "gpu_quote_requests" && !!input.isQuoteFlowEnabled
     };
 
     render(
@@ -403,6 +458,7 @@ describe(AvailabilityPane.name, () => {
         onChooseProvider={onChooseProvider}
         onRequestCompute={onRequestCompute}
         onRequestComputeForUnlikelyBids={onRequestComputeForUnlikelyBids}
+        onRequestComputeForNoFit={onRequestComputeForNoFit}
         dependencies={dependencies}
       />
     );
@@ -411,6 +467,7 @@ describe(AvailabilityPane.name, () => {
       onChooseProvider,
       onRequestCompute,
       onRequestComputeForUnlikelyBids,
+      onRequestComputeForNoFit,
       NotBiddingNotice,
       useScreenedProviders,
       useGpuAvailability,

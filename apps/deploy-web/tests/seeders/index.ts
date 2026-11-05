@@ -4,6 +4,7 @@ export * from "./apiKey";
 export * from "./block";
 export * from "./deployment";
 export * from "./deploymentAlert";
+export * from "./hardwareRequest";
 export * from "./managedWallet";
 export * from "./manifest";
 export * from "./notificationChannel";

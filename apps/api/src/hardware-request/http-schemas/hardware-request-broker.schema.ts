@@ -9,6 +9,7 @@ import {
   hardwareRequestSourceEnum,
   hardwareRequestStatusEnum,
   MAX_ACTOR_LENGTH,
+  MAX_OWNER_LENGTH,
   MAX_PROVIDER_ADDRESS_LENGTH
 } from "@src/hardware-request/model-schemas";
 import { HardwareRequestInputSchema, HardwareRequestOfferTermsSchema } from "./hardware-request.schema";
@@ -90,7 +91,7 @@ const HardwareRequestEventSchema = z.object({
 const ActorSchema = z.string().trim().min(1).max(MAX_ACTOR_LENGTH).describe("The name of the team member acting, as picked in the admin app");
 
 export const AssignHardwareRequestOwnerRequestSchema = z.object({
-  data: z.object({ actor: ActorSchema, owner: z.string().trim().min(1).max(MAX_ACTOR_LENGTH).nullable() })
+  data: z.object({ actor: ActorSchema, owner: z.string().trim().min(1).max(MAX_OWNER_LENGTH).nullable() })
 });
 
 export const SwitchHardwareRequestLaneRequestSchema = z.object({
