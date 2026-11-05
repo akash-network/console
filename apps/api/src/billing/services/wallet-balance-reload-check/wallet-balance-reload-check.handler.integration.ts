@@ -15,7 +15,8 @@ import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-ba
 import type { ApiPgDatabase } from "@src/core";
 import { JOB_NAME, POSTGRES_DB, resolveTable } from "@src/core";
 
-import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
+import { seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
+import { seedOrganizationWallet, seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
 import { expectJobCompleted, useJobWorkers } from "@test/services/job-queue-harness";
 
@@ -73,16 +74,44 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     expect(createPaymentIntent).not.toHaveBeenCalled();
   });
 
-  async function setup(input: { balanceUsd: number; autoReloadEnabled?: boolean; autoReloadPausedAt?: Date; lastAutoChargeAt?: Date }) {
+  it("charges nothing when auto reload is turned off after the check read the wallet's setting", async () => {
+    const { checkBalance, createPaymentIntent, findWalletSetting } = await setup({ balanceUsd: 1, whileChecking: "auto_reload_turned_off" });
+
+    await checkBalance();
+
+    expect(createPaymentIntent).not.toHaveBeenCalled();
+    expect((await findWalletSetting()).autoReloadEnabled).toBe(false);
+  });
+
+  it("charges a team's wallet whose team still exists", async () => {
+    const { checkBalance, createPaymentIntent, payerOrganizationId, stripeCustomerId } = await setup({ balanceUsd: 1, team: true });
+
+    await checkBalance();
+
+    expect(createPaymentIntent).toHaveBeenCalledWith(expect.objectContaining({ organizationId: payerOrganizationId, customer: stripeCustomerId }));
+  });
+
+  it("charges nothing when the team is deleted after the check read its wallet's setting", async () => {
+    const { checkBalance, createPaymentIntent } = await setup({ balanceUsd: 1, team: true, whileChecking: "team_deleted" });
+
+    await checkBalance();
+
+    expect(createPaymentIntent).not.toHaveBeenCalled();
+  });
+
+  async function setup(input: {
+    balanceUsd: number;
+    autoReloadEnabled?: boolean;
+    autoReloadPausedAt?: Date;
+    lastAutoChargeAt?: Date;
+    team?: boolean;
+    whileChecking?: "auto_reload_turned_off" | "team_deleted";
+  }) {
     const { enqueue, startWorkers } = await jobWorkers();
     const db = container.resolve<ApiPgDatabase>(POSTGRES_DB);
     const walletSettingTable = resolveTable("WalletSetting");
 
-    const { user, wallet } = await seedUserWithWallet({
-      isTrialing: false,
-      activatedAt: new Date(),
-      user: { email: "reload@example.com", stripeCustomerId: STRIPE_CUSTOMER_ID }
-    });
+    const { user, wallet, team, stripeCustomerId } = input.team ? await seedTeamWallet() : await seedPersonalWallet();
 
     const walletSetting = await seedWalletSetting({
       userId: user.id,
@@ -98,6 +127,7 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     const paymentMethodId = `pm_${faker.string.alphanumeric(12)}`;
     await db.insert(resolveTable("PaymentMethods")).values({
       userId: user.id,
+      organizationId: team?.id,
       paymentMethodId,
       fingerprint: `fp_${faker.string.alphanumeric(12)}`,
       isDefault: true,
@@ -105,17 +135,35 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
     });
 
     vi.spyOn(container.resolve<Stripe>(STRIPE_CLIENT).paymentMethods, "retrieve").mockResolvedValue(
-      mock<Stripe.Response<Stripe.PaymentMethod>>({ id: paymentMethodId, customer: STRIPE_CUSTOMER_ID })
+      mock<Stripe.Response<Stripe.PaymentMethod>>({ id: paymentMethodId, customer: stripeCustomerId })
     );
-    vi.spyOn(container.resolve(BalancesService), "getDeploymentBalanceInFiat").mockResolvedValue(input.balanceUsd);
+    vi.spyOn(container.resolve(BalancesService), "getDeploymentBalanceInFiat").mockImplementation(async () => {
+      if (input.whileChecking === "auto_reload_turned_off") {
+        await db.update(walletSettingTable).set({ autoReloadEnabled: false }).where(eq(walletSettingTable.id, walletSetting.id));
+      }
+
+      if (input.whileChecking === "team_deleted" && team) {
+        await db
+          .update(resolveTable("Organizations"))
+          .set({ deletedAt: new Date() })
+          .where(eq(resolveTable("Organizations").id, team.id));
+      }
+
+      return input.balanceUsd;
+    });
     const createPaymentIntent = vi
       .spyOn(container.resolve(StripeTransactionService), "createPaymentIntent")
       .mockResolvedValue({ success: true, transactionId: "tx_test", paymentIntentId: "pi_test", transactionStatus: "succeeded" });
 
-    const checkKey = `${WalletBalanceReloadCheck.name}.${user.id}`;
+    const checkKey = `${WalletBalanceReloadCheck.name}.${wallet.id}`;
+    const check = team
+      ? new WalletBalanceReloadCheck({ walletId: wallet.id, triggeredByDeployment: true })
+      : new WalletBalanceReloadCheck({ userId: user.id, triggeredByDeployment: true });
 
     return {
       paymentMethodId,
+      payerOrganizationId: team?.id,
+      stripeCustomerId,
       createPaymentIntent,
       findWalletSetting: async () => {
         const [row] = await db.select().from(walletSettingTable).where(eq(walletSettingTable.id, walletSetting.id));
@@ -123,10 +171,28 @@ describe(WalletBalanceReloadCheckHandler.name, () => {
         return row;
       },
       checkBalance: async () => {
-        await enqueue(new WalletBalanceReloadCheck({ userId: user.id, triggeredByDeployment: true }), { singletonKey: checkKey });
+        await enqueue(check, { singletonKey: checkKey });
         await startWorkers();
         await expectJobCompleted(WalletBalanceReloadCheck[JOB_NAME], { singletonKey: checkKey, state: "completed" });
       }
     };
+  }
+
+  async function seedPersonalWallet() {
+    const { user, wallet } = await seedUserWithWallet({
+      isTrialing: false,
+      activatedAt: new Date(),
+      user: { email: "reload@example.com", stripeCustomerId: STRIPE_CUSTOMER_ID }
+    });
+
+    return { user, wallet, team: undefined, stripeCustomerId: STRIPE_CUSTOMER_ID };
+  }
+
+  async function seedTeamWallet() {
+    const stripeCustomerId = `cus_${faker.string.alphanumeric(14)}`;
+    const { user, organization: team } = await seedOrganizationWithOwner({ stripeCustomerId });
+    const wallet = await seedOrganizationWallet({ organizationId: team.id, activatedAt: new Date() });
+
+    return { user, wallet, team, stripeCustomerId };
   }
 });

@@ -22,7 +22,8 @@ import {
 } from "@src/billing/repositories";
 import { FirstPurchaseBonusService } from "@src/billing/services/first-purchase-bonus/first-purchase-bonus.service";
 import { PayerService, type StripeCustomerOwner } from "@src/billing/services/payer/payer.service";
-import { RefillService, type ToppedUpWallet, type WalletPayer } from "@src/billing/services/refill/refill.service";
+import { PaymentCreditService } from "@src/billing/services/payment-credit/payment-credit.service";
+import { ORGANIZATION_DELETED_ERROR_CODE, RefillService, type ToppedUpWallet, type WalletPayer } from "@src/billing/services/refill/refill.service";
 import { STRIPE_CURRENCY } from "@src/billing/services/stripe/stripe.service";
 import { IDEMPOTENCY_KEY_MISMATCH_ERROR_MESSAGE, PAYMENT_IN_PROGRESS_ERROR_MESSAGE } from "@src/billing/services/stripe-error/stripe-error.service";
 import { type CreateLogger, LOGGER_FACTORY, WithTransaction } from "@src/core";
@@ -54,6 +55,12 @@ const CARD_DECLINED_MESSAGE = "Payment method was declined. Please try a differe
 const PAYMENT_FAILED_MESSAGE = "Payment failed";
 
 export const REFUND_BEFORE_CREDIT_ERROR_CODE = "refund_before_credit";
+
+export const REFUND_FAILED_ERROR_CODE = "refund_failed";
+
+export const PAYMENT_PARTLY_REFUNDED_ERROR_CODE = "payment_partly_refunded";
+
+const CHARGE_ALREADY_REFUNDED_STRIPE_CODE = "charge_already_refunded";
 
 /** Without both, an issuer that wants 3DS leaves the intent stalled in requires_action instead of declining it. */
 const OFF_SESSION_CHARGE_OPTIONS = { off_session: true, error_on_requires_action: true } as const satisfies Pick<
@@ -133,6 +140,7 @@ export class StripeTransactionService {
     private readonly analyticsService: AnalyticsService,
     private readonly organizationRepository: OrganizationRepository,
     private readonly featureFlagsService: FeatureFlagsService,
+    private readonly paymentCreditService: PaymentCreditService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.loggerService = createLogger({ context: StripeTransactionService.name });
@@ -722,6 +730,15 @@ export class StripeTransactionService {
       return {};
     }
 
+    if (payingTeam.team?.deletedAt && params.transaction.type === "payment_intent" && params.stripePaymentIntentId) {
+      await this.refundPaymentOfDeletedTeam({
+        transactionId: params.transaction.id,
+        paymentIntentId: params.stripePaymentIntentId,
+        paymentAmount: params.paymentAmount
+      });
+      return {};
+    }
+
     let cardBrand: string | undefined;
     let cardLast4: string | undefined;
     let receiptUrl: string | undefined;
@@ -790,6 +807,88 @@ export class StripeTransactionService {
           }
         : undefined
     };
+  }
+
+  /** Never refunds a payment whose credit landed or may still land, and leaves its charge unrecorded so no later refund of that charge debits the team. */
+  @WithTransaction()
+  async refundPaymentOfDeletedTeam(params: { transactionId: string; paymentIntentId: string; paymentAmount: number }): Promise<void> {
+    const transaction = await this.stripeTransactionRepository.findOneByAndLock({ id: params.transactionId }, { strength: "no key update" });
+
+    if (!transaction || SETTLED_TRANSACTION_STATUSES.has(transaction.status)) {
+      this.loggerService.info({ event: "PAYMENT_ALREADY_PROCESSED", transactionId: params.transactionId, status: transaction?.status });
+      return;
+    }
+
+    if (await this.paymentCreditService.hasLanded(transaction.id)) {
+      this.loggerService.warn({ event: "DELETED_TEAM_PAYMENT_ALREADY_CREDITED", transactionId: transaction.id, organizationId: transaction.organizationId });
+      throw createError(409, "The team organization was deleted after this payment was credited", { errorCode: ORGANIZATION_DELETED_ERROR_CODE });
+    }
+
+    const refund = await this.#refundOnce(transaction.id, params.paymentIntentId);
+
+    if (refund) {
+      await this.#recordRefund(transaction, params.paymentIntentId, refund);
+    } else {
+      await this.#recordEarlierRefund(transaction, params);
+    }
+  }
+
+  /** Returns nothing when Stripe says the payment is already refunded, by hand or by an earlier attempt whose idempotency key has expired. */
+  async #refundOnce(transactionId: string, paymentIntentId: string): Promise<Stripe.Refund | undefined> {
+    try {
+      return await this.stripe.refunds.create(
+        { payment_intent: paymentIntentId, metadata: { internal_transaction_id: transactionId } },
+        { idempotencyKey: `deleted-team-payment-refund:${paymentIntentId}` }
+      );
+    } catch (error) {
+      if (error instanceof Stripe.errors.StripeError && error.code === CHARGE_ALREADY_REFUNDED_STRIPE_CODE) return undefined;
+
+      throw error;
+    }
+  }
+
+  /** A pending refund settles the row too, since no event this endpoint handles would report its later failure. */
+  async #recordRefund(transaction: StripeTransactionOutput, paymentIntentId: string, refund: Stripe.Refund): Promise<void> {
+    const refundLog = {
+      transactionId: transaction.id,
+      organizationId: transaction.organizationId,
+      paymentIntentId,
+      refundId: refund.id,
+      refundStatus: refund.status,
+      amountRefunded: refund.amount
+    };
+
+    if (refund.status === "failed" || refund.status === "canceled") {
+      this.loggerService.error({ event: "DELETED_TEAM_PAYMENT_REFUND_FAILED", ...refundLog, failureReason: refund.failure_reason });
+      throw createError(502, "Stripe did not refund the payment of the deleted team", { errorCode: REFUND_FAILED_ERROR_CODE });
+    }
+
+    await this.stripeTransactionRepository.updateById(transaction.id, {
+      status: "refunded",
+      amountRefunded: refund.amount,
+      stripePaymentIntentId: paymentIntentId
+    });
+
+    if (refund.status === "succeeded") {
+      this.loggerService.info({ event: "DELETED_TEAM_PAYMENT_REFUNDED", ...refundLog });
+    } else {
+      this.loggerService.warn({ event: "DELETED_TEAM_PAYMENT_REFUND_PENDING", ...refundLog });
+    }
+  }
+
+  /** Only refunds Stripe reports succeeded count, so a payment refunded in part or still pending keeps failing until a person or a later delivery settles it. */
+  async #recordEarlierRefund(transaction: StripeTransactionOutput, { paymentIntentId, paymentAmount }: { paymentIntentId: string; paymentAmount: number }) {
+    const { data: refunds } = await this.stripe.refunds.list({ payment_intent: paymentIntentId, limit: 100 });
+    const amountRefunded = refunds.filter(refund => refund.status === "succeeded").reduce((sum, refund) => sum + refund.amount, 0);
+    const refundLog = { transactionId: transaction.id, organizationId: transaction.organizationId, paymentIntentId, amountRefunded, paymentAmount };
+
+    if (amountRefunded < paymentAmount) {
+      this.loggerService.error({ event: "DELETED_TEAM_PAYMENT_PARTLY_REFUNDED", ...refundLog });
+      throw createError(409, "The payment of the deleted team is refunded only in part", { errorCode: PAYMENT_PARTLY_REFUNDED_ERROR_CODE });
+    }
+
+    await this.stripeTransactionRepository.updateById(transaction.id, { status: "refunded", amountRefunded, stripePaymentIntentId: paymentIntentId });
+    this.loggerService.info({ event: "DELETED_TEAM_PAYMENT_ALREADY_REFUNDED", ...refundLog });
   }
 
   @WithTransaction()
