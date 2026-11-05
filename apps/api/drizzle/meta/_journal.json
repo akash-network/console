@@ -848,6 +848,13 @@
       "when": 1793914592081,
       "tag": "0120_referrals",
       "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1793914718835,
+      "tag": "0121_affiliate_commission",
+      "breakpoints": true
     }
   ]
 }
