@@ -10,7 +10,8 @@ import type { TxService } from "@src/core/services/tx/tx.service";
 import type { FeedbackInput } from "@src/feedback/http-schemas/feedback.schema";
 import { REDACTED } from "@src/feedback/lib/redact-secrets/redact-secrets";
 import type { FeedbackSubmissionRepository } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
-import { ClassifyFeedback } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
+import { ClassifyFeedback, classifyFeedbackOptionsFor } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
+import { SweepFeedback, sweepFeedbackOptionsFor } from "@src/feedback/services/sweep-feedback/sweep-feedback.handler";
 import type { OrganizationContext } from "@src/organization/types/organization-context";
 import type { UserRepository } from "@src/user/repositories";
 import { DAILY_SUBMISSION_LIMIT, FeedbackSubmissionService, OUTCOME_PROMPT_COOLDOWN_DAYS } from "./feedback-submission.service";
@@ -31,6 +32,7 @@ describe(FeedbackSubmissionService.name, () => {
 
   describe("create", () => {
     it("stores a rated outcome with the user, the active organization and the trial status, and queues its classification", async () => {
+      vi.useFakeTimers({ now: NOW });
       const { service, user, feedbackSubmissionRepository, jobQueueService, created } = setup({ organizationId: "org-1", isTrialing: true });
 
       const submission = await service.create({ ...RATED_OUTCOME, message: "went fine", page: "/deployments/21434557" });
@@ -47,7 +49,8 @@ describe(FeedbackSubmissionService.name, () => {
         organizationId: "org-1",
         context: { isTrialing: true, page: "/deployments/21434557" }
       });
-      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ClassifyFeedback({ feedbackSubmissionId: created.id }));
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new ClassifyFeedback({ feedbackSubmissionId: created.id }), classifyFeedbackOptionsFor(created.id));
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(new SweepFeedback(), sweepFeedbackOptionsFor(NOW));
     });
 
     it("creates the submission as the signed-in user's ability allows", async () => {
@@ -87,7 +90,8 @@ describe(FeedbackSubmissionService.name, () => {
       expect(feedbackSubmissionRepository.createUnlessAnswered).toHaveBeenCalledWith(
         expect.objectContaining({ kind: "deployment_outcome", dseq: "7", dismissed: true, rating: null, message: null })
       );
-      expect(jobQueueService.enqueue).not.toHaveBeenCalled();
+      expect(jobQueueService.enqueue).not.toHaveBeenCalledWith(expect.any(ClassifyFeedback), expect.anything());
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(SweepFeedback), expect.anything());
     });
 
     it("stores general feedback with its category and redacted message and no deployment fields", async () => {
@@ -104,7 +108,7 @@ describe(FeedbackSubmissionService.name, () => {
       });
       expect(stored).not.toHaveProperty("dseq");
       expect(stored).not.toHaveProperty("rating");
-      expect(jobQueueService.enqueue).toHaveBeenCalledTimes(1);
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(expect.any(ClassifyFeedback), expect.anything());
     });
 
     it("records no organization and an unknown trial status for a user without organization context or wallet", async () => {

@@ -28,6 +28,60 @@ describe(AssistantConversationRepository.name, () => {
     });
   });
 
+  describe("findUnclassifiedIds", () => {
+    it("answers unclassified conversations that ended or went quiet, oldest first", async () => {
+      const { repository, userId } = await setup();
+      const idleSince = new Date("2026-11-04T12:00:00.000Z");
+      const ended = await seedAssistantConversation({
+        userId,
+        endedAt: new Date(),
+        lastMessageAt: new Date(),
+        startedAt: new Date("2020-01-02T00:00:00.000Z")
+      });
+      const quiet = await seedAssistantConversation({
+        userId,
+        lastMessageAt: new Date("2026-11-04T11:00:00.000Z"),
+        startedAt: new Date("2020-01-01T00:00:00.000Z")
+      });
+      const active = await seedAssistantConversation({ userId, lastMessageAt: new Date("2026-11-04T12:30:00.000Z") });
+      const classified = await seedAssistantConversation({ userId, endedAt: new Date(), classifiedAt: new Date() });
+      const givenUp = await seedAssistantConversation({ userId, endedAt: new Date(), classificationFailedAt: new Date() });
+
+      const ids = await repository.findUnclassifiedIds(idleSince, 1000);
+
+      expect(ids.indexOf(quiet.id)).toBeGreaterThanOrEqual(0);
+      expect(ids.indexOf(quiet.id)).toBeLessThan(ids.indexOf(ended.id));
+      expect(ids).not.toContain(active.id);
+      expect(ids).not.toContain(classified.id);
+      expect(ids).not.toContain(givenUp.id);
+    });
+
+    it("answers at most the given number of conversations", async () => {
+      const { repository, userId } = await setup();
+      await seedAssistantConversation({ userId, endedAt: new Date() });
+      await seedAssistantConversation({ userId, endedAt: new Date() });
+
+      expect(await repository.findUnclassifiedIds(new Date(), 1)).toHaveLength(1);
+    });
+  });
+
+  describe("recordFailedClassification", () => {
+    it("counts each failed attempt and gives up on the one that reaches the maximum", async () => {
+      const { repository, userId } = await setup();
+      const conversation = await seedAssistantConversation({ userId });
+
+      expect(await repository.recordFailedClassification(conversation.id, 2)).toEqual({ attempts: 1, abandoned: false });
+      expect(await repository.recordFailedClassification(conversation.id, 2)).toEqual({ attempts: 2, abandoned: true });
+      expect(await repository.findById(conversation.id)).toMatchObject({ classificationAttempts: 2, classificationFailedAt: expect.any(Date) });
+    });
+
+    it("answers nothing for a conversation that is gone", async () => {
+      const { repository } = await setup();
+
+      expect(await repository.recordFailedClassification("00000000-0000-0000-0000-000000000000", 2)).toBeUndefined();
+    });
+  });
+
   async function setup() {
     const user = await seedUser();
     const repository = container.resolve(AssistantConversationRepository);

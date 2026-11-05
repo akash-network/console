@@ -81,6 +81,52 @@ describe(FeedbackSubmissionRepository.name, () => {
     });
   });
 
+  describe("findUnclassifiedIds", () => {
+    it("answers the oldest submissions still waiting for classification, leaving dismissed and classified ones out", async () => {
+      const { repository, userId } = await setup();
+      const older = await seedFeedbackSubmission({ userId, createdAt: new Date("2020-01-01T00:00:00.000Z") });
+      const newer = await seedFeedbackSubmission({ userId, createdAt: new Date("2020-01-02T00:00:00.000Z") });
+      const dismissed = await seedFeedbackSubmission({ userId, dismissed: true, createdAt: new Date("2020-01-01T00:00:00.000Z") });
+      const classified = await seedFeedbackSubmission({ userId, classifiedAt: new Date(), createdAt: new Date("2020-01-01T00:00:00.000Z") });
+      const givenUp = await seedFeedbackSubmission({ userId, classificationFailedAt: new Date(), createdAt: new Date("2020-01-01T00:00:00.000Z") });
+
+      const ids = await repository.findUnclassifiedIds(1000);
+
+      expect(ids.indexOf(older.id)).toBeLessThan(ids.indexOf(newer.id));
+      expect(ids).toContain(older.id);
+      expect(ids).not.toContain(dismissed.id);
+      expect(ids).not.toContain(classified.id);
+      expect(ids).not.toContain(givenUp.id);
+    });
+
+    it("answers at most the given number of submissions", async () => {
+      const { repository, userId } = await setup();
+      await seedFeedbackSubmission({ userId });
+      await seedFeedbackSubmission({ userId });
+
+      expect(await repository.findUnclassifiedIds(1)).toHaveLength(1);
+    });
+  });
+
+  describe("recordFailedClassification", () => {
+    it("counts each failed attempt and gives up on the one that reaches the maximum", async () => {
+      const { repository, userId } = await setup();
+      const submission = await seedFeedbackSubmission({ userId, classificationAttempts: 1 });
+
+      expect(await repository.recordFailedClassification(submission.id, 3)).toEqual({ attempts: 2, abandoned: false });
+      expect(await repository.findById(submission.id)).toMatchObject({ classificationAttempts: 2, classificationFailedAt: null });
+
+      expect(await repository.recordFailedClassification(submission.id, 3)).toEqual({ attempts: 3, abandoned: true });
+      expect(await repository.findById(submission.id)).toMatchObject({ classificationAttempts: 3, classificationFailedAt: expect.any(Date) });
+    });
+
+    it("answers nothing for a submission that is gone", async () => {
+      const { repository } = await setup();
+
+      expect(await repository.recordFailedClassification("00000000-0000-0000-0000-000000000000", 3)).toBeUndefined();
+    });
+  });
+
   async function setup() {
     const user = await seedUser();
 
