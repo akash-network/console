@@ -4,17 +4,17 @@ import { useEffect, useState } from "react";
 import { Input } from "@akashnetwork/ui/components";
 
 import { useServices } from "@src/context/ServicesProvider";
-import { REGISTRY_PASSWORD_SECRET_NAME, secretReferenceOf } from "@src/utils/sdl/sdlSecrets";
+import { REGISTRY_PASSWORD_SECRET_NAME, REGISTRY_USERNAME_SECRET_NAME, secretReferenceOf } from "@src/utils/sdl/sdlSecrets";
 import { SecureSecretInput, useSecureSecretInput } from "../../SecureSecretInput/SecureSecretInput";
 import type { ActionCardRow } from "../ActionCardChrome/ActionCardChrome";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
-import { mintFreshSecretName } from "../mintFreshSecretName/mintFreshSecretName";
+import { mintFreshSecretNames } from "../mintFreshSecretName/mintFreshSecretName";
 import { useAssistantDeploymentPatch } from "../useAssistantDeploymentPatch/useAssistantDeploymentPatch";
 
 export const DEPENDENCIES = { useServices, useSecureSecretInput, useAssistantDeploymentPatch, ActionCardChrome, SecureSecretInput };
 
-/** The password lives only in the secure input and leaves the browser sealed; the username is not a secret and is sent as typed, like the update tab's. */
+/** Seals the username and password together under fresh names, as the update tab does; the password lives only in the secure input. */
 export const SetRegistryCredentialsCard: FC<ActionCardProps<"set_registry_credentials"> & { dependencies?: typeof DEPENDENCIES }> = ({
   action,
   decision,
@@ -37,9 +37,9 @@ export const SetRegistryCredentialsCard: FC<ActionCardProps<"set_registry_creden
 
   const saveCredentials = async () => {
     const { data } = await api.v1.getDeployment.queryOptions({ dseq: action.dseq }).queryFn();
-    const passwordName = mintFreshSecretName(data.consoleSettings?.sdl, REGISTRY_PASSWORD_SECRET_NAME);
-    const sealedSecrets = await password.sealAndClear(passwordName);
-    const credentials = { host: action.host, username: username.trim(), password: secretReferenceOf(passwordName) };
+    const [usernameName, passwordName] = mintFreshSecretNames(data.consoleSettings?.sdl, [REGISTRY_USERNAME_SECRET_NAME, REGISTRY_PASSWORD_SECRET_NAME]);
+    const sealedSecrets = await password.sealAndClear(passwordName, { [usernameName]: username.trim() });
+    const credentials = { host: action.host, username: secretReferenceOf(usernameName), password: secretReferenceOf(passwordName) };
     await patch({ dseq: action.dseq, services: { [action.service]: { credentials } }, sealedSecrets });
   };
 

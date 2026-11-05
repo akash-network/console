@@ -5,6 +5,7 @@ import { Input } from "@akashnetwork/ui/components";
 import { LockKeyhole } from "lucide-react";
 
 import { useServices } from "@src/context/ServicesProvider";
+import type { SdlSecretValues } from "@src/utils/sdl/sdlSecrets";
 import { sealSdlSecrets } from "@src/utils/sdl/sealSdlSecrets";
 
 export const DEPENDENCIES = {
@@ -42,11 +43,11 @@ export function useSecureSecretInput(d: typeof DEPENDENCIES = DEPENDENCIES) {
   }, []);
 
   const sealAndClear = useCallback(
-    async (name: string): Promise<string> => {
+    async (name: string, sealedAlongside: SdlSecretValues = {}): Promise<string> => {
       const value = valueRef.current;
       try {
         const { data: context } = await getSealContext();
-        return await d.sealSdlSecrets({ context, secrets: { [name]: value } });
+        return await d.sealSdlSecrets({ context, secrets: { ...sealedAlongside, [name]: value } });
       } finally {
         clear();
       }

@@ -48,7 +48,7 @@ describe("SetRegistryCredentialsCard", () => {
     expect(screen.getByRole("button", { name: "Save credentials" })).toBeEnabled();
   });
 
-  it("sends the username as typed and only a sealed reference for the password", async () => {
+  it("seals the username and password together and sends only their references, like the update tab", async () => {
     const { patch, sealSdlSecrets, recordResult } = setup();
     await userEvent.clear(screen.getByLabelText("Username"));
     await userEvent.type(screen.getByLabelText("Username"), " acme-ci ");
@@ -57,13 +57,14 @@ describe("SetRegistryCredentialsCard", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save credentials" }));
     await waitFor(() => expect(recordResult).toHaveBeenCalled());
 
-    expect(sealSdlSecrets).toHaveBeenCalledWith({ context: SEAL_CONTEXT, secrets: { REGISTRY_PASSWORD_2: PASSWORD } });
+    expect(sealSdlSecrets).toHaveBeenCalledWith({ context: SEAL_CONTEXT, secrets: { REGISTRY_USERNAME: "acme-ci", REGISTRY_PASSWORD_2: PASSWORD } });
     expect(patch).toHaveBeenCalledWith({
       dseq: "42",
-      services: { web: { credentials: { host: "ghcr.io", username: "acme-ci", password: "ac-secret://REGISTRY_PASSWORD_2" } } },
+      services: { web: { credentials: { host: "ghcr.io", username: "ac-secret://REGISTRY_USERNAME", password: "ac-secret://REGISTRY_PASSWORD_2" } } },
       sealedSecrets: "sealed-jwe"
     });
     expect(JSON.stringify([patch.mock.calls, recordResult.mock.calls])).not.toContain(PASSWORD);
+    expect(JSON.stringify([patch.mock.calls, recordResult.mock.calls])).not.toContain("acme-ci");
     expect(screen.queryByLabelText("Password or token")).not.toBeInTheDocument();
   });
 
