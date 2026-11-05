@@ -25,6 +25,14 @@ const invitationWriteErrorResponses = {
   404: { description: "No such pending invitation in the active organization" }
 };
 
+const invitationIssueErrorResponses = {
+  ...invitationWriteErrorResponses,
+  403: {
+    description:
+      "The caller cannot manage this invitation, it invites an owner and the caller is not one (`owner_role_restricted`) or the request was not made from a signed-in session (`session_required`), or the active organization is a personal one (`personal_organization`)"
+  }
+};
+
 const INVITATION_EMAIL_LIMIT_REACHED = { description: "Too many invitation emails were sent recently (`invitation_email_limit_reached`)" };
 
 const listOrganizationInvitationsRoute = createRoute({
@@ -51,6 +59,7 @@ const createOrganizationInvitationsRoute = createRoute({
   path: "/v1/organization-invitations",
   operationId: "createOrganizationInvitations",
   summary: "Invite people to the active organization by email",
+  description: "Inviting someone as an owner, or renewing an expired owner invitation, requires a signed-in Console session.",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.ORGANIZATIONS,
@@ -69,7 +78,7 @@ const createOrganizationInvitationsRoute = createRoute({
     401: { description: "Unauthorized" },
     403: {
       description:
-        "The caller cannot invite members, invites an owner or renews an expired owner invitation without being an owner (`owner_role_restricted`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`)"
+        "The caller cannot invite members, invites an owner or renews an expired owner invitation without being an owner (`owner_role_restricted`) or from a request that was not made from a signed-in session (`session_required`), the active organization is a personal one (`personal_organization`), or it has too many pending invitations (`invitation_limit_reached`)"
     },
     409: { description: "An address belongs to a member of the organization (`already_member`)" },
     429: INVITATION_EMAIL_LIMIT_REACHED
@@ -79,7 +88,7 @@ const createOrganizationInvitationsRoute = createRoute({
 organizationInvitationsRouter.openapi(createOrganizationInvitationsRoute, async function routeCreateOrganizationInvitations(c) {
   const { data } = c.req.valid("json");
 
-  return c.json(await container.resolve(OrganizationInvitationController).create(data), 201);
+  return c.json(await container.resolve(OrganizationInvitationController).create(data, { authMethod: c.get("authMethod") }), 201);
 });
 
 const resendOrganizationInvitationRoute = createRoute({
@@ -87,6 +96,7 @@ const resendOrganizationInvitationRoute = createRoute({
   path: "/v1/organization-invitations/{id}/resend",
   operationId: "resendOrganizationInvitation",
   summary: "Email a pending invitation again with a new link and a new expiry",
+  description: "An invitation to become an owner can only be resent from a signed-in Console session.",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.ORGANIZATIONS,
@@ -95,7 +105,7 @@ const resendOrganizationInvitationRoute = createRoute({
   },
   responses: {
     200: { description: "The renewed invitation", content: { "application/json": { schema: OrganizationInvitationResponseSchema } } },
-    ...invitationWriteErrorResponses,
+    ...invitationIssueErrorResponses,
     429: INVITATION_EMAIL_LIMIT_REACHED
   }
 });
@@ -103,7 +113,7 @@ const resendOrganizationInvitationRoute = createRoute({
 organizationInvitationsRouter.openapi(resendOrganizationInvitationRoute, async function routeResendOrganizationInvitation(c) {
   const { id } = c.req.valid("param");
 
-  return c.json(await container.resolve(OrganizationInvitationController).resend(id), 200);
+  return c.json(await container.resolve(OrganizationInvitationController).resend(id, { authMethod: c.get("authMethod") }), 200);
 });
 
 const createOrganizationInvitationLinkRoute = createRoute({
@@ -111,6 +121,7 @@ const createOrganizationInvitationLinkRoute = createRoute({
   path: "/v1/organization-invitations/{id}/link",
   operationId: "createOrganizationInvitationLink",
   summary: "Issue a new link for a pending invitation, which stops every earlier link from working",
+  description: "A link to an invitation to become an owner can only be issued from a signed-in Console session.",
   tags: ["Organizations"],
   security: SECURITY_BEARER_OR_API_KEY,
   featureFlag: FeatureFlags.ORGANIZATIONS,
@@ -119,14 +130,14 @@ const createOrganizationInvitationLinkRoute = createRoute({
   },
   responses: {
     200: { description: "The invitation link", content: { "application/json": { schema: OrganizationInvitationLinkResponseSchema } } },
-    ...invitationWriteErrorResponses
+    ...invitationIssueErrorResponses
   }
 });
 
 organizationInvitationsRouter.openapi(createOrganizationInvitationLinkRoute, async function routeCreateOrganizationInvitationLink(c) {
   const { id } = c.req.valid("param");
 
-  return c.json(await container.resolve(OrganizationInvitationController).createLink(id), 200);
+  return c.json(await container.resolve(OrganizationInvitationController).createLink(id, { authMethod: c.get("authMethod") }), 200);
 });
 
 const deleteOrganizationInvitationRoute = createRoute({

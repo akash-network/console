@@ -14,6 +14,14 @@ describe(useSettingsNavLinks.name, () => {
     expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
   });
 
+  it("adds GPU requests last while gpu quote requests are on", () => {
+    const links = setup({ isGpuQuoteRequestsEnabled: true, pathname: "/gpu-requests" });
+
+    expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts", "GPU requests"]);
+    expect(links[4]).toMatchObject({ url: "/gpu-requests", isActive: true });
+    expect(links.filter(link => link.isActive)).toHaveLength(1);
+  });
+
   it("marks the item matching the current route as active", () => {
     const links = setup({ pathname: "/usage" });
 
@@ -90,10 +98,15 @@ describe(useSettingsNavLinks.name, () => {
     expect(links.map(link => link.title)).toEqual(["Billing", "API Keys", "Usage", "Alerts"]);
   });
 
-  function setup(input: { pathname?: string; isOrganizationsEnabled?: boolean; organization?: Pick<OrganizationOutput, "type" | "role"> }) {
+  function setup(input: {
+    pathname?: string;
+    isOrganizationsEnabled?: boolean;
+    isGpuQuoteRequestsEnabled?: boolean;
+    organization?: Pick<OrganizationOutput, "type" | "role">;
+  }) {
     const dependencies: typeof DEPENDENCIES = {
       usePathname: () => input.pathname ?? "/",
-      useFlag: () => input.isOrganizationsEnabled ?? false,
+      useFlag: flag => (flag === "gpu_quote_requests" ? !!input.isGpuQuoteRequestsEnabled : !!input.isOrganizationsEnabled),
       useActiveOrganization: () =>
         mock<ReturnType<typeof DEPENDENCIES.useActiveOrganization>>({
           activeOrganization: input.organization ? mock<OrganizationOutput>({ id: "org-1", ...input.organization }) : undefined

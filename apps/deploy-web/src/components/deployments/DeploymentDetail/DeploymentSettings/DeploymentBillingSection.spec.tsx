@@ -22,6 +22,26 @@ describe(DeploymentBillingSection.name, () => {
       expect(screen.getByRole("button", { name: "Add hours" })).toBeInTheDocument();
     });
 
+    it("hides Add hours once the limit has reached its ceiling", () => {
+      setup({ state: "active", runtimeLimitHours: 24, maxTotalHours: 24 });
+
+      expect(screen.queryByRole("button", { name: "Add hours" })).not.toBeInTheDocument();
+    });
+
+    it("offers Add hours while the limit is under its ceiling", () => {
+      setup({ state: "active", runtimeLimitHours: 23, maxTotalHours: 24 });
+
+      expect(screen.getByRole("button", { name: "Add hours" })).toBeInTheDocument();
+    });
+
+    it("hands the ceiling to the Add hours modal", async () => {
+      const { AddRuntimeHoursModal } = setup({ state: "active", runtimeLimitHours: 12, maxTotalHours: 24 });
+
+      await userEvent.click(screen.getByRole("button", { name: "Add hours" }));
+
+      expect(AddRuntimeHoursModal).toHaveBeenCalledWith(expect.objectContaining({ currentLimitHours: 12, maxLimitHours: 24 }), {});
+    });
+
     it("hides Add hours and the always-on switch once the deployment is closed", () => {
       setup({ state: "closed", runtimeLimitHours: 12 });
 
@@ -133,6 +153,7 @@ describe(DeploymentBillingSection.name, () => {
     runtimeEndsAt?: string | null;
     patchError?: Error;
     isConfirmed?: boolean;
+    maxTotalHours?: number;
   }) {
     const onFundsChanged = vi.fn();
 
@@ -164,9 +185,11 @@ describe(DeploymentBillingSection.name, () => {
     const useSnackbar: typeof DEPENDENCIES.useSnackbar = () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
     const Snackbar: typeof DEPENDENCIES.Snackbar = ({ title }) => <span>{title}</span>;
 
-    const AddRuntimeHoursModal: typeof DEPENDENCIES.AddRuntimeHoursModal = ({ currentLimitHours, onSubmit }) => (
+    const useRuntimeLimitCeiling: typeof DEPENDENCIES.useRuntimeLimitCeiling = () => ({ maxInitialHours: 48, maxTotalHours: input.maxTotalHours ?? 8760 });
+
+    const AddRuntimeHoursModal = vi.fn<typeof DEPENDENCIES.AddRuntimeHoursModal>(({ currentLimitHours, onSubmit }) => (
       <button onClick={() => onSubmit(currentLimitHours + 6)}>submit-hours</button>
-    );
+    ));
 
     const deployment = mock<DeploymentDto>({
       dseq: "1786440078202",
@@ -188,6 +211,7 @@ describe(DeploymentBillingSection.name, () => {
           useDeploymentSettingQuery,
           useDeploymentMetrics,
           useUpdateDeploymentSettingMutation,
+          useRuntimeLimitCeiling,
           useTickingNow,
           useSnackbar,
           Snackbar,
@@ -196,6 +220,6 @@ describe(DeploymentBillingSection.name, () => {
       />
     );
 
-    return { onFundsChanged, mutateAsync, enqueueSnackbar, analyticsService, confirm };
+    return { onFundsChanged, mutateAsync, enqueueSnackbar, analyticsService, confirm, AddRuntimeHoursModal };
   }
 });

@@ -38,7 +38,7 @@ export const SETTLED_TRANSACTION_STATUSES: Set<StripeTransactionStatus> = new Se
 /** A pending claim older than this is stale: without an invoice it stops holding the coupon, with one its invoice decides. */
 const PENDING_COUPON_CLAIM_HOLD = sql`interval '1 hour'`;
 
-/** A person's claim of a coupon under another payer, which holds the coupon unless it is stale and its invoice was never paid. */
+/** A person's claim of a coupon, whichever payer it was made for, which holds the coupon unless it is stale and its invoice was never paid. */
 export interface CouponClaimHold {
   id: string;
   status: StripeTransactionStatus;
@@ -211,8 +211,8 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`${userId}:${couponId}`}))`);
   }
 
-  /** Reads every organization, so a coupon a person claimed under one payer is seen when they redeem it under another. */
-  async findCouponClaimsOutside(input: { userId: string; couponId: string; owner: BillingOwner }): Promise<CouponClaimHold[]> {
+  /** Reads every organization, so a person's claim of a coupon is found whichever payer it was made for. */
+  async findCouponClaims(input: { userId: string; couponId: string }): Promise<CouponClaimHold[]> {
     return await this.cursor
       .select({
         id: this.table.id,
@@ -233,8 +233,7 @@ export class StripeTransactionRepository extends OrgScopedRepository<Table, Stri
                 eq(this.table.status, "pending"),
                 or(isNotNull(this.table.stripeInvoiceId), gt(this.table.createdAt, sql`now() - ${PENDING_COUPON_CLAIM_HOLD}`))
               )
-            ),
-            sql`not coalesce(${ownedBy(this.table, input.owner)}, false)`
+            )
           )
         )
       );

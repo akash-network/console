@@ -21,6 +21,7 @@ import type {
 } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import type { GpuRequestRoutingService, RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
+import { HardwareRequestFunnelJob } from "@src/hardware-request/services/hardware-request-funnel/hardware-request-funnel.handler";
 import { HardwareRequestResponseTargetJob } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target.handler";
 import type { ResponseTargetStage } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target-notice";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
@@ -154,6 +155,14 @@ describe(HardwareRequestService.name, () => {
       expect(jobQueueService.enqueue.mock.calls).toEqual([
         [new HardwareRequestEmailJob({ hardwareRequestId: created.id })],
         [new HardwareRequestSlackAlertJob({ hardwareRequestId: created.id })],
+        [
+          new HardwareRequestFunnelJob({
+            hardwareRequestId: created.id,
+            step: "gpu_request_created",
+            stepKey: created.id,
+            occurredAt: new Date(NOW).toISOString()
+          })
+        ],
         [responseTargetJob("first_reply", "reminder", FIRST_REPLY_DUE_AT), { startAfter: "2026-09-29T16:00:00.000Z" }],
         [responseTargetJob("first_reply", "escalation", FIRST_REPLY_DUE_AT), { startAfter: FIRST_REPLY_DUE_AT }],
         [responseTargetJob("first_offer", "reminder", FIRST_OFFER_DUE_AT), { startAfter: "2026-09-30T20:00:00.000Z" }],
@@ -419,6 +428,15 @@ describe(HardwareRequestService.name, () => {
         payload: { from: "sourcing", to: "withdrawn", userId: user.id }
       });
       expect(jobQueueService.enqueue).toHaveBeenCalledWith(new HardwareRequestWithdrawnNoticeJob({ hardwareRequestId: own.id, eventId: "event-1" }));
+      expect(jobQueueService.enqueue).toHaveBeenCalledWith(
+        new HardwareRequestFunnelJob({
+          hardwareRequestId: own.id,
+          step: "gpu_request_closed",
+          stepKey: "event-1",
+          occurredAt: expect.any(String),
+          properties: { reason: "withdrawn", from: "sourcing" }
+        })
+      );
     });
 
     it.each(["owner", "admin"] as const)("lets an organization %s withdraw a member's request", async role => {

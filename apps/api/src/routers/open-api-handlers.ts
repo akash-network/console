@@ -1,6 +1,6 @@
 import { activityRouter } from "@src/activity";
 import { addressRouter } from "@src/address";
-import { apiKeysRouter, sendVerificationCodeRouter, sendVerificationEmailRouter, signupRouter, verifyEmailCodeRouter } from "@src/auth";
+import { apiKeysRouter, sendVerificationCodeRouter, signupRouter, verifyEmailCodeRouter } from "@src/auth";
 import { bidsRouter } from "@src/bid/routes/bids/bids.router";
 import { bidScreeningRouter } from "@src/bid-screening";
 import {
@@ -99,7 +99,6 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   userTemplatesRouter,
   accountDeletionRouter,
   productUpdateUnsubscriptionsRouter,
-  sendVerificationEmailRouter,
   sendVerificationCodeRouter,
   signupRouter,
   verifyEmailCodeRouter,

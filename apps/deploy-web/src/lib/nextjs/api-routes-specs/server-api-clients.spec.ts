@@ -1,11 +1,12 @@
 import type { AxiosAdapter, InternalAxiosRequestConfig } from "axios";
 import { describe, expect, it, vi } from "vitest";
 
+import { getActiveOrganizationCookieName } from "@src/lib/active-organization/active-organization-cookie";
 import { requestExecutionContext } from "@src/lib/nextjs/requestExecutionContext";
 import { services } from "@src/services/app-di-container/server-di-container.service";
 
 describe("server API clients", () => {
-  it("sends the console_org cookie as x-organization-id from the console API client", async () => {
+  it("sends the organization cookie as x-organization-id from the console API client", async () => {
     const { sentConfig } = await sendThroughAxios({ client: services.consoleApiHttpClient });
 
     expect(sentConfig.headers.get("x-organization-id")).toBe("acme-corp");
@@ -17,14 +18,21 @@ describe("server API clients", () => {
     expect(sentConfig.headers.has("x-organization-id")).toBe(false);
   });
 
-  it("sends the console_org cookie as x-organization-id from the API SDK", async () => {
+  it("sends the organization cookie as x-organization-id from the API SDK", async () => {
     const { sentHeaders } = await sendThroughApiSdk();
 
     expect(sentHeaders.get("x-organization-id")).toBe("acme-corp");
   });
 
-  function runInRequestWithActiveOrganization<T>(send: () => Promise<T>) {
-    return requestExecutionContext.run({ headers: new Headers({ cookie: "console_org=acme-corp" }) }, send);
+  async function runInRequestWithActiveOrganization<T>(send: () => Promise<T>) {
+    const consoleUrl = "https://console.test";
+    const privateConfig = vi.spyOn(services, "privateConfig", "get").mockReturnValue({ AUTH0_BASE_URL: consoleUrl } as typeof services.privateConfig);
+    const cookieName = getActiveOrganizationCookieName(new URL(consoleUrl));
+    try {
+      return await requestExecutionContext.run({ headers: new Headers({ cookie: `${cookieName}=acme-corp` }) }, send);
+    } finally {
+      privateConfig.mockRestore();
+    }
   }
 
   async function sendThroughAxios(input: { client: typeof services.consoleApiHttpClient }) {

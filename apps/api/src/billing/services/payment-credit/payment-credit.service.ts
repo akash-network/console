@@ -5,6 +5,7 @@ import { inject, singleton } from "tsyringe";
 import { type PaymentCreditOutput, PaymentCreditRepository } from "@src/billing/repositories/payment-credit/payment-credit.repository";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
 import { BillingConfigService } from "@src/billing/services/billing-config/billing-config.service";
+import { DeploymentAllowanceService } from "@src/billing/services/deployment-allowance/deployment-allowance.service";
 import { isUnknownTxOutcome } from "@src/billing/services/external-signer-http-sdk/tx-outcome.error";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
@@ -39,21 +40,22 @@ export class PaymentCreditService {
     private readonly managedSignerService: ManagedSignerService,
     private readonly txPresenceService: TxPresenceService,
     private readonly billingConfigService: BillingConfigService,
+    private readonly deploymentAllowanceService: DeploymentAllowanceService,
     @inject(LOGGER_FACTORY) createLogger: CreateLogger
   ) {
     this.logger = createLogger({ context: PaymentCreditService.name });
   }
 
+  /** The credit is recorded pending before the allowance is read, so a refund debit of the same wallet waits for it rather than reading under it. */
   async creditOnce({ transactionId, wallet, amountCents, bonusCents }: PaymentCredit): Promise<void> {
-    if (await this.#hasLanded(transactionId)) {
+    if (await this.hasLanded(transactionId)) {
       this.logger.info({ event: "PAYMENT_CREDIT_ALREADY_LANDED", transactionId });
       return;
     }
 
-    const limit = (await this.balancesService.retrieveDeploymentLimit(wallet)) + amountCents * 10000;
     await this.paymentCreditRepository.createPending({ transactionId, address: wallet.address, amount: amountCents, bonusAmount: bonusCents });
-
-    const tx = await this.#grant(transactionId, wallet, limit);
+    const read = await this.#readLimit(transactionId, wallet);
+    const tx = await this.#grant(transactionId, wallet, read, read.limit + amountCents * 10000);
 
     if (tx && tx.code !== COSMOS_TX_CODE_OK) {
       await this.paymentCreditRepository.deletePending(transactionId);
@@ -63,27 +65,51 @@ export class PaymentCreditService {
     await this.paymentCreditRepository.markLanded(transactionId, tx?.hash);
   }
 
-  /** Only a failure that proves nothing landed releases the credit for another attempt; one the signer could not decide keeps it pending. */
-  async #grant(transactionId: string, wallet: PaymentCredit["wallet"], limit: number) {
+  /** Whether a credit of this wallet may still be landing, so its grant could overwrite a debit read alongside it. */
+  async isCreditInFlight(address: string): Promise<boolean> {
+    const pending = await this.paymentCreditRepository.findPendingByAddress(address);
+
+    return pending.some(({ createdAt }) => !isAfter(new Date(), this.#landingDeadlineOf(createdAt)));
+  }
+
+  async #readLimit(transactionId: string, wallet: PaymentCredit["wallet"]) {
     try {
-      return await this.managedUserWalletService.authorizeDeploymentSpendingOnly(this.managedSignerService, {
+      return await this.balancesService.retrieveDeploymentLimitAtLatestHeight(wallet);
+    } catch (error) {
+      await this.paymentCreditRepository.deletePending(transactionId);
+      throw error;
+    }
+  }
+
+  /** Only a failure that proves nothing landed releases the credit for another attempt; one the signer could not decide keeps it pending. */
+  async #grant(transactionId: string, wallet: PaymentCredit["wallet"], read: { limit: number; height: number }, limit: number) {
+    const sentAt = new Date().toISOString();
+    const watch = (txHash: string) => this.deploymentAllowanceService.watch(wallet, { txHash, readHeight: read.height, readLimit: read.limit, sentAt });
+
+    try {
+      const tx = await this.managedUserWalletService.authorizeDeploymentSpendingOnly(this.managedSignerService, {
         address: wallet.address,
         derivationIndex: wallet.id,
         limit
       });
+
+      if (tx?.code === COSMOS_TX_CODE_OK) await watch(tx.hash);
+
+      return tx;
     } catch (error) {
       if (!isUnknownTxOutcome(error)) {
         await this.paymentCreditRepository.deletePending(transactionId);
       } else if (error.txHash) {
         await this.paymentCreditRepository.attachTxHash(transactionId, error.txHash);
+        await watch(error.txHash);
       }
 
       throw error;
     }
   }
 
-  /** A credit an earlier attempt left pending is looked up by its hash; while it may still land, the retry is refused rather than granted twice. */
-  async #hasLanded(transactionId: string): Promise<boolean> {
+  /** Settles a credit an earlier attempt left pending by its hash, and refuses to answer while that credit may still land. */
+  async hasLanded(transactionId: string): Promise<boolean> {
     const credit = await this.paymentCreditRepository.findByTransactionId(transactionId);
 
     if (!credit) return false;

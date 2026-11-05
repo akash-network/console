@@ -83,6 +83,7 @@ export const UrlService = {
   providers: (sort?: string) => `/providers${appendSearchParams({ sort })}`,
   providerDetail: (owner: string) => `/providers/${owner}${appendSearchParams({ network: networkStore.selectedNetworkId })}`,
   alerts: () => "/alerts",
+  gpuRequests: () => "/gpu-requests",
 
   // Organizations
   organizationSettings: () => "/organization",

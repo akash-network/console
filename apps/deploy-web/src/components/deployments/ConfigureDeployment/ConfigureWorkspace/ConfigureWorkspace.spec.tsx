@@ -174,6 +174,57 @@ describe(ConfigureWorkspace.name, () => {
       expect(screen.queryByText("Hardware request dialog")).not.toBeInTheDocument();
     });
 
+    describe("when gpu quote requests are on", () => {
+      it.each([
+        ["onRequestCompute", "footer", "configure_reserve"],
+        ["onRequestComputeForNoFit", "no_fit_notice", "no_fit"],
+        ["onRequestComputeForUnlikelyBids", "not_bidding_notice", "no_bids"]
+      ] as const)("opens the quote request from %s with its source instead of the old dialog", (action, trackedSource, source) => {
+        const { availabilityProps, analyticsService, dependencies } = setup({ selectedServiceId: "api", isQuoteFlowEnabled: true, apiGpuModels: ["h100"] });
+
+        act(() => availabilityProps()[action]());
+
+        expect(analyticsService.track).toHaveBeenCalledWith("configure_request_compute_clicked", { category: "deployments", source: trackedSource });
+        expect(dependencies.HardwareRequestDialog).not.toHaveBeenCalled();
+        expect(dependencies.GpuQuoteRequestFlow).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            source,
+            configuration: {
+              summary: expect.objectContaining({ summary: expect.stringContaining("us-west, eu-west") }),
+              hardware: { gpuCount: 1, gpuModels: ["h100"], storageBytes: 1024 ** 3, regions: ["us-west", "eu-west"] }
+            }
+          }),
+          expect.anything()
+        );
+      });
+
+      it("opens the quote request from the no-bid notice", () => {
+        const { marketplaceProps, dependencies } = setup({ phase: "quoting", noBidsReceived: true, isQuoteFlowEnabled: true });
+        const notice = (marketplaceProps().notice as ReactElement).props as ComponentProps<typeof NoBidsNotice>;
+
+        act(() => notice.onRequestCompute());
+
+        expect(notice.requestLabel).toBe("Request this hardware");
+        expect(dependencies.GpuQuoteRequestFlow).toHaveBeenLastCalledWith(expect.objectContaining({ source: "no_bids" }), expect.anything());
+      });
+
+      it("closes the quote request when it asks to", () => {
+        const { availabilityProps, dependencies } = setup({ isQuoteFlowEnabled: true });
+        act(() => availabilityProps().onRequestCompute());
+        expect(screen.getByText("GPU quote request")).toBeInTheDocument();
+
+        act(() => dependencies.GpuQuoteRequestFlow.mock.lastCall![0].onClose());
+
+        expect(screen.queryByText("GPU quote request")).not.toBeInTheDocument();
+      });
+    });
+
+    it("keeps the old label on the no-bid notice", () => {
+      const { marketplaceProps } = setup({ phase: "quoting", noBidsReceived: true });
+
+      expect(((marketplaceProps().notice as ReactElement).props as ComponentProps<typeof NoBidsNotice>).requestLabel).toBe("Request compute");
+    });
+
     it("reveals the first invalid service when the request is rejected", () => {
       const { useRequestQuotes, onSelectService } = setup({});
       const { onInvalid } = useRequestQuotes.mock.calls.at(-1)![0];
@@ -605,6 +656,7 @@ describe(ConfigureWorkspace.name, () => {
     hasPlacementWithoutProviders?: boolean;
     vmSshPubKey?: string;
     webImage?: string;
+    isQuoteFlowEnabled?: boolean;
   }) {
     const first = { ...defaultPlacement({ name: "placement-1" }), id: "p1", regions: [] };
     const second = { ...defaultPlacement({ name: "gpu-pool" }), id: "p2", regions: ["us-west", "eu-west"] };
@@ -647,6 +699,8 @@ describe(ConfigureWorkspace.name, () => {
         </h2>
       )),
       HardwareRequestDialog: vi.fn(() => <div>Hardware request dialog</div>),
+      GpuQuoteRequestFlow: vi.fn(() => <div>GPU quote request</div>),
+      useFlag: flag => flag === "gpu_quote_requests" && !!input.isQuoteFlowEnabled,
       SshKeyStepDialog: vi.fn(() => <div>SSH key step</div>),
       useSdlPreviewPanel: () => ({ isEnabled: input.sdlPreviewEnabled ?? false, isOpen: false, open: vi.fn(), close: vi.fn() }),
       useGpuModels: () => mock<ReturnType<typeof DEPENDENCIES.useGpuModels>>({ data: [] }),

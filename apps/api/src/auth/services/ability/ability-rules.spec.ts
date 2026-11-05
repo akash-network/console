@@ -185,7 +185,7 @@ describe("ability rules", () => {
 
       const rules = legacyRules(user);
 
-      expect(rules).toHaveLength(19);
+      expect(rules).toHaveLength(18);
       expect(rules).toEqual(
         expect.arrayContaining([
           { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: user.id } },
@@ -193,7 +193,6 @@ describe("ability rules", () => {
           { action: "read", subject: "User", conditions: { id: user.id } },
           { action: ["create", "read", "delete"], subject: "StripePayment" },
           { action: "manage", subject: "PaymentMethod", conditions: { userId: user.id } },
-          { action: "create", subject: "VerificationEmail", conditions: { id: user.id } },
           { action: "manage", subject: "DeploymentSetting", conditions: { userId: user.id } },
           { action: "read", subject: "LeaseGpu", conditions: { userId: user.id } },
           { action: "manage", subject: "ApiKey", conditions: { userId: user.id } },
@@ -215,7 +214,7 @@ describe("ability rules", () => {
       const rules = legacyRules(createUser({ userId: null }));
 
       expect(rules.map(({ subject }) => subject)).not.toContain("Template");
-      expect(rules).toHaveLength(18);
+      expect(rules).toHaveLength(17);
     });
 
     it("grants nothing to a user without an id", () => {
@@ -452,7 +451,6 @@ describe("ability rules", () => {
       const { user, context } = setup({ role });
       const userKeyedSubjects = [
         "User",
-        "VerificationEmail",
         "LeaseGpu",
         "HardwareRequest",
         "Activity",
@@ -465,7 +463,7 @@ describe("ability rules", () => {
 
       const userKeyedRules = legacyRules(user).filter(rule => userKeyedSubjects.includes(rule.subject as string));
 
-      expect(userKeyedRules).toHaveLength(10);
+      expect(userKeyedRules).toHaveLength(9);
       expect(organizationRules(user, context)).toEqual(expect.arrayContaining(userKeyedRules));
     });
 

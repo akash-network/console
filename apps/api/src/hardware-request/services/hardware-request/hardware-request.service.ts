@@ -20,6 +20,7 @@ import { HardwareRequestEventRepository } from "@src/hardware-request/repositori
 import { HardwareRequestOfferRepository } from "@src/hardware-request/repositories/hardware-request-offer/hardware-request-offer.repository";
 import { GpuRequestRoutingService, type RoutedLane } from "@src/hardware-request/services/gpu-request-routing/gpu-request-routing.service";
 import { HardwareRequestEmailJob } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
+import { HardwareRequestFunnelJob } from "@src/hardware-request/services/hardware-request-funnel/hardware-request-funnel.handler";
 import { HardwareRequestResponseTargetJob } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target.handler";
 import type { ResponseTargetStage } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target-notice";
 import { HardwareRequestSlackAlertJob } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
@@ -140,6 +141,14 @@ export class HardwareRequestService {
     });
     await this.jobQueueService.enqueue(new HardwareRequestEmailJob({ hardwareRequestId: hardwareRequest.id }));
     await this.jobQueueService.enqueue(new HardwareRequestSlackAlertJob({ hardwareRequestId: hardwareRequest.id }));
+    await this.jobQueueService.enqueue(
+      new HardwareRequestFunnelJob({
+        hardwareRequestId: hardwareRequest.id,
+        step: "gpu_request_created",
+        stepKey: hardwareRequest.id,
+        occurredAt: filedAt.toISOString()
+      })
+    );
     await this.#scheduleResponseTargets(hardwareRequest.id, schedule);
 
     return { ...hardwareRequest, ...routing };
@@ -209,7 +218,12 @@ export class HardwareRequestService {
       if (hardwareRequest.status === "withdrawn") return hardwareRequest;
       if (UNWITHDRAWABLE_STATUSES.includes(hardwareRequest.status)) throw createError(409, `A ${hardwareRequest.status} request can no longer be withdrawn`);
 
-      const withdrawn = await this.hardwareRequestRepository.updateById(hardwareRequestId, { status: "withdrawn", updatedAt: new Date() }, { returning: true });
+      const withdrawnAt = new Date();
+      const withdrawn = await this.hardwareRequestRepository.updateById(
+        hardwareRequestId,
+        { status: "withdrawn", updatedAt: withdrawnAt },
+        { returning: true }
+      );
       const event = await this.hardwareRequestEventRepository.record({
         hardwareRequestId,
         type: "status_changed",
@@ -217,6 +231,15 @@ export class HardwareRequestService {
         payload: { from: hardwareRequest.status, to: "withdrawn", userId: user.id }
       });
       await this.jobQueueService.enqueue(new HardwareRequestWithdrawnNoticeJob({ hardwareRequestId, eventId: event.id }));
+      await this.jobQueueService.enqueue(
+        new HardwareRequestFunnelJob({
+          hardwareRequestId,
+          step: "gpu_request_closed",
+          stepKey: event.id,
+          occurredAt: withdrawnAt.toISOString(),
+          properties: { reason: "withdrawn", from: hardwareRequest.status }
+        })
+      );
 
       return withdrawn;
     });

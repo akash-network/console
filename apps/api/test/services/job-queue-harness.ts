@@ -127,6 +127,11 @@ export async function expectJobCompleted(jobName: string, options: JobSelector &
   );
 }
 
+/** Keeps a job a test queued for later from coming due while a later test of the same file runs against its own fakes. */
+export async function deleteQueuedJobs(jobName: string): Promise<void> {
+  await db().execute(sql`delete from ${jobTable()} where name = ${jobName} and state = 'created'`);
+}
+
 export async function makeJobDue(jobName: string, selector: JobSelector = {}): Promise<void> {
   await db().execute(sql`update ${jobTable()} set start_after = now() where name = ${jobName} ${selectorFilter(selector)}`);
 }

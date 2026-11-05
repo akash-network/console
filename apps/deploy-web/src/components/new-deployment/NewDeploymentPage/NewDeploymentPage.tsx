@@ -1,11 +1,13 @@
 "use client";
 import type { FC, ReactNode } from "react";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { Skeleton } from "@akashnetwork/ui/components";
-import { ArrowLeft, ArrowRight, Container, Terminal } from "lucide-react";
+import { cn } from "@akashnetwork/ui/utils";
+import { ArrowLeft, ArrowRight, CalendarClock, Container, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { GpuQuoteRequestFlow } from "@src/components/gpu-requests/GpuQuoteRequestFlow/GpuQuoteRequestFlow";
 import Layout from "@src/components/layout/Layout";
 import { DeployTargetChip } from "@src/components/projects/DeployTargetChip/DeployTargetChip";
 import { CustomNextSeo } from "@src/components/shared/CustomNextSeo";
@@ -13,6 +15,7 @@ import { TemplateCard } from "@src/components/templates/TemplateCard/TemplateCar
 import { isPopularTemplate, selectPopularTemplates } from "@src/components/templates/templateGalleryModel";
 import { useServices } from "@src/context/ServicesProvider";
 import { useDeployTarget } from "@src/hooks/useDeployTarget/useDeployTarget";
+import { useFlag } from "@src/hooks/useFlag";
 import { useTemplates } from "@src/queries/useTemplateQuery";
 import { helloWorldTemplate } from "@src/utils/templates";
 import { domainName, UrlService } from "@src/utils/urlUtils";
@@ -21,7 +24,7 @@ import { ImportSdlButton } from "../ImportSdlButton/ImportSdlButton";
 import { LastConfigurationCard } from "../LastConfigurationCard/LastConfigurationCard";
 import { LegacyBuilderRedirect } from "../LegacyBuilderRedirect/LegacyBuilderRedirect";
 import { StartFromScratchCard } from "../StartFromScratchCard/StartFromScratchCard";
-import { ContainerSdlSnippet, SshSessionSnippet } from "../StartFromScratchSnippets/StartFromScratchSnippets";
+import { ContainerSdlSnippet, ReservableGpusSnippet, SshSessionSnippet } from "../StartFromScratchSnippets/StartFromScratchSnippets";
 import { useLastConfiguration } from "../useLastConfiguration/useLastConfiguration";
 
 const POPULAR_TEMPLATE_COUNT = 6;
@@ -48,7 +51,9 @@ export const DEPENDENCIES = {
   StartFromScratchCard,
   TemplateCard,
   Skeleton,
-  DeployTargetChip
+  DeployTargetChip,
+  GpuQuoteRequestFlow,
+  useFlag
 };
 
 type Props = { dependencies?: typeof DEPENDENCIES };
@@ -62,6 +67,8 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
   const deployTarget = d.useDeployTarget({ requestedProjectId: d.useSearchParams()?.get("projectId") });
   const targetProject = deployTarget.project;
   const lastConfiguration = d.useLastConfiguration();
+  const isQuoteFlowEnabled = d.useFlag("gpu_quote_requests");
+  const [isRequestingQuote, setIsRequestingQuote] = useState(false);
 
   const chooseDeployTarget = (projectId: string) => {
     deployTarget.chooseProject(projectId);
@@ -119,7 +126,7 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
           )}
 
           <PageSection title="Start from scratch" className="mt-10">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-2", isQuoteFlowEnabled && "min-[1100px]:grid-cols-3")}>
               <d.StartFromScratchCard
                 title="Bring your own container"
                 description="Run any Docker image from any registry. Configure ports, variables, and resources."
@@ -136,6 +143,17 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
                 preview={<SshSessionSnippet />}
                 onSelect={startFromLinuxMachine}
               />
+              {isQuoteFlowEnabled && (
+                <d.StartFromScratchCard
+                  title="Reserve capacity"
+                  description="Reserve GPUs for a term. Tell us what you need and we'll come back with offers."
+                  previewLabel="gpus"
+                  previewIcon={CalendarClock}
+                  preview={<ReservableGpusSnippet />}
+                  actionLabel="Get a quote"
+                  onSelect={() => setIsRequestingQuote(true)}
+                />
+              )}
             </div>
           </PageSection>
 
@@ -164,6 +182,7 @@ export const NewDeploymentPage: FC<Props> = ({ dependencies: d = DEPENDENCIES })
             </div>
           </PageSection>
         </div>
+        {isRequestingQuote && <d.GpuQuoteRequestFlow source="reserve_capacity" onClose={() => setIsRequestingQuote(false)} />}
       </d.Layout>
     </d.LegacyBuilderRedirect>
   );

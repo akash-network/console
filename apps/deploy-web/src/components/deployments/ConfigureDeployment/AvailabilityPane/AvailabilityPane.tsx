@@ -2,8 +2,9 @@ import type { FC, ReactNode } from "react";
 import { useId } from "react";
 import { Button, CustomTooltip } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { GpuIcon, InfoIcon, LoaderCircleIcon, MessageSquareIcon, PanelsTopLeftIcon } from "lucide-react";
+import { ArrowRightIcon, CalendarClockIcon, GpuIcon, InfoIcon, LoaderCircleIcon, MessageSquareIcon, PanelsTopLeftIcon } from "lucide-react";
 
+import { useFlag } from "@src/hooks/useFlag";
 import { useNetworkProviderCount } from "@src/queries/useNetworkProviderCount";
 import { countNotBiddingProviders, sumAvailableGpus, useScreenedProviders } from "@src/queries/useScreenedProviders";
 import type { PlacementType } from "@src/types";
@@ -27,7 +28,8 @@ export const DEPENDENCIES = {
   useGpuSelection,
   CustomTooltip,
   InvalidSpecReasons,
-  NotBiddingNotice
+  NotBiddingNotice,
+  useFlag
 };
 
 type Props = {
@@ -40,6 +42,7 @@ type Props = {
   onChooseProvider: () => void;
   onRequestCompute: () => void;
   onRequestComputeForUnlikelyBids: () => void;
+  onRequestComputeForNoFit: () => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
@@ -53,8 +56,10 @@ export const AvailabilityPane: FC<Props> = ({
   onChooseProvider,
   onRequestCompute,
   onRequestComputeForUnlikelyBids,
+  onRequestComputeForNoFit,
   dependencies: d = DEPENDENCIES
 }) => {
+  const isQuoteFlowEnabled = d.useFlag("gpu_quote_requests");
   const headingId = useId();
   const screened = d.useScreenedProviders({ sdl, placementName: placement.name, regions: placement.regions });
   const network = d.useNetworkProviderCount();
@@ -62,6 +67,7 @@ export const AvailabilityPane: FC<Props> = ({
   const gpuQuantities = d.useGpuQuantityAvailability(placement);
   const gpuSelection = d.useGpuSelection(placement.id);
   const scope = placementCount > 1 ? "this placement" : "your deployment";
+  const canSourceNoFit = isQuoteFlowEnabled && gpuAvailability.requestsGpu;
   const notBiddingCount = screened.isLoading || screened.isInvalid ? 0 : countNotBiddingProviders(screened.providers);
 
   return (
@@ -103,20 +109,30 @@ export const AvailabilityPane: FC<Props> = ({
       <footer className="shrink-0 border-t border-zinc-300 p-4 dark:border-zinc-700">
         <div className="mx-auto max-w-[720px] space-y-3">
           {!isReady && <p className="text-sm text-muted-foreground">Add a container image and hardware to every service to deploy.</p>}
-          {hasPlacementWithoutProviders && (
+          {hasPlacementWithoutProviders && canSourceNoFit && <NoFitCard placementCount={placementCount} onRequest={onRequestComputeForNoFit} />}
+          {hasPlacementWithoutProviders && !canSourceNoFit && (
             <p className="text-sm text-muted-foreground">
-              {placementCount > 1 ? "No provider can host every placement right now." : "No provider can host this configuration right now."} Change the
-              resources or request compute.
+              {describeNoFit(placementCount)} {isQuoteFlowEnabled ? "Change the resources or widen the region." : "Change the resources or request compute."}
             </p>
           )}
           <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-3">
-            <FooterAction
-              variant="outline"
-              icon={<MessageSquareIcon className="h-5 w-5" />}
-              title="Request compute"
-              subtitle="Don't see what you need?"
-              onClick={onRequestCompute}
-            />
+            {isQuoteFlowEnabled ? (
+              <FooterAction
+                variant="outline"
+                icon={<CalendarClockIcon className="h-5 w-5" />}
+                title="Reserve capacity"
+                subtitle="Get a quote"
+                onClick={onRequestCompute}
+              />
+            ) : (
+              <FooterAction
+                variant="outline"
+                icon={<MessageSquareIcon className="h-5 w-5" />}
+                title="Request compute"
+                subtitle="Don't see what you need?"
+                onClick={onRequestCompute}
+              />
+            )}
             <FooterAction
               variant="default"
               icon={<PanelsTopLeftIcon className="h-5 w-5" />}
@@ -131,6 +147,33 @@ export const AvailabilityPane: FC<Props> = ({
     </section>
   );
 };
+
+function describeNoFit(placementCount: number): string {
+  return placementCount > 1 ? "No provider can host every placement right now." : "No provider can host this configuration right now.";
+}
+
+function NoFitCard({ placementCount, onRequest }: { placementCount: number; onRequest: () => void }) {
+  const titleId = useId();
+
+  return (
+    <section aria-labelledby={titleId} className="flex flex-col gap-3 rounded-lg border border-foreground p-4">
+      <p className="text-sm text-muted-foreground">{describeNoFit(placementCount)}</p>
+      <div className="flex flex-col gap-1">
+        <h3 id={titleId} className="text-base font-semibold">
+          We can source this for you
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          Tell us the hardware you need and we&apos;ll come back with offers from providers we work with. Your configuration is already filled in.
+        </p>
+      </div>
+      <Button type="button" onClick={onRequest} className="gap-2 self-start">
+        Request this hardware
+        <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
+      </Button>
+      <p className="text-xs text-muted-foreground">You can also lower a hardware requirement or widen the region.</p>
+    </section>
+  );
+}
 
 type FooterActionProps = {
   variant: "default" | "outline";

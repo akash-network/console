@@ -40,9 +40,6 @@ describe(useProviderAccess.name, () => {
   function buildCredentials(input: { usable: boolean }) {
     const credentials = mock<UseProviderCredentialsResult>();
     credentials.details = {
-      type: "jwt",
-      value: input.usable ? "fresh-token" : null,
-      isExpired: !input.usable,
       usable: input.usable,
       error: null
     };

@@ -7,7 +7,7 @@ import type { NextRouter } from "next/router";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { ACTIVE_ORGANIZATION_COOKIE_NAME, readActiveOrganizationCookie } from "@src/lib/active-organization/active-organization-cookie";
+import { getActiveOrganizationCookieName, readActiveOrganizationCookie } from "@src/lib/active-organization/active-organization-cookie";
 import { ORGANIZATIONS_QUERY_KEY } from "@src/queries/useOrganizationQueries";
 import { StaleOrganizationRecovery } from "@src/services/stale-organization-recovery/stale-organization-recovery";
 import { TabOrganization } from "@src/services/tab-organization/tab-organization";
@@ -18,6 +18,8 @@ import { OrganizationProvider, useActiveOrganization } from "./OrganizationProvi
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
+
+const ACTIVE_ORGANIZATION_COOKIE_NAME = getActiveOrganizationCookieName(window.location);
 
 describe(OrganizationProvider.name, () => {
   it("exposes no organization while the feature is off", () => {
@@ -545,7 +547,7 @@ describe(OrganizationProvider.name, () => {
         {
           queryKey: ORGANIZATIONS_QUERY_KEY,
           queryFn: async () => {
-            const namedOrganizationId = tabOrganization.organizationId ?? readActiveOrganizationCookie(document.cookie);
+            const namedOrganizationId = tabOrganization.organizationId ?? readActiveOrganizationCookie(document.cookie, window.location);
             organizationsNamedByMembershipCalls.push(namedOrganizationId);
             return { data: buildOrganizations(namedOrganizationId ?? input.activeId ?? "org-1") };
           },

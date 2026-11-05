@@ -5,7 +5,7 @@ export const createTransaction = async (input: Partial<CreationAttributes<Transa
   return await Transaction.create({
     id: input.id || faker.string.uuid(),
     hash: input.hash || faker.string.hexadecimal({ length: 64 }),
-    index: input.index || faker.number.int({ min: 0, max: 10000000 }),
+    index: input.index ?? faker.number.int({ min: 0, max: 10000000 }),
     height: input.height || faker.number.int({ min: 0, max: 10000000 }),
     msgCount: input.msgCount || faker.number.int({ min: 0, max: 10000000 }),
     multisigThreshold: input.multisigThreshold || faker.number.int({ min: 1, max: 10 }),

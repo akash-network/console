@@ -47,7 +47,7 @@ export type SalesLaneReason = (typeof SALES_LANE_REASONS)[number];
 export type HardwareRequestLaneReason = SalesLaneReason | "no_payment_method" | "below_thresholds" | "manual";
 
 const MAX_LANE_REASON_LENGTH = 32;
-const MAX_OWNER_LENGTH = 64;
+export const MAX_OWNER_LENGTH = 64;
 
 export const hardwareRequestLaneEnum = pgEnum("hardware_request_lane", HARDWARE_REQUEST_LANES);
 

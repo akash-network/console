@@ -1,6 +1,5 @@
 import { HTTPException } from "hono/http-exception";
 import assert from "http-assert";
-import Stripe from "stripe";
 import { inject, singleton } from "tsyringe";
 import type { infer as ZodInfer } from "zod";
 
@@ -155,7 +154,6 @@ export class StripeController {
   @Protected([{ action: "create", subject: "StripePayment" }])
   async applyCoupon(params: ApplyCouponRequest["data"]): Promise<{
     data: {
-      coupon: Stripe.Coupon | Stripe.PromotionCode | null;
       amountAdded?: number;
       transactionId?: string;
       transactionStatus?: StripeTransactionOutput["status"];
@@ -177,11 +175,11 @@ export class StripeController {
 
       if (params.awaitResolved) {
         const transaction = await this.stripeTransaction.resolveTransaction(result.transactionId);
-        return { data: { coupon: result.coupon, amountAdded: result.amountAdded, transactionId: result.transactionId, transactionStatus: transaction.status } };
+        return { data: { amountAdded: result.amountAdded, transactionId: result.transactionId, transactionStatus: transaction.status } };
       }
 
       return {
-        data: { coupon: result.coupon, amountAdded: result.amountAdded, transactionId: result.transactionId, transactionStatus: result.transactionStatus }
+        data: { amountAdded: result.amountAdded, transactionId: result.transactionId, transactionStatus: result.transactionStatus }
       };
     } catch (error: unknown) {
       if (this.stripeErrorService.isKnownError(error, "coupon")) {

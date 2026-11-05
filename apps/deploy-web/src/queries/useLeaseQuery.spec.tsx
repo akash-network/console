@@ -4,8 +4,11 @@ import { AxiosError } from "axios";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import type { ActiveOrganization } from "@src/context/OrganizationProvider/OrganizationProvider";
 import type { Props as ServicesProviderProps } from "@src/context/ServicesProvider";
 import type { UseProviderCredentialsResult } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+import { DEPENDENCIES as PROVIDER_CREDENTIALS_DEPENDENCIES, useProviderCredentials } from "@src/hooks/useProviderCredentials/useProviderCredentials";
+import type { UseProviderJwtResult } from "@src/hooks/useProviderJwt/useProviderJwt";
 import type { ProviderProxyService } from "@src/services/provider-proxy/provider-proxy.service";
 import { isProviderUnavailableError } from "@src/services/query-error-policy/query-error-policy";
 import type { DeploymentGroup, LeaseDto } from "@src/types/deployment";
@@ -399,9 +402,6 @@ describe("useLeaseQuery", () => {
       const { result } = setupLeaseStatus({
         lease: mockLease,
         providerCredentials: {
-          type: "jwt",
-          value: null,
-          isExpired: false,
           usable: false,
           error: null
         },
@@ -585,9 +585,6 @@ describe("useLeaseQuery", () => {
         provider,
         lease: mockLease,
         providerCredentials: {
-          type: "jwt",
-          value: "jwt-token",
-          isExpired: false,
           usable: true,
           error: null
         },
@@ -687,7 +684,7 @@ describe("useLeaseQuery", () => {
       const dependencies: typeof USE_LEASE_STATUS_DEPENDENCIES = {
         ...USE_LEASE_STATUS_DEPENDENCIES,
         useProviderCredentials: () => ({
-          details: { type: "jwt", value: "jwt-token", isExpired: false, usable: true, error: null },
+          details: { usable: true, error: null },
           tokenMode: "shared",
           ensureToken: vi.fn().mockResolvedValue("jwt-token")
         })
@@ -730,7 +727,7 @@ describe("useLeaseQuery", () => {
       const dependencies: typeof USE_LEASE_STATUS_DEPENDENCIES = {
         ...USE_LEASE_STATUS_DEPENDENCIES,
         useProviderCredentials: () => ({
-          details: { type: "jwt", value: "jwt-token", isExpired: false, usable: true, error: null },
+          details: { usable: true, error: null },
           tokenMode: "shared",
           ensureToken: vi.fn().mockResolvedValue("jwt-token")
         })
@@ -765,7 +762,7 @@ describe("useLeaseQuery", () => {
       const dependencies: typeof USE_LEASE_STATUS_DEPENDENCIES = {
         ...USE_LEASE_STATUS_DEPENDENCIES,
         useProviderCredentials: () => ({
-          details: { type: "jwt", value: null, isExpired: false, usable: true, error: null },
+          details: { usable: true, error: null },
           tokenMode: "per-deployment",
           ensureToken
         })
@@ -795,6 +792,48 @@ describe("useLeaseQuery", () => {
       expect(ensureToken).toHaveBeenCalledTimes(4);
     });
 
+    it("useLeaseStatuses sends each provider only its own token when the caller reaches every project", async () => {
+      const provider = buildProvider();
+      const otherProvider = buildProvider();
+      const generateScopedProviderToken = vi.fn(async ({ provider }: { provider: string }) => `token-for-${provider}`);
+      const providerProxy = mock<ProviderProxyService>({ request: vi.fn().mockResolvedValue({ data: mockLeaseStatus }) });
+      const dependencies: typeof USE_LEASE_STATUS_DEPENDENCIES = {
+        ...USE_LEASE_STATUS_DEPENDENCIES,
+        useProviderCredentials: () =>
+          useProviderCredentials({
+            dependencies: {
+              ...PROVIDER_CREDENTIALS_DEPENDENCIES,
+              useWallet: () => mock<ReturnType<typeof PROVIDER_CREDENTIALS_DEPENDENCIES.useWallet>>({ hasWallet: true, address: "akash1owner" }),
+              useActiveOrganization: () => mock<ActiveOrganization>({ activeOrganization: undefined, isLoading: false, isError: false }),
+              useProviderJwt: () => mock<UseProviderJwtResult>({ generateScopedProviderToken })
+            }
+          })
+      };
+
+      const { result } = setupQuery(
+        () =>
+          useLeaseStatuses(
+            [
+              { lease: { ...mockLease, id: "lease-a", dseq: "123" }, provider },
+              { lease: { ...mockLease, id: "lease-b", dseq: "456" }, provider },
+              { lease: { ...mockLease, id: "lease-c", dseq: "321" }, provider: otherProvider },
+              { lease: { ...mockLease, id: "lease-d", dseq: "654" }, provider: otherProvider }
+            ],
+            { dependencies }
+          ),
+        { services: { providerProxy: () => providerProxy } }
+      );
+
+      await vi.waitFor(() => {
+        expect(result.current.filter(status => status.isSuccess)).toHaveLength(4);
+      });
+
+      const sentTokens = providerProxy.request.mock.calls.map(([, options]) => [options.providerIdentity.owner, options.credentials?.value]).sort();
+      const expectedTokens = [provider.owner, provider.owner, otherProvider.owner, otherProvider.owner].map(owner => [owner, `token-for-${owner}`]).sort();
+      expect(sentTokens).toEqual(expectedTokens);
+      expect(generateScopedProviderToken).toHaveBeenCalledTimes(2);
+    });
+
     it.each([502, 503])("useLeaseStatuses fails a %s from the provider proxy on the first attempt", async status => {
       const provider = buildProvider();
       const providerProxy = mock<ProviderProxyService>({
@@ -803,7 +842,7 @@ describe("useLeaseQuery", () => {
       const dependencies: typeof USE_LEASE_STATUS_DEPENDENCIES = {
         ...USE_LEASE_STATUS_DEPENDENCIES,
         useProviderCredentials: () => ({
-          details: { type: "jwt", value: "jwt-token", isExpired: false, usable: true, error: null },
+          details: { usable: true, error: null },
           tokenMode: "shared",
           ensureToken: vi.fn().mockResolvedValue("jwt-token")
         })
@@ -871,9 +910,6 @@ describe("useLeaseQuery", () => {
         ...USE_LEASE_STATUS_DEPENDENCIES,
         useProviderCredentials: () => ({
           details: input?.providerCredentials ?? {
-            type: "jwt",
-            value: "jwt-token",
-            isExpired: false,
             usable: true,
             error: null
           },

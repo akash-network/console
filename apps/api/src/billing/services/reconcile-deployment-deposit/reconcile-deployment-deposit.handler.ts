@@ -19,7 +19,7 @@ import {
 import { TxService } from "@src/core/services";
 import { COSMOS_TX_CODE_OK } from "@src/utils/constants";
 
-/** Must stay above tx-signer's UNORDERED_TX_TTL_MS, since a deposit signed as TX_SIGNER_REQUEST_TIMEOUT_MS runs out can still land that long after. */
+/** Clock-skew and create-to-sign slack on a bound that holds only while TX_SIGNER_REQUEST_TIMEOUT_MS stays above tx-signer's SIGN_AND_BROADCAST_DEADLINE_MS, which every attempt it signs expires within. */
 const LANDING_MARGIN_IN_MIN = 1;
 
 /** How often a check waits for a chain index that has not reached the deposits' window yet before it voids them. */

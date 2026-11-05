@@ -57,7 +57,7 @@ describe(CouponRedemptionService.name, () => {
         promotionCodeId: mockPromotionCode.id,
         description: `Coupon: ${mockCoupon.name}`
       });
-      expect(result).toEqual({ coupon: mockPromotionCode, amountAdded: 10, transactionId: "test-transaction-id", transactionStatus: "pending" });
+      expect(result).toEqual({ amountAdded: 10, transactionId: "test-transaction-id", transactionStatus: "pending" });
     });
 
     it("charges a team organization's customer and records the claim for the team and the member who redeemed it", async () => {
@@ -79,43 +79,23 @@ describe(CouponRedemptionService.name, () => {
       );
     });
 
-    it("refuses a coupon the person already claimed for another payer, before creating any invoice", async () => {
+    it.each([
+      { payerKind: "a team", payerFor: () => createTeamPayer() },
+      { payerKind: "themselves", payerFor: () => payerOf(createTestUser()) }
+    ])("refuses a coupon the person already claimed when they redeem it for $payerKind, before creating any invoice", async ({ payerFor }) => {
       const { service, stripe, stripeTransactionRepository, stripeTransactionService } = setup();
-      const payer = createTeamPayer();
+      const payer = payerFor();
       const mockCoupon = createTestCoupon({ id: "coupon_once", amount_off: 1000, percent_off: null, valid: true, currency: "usd" });
       const mockPromotionCode = createTestPromotionCode({ id: "promo_once", promotion: { type: "coupon", coupon: mockCoupon } });
       vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
       const createInvoice = vi.spyOn(stripe.invoices, "create");
-      stripeTransactionRepository.findCouponClaimsOutside.mockResolvedValue([heldClaim({ status: "succeeded" })]);
+      stripeTransactionRepository.findCouponClaims.mockResolvedValue([heldClaim({ status: "succeeded" })]);
 
       await expect(service.redeemCoupon(payer, mockPromotionCode.code)).rejects.toThrow("Promotion code has already been used");
 
-      expect(stripeTransactionRepository.findCouponClaimsOutside).toHaveBeenCalledWith({
-        userId: payer.user.id,
-        couponId: "coupon_once",
-        owner: { organizationId: payer.team!.id }
-      });
+      expect(stripeTransactionRepository.findCouponClaims).toHaveBeenCalledWith({ userId: payer.user.id, couponId: "coupon_once" });
       expect(createInvoice).not.toHaveBeenCalled();
       expect(stripeTransactionService.recordCouponClaim).not.toHaveBeenCalled();
-    });
-
-    it("looks for the person's claims outside their own payments when they redeem for themselves", async () => {
-      const { service, stripe, stripeTransactionRepository } = setup();
-      const mockUser = createTestUser();
-      const mockCoupon = createTestCoupon({ id: "coupon_own", amount_off: 1000, percent_off: null, valid: true, currency: "usd" });
-      const mockPromotionCode = createTestPromotionCode({ id: "promo_own", promotion: { type: "coupon", coupon: mockCoupon } });
-      vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
-      vi.spyOn(stripe.invoices, "create").mockResolvedValue(createTestInvoice({ id: "in_own", status: "draft" }));
-      vi.spyOn(stripe.invoiceItems, "create").mockResolvedValue(mock<Stripe.Response<Stripe.InvoiceItem>>());
-      vi.spyOn(stripe.invoices, "finalizeInvoice").mockResolvedValue(createTestInvoice({ id: "in_own", status: "paid" }));
-
-      await service.redeemCoupon(payerOf(mockUser), mockPromotionCode.code);
-
-      expect(stripeTransactionRepository.findCouponClaimsOutside).toHaveBeenCalledWith({
-        userId: mockUser.id,
-        couponId: "coupon_own",
-        owner: { userId: mockUser.id }
-      });
     });
 
     it("records the pending coupon_claim before finalizing the invoice so the invoice.paid webhook can find it", async () => {
@@ -162,30 +142,44 @@ describe(CouponRedemptionService.name, () => {
       expect(stripeTransactionService.recordCouponClaim).toHaveBeenCalledWith(expect.objectContaining({ userId: mockUser.id, couponId: mockCoupon.id }));
     });
 
-    it("falls back to a matching coupon when no promotion code is found", async () => {
+    it("refuses a coupon id that is not a promotion code, without looking up coupons or creating an invoice", async () => {
       const { service, stripe, stripeTransactionService } = setup();
-      const mockUser = createTestUser();
-      const mockCoupon = createTestCoupon({ id: "coupon_direct", amount_off: 500, percent_off: null, valid: true, currency: "usd", name: "Direct Coupon" });
-      const mockInvoice = createTestInvoice({ id: "in_456", status: "draft" });
+      vi.spyOn(stripe.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
+      const listCoupons = vi.spyOn(stripe.coupons, "list");
+      const createInvoice = vi.spyOn(stripe.invoices, "create");
 
-      vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
-      vi.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
-      vi.spyOn(stripe.invoices, "create").mockResolvedValue(mockInvoice);
-      vi.spyOn(stripe.invoiceItems, "create").mockResolvedValue(mock<Stripe.Response<Stripe.InvoiceItem>>());
-      vi.spyOn(stripe.invoices, "finalizeInvoice").mockResolvedValue(createTestInvoice({ id: "in_456", status: "paid" }));
+      await expect(service.redeemCoupon(payerOf(createTestUser()), "coupon_direct")).rejects.toThrow(
+        "No valid promotion code or coupon found with the provided code"
+      );
 
-      const result = await service.redeemCoupon(payerOf(mockUser), mockCoupon.id);
+      expect(listCoupons).not.toHaveBeenCalled();
+      expect(createInvoice).not.toHaveBeenCalled();
+      expect(stripeTransactionService.recordCouponClaim).not.toHaveBeenCalled();
+    });
 
-      expect(stripe.invoices.create).toHaveBeenCalledWith({ customer: mockUser.stripeCustomerId, auto_advance: false, discounts: [{ coupon: mockCoupon.id }] });
-      expect(stripeTransactionService.recordCouponClaim).toHaveBeenCalledWith({
-        userId: mockUser.id,
-        amount: 500,
-        currency: "usd",
-        couponId: mockCoupon.id,
-        promotionCodeId: undefined,
-        description: `Coupon: ${mockCoupon.name}`
+    it.each([
+      { case: "an id", coupon: "coupon_unexpanded" },
+      { case: "missing", coupon: null }
+    ])("refuses a promotion code whose coupon is $case", async ({ coupon }) => {
+      const { service, stripeTransactionService } = setup();
+      const mockPromotionCode = createTestPromotionCode({ promotion: { type: "coupon", coupon: coupon as Stripe.PromotionCode.Promotion["coupon"] } });
+      vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
+
+      await expect(service.redeemCoupon(payerOf(createTestUser()), mockPromotionCode.code)).rejects.toThrow("Promotion code coupon was not expanded");
+
+      expect(stripeTransactionService.recordCouponClaim).not.toHaveBeenCalled();
+    });
+
+    it("rejects a promotion code whose coupon is no longer valid", async () => {
+      const { service, stripeTransactionService } = setup();
+      const mockPromotionCode = createTestPromotionCode({
+        promotion: { type: "coupon", coupon: createTestCoupon({ percent_off: null, amount_off: 1000, valid: false }) }
       });
-      expect(result).toEqual({ coupon: mockCoupon, amountAdded: 5, transactionId: "test-transaction-id", transactionStatus: "pending" });
+      vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
+
+      await expect(service.redeemCoupon(payerOf(createTestUser()), mockPromotionCode.code)).rejects.toThrow("Promotion code is invalid or expired");
+
+      expect(stripeTransactionService.recordCouponClaim).not.toHaveBeenCalled();
     });
 
     it("rejects percentage-based promotion codes", async () => {
@@ -214,56 +208,25 @@ describe(CouponRedemptionService.name, () => {
       );
     });
 
-    it("rejects percentage-based coupons", async () => {
-      const { service } = setup();
-      const mockUser = createTestUser();
-      const mockCoupon = createTestCoupon({ percent_off: 20, amount_off: null, valid: true });
-      vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
-      vi.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
-
-      await expect(service.redeemCoupon(payerOf(mockUser), mockCoupon.id)).rejects.toThrow(
-        "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
-      );
-    });
-
-    it("rejects coupons without amount_off", async () => {
-      const { service } = setup();
-      const mockUser = createTestUser();
-      const mockCoupon = createTestCoupon({ percent_off: null, amount_off: null, valid: true });
-      vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
-      vi.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
-
-      await expect(service.redeemCoupon(payerOf(mockUser), mockCoupon.id)).rejects.toThrow("Invalid coupon type. Only fixed amount coupons are supported.");
-    });
-
-    it("throws when no promotion code or coupon matches the code", async () => {
-      const { service, stripe } = setup();
-      const mockUser = createTestUser();
-      vi.spyOn(stripe.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
-      vi.spyOn(stripe.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
-
-      await expect(service.redeemCoupon(payerOf(mockUser), "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
-    });
-
     it("does not provision a Stripe customer when no matching code is found", async () => {
       const { service, stripe, customerService } = setup();
       const mockUser = createTestUser({ stripeCustomerId: null });
       vi.spyOn(stripe.promotionCodes, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.PromotionCode>>);
-      vi.spyOn(stripe.coupons, "list").mockResolvedValue({ data: [] } as unknown as Stripe.Response<Stripe.ApiList<Stripe.Coupon>>);
 
       await expect(service.redeemCoupon(payerOf(mockUser), "INVALID_CODE")).rejects.toThrow("No valid promotion code or coupon found with the provided code");
 
       expect(customerService.getStripeCustomerId).not.toHaveBeenCalled();
     });
 
-    it("does not provision a Stripe customer when the coupon is unsupported", async () => {
+    it("does not provision a Stripe customer when the promotion code's coupon is unsupported", async () => {
       const { service, customerService } = setup();
       const mockUser = createTestUser({ stripeCustomerId: null });
-      const mockCoupon = createTestCoupon({ percent_off: 20, amount_off: null, valid: true });
-      vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(undefined);
-      vi.spyOn(service, "listCoupons").mockResolvedValue({ coupons: [mockCoupon] });
+      const mockPromotionCode = createTestPromotionCode({
+        promotion: { type: "coupon", coupon: createTestCoupon({ percent_off: 20, amount_off: null, valid: true }) }
+      });
+      vi.spyOn(service, "findPromotionCodeByCode").mockResolvedValue(mockPromotionCode);
 
-      await expect(service.redeemCoupon(payerOf(mockUser), mockCoupon.id)).rejects.toThrow(
+      await expect(service.redeemCoupon(payerOf(mockUser), mockPromotionCode.code)).rejects.toThrow(
         "Percentage-based coupons are not supported. Only fixed amount coupons are allowed."
       );
 
@@ -366,22 +329,22 @@ describe(CouponRedemptionService.name, () => {
 
       expect(stripeTransactionRepository.lockCouponClaims).toHaveBeenCalledWith(mockUser.id, "coupon_lock");
       expect(stripeTransactionRepository.lockCouponClaims.mock.invocationCallOrder[0]).toBeLessThan(
-        stripeTransactionRepository.findCouponClaimsOutside.mock.invocationCallOrder[1]
+        stripeTransactionRepository.findCouponClaims.mock.invocationCallOrder[1]
       );
-      expect(stripeTransactionRepository.findCouponClaimsOutside.mock.invocationCallOrder[1]).toBeLessThan(
+      expect(stripeTransactionRepository.findCouponClaims.mock.invocationCallOrder[1]).toBeLessThan(
         stripeTransactionService.recordCouponClaim.mock.invocationCallOrder[0]
       );
     });
   });
 
-  describe("when the person's claim under another payer is stale", () => {
+  describe("when the person's earlier claim is stale", () => {
     it.each([
       { status: "draft" as const, cancel: "del" as const },
       { status: "open" as const, cancel: "voidInvoice" as const },
       { status: "uncollectible" as const, cancel: "voidInvoice" as const }
     ])("cancels its $status invoice and commits the release before opening the claim transaction", async ({ status, cancel }) => {
       const { service, stripe, stripeTransactionRepository, stripeTransactionService, txService, code } = setupRedeemable();
-      stripeTransactionRepository.findCouponClaimsOutside.mockResolvedValueOnce([staleClaim()]).mockResolvedValueOnce([]);
+      stripeTransactionRepository.findCouponClaims.mockResolvedValueOnce([staleClaim()]).mockResolvedValueOnce([]);
       vi.spyOn(stripe.invoices, "retrieve").mockResolvedValue(createTestInvoice({ id: "in_stale", status }));
       const cancelInvoice = vi.spyOn(stripe.invoices, cancel).mockResolvedValue(mock());
 
@@ -398,7 +361,7 @@ describe(CouponRedemptionService.name, () => {
       { case: "no longer exists at Stripe", answer: () => Promise.reject(resourceMissing()) }
     ])("releases it without cancelling anything when its invoice $case", async ({ answer }) => {
       const { service, stripe, stripeTransactionRepository, stripeTransactionService, code } = setupRedeemable();
-      stripeTransactionRepository.findCouponClaimsOutside.mockResolvedValueOnce([staleClaim()]).mockResolvedValueOnce([]);
+      stripeTransactionRepository.findCouponClaims.mockResolvedValueOnce([staleClaim()]).mockResolvedValueOnce([]);
       vi.spyOn(stripe.invoices, "retrieve").mockImplementation(answer);
       const voidInvoice = vi.spyOn(stripe.invoices, "voidInvoice");
       const deleteInvoice = vi.spyOn(stripe.invoices, "del");
@@ -413,7 +376,7 @@ describe(CouponRedemptionService.name, () => {
 
     it("keeps the release when a later step of the redemption fails", async () => {
       const { service, stripe, stripeTransactionRepository, stripeTransactionService, code } = setupRedeemable();
-      stripeTransactionRepository.findCouponClaimsOutside.mockResolvedValueOnce([staleClaim()]).mockResolvedValueOnce([]);
+      stripeTransactionRepository.findCouponClaims.mockResolvedValueOnce([staleClaim()]).mockResolvedValueOnce([]);
       vi.spyOn(stripe.invoices, "retrieve").mockResolvedValue(createTestInvoice({ id: "in_stale", status: "draft" }));
       vi.spyOn(stripe.invoices, "del").mockResolvedValue(mock());
       stripeTransactionService.recordCouponClaim.mockRejectedValue(new Error("db unavailable"));
@@ -425,7 +388,7 @@ describe(CouponRedemptionService.name, () => {
 
     it("refuses this redemption when the stale claim's invoice was paid", async () => {
       const { service, stripe, stripeTransactionRepository, stripeTransactionService, code } = setupRedeemable();
-      stripeTransactionRepository.findCouponClaimsOutside.mockResolvedValue([staleClaim()]);
+      stripeTransactionRepository.findCouponClaims.mockResolvedValue([staleClaim()]);
       vi.spyOn(stripe.invoices, "retrieve").mockResolvedValue(createTestInvoice({ id: "in_stale", status: "paid" }));
 
       await expect(service.redeemCoupon(payerOf(createTestUser()), code)).rejects.toThrow("Promotion code has already been used");
@@ -436,7 +399,7 @@ describe(CouponRedemptionService.name, () => {
 
     it("refuses this redemption when Stripe cannot tell what became of the stale claim's invoice", async () => {
       const { service, stripe, stripeTransactionRepository, stripeTransactionService, code } = setupRedeemable();
-      stripeTransactionRepository.findCouponClaimsOutside.mockResolvedValue([staleClaim()]);
+      stripeTransactionRepository.findCouponClaims.mockResolvedValue([staleClaim()]);
       vi.spyOn(stripe.invoices, "retrieve").mockRejectedValue(new Error("stripe unavailable"));
 
       await expect(service.redeemCoupon(payerOf(createTestUser()), code)).rejects.toThrow("Promotion code has already been used");
@@ -446,7 +409,7 @@ describe(CouponRedemptionService.name, () => {
 
     it("touches nothing at Stripe when another claim holds the coupon anyway", async () => {
       const { service, stripe, stripeTransactionRepository, code } = setupRedeemable();
-      stripeTransactionRepository.findCouponClaimsOutside.mockResolvedValue([staleClaim(), heldClaim({ isStale: false, stripeInvoiceId: "in_fresh" })]);
+      stripeTransactionRepository.findCouponClaims.mockResolvedValue([staleClaim(), heldClaim({ isStale: false, stripeInvoiceId: "in_fresh" })]);
       const retrieve = vi.spyOn(stripe.invoices, "retrieve");
 
       await expect(service.redeemCoupon(payerOf(createTestUser()), code)).rejects.toThrow("Promotion code has already been used");
@@ -495,7 +458,7 @@ describe(CouponRedemptionService.name, () => {
     );
 
     const stripeTransactionRepository = mock<StripeTransactionRepository>();
-    stripeTransactionRepository.findCouponClaimsOutside.mockResolvedValue([]);
+    stripeTransactionRepository.findCouponClaims.mockResolvedValue([]);
 
     const txService = mock<TxService>();
     txService.transaction.mockImplementation(async cb => await cb());

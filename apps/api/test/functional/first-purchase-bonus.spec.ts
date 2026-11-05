@@ -266,7 +266,9 @@ describe("First-purchase bonus", () => {
             amount: "50000000",
             grantType: "/akash.escrow.v1.DepositAuthorization"
           })
-        );
+        )
+        .get("/cosmos/base/tendermint/v1beta1/blocks/latest")
+        .reply(200, { block: { header: { height: "1000" } } });
       nock(container.resolve(BILLING_CONFIG).TX_SIGNER_BASE_URL)
         .persist()
         .post("/v1/tx/funding", body =>

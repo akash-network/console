@@ -4,6 +4,8 @@ import { container } from "tsyringe";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { startJobQueues } from "@src/app/providers/jobs.provider";
+import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { JOB_NAME } from "@src/core";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
@@ -164,6 +166,59 @@ describe("Organization invitations", () => {
 
       expect(response.status).toBe(201);
       expect(await response.json()).toMatchObject({ data: [{ email: "jane@example.com", role: "owner" }] });
+    });
+
+    it("refuses an owner's API key an owner invitation and creates none", async () => {
+      const { organization, owner, apiKeyOf, request } = await setup({ callerRole: "owner" });
+
+      const response = await request("POST", "/v1/organization-invitations", {
+        asUser: owner,
+        organizationId: organization.id,
+        apiKey: await apiKeyOf(owner),
+        body: { data: { emails: ["jane@example.com"], role: "owner" } }
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "session_required" });
+      expect(await invitationRepository.count({ organizationId: organization.id })).toBe(0);
+    });
+
+    it("lets an owner's API key invite someone below owner and queues the email", async () => {
+      const { organization, owner, apiKeyOf, request } = await setup({ callerRole: "owner" });
+
+      const response = await request("POST", "/v1/organization-invitations", {
+        asUser: owner,
+        organizationId: organization.id,
+        apiKey: await apiKeyOf(owner),
+        body: { data: { emails: ["jane@example.com"], role: "admin" } }
+      });
+
+      expect(response.status).toBe(201);
+      const { data } = (await response.json()) as { data: Array<{ id: string; email: string; role: string }> };
+      expect(data).toMatchObject([{ email: "jane@example.com", role: "admin" }]);
+      expect(await findJobRows(EMAIL_JOB, { data: { invitationId: data[0].id } })).toHaveLength(1);
+    });
+
+    it("refuses an owner's API key to renew an expired owner invitation", async () => {
+      const { organization, owner, apiKeyOf, request } = await setup({ callerRole: "owner" });
+      const expired = await seedOrganizationInvitation({
+        organizationId: organization.id,
+        email: "jane@example.com",
+        role: "owner",
+        expiresAt: addDays(new Date(), -1)
+      });
+
+      const response = await request("POST", "/v1/organization-invitations", {
+        asUser: owner,
+        organizationId: organization.id,
+        apiKey: await apiKeyOf(owner),
+        body: { data: { emails: ["jane@example.com"], role: "admin" } }
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "session_required" });
+      expect(await invitationRepository.findById(expired.id)).toMatchObject({ tokenHash: expired.tokenHash, expiresAt: expired.expiresAt });
+      expect(await findJobRows(EMAIL_JOB, { data: { invitationId: expired.id } })).toEqual([]);
     });
 
     it("refuses to let an admin invite someone as an owner", async () => {
@@ -465,6 +520,46 @@ describe("Organization invitations", () => {
       expect(await invitationRepository.findById(invitation.id)).toMatchObject({ tokenHash: invitation.tokenHash });
     });
 
+    it("lets an owner's session resend an invitation to become an owner", async () => {
+      const { organization, owner, request } = await setup({ callerRole: "owner" });
+      const invitation = await seedOrganizationInvitation({ organizationId: organization.id, role: "owner" });
+
+      const response = await request("POST", `/v1/organization-invitations/${invitation.id}/resend`, { asUser: owner, organizationId: organization.id });
+
+      expect(response.status).toBe(200);
+      expect(await findJobRows(EMAIL_JOB, { data: { invitationId: invitation.id } })).toHaveLength(1);
+    });
+
+    it("refuses an owner's API key to resend an invitation to become an owner", async () => {
+      const { organization, owner, apiKeyOf, request } = await setup({ callerRole: "owner" });
+      const invitation = await seedOrganizationInvitation({ organizationId: organization.id, role: "owner" });
+
+      const response = await request("POST", `/v1/organization-invitations/${invitation.id}/resend`, {
+        asUser: owner,
+        organizationId: organization.id,
+        apiKey: await apiKeyOf(owner)
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "session_required" });
+      expect(await invitationRepository.findById(invitation.id)).toMatchObject({ tokenHash: invitation.tokenHash });
+      expect(await findJobRows(EMAIL_JOB, { data: { invitationId: invitation.id } })).toEqual([]);
+    });
+
+    it("lets an owner's API key resend an invitation below owner", async () => {
+      const { organization, owner, apiKeyOf, request } = await setup({ callerRole: "owner" });
+      const invitation = await seedOrganizationInvitation({ organizationId: organization.id, role: "admin" });
+
+      const response = await request("POST", `/v1/organization-invitations/${invitation.id}/resend`, {
+        asUser: owner,
+        organizationId: organization.id,
+        apiKey: await apiKeyOf(owner)
+      });
+
+      expect(response.status).toBe(200);
+      expect(await findJobRows(EMAIL_JOB, { data: { invitationId: invitation.id } })).toHaveLength(1);
+    });
+
     it("refuses to let an admin resend an invitation to become an owner", async () => {
       const { organization, caller, request } = await setup({ callerRole: "admin" });
       const invitation = await seedOrganizationInvitation({ organizationId: organization.id, role: "owner" });
@@ -547,6 +642,49 @@ describe("Organization invitations", () => {
       expect(await invitationRepository.findById(invitation.id)).toMatchObject({ tokenHash: invitation.tokenHash });
     });
 
+    it("lets an owner's session link to an invitation to become an owner", async () => {
+      const { organization, owner, request } = await setup({ callerRole: "owner" });
+      const invitation = await seedOrganizationInvitation({ organizationId: organization.id, role: "owner" });
+      const deployWebBaseUrl = container.resolve(DeploymentConfigService).get("DEPLOY_WEB_BASE_URL");
+
+      const response = await request("POST", `/v1/organization-invitations/${invitation.id}/link`, { asUser: owner, organizationId: organization.id });
+
+      expect(response.status).toBe(200);
+      const token = tokenOf(await response.json(), deployWebBaseUrl);
+      expect(await invitationRepository.findById(invitation.id)).toMatchObject({ tokenHash: hashInvitationToken(token) });
+    });
+
+    it("refuses an owner's API key to link to an invitation to become an owner", async () => {
+      const { organization, owner, apiKeyOf, request } = await setup({ callerRole: "owner" });
+      const invitation = await seedOrganizationInvitation({ organizationId: organization.id, role: "owner" });
+
+      const response = await request("POST", `/v1/organization-invitations/${invitation.id}/link`, {
+        asUser: owner,
+        organizationId: organization.id,
+        apiKey: await apiKeyOf(owner)
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.text()).not.toContain("#token=");
+      expect(await invitationRepository.findById(invitation.id)).toMatchObject({ tokenHash: invitation.tokenHash });
+    });
+
+    it("lets an owner's API key link to an invitation below owner", async () => {
+      const { organization, owner, apiKeyOf, request } = await setup({ callerRole: "owner" });
+      const invitation = await seedOrganizationInvitation({ organizationId: organization.id, role: "admin" });
+      const deployWebBaseUrl = container.resolve(DeploymentConfigService).get("DEPLOY_WEB_BASE_URL");
+
+      const response = await request("POST", `/v1/organization-invitations/${invitation.id}/link`, {
+        asUser: owner,
+        organizationId: organization.id,
+        apiKey: await apiKeyOf(owner)
+      });
+
+      expect(response.status).toBe(200);
+      const token = tokenOf(await response.json(), deployWebBaseUrl);
+      expect(await invitationRepository.findById(invitation.id)).toMatchObject({ tokenHash: hashInvitationToken(token) });
+    });
+
     it("refuses to let an admin link to an invitation to become an owner", async () => {
       const { organization, caller, request } = await setup({ callerRole: "admin" });
       const invitation = await seedOrganizationInvitation({ organizationId: organization.id, role: "owner" });
@@ -589,6 +727,20 @@ describe("Organization invitations", () => {
 
       expect(response.status).toBe(403);
       expect(await invitationRepository.findById(invitation.id)).toMatchObject({ status: "pending" });
+    });
+
+    it("lets an owner's API key revoke an invitation to become an owner", async () => {
+      const { organization, owner, apiKeyOf, request } = await setup({ callerRole: "owner" });
+      const invitation = await seedOrganizationInvitation({ organizationId: organization.id, role: "owner" });
+
+      const response = await request("DELETE", `/v1/organization-invitations/${invitation.id}`, {
+        asUser: owner,
+        organizationId: organization.id,
+        apiKey: await apiKeyOf(owner)
+      });
+
+      expect(response.status).toBe(204);
+      expect(await invitationRepository.findById(invitation.id)).toMatchObject({ status: "revoked" });
     });
 
     it("refuses to let an admin revoke an invitation to become an owner", async () => {
@@ -676,8 +828,25 @@ describe("Organization invitations", () => {
       return user;
     }
 
-    async function request(method: string, path: string, options: { asUser: UserOutput; organizationId: string; body?: unknown }) {
-      const headers = { authorization: `Bearer ${tokenByUserId.get(options.asUser.id)}`, "x-organization-id": options.organizationId };
+    async function apiKeyOf(user: UserOutput) {
+      const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
+      const apiKey = apiKeyGenerator.generateApiKey();
+      await container.resolve(ApiKeyRepository).create({
+        userId: user.id,
+        organizationId: organization.id,
+        hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
+        keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
+        name: "ci"
+      });
+
+      return apiKey;
+    }
+
+    async function request(method: string, path: string, options: { asUser: UserOutput; organizationId: string; apiKey?: string; body?: unknown }) {
+      const headers = {
+        ...(options.apiKey ? { "x-api-key": options.apiKey } : { authorization: `Bearer ${tokenByUserId.get(options.asUser.id)}` }),
+        "x-organization-id": options.organizationId
+      };
 
       if (options.body === undefined) {
         return await app.request(path, { method, headers });
@@ -686,6 +855,6 @@ describe("Organization invitations", () => {
       return await app.request(path, { method, headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(options.body) });
     }
 
-    return { organization, personal, owner, caller, target, request };
+    return { organization, personal, owner, caller, target, apiKeyOf, request };
   }
 });

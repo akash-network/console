@@ -143,13 +143,11 @@ describe(StripeController.name, () => {
       expect(couponRedemptionService.redeemCoupon).not.toHaveBeenCalled();
     });
 
-    it("returns transactionId and transactionStatus on successful coupon", async () => {
+    it("returns only the amount added and the transaction of a successful redemption", async () => {
       const { controller, couponRedemptionService, user } = setup();
       const transactionId = faker.string.uuid();
-      const mockCoupon = mock<Stripe.Coupon>({ id: faker.string.uuid() });
 
       couponRedemptionService.redeemCoupon.mockResolvedValue({
-        coupon: mockCoupon,
         amountAdded: 10,
         transactionId,
         transactionStatus: "pending"
@@ -162,7 +160,6 @@ describe(StripeController.name, () => {
 
       expect(result).toEqual({
         data: {
-          coupon: mockCoupon,
           amountAdded: 10,
           transactionId,
           transactionStatus: "pending"
@@ -173,11 +170,9 @@ describe(StripeController.name, () => {
     it("resolves transaction when awaitResolved is true", async () => {
       const { controller, couponRedemptionService, stripeTransaction, user } = setup();
       const transactionId = faker.string.uuid();
-      const mockCoupon = mock<Stripe.Coupon>({ id: faker.string.uuid() });
       const resolvedTransaction = generateDatabaseStripeTransaction({ id: transactionId, status: "succeeded" });
 
       couponRedemptionService.redeemCoupon.mockResolvedValue({
-        coupon: mockCoupon,
         amountAdded: 10,
         transactionId,
         transactionStatus: "pending"
@@ -193,7 +188,6 @@ describe(StripeController.name, () => {
       expect(stripeTransaction.resolveTransaction).toHaveBeenCalledWith(transactionId);
       expect(result).toEqual({
         data: {
-          coupon: mockCoupon,
           amountAdded: 10,
           transactionId,
           transactionStatus: "succeeded"
@@ -401,7 +395,6 @@ describe(StripeController.name, () => {
       const team = createTeamPayer();
       const { controller, couponRedemptionService, trialActivationJobService } = setup({ payer: team });
       couponRedemptionService.redeemCoupon.mockResolvedValue({
-        coupon: mock<Stripe.Coupon>(),
         amountAdded: 10,
         transactionId: faker.string.uuid(),
         transactionStatus: "pending"

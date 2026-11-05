@@ -89,6 +89,19 @@ describe("GPU request routing policy", () => {
     expect(gpuRequestRoutingPolicySchema.safeParse(payload).success).toBe(false);
   });
 
+  it.each([
+    { owner: "an owner rule", payload: { owners: [{ name: "R".repeat(65), match: {} }] } },
+    { owner: "the fallback owner", payload: { fallbackOwner: { name: "S".repeat(65) } } }
+  ])("rejects $owner named longer than the request's owner column holds", ({ payload }) => {
+    expect(gpuRequestRoutingPolicySchema.safeParse(payload).success).toBe(false);
+  });
+
+  it("takes owner names as long as the request's owner column holds", () => {
+    const payload = { owners: [{ name: "R".repeat(64), match: {} }], fallbackOwner: { name: "S".repeat(64) } };
+
+    expect(gpuRequestRoutingPolicySchema.parse(payload)).toMatchObject(payload);
+  });
+
   it("takes business hours, targets and a sales lead the team sets", () => {
     const payload = {
       salesLead: { name: "Lead", slackUserId: "U123", email: "lead@akash.network" },

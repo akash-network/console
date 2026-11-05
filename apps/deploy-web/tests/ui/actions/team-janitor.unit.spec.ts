@@ -2,12 +2,22 @@ import type { APIRequestContext, APIResponse, BrowserContext, Page } from "@play
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import { ACTIVE_ORGANIZATION_COOKIE, deleteOwnedTeams } from "./team-janitor";
+import { activeOrganizationCookieName, deleteOwnedTeams } from "./team-janitor";
 
 const BASE_URL = "https://console.test";
 const ORGANIZATIONS_URL = `${BASE_URL}/api/proxy/v1/organizations`;
 
 type ListedOrganization = { id: string; type: "personal" | "team"; role: string };
+
+describe(activeOrganizationCookieName.name, () => {
+  it("names the host-bound cookie for a console served over https", () => {
+    expect(activeOrganizationCookieName("https://console.test")).toBe("__Host-console_org");
+  });
+
+  it("names the unprefixed cookie for a console served over plain http", () => {
+    expect(activeOrganizationCookieName("http://localhost:3000")).toBe("console_org");
+  });
+});
 
 describe(deleteOwnedTeams.name, () => {
   afterEach(() => {
@@ -30,8 +40,8 @@ describe(deleteOwnedTeams.name, () => {
 
     await deleteOwnedTeams(page, BASE_URL);
 
-    expect(context.addCookies).toHaveBeenCalledWith([{ name: ACTIVE_ORGANIZATION_COOKIE, value: "team-a", url: BASE_URL }]);
-    expect(context.clearCookies).toHaveBeenLastCalledWith({ name: ACTIVE_ORGANIZATION_COOKIE });
+    expect(context.addCookies).toHaveBeenCalledWith([{ name: "__Host-console_org", value: "team-a", url: BASE_URL }]);
+    expect(context.clearCookies).toHaveBeenLastCalledWith({ name: "__Host-console_org" });
   });
 
   it("forfeits the balance a team still holds when the first delete is refused over it", async () => {

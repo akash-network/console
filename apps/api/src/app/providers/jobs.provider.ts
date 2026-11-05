@@ -5,6 +5,7 @@ import { ApiKeyExpiryReminderHandler } from "@src/auth/services/api-key-expiry-r
 import { ActivateTrialHandler } from "@src/billing/services/activate-trial/activate-trial.handler";
 import { CardPaymentInvoiceHandler } from "@src/billing/services/card-payment-invoice/card-payment-invoice.handler";
 import { GpuWinBackCheckHandler } from "@src/billing/services/gpu-win-back/gpu-win-back-check.handler";
+import { ReconcileDeploymentAllowanceHandler } from "@src/billing/services/reconcile-deployment-allowance/reconcile-deployment-allowance.handler";
 import { ReconcileDeploymentDepositHandler } from "@src/billing/services/reconcile-deployment-deposit/reconcile-deployment-deposit.handler";
 import { WalletBalanceReloadCheckHandler } from "@src/billing/services/wallet-balance-reload-check/wallet-balance-reload-check.handler";
 import { WalletCreditsExhaustedCheckHandler } from "@src/billing/services/wallet-credits-exhausted-check/wallet-credits-exhausted-check.handler";
@@ -34,6 +35,7 @@ import { ClassifyFeedbackHandler } from "@src/feedback/services/classify-feedbac
 import { HardwareRequestAcceptedNoticeHandler } from "@src/hardware-request/services/hardware-request-accepted-notice/hardware-request-accepted-notice.handler";
 import { HardwareRequestApprovalRequestHandler } from "@src/hardware-request/services/hardware-request-approval-request/hardware-request-approval-request.handler";
 import { HardwareRequestEmailHandler } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
+import { HardwareRequestFunnelHandler } from "@src/hardware-request/services/hardware-request-funnel/hardware-request-funnel.handler";
 import { HardwareRequestResponseTargetHandler } from "@src/hardware-request/services/hardware-request-response-target/hardware-request-response-target.handler";
 import { HardwareRequestSlackAlertHandler } from "@src/hardware-request/services/hardware-request-slack-alert/hardware-request-slack-alert.handler";
 import { HardwareRequestStatusNotificationHandler } from "@src/hardware-request/services/hardware-request-status-notification/hardware-request-status-notification.handler";
@@ -102,6 +104,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(RecordDeploymentSettingHandler),
     container.resolve(ReconcileManagedTxHandler),
     container.resolve(ReconcileDeploymentDepositHandler),
+    container.resolve(ReconcileDeploymentAllowanceHandler),
     container.resolve(ProjectBudgetAlertHandler),
     container.resolve(ProbeTrialDeploymentHandler),
     container.resolve(DetectLeaseGpusHandler),
@@ -118,6 +121,7 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(HardwareRequestAcceptedNoticeHandler),
     container.resolve(HardwareRequestApprovalRequestHandler),
     container.resolve(HardwareRequestResponseTargetHandler),
+    container.resolve(HardwareRequestFunnelHandler),
     container.resolve(PurgeDeletedAccountHandler),
     container.resolve(ExpireConfigureDraftHandler),
     container.resolve(OrganizationInvitationEmailHandler),

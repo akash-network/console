@@ -19436,6 +19436,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
       "post": {
+        "description": "Inviting someone as an owner, or renewing an expired owner invitation, requires a signed-in Console session.",
         "operationId": "createOrganizationInvitations",
         "parameters": [
           {
@@ -19637,7 +19638,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Unauthorized",
           },
           "403": {
-            "description": "The caller cannot invite members, invites an owner or renews an expired owner invitation without being an owner (\`owner_role_restricted\`), the active organization is a personal one (\`personal_organization\`), or it has too many pending invitations (\`invitation_limit_reached\`)",
+            "description": "The caller cannot invite members, invites an owner or renews an expired owner invitation without being an owner (\`owner_role_restricted\`) or from a request that was not made from a signed-in session (\`session_required\`), the active organization is a personal one (\`personal_organization\`), or it has too many pending invitations (\`invitation_limit_reached\`)",
           },
           "409": {
             "description": "An address belongs to a member of the organization (\`already_member\`)",
@@ -19713,6 +19714,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/organization-invitations/{id}/link": {
       "post": {
+        "description": "A link to an invitation to become an owner can only be issued from a signed-in Console session.",
         "operationId": "createOrganizationInvitationLink",
         "parameters": [
           {
@@ -19766,7 +19768,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Unauthorized",
           },
           "403": {
-            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (\`owner_role_restricted\`), or the active organization is a personal one (\`personal_organization\`)",
+            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (\`owner_role_restricted\`) or the request was not made from a signed-in session (\`session_required\`), or the active organization is a personal one (\`personal_organization\`)",
           },
           "404": {
             "description": "No such pending invitation in the active organization",
@@ -19788,6 +19790,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/organization-invitations/{id}/resend": {
       "post": {
+        "description": "An invitation to become an owner can only be resent from a signed-in Console session.",
         "operationId": "resendOrganizationInvitation",
         "parameters": [
           {
@@ -19919,7 +19922,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Unauthorized",
           },
           "403": {
-            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (\`owner_role_restricted\`), or the active organization is a personal one (\`personal_organization\`)",
+            "description": "The caller cannot manage this invitation, it invites an owner and the caller is not one (\`owner_role_restricted\`) or the request was not made from a signed-in session (\`session_required\`), or the active organization is a personal one (\`personal_organization\`)",
           },
           "404": {
             "description": "No such pending invitation in the active organization",
@@ -20109,6 +20112,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         ],
       },
       "patch": {
+        "description": "Making someone an owner requires a signed-in Console session.",
         "operationId": "updateOrganizationMember",
         "parameters": [
           {
@@ -20272,7 +20276,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Unauthorized",
           },
           "403": {
-            "description": "The caller cannot change this member, the change touches the owner role and the caller is not an owner (\`owner_role_restricted\`), or the active organization is a personal one (\`personal_organization\`)",
+            "description": "The caller cannot change this member, the change touches the owner role and the caller is not an owner (\`owner_role_restricted\`), it makes someone an owner from a request that was not made from a signed-in session (\`session_required\`), or the active organization is a personal one (\`personal_organization\`)",
           },
           "404": {
             "description": "No such member in the active organization",
@@ -20297,6 +20301,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
     },
     "/v1/organization-members/{id}/ownership-transfer": {
       "post": {
+        "description": "Requires a signed-in Console session. A request authenticated with an API key is refused.",
         "operationId": "transferOrganizationOwnership",
         "parameters": [
           {
@@ -20397,7 +20402,7 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
             "description": "Unauthorized",
           },
           "403": {
-            "description": "The caller is not an owner (\`owner_role_restricted\` when they are an admin), or the active organization is a personal one (\`personal_organization\`)",
+            "description": "The caller is not an owner (\`owner_role_restricted\` when they are an admin), the request was not made from a signed-in session (\`session_required\`), or the active organization is a personal one (\`personal_organization\`)",
           },
           "404": {
             "description": "No such member in the active organization",
@@ -20406,9 +20411,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
         "security": [
           {
             "BearerAuth": [],
-          },
-          {
-            "ApiKeyAuth": [],
           },
         ],
         "summary": "Make a member an owner of the active organization and step the calling owner down to admin",
@@ -28307,59 +28309,6 @@ exports[`API Docs > GET /v1/doc > returns docs with all routes expected 1`] = `
           },
         ],
         "summary": "Sends a verification code to the authenticated user's email",
-        "tags": [
-          "Users",
-        ],
-      },
-    },
-    "/v1/send-verification-email": {
-      "post": {
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationIdHeader",
-          },
-          {
-            "$ref": "#/components/parameters/ProjectIdHeader",
-          },
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "properties": {
-                  "data": {
-                    "properties": {
-                      "userId": {
-                        "type": "string",
-                      },
-                    },
-                    "required": [
-                      "userId",
-                    ],
-                    "type": "object",
-                  },
-                },
-                "required": [
-                  "data",
-                ],
-                "type": "object",
-              },
-            },
-          },
-          "required": true,
-        },
-        "responses": {
-          "200": {
-            "content": {},
-            "description": "Sends a verification email to the signed-in user",
-          },
-        },
-        "security": [
-          {
-            "BearerAuth": [],
-          },
-        ],
-        "summary": "Resends a verification email",
         "tags": [
           "Users",
         ],

@@ -105,6 +105,27 @@ describe(TxService.name, () => {
     });
   });
 
+  describe("outsideTransaction", () => {
+    it("runs the callback with no transaction even inside one and returns its value", async () => {
+      const { service } = setup();
+
+      const outside = await service.transaction(async () => await service.outsideTransaction(async () => ({ tx: service.getPgTx(), value: "result" })));
+
+      expect(outside).toEqual({ tx: undefined, value: "result" });
+    });
+
+    it("leaves the surrounding transaction in place once the callback returns", async () => {
+      const { service } = setup();
+
+      const txAfter = await service.transaction(async () => {
+        await service.outsideTransaction(async () => undefined);
+        return service.getPgTx();
+      });
+
+      expect(txAfter).toBeDefined();
+    });
+  });
+
   function setup() {
     const connection = {};
     const tx = { _: { session: { client: connection } } };

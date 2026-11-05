@@ -3,7 +3,7 @@ import type { APIRequestContext, APIResponse, Page, PlaywrightWorkerArgs } from 
 import { signInPasswordless } from "../actions/auth";
 import { acceptFairUsePolicyIfPrompted } from "../actions/fair-use-policy";
 import {
-  ACTIVE_ORGANIZATION_COOKIE,
+  activeOrganizationCookieName,
   createApiKey,
   createNames,
   deleteAuth0UserQuietly,
@@ -583,7 +583,7 @@ test.describe("Creations racing each other", () => {
       await test.step("ownership handed to both people at once leaves exactly one owner", async () => {
         const members = await readData<Member[]>(await api.get("v1/organization-members"));
         const targets = [firstEmail, secondEmail].map(email => members.find(member => member.email === email)?.id);
-        const responses = await Promise.all(targets.map(id => api.post(`v1/organization-members/${id}/ownership-transfer`)));
+        const responses = await Promise.all(targets.map(id => page.request.post(`${PROXY_API_URL}/v1/organization-members/${id}/ownership-transfer`)));
         const after = await readData<Member[]>(await api.get("v1/organization-members"));
 
         expect(statusesOf(responses)).toEqual([200, 403]);
@@ -1031,11 +1031,11 @@ async function organizationNamed(page: Page, name: string): Promise<Organization
 }
 
 async function workIn(page: Page, organizationId: string) {
-  await page.context().addCookies([{ name: ACTIVE_ORGANIZATION_COOKIE, value: organizationId, url: testEnvConfig.BASE_URL }]);
+  await page.context().addCookies([{ name: activeOrganizationCookieName(testEnvConfig.BASE_URL), value: organizationId, url: testEnvConfig.BASE_URL }]);
 }
 
 async function workInPersonalAccount(page: Page) {
-  await page.context().clearCookies({ name: ACTIVE_ORGANIZATION_COOKIE });
+  await page.context().clearCookies({ name: activeOrganizationCookieName(testEnvConfig.BASE_URL) });
 }
 
 /** A key is bound to the organization its session works in when it is created. */

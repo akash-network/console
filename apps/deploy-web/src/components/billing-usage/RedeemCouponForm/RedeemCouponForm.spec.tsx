@@ -17,7 +17,7 @@ describe(RedeemCouponForm.name, () => {
   });
 
   it("applies the coupon, refreshes the balance, shows the dollar amount inline and resets the field", async () => {
-    const applyCoupon = vi.fn().mockResolvedValue({ coupon: null, amountAdded: 100 });
+    const applyCoupon = vi.fn().mockResolvedValue({ amountAdded: 100 });
     const pollForPayment = vi.fn();
 
     setup({ applyCoupon, pollForPayment });
@@ -33,7 +33,7 @@ describe(RedeemCouponForm.name, () => {
   });
 
   it("shows an inline applied message, skips polling and resets the field when the coupon adds no credits", async () => {
-    const applyCoupon = vi.fn().mockResolvedValue({ coupon: null, amountAdded: 0 });
+    const applyCoupon = vi.fn().mockResolvedValue({ amountAdded: 0 });
     const pollForPayment = vi.fn();
 
     setup({ applyCoupon, pollForPayment });
@@ -49,7 +49,7 @@ describe(RedeemCouponForm.name, () => {
   });
 
   it("shows an inline error mapped from the coupon error code", async () => {
-    const applyCoupon = vi.fn().mockResolvedValue({ coupon: null, error: { code: "coupon_expired", message: "nope" } });
+    const applyCoupon = vi.fn().mockResolvedValue({ error: { code: "coupon_expired", message: "nope" } });
 
     setup({ applyCoupon });
 
@@ -83,7 +83,7 @@ describe(RedeemCouponForm.name, () => {
 
   it("closes the sheet shortly after a credit-adding redemption settles", async () => {
     const onRedeemed = vi.fn();
-    const applyCoupon = vi.fn().mockResolvedValue({ coupon: null, amountAdded: 100 });
+    const applyCoupon = vi.fn().mockResolvedValue({ amountAdded: 100 });
 
     const { setPolling } = setup({ applyCoupon, onRedeemed });
 
@@ -106,7 +106,7 @@ describe(RedeemCouponForm.name, () => {
 
   it("does not close the sheet when the coupon adds no credits", async () => {
     const onRedeemed = vi.fn();
-    const applyCoupon = vi.fn().mockResolvedValue({ coupon: null, amountAdded: 0 });
+    const applyCoupon = vi.fn().mockResolvedValue({ amountAdded: 0 });
 
     const { setPolling } = setup({ applyCoupon, onRedeemed });
 
@@ -160,7 +160,7 @@ describe(RedeemCouponForm.name, () => {
       mock<ReturnType<typeof DEPENDENCIES.usePaymentMutations>>({
         applyCoupon: mock<ReturnType<typeof DEPENDENCIES.usePaymentMutations>["applyCoupon"]>({
           isPending: input.isApplyingCoupon ?? false,
-          mutateAsync: input.applyCoupon ?? vi.fn().mockResolvedValue({ coupon: null, amountAdded: 0 })
+          mutateAsync: input.applyCoupon ?? vi.fn().mockResolvedValue({ amountAdded: 0 })
         })
       });
 

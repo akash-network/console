@@ -4,17 +4,7 @@ export interface StripePrice {
   currency: string;
 }
 
-export interface Coupon {
-  id: string;
-  percent_off?: number | null;
-  amount_off?: number | null;
-  valid: boolean;
-  name?: string;
-  description?: string;
-}
-
 export interface CouponResponse {
-  coupon: Coupon | null;
   amountAdded?: number;
   error?: {
     message: string;

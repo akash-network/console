@@ -1,18 +1,23 @@
 import { PromisePool } from "@supercharge/promise-pool";
 import assert from "http-assert";
+import createError from "http-errors";
 import { inject, singleton } from "tsyringe";
 
 import { organizationAnalyticsProperties } from "@src/billing/lib/organization-analytics/organization-analytics";
 import { type BillingConfig, InjectBillingConfig } from "@src/billing/providers";
 import { type StripeTransactionType, type UserWalletOutput, UserWalletRepository } from "@src/billing/repositories";
 import { BalancesService } from "@src/billing/services/balances/balances.service";
+import { type AllowanceAdjustment, DeploymentAllowanceService } from "@src/billing/services/deployment-allowance/deployment-allowance.service";
 import { ManagedSignerService } from "@src/billing/services/managed-signer/managed-signer.service";
 import { ManagedUserWalletService } from "@src/billing/services/managed-user-wallet/managed-user-wallet.service";
 import { type PaymentCredit, PaymentCreditService } from "@src/billing/services/payment-credit/payment-credit.service";
+import type { AllowanceWallet } from "@src/billing/services/reconcile-deployment-allowance/reconcile-deployment-allowance.job";
 import { WalletInitializerService } from "@src/billing/services/wallet-initializer/wallet-initializer.service";
 import { type CreateLogger, LOGGER_FACTORY } from "@src/core/providers/logging.provider";
 import { AnalyticsService } from "@src/core/services/analytics/analytics.service";
 import { type OrganizationOutput, OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
+
+export const ORGANIZATION_DELETED_ERROR_CODE = "organization_deleted";
 
 export interface PaymentAnalyticsContext {
   currency?: string;
@@ -36,6 +41,8 @@ export interface WalletPayer {
   team?: Pick<OrganizationOutput, "id" | "type">;
 }
 
+export const CREDIT_IN_FLIGHT_ERROR_CODE = "credit_in_flight";
+
 /** Identifiers of the wallet a top-up credited, so callers can fund its draining deployments once the credit has committed. */
 export interface ToppedUpWallet {
   walletId: number;
@@ -53,6 +60,7 @@ export class RefillService {
     private readonly managedSignerService: ManagedSignerService,
     private readonly balancesService: BalancesService,
     private readonly paymentCreditService: PaymentCreditService,
+    private readonly deploymentAllowanceService: DeploymentAllowanceService,
     private readonly walletInitializerService: WalletInitializerService,
     private readonly analyticsService: AnalyticsService,
     private readonly organizationRepository: OrganizationRepository,
@@ -153,18 +161,8 @@ export class RefillService {
       return;
     }
 
-    const currentLimit = await this.balancesService.retrieveDeploymentLimit(userWallet);
-    const reductionAmount = amountUsd * 10000;
-
-    // Ensure we don't go below 0
-    const nextLimit = Math.max(0, currentLimit - reductionAmount);
-    const limits = { deployment: nextLimit, fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT };
-
-    await this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
-      address: userWallet.address,
-      derivationIndex: userWallet.id,
-      limits
-    });
+    await this.#assertNoCreditInFlight(userWallet.address);
+    const { previousLimit, nextLimit } = await this.#debitAndRefillFees({ id: userWallet.id, address: userWallet.address }, amountUsd * 10000);
 
     await this.balancesService.refreshUserWalletLimits(userWallet);
     this.#trackFor(userId, "balance_refund", {
@@ -174,7 +172,32 @@ export class RefillService {
       transaction_id: payment?.transactionId,
       ...this.#organizationPropertiesOf(payer)
     });
-    this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit: currentLimit, nextLimit });
+    this.logger.info({ event: "WALLET_BALANCE_REDUCED", userId, amountUsd, previousLimit, nextLimit });
+  }
+
+  /** A credit still landing read the allowance before this debit could, so whichever grant landed second would overwrite the other; the refund is redelivered once the credit lands. */
+  async #assertNoCreditInFlight(address: string): Promise<void> {
+    if (!(await this.paymentCreditService.isCreditInFlight(address))) return;
+
+    this.logger.warn({ event: "WALLET_REDUCE_CREDIT_IN_FLIGHT", address });
+    throw createError(409, "A credit to this wallet is still landing, so the refund is applied once it has", { errorCode: CREDIT_IN_FLIGHT_ERROR_CODE });
+  }
+
+  /** Waits for both grants before failing, like a credit does, so the refund never rolls back while its debit is still being granted. */
+  async #debitAndRefillFees(wallet: AllowanceWallet, reduction: number): Promise<AllowanceAdjustment> {
+    const [debit, fees] = await Promise.allSettled([
+      this.deploymentAllowanceService.adjust(wallet, -reduction),
+      this.managedUserWalletService.authorizeSpending(this.managedSignerService, {
+        address: wallet.address,
+        derivationIndex: wallet.id,
+        limits: { fees: this.config.FEE_ALLOWANCE_REFILL_AMOUNT }
+      })
+    ]);
+
+    if (debit.status === "rejected") throw debit.reason;
+    if (fees.status === "rejected") throw fees.reason;
+
+    return debit.value;
   }
 
   /** A failed clear is logged instead of thrown, so a lock that cannot be cleared never holds back the settlement of a payment already credited on chain. */
@@ -203,7 +226,7 @@ export class RefillService {
   async #assertTeamNotDeleted(organizationId: string): Promise<void> {
     const team = await this.organizationRepository.findById(organizationId);
 
-    assert(!team?.deletedAt, 409, "The team organization was deleted, so its wallet takes no more credits", { errorCode: "organization_deleted" });
+    assert(!team?.deletedAt, 409, "The team organization was deleted, so its wallet takes no more credits", { errorCode: ORGANIZATION_DELETED_ERROR_CODE });
   }
 
   /**

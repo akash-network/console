@@ -5,6 +5,8 @@ import type { Denom } from "../types/denom.type";
 import type { HttpClient } from "../utils/httpClient";
 import { isHttpError } from "../utils/isHttpError";
 
+const BLOCK_HEIGHT_HEADER = "x-cosmos-block-height";
+
 export interface SpendLimit {
   denom: Denom;
   amount: string;
@@ -132,13 +134,19 @@ export class AuthzHttpService {
     return migrateLegacyDepositDeploymentGrant(grant);
   }
 
-  async getValidDepositDeploymentGrantsForGranterAndGrantee(granter: string, grantee: string): Promise<ExactDepositDeploymentGrant | undefined> {
+  /** With a height, a node that has not reached it refuses the query instead of answering from its own shorter chain. */
+  async getValidDepositDeploymentGrantsForGranterAndGrantee(
+    granter: string,
+    grantee: string,
+    options?: { height: number }
+  ): Promise<ExactDepositDeploymentGrant | undefined> {
     const response = extractData(
       await this.httpClient.get<DepositDeploymentGrantResponse<LegacyExactDepositDeploymentGrant>>("cosmos/authz/v1beta1/grants", {
         params: {
           grantee: grantee,
           granter: granter
-        }
+        },
+        ...(options && { headers: { [BLOCK_HEIGHT_HEADER]: String(options.height) } })
       })
     );
     return migrateLegacyDepositDeploymentGrant(response.grants.find(grant => this.isValidDepositDeploymentGrant(grant)));

@@ -3,9 +3,11 @@ import { QueryClient } from "@tanstack/react-query";
 import { AxiosError, AxiosHeaders } from "axios";
 import { describe, expect, it, vi } from "vitest";
 
-import { ACTIVE_ORGANIZATION_COOKIE_NAME } from "@src/lib/active-organization/active-organization-cookie";
+import { getActiveOrganizationCookieName } from "@src/lib/active-organization/active-organization-cookie";
 import { TabOrganization } from "@src/services/tab-organization/tab-organization";
 import { isOrganizationForbiddenError, StaleOrganizationRecovery } from "./stale-organization-recovery";
+
+const ACTIVE_ORGANIZATION_COOKIE_NAME = getActiveOrganizationCookieName(window.location);
 
 describe(StaleOrganizationRecovery.name, () => {
   describe("recover", () => {

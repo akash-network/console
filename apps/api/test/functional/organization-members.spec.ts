@@ -2,6 +2,8 @@ import { faker } from "@faker-js/faker";
 import { container } from "tsyringe";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
+import { ApiKeyRepository } from "@src/auth/repositories/api-key/api-key.repository";
+import { ApiKeyGeneratorService } from "@src/auth/services/api-key/api-key-generator.service";
 import { UserAuthTokenService } from "@src/auth/services/user-auth-token/user-auth-token.service";
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
@@ -245,6 +247,35 @@ describe("Organization members", () => {
 
       expect(response.status).toBe(200);
       expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role: "owner" });
+    });
+
+    it("refuses an owner's API key to promote a member to owner", async () => {
+      const { organization, owner, target, membershipOf, apiKeyOf, request } = await setup({ callerRole: "owner", targetRole: "member" });
+
+      const response = await request("PATCH", `/v1/organization-members/${membershipOf(target).id}`, {
+        asUser: owner,
+        organizationId: organization.id,
+        apiKey: await apiKeyOf(owner),
+        body: { data: { role: "owner" } }
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "session_required" });
+      expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role: "member" });
+    });
+
+    it("lets an owner's API key change the role of a member below owner", async () => {
+      const { organization, owner, target, membershipOf, apiKeyOf, request } = await setup({ callerRole: "owner", targetRole: "member" });
+
+      const response = await request("PATCH", `/v1/organization-members/${membershipOf(target).id}`, {
+        asUser: owner,
+        organizationId: organization.id,
+        apiKey: await apiKeyOf(owner),
+        body: { data: { role: "admin" } }
+      });
+
+      expect(response.status).toBe(200);
+      expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role: "admin" });
     });
 
     it("refuses to let an admin promote a member to owner", async () => {
@@ -526,6 +557,21 @@ describe("Organization members", () => {
       expect(await memberRepository.findById(membershipOf(owner).id)).toMatchObject({ role: "admin" });
     });
 
+    it("refuses an owner's API key and changes no role", async () => {
+      const { organization, owner, target, membershipOf, apiKeyOf, request } = await setup({ callerRole: "owner", targetRole: "admin" });
+
+      const response = await request("POST", `/v1/organization-members/${membershipOf(target).id}/ownership-transfer`, {
+        asUser: owner,
+        organizationId: organization.id,
+        apiKey: await apiKeyOf(owner)
+      });
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "session_required" });
+      expect(await memberRepository.findById(membershipOf(target).id)).toMatchObject({ role: "admin" });
+      expect(await memberRepository.findById(membershipOf(owner).id)).toMatchObject({ role: "owner" });
+    });
+
     it("refuses an admin", async () => {
       const { organization, caller, target, membershipOf, request } = await setup({ callerRole: "admin", targetRole: "member" });
 
@@ -614,9 +660,27 @@ describe("Organization members", () => {
       return memberships.get(user.id)!;
     }
 
-    async function request(method: string, path: string, options: { asUser: UserOutput; organizationId: string; projectId?: string; body?: unknown }) {
+    async function apiKeyOf(user: UserOutput) {
+      const apiKeyGenerator = container.resolve(ApiKeyGeneratorService);
+      const apiKey = apiKeyGenerator.generateApiKey();
+      await container.resolve(ApiKeyRepository).create({
+        userId: user.id,
+        organizationId: organization.id,
+        hashedKey: apiKeyGenerator.hashApiKeySha256(apiKey),
+        keyFormat: apiKeyGenerator.obfuscateApiKey(apiKey),
+        name: "ci"
+      });
+
+      return apiKey;
+    }
+
+    async function request(
+      method: string,
+      path: string,
+      options: { asUser: UserOutput; organizationId: string; apiKey?: string; projectId?: string; body?: unknown }
+    ) {
       const headers = {
-        authorization: `Bearer ${tokenByUserId.get(options.asUser.id)}`,
+        ...(options.apiKey ? { "x-api-key": options.apiKey } : { authorization: `Bearer ${tokenByUserId.get(options.asUser.id)}` }),
         "x-organization-id": options.organizationId,
         ...(options.projectId && { "x-project-id": options.projectId })
       };
@@ -628,6 +692,6 @@ describe("Organization members", () => {
       return await app.request(path, { method, headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(options.body) });
     }
 
-    return { organization, personal, owner, caller, target, membershipOf, request };
+    return { organization, personal, owner, caller, target, membershipOf, apiKeyOf, request };
   }
 });
