@@ -180,7 +180,10 @@ function userKeyedRules(user: RuleUser): AbilityRule[] {
     { action: ["create", "read"], subject: "HardwareRequest", conditions: { userId: user.id } },
     { action: ["read", "update"], subject: "Activity", conditions: { userId: user.id } },
     { action: "manage", subject: "FavoriteProvider", conditions: { userId: user.id } },
-    { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } }
+    { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } },
+    { action: ["create", "read"], subject: "FeedbackSubmission", conditions: { userId: user.id } },
+    { action: ["create", "read"], subject: "AssistantConsent", conditions: { userId: user.id } },
+    { action: ["read", "delete"], subject: "AssistantConversation", conditions: { userId: user.id } }
   ];
 }
 

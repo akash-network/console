@@ -135,7 +135,7 @@ describe(OrgScopedRepository.name, () => {
   describe("coverage", () => {
     it("scopes every table that carries an organization", async () => {
       const tablesOwnedByAnOrganizationRatherThanFiledInOne = ["data_keys"];
-      const tablesOfOneUserGroupedByOrganization = ["activities"];
+      const tablesOfOneUserGroupedByOrganization = ["activities", "feedback_submissions", "assistant_conversations"];
       const organizationTables = API_PG_TABLE_NAMES.map((name): unknown => resolveTable(name))
         .filter((table): table is PgTable => is(table, PgTable))
         .filter(table => Object.values(getTableColumns(table)).some(column => column.name === "organization_id"))

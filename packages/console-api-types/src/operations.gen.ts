@@ -727,6 +727,46 @@ export const operations = {
       pathParams: ["dseq"],
       queryParams: [],
       hasBody: false
+    },
+    createFeedback: {
+      path: "/v1/feedback",
+      method: "post",
+      operationId: "createFeedback",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
+    getFeedbackOutcomePrompt: {
+      path: "/v1/feedback/outcome-prompts/{dseq}",
+      method: "get",
+      operationId: "getFeedbackOutcomePrompt",
+      pathParams: ["dseq"],
+      queryParams: [],
+      hasBody: false
+    },
+    getAssistantConsent: {
+      path: "/v1/assistant/consent",
+      method: "get",
+      operationId: "getAssistantConsent",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
+    },
+    updateAssistantConsent: {
+      path: "/v1/assistant/consent",
+      method: "put",
+      operationId: "updateAssistantConsent",
+      pathParams: [],
+      queryParams: [],
+      hasBody: true
+    },
+    deleteAssistantConversations: {
+      path: "/v1/assistant/conversations",
+      method: "delete",
+      operationId: "deleteAssistantConversations",
+      pathParams: [],
+      queryParams: [],
+      hasBody: false
     }
   },
   v2: {

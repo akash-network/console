@@ -38,6 +38,7 @@ import { deploymentSettingRouter } from "@src/deployment/routes/deployment-setti
 import { deploymentsRouter } from "@src/deployment/routes/deployments/deployments.router";
 import { getSDLSecretsContextRouter } from "@src/deployment/routes/get-sdl-secrets-context/get-sdl-secrets-context.router";
 import { leasesRouter } from "@src/deployment/routes/leases/leases.router";
+import { assistantPrivacyRouter, feedbackRouter } from "@src/feedback";
 import { gpuRouter } from "@src/gpu";
 import { hardwareRequestRouter } from "@src/hardware-request";
 import { notificationAddressConfirmationsRouter } from "@src/notifications/routes/notification-address-confirmations/notification-address-confirmations.router";
@@ -156,5 +157,7 @@ export const openApiHonoHandlers: OpenApiHonoHandler[] = [
   receivedInvitationsRouter,
   projectMembersRouter,
   projectSpendRouter,
-  projectBudgetsRouter
+  projectBudgetsRouter,
+  feedbackRouter,
+  assistantPrivacyRouter
 ];

@@ -10,6 +10,7 @@ import { AnalyticsService } from "@src/core/services/analytics/analytics.service
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
+import { FeedbackErasureService } from "@src/feedback/services/feedback-erasure/feedback-erasure.service";
 import { NotificationService } from "@src/notifications/services/notification/notification.service";
 import { accountDeletionConfirmationNotification } from "@src/notifications/services/notification-templates/account-deletion-confirmation-notification";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
@@ -59,6 +60,7 @@ export class AccountDeletionService {
     private readonly organizationMemberRepository: OrganizationMemberRepository,
     private readonly teamRecordRetentionService: TeamRecordRetentionService,
     private readonly departedMemberAlertsService: DepartedMemberAlertsService,
+    private readonly feedbackErasureService: FeedbackErasureService,
     private readonly notificationService: NotificationService,
     private readonly jobQueueService: JobQueueService,
     private readonly txService: TxService,
@@ -241,6 +243,7 @@ export class AccountDeletionService {
       if (lockedUser.userId) await this.userTemplateRepository.deleteAllOwnedBy(lockedUser.userId);
       if (wallet) await this.workloadProbeEvidenceRepository.deleteByWalletId(wallet.id);
       await this.departedMemberAlertsService.stopEveryTeamAlertTo(user.id);
+      await this.feedbackErasureService.eraseAccountFeedback(user.id);
       await this.userRepository.deleteById(user.id);
       if (wallet) await userWallets.detachFromOrganization(wallet.id);
       if (personalOrganization) await this.organizationRepository.deleteById(personalOrganization.id);
