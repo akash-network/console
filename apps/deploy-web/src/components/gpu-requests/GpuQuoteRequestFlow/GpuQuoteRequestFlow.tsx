@@ -1,21 +1,11 @@
 "use client";
-import type { FC, ReactNode } from "react";
-import { useEffect, useId, useState } from "react";
+import type { FC, KeyboardEvent, ReactNode } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { extractApiErrorMessage, isApiError } from "@akashnetwork/openapi-sdk";
-import {
-  Alert,
-  Button,
-  DialogV2,
-  DialogV2Body,
-  DialogV2Content,
-  DialogV2Description,
-  DialogV2Footer,
-  DialogV2Header,
-  DialogV2Title,
-  Snackbar
-} from "@akashnetwork/ui/components";
+import { Alert, Button, DialogV2, DialogV2Close, DialogV2Content, DialogV2Description, DialogV2Title, Progress, Snackbar } from "@akashnetwork/ui/components";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftIcon, ArrowRightIcon, SendIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, BanIcon, CalendarClockIcon, SearchIcon, SearchXIcon, SendIcon, XIcon } from "lucide-react";
 import { useSnackbar } from "notistack";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -53,13 +43,19 @@ type Props = {
   dependencies?: typeof DEPENDENCIES;
 };
 
-const SOURCE_NOTES: Partial<Record<QuoteRequestSource, string>> = {
-  no_fit: "No provider can host this configuration right now.",
-  no_bids: "No provider bid on this configuration.",
-  gpu_menu: "Looking for a GPU that isn't listed?",
-  reserve_capacity: "Reserve GPUs for a term.",
-  configure_reserve: "Reserve GPUs for a term."
+const RESERVE_NOTE = { icon: CalendarClockIcon, text: "Commit to a term for guaranteed GPUs at a lower rate." };
+
+const SOURCE_NOTES: Partial<Record<QuoteRequestSource, { icon: LucideIcon; text: string }>> = {
+  no_fit: { icon: SearchXIcon, text: "No provider can host this configuration right now." },
+  no_bids: { icon: BanIcon, text: "No provider bid on this configuration." },
+  gpu_menu: { icon: SearchIcon, text: "Looking for a GPU that isn't listed?" },
+  reserve_capacity: RESERVE_NOTE,
+  configure_reserve: RESERVE_NOTE
 };
+
+/** The dialog's enter motion slides in from the screen centre, which a full page must not, so its offsets are forced to zero. */
+const FULL_PAGE_CLASSES =
+  "inset-0 max-h-none max-w-none translate-x-0 translate-y-0 rounded-none border-0 bg-background shadow-none sm:rounded-none data-[state=open]:!slide-in-from-left-0 data-[state=open]:!slide-in-from-top-0 data-[state=open]:!zoom-in-100";
 
 type StepFieldProps = DraftFieldProps & { asksUplink: boolean; today: string };
 
@@ -76,7 +72,7 @@ const FIELD_OF_STEP: Partial<Record<QuoteStepId, (props: StepFieldProps) => Reac
 };
 
 const QUESTION_OF_STEP: Record<QuoteStepId, { title: string; hint?: string }> = {
-  start: { title: "What are you looking for?", hint: "Pick a common setup, or Custom to choose every detail." },
+  start: { title: "What are you looking for?", hint: "Pick a common setup, or choose Custom to set every detail." },
   gpu: { title: "Which GPU, and how many?" },
   interconnect: { title: "Do the GPUs need to work together?", hint: "This decides how GPUs connect inside a server and between servers." },
   region: { title: "Where can they run?" },
@@ -88,6 +84,14 @@ const QUESTION_OF_STEP: Record<QuoteStepId, { title: string; hint?: string }> = 
   contact: { title: "How should we reach you?" },
   review: { title: "Check your request", hint: "Select a line to change it." }
 };
+
+/** Enter moves the flow on, except where a control acts on Enter itself; radio cards ignore Enter, so it moves on from them too. */
+function continuesOnEnter(event: KeyboardEvent<HTMLElement>): boolean {
+  if (event.key !== "Enter" || event.nativeEvent.isComposing) return false;
+
+  const target = event.target as HTMLElement;
+  return !!target.closest('[role="radiogroup"]') || !target.closest("button, textarea");
+}
 
 function isRequestLimitError(error: unknown): boolean {
   return isApiError(error) && error.status === 429;
@@ -107,6 +111,7 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
   const startingPoints = [...(configurationPoint ? [configurationPoint] : []), ...STARTER_PACKAGES, CUSTOM_STARTING_POINT];
   const [draft, setDraft] = useState(() => createInitialDraft({ email: user?.email ?? "", configurationPoint, initialAnswers }));
   const questionId = useId();
+  const questionRef = useRef<HTMLHeadingElement>(null);
   const [stepId, setStepId] = useState<QuoteStepId>("start");
   const [showsMissing, setShowsMissing] = useState(false);
   const today = toIsoDate(new Date());
@@ -135,6 +140,13 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
     [configurationKey]
   );
 
+  useEffect(
+    function focusQuestionOfStep() {
+      questionRef.current?.focus();
+    },
+    [step]
+  );
+
   function changeDraft(patch: Partial<GpuQuoteDraft>) {
     setDraft(current => ({ ...current, ...patch }));
   }
@@ -155,6 +167,12 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
     }
     if (!draft.startingPoint) changeDraft({ startingPoint: CUSTOM_STARTING_POINT.id });
     goTo(steps[stepIndex + 1]);
+  }
+
+  function continueOnEnter(event: KeyboardEvent<HTMLElement>) {
+    if (!continuesOnEnter(event) || createHardwareRequest.isPending) return;
+    event.preventDefault();
+    continueOrSend();
   }
 
   function sendRequest() {
@@ -181,19 +199,55 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
 
   const question = QUESTION_OF_STEP[step];
   const StepField = FIELD_OF_STEP[step];
+  const sourceNote = stepIndex === 0 ? SOURCE_NOTES[source] : undefined;
 
   return (
     <DialogV2 open onOpenChange={isOpen => (!isOpen ? onClose() : undefined)}>
-      <DialogV2Content className="max-w-2xl">
-        <DialogV2Header>
-          <DialogV2Title>Request GPUs</DialogV2Title>
-          <DialogV2Description>{`Step ${stepIndex + 1} of ${steps.length}`}</DialogV2Description>
-        </DialogV2Header>
-        <DialogV2Body>
-          <section aria-labelledby={questionId} className="flex flex-col gap-5">
-            <div className="flex flex-col gap-1.5">
-              {stepIndex === 0 && SOURCE_NOTES[source] && <p className="text-sm text-muted-foreground">{SOURCE_NOTES[source]}</p>}
-              <h3 id={questionId} className="text-xl font-semibold tracking-tight">
+      <DialogV2Content
+        hideCloseButton
+        onOpenAutoFocus={event => {
+          event.preventDefault();
+          questionRef.current?.focus();
+        }}
+        onKeyDown={continueOnEnter}
+        className={FULL_PAGE_CLASSES}
+      >
+        <header className="relative flex h-14 shrink-0 items-center gap-3 border-b pl-5 pr-3">
+          <DialogV2Title className="text-sm font-semibold leading-5 tracking-normal">Request GPUs</DialogV2Title>
+          <span aria-hidden="true" className="font-mono text-xs text-muted-foreground">
+            {stepIndex + 1} / {steps.length}
+          </span>
+          <DialogV2Description className="sr-only">{`Step ${stepIndex + 1} of ${steps.length}`}</DialogV2Description>
+          <DialogV2Close asChild>
+            <Button type="button" variant="ghost" size="icon" aria-label="Close" className="ml-auto h-8 w-8">
+              <XIcon className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </DialogV2Close>
+          <Progress
+            value={((stepIndex + 1) / steps.length) * 100}
+            aria-label="Request progress"
+            className="absolute -bottom-px left-0 h-0.5 rounded-none bg-transparent [&>div]:bg-foreground [&>div]:duration-300 motion-reduce:[&>div]:transition-none"
+          />
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <section
+            key={step}
+            aria-labelledby={questionId}
+            className="mx-auto flex max-w-[640px] flex-col gap-6 px-4 pb-8 pt-7 duration-300 animate-in fade-in-0 slide-in-from-bottom-2 motion-reduce:animate-none sm:px-6 sm:pb-10 sm:pt-[clamp(2rem,7vh,4.5rem)]"
+          >
+            <div className="flex flex-col gap-2">
+              {sourceNote && (
+                <p className="inline-flex items-center gap-2 text-[13px] text-muted-foreground">
+                  <sourceNote.icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  {sourceNote.text}
+                </p>
+              )}
+              <h3
+                id={questionId}
+                ref={questionRef}
+                tabIndex={-1}
+                className="text-balance text-[22px] font-bold leading-tight tracking-[-0.015em] focus:outline-none sm:text-[28px]"
+              >
                 {question.title}
               </h3>
               {question.hint && <p className="text-sm text-muted-foreground">{question.hint}</p>}
@@ -229,17 +283,26 @@ export const GpuQuoteRequestFlow: FC<Props> = ({ source, configuration, initialA
             )}
             {limitMessage && <Alert variant="destructive">{limitMessage}</Alert>}
           </section>
-        </DialogV2Body>
-        <DialogV2Footer className="sm:justify-between">
-          <Button type="button" variant="ghost" disabled={stepIndex === 0} onClick={() => goTo(steps[stepIndex - 1])} className="gap-2">
-            <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
-            Back
-          </Button>
-          <Button type="button" disabled={createHardwareRequest.isPending} onClick={continueOrSend} className="gap-2">
-            {isReview ? "Send request" : "Continue"}
-            {isReview ? <SendIcon className="h-4 w-4" aria-hidden="true" /> : <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />}
-          </Button>
-        </DialogV2Footer>
+        </div>
+        <footer className="shrink-0 border-t px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3">
+          <div className="mx-auto flex max-w-[640px] items-center gap-2.5">
+            <Button type="button" variant="ghost" disabled={stepIndex === 0} onClick={() => goTo(steps[stepIndex - 1])} className="gap-2">
+              <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
+              Back
+            </Button>
+            <span aria-hidden="true" className="min-w-0 flex-1 truncate text-right text-xs text-muted-foreground">
+              {!isReview && (
+                <span className="hidden sm:inline">
+                  Press <span className="font-mono">Enter ↵</span>
+                </span>
+              )}
+            </span>
+            <Button type="button" disabled={createHardwareRequest.isPending} onClick={continueOrSend} className="gap-2">
+              {isReview ? "Send request" : "Continue"}
+              {isReview ? <SendIcon className="h-4 w-4" aria-hidden="true" /> : <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />}
+            </Button>
+          </div>
+        </footer>
       </DialogV2Content>
     </DialogV2>
   );

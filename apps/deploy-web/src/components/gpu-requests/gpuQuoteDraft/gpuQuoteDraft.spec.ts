@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { GpuQuoteDraft, StartingPoint } from "./gpuQuoteDraft";
+import type { DraftAnswers, GpuQuoteDraft, StartingPointSpec } from "./gpuQuoteDraft";
 import {
   answersForGpuModel,
   applyStartingPoint,
@@ -12,7 +12,7 @@ import {
   describeMissingAnswers,
   describeNextStep,
   describeReviewLines,
-  describeStartingPoint,
+  describeStartingPointCard,
   isWholeNodes,
   listMissingAnswers,
   listSteps,
@@ -495,29 +495,82 @@ describe("gpuQuoteDraft", () => {
     });
   });
 
-  describe(describeStartingPoint.name, () => {
-    it("names what each package answers", () => {
-      expect(STARTER_PACKAGES.map(describeStartingPoint)).toEqual([
-        "8× H200 · Linked in each server · 8 TB NVMe",
-        "32× B200 · Linked across servers · 30 TB NVMe",
-        "16× L40S · PCIe only · 4 TB NVMe"
+  describe(describeStartingPointCard.name, () => {
+    it("lays out each package as its GPUs and the same four specs", () => {
+      expect(STARTER_PACKAGES.map(describeStartingPointCard)).toEqual([
+        {
+          gpuCount: 8,
+          model: "H200",
+          memory: "NVIDIA · 141 GB",
+          specs: [
+            { label: "Nodes", value: "1 × 8 GPUs" },
+            { label: "Link", value: "NVLink" },
+            { label: "Storage", value: "8 TB / node" },
+            { label: "Internet", value: "10 Gbps" }
+          ]
+        },
+        {
+          gpuCount: 32,
+          model: "B200",
+          memory: "NVIDIA · 180 GB",
+          specs: [
+            { label: "Nodes", value: "4 × 8 GPUs" },
+            { label: "Link", value: "NVLink + InfiniBand" },
+            { label: "Storage", value: "30 TB / node" },
+            { label: "Internet", value: "25 Gbps+" }
+          ]
+        },
+        {
+          gpuCount: 16,
+          model: "L40S",
+          memory: "NVIDIA · 48 GB",
+          specs: [
+            { label: "Nodes", value: "2 × 8 GPUs" },
+            { label: "Link", value: "PCIe only" },
+            { label: "Storage", value: "4 TB / node" },
+            { label: "Internet", value: "10 Gbps" }
+          ]
+        }
       ]);
     });
 
-    it("describes the configuration by what was set up, rather than by the answers it fills in", () => {
-      const startingPoint = configurationStartingPoint(
-        { gpuCount: 0, gpuModels: [], storageBytes: 10 * 1024 ** 3, regions: [] },
-        "384 vCPU · 512 GiB memory · 10 GiB storage"
-      );
-
-      expect(describeStartingPoint(startingPoint)).toBe("384 vCPU · 512 GiB memory · 10 GiB storage");
+    it("dashes every spec custom leaves to its own step", () => {
+      expect(describeStartingPointCard(CUSTOM_STARTING_POINT)).toEqual({
+        gpuCount: undefined,
+        model: "Any GPU",
+        memory: null,
+        specs: [
+          { label: "Nodes", value: "—" },
+          { label: "Link", value: "—" },
+          { label: "Storage", value: "—" },
+          { label: "Internet", value: "—" }
+        ]
+      });
     });
 
-    it("names the answered GPU count, storage and regions, saying any GPU without a model, and nothing for custom", () => {
-      const startingPoint = { ...CUSTOM_STARTING_POINT, answers: { gpuCount: 2, storageTbPerNode: 1, areas: ["eu", "us"] } } satisfies StartingPoint;
+    it.each([
+      [{ gpuCount: 1 }, "Nodes", "1 × 1 GPU"],
+      [{ gpuCount: 4 }, "Nodes", "1 × 4 GPUs"],
+      [{ gpuCount: 4 }, "Link", "PCIe only"],
+      [{ gpuCount: 8 }, "Link", "—"],
+      [{ gpuModel: "mi300x", interconnect: "server" }, "Link", "Infinity Fabric"],
+      [{ interconnect: "server" }, "Link", "NVLink or Infinity Fabric"],
+      [{ gpuModel: "h100", interconnect: "cluster", fabric: "roce" }, "Link", "NVLink + RoCE"],
+      [{ gpuModel: "h100", interconnect: "cluster", fabric: "any" }, "Link", "NVLink + InfiniBand or RoCE"],
+      [{ gpuModel: "h100", interconnect: "cluster" }, "Link", "NVLink + InfiniBand or RoCE"],
+      [{ storageTbPerNode: 0 }, "Storage", "0 TB / node"],
+      [{ uplinkGbps: null }, "Internet", "Any"],
+      [{ uplinkGbps: 1 }, "Internet", "1 Gbps"]
+    ] satisfies [DraftAnswers, StartingPointSpec["label"], string][])("describes %o with %s %s", (answers, label, value) => {
+      const { specs } = describeStartingPointCard({ ...CUSTOM_STARTING_POINT, answers });
 
-      expect(describeStartingPoint(startingPoint)).toBe("2× any GPU · 1 TB · United States, Europe");
-      expect(describeStartingPoint(CUSTOM_STARTING_POINT)).toBe("");
+      expect(specs.find(spec => spec.label === label)?.value).toBe(value);
+    });
+
+    it("names a GPU outside the catalog without its memory", () => {
+      const startingPoint = configurationStartingPoint({ gpuCount: 1, gpuModels: ["gb200"], storageBytes: 0, regions: [] }, SUMMARY);
+
+      expect(describeStartingPointCard(startingPoint)).toMatchObject({ gpuCount: 1, model: "gb200", memory: null });
     });
   });
 
