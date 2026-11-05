@@ -11,7 +11,7 @@ import {
   Spinner
 } from "@akashnetwork/ui/components";
 import { cn } from "@akashnetwork/ui/utils";
-import { Book, FileText, LogOut, Plus, Send, ShieldCheck, Sparkles, SunMoon, User } from "lucide-react";
+import { Book, FileText, LogOut, MessageSquareText, Plus, Send, ShieldCheck, Sparkles, SunMoon, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useServices } from "@src/context/ServicesProvider";
@@ -34,6 +34,8 @@ interface Props {
   onCreateOrganization?: () => void;
   /** Adds the "What's new" entry that replays the latest release announcement. */
   onOpenWhatsNew?: () => void;
+  /** Adds the "Send feedback" entry; absent while the feedback loop is not enabled for the user. */
+  onSendFeedback?: () => void;
 }
 
 type AccountAction = {
@@ -51,7 +53,8 @@ export function TopNavAccountMenu({
   variant = "dropdown",
   onNavigate,
   onCreateOrganization,
-  onOpenWhatsNew
+  onOpenWhatsNew,
+  onSendFeedback
 }: Props = {}) {
   const { user, isLoading } = d.useCustomUser();
   const username = user?.username;
@@ -101,6 +104,13 @@ export function TopNavAccountMenu({
           <button type="button" className={inlineItemClasses()} onClick={handle({ title: "What's new", icon: Sparkles, onClick: onOpenWhatsNew })}>
             <Sparkles className="h-5 w-5 shrink-0" />
             What&apos;s new
+          </button>
+        )}
+
+        {onSendFeedback && (
+          <button type="button" className={inlineItemClasses()} onClick={handle({ title: "Send feedback", icon: MessageSquareText, onClick: onSendFeedback })}>
+            <MessageSquareText className="h-5 w-5 shrink-0" />
+            Send feedback
           </button>
         )}
 
@@ -168,6 +178,11 @@ export function TopNavAccountMenu({
                 {onOpenWhatsNew && (
                   <CustomDropdownLinkItem onClick={onOpenWhatsNew} icon={<Sparkles className="h-4 w-4" />}>
                     What&apos;s new
+                  </CustomDropdownLinkItem>
+                )}
+                {onSendFeedback && (
+                  <CustomDropdownLinkItem onClick={onSendFeedback} icon={<MessageSquareText className="h-4 w-4" />}>
+                    Send feedback
                   </CustomDropdownLinkItem>
                 )}
                 {secondaryLinks.map(link => (

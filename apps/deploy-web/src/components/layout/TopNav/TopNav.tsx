@@ -19,6 +19,7 @@ import { usePathname } from "next/navigation";
 
 import { ActivityBell } from "@src/components/activity/ActivityBell/ActivityBell";
 import { CommandMenu } from "@src/components/command-menu/CommandMenu/CommandMenu";
+import { SendFeedbackDialog } from "@src/components/feedback/SendFeedbackDialog/SendFeedbackDialog";
 import { SkipOnboardingButton } from "@src/components/onboarding-picker/SkipOnboardingButton/SkipOnboardingButton";
 import { CreateOrganizationDialog } from "@src/components/organizations/CreateOrganizationDialog/CreateOrganizationDialog";
 import { OrganizationSwitcher } from "@src/components/organizations/OrganizationSwitcher/OrganizationSwitcher";
@@ -52,6 +53,7 @@ export const DEPENDENCIES = {
   SkipOnboardingButton,
   OrganizationSwitcher,
   CreateOrganizationDialog,
+  SendFeedbackDialog,
   WhatsNewAutoOpen
 };
 
@@ -82,6 +84,9 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
   const openWhatsNew = d.useOpenWhatsNew();
   const replayWhatsNew = isOrganizationsEnabled ? () => openWhatsNew("account_menu") : undefined;
   const { projectsEnabled } = d.useActiveOrganization();
+  const isFeedbackEnabled = d.useFlag("user_feedback_loop");
+  const [isSendFeedbackOpen, setIsSendFeedbackOpen] = useState(false);
+  const openSendFeedback = isFeedbackEnabled && isAuthenticated ? () => setIsSendFeedbackOpen(true) : undefined;
 
   const projectsLink: TopNavLink[] =
     isOrganizationsEnabled && projectsEnabled
@@ -156,7 +161,12 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
           {showOrganizationSwitcher && <d.OrganizationSwitcher onCreateOrganization={createOrganizationFromSwitcher} />}
 
           <div className={cn({ "hidden md:block": showNavLinks })}>
-            <d.TopNavAccountMenu minimal={minimal} onCreateOrganization={openCreateOrganization} onOpenWhatsNew={replayWhatsNew} />
+            <d.TopNavAccountMenu
+              minimal={minimal}
+              onCreateOrganization={openCreateOrganization}
+              onOpenWhatsNew={replayWhatsNew}
+              onSendFeedback={openSendFeedback}
+            />
           </div>
 
           {showNavLinks && (
@@ -216,6 +226,7 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
                     onNavigate={() => setIsMobileNavOpen(false)}
                     onCreateOrganization={openCreateOrganization}
                     onOpenWhatsNew={replayWhatsNew}
+                    onSendFeedback={openSendFeedback}
                   />
                 </nav>
               </SheetContent>
@@ -225,6 +236,8 @@ export function TopNav({ dependencies: d = DEPENDENCIES, minimal = false }: Prop
       </div>
 
       {isCreateOrganizationOpen && <d.CreateOrganizationDialog onClose={() => setIsCreateOrganizationOpen(false)} />}
+
+      {isSendFeedbackOpen && <d.SendFeedbackDialog onClose={() => setIsSendFeedbackOpen(false)} />}
 
       {showOrganizationSwitcher && !minimal && <d.WhatsNewAutoOpen />}
     </header>

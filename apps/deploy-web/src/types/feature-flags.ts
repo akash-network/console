@@ -15,4 +15,5 @@ export type FeatureFlag =
   | "organizations"
   | "invoices"
   | "onboarding_intent_first"
-  | "gpu_quote_requests";
+  | "gpu_quote_requests"
+  | "user_feedback_loop";

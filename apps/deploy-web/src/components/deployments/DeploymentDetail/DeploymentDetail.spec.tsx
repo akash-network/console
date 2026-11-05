@@ -4,8 +4,10 @@ import { ApiError } from "@akashnetwork/openapi-sdk";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
+import { LEASE_CLOSED_EARLY_REASON } from "@src/components/feedback/deploymentOutcome/deploymentOutcome";
 import type { DeploymentDefinition } from "@src/hooks/useDeploymentDefinition/useDeploymentDefinition";
 import type { Activity } from "@src/queries/useLatestActivitiesQuery";
+import type { RecordedDeploymentOutcome } from "@src/store/deploymentOutcomeStore";
 import type { DeploymentDto, DetectedLeaseGpus, LeaseDto, LeaseGpusByLease, OfferedLeaseGpus } from "@src/types/deployment";
 import type { DeploymentLocation } from "@src/types/project";
 import type { ApiProviderList } from "@src/types/provider";
@@ -706,6 +708,34 @@ describe("DeploymentDetail", () => {
     });
   });
 
+  describe("when this tab deployed the deployment", () => {
+    it("asks how deploying it went once its lease is live", () => {
+      const { DeploymentOutcomePrompt } = setup({ recordedOutcome: { outcome: "unknown" }, definition: { name: "sdxl-image-api" } });
+
+      expect(DeploymentOutcomePrompt.mock.lastCall?.[0]).toMatchObject({
+        dseq: "1786440078202",
+        outcome: { outcome: "live" },
+        deploymentName: "sdxl-image-api"
+      });
+    });
+
+    it("asks where it broke down when its lease closed within the first hour", () => {
+      const { DeploymentOutcomePrompt } = setup({
+        recordedOutcome: { outcome: "live" },
+        deployment: mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [], createdAt: 1000 }),
+        leases: [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: "closed", closedOn: "1200" })]
+      });
+
+      expect(DeploymentOutcomePrompt.mock.lastCall?.[0]).toMatchObject({ outcome: { outcome: "failed", failureReason: LEASE_CLOSED_EARLY_REASON } });
+    });
+  });
+
+  it("asks nothing about a deployment this tab did not deploy", () => {
+    const { DeploymentOutcomePrompt } = setup();
+
+    expect(DeploymentOutcomePrompt.mock.lastCall?.[0]).toMatchObject({ dseq: "1786440078202", outcome: undefined, deploymentName: undefined });
+  });
+
   it("joins the gpus the console recorded onto the lease they were recorded for, even when they arrive after the leases", () => {
     const { DeploymentDetailHeader, rerenderWithLeaseGpus } = setup({ leases: [gpuLease()] });
 
@@ -761,6 +791,7 @@ describe("DeploymentDetail", () => {
     isUpdating?: boolean;
     template?: TemplateOutput;
     templateId?: string;
+    recordedOutcome?: RecordedDeploymentOutcome;
   }) {
     const deployment = input && "deployment" in input ? input.deployment : mock<DeploymentDto>({ dseq: "1786440078202", state: "active", groups: [] });
     const leases = input && "leases" in input ? input.leases : [mock<LeaseDto>({ id: "1", provider: "akash1provider", state: input?.leaseState ?? "active" })];
@@ -846,6 +877,12 @@ describe("DeploymentDetail", () => {
       template: input?.template
     }));
     const DeploymentTemplateGuide = vi.fn(() => <div>template-guide</div>);
+    const DeploymentOutcomePrompt = vi.fn<typeof DEPENDENCIES.DeploymentOutcomePrompt>(() => null);
+    const useDeploymentOutcomes: typeof DEPENDENCIES.useDeploymentOutcomes = () => ({
+      outcomes: input?.recordedOutcome ? { "1786440078202": input.recordedOutcome } : ({} as Record<string, RecordedDeploymentOutcome>),
+      recordOutcome: vi.fn(),
+      markPrompted: vi.fn()
+    });
 
     const dependencies = MockComponents(DEPENDENCIES, {
       useServices,
@@ -875,7 +912,9 @@ describe("DeploymentDetail", () => {
       createConfigureDraft,
       useProjectsUi: () => mock<ReturnType<typeof DEPENDENCIES.useProjectsUi>>({ isEnabled: input?.isProjectsUiEnabled ?? true }),
       useDeploymentLocationQuery,
-      useOpenDeploymentInItsOrganization
+      useOpenDeploymentInItsOrganization,
+      useDeploymentOutcomes,
+      DeploymentOutcomePrompt
     });
     const { rerender } = render(<DeploymentDetail dseq="1786440078202" dependencies={dependencies} />);
 
@@ -894,6 +933,7 @@ describe("DeploymentDetail", () => {
       DeploymentGettingStarted,
       DeploymentLaunchState,
       DeploymentTemplateGuide,
+      DeploymentOutcomePrompt,
       useDeploymentTemplate,
       useDeploymentActivity,
       useProvidersByAddresses,

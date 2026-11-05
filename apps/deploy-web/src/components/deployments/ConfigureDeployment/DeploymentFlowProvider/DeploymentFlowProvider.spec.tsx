@@ -179,6 +179,22 @@ describe(DeploymentFlowProvider.name, () => {
     expect(enqueueSnackbar).toHaveBeenCalledTimes(1);
   });
 
+  it("asks how the deploy went when the flow fails", () => {
+    const failedOutcome = { dseq: "555", outcome: "failed" as const, failureReason: "No bids arrived in the bid window" };
+    const flow = mock<DeploymentFlow>();
+    const { useDeployFlowOutcome, DeploymentOutcomePrompt } = setup({ flow, failedOutcome });
+
+    expect(useDeployFlowOutcome).toHaveBeenCalledWith(flow);
+    expect(screen.getByText("outcome-prompt")).toBeInTheDocument();
+    expect(DeploymentOutcomePrompt.mock.lastCall?.[0]).toMatchObject({ dseq: "555", outcome: failedOutcome });
+  });
+
+  it("asks nothing while the flow has not failed", () => {
+    setup({});
+
+    expect(screen.queryByText("outcome-prompt")).not.toBeInTheDocument();
+  });
+
   describe(useDeploymentLeaveGuard.name, () => {
     it("guards nothing outside the provider", () => {
       const { result } = renderHook(() => useDeploymentLeaveGuard());
@@ -221,7 +237,12 @@ describe(DeploymentFlowProvider.name, () => {
     });
   }
 
-  function setup(input: { intent?: DeploymentIntent; flow?: DeploymentFlow; useDeploymentFlow?: typeof DEPENDENCIES.useDeploymentFlow }) {
+  function setup(input: {
+    intent?: DeploymentIntent;
+    flow?: DeploymentFlow;
+    useDeploymentFlow?: typeof DEPENDENCIES.useDeploymentFlow;
+    failedOutcome?: ReturnType<typeof DEPENDENCIES.useDeployFlowOutcome>;
+  }) {
     let flow = input.flow ?? mock<DeploymentFlow>();
     const useDeploymentFlow = input.useDeploymentFlow ?? vi.fn(() => flow);
     const useWarnBeforeUnload = vi.fn();
@@ -229,6 +250,8 @@ describe(DeploymentFlowProvider.name, () => {
     const enqueueSnackbar = vi.fn();
     const useSnackbar = () => mock<ReturnType<typeof DEPENDENCIES.useSnackbar>>({ enqueueSnackbar });
     const Snackbar = vi.fn(() => null);
+    const useDeployFlowOutcome = vi.fn<typeof DEPENDENCIES.useDeployFlowOutcome>(() => input.failedOutcome);
+    const DeploymentOutcomePrompt = vi.fn<typeof DEPENDENCIES.DeploymentOutcomePrompt>(() => <div>outcome-prompt</div>);
 
     let context: DeploymentFlowContext | undefined;
     const renderChild = (received: DeploymentFlowContext) => {
@@ -241,7 +264,15 @@ describe(DeploymentFlowProvider.name, () => {
       );
     };
 
-    const dependencies = { useDeploymentFlow: useDeploymentFlow as never, useWarnBeforeUnload, useUnlockAppOnFirstCreate, useSnackbar, Snackbar };
+    const dependencies = {
+      useDeploymentFlow: useDeploymentFlow as never,
+      useWarnBeforeUnload,
+      useUnlockAppOnFirstCreate,
+      useDeployFlowOutcome,
+      useSnackbar,
+      Snackbar,
+      DeploymentOutcomePrompt
+    };
     const provider = () => (
       <DeploymentFlowProvider intent={input.intent ?? intentFor(undefined)} dependencies={dependencies}>
         {renderChild}
@@ -253,7 +284,15 @@ describe(DeploymentFlowProvider.name, () => {
       rerender(provider());
     };
 
-    return { getContext: () => context, useWarnBeforeUnload, useUnlockAppOnFirstCreate, enqueueSnackbar, rerenderWith };
+    return {
+      getContext: () => context,
+      useWarnBeforeUnload,
+      useUnlockAppOnFirstCreate,
+      useDeployFlowOutcome,
+      DeploymentOutcomePrompt,
+      enqueueSnackbar,
+      rerenderWith
+    };
   }
 
   function CreatingProbe() {
