@@ -81,6 +81,31 @@ describe(FeedbackSubmissionRepository.name, () => {
     });
   });
 
+  describe("findUnclassifiedIds", () => {
+    it("answers the oldest submissions still waiting for classification, leaving dismissed and classified ones out", async () => {
+      const { repository, userId } = await setup();
+      const older = await seedFeedbackSubmission({ userId, createdAt: new Date("2020-01-01T00:00:00.000Z") });
+      const newer = await seedFeedbackSubmission({ userId, createdAt: new Date("2020-01-02T00:00:00.000Z") });
+      const dismissed = await seedFeedbackSubmission({ userId, dismissed: true, createdAt: new Date("2020-01-01T00:00:00.000Z") });
+      const classified = await seedFeedbackSubmission({ userId, classifiedAt: new Date(), createdAt: new Date("2020-01-01T00:00:00.000Z") });
+
+      const ids = await repository.findUnclassifiedIds(1000);
+
+      expect(ids.indexOf(older.id)).toBeLessThan(ids.indexOf(newer.id));
+      expect(ids).toContain(older.id);
+      expect(ids).not.toContain(dismissed.id);
+      expect(ids).not.toContain(classified.id);
+    });
+
+    it("answers at most the given number of submissions", async () => {
+      const { repository, userId } = await setup();
+      await seedFeedbackSubmission({ userId });
+      await seedFeedbackSubmission({ userId });
+
+      expect(await repository.findUnclassifiedIds(1)).toHaveLength(1);
+    });
+  });
+
   async function setup() {
     const user = await seedUser();
 

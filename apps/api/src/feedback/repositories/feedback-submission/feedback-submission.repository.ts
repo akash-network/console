@@ -1,4 +1,4 @@
-import { and, count, eq, gt, max } from "drizzle-orm";
+import { and, asc, count, eq, gt, isNull, max } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -54,5 +54,16 @@ export class FeedbackSubmissionRepository extends BaseRepository<Table, Feedback
     const deleted = await this.cursor.delete(this.table).where(eq(this.table.userId, userId)).returning({ themeId: this.table.themeId });
 
     return deleted.flatMap(({ themeId }) => (themeId ? [themeId] : []));
+  }
+
+  async findUnclassifiedIds(limit: number): Promise<string[]> {
+    const rows = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(and(isNull(this.table.classifiedAt), eq(this.table.dismissed, false)))
+      .orderBy(asc(this.table.createdAt))
+      .limit(limit);
+
+    return rows.map(({ id }) => id);
   }
 }

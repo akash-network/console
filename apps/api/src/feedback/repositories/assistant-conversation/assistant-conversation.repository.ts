@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, lt, or } from "drizzle-orm";
 import { singleton } from "tsyringe";
 
 import { type ApiPgDatabase, type ApiPgTables, InjectPg, InjectPgTable } from "@src/core/providers";
@@ -31,5 +31,17 @@ export class AssistantConversationRepository extends BaseRepository<Table, Assis
       .returning({ themeId: this.table.themeId });
 
     return { deletedCount: deleted.length, themeIds: deleted.flatMap(({ themeId }) => (themeId ? [themeId] : [])) };
+  }
+
+  /** Conversations that ended or went quiet, since an open one may still change how it is classified. */
+  async findUnclassifiedIds(idleSince: Date, limit: number): Promise<string[]> {
+    const rows = await this.cursor
+      .select({ id: this.table.id })
+      .from(this.table)
+      .where(and(isNull(this.table.classifiedAt), or(isNotNull(this.table.endedAt), lt(this.table.lastMessageAt, idleSince))))
+      .orderBy(asc(this.table.startedAt))
+      .limit(limit);
+
+    return rows.map(({ id }) => id);
   }
 }

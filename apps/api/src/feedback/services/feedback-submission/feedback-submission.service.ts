@@ -15,7 +15,8 @@ import {
   type FeedbackSubmissionOutput,
   FeedbackSubmissionRepository
 } from "@src/feedback/repositories/feedback-submission/feedback-submission.repository";
-import { ClassifyFeedback } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
+import { ClassifyFeedback, classifyFeedbackOptionsFor } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
+import { SweepFeedback, sweepFeedbackOptionsFor } from "@src/feedback/services/sweep-feedback/sweep-feedback.handler";
 import { UserRepository } from "@src/user/repositories";
 
 export const OUTCOME_PROMPT_COOLDOWN_DAYS = 7;
@@ -72,8 +73,10 @@ export class FeedbackSubmissionService {
       }
 
       if (!submission.dismissed) {
-        await this.jobQueueService.enqueue(new ClassifyFeedback({ feedbackSubmissionId: submission.id }));
+        await this.jobQueueService.enqueue(new ClassifyFeedback({ feedbackSubmissionId: submission.id }), classifyFeedbackOptionsFor(submission.id));
       }
+
+      await this.jobQueueService.enqueue(new SweepFeedback(), sweepFeedbackOptionsFor(new Date()));
 
       return submission;
     });

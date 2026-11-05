@@ -1,6 +1,7 @@
-import { inject, singleton } from "tsyringe";
+import { singleton } from "tsyringe";
 
-import { type CreateLogger, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions, LOGGER_FACTORY } from "@src/core";
+import { type EnqueueOptions, type Job, JOB_NAME, type JobHandler, type JobPayload, type JobPermissions } from "@src/core";
+import { FeedbackClassificationService } from "@src/feedback/services/feedback-classification/feedback-classification.service";
 
 export class ClassifyFeedback implements Job {
   static readonly [JOB_NAME] = "ClassifyFeedback";
@@ -10,22 +11,24 @@ export class ClassifyFeedback implements Job {
   constructor(public readonly data: { feedbackSubmissionId: string }) {}
 }
 
-/** Completes without classifying until a model is wired in; submissions keep a null classified_at, which is what the classifier backfills from. */
+export function classifyFeedbackOptionsFor(feedbackSubmissionId: string): EnqueueOptions {
+  return { singletonKey: `classifyFeedback.${feedbackSubmissionId}` };
+}
+
 @singleton()
 export class ClassifyFeedbackHandler implements JobHandler<ClassifyFeedback> {
   public readonly accepts = ClassifyFeedback;
 
-  readonly #logger: ReturnType<CreateLogger>;
+  /** One job per submission across queued, retrying and running, so the backfill never doubles a model call already under way. */
+  public readonly policy = "exclusive";
 
-  constructor(@inject(LOGGER_FACTORY) createLogger: CreateLogger) {
-    this.#logger = createLogger({ context: ClassifyFeedbackHandler.name });
-  }
+  constructor(private readonly feedbackClassificationService: FeedbackClassificationService) {}
 
   requiresPermission(): JobPermissions {
     return [];
   }
 
   async handle({ feedbackSubmissionId }: JobPayload<ClassifyFeedback>): Promise<void> {
-    this.#logger.info({ event: "FEEDBACK_CLASSIFICATION_PENDING", feedbackSubmissionId });
+    await this.feedbackClassificationService.classifySubmission(feedbackSubmissionId);
   }
 }

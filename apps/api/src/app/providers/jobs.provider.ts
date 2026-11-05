@@ -31,7 +31,9 @@ import { RecordDeploymentSettingHandler } from "@src/deployment/services/record-
 import { RecordLeaseGpuOffersHandler } from "@src/deployment/services/record-lease-gpu-offers/record-lease-gpu-offers.handler";
 import { RecordUserGpuBidsHandler } from "@src/deployment/services/record-user-gpu-bids/record-user-gpu-bids.handler";
 import { ScreenUserGpuDeploymentHandler } from "@src/deployment/services/screen-user-gpu-deployment/screen-user-gpu-deployment.handler";
+import { ClassifyConversationHandler } from "@src/feedback/services/classify-conversation/classify-conversation.handler";
 import { ClassifyFeedbackHandler } from "@src/feedback/services/classify-feedback/classify-feedback.handler";
+import { SweepFeedbackHandler } from "@src/feedback/services/sweep-feedback/sweep-feedback.handler";
 import { HardwareRequestAcceptedNoticeHandler } from "@src/hardware-request/services/hardware-request-accepted-notice/hardware-request-accepted-notice.handler";
 import { HardwareRequestApprovalRequestHandler } from "@src/hardware-request/services/hardware-request-approval-request/hardware-request-approval-request.handler";
 import { HardwareRequestEmailHandler } from "@src/hardware-request/services/hardware-request-email/hardware-request-email.handler";
@@ -134,7 +136,9 @@ export async function startJobQueues(): Promise<void> {
     container.resolve(ApiKeyExpiryReminderHandler),
     container.resolve(ScreenUserGpuDeploymentHandler),
     container.resolve(RecordUserGpuBidsHandler),
-    container.resolve(ClassifyFeedbackHandler)
+    container.resolve(ClassifyFeedbackHandler),
+    container.resolve(ClassifyConversationHandler),
+    container.resolve(SweepFeedbackHandler)
   ]);
 }
 
