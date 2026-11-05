@@ -7,7 +7,7 @@ import type { AssistantContext, AssistantStreamErrorCode, AssistantStreamEvent }
 import { ASSISTANT_CONSENT_COPY_VERSION } from "../assistantConsentCopy";
 import { runAssistantTurn } from "../runAssistantTurn/runAssistantTurn";
 import type { AssistantTranscriptMessage } from "../transcriptModel/transcriptModel";
-import { applyAssistantEvent, createTranscriptMessage, historyOf } from "../transcriptModel/transcriptModel";
+import { applyTurnEvent, createTranscriptMessage, historyOf } from "../transcriptModel/transcriptModel";
 import { useAssistantClientTools } from "../useAssistantClientTools/useAssistantClientTools";
 
 export const DEPENDENCIES = { useServices, useAssistantClientTools, useStartAssistantConversationMutation, useEndAssistantConversationMutation };
@@ -74,14 +74,14 @@ export function useAssistantConversation({ context }: { context: AssistantContex
 
   const streamAnswer = async (input: {
     content: string;
+    questionId: string;
     answerId: string;
     history: ReturnType<typeof historyOf>;
     signal: AbortSignal;
     canRestart: boolean;
   }) => {
     const current = await ensureConversation();
-    const appendToAnswer = (event: AssistantStreamEvent) =>
-      setMessages(previous => previous.map(message => (message.id === input.answerId ? applyAssistantEvent(message, event) : message)));
+    const applyToTurn = (event: AssistantStreamEvent) => setMessages(previous => applyTurnEvent(previous, input, event));
 
     try {
       const end = await runAssistantTurn({
@@ -92,7 +92,7 @@ export function useAssistantConversation({ context }: { context: AssistantContex
         ),
         resume: results => assistantConversation.submitClientToolResults(current.id, { data: { results } }, input.signal),
         runClientTool,
-        onEvent: appendToAnswer
+        onEvent: applyToTurn
       });
       if (end.kind === "error") setProblem(problemOfStreamError(end.code));
     } catch (error) {
@@ -108,8 +108,9 @@ export function useAssistantConversation({ context }: { context: AssistantContex
     if (!question || isAnswering) return;
 
     const history = historyOf(messagesRef.current);
+    const asked = createTranscriptMessage(nextMessageId(), "user", question);
     const answer = createTranscriptMessage(nextMessageId(), "assistant");
-    setMessages(previous => [...previous, createTranscriptMessage(nextMessageId(), "user", question), answer]);
+    setMessages(previous => [...previous, asked, answer]);
     setProblem(null);
     setEndedAs(null);
     setIsAnswering(true);
@@ -117,7 +118,7 @@ export function useAssistantConversation({ context }: { context: AssistantContex
     abortControllerRef.current = abortController;
 
     try {
-      await streamAnswer({ content: question, answerId: answer.id, history, signal: abortController.signal, canRestart: true });
+      await streamAnswer({ content: question, questionId: asked.id, answerId: answer.id, history, signal: abortController.signal, canRestart: true });
     } catch (error) {
       if (!abortController.signal.aborted) setProblem(problemOfError(error));
     } finally {
@@ -151,6 +152,7 @@ export function useAssistantConversation({ context }: { context: AssistantContex
     endedAs,
     conversationId: conversation?.id ?? null,
     isStored: !!conversation?.stored,
+    deploymentDseq: context.dseq ?? null,
     send,
     end,
     startOver,

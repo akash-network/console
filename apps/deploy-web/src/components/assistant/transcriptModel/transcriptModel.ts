@@ -26,6 +26,13 @@ export interface AssistantTranscriptMessage {
   reads: AssistantReadChip[];
   proposals: AssistantProposal[];
   liveHelpReason: AssistantLiveHelpReason | null;
+  /** Secrets the api removed from this question before the model saw it; only ever a count, never the value or its kind. */
+  redactedSecretCount: number;
+}
+
+export interface AssistantTurnMessageIds {
+  questionId: string;
+  answerId: string;
 }
 
 /** The api keeps no more of an unstored conversation than this, so older messages are dropped before they are sent. */
@@ -38,7 +45,19 @@ const DEFAULT_TAIL_LINES = 200;
 const TOOL_NAME_VERB = /^(get|list|read|search)_/;
 
 export function createTranscriptMessage(id: string, role: AssistantTranscriptMessage["role"], text = ""): AssistantTranscriptMessage {
-  return { id, role, text, reads: [], proposals: [], liveHelpReason: null };
+  return { id, role, text, reads: [], proposals: [], liveHelpReason: null, redactedSecretCount: 0 };
+}
+
+/** A redaction is about what the user sent, so it marks the question; every other event builds the answer. */
+export function applyTurnEvent(
+  messages: AssistantTranscriptMessage[],
+  ids: AssistantTurnMessageIds,
+  event: AssistantStreamEvent
+): AssistantTranscriptMessage[] {
+  if (event.type === "secret_redacted") {
+    return messages.map(message => (message.id === ids.questionId ? { ...message, redactedSecretCount: message.redactedSecretCount + event.count } : message));
+  }
+  return messages.map(message => (message.id === ids.answerId ? applyAssistantEvent(message, event) : message));
 }
 
 export function applyAssistantEvent(message: AssistantTranscriptMessage, event: AssistantStreamEvent): AssistantTranscriptMessage {
