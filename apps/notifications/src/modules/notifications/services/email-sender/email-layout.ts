@@ -65,6 +65,15 @@ function renderCode(code?: string): string {
           </div>`;
 }
 
+/** Hidden in the body; mail clients show it as the inbox preview line. */
+function renderCodePreheader(code?: string): string {
+  if (!code) {
+    return "";
+  }
+
+  return `<div class="preheader" style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;">Your verification code is ${escape(code)}</div>`;
+}
+
 const FOOTER_TEXT_STYLE = "font-size:12px;line-height:1.6;color:#71717a;";
 const POSTAL_ADDRESS_STYLE = "font-size:11px;line-height:1.5;color:#71717a;";
 
@@ -151,6 +160,7 @@ export function renderEmailLayout({
   </style>
 </head>
 <body class="outer" style="margin:0;padding:0;background-color:#f0f0f1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  ${renderCodePreheader(code)}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="outer" style="background-color:#f0f0f1;">
     <tr><td align="center" style="padding:40px 16px;">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" class="card" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e4e4e7;border-radius:12px;overflow:hidden;">

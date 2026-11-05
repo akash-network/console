@@ -90,6 +90,25 @@ describe(renderEmailLayout.name, () => {
     expect(html).not.toContain('class="code-box"');
   });
 
+  it("puts the verification code in a hidden preheader ahead of the card", () => {
+    const { html } = setup({ code: "418902" });
+
+    const preheader = html.match(/<div class="preheader" style="([^"]*)">([^<]*)<\/div>/);
+    expect(preheader?.[1]).toContain("display:none");
+    expect(preheader?.[2]).toBe("Your verification code is 418902");
+    expect(html.indexOf('class="preheader"')).toBeLessThan(html.indexOf('class="card"'));
+  });
+
+  it("escapes html in the preheader code", () => {
+    const { html } = setup({ code: "<b>1</b>" });
+    expect(html).toContain("Your verification code is &lt;b&gt;1&lt;/b&gt;</div>");
+  });
+
+  it("renders no preheader when there is no code", () => {
+    const { html } = setup({});
+    expect(html).not.toContain('class="preheader"');
+  });
+
   it("stacks the buttons full width on a narrow screen", () => {
     const { html } = setup({ actions: [{ label: "Add credits", url: "https://console.akash.network/billing" }] });
 
