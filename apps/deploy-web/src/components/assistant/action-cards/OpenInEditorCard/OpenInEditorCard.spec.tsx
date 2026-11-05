@@ -80,6 +80,19 @@ describe("OpenInEditorCard", () => {
     expect(redeploy).toHaveBeenCalledWith({ sdl: changed, name: "web-app", sourceDseq: "42", templateId: undefined });
   });
 
+  it("doesn't carry secrets over to an SDL that would send them to another image", async () => {
+    const withSecret = STORED_SDL.replace("    image: nginx\n", "    image: nginx\n    env:\n      - HF_TOKEN=ac-secret://HF_TOKEN\n");
+    const { chromeProps, redeploy } = setup({
+      action: { dseq: "42", sdl: withSecret.replace("image: nginx", "image: someone/else") },
+      definition: { sdl: withSecret }
+    });
+
+    expect(chromeProps().rows).toContainEqual({ label: "Secrets", value: "re-enter them in the editor" });
+    await chromeProps().onConfirm!("");
+
+    expect(redeploy).toHaveBeenCalledWith({ sdl: withSecret.replace("image: nginx", "image: someone/else"), name: "web-app", templateId: undefined });
+  });
+
   it("refuses an SDL that would change the deployment's pricing", async () => {
     const { chromeProps, redeploy } = setup({ action: { dseq: "42", sdl: STORED_SDL.replace("amount: 1000", "amount: 9000") } });
 

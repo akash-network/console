@@ -10,12 +10,13 @@ import type { ActionCardRow } from "../ActionCardChrome/ActionCardChrome";
 import { ActionCardChrome } from "../ActionCardChrome/ActionCardChrome";
 import type { ActionCardProps } from "../actionCardTypes";
 import { keepsPricing, PRICING_CHANGE_MESSAGE } from "../pricingGuard/pricingGuard";
+import { keepsSecretsWithTheirServices } from "./keepsSecretsWithTheirServices";
 
 export const DEPENDENCIES = { useDeploymentDefinition, useRedeploy, useRouter, ActionCardChrome };
 
 const DEFINITION_UNAVAILABLE_MESSAGE = "This deployment's configuration isn't available here. Redeploy it from its page instead.";
 
-/** Opens Configure the way redeploy does, so an SDL based on a deployment inherits its secrets and is refused if it would move its pricing. */
+/** Opens Configure the way redeploy does; an SDL based on a deployment is refused if it would move its pricing, and inherits its secrets only where they stay with their services. */
 export const OpenInEditorCard: FC<ActionCardProps<"open_in_editor"> & { dependencies?: typeof DEPENDENCIES }> = ({
   action,
   decision,
@@ -25,6 +26,8 @@ export const OpenInEditorCard: FC<ActionCardProps<"open_in_editor"> & { dependen
   const redeploy = d.useRedeploy();
   const router = d.useRouter();
   const templateId = action.templateId ?? undefined;
+  const currentSdl = isUsableDeploymentDefinition(definition) ? sdlToRedeploy(definition) : undefined;
+  const inheritsSecrets = !action.sdl || (!!currentSdl && keepsSecretsWithTheirServices(currentSdl, action.sdl));
 
   const openInEditor = async () => {
     if (!action.dseq) {
@@ -33,10 +36,9 @@ export const OpenInEditorCard: FC<ActionCardProps<"open_in_editor"> & { dependen
       return;
     }
 
-    if (!isUsableDeploymentDefinition(definition)) throw new Error(DEFINITION_UNAVAILABLE_MESSAGE);
-    const currentSdl = sdlToRedeploy(definition);
+    if (!currentSdl) throw new Error(DEFINITION_UNAVAILABLE_MESSAGE);
     if (action.sdl && !keepsPricing(currentSdl, action.sdl)) throw new Error(PRICING_CHANGE_MESSAGE);
-    redeploy({ sdl: action.sdl ?? currentSdl, name: definition.name, sourceDseq: action.dseq, templateId });
+    redeploy({ sdl: action.sdl ?? currentSdl, name: definition.name, templateId, ...(inheritsSecrets ? { sourceDseq: action.dseq } : {}) });
   };
 
   return (
@@ -44,7 +46,7 @@ export const OpenInEditorCard: FC<ActionCardProps<"open_in_editor"> & { dependen
       title="Open in the editor"
       tier={action.tier}
       decision={decision}
-      rows={rowsOf(action)}
+      rows={rowsOf(action, inheritsSecrets)}
       costNote="Nothing is deployed until you review it and click Deploy in the editor."
       confirmLabel="Open in editor"
       successMessage="Opened in the editor."
@@ -61,10 +63,10 @@ export const OpenInEditorCard: FC<ActionCardProps<"open_in_editor"> & { dependen
   );
 };
 
-function rowsOf(action: AssistantActionOf<"open_in_editor">): ActionCardRow[] {
+function rowsOf(action: AssistantActionOf<"open_in_editor">, inheritsSecrets: boolean): ActionCardRow[] {
   return [
     ...(action.dseq ? [{ label: "Based on deployment", value: action.dseq }] : []),
     ...(action.templateId ? [{ label: "Template", value: action.templateId }] : []),
-    ...(action.dseq ? [{ label: "Secrets", value: "carried over" }] : [])
+    ...(action.dseq ? [{ label: "Secrets", value: inheritsSecrets ? "carried over" : "re-enter them in the editor" }] : [])
   ];
 }
