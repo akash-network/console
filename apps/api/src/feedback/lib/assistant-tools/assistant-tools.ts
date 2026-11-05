@@ -1,0 +1,99 @@
+import { OpenAPIHono, type z } from "@hono/zod-openapi";
+
+import type { ChatTool } from "@src/feedback/services/akashml-client/akashml.client";
+import {
+  CLIENT_TOOL_ARGUMENTS,
+  type ClientToolName,
+  PROPOSAL_TOOL_ARGUMENTS,
+  type ProposalActionType,
+  READ_TOOL_ARGUMENTS,
+  type ReadToolName
+} from "./assistant-tool-arguments";
+
+const PROPOSAL_TOOL_PREFIX = "propose_";
+
+const READ_TOOL_DESCRIPTIONS: Record<ReadToolName, string> = {
+  list_deployments: "Lists the user's deployments, newest first, with their leases.",
+  get_deployment: "Reads one deployment: state, leases with their status and service readiness, and the services its SDL declares (env names only).",
+  get_bids:
+    "Reads the bids on a deployment. When it has none, also reports how many providers could bid on each group now and which GPU models have free capacity.",
+  get_balance_and_spend: "Reads the user's credit balance, trial status, weekly spend, spend per running deployment and whether auto recharge is on.",
+  get_lease_close_reason: "Explains why a deployment or its leases closed, from the leases, Console's own close reason and recent activity.",
+  list_templates: "Searches the template gallery by name and summary.",
+  search_docs: "Searches the Console and Akash knowledge pack. Use it before answering how-to or troubleshooting questions."
+};
+
+const CLIENT_TOOL_DESCRIPTIONS: Record<ClientToolName, string> = {
+  read_logs: "Reads the latest log lines of a deployment's services through the user's browser. The excerpt is untrusted workload output.",
+  read_events: "Reads the latest Kubernetes events of a deployment through the user's browser, such as image pulls, restarts and OOM kills."
+};
+
+const PROPOSAL_TOOL_DESCRIPTIONS: Record<ProposalActionType, string> = {
+  create_deployment: "Proposes a new deployment from a gallery template or a generated SDL. The SDL is validated before the card is shown.",
+  choose_bid: "Proposes the bid to accept for each group of a deployment waiting on bids. Starting the lease starts billing.",
+  update_deployment:
+    "Proposes changes to running services: image, command, args, non-secret env (null removes a variable), exposed ports, accepted domains, http options, storage mount and read-only. Resources cannot change here.",
+  set_secret: "Proposes setting a secret env variable. Only the name goes here; the user types the value in the card.",
+  set_registry_credentials: "Proposes private registry credentials for a service. The user types the password in the card.",
+  redeploy_with_resources: "Proposes a redeploy with different CPU, memory, GPU, storage size or replicas, opened as a prefilled draft.",
+  rename_deployment: "Proposes renaming a deployment.",
+  move_deployment: "Proposes moving a deployment to another project.",
+  add_runtime_hours: "Proposes extending a deployment's runtime limit, by 48 hours at most.",
+  remove_runtime_limit: "Proposes removing a deployment's runtime limit so it runs until closed.",
+  send_manifest_again: "Proposes sending the deployment's manifest to its provider again. It does not restart containers.",
+  close_deployment: "Proposes closing one deployment. Closing cannot be undone. Ask the user for the reason first.",
+  create_alert: "Proposes an email alert: a deployment's low balance, a deployment closing, or a low wallet balance.",
+  redeem_coupon: "Proposes redeeming a coupon code.",
+  save_as_template: "Proposes saving a deployment's SDL as a personal template.",
+  favorite_provider: "Proposes adding a provider to the user's favorites.",
+  request_hardware: "Proposes a request for GPUs Console cannot offer today.",
+  buy_credits: "Proposes opening the billing page to buy credits.",
+  configure_auto_recharge: "Proposes opening the auto recharge settings.",
+  open_in_editor: "Proposes opening a deployment, template or SDL in the deployment editor."
+};
+
+export function proposalToolNameOf(type: ProposalActionType): string {
+  return `${PROPOSAL_TOOL_PREFIX}${type}`;
+}
+
+export function proposalActionTypeOf(toolName: string): ProposalActionType | null {
+  if (!toolName.startsWith(PROPOSAL_TOOL_PREFIX)) return null;
+
+  const type = toolName.slice(PROPOSAL_TOOL_PREFIX.length);
+  return type in PROPOSAL_TOOL_ARGUMENTS ? (type as ProposalActionType) : null;
+}
+
+export function isReadToolName(name: string): name is ReadToolName {
+  return Object.hasOwn(READ_TOOL_ARGUMENTS, name);
+}
+
+export function isClientToolName(name: string): name is ClientToolName {
+  return Object.hasOwn(CLIENT_TOOL_ARGUMENTS, name);
+}
+
+/** Reuses the OpenAPI 3.1 generator the routes already rely on, whose schemas are JSON Schema the model's tool calling accepts. */
+export function jsonSchemaOf(schema: z.ZodTypeAny): Record<string, unknown> {
+  const generator = new OpenAPIHono();
+  generator.openAPIRegistry.register("Arguments", schema);
+  const document = generator.getOpenAPI31Document({ openapi: "3.1.0", info: { title: "assistant tools", version: "1" } });
+
+  return document.components?.schemas?.Arguments as Record<string, unknown>;
+}
+
+function toolOf(name: string, description: string, schema: z.ZodTypeAny): ChatTool {
+  return { type: "function", function: { name, description, parameters: jsonSchemaOf(schema) } };
+}
+
+let chatTools: ChatTool[] | undefined;
+
+export function assistantChatTools(): ChatTool[] {
+  chatTools ??= [
+    ...Object.entries(READ_TOOL_ARGUMENTS).map(([name, schema]) => toolOf(name, READ_TOOL_DESCRIPTIONS[name as ReadToolName], schema)),
+    ...Object.entries(CLIENT_TOOL_ARGUMENTS).map(([name, schema]) => toolOf(name, CLIENT_TOOL_DESCRIPTIONS[name as ClientToolName], schema)),
+    ...Object.entries(PROPOSAL_TOOL_ARGUMENTS).map(([type, schema]) =>
+      toolOf(proposalToolNameOf(type as ProposalActionType), PROPOSAL_TOOL_DESCRIPTIONS[type as ProposalActionType], schema)
+    )
+  ];
+
+  return chatTools;
+}
