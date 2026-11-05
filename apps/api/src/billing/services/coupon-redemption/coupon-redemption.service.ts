@@ -5,9 +5,15 @@ import { inject, singleton } from "tsyringe";
 import { STRIPE_CLIENT } from "@src/billing/providers/stripe-client.provider";
 import { type CouponClaimHold, StripeTransactionOutput, StripeTransactionRepository } from "@src/billing/repositories";
 import { CustomerService } from "@src/billing/services/customer/customer.service";
-import { billingOwnerOf, type Payer } from "@src/billing/services/payer/payer";
+import type { Payer } from "@src/billing/services/payer/payer";
 import { StripeTransactionService } from "@src/billing/services/stripe-transaction/stripe-transaction.service";
 import { type CreateLogger, LOGGER_FACTORY, TxService } from "@src/core";
+
+interface CouponRedemption {
+  amountAdded: number;
+  transactionId: string;
+  transactionStatus: StripeTransactionOutput["status"];
+}
 
 @singleton()
 export class CouponRedemptionService {
@@ -33,70 +39,35 @@ export class CouponRedemptionService {
     return promotionCodes[0];
   }
 
-  async listCoupons() {
-    const coupons = await this.stripe.coupons.list({
-      limit: 100
-    });
-    return { coupons: coupons.data };
-  }
+  async redeemCoupon(payer: Payer, code: string): Promise<CouponRedemption> {
+    const promotionCode = await this.findPromotionCodeByCode(code);
 
-  async redeemCoupon(
-    payer: Payer,
-    couponCode: string
-  ): Promise<{
-    coupon: Stripe.Coupon | Stripe.PromotionCode;
-    amountAdded: number;
-    transactionId: string;
-    transactionStatus: StripeTransactionOutput["status"];
-  }> {
-    const promotionCode = await this.findPromotionCodeByCode(couponCode);
-
-    if (promotionCode) {
-      const coupon = promotionCode.promotion.coupon;
-
-      if (typeof coupon === "string" || !coupon) {
-        throw new Error("Promotion code coupon was not expanded");
-      }
-
-      return this.redeemCouponOrPromotionCode({
-        payer,
-        couponOrPromotion: promotionCode,
-        coupon,
-        updateField: "promotion_code",
-        updateId: promotionCode.id
-      });
+    if (!promotionCode) {
+      throw new Error("No valid promotion code or coupon found with the provided code");
     }
 
-    // If no promotion code found, try to find a matching coupon
-    const { coupons } = await this.listCoupons();
-    const matchingCoupon = coupons.find(coupon => coupon.id === couponCode);
+    const coupon = promotionCode.promotion.coupon;
 
-    if (matchingCoupon) {
-      return this.redeemCouponOrPromotionCode({
-        payer,
-        couponOrPromotion: matchingCoupon,
-        coupon: matchingCoupon,
-        updateField: "coupon",
-        updateId: matchingCoupon.id
-      });
+    if (typeof coupon === "string" || !coupon) {
+      throw new Error("Promotion code coupon was not expanded");
     }
 
-    throw new Error("No valid promotion code or coupon found with the provided code");
+    return this.redeemPromotionCode({ payer, promotionCode, coupon });
   }
 
-  /** Every organization pays with its own Stripe customer, so a person's claims under any other payer count too. */
+  /** Stripe's limits cannot see that a person's payers belong to one person, so a person claims each coupon once whatever the payer. */
   async #claimCoupon(
     payer: Payer,
-    claim: { amount: number; currency: string; couponId: string; promotionCodeId?: string; description: string }
+    claim: { amount: number; currency: string; couponId: string; promotionCodeId: string; description: string }
   ): Promise<StripeTransactionOutput> {
-    const lookup = { userId: payer.user.id, couponId: claim.couponId, owner: billingOwnerOf(payer) };
+    const lookup = { userId: payer.user.id, couponId: claim.couponId };
 
-    await this.#releaseStaleClaims(await this.stripeTransactionRepository.findCouponClaimsOutside(lookup));
+    await this.#releaseStaleClaims(await this.stripeTransactionRepository.findCouponClaims(lookup));
 
     return await this.txService.transaction(async () => {
       await this.stripeTransactionRepository.lockCouponClaims(payer.user.id, claim.couponId);
 
-      if ((await this.stripeTransactionRepository.findCouponClaimsOutside(lookup)).length > 0) {
+      if ((await this.stripeTransactionRepository.findCouponClaims(lookup)).length > 0) {
         throw new Error("Promotion code has already been used");
       }
 
@@ -163,24 +134,15 @@ export class CouponRedemptionService {
     }
   }
 
-  private async redeemCouponOrPromotionCode({
+  private async redeemPromotionCode({
     payer,
-    couponOrPromotion,
-    coupon,
-    updateField,
-    updateId
+    promotionCode,
+    coupon
   }: {
     payer: Payer;
-    couponOrPromotion: Stripe.Coupon | Stripe.PromotionCode;
+    promotionCode: Stripe.PromotionCode;
     coupon: Stripe.Coupon;
-    updateField: "promotion_code" | "coupon";
-    updateId: string;
-  }): Promise<{
-    coupon: Stripe.Coupon | Stripe.PromotionCode;
-    amountAdded: number;
-    transactionId: string;
-    transactionStatus: StripeTransactionOutput["status"];
-  }> {
+  }): Promise<CouponRedemption> {
     this.loggerService.info({
       event: "APPLYING_COUPON",
       couponId: coupon.id,
@@ -188,12 +150,11 @@ export class CouponRedemptionService {
       redeem_by: coupon.redeem_by,
       max_redemptions: coupon.max_redemptions,
       times_redeemed: coupon.times_redeemed,
-      updateField,
-      updateId
+      promotionCodeId: promotionCode.id
     });
 
     if (!coupon.valid) {
-      throw new Error(updateField === "promotion_code" ? "Promotion code is invalid or expired" : "Coupon is invalid or expired");
+      throw new Error("Promotion code is invalid or expired");
     }
 
     if (coupon.percent_off) {
@@ -210,7 +171,7 @@ export class CouponRedemptionService {
       amount: amountToAdd,
       currency: coupon.currency ?? "usd",
       couponId: coupon.id,
-      promotionCodeId: updateField === "promotion_code" ? updateId : undefined,
+      promotionCodeId: promotionCode.id,
       description: `Coupon: ${coupon.name || coupon.id}`
     });
 
@@ -222,7 +183,7 @@ export class CouponRedemptionService {
       invoice = await this.stripe.invoices.create({
         customer: stripeCustomerId,
         auto_advance: false,
-        ...(updateField === "promotion_code" ? { discounts: [{ promotion_code: updateId }] } : { discounts: [{ coupon: updateId }] })
+        discounts: [{ promotion_code: promotionCode.id }]
       });
 
       await this.stripeTransactionRepository.updateById(transaction.id, { stripeInvoiceId: invoice.id });
@@ -230,8 +191,7 @@ export class CouponRedemptionService {
       this.loggerService.info({
         event: "INVOICE_CREATED_WITH_DISCOUNT",
         userId: payer.user.id,
-        invoiceId: invoice.id,
-        discountType: updateField
+        invoiceId: invoice.id
       });
 
       await this.stripe.invoiceItems.create({
@@ -253,7 +213,7 @@ export class CouponRedemptionService {
         amountPaid: invoice.amount_paid
       });
 
-      return { coupon: couponOrPromotion, amountAdded: amountToAdd / 100, transactionId: transaction.id, transactionStatus: transaction.status };
+      return { amountAdded: amountToAdd / 100, transactionId: transaction.id, transactionStatus: transaction.status };
     } catch (error) {
       let isInvoiceRolledBack: boolean | undefined;
 
@@ -264,7 +224,8 @@ export class CouponRedemptionService {
       this.loggerService.error({
         event: "COUPON_APPLICATION_FAILED",
         userId: payer.user.id,
-        couponId: updateId,
+        couponId: coupon.id,
+        promotionCodeId: promotionCode.id,
         error,
         isInvoiceRolledBack
       });

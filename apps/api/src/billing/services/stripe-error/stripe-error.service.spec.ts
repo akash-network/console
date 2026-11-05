@@ -438,7 +438,6 @@ describe(StripeErrorService.name, () => {
       const result = service.toCouponResponseError(error);
 
       expect(result).toEqual({
-        coupon: null,
         error: {
           message: "No valid promotion code or coupon found with the provided code",
           code: "invalid_coupon_code",
@@ -454,7 +453,6 @@ describe(StripeErrorService.name, () => {
       const result = service.toCouponResponseError(error);
 
       expect(result).toEqual({
-        coupon: null,
         error: {
           message: "Failed to apply coupon. Please check the code and try again.",
           code: "unknown_coupon_error",
@@ -470,7 +468,6 @@ describe(StripeErrorService.name, () => {
       const result = service.toCouponResponseError(error);
 
       expect(result).toEqual({
-        coupon: null,
         error: {
           message: "Failed to apply coupon. Please check the code and try again.",
           code: "unknown_coupon_error",

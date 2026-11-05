@@ -646,38 +646,6 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "coupon": {
-                          "type": "object",
-                          "nullable": true,
-                          "properties": {
-                            "id": {
-                              "type": "string"
-                            },
-                            "percent_off": {
-                              "type": "number",
-                              "nullable": true
-                            },
-                            "amount_off": {
-                              "type": "number",
-                              "nullable": true
-                            },
-                            "valid": {
-                              "type": "boolean",
-                              "nullable": true
-                            },
-                            "name": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "description": {
-                              "type": "string",
-                              "nullable": true
-                            }
-                          },
-                          "required": [
-                            "id"
-                          ]
-                        },
                         "amountAdded": {
                           "type": "number"
                         },

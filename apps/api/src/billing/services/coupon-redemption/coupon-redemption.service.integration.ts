@@ -28,12 +28,38 @@ describe(CouponRedemptionService.name, () => {
     expect((await findClaims()).filter(claim => claim.status !== "failed")).toHaveLength(1);
   });
 
-  it("lets another payer claim the coupon once the person's earlier claim failed", async () => {
-    const { service, stripe, ownPayer, teamPayer, findClaims, code } = await setup();
+  it.each([
+    { payerLabel: "personal account", payerKind: "ownPayer" as const },
+    { payerLabel: "team", payerKind: "teamPayer" as const }
+  ])("refuses the person a second claim of the coupon for the same $payerLabel", async ({ payerKind }) => {
+    const { service, findClaims, code, ...payers } = await setup();
+    const payer = payers[payerKind];
+
+    await service.redeemCoupon(payer, code);
+
+    await expect(service.redeemCoupon(payer, code)).rejects.toThrow("Promotion code has already been used");
+    expect((await findClaims()).filter(claim => claim.status !== "failed")).toHaveLength(1);
+  });
+
+  it("lets one of two simultaneous redemptions of the same coupon by one person under one payer claim it", async () => {
+    const { service, teamPayer, findClaims, code } = await setup();
+
+    const results = await Promise.allSettled([service.redeemCoupon(teamPayer, code), service.redeemCoupon(teamPayer, code)]);
+
+    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    expect(rejectionMessagesOf(results)).toEqual(["Promotion code has already been used"]);
+    expect((await findClaims()).filter(claim => claim.status !== "failed")).toHaveLength(1);
+  });
+
+  it.each([
+    { payerLabel: "the same personal account", retryingPayer: "ownPayer" as const },
+    { payerLabel: "a team", retryingPayer: "teamPayer" as const }
+  ])("lets the person claim the coupon for $payerLabel once their earlier claim failed", async ({ retryingPayer }) => {
+    const { service, stripe, findClaims, code, ...payers } = await setup();
     vi.spyOn(stripe.invoiceItems, "create").mockRejectedValueOnce(new Error("stripe unavailable"));
 
-    await expect(service.redeemCoupon(ownPayer, code)).rejects.toThrow("stripe unavailable");
-    await service.redeemCoupon(teamPayer, code);
+    await expect(service.redeemCoupon(payers.ownPayer, code)).rejects.toThrow("stripe unavailable");
+    await service.redeemCoupon(payers[retryingPayer], code);
 
     expect((await findClaims()).map(claim => claim.status).sort()).toEqual(["failed", "pending"]);
   });

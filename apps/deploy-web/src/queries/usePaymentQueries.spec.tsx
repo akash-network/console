@@ -231,17 +231,16 @@ describe("usePaymentQueries", () => {
       });
 
       await act(async () => {
-        await result.current.applyCoupon.mutateAsync({ coupon: mockCouponResponse.coupon.id, userId: "u1" });
+        await result.current.applyCoupon.mutateAsync({ coupon: "WELCOME10", userId: "u1" });
       });
 
       await vi.waitFor(() => {
-        expect(stripeService.applyCoupon).toHaveBeenCalledWith(mockCouponResponse.coupon.id, "u1");
+        expect(stripeService.applyCoupon).toHaveBeenCalledWith("WELCOME10", "u1");
       });
     });
 
     it("handles coupon application error response", async () => {
       const mockErrorResponse = {
-        coupon: null,
         error: {
           message: "No valid promotion code or coupon found with the provided code"
         }
