@@ -34621,6 +34621,513 @@
           "DeploymentAlert"
         ]
       }
+    },
+    "/v1/feedback": {
+      "post": {
+        "operationId": "createFeedback",
+        "summary": "Send a deployment outcome rating or general feedback to the Akash team",
+        "tags": [
+          "Feedback"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "deployment_outcome"
+                            ]
+                          },
+                          "dseq": {
+                            "type": "string",
+                            "pattern": "^\\d{1,20}$",
+                            "example": "21434557"
+                          },
+                          "outcome": {
+                            "type": "string",
+                            "enum": [
+                              "live",
+                              "failed"
+                            ]
+                          },
+                          "dismissed": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "The user closed the prompt without answering; it still counts as an answer"
+                          },
+                          "rating": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 5
+                          },
+                          "message": {
+                            "type": "string",
+                            "maxLength": 4000
+                          },
+                          "failureReason": {
+                            "type": "string",
+                            "maxLength": 1000
+                          },
+                          "page": {
+                            "type": "string",
+                            "maxLength": 500,
+                            "description": "The Console page the feedback was sent from"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "dseq",
+                          "outcome"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "general"
+                            ]
+                          },
+                          "category": {
+                            "type": "string",
+                            "enum": [
+                              "bug",
+                              "feature_request",
+                              "other"
+                            ]
+                          },
+                          "message": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 4000
+                          },
+                          "page": {
+                            "type": "string",
+                            "maxLength": 500,
+                            "description": "The Console page the feedback was sent from"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "category",
+                          "message"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The feedback was recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "The outcome prompt of this deployment was already answered (`feedback_already_answered`)"
+          },
+          "429": {
+            "description": "Too much feedback sent recently (`feedback_limit`)"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/feedback/outcome-prompts/{dseq}": {
+      "get": {
+        "operationId": "getFeedbackOutcomePrompt",
+        "summary": "Tell whether to ask the user how a deployment went",
+        "tags": [
+          "Feedback"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$",
+              "example": "21434557"
+            },
+            "required": true,
+            "name": "dseq",
+            "in": "path"
+          },
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whether the outcome prompt should be shown for this deployment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "dseq": {
+                          "type": "string"
+                        },
+                        "eligible": {
+                          "type": "boolean"
+                        },
+                        "reason": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "already_answered",
+                            "cooldown"
+                          ],
+                          "description": "Why the prompt should not be shown, or null when it should"
+                        }
+                      },
+                      "required": [
+                        "dseq",
+                        "eligible",
+                        "reason"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid dseq"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/assistant/consent": {
+      "get": {
+        "operationId": "getAssistantConsent",
+        "summary": "Get the user's consent to the assistant and how many of their conversations are stored",
+        "tags": [
+          "Assistant"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The latest consent and the stored conversation count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "consent": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "copyVersion": {
+                              "type": "string"
+                            },
+                            "processingAcceptedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "description": "When the user agreed to this copy version"
+                            },
+                            "reviewOptIn": {
+                              "type": "boolean"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "copyVersion",
+                            "processingAcceptedAt",
+                            "reviewOptIn",
+                            "updatedAt"
+                          ],
+                          "description": "The latest consent, or null when the user never agreed"
+                        },
+                        "storedConversationCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "consent",
+                        "storedConversationCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      },
+      "put": {
+        "operationId": "updateAssistantConsent",
+        "summary": "Record the user's agreement to the assistant and whether the Akash team may review their conversations",
+        "tags": [
+          "Assistant"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "copyVersion": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "The version of the consent copy the user agreed to"
+                      },
+                      "reviewOptIn": {
+                        "type": "boolean",
+                        "description": "Whether the Akash team may review the user's conversations"
+                      }
+                    },
+                    "required": [
+                      "copyVersion",
+                      "reviewOptIn"
+                    ]
+                  }
+                },
+                "required": [
+                  "data"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The consent as now recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "consent": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "copyVersion": {
+                              "type": "string"
+                            },
+                            "processingAcceptedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "description": "When the user agreed to this copy version"
+                            },
+                            "reviewOptIn": {
+                              "type": "boolean"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "copyVersion",
+                            "processingAcceptedAt",
+                            "reviewOptIn",
+                            "updatedAt"
+                          ],
+                          "description": "The latest consent, or null when the user never agreed"
+                        },
+                        "storedConversationCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "consent",
+                        "storedConversationCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
+    },
+    "/v1/assistant/conversations": {
+      "delete": {
+        "operationId": "deleteAssistantConversations",
+        "summary": "Delete every assistant conversation stored for the user, along with their quotes in feedback themes",
+        "tags": [
+          "Assistant"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "How many conversations were deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "deletedCount": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "deletedCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationIdHeader"
+          },
+          {
+            "$ref": "#/components/parameters/ProjectIdHeader"
+          }
+        ]
+      }
     }
   },
   "components": {

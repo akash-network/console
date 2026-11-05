@@ -1,0 +1,23 @@
+export const REDACTED = "[REDACTED]";
+
+/** Bounded on both sides of the secret word, since unbounded runs backtrack quadratically on long dotted words like `token.token.token`. */
+const SECRET_KEY_NAME = String.raw`[\w.-]{0,64}?(?:secret|token|password|passwd|api[_-]?key|access[_-]?key|private[_-]?key|credentials?)[\w.-]{0,64}`;
+
+const SECRET_REPLACEMENTS: [RegExp, string][] = [
+  [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, REDACTED],
+  [/\beyJ[\w-]+\.eyJ[\w-]+\.[\w-]+/g, REDACTED],
+  [/\bsk-[\w-]{16,}/g, REDACTED],
+  [/\bhf_[A-Za-z0-9]{20,}/g, REDACTED],
+  [/\bgh[pousr]_[A-Za-z0-9]{20,}/g, REDACTED],
+  [/\bgithub_pat_\w{20,}/g, REDACTED],
+  [/\bxox[abprs]-[\w-]{10,}/g, REDACTED],
+  [/\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, REDACTED],
+  [/\b(bearer\s+)[\w.~+/-]+=*/gi, `$1${REDACTED}`],
+  [/\b([a-z][a-z0-9+.-]*:\/\/[^\s:@/]+:)[^\s@/]+@/gi, `$1${REDACTED}@`],
+  [new RegExp(String.raw`\b(${SECRET_KEY_NAME}\s*[:=]\s*)(["']?)[^\s"']+\2`, "gi"), `$1$2${REDACTED}$2`]
+];
+
+/** Best effort over common credential shapes, applied to every free text the team may later read, whatever the user consented to. */
+export function redactSecrets(text: string): string {
+  return SECRET_REPLACEMENTS.reduce((redacted, [pattern, replacement]) => redacted.replace(pattern, replacement), text);
+}

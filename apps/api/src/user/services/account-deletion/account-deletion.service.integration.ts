@@ -35,6 +35,7 @@ import { AccountDeletionService } from "./account-deletion.service";
 import { createAkashAddress } from "@test/seeders/akash-address.seeder";
 import { findDeploymentDeposit, seedDeploymentDeposit } from "@test/seeders/db/deployment-deposit.seeder";
 import { seedDeploymentSetting } from "@test/seeders/db/deployment-setting.seeder";
+import { seedAssistantConsent, seedAssistantConversation, seedFeedbackSubmission, seedFeedbackTheme } from "@test/seeders/db/feedback.seeder";
 import { seedOrganizationActivity, seedOrganizationInvitation, seedOrganizationMember, seedOrganizationWithOwner } from "@test/seeders/db/organization.seeder";
 import { seedUserWithWallet } from "@test/seeders/db/user-with-wallet.seeder";
 import { seedWalletSetting } from "@test/seeders/db/wallet-setting.seeder";
@@ -75,6 +76,9 @@ describe(AccountDeletionService.name, () => {
       paymentMethods: 0,
       stripeTransactions: 0,
       hardwareRequests: 0,
+      feedbackSubmissions: 0,
+      assistantConsents: 0,
+      assistantConversations: 0,
       workloadAbuseDetections: 0,
       workloadProbeEvidence: 0,
       accountDeletionTokens: 0,
@@ -94,6 +98,9 @@ describe(AccountDeletionService.name, () => {
       paymentMethods: 1,
       stripeTransactions: 1,
       hardwareRequests: 1,
+      feedbackSubmissions: 1,
+      assistantConsents: 1,
+      assistantConversations: 1,
       workloadAbuseDetections: 1,
       workloadProbeEvidence: 1,
       accountDeletionTokens: 0,
@@ -108,6 +115,23 @@ describe(AccountDeletionService.name, () => {
       .from(resolveTable("BlockedEmailDomains"))
       .where(eq(resolveTable("BlockedEmailDomains").domain, account.blockedDomain));
     expect(blockedDomain.triggeredByUserId).toBeNull();
+  });
+
+  it("recounts the feedback themes the account's feedback fed", async () => {
+    const { service, db, account, bystander, token, answerActiveDeployments } = await setup();
+    answerActiveDeployments([]);
+    const theme = await seedFeedbackTheme({ itemCount: 3, distinctUserCount: 2 });
+    await seedFeedbackSubmission({ userId: account.user.id, themeId: theme.id });
+    await seedAssistantConversation({ userId: account.user.id, themeId: theme.id });
+    await seedFeedbackSubmission({ userId: bystander.user.id, themeId: theme.id });
+
+    await service.confirm({ token });
+
+    const [recounted] = await db
+      .select()
+      .from(resolveTable("FeedbackThemes"))
+      .where(eq(resolveTable("FeedbackThemes").id, theme.id));
+    expect(recounted).toMatchObject({ itemCount: 1, distinctUserCount: 1 });
   });
 
   it("keeps the account's wallet row without an owner, so its derivation index and address stay on record", async () => {
@@ -462,6 +486,9 @@ describe(AccountDeletionService.name, () => {
         .values({ userId: user.id, fingerprint: faker.string.alphanumeric(16), paymentMethodId: `pm_${faker.string.alphanumeric(14)}` });
       await db.insert(resolveTable("StripeTransactions")).values({ userId: user.id, type: "payment_intent", amount: 1000 });
       await db.insert(resolveTable("HardwareRequests")).values({ userId: user.id, category: "other", contactEmail: faker.internet.email() });
+      await seedFeedbackSubmission({ userId: user.id });
+      await seedAssistantConsent({ userId: user.id });
+      await seedAssistantConversation({ userId: user.id });
       await db.insert(resolveTable("WorkloadAbuseDetections")).values({
         userId: user.id,
         walletId: wallet.id,
@@ -516,6 +543,9 @@ describe(AccountDeletionService.name, () => {
         paymentMethods: await count(resolveTable("PaymentMethods"), eq(resolveTable("PaymentMethods").userId, user.id)),
         stripeTransactions: await count(resolveTable("StripeTransactions"), eq(resolveTable("StripeTransactions").userId, user.id)),
         hardwareRequests: await count(resolveTable("HardwareRequests"), eq(resolveTable("HardwareRequests").userId, user.id)),
+        feedbackSubmissions: await count(resolveTable("FeedbackSubmissions"), eq(resolveTable("FeedbackSubmissions").userId, user.id)),
+        assistantConsents: await count(resolveTable("AssistantConsents"), eq(resolveTable("AssistantConsents").userId, user.id)),
+        assistantConversations: await count(resolveTable("AssistantConversations"), eq(resolveTable("AssistantConversations").userId, user.id)),
         workloadAbuseDetections: await count(resolveTable("WorkloadAbuseDetections"), eq(resolveTable("WorkloadAbuseDetections").userId, user.id)),
         workloadProbeEvidence: await count(resolveTable("WorkloadProbeEvidence"), eq(resolveTable("WorkloadProbeEvidence").walletId, wallet.id)),
         accountDeletionTokens: await count(resolveTable("AccountDeletionTokens"), eq(resolveTable("AccountDeletionTokens").userId, user.id)),

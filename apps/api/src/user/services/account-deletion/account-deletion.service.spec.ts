@@ -10,6 +10,7 @@ import type { AnalyticsService } from "@src/core/services/analytics/analytics.se
 import { FeatureFlags } from "@src/core/services/feature-flags/feature-flags";
 import type { FeatureFlagsService } from "@src/core/services/feature-flags/feature-flags.service";
 import type { DeploymentConfigService } from "@src/deployment/services/deployment-config/deployment-config.service";
+import type { FeedbackErasureService } from "@src/feedback/services/feedback-erasure/feedback-erasure.service";
 import type { CreateNotificationInput, NotificationService } from "@src/notifications/services/notification/notification.service";
 import type { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import type { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
@@ -322,6 +323,15 @@ describe(AccountDeletionService.name, () => {
       expect(departedMemberAlertsService.stopEveryTeamAlertTo.mock.invocationCallOrder[0]).toBeLessThan(userRepository.deleteById.mock.invocationCallOrder[0]);
     });
 
+    it("erases the member's feedback before the user row cascades it away", async () => {
+      const { service, user, userRepository, feedbackErasureService } = setup({ storedToken: {} });
+
+      await service.confirm({ token: "link-token" });
+
+      expect(feedbackErasureService.eraseAccountFeedback).toHaveBeenCalledWith(user.id);
+      expect(feedbackErasureService.eraseAccountFeedback.mock.invocationCallOrder[0]).toBeLessThan(userRepository.deleteById.mock.invocationCallOrder[0]);
+    });
+
     it("checks the team owners once the user row is locked, inside the erasing transaction", async () => {
       const { service, user, userRepository, organizationMemberRepository, txService } = setup({ storedToken: {} });
       txService.transaction.mockImplementation(async callback => {
@@ -346,6 +356,7 @@ describe(AccountDeletionService.name, () => {
         userTemplateRepository,
         teamRecordRetentionService,
         departedMemberAlertsService,
+        feedbackErasureService,
         jobQueueService,
         analyticsService
       } = setup({
@@ -358,6 +369,7 @@ describe(AccountDeletionService.name, () => {
       expect(userTemplateRepository.deleteAllOwnedBy).not.toHaveBeenCalled();
       expect(teamRecordRetentionService.releaseFromTeams).not.toHaveBeenCalled();
       expect(departedMemberAlertsService.stopEveryTeamAlertTo).not.toHaveBeenCalled();
+      expect(feedbackErasureService.eraseAccountFeedback).not.toHaveBeenCalled();
       expect(userRepository.deleteById).not.toHaveBeenCalled();
       expect(jobQueueService.enqueue).not.toHaveBeenCalled();
       expect(analyticsService.track).toHaveBeenCalledWith(user.id, "account_deletion_blocked", { reason: "last_owner" });
@@ -672,6 +684,7 @@ describe(AccountDeletionService.name, () => {
     organizationMemberRepository.lockTeamsOwnedOnlyBy.mockResolvedValue(input.teamsOwnedOnlyByUser ?? []);
     const teamRecordRetentionService = mock<TeamRecordRetentionService>();
     const departedMemberAlertsService = mock<DepartedMemberAlertsService>();
+    const feedbackErasureService = mock<FeedbackErasureService>();
 
     const notificationService = mock<NotificationService>();
     if (input.emailFails) notificationService.createNotification.mockRejectedValue(input.emailFails);
@@ -703,6 +716,7 @@ describe(AccountDeletionService.name, () => {
       organizationMemberRepository,
       teamRecordRetentionService,
       departedMemberAlertsService,
+      feedbackErasureService,
       notificationService,
       jobQueueService,
       txService,
@@ -727,6 +741,7 @@ describe(AccountDeletionService.name, () => {
       organizationMemberRepository,
       teamRecordRetentionService,
       departedMemberAlertsService,
+      feedbackErasureService,
       notificationService,
       jobQueueService,
       txService,

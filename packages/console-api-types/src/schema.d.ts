@@ -7795,6 +7795,75 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/feedback": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Send a deployment outcome rating or general feedback to the Akash team */
+    post: operations["createFeedback"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/feedback/outcome-prompts/{dseq}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Tell whether to ask the user how a deployment went */
+    get: operations["getFeedbackOutcomePrompt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/assistant/consent": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the user's consent to the assistant and how many of their conversations are stored */
+    get: operations["getAssistantConsent"];
+    /** Record the user's agreement to the assistant and whether the Akash team may review their conversations */
+    put: operations["updateAssistantConsent"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/assistant/conversations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete every assistant conversation stored for the user, along with their quotes in feedback themes */
+    delete: operations["deleteAssistantConversations"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -18857,6 +18926,300 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["InternalServerErrorResponse"];
         };
+      };
+    };
+  };
+  createFeedback: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data:
+            | {
+                /** @enum {string} */
+                kind: "deployment_outcome";
+                /** @example 21434557 */
+                dseq: string;
+                /** @enum {string} */
+                outcome: "live" | "failed";
+                /**
+                 * @description The user closed the prompt without answering; it still counts as an answer
+                 * @default false
+                 */
+                dismissed?: boolean;
+                rating?: number;
+                message?: string;
+                failureReason?: string;
+                /** @description The Console page the feedback was sent from */
+                page?: string;
+              }
+            | {
+                /** @enum {string} */
+                kind: "general";
+                /** @enum {string} */
+                category: "bug" | "feature_request" | "other";
+                message: string;
+                /** @description The Console page the feedback was sent from */
+                page?: string;
+              };
+        };
+      };
+    };
+    responses: {
+      /** @description The feedback was recorded */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** Format: uuid */
+              id: string;
+              /** Format: date-time */
+              createdAt: string;
+            };
+          };
+        };
+      };
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The outcome prompt of this deployment was already answered (`feedback_already_answered`) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Too much feedback sent recently (`feedback_limit`) */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getFeedbackOutcomePrompt: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path: {
+        dseq: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Whether the outcome prompt should be shown for this deployment */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              dseq: string;
+              eligible: boolean;
+              /**
+               * @description Why the prompt should not be shown, or null when it should
+               * @enum {string|null}
+               */
+              reason: "already_answered" | "cooldown" | null;
+            };
+          };
+        };
+      };
+      /** @description Invalid dseq */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getAssistantConsent: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The latest consent and the stored conversation count */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description The latest consent, or null when the user never agreed */
+              consent: {
+                copyVersion: string;
+                /**
+                 * Format: date-time
+                 * @description When the user agreed to this copy version
+                 */
+                processingAcceptedAt: string;
+                reviewOptIn: boolean;
+                /** Format: date-time */
+                updatedAt: string;
+              } | null;
+              storedConversationCount: number;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  updateAssistantConsent: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          data: {
+            /** @description The version of the consent copy the user agreed to */
+            copyVersion: string;
+            /** @description Whether the Akash team may review the user's conversations */
+            reviewOptIn: boolean;
+          };
+        };
+      };
+    };
+    responses: {
+      /** @description The consent as now recorded */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              /** @description The latest consent, or null when the user never agreed */
+              consent: {
+                copyVersion: string;
+                /**
+                 * Format: date-time
+                 * @description When the user agreed to this copy version
+                 */
+                processingAcceptedAt: string;
+                reviewOptIn: boolean;
+                /** Format: date-time */
+                updatedAt: string;
+              } | null;
+              storedConversationCount: number;
+            };
+          };
+        };
+      };
+      /** @description Invalid request body */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteAssistantConversations: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Id or slug of the organization the request runs in. Defaults to the organization used last, or the caller's personal one. Answers 403 `organization_forbidden` when the caller is not a member, and 400 `organization_mismatch` when it names another organization than the API key's. */
+        "x-organization-id"?: components["parameters"]["OrganizationIdHeader"];
+        /** @description Id of a project of the active organization to limit the request to. Answers 403 `project_forbidden` when the caller cannot reach the project, or the API key is limited to another one. */
+        "x-project-id"?: components["parameters"]["ProjectIdHeader"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description How many conversations were deleted */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            data: {
+              deletedCount: number;
+            };
+          };
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

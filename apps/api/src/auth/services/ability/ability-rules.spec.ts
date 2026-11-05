@@ -185,7 +185,7 @@ describe("ability rules", () => {
 
       const rules = legacyRules(user);
 
-      expect(rules).toHaveLength(16);
+      expect(rules).toHaveLength(19);
       expect(rules).toEqual(
         expect.arrayContaining([
           { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: user.id } },
@@ -203,6 +203,9 @@ describe("ability rules", () => {
           { action: ["read", "update"], subject: "Activity", conditions: { userId: user.id } },
           { action: "manage", subject: "FavoriteProvider", conditions: { userId: user.id } },
           { action: "manage", subject: "ConfigureDraft", conditions: { userId: user.id } },
+          { action: ["create", "read"], subject: "FeedbackSubmission", conditions: { userId: user.id } },
+          { action: ["create", "read"], subject: "AssistantConsent", conditions: { userId: user.id } },
+          { action: ["read", "delete"], subject: "AssistantConversation", conditions: { userId: user.id } },
           { action: "manage", subject: "Template", conditions: { userId: user.userId } }
         ])
       );
@@ -212,7 +215,7 @@ describe("ability rules", () => {
       const rules = legacyRules(createUser({ userId: null }));
 
       expect(rules.map(({ subject }) => subject)).not.toContain("Template");
-      expect(rules).toHaveLength(15);
+      expect(rules).toHaveLength(18);
     });
 
     it("grants nothing to a user without an id", () => {
@@ -447,11 +450,22 @@ describe("ability rules", () => {
 
     it.each(ROLES)("keeps user-keyed subjects on the user id for the %s role", role => {
       const { user, context } = setup({ role });
-      const userKeyedSubjects = ["User", "VerificationEmail", "LeaseGpu", "HardwareRequest", "Activity", "FavoriteProvider", "ConfigureDraft"];
+      const userKeyedSubjects = [
+        "User",
+        "VerificationEmail",
+        "LeaseGpu",
+        "HardwareRequest",
+        "Activity",
+        "FavoriteProvider",
+        "ConfigureDraft",
+        "FeedbackSubmission",
+        "AssistantConsent",
+        "AssistantConversation"
+      ];
 
       const userKeyedRules = legacyRules(user).filter(rule => userKeyedSubjects.includes(rule.subject as string));
 
-      expect(userKeyedRules).toHaveLength(7);
+      expect(userKeyedRules).toHaveLength(10);
       expect(organizationRules(user, context)).toEqual(expect.arrayContaining(userKeyedRules));
     });
 
