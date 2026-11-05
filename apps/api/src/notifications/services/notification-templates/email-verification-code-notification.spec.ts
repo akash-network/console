@@ -10,7 +10,7 @@ describe(emailVerificationCodeNotification.name, () => {
     const result = emailVerificationCodeNotification(user, vars);
 
     expect(result.notificationId).toMatch(/^emailVerificationCode\.user-123\.[0-9a-f-]{36}$/);
-    expect(result.payload.summary).toBe("Your verification code");
+    expect(result.payload.summary).toBe("123456 is your Akash Console verification code");
     expect(result.payload.code).toBe("123456");
     expect(result.payload.description).not.toContain("123456");
     expect(result.payload.description).toContain("expires in 10 minutes");
