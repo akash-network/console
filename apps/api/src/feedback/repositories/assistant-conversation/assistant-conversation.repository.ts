@@ -34,6 +34,20 @@ export class AssistantConversationRepository extends BaseRepository<Table, Assis
     return { deletedCount: deleted.length, themeIds: deleted.flatMap(({ themeId }) => (themeId ? [themeId] : [])) };
   }
 
+  /** Ends the conversation only if it is still open, and answers nothing when another request ended it first. */
+  async endOpen(
+    id: string,
+    fields: Pick<AssistantConversationInput, "status" | "resolvedByUser" | "endedAt">
+  ): Promise<AssistantConversationOutput | undefined> {
+    const [ended] = await this.cursor
+      .update(this.table)
+      .set(fields)
+      .where(and(eq(this.table.id, id), isNull(this.table.endedAt)))
+      .returning();
+
+    return ended;
+  }
+
   /** Conversations that ended or went quiet, since an open one may still change how it is classified. */
   async findUnclassifiedIds(idleSince: Date, limit: number): Promise<string[]> {
     const rows = await this.cursor

@@ -841,6 +841,13 @@
       "when": 1793913450765,
       "tag": "0119_affiliates",
       "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1793924940798,
+      "tag": "0120_assistant_conversations",
+      "breakpoints": true
     }
   ]
 }
