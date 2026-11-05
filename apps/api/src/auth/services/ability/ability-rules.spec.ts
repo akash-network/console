@@ -185,7 +185,7 @@ describe("ability rules", () => {
 
       const rules = legacyRules(user);
 
-      expect(rules).toHaveLength(16);
+      expect(rules).toHaveLength(15);
       expect(rules).toEqual(
         expect.arrayContaining([
           { action: ["read", "sign"], subject: "UserWallet", conditions: { userId: user.id } },
@@ -193,7 +193,6 @@ describe("ability rules", () => {
           { action: "read", subject: "User", conditions: { id: user.id } },
           { action: ["create", "read", "delete"], subject: "StripePayment" },
           { action: "manage", subject: "PaymentMethod", conditions: { userId: user.id } },
-          { action: "create", subject: "VerificationEmail", conditions: { id: user.id } },
           { action: "manage", subject: "DeploymentSetting", conditions: { userId: user.id } },
           { action: "read", subject: "LeaseGpu", conditions: { userId: user.id } },
           { action: "manage", subject: "ApiKey", conditions: { userId: user.id } },
@@ -212,7 +211,7 @@ describe("ability rules", () => {
       const rules = legacyRules(createUser({ userId: null }));
 
       expect(rules.map(({ subject }) => subject)).not.toContain("Template");
-      expect(rules).toHaveLength(15);
+      expect(rules).toHaveLength(14);
     });
 
     it("grants nothing to a user without an id", () => {
@@ -447,11 +446,11 @@ describe("ability rules", () => {
 
     it.each(ROLES)("keeps user-keyed subjects on the user id for the %s role", role => {
       const { user, context } = setup({ role });
-      const userKeyedSubjects = ["User", "VerificationEmail", "LeaseGpu", "HardwareRequest", "Activity", "FavoriteProvider", "ConfigureDraft"];
+      const userKeyedSubjects = ["User", "LeaseGpu", "HardwareRequest", "Activity", "FavoriteProvider", "ConfigureDraft"];
 
       const userKeyedRules = legacyRules(user).filter(rule => userKeyedSubjects.includes(rule.subject as string));
 
-      expect(userKeyedRules).toHaveLength(7);
+      expect(userKeyedRules).toHaveLength(6);
       expect(organizationRules(user, context)).toEqual(expect.arrayContaining(userKeyedRules));
     });
 

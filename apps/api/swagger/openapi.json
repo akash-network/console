@@ -3776,59 +3776,6 @@
         }
       }
     },
-    "/v1/send-verification-email": {
-      "post": {
-        "summary": "Resends a verification email",
-        "tags": [
-          "Users"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "data": {
-                    "type": "object",
-                    "properties": {
-                      "userId": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "userId"
-                    ]
-                  }
-                },
-                "required": [
-                  "data"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Sends a verification email to the signed-in user",
-            "content": {}
-          }
-        },
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationIdHeader"
-          },
-          {
-            "$ref": "#/components/parameters/ProjectIdHeader"
-          }
-        ]
-      }
-    },
     "/v1/send-verification-code": {
       "post": {
         "summary": "Sends a verification code to the authenticated user's email",

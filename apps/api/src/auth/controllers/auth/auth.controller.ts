@@ -1,7 +1,6 @@
 import createError from "http-errors";
 import { singleton } from "tsyringe";
 
-import type { SendVerificationEmailRequestInput } from "@src/auth";
 import { ACCOUNT_UNAVAILABLE_MESSAGE } from "@src/auth/lib/account-unavailable/account-unavailable";
 import type { SignupInput } from "@src/auth/routes/signup/signup.router";
 import type { VerifyEmailCodeRequest } from "@src/auth/routes/verify-email-code/verify-email-code.router";
@@ -60,16 +59,6 @@ export class AuthController {
       }
 
       throw createError(error.statusCode, extractAuth0ErrorMessage(error));
-    }
-  }
-
-  @Protected()
-  async sendVerificationEmail({ data: { userId } }: SendVerificationEmailRequestInput) {
-    const { currentUser } = this.authService;
-    this.authService.throwUnlessCan("create", "VerificationEmail", { id: userId });
-
-    if (currentUser?.userId) {
-      await this.auth0.sendVerificationEmail(currentUser.userId);
     }
   }
 

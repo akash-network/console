@@ -1565,48 +1565,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/v1/send-verification-email": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Resends a verification email */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          "application/json": {
-            data: {
-              userId: string;
-            };
-          };
-        };
-      };
-      responses: {
-        /** @description Returns a created wallet */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content?: never;
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/v1/send-verification-code": {
     parameters: {
       query?: never;
