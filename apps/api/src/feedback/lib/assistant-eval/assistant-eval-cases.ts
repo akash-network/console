@@ -53,15 +53,29 @@ const NO_BIDS = {
 
 const OPEN_BIDS = {
   bids: [
-    { gseq: 1, oseq: 1, provider: "akash1cheap", state: "open", price: { denom: "uact", amount: "1.2" } },
-    { gseq: 1, oseq: 1, provider: "akash1fast", state: "open", price: { denom: "uact", amount: "2.4" } }
+    { gseq: 1, oseq: 1, provider: "akash1cheap", state: "open", usdPerMonth: 0.53 },
+    { gseq: 1, oseq: 1, provider: "akash1fast", state: "open", usdPerMonth: 1.05 }
   ],
   availability: null
 };
 
 const LOW_BALANCE = {
-  balance: { availableUsd: 1.4, isTrialing: false },
-  spend: { perHourUsd: 0.12, weeklyUsd: 20.16 },
+  creditBalanceUsd: 1.4,
+  isTrialing: false,
+  trialEndsAt: null,
+  weeklyCostUsd: 20.16,
+  spendByDeployment: [{ dseq: DSEQ, name: "my-web", usdPerMonth: 87.66 }],
+  autoRecharge: { enabled: false }
+};
+
+const SPENDING_DSEQ = "1793975053644";
+
+const BALANCE_WITH_SPEND = {
+  creditBalanceUsd: 99.5,
+  isTrialing: false,
+  trialEndsAt: null,
+  weeklyCostUsd: 0.3,
+  spendByDeployment: [{ dseq: SPENDING_DSEQ, name: "my-app", usdPerMonth: 1.28 }],
   autoRecharge: { enabled: false }
 };
 
@@ -194,14 +208,14 @@ function leasedDeployment(service: Record<string, unknown>, readiness: { availab
     name: "lab-web",
     state: "active",
     templateId: null,
-    escrowFunds: [{ denom: "uact", amount: "4210000" }],
+    escrowBalanceUsd: 4.21,
     leases: [
       {
         gseq: 1,
         oseq: 1,
         provider: "akash1rk090a6mq9gvm0h6ljf8kz8mrxglwwxsk4srxh",
         state: "active",
-        price: { denom: "uact", amount: "1000" },
+        usdPerMonth: 438.29,
         closedReason: null,
         reclamation: null,
         services: [{ name: "web", available: readiness.available, total: 1, readyReplicas: readiness.available, uris: readiness.uris }],
@@ -403,6 +417,17 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     expect: { calls: ["get_balance_and_spend"], neverMentions: ["escrow deposit", "deposit more into escrow"] }
   },
   {
+    id: "balance-and-spend-in-usd",
+    question: "whats my balance?",
+    toolResults: { get_balance_and_spend: BALANCE_WITH_SPEND },
+    expect: {
+      calls: ["get_balance_and_spend"],
+      mentions: ["99.50", "[my-app]("],
+      linksDeployments: [SPENDING_DSEQ],
+      neverMentions: ["uact", "uakt", "per block", "/block", "denom"]
+    }
+  },
+  {
     id: "buy-credits",
     question: "I want to add $50 of credits.",
     toolResults: { get_balance_and_spend: LOW_BALANCE },
@@ -523,7 +548,7 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     context: { recentActions: TEMPLATE_DEPLOYED_FROM_CARD },
     history: [{ role: "user", content: "this template didn't work" }],
     toolResults: TEMPLATE_CLOSED_WITHOUT_BIDS,
-    expect: { mentions: [TEMPLATE_DSEQ], neverRepeatsCalls: true, neverAdvisesRepricing: true }
+    expect: { linksDeployments: [TEMPLATE_DSEQ], neverRepeatsCalls: true, neverAdvisesRepricing: true }
   },
   {
     id: "prompt-injection-in-logs",

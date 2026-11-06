@@ -6,8 +6,10 @@ import type { AuthService } from "@src/auth/services/auth.service";
 import type { WalletController } from "@src/billing/controllers/wallet/wallet.controller";
 import type { WalletSettingController } from "@src/billing/controllers/wallet-settings/wallet-settings.controller";
 import type { WalletSettingsResponse } from "@src/billing/http-schemas/wallet.schema";
+import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import { AssistantToolError } from "@src/feedback/lib/assistant-tool-error/assistant-tool-error";
+import { AssistantUsdService } from "@src/feedback/services/assistant-usd/assistant-usd.service";
 import type { TemplateController } from "@src/template/controllers/template/template.controller";
 import type { Template } from "@src/template/types/template";
 import type { UserOutput } from "@src/user/repositories";
@@ -46,7 +48,7 @@ describe(AssistantAccountToolsService.name, () => {
           {
             id: 1,
             userId: "user-1",
-            creditAmount: 12.5,
+            creditAmount: 99_497_947,
             address: "akash1",
             denom: "uact",
             isTrialing: true,
@@ -60,18 +62,31 @@ describe(AssistantAccountToolsService.name, () => {
       walletSettingController.getWalletSettings.mockResolvedValue({
         data: mock<WalletSettingsResponse["data"]>({ autoReloadEnabled: true, autoReloadThreshold: 5, autoReloadAmount: 20 })
       });
-      deploymentController.getSpendRate.mockResolvedValue({ data: { deployments: [{ dseq: "42", price: { denom: "uact", amount: "10" } }] } });
+      deploymentController.getSpendRate.mockResolvedValue({
+        data: {
+          deployments: [
+            { dseq: "42", price: { denom: "uact", amount: "1" } },
+            { dseq: "43", price: { denom: "uact", amount: "2.93" } },
+            { dseq: "42", price: { denom: "uact", amount: "2" } }
+          ]
+        }
+      });
+      deploymentController.findNames.mockResolvedValue({ data: { "42": "site", "43": null } });
       deploymentController.getWeeklyDeploymentCost.mockResolvedValue({ data: { weeklyCost: 3.5 } });
 
       const result = await service.getBalanceAndSpend({});
 
       expect(walletController.getWallets).toHaveBeenCalledWith({ userId: "user-1" });
+      expect(deploymentController.findNames).toHaveBeenCalledWith(["42", "43"]);
       expect(result).toEqual({
-        creditBalanceUsd: 12.5,
+        creditBalanceUsd: 99.5,
         isTrialing: true,
         trialEndsAt: new Date("2026-12-01T00:00:00.000Z"),
         weeklyCostUsd: 3.5,
-        spendPerBlockByDeployment: [{ dseq: "42", price: { denom: "uact", amount: "10" } }],
+        spendByDeployment: [
+          { dseq: "42", name: "site", usdPerMonth: 1.31 },
+          { dseq: "43", name: null, usdPerMonth: 1.28 }
+        ],
         autoRecharge: { enabled: true, thresholdUsd: 5, amountUsd: 20 }
       });
     });
@@ -88,9 +103,20 @@ describe(AssistantAccountToolsService.name, () => {
         isTrialing: null,
         trialEndsAt: null,
         weeklyCostUsd: null,
-        spendPerBlockByDeployment: null,
+        spendByDeployment: null,
         autoRecharge: { enabled: false }
       });
+    });
+
+    it("lists the spend without names when they cannot be read", async () => {
+      const { service, walletController, deploymentController } = setup();
+      walletController.getWallets.mockResolvedValue({ data: [] });
+      deploymentController.getSpendRate.mockResolvedValue({ data: { deployments: [{ dseq: "42", price: { denom: "uact", amount: "2.93" } }] } });
+      deploymentController.findNames.mockRejectedValue(createError(404, "UserWallet Not Found"));
+
+      const { spendByDeployment } = await service.getBalanceAndSpend({});
+
+      expect(spendByDeployment).toEqual([{ dseq: "42", name: null, usdPerMonth: 1.28 }]);
     });
 
     it("lets server failures through", async () => {
@@ -224,7 +250,15 @@ describe(AssistantAccountToolsService.name, () => {
     const templateController = mock<TemplateController>();
     const gallery = Buffer.from(JSON.stringify(GALLERY));
     templateController.getTemplatesListJson.mockResolvedValue(gallery);
-    const service = new AssistantAccountToolsService(authService, walletController, walletSettingController, deploymentController, templateController);
+    const usdService = new AssistantUsdService(mock<DenomExchangeService>());
+    const service = new AssistantAccountToolsService(
+      authService,
+      walletController,
+      walletSettingController,
+      deploymentController,
+      templateController,
+      usdService
+    );
 
     return { service, walletController, walletSettingController, deploymentController, templateController };
   }

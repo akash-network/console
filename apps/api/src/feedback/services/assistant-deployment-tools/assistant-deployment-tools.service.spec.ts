@@ -5,11 +5,13 @@ import { mock } from "vitest-mock-extended";
 
 import type { ActivityController } from "@src/activity/controllers/activity/activity.controller";
 import type { ActivityResponse } from "@src/activity/http-schemas/activity.schema";
+import type { DenomExchangeService } from "@src/chain/services/denom-exchange/denom-exchange.service";
 import type { DeploymentController } from "@src/deployment/controllers/deployment/deployment.controller";
 import type { DeploymentSettingController } from "@src/deployment/controllers/deployment-setting/deployment-setting.controller";
 import type { GetDeploymentResponse, ListDeploymentsItem } from "@src/deployment/http-schemas/deployment.schema";
 import type { DeploymentSetting } from "@src/deployment/http-schemas/deployment-setting.schema";
 import type { SdlService } from "@src/deployment/services/sdl/sdl.service";
+import { AssistantUsdService } from "@src/feedback/services/assistant-usd/assistant-usd.service";
 import { AssistantDeploymentToolsService } from "./assistant-deployment-tools.service";
 
 import { createDeploymentLease, createGetDeploymentResponseData } from "@test/seeders/get-deployment-response.seeder";
@@ -54,7 +56,7 @@ describe(AssistantDeploymentToolsService.name, () => {
                 oseq: 1,
                 provider: lease.id.provider,
                 state: "active",
-                price: lease.price,
+                usdPerMonth: 438.29,
                 closedReason: "lease_closed_reason_unstable",
                 reclamation: null
               }
@@ -116,14 +118,14 @@ describe(AssistantDeploymentToolsService.name, () => {
         name: "site",
         state: "active",
         templateId: null,
-        escrowFunds: deployment.escrow_account.state.funds,
+        escrowBalanceUsd: 5,
         leases: [
           {
             gseq: 1,
             oseq: 1,
             provider: lease.id.provider,
             state: "active",
-            price: lease.price,
+            usdPerMonth: 438.29,
             closedReason: null,
             reclamation,
             services: [{ name: "web", available: 1, total: 1, readyReplicas: 1, uris: ["abc.provider.com"] }],
@@ -166,7 +168,9 @@ describe(AssistantDeploymentToolsService.name, () => {
     it("combines lease close reasons, Console's own reason and the deployment's recent activity", async () => {
       const { service, deploymentController, deploymentSettingController, activityController } = setup();
       const lease = createDeploymentLease({ dseq: "42", state: "closed", closed_on: "123", reason: "lease_closed_reason_insufficient_funds" });
-      deploymentController.findByDseq.mockResolvedValue({ data: createGetDeploymentResponseData({ dseq: "42", state: "closed", leases: [lease] }) });
+      deploymentController.findByDseq.mockResolvedValue({
+        data: createGetDeploymentResponseData({ dseq: "42", name: "site", state: "closed", leases: [lease] })
+      });
       deploymentSettingController.findV2.mockResolvedValue({
         data: mock<DeploymentSetting>({ consoleCloseReason: "runtime_limit_reached", runtimeLimitHours: 2, runtimeEndsAt: "2026-11-04T00:00:00.000Z" })
       });
@@ -189,8 +193,11 @@ describe(AssistantDeploymentToolsService.name, () => {
       expect(activityController.list).toHaveBeenCalledWith({ limit: 100 });
       expect(result).toMatchObject({
         dseq: "42",
+        name: "site",
         state: "closed",
-        leases: [{ provider: lease.id.provider, state: "closed", closedOn: "123", closedReason: "lease_closed_reason_insufficient_funds" }],
+        leases: [
+          { provider: lease.id.provider, state: "closed", usdPerMonth: 438.29, closedOn: "123", closedReason: "lease_closed_reason_insufficient_funds" }
+        ],
         consoleCloseReason: "runtime_limit_reached",
         runtimeLimitHours: 2,
         runtimeEndsAt: "2026-11-04T00:00:00.000Z"
@@ -267,7 +274,8 @@ describe(AssistantDeploymentToolsService.name, () => {
     const activityController = mock<ActivityController>();
     const sdlService = mock<SdlService>();
     sdlService.parse.mockImplementation(sdl => ({ ok: true, value: yaml.raw(sdl) }));
-    const service = new AssistantDeploymentToolsService(deploymentController, deploymentSettingController, activityController, sdlService);
+    const usdService = new AssistantUsdService(mock<DenomExchangeService>());
+    const service = new AssistantDeploymentToolsService(deploymentController, deploymentSettingController, activityController, sdlService, usdService);
 
     return { service, deploymentController, deploymentSettingController, activityController, sdlService };
   }

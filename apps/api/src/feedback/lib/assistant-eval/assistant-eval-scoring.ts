@@ -11,6 +11,7 @@ export interface AssistantEvalExpectation {
   mentions?: string[];
   mentionsAnyOf?: string[];
   neverMentions?: string[];
+  linksDeployments?: string[];
   neverRepeatsCalls?: boolean;
   neverAdvisesRepricing?: boolean;
 }
@@ -92,6 +93,19 @@ function answerFailures(expected: AssistantEvalExpectation, answer: string): str
   return [...missing, ...missingAlternative, ...forbidden];
 }
 
+function deploymentLinkOf(dseq: string): string {
+  return `](/deployments/${dseq})`;
+}
+
+function deploymentLinkFailures(expected: AssistantEvalExpectation, answer: string): string[] {
+  return (expected.linksDeployments ?? []).flatMap(dseq => {
+    const link = deploymentLinkOf(dseq);
+    if (!answer.includes(link)) return [`answer does not link deployment ${dseq}`];
+
+    return answer.split(link).join("").includes(dseq) ? [`answer writes a bare dseq ${dseq}`] : [];
+  });
+}
+
 function repricingFailures(expected: AssistantEvalExpectation, answer: string): string[] {
   if (!expected.neverAdvisesRepricing) return [];
 
@@ -113,6 +127,7 @@ export function scoreAssistantEval(id: string, expected: AssistantEvalExpectatio
     ...callFailures(expected, calledNames),
     ...proposalFailures(expected, transcript),
     ...answerFailures(expected, transcript.answer),
+    ...deploymentLinkFailures(expected, transcript.answer),
     ...repricingFailures(expected, transcript.answer),
     ...turnFailures(expected, transcript)
   ];
