@@ -1,6 +1,7 @@
 import type { HttpClient } from "@akashnetwork/http-sdk";
 import { isAxiosError } from "axios";
 import { handleWhen, IterableBackoff, retry, type RetryPolicy } from "cockatiel";
+import { randomUUID } from "node:crypto";
 import { addAbortSignal, Readable } from "node:stream";
 import { inject, singleton } from "tsyringe";
 import { z } from "zod";
@@ -96,7 +97,7 @@ export class AkashMlOutputError extends Error {
 }
 
 const toolCallSchema = z.object({
-  id: z.string(),
+  id: z.string().nullish(),
   type: z.literal("function"),
   function: z.object({ name: z.string(), arguments: z.string() })
 });
@@ -229,6 +230,11 @@ function parseChunk(payload: string): ChatCompletionChunk {
   return parsed.data;
 }
 
+/** Some models leave a tool call's id out, and AkashML refuses the next round when a tool result names no call. */
+function withToolCallId(call: Omit<ChatToolCall, "id"> & { id?: string | null }): ChatToolCall {
+  return { ...call, id: call.id || `call_${randomUUID()}` };
+}
+
 function addToolCallDelta(toolCalls: Map<number, ChatToolCall>, delta: z.infer<typeof toolCallDeltaSchema>): void {
   const call = toolCalls.get(delta.index) ?? { id: "", type: "function", function: { name: "", arguments: "" } };
   if (delta.id) call.id = delta.id;
@@ -268,7 +274,7 @@ async function readChatCompletionStream(body: Readable, onContentDelta: StreamCh
 
   return {
     content: content.join("") || null,
-    toolCalls: [...toolCalls.entries()].sort(([a], [b]) => a - b).map(([, call]) => call),
+    toolCalls: [...toolCalls.entries()].sort(([a], [b]) => a - b).map(([, call]) => withToolCallId(call)),
     finishReason,
     usage
   };
@@ -330,7 +336,7 @@ export class AkashMlClient {
 
     return {
       content: choice.message.content ?? null,
-      toolCalls: choice.message.tool_calls ?? [],
+      toolCalls: choice.message.tool_calls?.map(withToolCallId) ?? [],
       finishReason: choice.finish_reason ?? null,
       usage
     };

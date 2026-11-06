@@ -1,4 +1,7 @@
+import type { HttpClient } from "@akashnetwork/http-sdk";
+import { AxiosHeaders, type AxiosResponse } from "axios";
 import createError from "http-errors";
+import { Readable } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
@@ -9,11 +12,12 @@ import type { AssistantStreamEvent } from "@src/feedback/http-schemas/assistant-
 import { assistantChatTools } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import type { AssistantPendingTurnRepository } from "@src/feedback/repositories/assistant-pending-turn/assistant-pending-turn.repository";
 import {
-  type AkashMlClient,
+  AkashMlClient,
   AkashMlOutputError,
   AkashMlRequestError,
   AkashMlUnavailableError,
   type ChatCompletion,
+  type ChatCompletionRequest,
   type ChatMessage,
   type ChatToolCall
 } from "@src/feedback/services/akashml-client/akashml.client";
@@ -47,6 +51,13 @@ function streamed(overrides: Partial<ChatCompletion> = {}, deltas = overrides.co
 
 function toolCall(id: string, name: string, args: Record<string, unknown> = {}): ChatToolCall {
   return { id, type: "function", function: { name, arguments: JSON.stringify(args) } };
+}
+
+function akashMlStream(delta: Record<string, unknown>): AxiosResponse<Readable> {
+  const chunk = { choices: [{ index: 0, delta, finish_reason: delta.tool_calls ? "tool_calls" : "stop" }] };
+  const data = Readable.from([`data: ${JSON.stringify(chunk)}\n\n`, "data: [DONE]\n\n"].map(line => Buffer.from(line)));
+
+  return { data, status: 200, statusText: "", headers: {}, config: { headers: new AxiosHeaders() } };
 }
 
 describe(AssistantTurnService.name, () => {
@@ -330,6 +341,44 @@ describe(AssistantTurnService.name, () => {
     ]);
   });
 
+  it("feeds back each tool call the model streamed without an id under the same id it reports", async () => {
+    const { akashMlHttpClient, toolRunner, run } = setup({ streamsFromAkashMl: true });
+    akashMlHttpClient.post
+      .mockResolvedValueOnce(
+        akashMlStream({
+          tool_calls: [
+            { index: 0, type: "function", function: { name: "get_deployment", arguments: '{"dseq":"42"}' } },
+            { index: 1, type: "function", function: { name: "get_bids", arguments: '{"dseq":"42"}' } }
+          ]
+        })
+      )
+      .mockResolvedValueOnce(akashMlStream({ content: "It is running." }));
+    toolRunner.run
+      .mockResolvedValueOnce({ kind: "result", content: '{"tool":"get_deployment"}', summary: "Read deployment 42", ok: true })
+      .mockResolvedValueOnce({ kind: "result", content: '{"tool":"get_bids"}', summary: "Read bids", ok: true });
+
+    const events = await run({});
+    const [deployment, bids] = toolRunner.run.mock.calls.map(([call]) => call);
+    const nextRequest = akashMlHttpClient.post.mock.calls[1][1] as ChatCompletionRequest;
+
+    expect([deployment.id, bids.id]).toEqual([expect.stringMatching(/^call_./), expect.stringMatching(/^call_./)]);
+    expect(deployment.id).not.toBe(bids.id);
+    expect(nextRequest.messages).toEqual([
+      { role: "user", content: "hi" },
+      { role: "assistant", content: null, tool_calls: [deployment, bids] },
+      { role: "tool", tool_call_id: deployment.id, content: '{"tool":"get_deployment"}' },
+      { role: "tool", tool_call_id: bids.id, content: '{"tool":"get_bids"}' }
+    ]);
+    expect(events).toEqual([
+      { type: "tool_started", toolCallId: deployment.id, name: "get_deployment" },
+      { type: "tool_result_summary", toolCallId: deployment.id, name: "get_deployment", ok: true, summary: "Read deployment 42" },
+      { type: "tool_started", toolCallId: bids.id, name: "get_bids" },
+      { type: "tool_result_summary", toolCallId: bids.id, name: "get_bids", ok: true, summary: "Read bids" },
+      { type: "text_delta", text: "It is running." },
+      { type: "done", reason: "stop" }
+    ]);
+  });
+
   it("keeps the SDLs held back earlier in the turn for the proposals after them", async () => {
     const { akashMlClient, toolRunner, run } = setup();
     akashMlClient.streamChatCompletion
@@ -562,22 +611,24 @@ describe(AssistantTurnService.name, () => {
     expect(signal?.aborted).toBe(true);
   });
 
-  function setup() {
+  function setup(input: { streamsFromAkashMl?: boolean } = {}) {
     const akashMlClient = mock<AkashMlClient>();
+    const akashMlHttpClient = mock<HttpClient>();
     const toolRunner = mock<AssistantToolRunnerService>();
     const limitsService = mock<AssistantLimitsService>();
     const transcriptService = mock<AssistantTranscriptService>();
     const pendingTurnRepository = mock<AssistantPendingTurnRepository>();
     const logger = mock<ReturnType<CreateLogger>>();
-    const config = envSchema.parse({ ASSISTANT_MODEL: "assistant-model" });
+    const createLogger = vi.fn<CreateLogger>(() => logger);
+    const config = envSchema.parse({ ASSISTANT_MODEL: "assistant-model", AKASHML_API_KEY: "test-key" });
     const service = new AssistantTurnService(
-      akashMlClient,
+      input.streamsFromAkashMl ? new AkashMlClient(akashMlHttpClient, config, createLogger) : akashMlClient,
       toolRunner,
       limitsService,
       transcriptService,
       pendingTurnRepository,
       config,
-      vi.fn<CreateLogger>(() => logger)
+      createLogger
     );
 
     async function run(turn: Partial<AssistantTurn>, signal = new AbortController().signal): Promise<AssistantStreamEvent[]> {
@@ -594,6 +645,6 @@ describe(AssistantTurnService.name, () => {
       return events;
     }
 
-    return { service, akashMlClient, toolRunner, limitsService, transcriptService, pendingTurnRepository, logger, run };
+    return { service, akashMlClient, akashMlHttpClient, toolRunner, limitsService, transcriptService, pendingTurnRepository, logger, run };
   }
 });
