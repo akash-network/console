@@ -24,6 +24,7 @@ describe("SendManifestAgainCard", () => {
         confirmLabel: "Send again"
       })
     );
+    expect(chromeProps().costNote).toContain("It doesn't restart containers, and Console has no restart action.");
   });
 
   it("sends the deployment's leases again through the same request as the deployment page", async () => {

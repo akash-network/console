@@ -6,7 +6,8 @@ import { deploymentCloseReasonEnum } from "@src/deployment/model-schemas";
 
 export const AssistantDseqSchema = z.string().regex(/^[1-9]\d{0,19}$/, "A dseq is a positive integer");
 
-export const ASSISTANT_ALERT_KINDS = ["deployment_balance", "deployment_closed", "wallet_balance"] as const;
+/** Only the alert Console users can set up themselves today: per-deployment balance alerts are retired and wallet balance alerts have no create flow. */
+export const ASSISTANT_ALERT_KINDS = ["deployment_closed"] as const;
 
 export const ASSISTANT_HARDWARE_INTERCONNECTS = ["none", "server", "cluster"] as const;
 
@@ -129,8 +130,7 @@ export const AssistantActionSchema = z
       type: z.literal("create_alert"),
       tier: CONFIRM,
       alert: z.enum(ASSISTANT_ALERT_KINDS),
-      dseq: AssistantDseqSchema.nullable(),
-      thresholdUsd: z.number().nullable(),
+      dseq: AssistantDseqSchema,
       channel: z.literal("email")
     }),
     z.object({ type: z.literal("redeem_coupon"), tier: CONFIRM, code: z.string().nullable() }),
@@ -159,10 +159,25 @@ export const AssistantActionSchema = z
       "An action the assistant proposes. The API never executes it: the card shows it and, on Confirm, runs the same request the regular UI makes (`confirm`, `destructive`) or opens the existing page prefilled (`deep_link`)."
   });
 
+export const MAX_DIAGNOSIS_SUMMARY_LENGTH = 300;
+export const MAX_DIAGNOSIS_EVIDENCE_LINES = 6;
+export const MAX_DIAGNOSIS_EVIDENCE_LINE_LENGTH = 300;
+
+export const AssistantDiagnosisSchema = z
+  .object({
+    summary: z.string().trim().min(1).max(MAX_DIAGNOSIS_SUMMARY_LENGTH).openapi({ description: "What is wrong, in one or two plain sentences" }),
+    evidence: z
+      .array(z.string().max(MAX_DIAGNOSIS_EVIDENCE_LINE_LENGTH))
+      .max(MAX_DIAGNOSIS_EVIDENCE_LINES)
+      .openapi({ description: "The log or event lines the diagnosis rests on, quoted as read and redacted" })
+  })
+  .openapi({ description: "Why the assistant proposes this action, when it answers a problem it diagnosed" });
+
 export type AssistantAction = z.infer<typeof AssistantActionSchema>;
 export type AssistantActionType = AssistantAction["type"];
 export type AssistantActionOf<T extends AssistantActionType> = Extract<AssistantAction, { type: T }>;
 export type ServiceResources = z.infer<typeof ServiceResourcesSchema>;
 export type AssistantServicePatch = z.infer<typeof AssistantServicePatchSchema>;
+export type AssistantDiagnosis = z.infer<typeof AssistantDiagnosisSchema>;
 
 export const ASSISTANT_ACTION_TYPES = AssistantActionSchema._def.options.map(option => option.shape.type.value) as AssistantActionType[];

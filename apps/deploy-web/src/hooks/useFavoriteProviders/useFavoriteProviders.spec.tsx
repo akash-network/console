@@ -144,6 +144,22 @@ describe(useFavoriteProviders.name, () => {
     await waitFor(() => expect(result.current.favoriteProviders).toEqual(["akash1first", "akash1second", "akash1elsewhere"]));
   });
 
+  it("adds a favorite and resolves once the account holds it", async () => {
+    const { result, createFavoriteProviders } = setup({ accountFavorites: ["akash1kept"] });
+    await waitFor(() => expect(result.current.favoriteProviders).toEqual(["akash1kept"]));
+
+    await act(() => result.current.addFavorite("akash1new"));
+
+    expect(createFavoriteProviders).toHaveBeenCalledWith({ data: { providerAddresses: ["akash1new"] } });
+    await waitFor(() => expect(result.current.favoriteProviders).toEqual(["akash1kept", "akash1new"]));
+  });
+
+  it("rejects an add the account refused, for the caller to report", async () => {
+    const { result } = setup({ accountFavorites: [], createFailure: new ApiError(500, undefined, "POST /v1/favorite-providers → 500") });
+
+    await expect(act(() => result.current.addFavorite("akash1new"))).rejects.toThrow("POST /v1/favorite-providers → 500");
+  });
+
   it("takes the account's answer while a change unrelated to favorites is still pending", async () => {
     const { result, answer, queryClient } = setup({ accountFavorites: ["akash1kept"], isAnsweredByHand: true });
     await waitFor(() => expect(result.current.favoriteProviders).toEqual(["akash1kept"]));

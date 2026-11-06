@@ -84,7 +84,7 @@ export function MoveDeploymentDialog({ deployment, onClose, dependencies: d = DE
   );
 }
 
-function describeMoveRefusal(error: unknown): string {
+export function describeMoveRefusal(error: unknown): string {
   if (!isApiError(error)) return "Try again in a moment.";
   if (error.status === NOT_FOUND_STATUS) return "That project or deployment no longer exists here. The list of projects was refreshed.";
   if (error.status === FORBIDDEN_STATUS) return "Only owners and admins can move deployments between projects.";

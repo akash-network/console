@@ -14,13 +14,25 @@ type Props = {
   proposalId: string;
   action: AssistantAction;
   registry?: ActionCardRegistry;
+  continueConversation?: (message: string) => void;
   dependencies?: typeof DEPENDENCIES;
 };
 
 /** Renders a proposal from its typed data only, never from the assistant's prose, so nothing the model writes can change what Confirm does. */
-export const ActionCard: FC<Props> = ({ conversationId, proposalId, action, registry = ACTION_CARD_REGISTRY, dependencies: d = DEPENDENCIES }) => {
+export const ActionCard: FC<Props> = ({
+  conversationId,
+  proposalId,
+  action,
+  registry = ACTION_CARD_REGISTRY,
+  continueConversation,
+  dependencies: d = DEPENDENCIES
+}) => {
   const decision = d.useActionCardDecision({ conversationId, proposalId, actionType: action.type });
   const Card = registry[action.type] as ActionCardComponent<typeof action.type> | undefined;
 
-  return Card ? <Card action={action} decision={decision} /> : <d.GenericActionCard action={action} decision={decision} />;
+  return Card ? (
+    <Card action={action} decision={decision} continueConversation={continueConversation} />
+  ) : (
+    <d.GenericActionCard action={action} decision={decision} />
+  );
 };

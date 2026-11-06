@@ -37,7 +37,7 @@ export function useFavoriteProviders(dependencies = DEPENDENCIES) {
   );
   const rereadTheAccountList = useCallback(() => queryClient.invalidateQueries({ queryKey }), [queryClient, queryKey]);
 
-  const { mutate: addFavorites } = api.v1.createFavoriteProviders.useMutation({
+  const { mutate: addFavorites, mutateAsync: addFavoritesAndWait } = api.v1.createFavoriteProviders.useMutation({
     scope: FAVORITES_CHANGES,
     onSuccess: takeTheAccountList,
     onError: rereadTheAccountList
@@ -89,5 +89,13 @@ export function useFavoriteProviders(dependencies = DEPENDENCIES) {
     [favoriteProviders, queryClient, queryKey, addFavorites, removeFavorite]
   );
 
-  return { favoriteProviders, toggleFavorite };
+  /** Resolves once the account holds the provider, for a caller that reports the outcome itself. */
+  const addFavorite = useCallback(
+    async (owner: string) => {
+      await addFavoritesAndWait({ data: { providerAddresses: [owner] } });
+    },
+    [addFavoritesAndWait]
+  );
+
+  return { favoriteProviders, toggleFavorite, addFavorite };
 }

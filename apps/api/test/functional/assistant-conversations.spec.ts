@@ -214,6 +214,42 @@ describe("Assistant conversations", () => {
       });
       expect(events.at(-1)).toEqual({ type: "done", reason: "stop" });
     });
+
+    it("streams the redacted diagnosis behind a proposed fix", async () => {
+      const { token } = await setup({ consent: { reviewOptIn: false } });
+      const diagnosis = { summary: "The checkout needs a new balance.", evidence: ["insufficient funds", `password=${FAKE_TOKEN}`] };
+      replyWith([
+        { toolCalls: [{ id: "call-1", name: "propose_buy_credits", arguments: { amountUsd: 20, diagnosis } }] },
+        { content: "Here is a card to add credits." }
+      ]);
+
+      const events = await eventsOf(
+        await request(`/v1/assistant/conversations/${faker.string.uuid()}/messages`, token, { content: "Why did my deployment stop?" })
+      );
+
+      expect(events).toContainEqual({
+        type: "action_proposal",
+        proposalId: expect.any(String),
+        action: { type: "buy_credits", tier: "deep_link", amountUsd: 20 },
+        diagnosis: { summary: "The checkout needs a new balance.", evidence: ["insufficient funds", "password=[REDACTED]"] }
+      });
+    });
+
+    it("streams a typed live help signal when the assistant cannot help", async () => {
+      const { token } = await setup({ consent: { reviewOptIn: false } });
+      replyWith([
+        { toolCalls: [{ id: "call-1", name: "suggest_live_help", arguments: { reason: "provider_side_issue" } }] },
+        { content: "This needs the provider. Ask on Discord." }
+      ]);
+
+      const events = await eventsOf(await request(`/v1/assistant/conversations/${faker.string.uuid()}/messages`, token, { content: "My provider vanished" }));
+
+      expect(events).toEqual([
+        { type: "live_help_suggested", reason: "provider_side_issue" },
+        { type: "text_delta", text: "This needs the provider. Ask on Discord." },
+        { type: "done", reason: "stop" }
+      ]);
+    });
   });
 
   describe("POST /v1/assistant/conversations/{id}/client-tool-results", () => {

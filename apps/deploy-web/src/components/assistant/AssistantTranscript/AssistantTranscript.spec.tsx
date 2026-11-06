@@ -1,8 +1,8 @@
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mock } from "vitest-mock-extended";
 
-import type { useServices } from "@src/context/ServicesProvider";
-import type { AssistantAction } from "@src/types/assistant";
+import type { AssistantAction, AssistantLiveHelpReason } from "@src/types/assistant";
 import type { AssistantTranscriptMessage } from "../transcriptModel/transcriptModel";
 import { createTranscriptMessage } from "../transcriptModel/transcriptModel";
 import type { AssistantConversation } from "../useAssistantConversation/useAssistantConversation";
@@ -10,10 +10,6 @@ import { AssistantTranscript, DEPENDENCIES, FOLLOW_UP_ANSWERS } from "./Assistan
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ComponentMock } from "@tests/unit/mocks";
-import { TestContainerProvider } from "@tests/unit/TestContainerProvider";
-
-type Container = ReturnType<typeof useServices>;
 
 const SUPPORT_URL = "https://discord.gg/akash";
 
@@ -39,9 +35,27 @@ describe("AssistantTranscript", () => {
 
   it("renders a card for each proposed action with the conversation it belongs to", () => {
     const action: AssistantAction = { type: "buy_credits", tier: "deep_link", amountUsd: 20 };
-    const { ActionCard } = setup({ messages: [message("2", { text: "Buy credits.", proposals: [{ proposalId: "p-1", action }] })] });
+    const { ActionCard, DiagnosisBlock, conversation } = setup({
+      messages: [message("2", { text: "Buy credits.", proposals: [{ proposalId: "p-1", action }] })]
+    });
 
-    expect(ActionCard).toHaveBeenCalledWith(expect.objectContaining({ conversationId: "c-1", proposalId: "p-1", action }), expect.anything());
+    expect(ActionCard).toHaveBeenCalledWith(
+      expect.objectContaining({ conversationId: "c-1", proposalId: "p-1", action, continueConversation: conversation.send }),
+      expect.anything()
+    );
+    expect(DiagnosisBlock).not.toHaveBeenCalled();
+  });
+
+  it("shows the diagnosis behind a proposed fix around its card", () => {
+    const action: AssistantAction = { type: "send_manifest_again", tier: "confirm", dseq: "42" };
+    const diagnosis = { summary: "The provider lost the manifest.", evidence: ["manifest not found"] };
+    const { ActionCard, DiagnosisBlock } = setup({
+      messages: [message("2", { text: "Here is the fix.", proposals: [{ proposalId: "p-1", action, diagnosis }] })]
+    });
+
+    expect(DiagnosisBlock).toHaveBeenCalledWith(expect.objectContaining({ diagnosis }), expect.anything());
+    expect(within(screen.getByTestId("diagnosis")).getByText("card p-1")).toBeInTheDocument();
+    expect(ActionCard).toHaveBeenCalledWith(expect.objectContaining({ proposalId: "p-1", action }), expect.anything());
   });
 
   it("says it is looking into the question until text arrives", () => {
@@ -51,10 +65,12 @@ describe("AssistantTranscript", () => {
     expect(screen.queryByText("Did this help?")).not.toBeInTheDocument();
   });
 
-  it("offers Discord and asks what the user was trying to do when the assistant cannot help", async () => {
-    const { conversation, DiscordHelpCard } = setup({ messages: [message("2", { text: `I can't see that. Ask on Discord: ${SUPPORT_URL}` })] });
+  it("offers Discord and asks what the user was trying to do when the assistant signals it cannot help", async () => {
+    const { conversation, DiscordHelpCard } = setup({
+      messages: [message("2", { text: "I can't see inside the provider.", liveHelpReason: "provider_side_issue" })]
+    });
 
-    expect(DiscordHelpCard).toHaveBeenCalled();
+    expect(DiscordHelpCard).toHaveBeenCalledWith({ reason: "provider_side_issue" }, expect.anything());
     expect(screen.getByText("Before you go, what were you trying to do? It helps us fix this for everyone.")).toBeInTheDocument();
     expect(screen.queryByText(/Saved for the team/)).not.toBeInTheDocument();
 
@@ -63,14 +79,32 @@ describe("AssistantTranscript", () => {
     expect(conversation.send).toHaveBeenCalledWith(FOLLOW_UP_ANSWERS[0].message);
   });
 
+  it("does not guess from the answer's words that the assistant cannot help", () => {
+    const { DiscordHelpCard } = setup({ messages: [message("2", { text: `The Discord at ${SUPPORT_URL} has release notes.` })] });
+
+    expect(DiscordHelpCard).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Before you go/)).not.toBeInTheDocument();
+  });
+
+  it("waits for the answer to finish before offering live help", () => {
+    const { DiscordHelpCard } = setup({ isAnswering: true, messages: [message("2", { text: "Checking", liveHelpReason: "not_supported_here" })] });
+
+    expect(DiscordHelpCard).not.toHaveBeenCalled();
+  });
+
   it("says the conversation is saved for the team when the user allowed review", () => {
-    setup({ isStored: true, messages: [message("2", { text: "Try Discord." })] });
+    setup({ isStored: true, messages: [message("2", { text: "Try Discord.", liveHelpReason: "no_confident_answer" })] });
 
     expect(screen.getByText("Saved for the team with this conversation. No reply needed.")).toBeInTheDocument();
   });
 
   it("does not ask again once the user answered what they were trying to do", () => {
-    setup({ messages: [createTranscriptMessage("1", "user", FOLLOW_UP_ANSWERS[1].message), message("2", { text: "Thanks. Discord can help." })] });
+    setup({
+      messages: [
+        createTranscriptMessage("1", "user", FOLLOW_UP_ANSWERS[1].message),
+        message("2", { text: "Thanks. Discord can help.", liveHelpReason: "no_confident_answer" })
+      ]
+    });
 
     expect(screen.queryByRole("button", { name: FOLLOW_UP_ANSWERS[0].label })).not.toBeInTheDocument();
   });
@@ -142,16 +176,22 @@ describe("AssistantTranscript", () => {
       startOver: vi.fn(),
       ...input
     });
-    const ActionCard = vi.fn(ComponentMock);
-    const DiscordHelpCard = vi.fn(() => <p>discord card</p>);
-    const publicConfig = Object.assign(mock<Container["publicConfig"]>(), { NEXT_PUBLIC_CONTACT_SUPPORT_URL: SUPPORT_URL });
+    const ActionCard = vi.fn(({ proposalId }: { proposalId: string }) => <p>card {proposalId}</p>);
+    const DiagnosisBlock = vi.fn(({ children }: { children: ReactNode }) => <div data-testid="diagnosis">{children}</div>);
+    const DiscordHelpCard = vi.fn((_props: { reason?: AssistantLiveHelpReason | null }) => <p>discord card</p>);
 
     render(
-      <TestContainerProvider services={{ publicConfig: () => publicConfig }}>
-        <AssistantTranscript conversation={conversation} dependencies={{ ...DEPENDENCIES, ActionCard, DiscordHelpCard }} />
-      </TestContainerProvider>
+      <AssistantTranscript
+        conversation={conversation}
+        dependencies={{
+          ...DEPENDENCIES,
+          ActionCard: ActionCard as unknown as typeof DEPENDENCIES.ActionCard,
+          DiagnosisBlock: DiagnosisBlock as unknown as typeof DEPENDENCIES.DiagnosisBlock,
+          DiscordHelpCard
+        }}
+      />
     );
 
-    return { conversation, ActionCard, DiscordHelpCard };
+    return { conversation, ActionCard, DiagnosisBlock, DiscordHelpCard };
   }
 });

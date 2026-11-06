@@ -141,7 +141,7 @@ describe("AssistantPanel", () => {
       )
     });
     const conversation = Object.assign(mock<AssistantConversation>(), {
-      messages: input.hasMessages ? [{ id: "1", role: "user" as const, text: "Hi", reads: [], proposals: [] }] : [],
+      messages: input.hasMessages ? [{ id: "1", role: "user" as const, text: "Hi", reads: [], proposals: [], liveHelpReason: null }] : [],
       problem: input.problem ?? null,
       endedAs: null,
       isAnswering: false,

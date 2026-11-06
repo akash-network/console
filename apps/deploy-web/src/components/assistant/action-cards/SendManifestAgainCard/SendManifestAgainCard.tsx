@@ -27,7 +27,7 @@ export const SendManifestAgainCard: FC<ActionCardProps<"send_manifest_again"> & 
       tier={action.tier}
       decision={decision}
       rows={[{ label: "Deployment", value: action.dseq }]}
-      costNote="Sends the deployment to its provider again. Nothing else changes and it costs nothing."
+      costNote="Sends the deployment to its provider again, which recovers one the provider lost. It doesn't restart containers, and Console has no restart action. It costs nothing."
       confirmLabel="Send again"
       successMessage="Sent. The provider should start it in a minute or two."
       onConfirm={sendAgain}

@@ -2,15 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AssistantAction, AssistantStreamEvent } from "@src/types/assistant";
 import type { AssistantTranscriptMessage } from "./transcriptModel";
-import {
-  applyAssistantEvent,
-  createTranscriptMessage,
-  historyOf,
-  isUnableToHelpAnswer,
-  MAX_HISTORY_MESSAGES,
-  readLabelOfClientTool,
-  tailLinesOf
-} from "./transcriptModel";
+import { applyAssistantEvent, createTranscriptMessage, historyOf, MAX_HISTORY_MESSAGES, readLabelOfClientTool, tailLinesOf } from "./transcriptModel";
 
 describe("transcriptModel", () => {
   describe(applyAssistantEvent.name, () => {
@@ -75,7 +67,22 @@ describe("transcriptModel", () => {
 
       const message = applyAssistantEvent(answer(), { type: "action_proposal", proposalId: "p-1", action });
 
-      expect(message.proposals).toEqual([{ proposalId: "p-1", action }]);
+      expect(message.proposals).toEqual([{ proposalId: "p-1", action, diagnosis: undefined }]);
+    });
+
+    it("keeps the diagnosis behind a proposed fix", () => {
+      const action: AssistantAction = { type: "send_manifest_again", tier: "confirm", dseq: "42" };
+      const diagnosis = { summary: "Out of memory", evidence: ["OOMKilled"] };
+      const message = applyAssistantEvent(answer(), { type: "action_proposal", proposalId: "p-1", action, diagnosis });
+
+      expect(message.proposals).toEqual([{ proposalId: "p-1", action, diagnosis }]);
+    });
+
+    it("remembers why the assistant suggested live help", () => {
+      expect(answer().liveHelpReason).toBeNull();
+      expect(applyAssistantEvent(answer({ text: "Ask on Discord" }), { type: "live_help_suggested", reason: "provider_side_issue" })).toEqual(
+        answer({ text: "Ask on Discord", liveHelpReason: "provider_side_issue" })
+      );
     });
 
     it("ignores events that do not change the answer", () => {
@@ -122,14 +129,6 @@ describe("transcriptModel", () => {
       expect(history).toHaveLength(MAX_HISTORY_MESSAGES);
       expect(history[0].content).toBe("message 3");
       expect(history.at(-1)?.content).toHaveLength(8000);
-    });
-  });
-
-  describe(isUnableToHelpAnswer.name, () => {
-    it("reads pointing to the support link or to Discord as not being able to help", () => {
-      expect(isUnableToHelpAnswer("Ask at https://support.test/akash", "https://support.test/akash")).toBe(true);
-      expect(isUnableToHelpAnswer("Ask the team on discord.", "https://support.test/akash")).toBe(true);
-      expect(isUnableToHelpAnswer("Your lease is active.", "https://support.test/akash")).toBe(false);
     });
   });
 

@@ -11,7 +11,7 @@ import {
   scoreAssistantEval
 } from "@src/feedback/lib/assistant-eval/assistant-eval-scoring";
 import { buildAssistantSystemPrompt } from "@src/feedback/lib/assistant-system-prompt/assistant-system-prompt";
-import { assistantChatTools, proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
+import { assistantChatTools, isLiveHelpToolName, proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { FEEDBACK_CONFIG } from "@src/feedback/providers/config.provider";
 import { AkashMlClient, type ChatMessage, type ChatToolCall } from "@src/feedback/services/akashml-client/akashml.client";
 import { toolContentOf } from "@src/feedback/services/assistant-tool-runner/assistant-tool-runner.service";
@@ -35,11 +35,12 @@ function argumentsOf(call: ChatToolCall): Record<string, unknown> {
 function toolMessageOf(evalCase: AssistantEvalCase, call: ChatToolCall): ChatMessage {
   const name = call.function.name;
   const fixture = evalCase.toolResults?.[name];
-  const payload = proposalActionTypeOf(name)
-    ? { data: { shown: true, note: "The user sees a card and decides; nothing ran yet." } }
-    : fixture !== undefined
-      ? { data: fixture }
-      : { error: "No data for this tool in this case." };
+  const payload =
+    proposalActionTypeOf(name) || isLiveHelpToolName(name)
+      ? { data: { shown: true, note: "The user sees a card and decides; nothing ran yet." } }
+      : fixture !== undefined
+        ? { data: fixture }
+        : { error: "No data for this tool in this case." };
 
   return { role: "tool", tool_call_id: call.id, content: toolContentOf(name, payload) };
 }

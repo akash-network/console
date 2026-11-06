@@ -84,6 +84,9 @@ export class AssistantProposalService {
       case "send_manifest_again":
         await this.#activeDeployment(input.args.dseq);
         return { type: "send_manifest_again", tier: "confirm", dseq: input.args.dseq };
+      case "create_alert":
+        await this.#activeDeployment(input.args.dseq);
+        return { type: "create_alert", tier: "confirm", alert: "deployment_closed", dseq: input.args.dseq, channel: "email" };
       default:
         return this.#withoutLookup(input);
     }
@@ -103,20 +106,12 @@ export class AssistantProposalService {
       | "remove_runtime_limit"
       | "close_deployment"
       | "send_manifest_again"
+      | "create_alert"
     >]
   ): AssistantAction {
     switch (input.type) {
       case "move_deployment":
         return { type: "move_deployment", tier: "confirm", ...input.args };
-      case "create_alert":
-        return {
-          type: "create_alert",
-          tier: "confirm",
-          alert: input.args.alert,
-          dseq: input.args.alert === "wallet_balance" ? null : input.args.dseq ?? null,
-          thresholdUsd: input.args.alert === "deployment_closed" ? null : input.args.thresholdUsd ?? null,
-          channel: "email"
-        };
       case "redeem_coupon":
         return { type: "redeem_coupon", tier: "confirm", code: input.args.code ?? null };
       case "save_as_template":

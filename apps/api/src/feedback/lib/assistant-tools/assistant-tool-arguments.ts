@@ -3,12 +3,8 @@ import { z } from "@hono/zod-openapi";
 import { MAX_RUNTIME_LIMIT_INCREMENT_HOURS } from "@src/deployment/http-schemas/runtime-limit";
 import { deploymentCloseReasonEnum, MAX_CLOSE_REASON_DETAILS_LENGTH } from "@src/deployment/model-schemas";
 import { MAX_DEPLOYMENT_NAME_LENGTH } from "@src/deployment/utils/deployment-name/deployment-name";
-import {
-  ASSISTANT_ALERT_KINDS,
-  ASSISTANT_HARDWARE_INTERCONNECTS,
-  AssistantDseqSchema,
-  AssistantServicePatchSchema
-} from "@src/feedback/http-schemas/assistant-action.schema";
+import { ASSISTANT_HARDWARE_INTERCONNECTS, AssistantDseqSchema, AssistantServicePatchSchema } from "@src/feedback/http-schemas/assistant-action.schema";
+import { ASSISTANT_LIVE_HELP_REASONS } from "@src/feedback/http-schemas/assistant-conversation.schema";
 import { TemplateIdSchema } from "@src/template/http-schemas/template.schema";
 import { AkashAddressSchema } from "@src/utils/schema";
 
@@ -72,8 +68,6 @@ const ResourceChangeSchema = z
   })
   .strict();
 
-const deploymentAlert = (alert: string) => alert !== "wallet_balance";
-
 export const PROPOSAL_TOOL_ARGUMENTS = {
   create_deployment: z
     .object({
@@ -116,13 +110,7 @@ export const PROPOSAL_TOOL_ARGUMENTS = {
     reason: z.enum(deploymentCloseReasonEnum.enumValues),
     reasonDetails: z.string().trim().max(MAX_CLOSE_REASON_DETAILS_LENGTH).optional()
   }),
-  create_alert: z
-    .object({
-      alert: z.enum(ASSISTANT_ALERT_KINDS),
-      dseq: Dseq.optional().openapi({ description: "Required for deployment alerts" }),
-      thresholdUsd: z.number().positive().max(1_000_000).optional()
-    })
-    .refine(({ alert, dseq }) => !deploymentAlert(alert) || !!dseq, { message: "A deployment alert needs a dseq" }),
+  create_alert: z.object({ dseq: Dseq }),
   redeem_coupon: z.object({ code: z.string().trim().min(1).max(MAX_NAME_LENGTH).optional() }),
   save_as_template: z.object({ dseq: Dseq, title: z.string().trim().min(1).max(MAX_NAME_LENGTH), description: ShortText.optional() }),
   favorite_provider: z.object({ provider: AkashAddressSchema.openapi({ description: "Provider address" }) }),
@@ -141,9 +129,19 @@ export const PROPOSAL_TOOL_ARGUMENTS = {
   })
 };
 
+export const LIVE_HELP_TOOL_NAME = "suggest_live_help";
+
+export const LIVE_HELP_TOOL_ARGUMENTS = z.object({
+  reason: z.enum(ASSISTANT_LIVE_HELP_REASONS).openapi({
+    description:
+      "provider_side_issue: needs someone who can look at the provider. not_supported_here: Console or the assistant cannot do it. no_confident_answer: the tools and docs do not answer it. user_asked_for_a_person: the user asked for a human."
+  })
+});
+
 export type ReadToolName = keyof typeof READ_TOOL_ARGUMENTS;
 export type ClientToolName = keyof typeof CLIENT_TOOL_ARGUMENTS;
 export type ProposalActionType = keyof typeof PROPOSAL_TOOL_ARGUMENTS;
 export type ReadToolArguments<T extends ReadToolName> = z.infer<(typeof READ_TOOL_ARGUMENTS)[T]>;
 export type ClientToolArguments<T extends ClientToolName> = z.infer<(typeof CLIENT_TOOL_ARGUMENTS)[T]>;
 export type ProposalArguments<T extends ProposalActionType> = z.infer<(typeof PROPOSAL_TOOL_ARGUMENTS)[T]>;
+export type LiveHelpArguments = z.infer<typeof LIVE_HELP_TOOL_ARGUMENTS>;

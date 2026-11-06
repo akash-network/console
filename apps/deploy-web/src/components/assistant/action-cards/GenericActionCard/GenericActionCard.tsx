@@ -85,7 +85,6 @@ export function summaryRowsOf(action: AssistantAction): ActionCardRow[] {
 export function consoleHrefOf(action: AssistantAction): string | null {
   if ("dseq" in action && action.dseq) return UrlService.deploymentDetails(action.dseq);
   if (action.type === "buy_credits" || action.type === "configure_auto_recharge" || action.type === "redeem_coupon") return UrlService.billing();
-  if (action.type === "create_alert") return UrlService.alerts();
   if (action.type === "favorite_provider") return UrlService.providerDetail(action.provider);
   return null;
 }
@@ -94,7 +93,14 @@ function isShownValue(value: unknown): value is string | number | boolean {
   return typeof value === "string" || typeof value === "number" || typeof value === "boolean";
 }
 
+const ACRONYMS: Record<string, string> = { gpu: "GPU", usd: "USD", sdl: "SDL", id: "ID" };
+
 function labelOf(key: string): string {
-  const words = key.replace(/([A-Z])/g, " $1").toLowerCase();
+  const words = key
+    .replace(/([A-Z])/g, " $1")
+    .toLowerCase()
+    .split(" ")
+    .map(word => ACRONYMS[word] ?? word)
+    .join(" ");
   return words.charAt(0).toUpperCase() + words.slice(1);
 }

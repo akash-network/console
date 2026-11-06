@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { MAX_CONSENT_COPY_VERSION_LENGTH } from "@src/feedback/model-schemas/assistant-consent/assistant-consent.schema";
-import { ASSISTANT_ACTION_TYPES, AssistantActionSchema, AssistantDseqSchema } from "./assistant-action.schema";
+import { ASSISTANT_ACTION_TYPES, AssistantActionSchema, AssistantDiagnosisSchema, AssistantDseqSchema } from "./assistant-action.schema";
 
 export const MAX_ASSISTANT_MESSAGE_LENGTH = 4_000;
 export const MAX_ASSISTANT_HISTORY_MESSAGES = 20;
@@ -85,6 +85,8 @@ export const RecordAssistantActionResultResponseSchema = z.object({
   data: z.object({ recorded: z.boolean().openapi({ description: "False for a conversation the API does not store" }) })
 });
 
+export const ASSISTANT_LIVE_HELP_REASONS = ["provider_side_issue", "not_supported_here", "no_confident_answer", "user_asked_for_a_person"] as const;
+
 export const ASSISTANT_STREAM_ERROR_CODES = ["assistant_unavailable", "assistant_timeout", "assistant_error"] as const;
 
 export const AssistantStreamEventSchema = z
@@ -105,7 +107,16 @@ export const AssistantStreamEventSchema = z
       arguments: z.object({ dseq: z.string(), service: z.string().optional(), tailLines: z.number().int().optional() }),
       maxLength: z.number().int().openapi({ description: "The longest `content` the API accepts for this result" })
     }),
-    z.object({ type: z.literal("action_proposal"), proposalId: z.string().uuid(), action: AssistantActionSchema }),
+    z.object({
+      type: z.literal("action_proposal"),
+      proposalId: z.string().uuid(),
+      action: AssistantActionSchema,
+      diagnosis: AssistantDiagnosisSchema.optional()
+    }),
+    z.object({
+      type: z.literal("live_help_suggested"),
+      reason: z.enum(ASSISTANT_LIVE_HELP_REASONS).openapi({ description: "Why the assistant cannot solve this itself; the client offers live help on Discord" })
+    }),
     z.object({
       type: z.literal("done"),
       reason: z.enum(["stop", "length", "awaiting_client_tool"]).openapi({
@@ -127,3 +138,4 @@ export type EndAssistantConversationResponse = z.infer<typeof EndAssistantConver
 export type RecordAssistantActionResultRequest = z.infer<typeof RecordAssistantActionResultRequestSchema>;
 export type RecordAssistantActionResultResponse = z.infer<typeof RecordAssistantActionResultResponseSchema>;
 export type AssistantStreamEvent = z.infer<typeof AssistantStreamEventSchema>;
+export type AssistantLiveHelpReason = (typeof ASSISTANT_LIVE_HELP_REASONS)[number];
