@@ -1,7 +1,7 @@
 "use client";
 import type { FC, ReactNode } from "react";
 import { cn } from "@akashnetwork/ui/utils";
-import { ArrowUpRight, ChevronLeft, ChevronRight, MapPin, ShieldCheck, Star, X } from "lucide-react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, MapPin, Star, X } from "lucide-react";
 import Link from "next/link";
 
 import type { ProviderSummary } from "@src/components/providers/providerSummary/providerSummary";
@@ -102,16 +102,9 @@ const ProviderDetails: FC<{ provider: ProviderSummary }> = ({ provider }) => (
     <p className="mb-2 truncate font-mono text-[10.5px] text-muted-foreground" title={provider.owner}>
       {provider.owner}
     </p>
-    {(provider.locationRegion || provider.isAudited || !provider.isOnline) && (
+    {provider.locationRegion && (
       <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
-        {!provider.isOnline && <span className="rounded-full bg-warning/15 px-2 py-0.5 font-mono text-[10.5px] font-medium text-warning">Offline</span>}
-        {provider.locationRegion && <RegionPill region={provider.locationRegion} />}
-        {provider.isAudited && (
-          <span className="inline-flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 font-mono text-[10.5px] text-foreground">
-            <ShieldCheck className="h-3 w-3 text-emerald-600 dark:text-emerald-400" aria-hidden />
-            Audited
-          </span>
-        )}
+        <RegionPill region={provider.locationRegion} />
       </div>
     )}
     <p className="mb-2.5 flex items-center gap-1.5 font-mono text-xs text-muted-foreground">

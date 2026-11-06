@@ -23,7 +23,7 @@ describe("NetworkStats", () => {
       "1,234",
       "59 providers · 8.9K vCPU free",
       "94.52%",
-      "Online providers, rolling 30 days",
+      "Audited providers, rolling 30 days",
       "678",
       "Active leases"
     ]);

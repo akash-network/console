@@ -497,17 +497,14 @@ describe("ProvidersExplorer", () => {
     expect(model.updateFilters).toHaveBeenNthCalledWith(2, { gpuModels: ["h100"] });
   });
 
-  it("switches the Active, Audited and Favorites filters", async () => {
+  it("switches the Favorites filter and offers no Active or Audited filter", async () => {
     const { model } = setup({});
 
-    expect(screen.getByRole("button", { name: "Active" })).toHaveAttribute("aria-pressed", "true");
-    await userEvent.click(screen.getByRole("button", { name: "Active" }));
-    await userEvent.click(screen.getByRole("button", { name: "Audited" }));
     await userEvent.click(screen.getByRole("button", { name: "Favorites" }));
 
-    expect(model.updateFilters).toHaveBeenNthCalledWith(1, { isActiveOnly: false });
-    expect(model.updateFilters).toHaveBeenNthCalledWith(2, { isAuditedOnly: false });
-    expect(model.updateFilters).toHaveBeenNthCalledWith(3, { isFavoritesOnly: true });
+    expect(model.updateFilters).toHaveBeenCalledWith({ isFavoritesOnly: true });
+    expect(screen.queryByRole("button", { name: "Active" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Audited" })).not.toBeInTheDocument();
   });
 
   it("titles the list by whether it is narrowed and offers to clear the filters", async () => {

@@ -11,8 +11,6 @@ export type ProviderFilters = {
   regions: string[];
   gpuModels: string[];
   isGpuOnly: boolean;
-  isActiveOnly: boolean;
-  isAuditedOnly: boolean;
   isFavoritesOnly: boolean;
 };
 
@@ -38,8 +36,6 @@ export const DEFAULT_FILTERS: ProviderFilters = {
   regions: [],
   gpuModels: [],
   isGpuOnly: false,
-  isActiveOnly: true,
-  isAuditedOnly: true,
   isFavoritesOnly: false
 };
 
@@ -67,8 +63,8 @@ export function useProvidersExplorerModel(dependencies: typeof DEPENDENCIES = DE
   const providerSearch = d.useProviderSearch(
     {
       search: pacedSearch || undefined,
-      online: filters.isActiveOnly || undefined,
-      audited: filters.isAuditedOnly || undefined,
+      online: true,
+      audited: true,
       addresses: filters.isFavoritesOnly ? searchedFavorites : undefined,
       regions: filters.regions.length > 0 ? filters.regions : undefined,
       gpu: filters.isGpuOnly || undefined,
@@ -94,7 +90,8 @@ export function useProvidersExplorerModel(dependencies: typeof DEPENDENCIES = DE
     },
     [hasLoadedProviders, isSearchingProviders, pageIndex, lastPageIndex]
   );
-  const locations = useMemo(() => providerLocations.data ?? [], [providerLocations.data]);
+  const auditedLocations = useMemo(() => providerLocations.data?.filter(location => location.isAudited), [providerLocations.data]);
+  const locations = useMemo(() => auditedLocations ?? [], [auditedLocations]);
 
   const updateFilters = useCallback((change: Partial<ProviderFilters>) => {
     setFilters(current => ({ ...current, ...change }));
@@ -129,7 +126,7 @@ export function useProvidersExplorerModel(dependencies: typeof DEPENDENCIES = DE
     filters,
     updateFilters,
     clearFilters,
-    hasFilters: hasNarrowingFilter(filters, search) || !filters.isActiveOnly || !filters.isAuditedOnly,
+    hasFilters: hasNarrowingFilter(filters, search),
     pageIndex,
     changePageIndex: setPageIndex,
     pageCount: Math.ceil(matchingProviderCount / PAGE_SIZE),
@@ -160,7 +157,7 @@ export function useProvidersExplorerModel(dependencies: typeof DEPENDENCIES = DE
         ),
       [locations, filters.gpuModels]
     ),
-    networkStats: useMemo(() => buildNetworkStats(dashboard.data, locations), [dashboard.data, locations]),
+    networkStats: useMemo(() => buildNetworkStats(dashboard.data, auditedLocations), [dashboard.data, auditedLocations]),
     favoriteProviders,
     toggleFavorite
   };
@@ -179,7 +176,6 @@ function findMatchingLocationIds(locations: ApiProviderLocation[], filters: Prov
 
   const matches = locations.filter(
     location =>
-      (!filters.isAuditedOnly || location.isAudited) &&
       (!filters.isFavoritesOnly || favorites.has(location.owner)) &&
       (regions.size === 0 || (!!location.locationRegion && regions.has(location.locationRegion))) &&
       (!filters.isGpuOnly || totalOf(location.stats.gpu) > 0) &&
@@ -198,16 +194,20 @@ function countOptions(values: string[], selected: string[]): FilterOption[] {
   return [...counts.entries()].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
 }
 
-function buildNetworkStats(dashboard: ReturnType<typeof useDashboardData>["data"], locations: ApiProviderLocation[]): NetworkStats {
-  const uptimes = locations.flatMap(location => (location.uptime30d === null || location.uptime30d === undefined ? [] : [location.uptime30d]));
+function buildNetworkStats(dashboard: ReturnType<typeof useDashboardData>["data"], locations: ApiProviderLocation[] | undefined): NetworkStats {
+  const uptimes = locations?.flatMap(location => (location.uptime30d === null || location.uptime30d === undefined ? [] : [location.uptime30d])) ?? [];
 
   return {
-    availableGpuCount: dashboard?.networkCapacity.availableGPU ?? null,
-    activeProviderCount: dashboard?.networkCapacity.activeProviderCount ?? null,
-    availableVcpuCount: dashboard ? Math.round(dashboard.networkCapacity.availableCPU / MILLICORES_PER_VCPU) : null,
+    availableGpuCount: locations ? sumOf(locations, location => location.stats.gpu.available) : null,
+    activeProviderCount: locations?.length ?? null,
+    availableVcpuCount: locations ? Math.round(sumOf(locations, location => location.stats.cpu.available) / MILLICORES_PER_VCPU) : null,
     activeLeaseCount: dashboard?.now.activeLeaseCount ?? null,
     averageUptime30d: uptimes.length > 0 ? uptimes.reduce((total, uptime) => total + uptime, 0) / uptimes.length : null
   };
+}
+
+function sumOf(locations: ApiProviderLocation[], valueOf: (location: ApiProviderLocation) => number): number {
+  return locations.reduce((total, location) => total + valueOf(location), 0);
 }
 
 /** Cuts on UTF-16 units, which the API's limit counts, without leaving half an emoji, which the URL encoder refuses. */

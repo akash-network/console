@@ -285,12 +285,6 @@ export const ProvidersExplorer: FC<Props> = ({ dependencies: d = DEPENDENCIES })
             {model.hasFilters ? "Matching providers" : "All providers"}
           </h2>
           <div className="flex flex-wrap items-center gap-1.5">
-            <FilterChip label="Active" isOn={model.filters.isActiveOnly} onToggle={() => model.updateFilters({ isActiveOnly: !model.filters.isActiveOnly })} />
-            <FilterChip
-              label="Audited"
-              isOn={model.filters.isAuditedOnly}
-              onToggle={() => model.updateFilters({ isAuditedOnly: !model.filters.isAuditedOnly })}
-            />
             <FilterChip
               label="Favorites"
               isOn={model.filters.isFavoritesOnly}
