@@ -24,6 +24,9 @@ export const DEPENDENCIES = {
 /** Read by the page layout, which pads itself by this much on wide screens so the docked panel never covers the page. */
 export const ASSISTANT_PANEL_WIDTH_VAR = "--assistant-panel-width";
 
+/** Moves toasts off the panel's composer while it is open; 20px is notistack's own right indent. */
+export const TOASTS_BESIDE_ASSISTANT_PANEL = "sm:!right-[calc(var(--assistant-panel-width,0px)+20px)]";
+
 const DOCKED_PANEL_WIDTH = "440px";
 
 type Props = {

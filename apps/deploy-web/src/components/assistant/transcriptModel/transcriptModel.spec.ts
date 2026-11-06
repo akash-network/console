@@ -24,7 +24,7 @@ describe("transcriptModel", () => {
     it("adds a read chip named after the tool when a tool starts", () => {
       const message = applyAssistantEvent(answer(), { type: "tool_started", toolCallId: "t-1", name: "get_lease_close_reason" });
 
-      expect(message.reads).toEqual([{ id: "t-1", tool: "get_lease_close_reason", label: "lease close reason", ok: true }]);
+      expect(message.reads).toEqual([{ id: "t-1", tool: "get_lease_close_reason", label: "Reading lease close reason", ok: true }]);
     });
 
     it("replaces the chip with the summary of what the tool read", () => {
@@ -63,7 +63,7 @@ describe("transcriptModel", () => {
     it("keeps the tool name when the summary is empty, and adds a chip for a summary of a tool it never saw start", () => {
       const message = applyAssistantEvent(answer(), { type: "tool_result_summary", toolCallId: "t-2", name: "search_docs", ok: true, summary: "" });
 
-      expect(message.reads).toEqual([{ id: "t-2", tool: "search_docs", label: "docs", ok: true }]);
+      expect(message.reads).toEqual([{ id: "t-2", tool: "search_docs", label: "Reading docs", ok: true }]);
     });
 
     it("leaves the other chips alone when a summary arrives", () => {
@@ -75,7 +75,13 @@ describe("transcriptModel", () => {
 
       const message = events.reduce(applyAssistantEvent, answer());
 
-      expect(message.reads.map(read => read.label)).toEqual(["deployments", "balance"]);
+      expect(message.reads.map(read => read.label)).toEqual(["Reading deployments", "balance"]);
+    });
+
+    it("names a tool without a read verb by what it does", () => {
+      const message = applyAssistantEvent(answer(), { type: "tool_started", toolCallId: "t-1", name: "check_availability" });
+
+      expect(message.reads).toEqual([{ id: "t-1", tool: "check_availability", label: "Check availability", ok: true }]);
     });
 
     it("adds no chip for a proposal, which shows as its card", () => {
@@ -87,7 +93,7 @@ describe("transcriptModel", () => {
 
       const message = events.reduce(applyAssistantEvent, answer());
 
-      expect(message.reads).toEqual([{ id: "t-1", tool: "list_templates", label: "templates", ok: true }]);
+      expect(message.reads).toEqual([{ id: "t-1", tool: "list_templates", label: "Reading templates", ok: true }]);
     });
 
     it("adds a chip saying what the browser reads for a client tool", () => {
@@ -99,7 +105,7 @@ describe("transcriptModel", () => {
         maxLength: 16000
       });
 
-      expect(message.reads).toEqual([{ id: "t-3", tool: "read_logs", label: "logs (web, last 100 lines)", ok: true }]);
+      expect(message.reads).toEqual([{ id: "t-3", tool: "read_logs", label: "Read logs (web, last 100 lines)", ok: true }]);
     });
 
     it("collects proposed actions", () => {
@@ -172,7 +178,7 @@ describe("transcriptModel", () => {
 
   describe(readLabelOfClientTool.name, () => {
     it("names events and the default tail when no service is asked for", () => {
-      expect(readLabelOfClientTool({ name: "read_events", arguments: { dseq: "1" } })).toBe("events (last 200 lines)");
+      expect(readLabelOfClientTool({ name: "read_events", arguments: { dseq: "1" } })).toBe("Read events (last 200 lines)");
     });
   });
 

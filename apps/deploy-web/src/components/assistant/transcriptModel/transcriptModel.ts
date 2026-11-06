@@ -114,7 +114,7 @@ export function applyAssistantEvent(message: AssistantTranscriptMessage, event: 
 export function readLabelOfClientTool(request: Pick<AssistantClientToolRequest, "name" | "arguments">): string {
   const kind = request.name === "read_logs" ? "logs" : "events";
   const scope = [request.arguments.service, `last ${request.arguments.tailLines ?? DEFAULT_TAIL_LINES} lines`].filter(Boolean).join(", ");
-  return `${kind} (${scope})`;
+  return `Read ${kind} (${scope})`;
 }
 
 /** Drops a failed read the same tool later got right in this answer, and marks that success as retried. */
@@ -145,7 +145,8 @@ function isProposalTool(name: string): boolean {
 }
 
 function readLabelOfTool(name: string): string {
-  return name.replace(TOOL_NAME_VERB, "").replace(/_/g, " ");
+  const subject = name.replace(TOOL_NAME_VERB, "").replace(/_/g, " ");
+  return TOOL_NAME_VERB.test(name) ? `Reading ${subject}` : subject.charAt(0).toUpperCase() + subject.slice(1);
 }
 
 /** Worded here rather than taken from the api's summary, which older api versions filled with the raw tool name. */

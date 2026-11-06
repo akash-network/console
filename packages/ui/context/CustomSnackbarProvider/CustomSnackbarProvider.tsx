@@ -35,7 +35,7 @@ const ToastContent = forwardRef<HTMLDivElement, CustomContentProps>(({ id, messa
 ));
 ToastContent.displayName = "ToastContent";
 
-export const CustomSnackbarProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const CustomSnackbarProvider: React.FC<{ children: React.ReactNode; containerClassName?: string }> = ({ children, containerClassName }) => {
   const notistackRef = useRef<SnackbarProvider>(null);
   const onClickDismiss = (key: SnackbarKey) => () => {
     notistackRef.current?.closeSnackbar(key);
@@ -47,7 +47,7 @@ export const CustomSnackbarProvider: React.FC<{ children: React.ReactNode }> = (
       anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       ref={notistackRef}
       classes={{
-        containerRoot: "pb-3 !w-[400px] [&>div]:w-full"
+        containerRoot: cn("pb-3 !w-[400px] [&>div]:w-full", containerClassName)
       }}
       Components={{
         default: ToastContent,

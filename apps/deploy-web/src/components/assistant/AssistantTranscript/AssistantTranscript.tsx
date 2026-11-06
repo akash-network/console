@@ -197,7 +197,7 @@ const ProposalCard: FC<Omit<AnswerProps, "message"> & { proposal: AssistantPropo
 const ReadChip: FC<{ read: AssistantVisibleReadChip }> = ({ read }) => (
   <li data-ok={read.ok} className="group flex items-center gap-1.5 rounded-md border bg-muted px-2 py-1 font-mono text-xs text-muted-foreground">
     <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-green-500 group-data-[ok=false]:bg-muted-foreground" />
-    {read.ok ? `Read: ${read.label}` : read.label}
+    {read.label}
     {read.retried && <span className="opacity-70">retried</span>}
     {!read.ok && <span className="text-destructive">failed</span>}
   </li>
