@@ -30,7 +30,7 @@ const QUEUE_RETRY_OPTIONS: QueueRetryOptions = {
   retryDelayMax: 5 * 60
 };
 
-const PG_BOSS_FEATURES_KEPT_OFF = { reindex: false, openTelemetry: { enabled: false } } satisfies PgBossConstructorOptions;
+export const PG_BOSS_FEATURES_KEPT_OFF = { reindex: false, openTelemetry: { enabled: false } } satisfies PgBossConstructorOptions;
 
 const DEFAULT_QUEUE_POLICY: NonNullable<PgBossQueue["policy"]> = "standard";
 

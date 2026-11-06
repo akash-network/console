@@ -7,7 +7,7 @@ import { container } from "tsyringe";
 import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { ApiPgDatabase } from "@src/core";
-import { type EnqueueOptions, type Job, JOB_NAME, type JobHandler, JobQueueService, PG_BOSS_TOKEN, POSTGRES_DB } from "@src/core";
+import { type EnqueueOptions, type Job, JOB_NAME, type JobHandler, JobQueueService, PG_BOSS_FEATURES_KEPT_OFF, PG_BOSS_TOKEN, POSTGRES_DB } from "@src/core";
 import { CoreConfigService } from "@src/core/services/core-config/core-config.service";
 
 const RETRY_DELAY_IN_SECONDS = 30;
@@ -23,7 +23,8 @@ function bootstrapJobQueue() {
     const pgBoss = new PgBoss({
       connectionString: coreConfig.get("POSTGRES_DB_URI"),
       schema: coreConfig.get("POSTGRES_BACKGROUND_JOBS_SCHEMA"),
-      schedule: false
+      schedule: false,
+      ...PG_BOSS_FEATURES_KEPT_OFF
     });
     container.registerInstance(PG_BOSS_TOKEN, pgBoss);
 
