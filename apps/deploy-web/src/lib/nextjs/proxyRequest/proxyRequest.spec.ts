@@ -458,6 +458,7 @@ describe(proxyRequest.name, () => {
         sendLastEvent();
         await proxied;
       } finally {
+        sendLastEvent();
         await upstream.close();
       }
 
