@@ -32,7 +32,7 @@ function leaseWithStatusOf(lease: Lease & { status?: LeaseStatus }) {
   return {
     ...leaseOf(lease),
     services: lease.status
-      ? Object.values(lease.status.services).map(({ name, available, total, ready_replicas, uris }) => ({
+      ? Object.values(lease.status.services ?? {}).map(({ name, available, total, ready_replicas, uris }) => ({
           name,
           available,
           total,
@@ -41,7 +41,7 @@ function leaseWithStatusOf(lease: Lease & { status?: LeaseStatus }) {
         }))
       : null,
     forwardedPorts: lease.status
-      ? Object.values(lease.status.forwarded_ports)
+      ? Object.values(lease.status.forwarded_ports ?? {})
           .flat()
           .map(({ port, externalPort, host }) => ({ port, externalPort, host: host ?? null }))
       : null
