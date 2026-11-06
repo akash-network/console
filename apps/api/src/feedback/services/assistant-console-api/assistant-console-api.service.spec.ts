@@ -101,6 +101,14 @@ describe(AssistantConsoleApiService.name, () => {
       expect(addressNamesService.withAddressesNamed).toHaveBeenCalledTimes(1);
     });
 
+    it("keeps the attribute names a provider read returns", async () => {
+      const { service } = setup({ body: { attributes: [{ key: "region", value: "us-west" }] } });
+
+      const { data } = await service.read({ path: `/v1/providers/${PROVIDER}` });
+
+      expect(data).toEqual({ attributes: [{ key: "region", value: "us-west" }] });
+    });
+
     it("states chain amounts in dollars, per month for per-block prices, and drops their denoms", async () => {
       const { service } = setup({
         aktPrice: 0.5,

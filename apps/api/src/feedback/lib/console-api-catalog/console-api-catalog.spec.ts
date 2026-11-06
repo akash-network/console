@@ -137,6 +137,7 @@ describe("console-api-catalog", () => {
       expect(isDeniedConsoleApiPath("/v1/sdl-secrets-context")).toBe(true);
       expect(isDeniedConsoleApiPath("/v1/deployments/42")).toBe(true);
       expect(isDeniedConsoleApiPath("/akash/deployment/v1beta4/deployments/list")).toBe(true);
+      expect(isDeniedConsoleApiPath("/v1/configure-drafts/draft_1")).toBe(true);
       expect(isDeniedConsoleApiPath("/v1/deployments")).toBe(false);
       expect(isDeniedConsoleApiPath("/v1/deployments/42/info")).toBe(false);
     });

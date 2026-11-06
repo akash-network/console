@@ -12,7 +12,7 @@ export interface ConsoleApiRoute {
   responseSchema?: ResponseSchema;
 }
 
-const SEALS_SECRETS = "returns the key context that seals SDL secrets";
+const SEALING_CONTEXT = "returns the key context that seals SDL secrets";
 const TEMPLATE_ENV = "returns saved template SDLs that can hold plaintext env values; list_templates covers templates";
 const PLAINTEXT_ENV = "returns the stored SDL with its plaintext env values; get_deployment reads it without them";
 const STRIPE_ON_READ = "calls Stripe on every read and returns raw payment details";
@@ -24,10 +24,11 @@ const CHAIN_DENOMINATED = "network explorer data in chain denoms and blocks, whi
 
 /** GET routes the assistant never reads, whoever asks, each with the reason a reviewer can check. */
 export const DENIED_CONSOLE_API_ROUTES: Readonly<Record<string, string>> = {
-  "/v1/sdl-secrets-context": SEALS_SECRETS,
+  "/v1/sdl-secrets-context": SEALING_CONTEXT,
   "/v1/deployments/{dseq}": PLAINTEXT_ENV,
   "/v1/deployment-settings/{userId}/{dseq}": PLAINTEXT_ENV,
   "/v2/deployment-settings/{dseq}": PLAINTEXT_ENV,
+  "/v1/configure-drafts/{draftId}": "returns the draft SDL exactly as the client saved it, which can hold plaintext env values",
   "/v1/user/template/{id}": TEMPLATE_ENV,
   "/v1/user/templates/{username}": TEMPLATE_ENV,
   "/v1/stripe/payment-methods": "syncs the payment method rows with Stripe on every read",
