@@ -191,12 +191,20 @@ export class OrganizationContextResolver {
 
     if (cached) return cached;
 
-    const membership: MembershipWithProjectAccess = (await this.organizationMemberRepository.findActiveMembership(user.id, { type: "personal" })) ?? {
-      role: "owner",
-      projectAccess: "all",
-      organization: await this.personalOrganizationService.ensureForUser(user)
-    };
+    const membership = await this.#findOrProvisionPersonalMembership(user);
     this.#personalMemberships.set(user.id, membership);
+
+    return membership;
+  }
+
+  async #findOrProvisionPersonalMembership(user: OrganizationContextRequest["user"]): Promise<MembershipWithProjectAccess> {
+    const membership = await this.organizationMemberRepository.findActiveMembership(user.id, { type: "personal" });
+
+    if (!membership) {
+      return { role: "owner", projectAccess: "all", organization: await this.personalOrganizationService.ensureForUser(user) };
+    }
+
+    await this.personalOrganizationService.restoreDefaultProject(user, membership.organization);
 
     return membership;
   }

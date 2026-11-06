@@ -528,6 +528,33 @@ describe(OrganizationContextResolver.name, () => {
       expect(organizationMemberRepository.findActiveMembership).toHaveBeenCalledTimes(1);
     });
 
+    it("restores the default project of a personal organization it finds, once per user", async () => {
+      const { resolver, personal, user, personalOrganizationService } = setup({ organizationsOn: false });
+
+      await resolver.resolve({ user });
+      await resolver.resolve({ user });
+
+      expect(personalOrganizationService.restoreDefaultProject).toHaveBeenCalledOnce();
+      expect(personalOrganizationService.restoreDefaultProject).toHaveBeenCalledWith(user, personal.organization);
+    });
+
+    it("leaves the default project to the provisioning of a personal organization it has to create", async () => {
+      const { resolver, personalOrganizationService, user } = setup({ organizationsOn: false, withoutPersonalMembership: true });
+      personalOrganizationService.ensureForUser.mockResolvedValue(createOrganization({ type: "personal", createdByUserId: user.id }));
+
+      await resolver.resolve({ user });
+
+      expect(personalOrganizationService.restoreDefaultProject).not.toHaveBeenCalled();
+    });
+
+    it("fails the request when the default project cannot be restored once enforcement is on", async () => {
+      const { resolver, personalOrganizationService, user } = setup({ organizationsOn: false, enforceOn: true });
+      const error = new Error("database unavailable");
+      personalOrganizationService.restoreDefaultProject.mockRejectedValue(error);
+
+      await expect(resolver.resolve({ user })).rejects.toBe(error);
+    });
+
     it("creates the personal organization once per user", async () => {
       const { resolver, personalOrganizationService, user } = setup({ organizationsOn: false, withoutPersonalMembership: true });
       const created = createOrganization({ type: "personal", createdByUserId: user.id });

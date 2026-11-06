@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { ApiPgDatabase } from "@src/core";
 import { POSTGRES_DB, resolveTable } from "@src/core";
 import { personalOrganizationSlug } from "@src/organization/lib/personal-organization/personal-organization";
+import { DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_SLUG } from "@src/organization/model-schemas/project/project.schema";
 import { OrganizationRepository } from "@src/organization/repositories/organization/organization.repository";
 import { OrganizationMemberRepository } from "@src/organization/repositories/organization-member/organization-member.repository";
 import { ProjectRepository } from "@src/organization/repositories/project/project.repository";
@@ -54,6 +55,30 @@ describe(PersonalOrganizationService.name, () => {
       const organization = await service.ensureForUser(user);
 
       expect(organization.slug).toBe(personalOrganizationSlug(user.id, 1));
+    });
+  });
+
+  describe("restoreDefaultProject", () => {
+    it("gives a personal organization left without projects exactly one default project, however often it is called", async () => {
+      const { service, user, projectRepository, db } = await setup();
+      const organization = await service.ensureForUser(user);
+      await db.delete(resolveTable("Projects")).where(eq(resolveTable("Projects").organizationId, organization.id));
+
+      await Promise.all(Array.from({ length: 3 }, () => service.restoreDefaultProject(user, organization)));
+
+      expect(await projectRepository.find({ organizationId: organization.id })).toEqual([
+        expect.objectContaining({ isDefault: true, name: DEFAULT_PROJECT_NAME, slug: DEFAULT_PROJECT_SLUG, createdByUserId: user.id })
+      ]);
+    });
+
+    it("leaves an organization that still has its default project as it is", async () => {
+      const { service, user, projectRepository } = await setup();
+      const organization = await service.ensureForUser(user);
+      const before = await projectRepository.find({ organizationId: organization.id });
+
+      await service.restoreDefaultProject(user, organization);
+
+      expect(await projectRepository.find({ organizationId: organization.id })).toEqual(before);
     });
   });
 

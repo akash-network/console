@@ -51,6 +51,17 @@ export class PersonalOrganizationService {
     });
   }
 
+  /** Rows written into an organization without a default project land in no project, so a personal organization found without one gets it back. */
+  async restoreDefaultProject(user: PersonalOrganizationUser, organization: Pick<OrganizationOutput, "id">): Promise<void> {
+    const project = await this.projectRepository
+      .unscoped("personal-organization-provisioning")
+      .createDefaultUnlessExists({ organizationId: organization.id, createdByUserId: user.id });
+
+    if (project) {
+      this.#logger.warn({ event: "PERSONAL_ORGANIZATION_DEFAULT_PROJECT_RESTORED", userId: user.id, organizationId: organization.id, projectId: project.id });
+    }
+  }
+
   async renameToUsername(user: PersonalOrganizationUser): Promise<void> {
     await this.organizationRepository.updateBy({ createdByUserId: user.id, type: "personal" }, { name: personalOrganizationName(user.username) });
   }

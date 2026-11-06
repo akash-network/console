@@ -144,6 +144,34 @@ describe(PersonalOrganizationService.name, () => {
     });
   });
 
+  describe("restoreDefaultProject", () => {
+    it("gives the organization its default project back whichever organization the request is active in, and logs the restore", async () => {
+      const user = createUser();
+      const { service, organization, project, projectRepository, logger } = setup();
+      projectRepository.createDefaultUnlessExists.mockResolvedValue(project);
+
+      await service.restoreDefaultProject(user, organization);
+
+      expect(projectRepository.unscoped).toHaveBeenCalledWith("personal-organization-provisioning");
+      expect(projectRepository.createDefaultUnlessExists).toHaveBeenCalledWith({ organizationId: organization.id, createdByUserId: user.id });
+      expect(logger.warn).toHaveBeenCalledWith({
+        event: "PERSONAL_ORGANIZATION_DEFAULT_PROJECT_RESTORED",
+        userId: user.id,
+        organizationId: organization.id,
+        projectId: project.id
+      });
+    });
+
+    it("stays quiet when the organization already has its default project", async () => {
+      const user = createUser();
+      const { service, organization, logger } = setup();
+
+      await service.restoreDefaultProject(user, organization);
+
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+  });
+
   describe("renameToUsername", () => {
     it("renames the user's personal organization to their username", async () => {
       const user = createUser({ id: USER_ID, username: "alice" });
