@@ -10,6 +10,7 @@ import {
   formatAssistantEvalTable,
   scoreAssistantEval
 } from "@src/feedback/lib/assistant-eval/assistant-eval-scoring";
+import { assistantKnowledge } from "@src/feedback/lib/assistant-knowledge/assistant-knowledge";
 import { buildAssistantSystemPrompt } from "@src/feedback/lib/assistant-system-prompt/assistant-system-prompt";
 import { assistantChatTools, isLiveHelpToolName, proposalActionTypeOf } from "@src/feedback/lib/assistant-tools/assistant-tools";
 import { FEEDBACK_CONFIG } from "@src/feedback/providers/config.provider";
@@ -34,7 +35,7 @@ function argumentsOf(call: ChatToolCall): Record<string, unknown> {
 
 function toolMessageOf(evalCase: AssistantEvalCase, call: ChatToolCall): ChatMessage {
   const name = call.function.name;
-  const fixture = evalCase.toolResults?.[name];
+  const fixture = evalCase.toolResults?.[name] ?? (name === "search_docs" ? assistantKnowledge.search(String(argumentsOf(call).query ?? "")) : undefined);
   const payload =
     proposalActionTypeOf(name) || isLiveHelpToolName(name)
       ? { data: { shown: true, note: "The user sees a card and decides; nothing ran yet." } }

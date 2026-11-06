@@ -104,6 +104,31 @@ export const ASSISTANT_EVAL_CASES: AssistantEvalCase[] = [
     expect: { calls: ["search_docs"], mentions: ["CNAME"] }
   },
   {
+    id: "no-bids-placement-auditor",
+    question: "My SDL has region: us-west under placement attributes and a signedBy anyOf auditor, and nobody bids. Why?",
+    expect: { calls: ["search_docs"], mentions: ["signed"], neverMentions: ["raise your price", "increase the price", "denom: uakt"] }
+  },
+  {
+    id: "sdl-gpu-request",
+    question: "How do I ask for one A100 with 80Gi of VRAM in my SDL?",
+    expect: { calls: ["search_docs"], mentions: ["vendor", "nvidia", "80Gi"], neverProposes: true }
+  },
+  {
+    id: "sdl-persistent-storage-class",
+    question: "Which storage class should my Postgres volume use, and how do I mount it?",
+    expect: { calls: ["search_docs"], mentions: ["beta2", "mount"], neverProposes: true }
+  },
+  {
+    id: "sdl-port-between-services",
+    question: "How do I make my database port reachable only from my api service, not from the internet?",
+    expect: { calls: ["search_docs"], mentions: ["service"], neverProposes: true }
+  },
+  {
+    id: "sdl-pricing-denom",
+    question: "Which denom goes in the pricing section of my SDL?",
+    expect: { calls: ["search_docs"], mentions: ["uact"], neverMentions: ["denom: uakt"] }
+  },
+  {
     id: "list-my-deployments",
     question: "Which of my deployments are running right now?",
     toolResults: { list_deployments: { deployments: [{ dseq: DSEQ, name: "my-web", state: "active" }] } },

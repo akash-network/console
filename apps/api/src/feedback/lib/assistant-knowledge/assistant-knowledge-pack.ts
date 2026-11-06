@@ -6,7 +6,7 @@ export interface KnowledgeDocument {
 }
 
 /** Bump on every content change, so a stored conversation can tell which pack answered it. */
-export const ASSISTANT_KNOWLEDGE_PACK_VERSION = "2026-11-04.1";
+export const ASSISTANT_KNOWLEDGE_PACK_VERSION = "2026-11-05.1";
 
 export const ASSISTANT_KNOWLEDGE_DOCUMENTS: KnowledgeDocument[] = [
   {
@@ -14,20 +14,8 @@ export const ASSISTANT_KNOWLEDGE_DOCUMENTS: KnowledgeDocument[] = [
     title: "SDL essentials",
     source: "Akash SDL reference; apps/api deployment schemas",
     markdown: `
-## Structure of an SDL
-An SDL (stack definition language) file is YAML with \`version\`, \`services\`, \`profiles\` and \`deployment\`. \`services\` declares containers (image, command, args, env, expose, params). \`profiles.compute\` declares resources per profile: \`cpu.units\`, \`memory.size\`, \`storage.size\`, and optionally \`gpu.units\` with \`attributes.vendor.nvidia\` models. \`profiles.placement\` declares where to run and the price per block. \`deployment\` maps each service to a placement profile and a replica \`count\`.
-
-## Images
-Use an explicit image tag such as \`nginx:1.25.3\`. A missing tag means \`latest\`, which makes deployments hard to reproduce and update.
-
 ## Exposing ports
 \`expose\` lists the container \`port\`, the external port \`as\` (defaults to \`port\`), and \`to\`. \`to: - global: true\` makes the port reachable from the internet. A global HTTP port exposed \`as: 80\` gets a provider hostname (the URI shown in Console) and can take custom domains in \`accept\`. Other global ports are mapped to a random public port on the provider. \`to: - service: <name>\` makes a port reachable only by another service of the same deployment.
-
-## Storage
-Storage without attributes is ephemeral: it is lost when the container restarts. Persistent storage is a named volume with \`attributes.persistent: true\` and a \`class\` (\`beta1\` HDD, \`beta2\` SSD, \`beta3\` NVMe), mounted through \`params.storage.<volume>.mount\` on the service. \`ram\` class volumes are memory backed and not persistent.
-
-## GPUs
-A GPU is requested with \`gpu.units\` and \`attributes.vendor.nvidia\` listing acceptable models, such as \`- model: a100\`. Listing several models, or none, lets more providers bid. The \`interface\` attribute only accepts \`pcie\` or \`sxm\`.
 
 ## What can change after a deployment is created
 These can change on a running deployment, without a redeploy: image, command, args, environment variables, secrets, private registry credentials, exposed port numbers and \`as\` ports, custom domains (\`accept\`), HTTP options, and a volume's mount path and read-only flag.
@@ -129,6 +117,9 @@ Providers bid only when they can meet every requirement of a group: CPU, memory,
 
 ## What to change
 Check how many providers could bid with the assistant or the deployment page. Then relax compute requirements, in this order: fewer GPUs (only if the workload can run on fewer), more acceptable GPU models, a different storage class, then less CPU, memory or storage. These need a redeploy. Pricing is your choice and Console does not change it for you.
+
+## Placement attributes and auditors
+Placement \`attributes\` and \`signedBy\` auditors are a common cause of no bids. With \`signedBy\`, a provider only bids when a listed auditor has signed every attribute the placement asks for, so an attribute the auditor never signed (a region, a host or a tier) excludes every provider. Console also only leases from providers audited by the Akash auditor \`akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63\`. Remove attributes the workload does not need, and keep the Akash auditor in \`signedBy\`.
 
 ## Free trial
 Some GPU models and GPU interconnect are not available on a free trial, and trial deployments are limited in CPU and memory. Adding funds removes those limits.
